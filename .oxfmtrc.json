@@ -5,5 +5,13 @@
   "semi": true,
   "trailingComma": "all",
   "tabWidth": 2,
-  "ignorePatterns": ["dist", "coverage", "pnpm-lock.yaml"]
+  "ignorePatterns": [
+    "dist",
+    "coverage",
+    "pnpm-lock.yaml",
+    ".agents",
+    ".claude",
+    "agent",
+    ".scratch"
+  ]
 }

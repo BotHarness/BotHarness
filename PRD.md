@@ -2,13 +2,14 @@
 
 | 项        | 内容                                                                                                                                                                                                                                                                                                                                         |
 | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v0.6（PoC）                                                                                                                                                                                                                                                                                                                                  |
+| 版本      | v0.7（PoC）                                                                                                                                                                                                                                                                                                                                  |
 | 日期      | 2026-09-17                                                                                                                                                                                                                                                                                                                                   |
 | 状态      | Draft                                                                                                                                                                                                                                                                                                                                        |
 | 仓库      | `~/project/DeepSeekBot`                                                                                                                                                                                                                                                                                                                      |
 | 形态      | DeepSeek Harness（DSH）插件                                                                                                                                                                                                                                                                                                                  |
 | 上游依赖  | DSH（开发者预览，**必须 pin 版本**）；基座候选见 5.6                                                                                                                                                                                                                                                                                         |
 | 许可      | MIT（待定）                                                                                                                                                                                                                                                                                                                                  |
+| v0.7 变更 | ① 回复位置默认策略 = **thread 优先**（可配置切 root）；② 上游共建**延后**：自研能力暂时保留在本仓库，PoC 稳定后再评估是否提交 PR；③ 安装 mattpocock/skills 技能包（37 个）并完成技能初始化（`AGENTS.md` + `docs/agents/*`，见附录 F）                                                                                                        |
 | v0.6 变更 | ① 明确 **front-matter**（Markdown 头部 `---` 包裹的 YAML 元数据）PoC **不引入**；② 目录树注入规则定稿：**上限 1000 个路径**，超出时优先列文件夹、折叠文件过多的文件夹并标注「（n 个文件）」；③ 工程初始化：复用 GEO-SNS 工具链（pnpm + TypeScript 7 + oxlint + oxfmt）+ vitest + tsdown（见附录 E）                                          |
 | v0.5 变更 | ① 记忆**写入时机 = 工具写**（模型显式调用记忆工具，PoC 不做自动蒸馏）；② turn 默认注入**记忆目录树**（清单 + 一句话摘要），正文按需检索；③ git 版本化确认方向（M4 引入，每次 Agent 修改一个 commit、带摘要与来源）；④ 明确**群内上传文件必须可被 Agent 读取/引用**（入站归档 + 路径注入）                                                    |
 | v0.4 变更 | ① 记忆改为**文件优先**（每 Bot 一个 folder，`MEMORY.md` + 主题文件，直接读写/检索文件）；② SQLite 降级为**可选的小型索引/注册表**，不再承担记忆与凭据；③ 凭据走 **DSH credentials 服务**；④ 新增「**Bot 即人**」核心理念与**客户跟进**北极星场景；⑤ 补充基座候选评估（dsh-im / dsh-lark-link / dsh-feishu / dsh-lark-bridge / dsh-lark-bot） |
@@ -63,9 +64,9 @@
 | **P0-3** | **DSH 插件化 + 快速配置** | 安装即用；支持已有 App ID/Secret 或扫码创建应用；密钥进 DSH credentials 服务         |
 | **P1-1** | **群感知与会话路由**      | Bot 被拉入多个群，各群会话隔离；Bot 知道当前 `chat_id` / 群名 / 是否 thread          |
 | **P1-2** | **Bot 级记忆（文件）**    | 在群 A 告诉 Bot 的事实，在群 B（同 Bot）能回忆起来；**工具写、目录树注入、按需检索** |
-| **P1-3** | **回复位置决策**          | Agent 可调用工具选择 root reply 或创建 thread（默认策略可配置，工具可覆盖）          |
+| **P1-3** | **回复位置决策**          | Agent 可调用工具选择 root reply 或创建 thread（**默认 thread 优先**，工具可覆盖）    |
 | **P2-1** | 代码执行沙箱              | 接入 Docker Sandboxes（`sbx`，clone mode + 网络白名单 + 凭据代理）或等价方案         |
-| **P2-2** | **上游共建（后续）**      | 新增能力以独立模块实现，PoC 稳定后向上游基座提交 PR                                  |
+| **P2-2** | **上游共建（延后）**      | 新增能力以独立模块实现；**暂时保留在本仓库**，PoC 稳定后再评估是否向上游提交 PR      |
 
 ### 2.2 非目标（PoC 明确不做）
 
@@ -109,7 +110,7 @@
 
 **验收标准**
 
-- AC-3.1 默认策略可配置（root / thread）。
+- AC-3.1 默认策略 = **thread 优先**，可配置切到 root。
 - AC-3.2 提供 DSH 工具（如 `feishu_reply_scope`），模型可调用它决定本次回复落到 root 还是新 thread。
 - AC-3.3 无论落到哪里，后续对话都在同一上下文续接。
 - AC-3.4 决策依据进入会话日志（可审计）。
@@ -174,7 +175,7 @@
 
 - AC-8.1 新增能力以独立模块/薄层实现，尽量少改上游代码。
 - AC-8.2 与上游保持 rebase 能力（记录基线与补丁清单）。
-- AC-8.3 完成至少一次上游 PR。
+- AC-8.3 （延后）PoC 稳定后评估是否向上游提交 PR；**当前保留在本仓库**。
 
 ---
 
@@ -331,7 +332,7 @@ DSH Host（单进程，VPS 或本地设备）
 | M3     | **Bot 记忆 MVP（文件）**：目录布局 + 目录树注入 + `memory_*` 工具（工具写）+ 原子写                        | 待开始    |
 | M4     | 记忆增强：`memory_search`（ripgrep）、记忆编辑器 UI、**git 版本化（每次修改一个 commit）**、来源标注、备份 | 待开始    |
 | M5     | 沙箱执行接入（`sbx`）                                                                                      | 待开始    |
-| M6     | 上游共建：整理补丁并向基座提交 PR                                                                          | 待开始    |
+| M6     | （延后）上游共建评估：整理补丁，PoC 稳定后决定是否提交 PR                                                  | 待开始    |
 
 ---
 
@@ -364,8 +365,8 @@ DSH Host（单进程，VPS 或本地设备）
 3. git 版本化：**方向已定，M4 引入**（每次 Agent 修改一个 commit，含摘要与来源）；待定细节：repo 范围（每 Bot 一个 repo）与自动 commit 的触发时机。
 4. ~~目录树注入的规模阈值~~ ✅ 已定：**上限 1000 个路径**，超出时优先列文件夹、折叠文件过多的文件夹并标注「（n 个文件）」（M3 实现）。
 5. 基座最终选择：dsh-im（多 Bot）vs dsh-lark-link / dsh-feishu（Lark + 可靠性）——是否值得「dsh-im 的壳 + link 的可靠性模式」的组合？（M1 决策）
-6. 回复位置决策的默认策略：thread 优先还是 root 优先？（M2 决策）
-7. 上游 PR 边界：哪些能力希望被基座接受（回复位置工具？记忆库？），哪些保留在本仓库？（M6 决策）
+6. ~~回复位置决策的默认策略~~ ✅ 已定：**thread 优先**（root 需显式覆盖或切换默认策略）。
+7. ~~上游 PR 边界~~ ✅ 已定：**暂时保留在本仓库**，自研能力先不向上游提交；PoC 稳定后再评估。
 
 ---
 
@@ -421,3 +422,14 @@ dsh --profile <profile>            # 启动；浏览器打开 dsh web 进入「�
 | 不使用      | Vite / React / Cloudflare 工具链                                                                            | 插件在 Node 侧运行；设置 UI 走 DSH 插件契约，无需独立前端 |
 
 常用命令：`pnpm lint` · `pnpm format` · `pnpm format:check` · `pnpm typecheck` · `pnpm test` · `pnpm build`。
+
+## 附录 F：Agent 技能包（v0.7 安装）
+
+- 来源：[mattpocock/skills](https://github.com/mattpocock/skills)（37 个技能，MIT）——安装于 `.agents/skills/`，`.claude/skills/` 为符号链接；`skills-lock.json` 锁定来源与哈希。
+- 更新：`npx skills@latest update`。**勿手动格式化这些第三方文件**（oxfmt/oxlint 已忽略 `.agents`、`.claude`、`agent`）。
+- 技能初始化（对应 `setup-matt-pocock-skills`）：
+  - Issue tracker：**本地 Markdown**（`.scratch/<feature>/`）——见 `docs/agents/issue-tracker.md`
+  - Triage 标签：默认五角色（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）——见 `docs/agents/triage-labels.md`
+  - 领域文档：单 context（根 `CONTEXT.md` + `docs/adr/`，按需延迟创建）——见 `docs/agents/domain.md`
+  - `AGENTS.md` 已加入 `## Agent skills` 区块
+- 常用技能：`/grill-with-docs`（对齐 + 领域建模）、`/to-spec`、`/to-tickets`、`/tdd`、`/diagnosing-bugs`、`/code-review`、`/research`、`/handoff`、`/wizard`。
