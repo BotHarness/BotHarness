@@ -1,12 +1,49 @@
-/**
- * DeepSeekBot — DSH 插件入口（脚手架占位）。
- *
- * M1 目标：在此装配 Cordis 插件：Bot 注册表 / 飞书渠道 / 会话路由 / 文件记忆。
- * 相关设计见 PRD.md（5.2 关键设计决策、5.5 记忆设计）。
- */
-export const PLUGIN_NAME = 'deepseekbot';
-export const PLUGIN_VERSION = '0.0.0';
+import type { Context } from '@deepseek-ai/cordis';
+import type {} from '@deepseek-ai/dsh-settings';
+import Schema from '@deepseek-ai/schemastery';
 
-export function describe(): string {
-  return `${PLUGIN_NAME}@${PLUGIN_VERSION} (scaffold)`;
+export const name = 'deepseekbot';
+
+export const inject = ['settings'];
+
+export const SETTINGS_NAMESPACE = 'deepseekbot';
+
+export interface DeepSeekBotConfig {
+  enabled: boolean;
+  dshHome: string;
 }
+
+export const DEFAULT_CONFIG: DeepSeekBotConfig = {
+  enabled: true,
+  dshHome: '',
+};
+
+export const Config = Schema.object({
+  enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 DeepSeekBot 插件'),
+  dshHome: Schema.string()
+    .default(DEFAULT_CONFIG.dshHome)
+    .description('DSH_HOME 覆盖（留空则读取环境变量）'),
+});
+
+export function apply(ctx: Context): void {
+  ctx.settings.register(SETTINGS_NAMESPACE, Config, { base: DEFAULT_CONFIG });
+}
+
+export {
+  canonicalizeWorkspacePath,
+  createImStoreReader,
+  parseImBotsConfig,
+  parseWorkspacesDocument,
+  resolveBotFromStores,
+  resolveDshHome,
+} from './im/config-store.js';
+export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
+export { emptyWorkspacesDocument, resolveBotIdentity, slugForBot } from './bots/identity.js';
+export type {
+  BotDomain,
+  BotIdentity,
+  BotResolveResult,
+  ImBotRecord,
+  ResolveBotIdentityInput,
+  WorkspacesDocument,
+} from './bots/identity.js';
