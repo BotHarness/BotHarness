@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+coverage/
+*.tsbuildinfo
+
+# env / secrets
+.env
+.env.*
+!.env.example
+.dev.vars
+*.pem
+*.key
+
+# local state (sessions, memory, caches)
+.cache/
+tmp/
+*.sqlite
+*.sqlite-journal
+*.sqlite-wal
+*.db
+
+# logs
+*.log
+npm-debug.log*
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/
