@@ -7,15 +7,19 @@ A DeepSeek Harness plugin where one Host runs several Feishu/Lark Bots, each wit
 ### Bots and identity
 
 **Bot**:
-A Feishu/Lark identity operated by the Host, with its own persona, workspace, model, and memory directory.
+A Feishu/Lark identity operated by the Host, with its own persona, workspace, model, and memory.
 _Avoid_: agent, assistant, robot, app, account
+
+**Workspace**:
+The on-disk home of a Bot: its working area for files and code execution, and the parent of its memory.
+_Avoid_: data directory, project, sandbox
 
 **Bot as a Person**:
 The principle that a Bot's identity is continuous across chats and sessions; its memory files, not any session history, make it the same Bot.
 _Avoid_: persona (that is only its voice)
 
 **Persona**:
-The role definition — character, voice, and standing instructions — that shapes how a Bot replies.
+The role definition — character, voice, and standing instructions — that shapes how a Bot replies. Human-owned: the Agent may not rewrite it.
 _Avoid_: system prompt, character sheet, profile
 
 **Session**:
@@ -32,6 +36,10 @@ _Avoid_: whitelist, permissions, ACL
 A Feishu/Lark conversation — group or p2p — that a Bot takes part in, identified by `chat_id`.
 _Avoid_: room, channel, group (when p2p is meant too)
 
+**DM**:
+A p2p Chat between a Bot and one user.
+_Avoid_: private chat, PM
+
 **Thread**:
 A sub-conversation opened by replying to a message inside a Chat.
 _Avoid_: topic, sub-chat, channel
@@ -43,7 +51,7 @@ _Avoid_: reply mode, answer position, visibility
 ### Memory
 
 **Memory**:
-A Bot's persistent knowledge: a directory of human-readable Markdown files shared across every chat, thread, and session.
+A Bot's persistent knowledge: human-readable Markdown files under its workspace, shared across every chat, thread, and session.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **MEMORY.md**:
@@ -71,8 +79,12 @@ The rule that Memory changes only when the model explicitly calls a Memory tool;
 _Avoid_: auto-summary, auto-extract, distillation
 
 **Attachment**:
-A file or image uploaded into a Chat, archived into the Bot's workspace and referenced by path from context and Memory.
+A file or image uploaded into a Chat, archived into the Bot's workspace at a stable path and referenced from context and Memory.
 _Avoid_: upload, media, blob
+
+**Visibility**:
+Whether a memory entry may surface outside the chat that produced it: `shared` (any chat) or `private` (its author's DMs only).
+_Avoid_: scope, ACL, secret
 
 ### Host and setup
 
