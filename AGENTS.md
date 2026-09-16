@@ -33,7 +33,7 @@ In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create syml
 
 ### Issue tracker
 
-Issues and specs live as local markdown under `.scratch/<feature-slug>/`. See `docs/agents/issue-tracker.md`.
+Issues and specs live as GitHub issues on `Teamemos/DeepSeekBot` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
@@ -41,4 +41,4 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 ### Domain docs
 
-Single-context layout: root `CONTEXT.md` + `docs/adr/` (created lazily by the domain skills). See `docs/agents/domain.md`.
+Single-context layout: root `CONTEXT.md` + `docs/adr/` (seeded from PRD §5.2; extended lazily by the domain skills). See `docs/agents/domain.md`.
