@@ -11,6 +11,15 @@ const CONFIG = join(DIAGRAMS, 'mermaid.config.json');
 const PUPPETEER_CONFIG = join(DIAGRAMS, 'puppeteer.json');
 const MMDC = join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'mmdc.cmd' : 'mmdc');
 
+// Two parallel source sets: Chinese (`diagrams/*.mmd`) and English
+// (`diagrams/en/*.mmd`). Both land under `rendered/` — the English pair under
+// `rendered/en/` — so `sync-docs.mjs` can copy them to `/diagrams` and
+// `/diagrams/en` in the docs site. Same config (deterministic IDs) for both.
+const SETS = [
+  { source: DIAGRAMS, output: RENDERED, prefix: '' },
+  { source: join(DIAGRAMS, 'en'), output: join(RENDERED, 'en'), prefix: 'en/' },
+];
+
 // `-t default` for light, `-t dark` for the `.dark.svg` pair. `-b transparent`
 // keeps the page background (and its theme) in charge.
 const VARIANTS = [
@@ -64,23 +73,31 @@ export function renderDiagrams() {
     throw new Error(`mmdc not found at ${MMDC} — run "corepack pnpm install" first`);
   }
 
-  const sources = readdirSync(DIAGRAMS)
-    .filter((name) => name.endsWith('.mmd'))
-    .sort();
-  mkdirSync(RENDERED, { recursive: true });
+  let total = 0;
+  for (const { source, output, prefix } of SETS) {
+    if (!existsSync(source)) {
+      process.stderr.write(`diagram: ${relative(ROOT, source)} is missing — skipped\n`);
+      continue;
+    }
+    const sources = readdirSync(source)
+      .filter((name) => name.endsWith('.mmd'))
+      .sort();
+    mkdirSync(output, { recursive: true });
 
-  for (const source of sources) {
-    const base = source.replace(/\.mmd$/, '');
-    for (const { suffix, theme } of VARIANTS) {
-      const output = join(RENDERED, `${base}${suffix}.svg`);
-      renderDiagram(join(DIAGRAMS, source), output, theme);
-      process.stdout.write(
-        `diagram: ${source} (${theme}) -> ${relative(ROOT, output)} (${statSync(output).size} bytes)\n`,
-      );
+    for (const file of sources) {
+      const base = file.replace(/\.mmd$/, '');
+      for (const { suffix, theme } of VARIANTS) {
+        const target = join(output, `${base}${suffix}.svg`);
+        renderDiagram(join(source, file), target, theme);
+        process.stdout.write(
+          `diagram: ${prefix}${file} (${theme}) -> ${relative(ROOT, target)} (${statSync(target).size} bytes)\n`,
+        );
+      }
+      total += VARIANTS.length;
     }
   }
 
-  process.stdout.write(`diagram render complete: ${sources.length * VARIANTS.length} SVGs\n`);
+  process.stdout.write(`diagram render complete: ${total} SVGs\n`);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

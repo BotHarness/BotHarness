@@ -1,0 +1,14 @@
+sequenceDiagram
+  participant S as DSH Session (cwd = workspace)
+  participant R as im/config-store.ts
+  participant F as dsh-im disk (read-only)
+  participant I as im/identity.ts
+  participant G as registry (M5)
+
+  S->>R: read()
+  R->>F: integrations/dsh-feishu/config.json + workspaces.json
+  F-->>R: bots[] · workspaces/aliases/conversationWorkspaces
+  S->>I: resolveBotIdentity(workspace, conversationKey?)
+  I-->>S: ok / ambiguous / not-found → BotIdentity{ id, displayName }
+  S->>G: write binding: BotIdentity → registry slug (M5)
+  Note over R,F: base upgrades need re-verification — never fork or patch

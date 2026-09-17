@@ -2,19 +2,23 @@
 interface Props {
   name: string;
   caption?: string;
+  lang?: "zh" | "en";
 }
 
-const { name, caption } = Astro.props;
+const { name, caption, lang = "zh" } = Astro.props;
 
 const label = caption ?? name;
 const base = import.meta.env.BASE_URL;
-const lightSrc = `${base}diagrams/${name}.svg`;
-const darkSrc = `${base}diagrams/${name}.dark.svg`;
-const sourceUrl = `https://github.com/BotHarness/BotHarness/blob/main/docs/architecture/diagrams/${name}.mmd`;
+const dir = lang === "en" ? "diagrams/en" : "diagrams";
+const lightSrc = `${base}${dir}/${name}.svg`;
+const darkSrc = `${base}${dir}/${name}.dark.svg`;
+const sourcePath = lang === "en" ? `en/${name}.mmd` : `${name}.mmd`;
+const sourceUrl = `https://github.com/BotHarness/BotHarness/blob/main/docs/architecture/diagrams/${sourcePath}`;
+const zoomLabel = lang === "en" ? `Zoom diagram: ${label}` : `放大图示：${label}`;
 ---
 
 <figure class="nb-diagram" data-caption={label}>
-  <button class="nb-diagram-frame" type="button" aria-label={`放大图示：${label}`}>
+  <button class="nb-diagram-frame" type="button" aria-label={zoomLabel}>
     <img
       class="nb-diagram-light"
       src={lightSrc}

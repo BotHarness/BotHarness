@@ -1,0 +1,12 @@
+flowchart TD
+  A["registry.create({ slug, displayName, … })"] --> B{"valid slug?<br/>kebab-case ≤64"}
+  B -- no --> E1["reason: invalid-slug"]
+  B -- yes --> C{"existing valid bot.json?"}
+  C -- yes --> E2["reason: duplicate"]
+  C -- no --> D{"memoryDir is absolute?"}
+  D -- no --> E3["reason: invalid-memory-dir"]
+  D -- yes --> F["assemble record<br/>slug/displayName/avatar/model/preset/workspaces/createdAt"]
+  F --> G["atomic write: bot.json.tmp-<uuid> → rename"]
+  G --> H["mkdir memory/ (default or custom)"]
+  H --> I["return ok: record"]
+  G -.->|"rebuild if corrupt: keep existing memory/"| H
