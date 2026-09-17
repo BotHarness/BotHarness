@@ -13,7 +13,7 @@ function createStubContext(): StubContext {
 
 describe('plugin entry', () => {
   it('declares its name and injected services', () => {
-    expect(name).toBe('deepseekbot');
+    expect(name).toBe('botharness-core');
     expect(inject).toEqual(['settings']);
   });
 

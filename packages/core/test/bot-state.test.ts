@@ -1,0 +1,94 @@
+import { describe, expect, it } from 'vitest';
+
+import { aggregateSessionStates, createBotStateTracker, type BotStateEvent } from '../src/index.js';
+
+describe('aggregateSessionStates', () => {
+  it('returns idle for no sessions', () => {
+    expect(aggregateSessionStates({})).toBe('idle');
+  });
+
+  it('applies the precedence blocked > waiting > working > thinking > idle', () => {
+    expect(aggregateSessionStates({ a: 'thinking' })).toBe('thinking');
+    expect(aggregateSessionStates({ a: 'thinking', b: 'working' })).toBe('working');
+    expect(aggregateSessionStates({ a: 'working', b: 'waiting' })).toBe('waiting');
+    expect(aggregateSessionStates({ a: 'waiting', b: 'blocked' })).toBe('blocked');
+    expect(aggregateSessionStates({ a: 'blocked', b: 'working', c: 'waiting' })).toBe('blocked');
+  });
+
+  it('ignores done and idle sessions', () => {
+    expect(aggregateSessionStates({ a: 'done', b: 'idle' })).toBe('idle');
+    expect(aggregateSessionStates({ a: 'done', b: 'working' })).toBe('working');
+  });
+});
+
+describe('createBotStateTracker', () => {
+  it('reports snapshots with session detail', () => {
+    const tracker = createBotStateTracker();
+    tracker.setSessionState('research', 's1', 'working');
+    tracker.setSessionState('research', 's2', 'waiting');
+
+    expect(tracker.snapshot('research')).toEqual({
+      slug: 'research',
+      state: 'waiting',
+      sessions: { s1: 'working', s2: 'waiting' },
+    });
+    expect(tracker.snapshot('unknown')).toEqual({ slug: 'unknown', state: 'idle', sessions: {} });
+  });
+
+  it('emits aggregate-changed only when the aggregate changes', () => {
+    const tracker = createBotStateTracker();
+    const events: BotStateEvent[] = [];
+    tracker.on((event) => events.push(event));
+
+    tracker.setSessionState('research', 's1', 'thinking');
+    tracker.setSessionState('research', 's2', 'thinking');
+    tracker.setSessionState('research', 's2', 'working');
+
+    expect(events.map((event) => event.type)).toEqual(['aggregate-changed', 'aggregate-changed']);
+    expect(events[0]).toMatchObject({ state: 'thinking', previous: 'idle' });
+    expect(events[1]).toMatchObject({ state: 'working', previous: 'thinking' });
+  });
+
+  it('emits session-done with the session id', () => {
+    const tracker = createBotStateTracker();
+    const events: BotStateEvent[] = [];
+    tracker.on((event) => events.push(event));
+
+    tracker.setSessionState('research', 's1', 'working');
+    tracker.setSessionState('research', 's1', 'done');
+
+    const done = events.find((event) => event.type === 'session-done');
+    expect(done).toMatchObject({ type: 'session-done', slug: 'research', sessionId: 's1' });
+  });
+
+  it('clears sessions and recomputes the aggregate', () => {
+    const tracker = createBotStateTracker();
+    const events: BotStateEvent[] = [];
+    tracker.setSessionState('research', 's1', 'working');
+    tracker.setSessionState('research', 's2', 'blocked');
+    tracker.on((event) => events.push(event));
+
+    tracker.clearSession('research', 's2');
+
+    expect(tracker.snapshot('research').state).toBe('working');
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'aggregate-changed',
+      state: 'working',
+      previous: 'blocked',
+    });
+  });
+
+  it('unsubscribes listeners', () => {
+    const tracker = createBotStateTracker();
+    let count = 0;
+    const off = tracker.on(() => {
+      count += 1;
+    });
+    tracker.setSessionState('research', 's1', 'thinking');
+    off();
+    tracker.setSessionState('research', 's2', 'working');
+
+    expect(count).toBe(1);
+  });
+});
