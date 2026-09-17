@@ -6,9 +6,10 @@ Project-specific guidance for AI coding agents.
 
 BotHarness — a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) plugin layer that gives agents a persistent identity: **PersonaBots** with a persona and file-based memory that spans sessions, chats, and workspaces. **DeepSeekBot** is its first app (sidebar roster, delegation, IM adapters).
 
+- DSH official docs (source of truth when DSH behavior/APIs are in question): <https://deepseek-harness.github.io/deepseek-harness/> — plugin authoring, packaging and install under `/develop/basic/` (`/publish` documents `dsh plugin`, bundle/profile manifests and layer order); CLI behavior reference upstream at `apps/cli/reference/README.md`.
 - Specs: `docs/botharness.md` (platform) and `PRD.md` (DeepSeekBot app); decisions live in `docs/adr/`.
 - IM adapter base: [dsh-im](https://github.com/xmanrui/dsh-im) (multi-bot + settings UI). Reliability patterns from [dsh-lark-link](https://github.com/amlyczz/dsh-lark-link); group/thread routing from [dsh-lark-bridge](https://github.com/imetn/dsh-lark-bridge).
-- Current phase: v1.1 specs (ADR 0019–0020, SoulSnapshot / Soul registry); M1 merged (PR #13); M2 memory MVP next (#9); M6 SoulSnapshot (#17) / M7 registry (#18) planned.
+- Current phase: v1.4 spec (ADR 0021 memory visibility); M1 merged (PR #13); M2 memory MVP merged (PR #22); M3 roster (#10) → M3.5 install gate (#24) → M4 demo (#11); M6 SoulSnapshot (#17) / M7 registry (#18) planned.
 
 ## Commands
 
