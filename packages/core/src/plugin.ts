@@ -2,7 +2,6 @@ import { join } from 'node:path';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-agent';
-import type {} from '@deepseek-ai/dsh-settings';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import Schema from '@deepseek-ai/schemastery';
@@ -16,9 +15,7 @@ import { createBotStateTracker, type BotStateTracker } from './state/bot-state.j
 
 export const name = 'botharness-core';
 
-export const inject = ['settings', 'tools', 'systemPrompt'];
-
-export const SETTINGS_NAMESPACE = 'botharness';
+export const inject = ['tools', 'systemPrompt'];
 
 export const PERSONA_SECTION_ORDER = 10400;
 export const MEMORY_TREE_SECTION_ORDER = 10500;
@@ -53,8 +50,8 @@ export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
   };
 }
 
-export function apply(ctx: Context): void {
-  ctx.settings.register(SETTINGS_NAMESPACE, Config, { base: DEFAULT_CONFIG });
+export function apply(ctx: Context, config: BotHarnessConfig): void {
+  if (!config.enabled) return;
   const core = createCore();
   ctx.provide('botharness', core);
 

@@ -2,12 +2,12 @@
 
 | 项       | 内容                                                     |
 | -------- | -------------------------------------------------------- |
-| 版本     | v1.4                                                     |
+| 版本     | v1.5                                                     |
 | 日期     | 2026-09-18                                               |
 | 状态     | Draft                                                    |
 | 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015） |
 | 首个应用 | **DeepSeekBot**（见 `PRD.md`）                           |
-| 决策记录 | `docs/adr/`（v1.4 无新增；最近 0021）                    |
+| 决策记录 | `docs/adr/`（v1.5 新增 0022 配置/清单、0023 客户端桥）   |
 
 ## 1. 定位与缺口
 
@@ -37,7 +37,7 @@
 - **Session 级**（真实进度）：`thinking` / `working` / `waiting` / `blocked` / `done`（无活动即 `idle`）。
 - **PersonaBot 级**（聚合）：precedence `blocked > waiting > working > thinking > idle`；`done` 是 Session 事件，聚合态随即回 `idle`。
 - 语义：`waiting` = 等审批/等人；`blocked` = 失败或缺条件。
-- 事件：状态变化 + activity（工具/步骤摘要）以 PersonaBot id 发出，供 roster 与 renderer 订阅。Live2D 后置，消费更原始的模型/工具/响应信号（见 §8 开放项）。
+- 事件：状态变化 + activity（工具/步骤摘要）以 PersonaBot id 发出，供 **Host 内**消费者（IM 适配器、其他插件）订阅；浏览器 roster 不直接订阅 `states.on`，经客户端桥读模型 + 刷新/轮询取状态（ADR-0023，`docs/client-bridge.md`）。Live2D 后置，消费更原始的模型/工具/响应信号（见 §8 开放项）。
 
 ## 4. 记忆（文件优先）
 
@@ -89,8 +89,9 @@
 | `@botharness/im`     | IM 适配器（后置；首个为 Feishu/Lark，复用 dsh-im）                         |
 | `deepseekbot`        | bundle + 应用：组装以上并发布为可用插件                                    |
 
-- 扩展面：其他插件可读 registry、订阅状态事件、注册 renderer；不提供路由与回复位置的覆盖（沿用 ADR-0011，路由类需求走上游）。
-- 客户端事实：DSH 客户端组件是 React；shell 只共享 `react`/`react-dom` 等，第三方依赖必须打进 bundle（blobatar 走这条）。
+- 扩展面：其他 Host 插件可读 registry、订阅状态事件、注册 renderer；不提供路由与回复位置的覆盖（沿用 ADR-0011，路由类需求走上游）。
+- 客户端事实：DSH 客户端组件是 React，且浏览器半侧是**独立 Cordis 应用**——不能 `inject` host 服务；客户端经**客户端桥（读模型 RPC）**读写 PersonaBot（ADR-0023，规格 `docs/client-bridge.md`）。shell 只共享 `react`/`react-dom` 等基线，第三方依赖必须打进 lazily-loaded bundle（blobatar 走这条）。
+- 插件配置走 DSH 规范通道：导出 `Config` + `apply(ctx, config)`，`enabled` 是组合层开关；settings 卡片推迟到 M3+ 以 `installSection` + 动态注入回归（ADR-0022）。
 
 ## 7. 里程碑
 

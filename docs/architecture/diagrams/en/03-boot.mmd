@@ -3,16 +3,20 @@ sequenceDiagram
   participant P as @botharness/core · plugin.ts
   participant M as memory/service.ts
   participant T as memory/tools.ts
-  participant O as other plugins (client / im / third-party)
+  participant O as Host plugins (im / third-party)
+  participant C as Web Client (browser)
 
-  D->>P: apply(ctx)
-  P->>D: settings.register('botharness')
+  D->>P: apply(ctx, config)
   P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>D: provide('botharness', { rootDir, registry, states, memory }) (Host-internal)
   P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* tools
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.storeForAgent
+  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) (Host-internal)
+  C->>D: connection.rpc.call('/api', 'botharness/<method>') (from M3)
+  D-->>C: { ok, value | error }
+  Note over P: M3: register read-model endpoints via connection.rpc / fetch (ADR-0023)
+  Note over C: read model + refresh/polling<br/>no Host service injection<br/>no direct states.on

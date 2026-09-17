@@ -3,16 +3,20 @@ sequenceDiagram
   participant P as @botharness/core · plugin.ts
   participant M as memory/service.ts
   participant T as memory/tools.ts
-  participant O as 其他插件（client / im / 第三方）
+  participant O as Host 插件（im / 第三方）
+  participant C as Web Client（浏览器）
 
-  D->>P: apply(ctx)
-  P->>D: settings.register('botharness')
+  D->>P: apply(ctx, config)
   P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>D: provide('botharness', { rootDir, registry, states, memory })（仅 Host 内）
   P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* 工具
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.storeForAgent 取该 Session 的记忆
+  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...)（仅 Host 内）
+  C->>D: connection.rpc.call('/api', 'botharness/<method>')（M3 起）
+  D-->>C: { ok, value | error }
+  Note over P: M3：经 connection.rpc / fetch 注册读模型端点（ADR-0023）
+  Note over C: 读模型 + 刷新/轮询；不 inject Host 服务，<br/>不直接订阅 states.on

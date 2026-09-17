@@ -11,7 +11,7 @@ flowchart TB
   Bundle --> ImPkg
 
   subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply / settings / provide"]
+    Plugin["plugin.ts<br/>apply(config) / provide"]
     Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录 · findByWorkspace"]
     Slug["bots/slug.ts"]
     Record["bots/persona-bot.ts"]
