@@ -5,6 +5,13 @@ import nimbus, {
 } from "@cloudflare/nimbus-docs";
 import { tableScroll } from "@cloudflare/nimbus-docs/markdown";
 
+import { syncDocs } from "../../scripts/sync-docs.mjs";
+
+// Generate docs content from the repo sources before Astro scans it. Doing
+// this here (instead of a shell pre-step) keeps `astro dev` a single
+// framework command, so portless can inject its assigned --port.
+syncDocs();
+
 const nimbusConfig = defineNimbusConfig({
   site: "https://botharness.ai",
   title: "BotHarness",

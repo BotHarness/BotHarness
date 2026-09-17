@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = join(ROOT, 'apps', 'docs', 'src', 'content');
@@ -169,12 +169,18 @@ function syncChangelog() {
   }
 }
 
-for (const stale of ['docs/spec', 'docs/adr', 'changelog']) {
-  rmSync(join(CONTENT, stale), { recursive: true, force: true });
-}
-rmSync(join(CONTENT, 'docs', 'architecture.mdx'), { force: true });
+export function syncDocs() {
+  for (const stale of ['docs/spec', 'docs/adr', 'changelog']) {
+    rmSync(join(CONTENT, stale), { recursive: true, force: true });
+  }
+  rmSync(join(CONTENT, 'docs', 'architecture.mdx'), { force: true });
 
-syncPages();
-syncAdr();
-syncChangelog();
-process.stdout.write('docs sync complete\n');
+  syncPages();
+  syncAdr();
+  syncChangelog();
+  process.stdout.write('docs sync complete\n');
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  syncDocs();
+}

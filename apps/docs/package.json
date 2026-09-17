@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "sync": "node ../../scripts/sync-docs.mjs",
-    "dev": "pnpm sync && astro dev",
-    "build": "pnpm sync && astro build",
+    "dev": "astro dev",
+    "build": "astro build",
     "preview": "astro preview",
     "typecheck": "astro check",
     "lint:docs": "nimbus-docs lint",

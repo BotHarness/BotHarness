@@ -13,6 +13,7 @@
     ".claude",
     "agent",
     "apps/docs",
+    "reference",
     ".scratch"
   ]
 }

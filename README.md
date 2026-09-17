@@ -36,6 +36,13 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
 pnpm build
 ```
 
+本地文档预览（WSL 友好，稳定域名）：
+
+```bash
+pnpm dev           # 经 portless → https://docs.botharness.localhost（首次运行会生成本地 CA 并请求系统信任）
+pnpm docs:dev      # 不想要 portless 时的直连方式 → http://localhost:4321
+```
+
 仓库结构（monorepo）：
 
 ```text
