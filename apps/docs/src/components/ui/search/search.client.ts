@@ -1,5 +1,6 @@
 import { mount } from "@cloudflare/nimbus-docs/client";
 import type { SearchProvider, SearchResult } from "@cloudflare/nimbus-docs/types";
+import { normalizeLocale, searchStrings, type Locale } from "@/lib/language";
 import { provider } from "./providers/pagefind";
 
 export interface SearchConfig {
@@ -8,6 +9,8 @@ export interface SearchConfig {
   emptyState: HTMLElement;
   provider: SearchProvider;
   onNavigate?: () => void;
+  /** Current page locale; falls back to `<html lang>` when omitted. */
+  locale?: Locale;
 }
 
 export interface SearchInstance {
@@ -17,6 +20,8 @@ export interface SearchInstance {
 
 export function initSearch(config: SearchConfig): SearchInstance {
   const { input, resultsContainer, emptyState, provider, onNavigate } = config;
+  const locale = config.locale ?? normalizeLocale(document.documentElement.lang);
+  const t = searchStrings(locale);
 
   let initialized = false;
   let activeIndex = -1;
@@ -103,7 +108,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
       initialized = true;
       return true;
     } catch {
-      emptyState.textContent = "Search is available after a production build.";
+      emptyState.textContent = t.productionBuild;
       return false;
     }
   }
@@ -114,7 +119,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
     const signal = activeController.signal;
 
     emptyState.style.display = "";
-    emptyState.textContent = "Searching…";
+    emptyState.textContent = t.searching;
     clearResults();
 
     if (!(await ensureInitialized()) || signal.aborted) return;
@@ -128,7 +133,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
 
       if (results.length === 0) {
         emptyState.style.display = "";
-        emptyState.textContent = "No results found.";
+        emptyState.textContent = t.noResults;
         return;
       }
 
@@ -139,7 +144,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
       if (signal.aborted) return;
       clearResults();
       emptyState.style.display = "";
-      emptyState.textContent = "Search is temporarily unavailable.";
+      emptyState.textContent = t.unavailable;
     }
   }
 
@@ -151,7 +156,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
         activeController?.abort();
         clearResults();
         emptyState.style.display = "";
-        emptyState.textContent = "Type to search…";
+        emptyState.textContent = t.initial;
         return;
       }
       void runSearch(query);
@@ -190,7 +195,7 @@ export function initSearch(config: SearchConfig): SearchInstance {
       activeIndex = -1;
       clearResults();
       emptyState.style.display = "";
-      emptyState.textContent = "Type to search…";
+      emptyState.textContent = t.initial;
       await ensureInitialized();
     },
     destroy() {
@@ -262,6 +267,8 @@ mount("[data-search-dialog]", (root) => {
     emptyState,
     provider,
     onNavigate: () => dialog.close(),
+    // `data-locale` is rendered per page; `<html lang>` is the fallback.
+    locale: normalizeLocale(dialog.dataset.locale ?? document.documentElement.lang),
   });
 
   dialog.__openSearchDialog = () => {

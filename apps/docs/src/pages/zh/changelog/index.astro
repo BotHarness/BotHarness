@@ -1,16 +1,13 @@
 ---
 /**
- * `/en/changelog` — English mirror of the changelog feed. Entries are
- * Chinese-only, so the page shows the Chinese content with the untranslated
- * notice, and keeps entry links inside `/en`.
+ * `/zh/changelog` — Chinese changelog feed. Entries are Chinese, so this is
+ * the translated tree: no notice banner, links kept inside `/zh`.
  */
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { getCollection } from "astro:content";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import ChangelogFeed from "@/components/changelog/ChangelogFeed.astro";
 import ChangelogFilter from "@/components/changelog/ChangelogFilter.astro";
-import { Banner } from "@/components/ui/banner";
-import { UNTRANSLATED_NOTICE } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 export const prerender = true;
@@ -21,7 +18,7 @@ const entries = await getCollection("changelog", (e) => !e.data.draft);
 const tags = [...new Set(entries.flatMap((e) => e.data.tags))].sort();
 
 const title = "Changelog";
-const description = "New features, improvements, and fixes.";
+const description = "新功能、改进与修复。";
 ---
 
 <ChangelogLayout
@@ -34,13 +31,11 @@ const description = "New features, improvements, and fixes.";
         rel: "alternate",
         type: "application/rss+xml",
         title: `${title} RSS`,
-        href: withBase("/en/changelog/rss.xml", import.meta.env.BASE_URL),
+        href: withBase("/zh/changelog/rss.xml", import.meta.env.BASE_URL),
       },
     },
   ]}
 >
-  <Banner variant="note" content={UNTRANSLATED_NOTICE} />
-
   <header class="mb-14">
     <div class="flex items-center justify-between gap-4">
       <h1
@@ -50,7 +45,7 @@ const description = "New features, improvements, and fixes.";
         {title}
       </h1>
       <a
-        href={withBase("/en/changelog/rss.xml", import.meta.env.BASE_URL)}
+        href={withBase("/zh/changelog/rss.xml", import.meta.env.BASE_URL)}
         class="inline-flex shrink-0 items-center gap-1.5 rounded-[0.625rem] border border-border py-1.5 pr-3 pl-2.5 text-[0.8125rem] font-medium text-muted-foreground no-underline transition-[color,border-color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:border-border-strong hover:text-foreground active:scale-[0.97] motion-reduce:active:scale-100"
       >
         <Icon name="ph:rss" class="h-4 w-4" />
@@ -66,7 +61,7 @@ const description = "New features, improvements, and fixes.";
   <ChangelogFeed
     entries={entries}
     pageSize={PAGE_SIZE}
-    loadMoreHref="/en/changelog/page/2"
-    entryHrefBase="/en/changelog"
+    loadMoreHref="/zh/changelog/page/2"
+    entryHrefBase="/zh/changelog"
   />
 </ChangelogLayout>

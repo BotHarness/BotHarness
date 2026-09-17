@@ -1,16 +1,17 @@
 ---
-// Bare section path → its overview page. Static output has no server redirects,
-// so this is a meta-refresh page with a canonical + link fallback.
+// Bare Chinese section path → its architecture page. Static output has no
+// server redirects, so this is a meta-refresh page with a canonical + link
+// fallback.
 import { config } from "virtual:nimbus/config";
 
 export const prerender = true;
 
-const target = "/docs/overview";
+const target = "/zh/dev/architecture";
 const canonical = new URL(target, config.site).href;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hans">
   <head>
     <meta charset="utf-8" />
     <title>Redirecting…</title>

@@ -1,12 +1,12 @@
 ---
 /**
- * `/en/**` — English docs collection (`docs-en`), mounted at `/en` through
+ * `/zh/**` — Chinese docs collection (`docs-zh`), mounted at `/zh` through
  * Nimbus's `versions.others` mechanism. Mirrors `src/pages/[...slug].astro`.
  *
- * Pages flagged `untranslated: true` (the generated `docs-en/dev` mirror of
- * the Chinese dev docs) render the Chinese source plus a notice banner.
+ * Pages flagged `untranslated: true` (English-authored pages with no Chinese
+ * counterpart) render the English source plus a Chinese notice banner.
  * `suppressVersionAlternates` keeps Nimbus from canonicalizing a language
- * variant to its Chinese sibling — `en` is not an older docs version.
+ * variant to its English sibling — `zh` is not an older docs version.
  */
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import {
@@ -21,29 +21,41 @@ import {
   getTOC,
   entryRouteKey,
   stripBase,
+  withBase,
 } from "@cloudflare/nimbus-docs/runtime";
 import { components } from "../../components";
-import { UNTRANSLATED_NOTICE } from "../../lib/language";
+import {
+  languageLinks,
+  localeFromPath,
+  localizeSectionLabel,
+  localizeSidebar,
+  untranslatedNotice,
+} from "../../lib/language";
 
 export const prerender = true;
-export const getStaticPaths = getCollectionStaticPaths("docs-en");
+export const getStaticPaths = getCollectionStaticPaths("docs-zh");
 
-const page = await getCollectionPage<"docs-en">(Astro);
+const page = await getCollectionPage<"docs-zh">(Astro);
 if (page instanceof Response) return page;
 const { entry, Content, headings } = page;
 
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
 
+const locale = localeFromPath(currentSlug);
+
 const { sidebar: sidebarOn, tableOfContents: tocOn } = await getRouteFlags(entry);
 
 const sidebar = sidebarOn
-  ? await getSidebar(currentSlug, { collection: entry.collection })
+  ? localizeSidebar(await getSidebar(currentSlug, { collection: entry.collection }), locale)
   : false;
 const prevNext = await getPrevNext(currentSlug, {
   sidebarTree: sidebar === false ? [] : sidebar,
   overrides: { prev: entry.data.prev, next: entry.data.next },
 });
-const breadcrumbs = await getBreadcrumbs(currentSlug, { collection: entry.collection });
+const breadcrumbs = await getBreadcrumbs(currentSlug, {
+  collection: entry.collection,
+  resolveLabel: ({ node }) => localizeSectionLabel(node.label, locale),
+});
 const editUrl = await getEditUrl(entry);
 // Frontmatter wins; git is the fallback.
 const lastUpdated = entry.data.lastUpdated ??
@@ -51,15 +63,21 @@ const lastUpdated = entry.data.lastUpdated ??
 const tocConfig = entry.data.tableOfContents;
 const toc = tocOn && tocConfig !== false ? getTOC(headings, tocConfig) : false;
 const routeKey = entryRouteKey(entry.id);
-const markdownPath = routeKey ? `/en/${routeKey}/index.md` : "/en/index.md";
+const markdownPath = routeKey ? `/zh/${routeKey}/index.md` : "/zh/index.md";
 const markdownUrl = markdownPath;
-// The OG route prefixes version collections with their mount (`/og/en/...`).
-const socialImage = entry.data.socialImage ?? `/og/en/${entry.id}.png`;
+// The OG route prefixes version collections with their mount (`/og/zh/...`).
+const socialImage = entry.data.socialImage ?? `/og/zh/${entry.id}.png`;
 
-// Untranslated pages are the Chinese dev mirror: show the notice instead of
-// any frontmatter banner (mirrored pages never carry one).
+// English-only pages (rare) show the Chinese notice instead of any
+// frontmatter banner, linked to the English counterpart.
 const banner = entry.data.untranslated
-  ? { content: UNTRANSLATED_NOTICE, type: "note" as const }
+  ? {
+      content: untranslatedNotice(
+        locale,
+        withBase(languageLinks(currentSlug).en, import.meta.env.BASE_URL),
+      ),
+      type: "note" as const,
+    }
   : entry.data.banner;
 ---
 

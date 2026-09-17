@@ -66,14 +66,19 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 
 ## Bilingual layout
 
-Chinese is primary; English mounts at `/en/**` via the `docs-en` collection +
-Nimbus `versions.others` (`astro.config.ts`). Generated `/dev` pages are
-mirrored into `docs-en/dev` with `untranslated: true`, which the `/en` route
-renders with a notice banner; the architecture page is the exception — it is
-generated from the maintained English source `docs/architecture/botharness-architecture.en.md`
-(no banner). Site-owned translations live in `src/content/docs-en/docs/`.
-`src/lib/language.ts` owns the switcher mapping (`/docs/x` ↔ `/en/docs/x`,
-fallback `/en/docs/overview`) and `Header.astro` renders it. Edit the repo
+English is primary at the root; Chinese mounts at `/zh/**` via the `docs-zh`
+collection + Nimbus `versions.others` (`astro.config.ts`). Generated `/dev`
+pages are written into both trees: the English tree (`docs/dev`) carries the
+Chinese source flagged `untranslated: true`, which the root route renders with
+`This page has not been translated yet.`; the Chinese tree (`docs-zh/dev`) is
+clean. The architecture page is the exception — the maintained English source
+`docs/architecture/botharness-architecture.en.md` goes to the English tree and
+the Chinese source to the `/zh` tree (no banner on either). English-only pages
+with no Chinese counterpart (rare) are flagged in `docs-zh`, and the `/zh`
+route shows `本页暂未提供中文。` Site-owned translations live in
+`src/content/docs/docs/` (English) and `src/content/docs-zh/docs/` (Chinese).
+`src/lib/language.ts` owns the switcher mapping (`/docs/x` ↔ `/zh/docs/x`,
+fallback `/zh/docs/overview`) and `Header.astro` renders it. Edit the repo
 sources — never generated files.
 
 ## Diagrams
@@ -88,10 +93,11 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
 
 ## Generated directories — don't edit
 
-- `src/content/docs/dev/**` — architecture / spec / ADR, from root `docs/`
-- `src/content/docs-en/dev/**` — English dev tree: mirrored from the above
-  (`untranslated: true`), except pages with a maintained English source
-  (architecture)
+- `src/content/docs/dev/**` — English tree: architecture / spec / ADR, from
+  root `docs/`, `PRD.md`, `CONTEXT.md` (Chinese sources flagged
+  `untranslated: true`)
+- `src/content/docs-zh/dev/**` — Chinese tree at `/zh`: the same sources,
+  clean, plus the Chinese architecture page
 - `src/content/changelog/**` — from root `docs/changelog/*.md`
 - `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
 

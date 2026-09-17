@@ -5,15 +5,15 @@ import { agentEndpointResponse } from "../utils/agent-endpoint-response";
 
 export const prerender = true;
 
-// Nimbus models the English docs as a "version" (`versions.others`), and its
+// Nimbus mounts the Chinese docs as a "version" (`versions.others`), and its
 // site index intentionally omits version sections. Language variants are not
-// older snapshots, so add the English section link back by hand — otherwise
-// `/en/llms.txt` would be unreachable from the root agent index.
-function withEnglishSection(body: string): string {
-  if (body.includes("/en/llms.txt")) return body;
+// older snapshots, so add the Chinese section link back by hand — otherwise
+// `/zh/llms.txt` would be unreachable from the root agent index.
+function withChineseSection(body: string): string {
+  if (body.includes("/zh/llms.txt")) return body;
   const site = config.site ?? "http://localhost:4321";
-  const href = new URL(withBase("/en/llms.txt", import.meta.env.BASE_URL), site).href;
-  return `${body.trimEnd()}\n- [English](${href})\n`;
+  const href = new URL(withBase("/zh/llms.txt", import.meta.env.BASE_URL), site).href;
+  return `${body.trimEnd()}\n- [中文](${href})\n`;
 }
 
 export async function GET(context: { request: Request }) {
@@ -26,6 +26,6 @@ export async function GET(context: { request: Request }) {
       context,
     );
     if (!payload) return null;
-    return { ...payload, body: withEnglishSection(payload.body) };
+    return { ...payload, body: withChineseSection(payload.body) };
   }, prerender);
 }

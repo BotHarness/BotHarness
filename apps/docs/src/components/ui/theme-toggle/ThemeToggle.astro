@@ -10,7 +10,7 @@ import type { HTMLAttributes } from "astro/types";
 
 interface Props extends HTMLAttributes<"button"> {}
 
-const { class: className, ...attrs } = Astro.props;
+const { class: className, "aria-label": ariaLabel = "Toggle dark mode", ...attrs } = Astro.props;
 ---
 
 <button
@@ -20,7 +20,7 @@ const { class: className, ...attrs } = Astro.props;
     className,
   )}
   {...attrs}
-  aria-label="Toggle dark mode"
+  aria-label={ariaLabel}
   data-nb-state="light"
 >
   <Icon name="ph:sun" class="w-[1.125rem] h-[1.125rem] hidden group-data-[nb-state=dark]:block" />

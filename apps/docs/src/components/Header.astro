@@ -6,7 +6,7 @@ import { ThemeToggle } from "./ui/theme-toggle";
 import SearchTrigger from "./ui/search/SearchTrigger.astro";
 import { config } from "virtual:nimbus/config";
 import { stripBase, withBase } from "@cloudflare/nimbus-docs/runtime";
-import { languageLinks } from "@/lib/language";
+import { languageLinks, localeFromPath, siteChrome } from "@/lib/language";
 
 interface Props {
   /** Astro collection id for the current page, forwarded from DocsLayout. */
@@ -25,23 +25,34 @@ const { showSidebar = true } = Astro.props;
 
 // Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
-const homeHref = withBase("/", import.meta.env.BASE_URL);
 
-// Manual language switcher (plain links, no JS). `links.zh` is the current
-// route with any `/en` prefix stripped, so section highlighting stays correct
-// on English pages too. English pages keep Chinese labels (their content is
-// the Chinese source) but their hrefs stay inside the `/en` tree.
+// Manual language switcher (plain links, no JS). `links.en` is the current
+// route with any `/zh` prefix stripped, so section highlighting stays correct
+// on Chinese pages too. Chinese pages keep Chinese labels for the site nav;
+// English pages get English labels.
 const links = languageLinks(currentSlug);
-const localePrefix = links.isEn ? "/en" : "";
+const chrome = siteChrome(localeFromPath(currentSlug));
+const homeHref = withBase(links.isZh ? "/zh" : "/", import.meta.env.BASE_URL);
+const localePrefix = links.isZh ? "/zh" : "";
 
 const SITE_LINKS = [
-  { href: "/docs/overview", label: "文档", icon: "hugeicons:book-02", prefix: "/docs" },
-  { href: "/dev/architecture", label: "开发与审计", icon: "hugeicons:code", prefix: "/dev" },
-  { href: "/changelog", label: "Changelog", icon: "hugeicons:megaphone-01", prefix: "/changelog" },
+  {
+    href: "/docs/overview",
+    label: chrome.docs,
+    icon: "hugeicons:book-02",
+    prefix: "/docs",
+  },
+  {
+    href: "/dev/architecture",
+    label: chrome.dev,
+    icon: "hugeicons:code",
+    prefix: "/dev",
+  },
+  { href: "/changelog", label: chrome.changelog, icon: "hugeicons:megaphone-01", prefix: "/changelog" },
 ];
 
 const isActive = (prefix: string): boolean =>
-  links.zh === prefix || links.zh.startsWith(`${prefix}/`);
+  links.en === prefix || links.en.startsWith(`${prefix}/`);
 
 const langLinkClass = (active: boolean): string =>
   `rounded-[0.25rem] px-1.5 py-0.5 text-[0.6875rem] font-semibold leading-4 no-underline transition-colors ${
@@ -61,7 +72,7 @@ const langLinkClass = (active: boolean): string =>
       </slot>
 
       <nav
-        aria-label="Sections"
+        aria-label={chrome.sections}
         class="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border h-6 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {SITE_LINKS.map((link) => (
@@ -85,25 +96,24 @@ const langLinkClass = (active: boolean): string =>
     <div class="flex items-center gap-2 shrink-0">
       <slot name="actions" />
       <nav
-        aria-label="Language"
+        aria-label={chrome.language}
         class="flex items-center rounded-md border border-border p-0.5"
       >
         <a
-          href={withBase(links.zh, import.meta.env.BASE_URL)}
-          aria-current={links.isEn ? undefined : "page"}
-          class={langLinkClass(!links.isEn)}
-        >
-          中
-        </a>
-        <a
           href={withBase(links.en, import.meta.env.BASE_URL)}
-          aria-current={links.isEn ? "page" : undefined}
-          class={langLinkClass(links.isEn)}
+          aria-current={links.isZh ? undefined : "page"}
+          class={langLinkClass(!links.isZh)}
         >
           EN
         </a>
+        <a
+          href={withBase(links.zh, import.meta.env.BASE_URL)}
+          aria-current={links.isZh ? "page" : undefined}
+          class={langLinkClass(links.isZh)}
+        >
+          中文
+        </a>
       </nav>
-      {config.search !== false && <SearchTrigger />}
       {config.github && (
         <LinkButton
           href={config.github}
@@ -118,14 +128,15 @@ const langLinkClass = (active: boolean): string =>
           <Icon name="ph:github-logo" class="w-4 h-4" />
         </LinkButton>
       )}
-      <ThemeToggle />
+      {config.search !== false && <SearchTrigger />}
+      <ThemeToggle aria-label={chrome.toggleTheme} />
       {showSidebar && (
         <Button
           variant="ghost"
           shape="square"
           size="sm"
           icon="ph:list"
-          aria-label="Open navigation"
+          aria-label={chrome.openNavigation}
           data-menu-btn
           class="md:hidden text-muted-foreground"
         />

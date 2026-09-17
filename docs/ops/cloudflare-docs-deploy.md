@@ -6,27 +6,31 @@
 - 区块：`/docs` 用户文档 · `/dev` 开发者与审计（规格 / PRD / ADR / 架构） · `/changelog`
 - Account：`332e72d480d7cb3e60ee671d3ca0cad0`（yangmufeng233@gmail.com）
 - Worker 名：`botharness-docs`（见 `apps/docs/wrangler.jsonc`）
+- 旧地址：`/en/**` 已迁到根路径，由 `apps/docs/public/_redirects` 做 301
 
-## 首次部署（Workers Builds，Git 集成，无需 API Token）
+## 部署方式：手动部署（当前选择）
 
-1. Cloudflare Dashboard → Workers & Pages → Create → **Import a repository** → 选 `BotHarness/BotHarness`。
-2. Worker 名称填 `botharness-docs`（必须与 `wrangler.jsonc` 的 `name` 一致）。
-3. Build 配置：
-   - **Root directory**：`apps/docs`
-   - **Build command**：`pnpm build`（会先跑 `scripts/sync-docs.mjs`）
-   - **Deploy command**：`pnpm exec wrangler deploy`
-4. 首次构建通过后，Worker 会拿到 `<version>-botharness-docs.<subdomain>.workers.dev`；在 Settings → Domains & Routes 把 **`botharness.ai` 和 `botharness.dev` 都加为自定义域名**（同一 Worker、同一份内容，无需重定向）。
-
-## PR 预览
-
-Workers Builds 对非生产分支自动产出预览 URL（`preview_urls: true`），PR 里会评论链接；免费额度 1 并发构建 / 3000 构建分钟每月。
-
-## 本地部署（可选）
+在本地直接构建并发布，构建环境、Node 版本、依赖都与仓库一致：
 
 ```bash
-pnpm docs:build            # 同步 + 构建
-pnpm docs:deploy           # 构建 + wrangler deploy（需 wrangler login）
+pnpm install               # 首次
+pnpm docs:deploy           # 等于 pnpm --filter docs run deploy
+                           # = sync-docs + astro build + wrangler deploy
 ```
+
+- 需要 `pnpm exec wrangler login`（或 `CLOUDFLARE_API_TOKEN`）一次。
+- 构建会先跑 `scripts/sync-docs.mjs`，把仓库根 `docs/`、`PRD.md`、`CONTEXT.md`、changelog 同步进 `src/content/`。
+- 首次部署后，在 Dashboard → Worker → Settings → Domains & Routes 确认 **`botharness.ai` 和 `botharness.dev` 都是自定义域名**（同一 Worker、同一份内容，无需重定向）。
+
+## 可选：Workers Builds（Git 集成，后续再做）
+
+如果以后想 push 即部署，可在 Dashboard → Workers & Pages → Create → **Import a repository** 接 `BotHarness/BotHarness`：
+
+1. Worker 名称填 `botharness-docs`（必须与 `wrangler.jsonc` 的 `name` 一致）。
+2. Build 配置：**Root directory** `apps/docs`；**Build command** `pnpm build`；**Deploy command** `pnpm exec wrangler deploy`。
+3. 非生产分支会产出预览 URL（`preview_urls: true`）；免费额度 1 并发构建 / 3000 构建分钟每月。
+
+注意：Workers Builds 与手动部署写同一个 Worker；两条路线同时用会互相覆盖，选定一条作为主路线即可。
 
 API Token（如用 GitHub Actions 路线）放 GitHub secrets，权限仅需 **Workers Scripts: Edit**；**不要**提交到仓库或贴进对话。
 

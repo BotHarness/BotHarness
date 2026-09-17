@@ -1,3 +1,6 @@
+import { copyFileSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
@@ -17,21 +20,28 @@ const nimbusConfig = defineNimbusConfig({
   site: "https://botharness.ai",
   title: "BotHarness",
   description:
-    "给 LLM agent 一份持久身份的 DSH 插件层：PersonaBot —— 带人格、跨 session 记忆、可并发工作。",
-  locale: "zh",
+    "A DSH plugin layer that gives LLM agents a persistent identity: the PersonaBot — a persona, cross-session memory, and concurrent work.",
+  locale: "en",
   // Bilingual site. Nimbus has no i18n, but `docs-<slug>` + `versions.others`
   // is the only mechanism that mounts a second prose collection at `/<slug>`
-  // with a working sidebar / breadcrumbs / prev-next / llms.txt tree. `en` is
-  // a language variant, not an older snapshot, so the version UI is
-  // neutralized: no picker is installed, `en` is neither deprecated nor
-  // hidden, and the `/en` route disables cross-version SEO alternates
-  // (see `suppressVersionAlternates` in `src/layouts/DocsLayout.astro`).
+  // with a working sidebar / breadcrumbs / prev-next / llms.txt tree. English
+  // is the primary tree at the root; `zh` is a language variant, not an older
+  // snapshot, so the version UI is neutralized: no picker is installed, `zh`
+  // is neither deprecated nor hidden, and the `/zh` route disables
+  // cross-version SEO alternates (see `suppressVersionAlternates` in
+  // `src/layouts/DocsLayout.astro`).
   versions: {
-    current: "zh",
-    others: ["en"],
+    current: "en",
+    others: ["zh"],
   },
-  github: null,
-  socialImageAlt: "BotHarness 文档预览",
+  github: "https://github.com/BotHarness/BotHarness",
+  // `/docs` and `/dev` are separate audiences: scope the rail to the current
+  // top-level section so one section never leaks into the other's sidebar
+  // (works for both the English root and the `/zh` tree).
+  sidebar: {
+    scope: "section",
+  },
+  socialImageAlt: "BotHarness documentation preview",
 });
 
 export default defineConfig({
@@ -50,6 +60,20 @@ export default defineConfig({
     defaultStrategy: "hover",
   },
   integrations: [
+    // Cloudflare Workers static assets serves the closest `404.html` for a
+    // miss. Astro only special-cases the root `404.astro` → `404.html`; the
+    // `/zh` page lands at `zh/404/index.html`, so mirror it to
+    // `dist/zh/404.html` for `/zh/**` misses.
+    {
+      name: "nested-zh-404",
+      hooks: {
+        "astro:build:done": ({ dir }) => {
+          const dist = fileURLToPath(dir);
+          const source = join(dist, "zh", "404", "index.html");
+          if (existsSync(source)) copyFileSync(source, join(dist, "zh", "404.html"));
+        },
+      },
+    },
     react(),
     nimbus(nimbusConfig, {
       // Authoring rules are opt-in by design — your repo, your taste. The
@@ -61,6 +85,12 @@ export default defineConfig({
       rules: {
         "nimbus/frontmatter-shape": "error",
         "nimbus/internal-link": "error",
+      },
+      // `/zh/404` is a real route backing the copied `dist/zh/404.html`; a
+      // not-found page must never be advertised to crawlers.
+      sitemap: {
+        serialize: (item) =>
+          new URL(item.url).pathname.replace(/\/+$/, "") === "/zh/404" ? null : item,
       },
       // Wrap wide tables so they scroll instead of overflowing the page
       // (styled by `.nb-table-scroll` in src/styles/prose.css).

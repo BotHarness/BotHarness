@@ -1,0 +1,32 @@
+---
+title: 概览
+description: BotHarness 是什么，为什么存在，以及它由哪几块组成。
+sidebar:
+  order: 10
+---
+
+BotHarness 是 **DeepSeek Harness（DSH）之上的插件层**，给 LLM agent 一份持久身份：**PersonaBot**。
+
+现有 harness 都以 session 为单位——跨 session 至多是一份"云记忆"，没有带人格、可跨会话工作的 Bot 实体。BotHarness 补的就是这一层：
+
+- **PersonaBot**：一等实体——persona、跨 session 记忆、状态、频道绑定，可同时处理多个 Session
+- **记忆**：文件优先（front-matter、目录树注入、工具写、可见性、git 版本化）
+- **工作方式**：委派制（@PersonaBot 交付工作，后台执行并汇报），审批分级
+- **不 fork DSH**：以 SDK + bundle 形态交付，IM 等能力由 dsh-im 等基座提供
+
+## 两个产品
+
+| 名字 | 是什么 |
+| --- | --- |
+| **BotHarness** | 平台层（本仓库）：PersonaBot 实体、记忆、状态与工作方式 |
+| **DeepSeekBot** | 首个应用：把 PersonaBot 带进 DSH sidebar（创建、@委派、持续工作），并接入飞书 / Lark |
+
+## 从哪里开始
+
+- [快速开始](/docs/quickstart)：本地跑起来、目录结构、常用命令
+- [架构与数据流](/dev/architecture)：系统上下文、模块、数据流、边界（持续维护）
+- [平台规格](/dev/spec/platform)：PersonaBot、记忆规则、状态与工作方式
+- [应用 PRD](/dev/spec/app-prd)：DeepSeekBot 的用户故事与验收标准
+- [领域词表](/dev/spec/context)：术语的规范用法（PersonaBot / Agent / Session / Workspace）
+- [决策记录](/dev/adr/0015-botharness-is-a-dsh-plugin-layer)：为什么这么做
+- [Changelog](/changelog)：每个版本的变更

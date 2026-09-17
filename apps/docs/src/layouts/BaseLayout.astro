@@ -14,14 +14,15 @@ import {
 } from "@cloudflare/nimbus-docs/runtime";
 import AgentDirective from "@/components/AgentDirective.astro";
 import { SearchDialog } from "@/components/ui/search";
+import { siteChrome } from "@/lib/language";
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
 
 type Props = BasePageProps & {
   /**
-   * Set on language-variant pages (e.g. `/en/**`). The collection is a
+   * Set on language-variant pages (e.g. `/zh/**`). The collection is a
    * translation of the primary docs, not an older snapshot, so Nimbus must not
-   * canonicalize it to the Chinese sibling or emit cross-version alternates.
+   * canonicalize it to the English sibling or emit cross-version alternates.
    */
   suppressVersionAlternates?: boolean;
 };
@@ -41,10 +42,11 @@ const {
   suppressVersionAlternates = false,
 } = Astro.props;
 // Route-aware language. Nimbus has no i18n, so the site derives `<html lang>`
-// (and Pagefind's per-language index) from the URL: `/en/**` is English,
-// everything else is Simplified Chinese.
+// (and Pagefind's per-language index) from the URL: `/zh/**` is Simplified
+// Chinese, everything else is English.
 const pathname = stripBase(Astro.url.pathname, import.meta.env.BASE_URL);
-const lang = pathname === "/en" || pathname.startsWith("/en/") ? "en" : "zh-Hans";
+const lang = pathname === "/zh" || pathname.startsWith("/zh/") ? "zh-Hans" : "en";
+const chrome = siteChrome(lang);
 // Per-page agent-index pointer. For pages in non-primary or version
 // collections, this resolves to `/<prefix>/llms.txt` (e.g. `/v0/llms.txt`
 // for a v0 docs page, `/blog/llms.txt` for a blog post). Falls back to
@@ -138,7 +140,7 @@ const resolvedMarkdownUrl =
       href="#main-content"
       class="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-100 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-sm focus:font-medium focus:text-primary-foreground focus:no-underline focus-visible:outline-2 focus-visible:outline-ring focus-visible:outline-offset-2"
     >
-      Skip to content
+      {chrome.skipToContent}
     </a>
     {resolvedMarkdownUrl && !isHiddenVersion && (
       <AgentDirective markdownUrl={resolvedMarkdownUrl} llmsUrl={llmsUrl} />

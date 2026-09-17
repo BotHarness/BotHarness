@@ -1,7 +1,7 @@
 /**
- * Per-page `/en/<slug>/index.mdx` — expanded source alternate of every
- * indexable entry of the `docs-en` collection. Mirrors the primary source
- * route at `src/pages/[...slug]/index.mdx.ts`.
+ * Per-page `/zh/<slug>/index.md` — clean Markdown alternate of every
+ * indexable entry of the `docs-zh` collection. Mirrors the primary
+ * Markdown route at `src/pages/[...slug]/index.md.ts`.
  */
 import {
   getMarkdownPayload,
@@ -12,7 +12,7 @@ import { agentEndpointResponse } from "../../../utils/agent-endpoint-response";
 
 export const prerender = true;
 
-const COLLECTION = "docs-en";
+const COLLECTION = "docs-zh";
 
 interface SlugProps {
   reference: MarkdownEndpointReference;
@@ -27,14 +27,14 @@ interface SlugContext {
 export const getStaticPaths = async () =>
   getMarkdownStaticPaths({
     collection: COLLECTION,
-    surface: "source",
+    surface: "markdown",
   });
 
 export async function GET({ params, props, request }: SlugContext) {
   return agentEndpointResponse(() =>
     getMarkdownPayload({
       collection: COLLECTION,
-      surface: "source",
+      surface: "markdown",
       slug: params.slug,
       reference: props.reference,
       context: { request },

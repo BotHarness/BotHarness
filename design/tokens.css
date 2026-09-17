@@ -5,8 +5,15 @@
   --bh-brand: #16a34a;
   --bh-brand-strong: #15803d;
   --bh-accent: #2563eb;
+  --bh-border: rgba(0, 0, 0, 0.12);
+  --bh-border-hover: rgba(0, 0, 0, 0.17);
   --bh-radius: 12px;
   --bh-font-sans:
     system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --bh-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+[data-mode='dark'] {
+  --bh-border: rgba(255, 255, 255, 0.16);
+  --bh-border-hover: rgba(255, 255, 255, 0.2);
 }

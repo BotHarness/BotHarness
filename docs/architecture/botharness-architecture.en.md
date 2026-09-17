@@ -187,17 +187,17 @@ $DSH_HOME/integrations/dsh-feishu/
 
 ## 8 · Communication & boundaries
 
-| Channel                            | Direction                    | Notes                                                                                            |
-| ---------------------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------ |
-| Cordis service `provide/inject`    | core → client/im/third-party | the `botharness` service; no global singleton                                                    |
-| Tracker subscription `states.on()` | core → client                | in-process events, not polling                                                                   |
-| DSH event bus `ctx.on`             | DSH/dsh-im → core            | M3 subscribes to `agent/*` to drive state                                                        |
-| Feishu / Lark                      | dsh-im ↔ open platform       | outbound long connection; no public ingress (webhook exception, see [PRD](/en/dev/spec/app-prd)) |
-| dsh-im disk                        | read-only                    | only through the single `im/` module; no fork / no patch                                         |
-| Secrets                            | —                            | only in the DSH credentials service; zero plaintext in the repo                                  |
+| Channel                            | Direction                    | Notes                                                                                         |
+| ---------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------- |
+| Cordis service `provide/inject`    | core → client/im/third-party | the `botharness` service; no global singleton                                                 |
+| Tracker subscription `states.on()` | core → client                | in-process events, not polling                                                                |
+| DSH event bus `ctx.on`             | DSH/dsh-im → core            | M3 subscribes to `agent/*` to drive state                                                     |
+| Feishu / Lark                      | dsh-im ↔ open platform       | outbound long connection; no public ingress (webhook exception, see [PRD](/dev/spec/app-prd)) |
+| dsh-im disk                        | read-only                    | only through the single `im/` module; no fork / no patch                                      |
+| Secrets                            | —                            | only in the DSH credentials service; zero plaintext in the repo                               |
 
 ## 9 · How to maintain
 
 - This is a **living** architecture document: when modules, data flows, or boundaries change structurally, update this file (mermaid sources are inlined).
-- This page is synced to the docs site (`apps/docs`) by `scripts/sync-docs.mjs`; site address `https://botharness.ai/en/dev/architecture`.
-- Companions: platform spec [docs/botharness.md](/en/dev/spec/platform) · app PRD [PRD.md](/en/dev/spec/app-prd) · glossary [CONTEXT.md](/en/dev/spec/context) · decisions [docs/adr/](/en/dev/adr/0015-botharness-is-a-dsh-plugin-layer).
+- This page is synced to the docs site (`apps/docs`) by `scripts/sync-docs.mjs`; site address `https://botharness.ai/dev/architecture`.
+- Companions: platform spec [docs/botharness.md](/dev/spec/platform) · app PRD [PRD.md](/dev/spec/app-prd) · glossary [CONTEXT.md](/dev/spec/context) · decisions [docs/adr/](/dev/adr/0015-botharness-is-a-dsh-plugin-layer).

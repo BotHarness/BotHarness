@@ -1,0 +1,22 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import NotFound from "../../components/NotFound.astro";
+import { notFoundStrings } from "../../lib/language";
+
+// `/zh/404.html` — served for unmatched `/zh/**` paths (Workers static
+// assets serves the nearest 404.html). Carries both language blocks so the
+// same client-side locale detection as the root 404 applies.
+export const prerender = true;
+const t = notFoundStrings("zh-Hans");
+---
+
+<BaseLayout title={t.title} description={t.description} noindex>
+  <div class="flex flex-col min-h-screen">
+    <Header />
+    <main id="main-content" tabindex="-1" class="flex-1 mx-auto max-w-2xl w-full px-6 py-24">
+      <NotFound locale="zh-Hans" />
+      <NotFound locale="en" />
+    </main>
+  </div>
+</BaseLayout>

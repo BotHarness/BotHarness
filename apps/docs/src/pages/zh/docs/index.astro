@@ -1,16 +1,16 @@
 ---
-// Bare `/en` path → the English docs landing. Static output has no server
+// Bare Chinese section path → its overview page. Static output has no server
 // redirects, so this is a meta-refresh page with a canonical + link fallback.
 import { config } from "virtual:nimbus/config";
 
 export const prerender = true;
 
-const target = "/en/docs/overview";
+const target = "/zh/docs/overview";
 const canonical = new URL(target, config.site).href;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="zh-Hans">
   <head>
     <meta charset="utf-8" />
     <title>Redirecting…</title>

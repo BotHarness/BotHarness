@@ -4,32 +4,31 @@
  *
  * Bilingual layout (see `apps/docs` AGENT.md):
  *
- *   - `docs`    — primary Chinese collection. User docs live in
- *     `apps/docs/src/content/docs/docs/` (hand-authored), everything under
- *     `docs/dev/**` is generated here from `docs/`, `PRD.md`, `CONTEXT.md`
- *     and `docs/adr/`.
- *   - `docs-en` — English collection mounted at `/en/**`. Hand-translated
- *     pages live in `apps/docs/src/content/docs-en/docs/`; this script mirrors
- *     the generated `docs/dev/**` tree into `docs-en/dev/**` with
- *     `untranslated: true` added to the frontmatter, so the `/en` route can
- *     render the Chinese fallback with an untranslated notice. Pages with an
- *     English source (`PAGES` entries carrying `lang: 'en'`, i.e. the
- *     architecture page) are written from that source instead and are exempt
- *     from the mirror.
+ *   - English is primary. The `docs` collection serves the root URL tree
+ *     (`/docs/**`, `/dev/**`). Hand-translated user docs live in
+ *     `apps/docs/src/content/docs/docs/`; this script generates
+ *     `docs/dev/**` from the repo sources.
+ *   - Chinese is secondary, mounted at `/zh/**` through Nimbus's
+ *     `versions.others` mechanism (`docs-zh` collection). Hand-translated
+ *     user docs live in `apps/docs/src/content/docs-zh/docs/`; this script
+ *     generates `docs-zh/dev/**` from the repo sources.
  *
- * The repo files are the single source of truth: every generated file —
- * Chinese or mirrored — is rebuilt from them on each `syncDocs()` call. Never
- * hand-edit `src/content/docs/dev/**` or `src/content/docs-en/dev/**`.
+ * The repo files are the single source of truth: every generated page is
+ * rebuilt from them on each `syncDocs()` call.
+ *
+ *   - A page with both an English and a Chinese source (`PAGES[].en` /
+ *     `PAGES[].zh`, e.g. the architecture page) is written verbatim into
+ *     both trees.
+ *   - A page with only a Chinese source is Chinese in both trees, but the
+ *     English-tree copy carries `untranslated: true`, so the root route
+ *     renders it with the "not translated yet" banner.
+ *   - A page with only an English source would be English in both trees,
+ *     with the Chinese-tree copy flagged `untranslated: true` so the `/zh`
+ *     route renders the Chinese notice instead.
+ *
+ * Never hand-edit `src/content/docs/dev/**` or `src/content/docs-zh/dev/**`.
  */
-import {
-  copyFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -39,7 +38,7 @@ const DIAGRAMS_RENDERED = join(ROOT, 'docs', 'architecture', 'diagrams', 'render
 const DIAGRAMS_PUBLIC = join(ROOT, 'apps', 'docs', 'public', 'diagrams');
 const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
 
-const ARCHITECTURE_DIAGRAMS = [
+const ARCHITECTURE_DIAGRAMS_ZH = [
   { name: '01-system-context', caption: '系统上下文' },
   { name: '02-modules', caption: '模块与包' },
   { name: '03-boot', caption: '装载与服务暴露' },
@@ -57,44 +56,56 @@ const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '06-state', caption: 'State machine & events' },
 ];
 
+/**
+ * Repo sources per docs page. Each variant carries its source file, the
+ * frontmatter fallback copy, and (for the architecture page) the diagram
+ * captions/`lang`. Pages without a variant source are rendered from the
+ * other language's source and flagged `untranslated`.
+ */
 const PAGES = [
   {
-    source: 'docs/architecture/botharness-architecture.md',
-    target: 'docs/dev/architecture.mdx',
-    title: '架构与数据流',
-    description: '系统上下文、模块、数据流与边界（持续维护）',
+    slug: 'dev/architecture',
     order: 0,
-    diagrams: ARCHITECTURE_DIAGRAMS,
+    zh: {
+      source: 'docs/architecture/botharness-architecture.md',
+      title: '架构与数据流',
+      description: '系统上下文、模块、数据流与边界（持续维护）',
+      diagrams: ARCHITECTURE_DIAGRAMS_ZH,
+    },
+    en: {
+      source: 'docs/architecture/botharness-architecture.en.md',
+      title: 'BotHarness Architecture & Data Flow',
+      description: 'System context, modules, data flow and boundaries (living doc)',
+      lang: 'en',
+      diagrams: ARCHITECTURE_DIAGRAMS_EN,
+    },
   },
   {
-    source: 'docs/architecture/botharness-architecture.en.md',
-    target: 'docs-en/dev/architecture.mdx',
-    title: 'BotHarness Architecture & Data Flow',
-    description: 'System context, modules, data flow and boundaries (living doc)',
-    order: 0,
-    lang: 'en',
-    diagrams: ARCHITECTURE_DIAGRAMS_EN,
-  },
-  {
-    source: 'docs/botharness.md',
-    target: 'docs/dev/spec/platform.mdx',
-    title: '平台规格',
-    description: 'PersonaBot、记忆、状态与工作方式',
+    slug: 'dev/spec/platform',
     order: 1,
+    zh: {
+      source: 'docs/botharness.md',
+      title: '平台规格',
+      description: 'PersonaBot、记忆、状态与工作方式',
+    },
   },
   {
-    source: 'PRD.md',
-    target: 'docs/dev/spec/app-prd.mdx',
-    title: 'DeepSeekBot 应用 PRD',
-    description: '首个应用：sidebar 名册、委派与 IM 接入',
+    slug: 'dev/spec/app-prd',
     order: 2,
+    zh: {
+      source: 'PRD.md',
+      title: 'DeepSeekBot 应用 PRD',
+      description: '首个应用：sidebar 名册、委派与 IM 接入',
+    },
   },
   {
-    source: 'CONTEXT.md',
-    target: 'docs/dev/spec/context.mdx',
-    title: '领域词表',
-    description: 'PersonaBot 术语的规范用法',
+    slug: 'dev/spec/context',
     order: 3,
+    zh: {
+      source: 'CONTEXT.md',
+      title: '领域词表',
+      description: 'PersonaBot 术语的规范用法',
+    },
   },
 ];
 
@@ -163,10 +174,12 @@ function titleFrom(body, fallback) {
   return match ? String(match[1]).trim() : fallback;
 }
 
-function frontmatter({ title, description, order }) {
+function frontmatter({ title, description, order, untranslated }) {
   const lines = ['---', `title: ${JSON.stringify(title)}`];
   if (description) lines.push(`description: ${JSON.stringify(description)}`);
-  lines.push('sidebar:', `  order: ${order}`, '---', '', '');
+  lines.push('sidebar:', `  order: ${order}`);
+  if (untranslated) lines.push('untranslated: true');
+  lines.push('---', '', '');
   return lines.join('\n');
 }
 
@@ -187,25 +200,41 @@ function prepare(body, diagrams, lang) {
   return rewriteLinks(transformed);
 }
 
+/** Render one variant of a page (frontmatter + prepared body). */
+function renderPage(variant, order, untranslated) {
+  const raw = readText(variant.source);
+  const { body } = stripFrontmatter(raw);
+  const title = titleFrom(body, variant.title);
+  return (
+    frontmatter({ title, description: variant.description, order, untranslated }) +
+    prepare(body, variant.diagrams, variant.lang)
+  );
+}
+
 /**
- * Generate every `PAGES` entry. Returns the translated `/en` pages keyed by
- * their path relative to `docs-en/dev` so the mirror below can keep them
- * instead of overwriting them with the Chinese fallback.
+ * Generate every `PAGES` entry into both collections: the English tree
+ * (`docs/`) keeps translated pages clean and flags Chinese-only fallbacks,
+ * the Chinese tree (`docs-zh/`) is the mirror image.
  */
 function syncPages() {
-  const translated = new Map();
   for (const page of PAGES) {
-    const raw = readText(page.source);
-    const { body } = stripFrontmatter(raw);
-    const title = titleFrom(body, page.title);
-    const content = frontmatter({ ...page, title }) + prepare(body, page.diagrams, page.lang);
-    writeText(page.target, content);
-    if (page.lang === 'en') {
-      translated.set(page.target.slice('docs-en/dev/'.length), content);
+    const enTarget = `docs/${page.slug}.mdx`;
+    const zhTarget = `docs-zh/${page.slug}.mdx`;
+    if (page.en) {
+      writeText(enTarget, renderPage(page.en, page.order, false));
+      process.stdout.write(`en: ${page.en.source} -> ${enTarget}\n`);
+    } else {
+      writeText(enTarget, renderPage(page.zh, page.order, true));
+      process.stdout.write(`en: ${page.zh.source} -> ${enTarget} (untranslated)\n`);
     }
-    process.stdout.write(`docs: ${page.source} -> ${page.target}\n`);
+    if (page.zh) {
+      writeText(zhTarget, renderPage(page.zh, page.order, false));
+      process.stdout.write(`zh: ${page.zh.source} -> ${zhTarget}\n`);
+    } else {
+      writeText(zhTarget, renderPage(page.en, page.order, true));
+      process.stdout.write(`zh: ${page.en.source} -> ${zhTarget} (untranslated)\n`);
+    }
   }
-  return translated;
 }
 
 function syncAdr() {
@@ -220,66 +249,15 @@ function syncAdr() {
     const title = titleFrom(body, file);
     const status = sourceFrontmatter.match(/^Status:\s*(.+)$/m)?.[1]?.trim();
     const statusLine = status ? `> Status: ${status}\n\n` : '';
-    const target = `docs/dev/adr/${file.replace(/\.md$/, '.mdx')}`;
+    const order = Number.isNaN(number) ? 99 : number;
+    const relative = `dev/adr/${file.replace(/\.md$/, '.mdx')}`;
     writeText(
-      target,
-      frontmatter({ title, order: Number.isNaN(number) ? 99 : number }) +
-        statusLine +
-        prepare(body),
+      `docs/${relative}`,
+      frontmatter({ title, order, untranslated: true }) + statusLine + prepare(body),
     );
-    process.stdout.write(`adr: ${file} -> ${target}\n`);
+    writeText(`docs-zh/${relative}`, frontmatter({ title, order }) + statusLine + prepare(body));
+    process.stdout.write(`adr: ${file} -> docs/${relative} + docs-zh/${relative}\n`);
   }
-}
-
-/**
- * Mirror the generated dev tree into the English collection. Most pages have
- * no English source, so they are the Chinese source plus an `untranslated: true`
- * flag the `/en` route turns into a notice banner. `translated` holds pages
- * with a real English source (keyed by path relative to `docs-en/dev`); their
- * generated content is written verbatim — no `untranslated` flag, no banner.
- */
-function walkFiles(directory) {
-  const files = [];
-  for (const dirent of readdirSync(directory, { withFileTypes: true })) {
-    const absolute = join(directory, dirent.name);
-    if (dirent.isDirectory()) files.push(...walkFiles(absolute));
-    else files.push(absolute);
-  }
-  return files;
-}
-
-function markUntranslated(content) {
-  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
-  if (!match) return content;
-  return content.replace(match[0], `---\n${match[1]}\nuntranslated: true\n---\n`);
-}
-
-function mirrorDevToEn(translated) {
-  const source = join(CONTENT, 'docs', 'dev');
-  const target = join(CONTENT, 'docs-en', 'dev');
-  rmSync(target, { recursive: true, force: true });
-  if (!existsSync(source)) {
-    process.stderr.write('en mirror: src/content/docs/dev is missing — nothing to mirror\n');
-    return;
-  }
-  let mirrored = 0;
-  let kept = 0;
-  for (const absolute of walkFiles(source)) {
-    const relative = absolute.slice(source.length + 1).replaceAll('\\', '/');
-    const destination = join(target, relative);
-    mkdirSync(dirname(destination), { recursive: true });
-    const english = translated.get(relative);
-    if (english) {
-      writeFileSync(destination, english, 'utf8');
-      kept += 1;
-    } else {
-      writeFileSync(destination, markUntranslated(readFileSync(absolute, 'utf8')), 'utf8');
-      mirrored += 1;
-    }
-  }
-  process.stdout.write(
-    `en mirror: docs/dev -> docs-en/dev (${mirrored} mirrored, ${kept} translated)\n`,
-  );
 }
 
 function parseChangelogFrontmatter(raw) {
@@ -359,13 +337,18 @@ function syncDiagrams() {
 }
 
 export function syncDocs() {
-  for (const stale of ['docs/spec', 'docs/adr', 'docs/architecture.mdx', 'docs/dev']) {
+  for (const stale of [
+    'docs/spec',
+    'docs/adr',
+    'docs/architecture.mdx',
+    'docs/dev',
+    'docs-zh/dev',
+  ]) {
     rmSync(join(CONTENT, stale), { recursive: true, force: true });
   }
 
-  const translated = syncPages();
+  syncPages();
   syncAdr();
-  mirrorDevToEn(translated);
   syncChangelog();
   syncDiagrams();
   process.stdout.write('docs sync complete\n');

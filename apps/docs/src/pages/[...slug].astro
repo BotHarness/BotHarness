@@ -12,8 +12,16 @@ import {
   getTOC,
   entryRouteKey,
   stripBase,
+  withBase,
 } from "@cloudflare/nimbus-docs/runtime";
 import { components } from "../components";
+import {
+  languageLinks,
+  localeFromPath,
+  localizeSectionLabel,
+  localizeSidebar,
+  untranslatedNotice,
+} from "../lib/language";
 
 export const prerender = true;
 export const getStaticPaths = getDocsStaticPaths;
@@ -24,18 +32,24 @@ const { entry, Content, headings } = page;
 
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
 
+const locale = localeFromPath(currentSlug);
+
 const { sidebar: sidebarOn, tableOfContents: tocOn } = await getRouteFlags(entry);
 
 const sidebar = sidebarOn
-  ? await getSidebar(currentSlug, { collection: entry.collection })
+  ? localizeSidebar(await getSidebar(currentSlug, { collection: entry.collection }), locale)
   : false;
 const prevNext = await getPrevNext(currentSlug, {
   sidebarTree: sidebar === false ? [] : sidebar,
   overrides: { prev: entry.data.prev, next: entry.data.next },
 });
 // Pass `collection` so versioned pages (docs-<v>) get version-prefixed
-// breadcrumb hrefs — parity with the getSidebar call above.
-const breadcrumbs = await getBreadcrumbs(currentSlug, { collection: entry.collection });
+// breadcrumb hrefs — parity with the getSidebar call above. The resolver
+// localizes the folder-derived `Docs` / `Dev` crumbs on the Chinese tree.
+const breadcrumbs = await getBreadcrumbs(currentSlug, {
+  collection: entry.collection,
+  resolveLabel: ({ node }) => localizeSectionLabel(node.label, locale),
+});
 const editUrl = await getEditUrl(entry);
 // Frontmatter wins; git is the fallback.
 const lastUpdated = entry.data.lastUpdated ??
@@ -49,6 +63,18 @@ const routeKey = entryRouteKey(entry.id);
 const markdownPath = routeKey ? `/${routeKey}/index.md` : "/index.md";
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/${entry.id}.png`;
+
+// Pages with no English source yet (spec / PRD / ADR from the repo) render
+// the Chinese source plus the notice banner, linked to the `/zh` counterpart.
+const banner = entry.data.untranslated
+  ? {
+      content: untranslatedNotice(
+        locale,
+        withBase(languageLinks(currentSlug).zh, import.meta.env.BASE_URL),
+      ),
+      type: "note" as const,
+    }
+  : entry.data.banner;
 ---
 
 <DocsLayout
@@ -59,7 +85,7 @@ const socialImage = entry.data.socialImage ?? `/og/${entry.id}.png`;
   breadcrumbs={breadcrumbs}
   prevNext={prevNext}
   mode={entry.data.mode}
-  banner={entry.data.banner}
+  banner={banner}
   head={entry.data.head}
   searchable={entry.data.searchable}
   noindex={entry.data.noindex}

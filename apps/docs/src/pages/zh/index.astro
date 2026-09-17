@@ -1,0 +1,34 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import Header from "../../components/Header.astro";
+import Landing from "../../components/landing/Landing";
+import { getCollection } from "astro:content";
+import "../../../../../design/tokens.css";
+
+// Prerender explicitly so the homepage stays a static route under
+// `output: "server"` — an adapter alone must add zero on-demand routes.
+export const prerender = true;
+
+// The landing shows the three newest published changelog entries straight
+// from the collection, so it can never drift from the feed.
+const recent = (await getCollection("changelog", (entry) => !entry.data.draft))
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3)
+  .map((entry) => ({
+    title: entry.data.title,
+    href: `/zh/changelog/${entry.id}`,
+    date: entry.data.date.toISOString().slice(0, 10),
+  }));
+---
+
+<BaseLayout
+  title="BotHarness — 给 LLM agent 一份持久身份"
+  description="给 LLM agent 一份持久身份的 DSH 插件层：PersonaBot —— 带人格、跨 session 记忆、可并发工作。"
+>
+  <Header showSidebar={false} />
+  <!-- `isolate` scopes Base UI layering (coss requirement); `relative` keeps
+       portaled backdrops anchored on the landing scope instead of `body`. -->
+  <div class="relative isolate" data-bh-landing>
+    <Landing recent={recent} lang="zh" />
+  </div>
+</BaseLayout>

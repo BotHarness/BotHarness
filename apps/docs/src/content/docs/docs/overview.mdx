@@ -1,32 +1,32 @@
 ---
-title: 概览
-description: BotHarness 是什么，为什么存在，以及它由哪几块组成。
+title: Overview
+description: What BotHarness is, why it exists, and what it is made of.
 sidebar:
   order: 10
 ---
 
-BotHarness 是 **DeepSeek Harness（DSH）之上的插件层**，给 LLM agent 一份持久身份：**PersonaBot**。
+BotHarness is a **plugin layer on top of DeepSeek Harness (DSH)** that gives LLM agents a persistent identity: the **PersonaBot**.
 
-现有 harness 都以 session 为单位——跨 session 至多是一份"云记忆"，没有带人格、可跨会话工作的 Bot 实体。BotHarness 补的就是这一层：
+Existing harnesses work one session at a time — across sessions there is at most a "cloud memory", with no Bot entity that has a persona and can work across conversations. That is the layer BotHarness fills:
 
-- **PersonaBot**：一等实体——persona、跨 session 记忆、状态、频道绑定，可同时处理多个 Session
-- **记忆**：文件优先（front-matter、目录树注入、工具写、可见性、git 版本化）
-- **工作方式**：委派制（@PersonaBot 交付工作，后台执行并汇报），审批分级
-- **不 fork DSH**：以 SDK + bundle 形态交付，IM 等能力由 dsh-im 等基座提供
+- **PersonaBot**: a first-class entity — persona, cross-session memory, state, channel bindings, and several Sessions handled at once
+- **Memory**: file-first (front-matter, directory-tree injection, tool-driven writes, visibility, git versioning)
+- **How work happens**: delegation (@PersonaBot hands work off, executes it in the background, and reports back), with tiered approvals
+- **No DSH fork**: delivered as an SDK + bundle; capabilities like IM come from bases such as dsh-im
 
-## 两个产品
+## Two products
 
-| 名字 | 是什么 |
+| Name | What it is |
 | --- | --- |
-| **BotHarness** | 平台层（本仓库）：PersonaBot 实体、记忆、状态与工作方式 |
-| **DeepSeekBot** | 首个应用：把 PersonaBot 带进 DSH sidebar（创建、@委派、持续工作），并接入飞书 / Lark |
+| **BotHarness** | The platform layer (this repository): PersonaBot entities, memory, state, and how work happens |
+| **DeepSeekBot** | The first app: brings PersonaBots into the DSH sidebar (create, @-delegate, keep working) and connects Feishu / Lark |
 
-## 从哪里开始
+## Where to start
 
-- [快速开始](/docs/quickstart)：本地跑起来、目录结构、常用命令
-- [架构与数据流](/dev/architecture)：系统上下文、模块、数据流、边界（持续维护）
-- [平台规格](/dev/spec/platform)：PersonaBot、记忆规则、状态与工作方式
-- [应用 PRD](/dev/spec/app-prd)：DeepSeekBot 的用户故事与验收标准
-- [领域词表](/dev/spec/context)：术语的规范用法（PersonaBot / Agent / Session / Workspace）
-- [决策记录](/dev/adr/0015-botharness-is-a-dsh-plugin-layer)：为什么这么做
-- [Changelog](/changelog)：每个版本的变更
+- [Quickstart](/docs/quickstart): run it locally, directory layout, common commands
+- [Architecture & data flow](/dev/architecture): system context, modules, data flow, boundaries (kept current)
+- [Platform spec](/dev/spec/platform): PersonaBot, memory rules, state, and how work happens
+- [App PRD](/dev/spec/app-prd): DeepSeekBot user stories and acceptance criteria
+- [Domain glossary](/dev/spec/context): canonical usage of terms (PersonaBot / Agent / Session / Workspace)
+- [Decision records](/dev/adr/0015-botharness-is-a-dsh-plugin-layer): why things are the way they are
+- [Changelog](/changelog): what changed in each version

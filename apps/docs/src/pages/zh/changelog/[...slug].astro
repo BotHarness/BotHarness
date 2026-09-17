@@ -1,15 +1,12 @@
 ---
 /**
- * `/en/changelog/<slug>` — English mirror of a changelog permalink page.
- * Entries are Chinese-only: Chinese content plus the untranslated notice,
- * with the back link kept inside `/en`.
+ * `/zh/changelog/<slug>` — Chinese changelog permalink. Entries are
+ * Chinese, so this page is the source content with all links inside `/zh`.
  */
 import type { GetStaticPaths } from "astro";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import { Badge } from "@/components/ui/badge";
-import { Banner } from "@/components/ui/banner";
-import { UNTRANSLATED_NOTICE } from "@/lib/language";
 import { entryRouteKey, getCollectionStaticPaths, getCollectionPage, withBase } from "@cloudflare/nimbus-docs";
 import { components } from "@/components";
 
@@ -25,12 +22,12 @@ const { entry, Content } = page;
 const { title, description, date, tags } = entry.data;
 
 const iso = date.toISOString().slice(0, 10);
-const dateLabel = date.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+const dateLabel = date.toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric" });
 
 const routeKey = entryRouteKey(entry.id);
 const markdownPath = routeKey
-  ? `/en/changelog/${routeKey}/index.md`
-  : "/en/changelog/index.md";
+  ? `/zh/changelog/${routeKey}/index.md`
+  : "/zh/changelog/index.md";
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
 ---
@@ -45,10 +42,8 @@ const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
   collection={entry.collection}
   entryId={entry.id}
 >
-  <Banner variant="note" content={UNTRANSLATED_NOTICE} />
-
   <a
-    href={withBase("/en/changelog", import.meta.env.BASE_URL)}
+    href={withBase("/zh/changelog", import.meta.env.BASE_URL)}
     class="group mb-9 -ml-0.5 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-muted-foreground no-underline transition-[color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.98] motion-reduce:active:scale-100"
   >
     <Icon
@@ -62,6 +57,7 @@ const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
     <time datetime={iso} class="block text-[0.8125rem] font-medium tabular-nums text-muted-foreground">
       {dateLabel}
     </time>
+    {/* h1 token trio via inline style — site convention. */}
     <h1
       class="mt-2 text-balance leading-[1.15] text-foreground"
       style="font-size:var(--nb-h1-size);font-weight:var(--nb-h1-weight);letter-spacing:var(--nb-h1-tracking)"

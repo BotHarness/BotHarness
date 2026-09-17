@@ -1,8 +1,8 @@
 /**
- * Per-entry `/en/changelog/<slug>/index.md` — clean-markdown alternate of the
- * English (untranslated-fallback) changelog permalink. Mirrors the Chinese
- * route at `src/pages/changelog/[...slug]/index.md.ts`, with every advertised
- * URL kept inside the `/en` tree.
+ * Per-entry `/zh/changelog/<slug>/index.md` — clean-markdown alternate of the
+ * Chinese changelog permalink. Mirrors the English route at
+ * `src/pages/changelog/[...slug]/index.md.ts`, with every advertised URL kept
+ * inside the `/zh` tree.
  */
 import { entryRouteKey, withBase } from "@cloudflare/nimbus-docs";
 import { getEntry } from "astro:content";
@@ -56,8 +56,8 @@ export async function GET({ params, props, request }: SlugContext) {
   const tags = Array.isArray(data.tags) ? (data.tags as string[]) : [];
   const routeKey = entryRouteKey(entry.id);
   const sourcePath = routeKey
-    ? `/en/changelog/${routeKey}/index.mdx`
-    : "/en/changelog/index.mdx";
+    ? `/zh/changelog/${routeKey}/index.mdx`
+    : "/zh/changelog/index.mdx";
 
   const rawImage = data.socialImage;
   const socialImage =
@@ -79,7 +79,7 @@ export async function GET({ params, props, request }: SlugContext) {
     "---",
     "",
     "> Documentation Index",
-    `> Fetch the complete documentation index at: ${absoluteUrl("/llms.txt")}`,
+    `> Fetch the complete documentation index at: ${absoluteUrl("/zh/llms.txt")}`,
     "> Use this file to discover all available pages before exploring further.",
     "",
     `# ${title}`,

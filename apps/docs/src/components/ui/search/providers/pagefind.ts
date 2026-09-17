@@ -1,5 +1,6 @@
 import type { SearchProvider, SearchResult } from "@cloudflare/nimbus-docs/types";
 import { config } from "virtual:nimbus/config";
+import { normalizeLocale, searchStrings } from "@/lib/language";
 
 interface PagefindSubResult {
   title?: string;
@@ -73,8 +74,9 @@ export const provider: SearchProvider = {
       defaultFilters ? { filters: defaultFilters } : undefined,
     );
     const results = await Promise.all(search.results.slice(0, 10).map((result) => result.data()));
+    const { untitled } = searchStrings(normalizeLocale(document.documentElement.lang));
     return results.map((result): SearchResult => ({
-      title: result.meta?.title ?? "Untitled",
+      title: result.meta?.title ?? untitled,
       url: withBase(result.url),
       snippet: result.excerpt,
       subResults: result.sub_results

@@ -1,14 +1,13 @@
 /**
- * Per-entry `/en/changelog/<slug>/index.mdx` — expanded source alternate of
- * the English (untranslated-fallback) changelog permalink. Mirrors the Chinese
- * route at `src/pages/changelog/[...slug]/index.mdx.ts`.
+ * Per-entry `/zh/changelog/<slug>/index.mdx` — expanded source alternate of
+ * the Chinese changelog permalink. Mirrors the English route at
+ * `src/pages/changelog/[...slug]/index.mdx.ts`.
  */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,
   type MarkdownEndpointReference,
 } from "@cloudflare/nimbus-docs/agent-endpoints";
-import { agentEndpointResponse } from "@/utils/agent-endpoint-response";
 
 export const prerender = true;
 
@@ -27,15 +26,15 @@ export const getStaticPaths = async () =>
     .then((paths) => paths.filter((path) => path.params.slug !== undefined));
 
 export async function GET({ params, props, request }: SlugContext) {
-  return agentEndpointResponse(
-    () =>
-      getMarkdownPayload({
-        collection: "changelog",
-        surface: "source",
-        slug: params.slug,
-        reference: props.reference,
-        context: { request },
-      }),
-    prerender,
-  );
+  const payload = await getMarkdownPayload({
+    collection: "changelog",
+    surface: "source",
+    slug: params.slug,
+    reference: props.reference,
+    context: { request },
+  });
+  if (!payload) return new Response("Not found", { status: 404 });
+  return new Response(payload.body, {
+    headers: { "Content-Type": payload.mediaType },
+  });
 }

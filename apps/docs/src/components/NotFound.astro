@@ -1,0 +1,86 @@
+---
+/**
+ * NotFound — one language block of the 404 page. Both trees mount both
+ * blocks and the client script reveals the visitor's language (Workers
+ * static assets serves the nearest `404.html`, so the root page is the
+ * safety net for `/zh/**` misses if a nested 404 is ever absent).
+ */
+import { notFoundStrings, type Locale } from "@/lib/language";
+import { withBase } from "@cloudflare/nimbus-docs/runtime";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const t = notFoundStrings(locale);
+const isZh = locale === "zh-Hans";
+// Hidden only when this block does not match the page's own route: both 404
+// pages render both languages, and the script swaps to the requested path's
+// language (`/zh/404.html` is the `/zh/**` fallback).
+const pageIsZh = /^\/zh(\/|$)/.test(Astro.url.pathname);
+const homeHref = withBase(isZh ? "/zh" : "/", import.meta.env.BASE_URL);
+const docsHref = withBase(isZh ? "/zh/docs/overview" : "/docs/overview", import.meta.env.BASE_URL);
+const counterpartHref = withBase(isZh ? "/" : "/zh", import.meta.env.BASE_URL);
+---
+
+<section
+  data-404-locale={locale}
+  data-404-title={t.title}
+  hidden={isZh !== pageIsZh}
+  class="flex flex-col items-center"
+>
+  <p class="text-sm font-medium text-muted-foreground">404</p>
+  <h1
+    class="mt-2 text-foreground leading-tight"
+    style="font-size: var(--nb-h1-size); font-weight: var(--nb-h1-weight); letter-spacing: var(--nb-h1-tracking);"
+  >
+    {t.heading}
+  </h1>
+  <p class="mt-2 text-[1.0625rem] text-muted-foreground leading-relaxed">
+    {t.description}
+  </p>
+  <a
+    data-404-counterpart
+    href={counterpartHref}
+    class="mt-6 inline-flex items-center rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground no-underline transition-colors hover:border-border-strong"
+  >
+    {t.counterpart}
+  </a>
+  <div class="mt-4 flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-sm">
+    <a href={homeHref} class="text-muted-foreground hover:text-foreground transition-colors">
+      {t.home}
+    </a>
+    <span aria-hidden="true" class="text-muted-foreground/50">·</span>
+    <a href={docsHref} class="text-muted-foreground hover:text-foreground transition-colors">
+      {t.docs}
+    </a>
+  </div>
+</section>
+
+<script>
+  (() => {
+    const path = window.location.pathname;
+    const isZhPath = path === "/zh" || path.startsWith("/zh/");
+    for (const block of document.querySelectorAll<HTMLElement>("[data-404-locale]")) {
+      const zh = block.dataset.locale === "zh-Hans";
+      block.toggleAttribute("hidden", zh !== isZhPath);
+      const counterpart = block.querySelector<HTMLAnchorElement>("[data-404-counterpart]");
+      if (counterpart) {
+        counterpart.href = zh
+          ? path.replace(/^\/zh(?=\/|$)/, "") || "/"
+          : path === "/"
+            ? "/zh"
+            : `/zh${path}`;
+      }
+    }
+    if (isZhPath) {
+      const zhBlock = document.querySelector<HTMLElement>('[data-404-locale="zh-Hans"]');
+      const siteName = document.querySelector<HTMLMetaElement>('meta[property="og:site_name"]')
+        ?.content;
+      const title = zhBlock?.dataset.title;
+      if (title) document.title = siteName ? `${title} | ${siteName}` : title;
+      document.documentElement.lang = "zh-Hans";
+    }
+  })();
+</script>

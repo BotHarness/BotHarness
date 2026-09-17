@@ -1,0 +1,18 @@
+# English used to live under /en/**; it is now the root tree.
+/en/* /:splat 301
+/en / 301
+
+# `/zh` is a language tree, not a host root: site-wide endpoints and generated
+# assets have one canonical home at the root (robots/sitemaps are
+# language-independent; the OG site card is brand-level and the card font has
+# no CJK glyphs; the coordinate manifest is fetched by URL). Requests under
+# `/zh` redirect instead of 404ing. The zh per-section agent indexes are real
+# files (`src/pages/zh/[section]/llms.txt.ts`); the full-text corpus stays
+# English, so `/zh/llms-full.txt` falls back to the zh agent index.
+/zh/llms-full.txt /zh/llms.txt 301
+/zh/og.png /og.png 301
+/zh/og/* /og/:splat 301
+/zh/robots.txt /robots.txt 301
+/zh/sitemap-0.xml /sitemap-0.xml 301
+/zh/sitemap-index.xml /sitemap-index.xml 301
+/zh/nimbus-api/* /nimbus-api/:splat 301

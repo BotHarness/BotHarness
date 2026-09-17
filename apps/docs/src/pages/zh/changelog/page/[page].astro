@@ -1,15 +1,12 @@
 ---
 /**
- * `/en/changelog/page/<n>` — English mirror of the changelog pagination
- * pages. Entries are Chinese-only: Chinese content plus the untranslated
- * notice, with prev/next kept inside `/en`.
+ * `/zh/changelog/page/<n>` — Chinese changelog pagination pages. Entries are
+ * Chinese; prev/next links stay inside `/zh`.
  */
 import { getCollection } from "astro:content";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import ChangelogFeed from "@/components/changelog/ChangelogFeed.astro";
 import { Pagination } from "@/components/ui/pagination";
-import { Banner } from "@/components/ui/banner";
-import { UNTRANSLATED_NOTICE } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 export const prerender = true;
@@ -42,22 +39,20 @@ interface Props {
 
 const { slice, page, totalPages } = Astro.props as Props;
 const prev = {
-  label: page === 2 ? "Latest" : `Page ${page - 1}`,
-  href: page === 2 ? "/en/changelog" : `/en/changelog/page/${page - 1}`,
+  label: page === 2 ? "最新" : `第 ${page - 1} 页`,
+  href: page === 2 ? "/zh/changelog" : `/zh/changelog/page/${page - 1}`,
 };
 const next =
-  page < totalPages ? { label: `Page ${page + 1}`, href: `/en/changelog/page/${page + 1}` } : undefined;
+  page < totalPages ? { label: `第 ${page + 1} 页`, href: `/zh/changelog/page/${page + 1}` } : undefined;
 ---
 
-<ChangelogLayout title={`Changelog — Page ${page}`} description="" noindex>
-  <Banner variant="note" content={UNTRANSLATED_NOTICE} />
-
+<ChangelogLayout title={`Changelog — 第 ${page} 页`} description="" noindex>
   <header class="mb-14">
     <a
-      href={withBase("/en/changelog", import.meta.env.BASE_URL)}
+      href={withBase("/zh/changelog", import.meta.env.BASE_URL)}
       class="mb-4 inline-block text-[0.8125rem] font-medium text-muted-foreground no-underline hover:text-foreground"
     >
-      ← Latest
+      ← 最新
     </a>
     <h1
       class="m-0 leading-[1.1] text-foreground"
@@ -66,11 +61,11 @@ const next =
       Changelog
     </h1>
     <p class="mt-2.5 text-[1.0625rem] leading-normal text-muted-foreground">
-      Page {page} of {totalPages}
+      第 {page} 页，共 {totalPages} 页
     </p>
   </header>
 
-  <ChangelogFeed entries={slice} entryHrefBase="/en/changelog" />
+  <ChangelogFeed entries={slice} entryHrefBase="/zh/changelog" />
 
   <div class="mt-12">
     <Pagination prevNext={{ prev, next }} />
