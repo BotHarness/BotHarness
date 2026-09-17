@@ -29,8 +29,8 @@ const dateLabel = date.toLocaleDateString("en-US", { year: "numeric", month: "lo
 
 const routeKey = entryRouteKey(entry.id);
 const markdownPath = routeKey
-  ? `/changelog/${routeKey}/index.md`
-  : "/changelog/index.md";
+  ? `/en/changelog/${routeKey}/index.md`
+  : "/en/changelog/index.md";
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
 ---

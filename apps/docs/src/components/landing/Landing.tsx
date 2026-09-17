@@ -54,14 +54,19 @@ const CAPABILITIES = [
   },
 ] as const;
 
-const CHANGELOG = [
-  { date: "2026-09-17", title: "Astryx 首页（landing）" },
-  { date: "2026-09-17", title: "v1.0 基线 · M1 骨架 · 文档站上线" },
-] as const;
-
 const GITHUB_URL = "https://github.com/BotHarness/BotHarness";
 
-export default function Landing() {
+interface RecentEntry {
+  title: string;
+  href: string;
+  date: string;
+}
+
+interface Props {
+  recent: RecentEntry[];
+}
+
+export default function Landing({ recent }: Props) {
   return (
     <main
       id="main-content"
@@ -116,12 +121,6 @@ export default function Landing() {
             }
           >
             GitHub
-          </Button>
-          <span aria-hidden="true" className="text-xs text-border">
-            ·
-          </span>
-          <Button variant="link" size="sm" render={<a href="/en/docs/overview" />}>
-            English
           </Button>
         </div>
       </section>
@@ -189,11 +188,11 @@ export default function Landing() {
         <Frame>
           <FramePanel className="p-1">
             <ul className="flex flex-col">
-              {CHANGELOG.map((entry, index) => (
-                <li key={entry.title} className="flex flex-col">
+              {recent.map((entry, index) => (
+                <li key={entry.href} className="flex flex-col">
                   {index > 0 && <Separator />}
                   <a
-                    href="/changelog"
+                    href={entry.href}
                     className="flex items-baseline justify-between gap-4 rounded-lg px-3 py-2.5 transition-colors hover:bg-accent"
                   >
                     <span className="text-sm font-medium">{entry.title}</span>
