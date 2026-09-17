@@ -129,6 +129,7 @@ export function createImStoreReader(options: ImStoreReaderOptions = {}) {
   };
 }
 
+/** IM binding helper: resolves a PersonaBot identity from the base IM stores' workspaces. */
 export function resolveBotFromStores(
   workspacePath: string,
   snapshot: Pick<ImStoresSnapshot, 'bots' | 'workspaces'>,

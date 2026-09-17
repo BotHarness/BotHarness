@@ -15,8 +15,8 @@ describe('aggregateSessionStates', () => {
     expect(aggregateSessionStates({ a: 'blocked', b: 'working', c: 'waiting' })).toBe('blocked');
   });
 
-  it('ignores done and idle sessions', () => {
-    expect(aggregateSessionStates({ a: 'done', b: 'idle' })).toBe('idle');
+  it('ignores done sessions', () => {
+    expect(aggregateSessionStates({ a: 'done' })).toBe('idle');
     expect(aggregateSessionStates({ a: 'done', b: 'working' })).toBe('working');
   });
 });
@@ -44,21 +44,48 @@ describe('createBotStateTracker', () => {
     tracker.setSessionState('research', 's2', 'thinking');
     tracker.setSessionState('research', 's2', 'working');
 
-    expect(events.map((event) => event.type)).toEqual(['aggregate-changed', 'aggregate-changed']);
-    expect(events[0]).toMatchObject({ state: 'thinking', previous: 'idle' });
-    expect(events[1]).toMatchObject({ state: 'working', previous: 'thinking' });
+    expect(events.map((event) => event.type)).toEqual([
+      'session-changed',
+      'aggregate-changed',
+      'session-changed',
+      'session-changed',
+      'aggregate-changed',
+    ]);
+    const aggregates = events.filter((event) => event.type === 'aggregate-changed');
+    expect(aggregates[0]).toMatchObject({ state: 'thinking', previous: 'idle' });
+    expect(aggregates[1]).toMatchObject({ state: 'working', previous: 'thinking' });
   });
 
-  it('emits session-done with the session id', () => {
+  it('emits session-changed even when the aggregate does not move', () => {
     const tracker = createBotStateTracker();
     const events: BotStateEvent[] = [];
+    tracker.setSessionState('research', 's1', 'thinking');
+    tracker.setSessionState('research', 's2', 'blocked');
     tracker.on((event) => events.push(event));
 
     tracker.setSessionState('research', 's1', 'working');
+
+    expect(events).toHaveLength(1);
+    expect(events[0]).toMatchObject({
+      type: 'session-changed',
+      slug: 'research',
+      sessionId: 's1',
+      state: 'working',
+    });
+    expect(tracker.snapshot('research').state).toBe('blocked');
+  });
+
+  it('reports done as a session event while the aggregate stays idle', () => {
+    const tracker = createBotStateTracker();
+    const events: BotStateEvent[] = [];
+    tracker.setSessionState('research', 's1', 'working');
+    tracker.on((event) => events.push(event));
+
     tracker.setSessionState('research', 's1', 'done');
 
-    const done = events.find((event) => event.type === 'session-done');
-    expect(done).toMatchObject({ type: 'session-done', slug: 'research', sessionId: 's1' });
+    expect(events.map((event) => event.type)).toEqual(['session-changed', 'aggregate-changed']);
+    expect(events[0]).toMatchObject({ type: 'session-changed', sessionId: 's1', state: 'done' });
+    expect(tracker.snapshot('research').state).toBe('idle');
   });
 
   it('clears sessions and recomputes the aggregate', () => {
@@ -89,6 +116,6 @@ describe('createBotStateTracker', () => {
     off();
     tracker.setSessionState('research', 's2', 'working');
 
-    expect(count).toBe(1);
+    expect(count).toBe(2);
   });
 });

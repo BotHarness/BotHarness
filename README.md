@@ -34,7 +34,7 @@ pnpm build
 仓库结构（monorepo）：
 
 ```text
-packages/core        @botharness/core   # PersonaBot registry / 状态 / 记忆
+packages/core        @botharness/core   # PersonaBot registry / 状态（记忆在 M2）
 packages/client      @botharness/client # React：roster / 详情 / 委派入口（M3）
 packages/im          @botharness/im     # IM 适配器（M5）
 packages/deepseekbot deepseekbot        # bundle + 应用（后续）

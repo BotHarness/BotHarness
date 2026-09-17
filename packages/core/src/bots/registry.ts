@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import {
+  existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
@@ -17,16 +18,19 @@ export interface PersonaBotRecord {
   slug: string;
   displayName: string;
   avatar?: string;
+  model?: string;
+  preset?: string;
   memoryDir?: string;
   workspaces: string[];
   createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreatePersonaBotInput {
   slug: string;
   displayName: string;
   avatar?: string;
+  model?: string;
+  preset?: string;
   memoryDir?: string;
   workspaces?: string[];
 }
@@ -34,6 +38,10 @@ export interface CreatePersonaBotInput {
 export type CreatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
   | { ok: false; reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' };
+
+export interface RemovePersonaBotOptions {
+  purge?: boolean;
+}
 
 export interface PersonaBotRegistryOptions {
   rootDir: string;
@@ -45,7 +53,7 @@ export interface PersonaBotRegistry {
   create(input: CreatePersonaBotInput): CreatePersonaBotResult;
   get(slug: string): PersonaBotRecord | undefined;
   list(): PersonaBotRecord[];
-  remove(slug: string): boolean;
+  remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
 }
 
@@ -58,15 +66,18 @@ function isPersonaBotRecord(value: unknown, slug: string): value is PersonaBotRe
   const record = value as Record<string, unknown>;
   if (record['slug'] !== slug) return false;
   if (typeof record['displayName'] !== 'string') return false;
-  if (typeof record['createdAt'] !== 'string' || typeof record['updatedAt'] !== 'string')
-    return false;
+  if (typeof record['createdAt'] !== 'string') return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
-  for (const key of ['avatar', 'memoryDir'] as const) {
+  for (const key of ['avatar', 'model', 'preset', 'memoryDir'] as const) {
     const optional = record[key];
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
   return true;
+}
+
+function isMissing(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException).code === 'ENOENT';
 }
 
 export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): PersonaBotRegistry {
@@ -74,14 +85,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const now = options.now ?? (() => new Date());
   const botDir = (slug: string): string => join(rootDir, slug);
   const botFile = (slug: string): string => join(botDir(slug), 'bot.json');
+  const defaultMemoryDir = (slug: string): string => join(botDir(slug), 'memory');
 
   const read = (slug: string): PersonaBotRecord | undefined => {
     if (!isValidSlug(slug)) return undefined;
     let text: string;
     try {
       text = readFileSync(botFile(slug), 'utf8');
-    } catch {
-      return undefined;
+    } catch (error) {
+      if (isMissing(error)) return undefined;
+      throw error;
     }
     let parsed: unknown;
     try {
@@ -105,26 +118,33 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     rootDir,
     create(input) {
       if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
-      if (read(input.slug) !== undefined) return { ok: false, reason: 'duplicate' };
+      if (existsSync(botDir(input.slug)) || read(input.slug) !== undefined) {
+        return { ok: false, reason: 'duplicate' };
+      }
 
       const memoryDir = input.memoryDir?.trim();
       if (memoryDir !== undefined && memoryDir.length > 0 && !isAbsolute(memoryDir)) {
         return { ok: false, reason: 'invalid-memory-dir' };
       }
 
-      const timestamp = now().toISOString();
       const displayName = input.displayName.trim();
       const avatar = input.avatar?.trim();
+      const model = input.model?.trim();
+      const preset = input.preset?.trim();
       const record: PersonaBotRecord = {
         slug: input.slug,
         displayName: displayName.length > 0 ? displayName : input.slug,
         workspaces: input.workspaces ?? [],
-        createdAt: timestamp,
-        updatedAt: timestamp,
+        createdAt: now().toISOString(),
         ...(avatar ? { avatar } : {}),
+        ...(model ? { model } : {}),
+        ...(preset ? { preset } : {}),
         ...(memoryDir ? { memoryDir } : {}),
       };
       write(record);
+      mkdirSync(memoryDir && memoryDir.length > 0 ? memoryDir : defaultMemoryDir(input.slug), {
+        recursive: true,
+      });
       return { ok: true, record };
     },
     get(slug) {
@@ -134,8 +154,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       let entries: Dirent[];
       try {
         entries = readdirSync(rootDir, { withFileTypes: true });
-      } catch {
-        return [];
+      } catch (error) {
+        if (isMissing(error)) return [];
+        throw error;
       }
       return entries
         .filter((entry) => entry.isDirectory())
@@ -143,15 +164,19 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         .filter((record): record is PersonaBotRecord => record !== undefined)
         .sort((left, right) => left.slug.localeCompare(right.slug));
     },
-    remove(slug) {
+    remove(slug, removeOptions) {
       if (read(slug) === undefined) return false;
-      rmSync(botDir(slug), { recursive: true, force: true });
+      if (removeOptions?.purge === true) {
+        rmSync(botDir(slug), { recursive: true, force: true });
+        return true;
+      }
+      rmSync(botFile(slug), { force: true });
       return true;
     },
     memoryDirFor(slug) {
       const record = read(slug);
       if (record === undefined) return undefined;
-      return record.memoryDir ?? join(botDir(slug), 'memory');
+      return record.memoryDir ?? defaultMemoryDir(slug);
     },
   };
 }

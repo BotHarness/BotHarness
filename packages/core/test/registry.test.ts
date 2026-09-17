@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -53,14 +53,37 @@ describe('createPersonaBotRegistry', () => {
       displayName: '研究助手',
       workspaces: [],
       createdAt: '2026-09-17T00:00:00.000Z',
-      updatedAt: '2026-09-17T00:00:00.000Z',
     });
+  });
+
+  it('creates the memory dir, default or custom', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+
+    registry.create({ slug: 'research', displayName: '研究助手' });
+    expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
+
+    const custom = join(root, 'custom-memory');
+    registry.create({ slug: 'sales', displayName: '销售', memoryDir: custom });
+    expect(existsSync(custom)).toBe(true);
   });
 
   it('rejects duplicate slugs', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
     expect(registry.create({ slug: 'a', displayName: 'A' }).ok).toBe(true);
     expect(registry.create({ slug: 'a', displayName: 'A again' })).toEqual({
+      ok: false,
+      reason: 'duplicate',
+    });
+  });
+
+  it('treats an existing bot directory as duplicate even with a corrupt bot.json', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    mkdirSync(join(root, 'ghost'), { recursive: true });
+    writeFileSync(join(root, 'ghost', 'bot.json'), '{ not json');
+
+    expect(registry.create({ slug: 'ghost', displayName: 'Ghost' })).toEqual({
       ok: false,
       reason: 'duplicate',
     });
@@ -83,15 +106,15 @@ describe('createPersonaBotRegistry', () => {
   });
 
   it('validates a custom memory dir and stores it', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
     expect(registry.create({ slug: 'a', displayName: 'A', memoryDir: 'relative/path' })).toEqual({
       ok: false,
       reason: 'invalid-memory-dir',
     });
-    expect(registry.create({ slug: 'b', displayName: 'B', memoryDir: '/srv/memory/b' }).ok).toBe(
-      true,
-    );
-    expect(registry.memoryDirFor('b')).toBe('/srv/memory/b');
+    const custom = join(root, 'memory-b');
+    expect(registry.create({ slug: 'b', displayName: 'B', memoryDir: custom }).ok).toBe(true);
+    expect(registry.memoryDirFor('b')).toBe(custom);
   });
 
   it('defaults the memory dir inside the bot home', () => {
@@ -99,6 +122,25 @@ describe('createPersonaBotRegistry', () => {
     const registry = createPersonaBotRegistry({ rootDir: root });
     expect(registry.create({ slug: 'a', displayName: 'A' }).ok).toBe(true);
     expect(registry.memoryDirFor('a')).toBe(join(root, 'a', 'memory'));
+  });
+
+  it('stores model, preset, avatar and workspaces', () => {
+    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const result = registry.create({
+      slug: 'research',
+      displayName: '研究助手',
+      avatar: 'blue',
+      model: 'deepseek-chat',
+      preset: 'standard',
+      workspaces: ['/srv/materials'],
+    });
+
+    expect(result.ok && result.record).toMatchObject({
+      avatar: 'blue',
+      model: 'deepseek-chat',
+      preset: 'standard',
+      workspaces: ['/srv/materials'],
+    });
   });
 
   it('reads records back through a fresh registry instance', () => {
@@ -127,12 +169,20 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.list().map((record) => record.slug)).toEqual(['alpha', 'zeta']);
   });
 
-  it('removes bots and reports unknown slugs', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+  it('removes the record, keeping memory by default and purging on request', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+
     registry.create({ slug: 'a', displayName: 'A' });
     expect(registry.remove('a')).toBe(true);
     expect(registry.get('a')).toBeUndefined();
-    expect(registry.remove('a')).toBe(false);
+    expect(existsSync(join(root, 'a', 'memory'))).toBe(true);
+
+    registry.create({ slug: 'b', displayName: 'B' });
+    expect(registry.remove('b', { purge: true })).toBe(true);
+    expect(existsSync(join(root, 'b'))).toBe(false);
+
+    expect(registry.remove('missing')).toBe(false);
   });
 
   it('never escapes the root for hostile slugs', () => {

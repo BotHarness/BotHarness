@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  displayNameForBot,
   emptyWorkspacesDocument,
   resolveBotIdentity,
-  slugForBot,
   type ImBotRecord,
   type WorkspacesDocument,
 } from '../src/index.js';
@@ -27,7 +27,7 @@ describe('resolveBotIdentity', () => {
       ok: true,
       identity: {
         id: 'bot_sales',
-        slug: '销售助手',
+        displayName: '销售助手',
         workspace: '/srv/bots/sales',
         botName: '销售助手',
         domain: 'lark',
@@ -35,7 +35,7 @@ describe('resolveBotIdentity', () => {
     });
   });
 
-  it('prefers the alias for the slug', () => {
+  it('prefers the alias for the display name', () => {
     const result = resolveBotIdentity({
       workspacePath: '/srv/bots/sales',
       bots: [sales],
@@ -45,7 +45,7 @@ describe('resolveBotIdentity', () => {
       }),
     });
 
-    expect(result.ok && result.identity.slug).toBe('sales');
+    expect(result.ok && result.identity.displayName).toBe('sales');
   });
 
   it('normalizes trailing slashes and whitespace', () => {
@@ -60,7 +60,7 @@ describe('resolveBotIdentity', () => {
 
   it('falls back to the bot id when no alias or name exists', () => {
     const anon: ImBotRecord = { id: 'bot_anon' };
-    expect(slugForBot(anon, emptyWorkspacesDocument())).toBe('bot_anon');
+    expect(displayNameForBot(anon, emptyWorkspacesDocument())).toBe('bot_anon');
   });
 
   it('matches a conversation override only when its key is given', () => {

@@ -1,4 +1,4 @@
-export type SessionState = 'idle' | 'thinking' | 'working' | 'waiting' | 'blocked' | 'done';
+export type SessionState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'done';
 
 export type AggregatedState = 'idle' | 'thinking' | 'working' | 'waiting' | 'blocked';
 
@@ -16,7 +16,13 @@ export type BotStateEvent =
       previous: AggregatedState;
       snapshot: BotStateSnapshot;
     }
-  | { type: 'session-done'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
+  | {
+      type: 'session-changed';
+      slug: string;
+      sessionId: string;
+      state: SessionState;
+      snapshot: BotStateSnapshot;
+    };
 
 export interface BotStateTracker {
   setSessionState(slug: string, sessionId: string, state: SessionState): void;
@@ -67,28 +73,41 @@ export function createBotStateTracker(): BotStateTracker {
     for (const listener of listeners) listener(event);
   };
 
+  const emitAggregateIfChanged = (
+    slug: string,
+    snapshot: BotStateSnapshot,
+    previous: AggregatedState,
+  ): void => {
+    if (snapshot.state !== previous) {
+      emit({
+        type: 'aggregate-changed',
+        slug,
+        state: snapshot.state,
+        previous,
+        snapshot,
+      });
+    }
+  };
+
   return {
     setSessionState(slug, sessionId, state) {
       const sessions = sessionsOf(slug);
-      const previous = aggregateSessionStates(toRecord(sessions));
+      const previousAggregate = aggregateSessionStates(toRecord(sessions));
+      const previousState = sessions.get(sessionId);
       sessions.set(sessionId, state);
       const snapshot = snapshotOf(slug, sessions);
-      if (state === 'done') {
-        emit({ type: 'session-done', slug, sessionId, snapshot });
+      if (previousState !== state) {
+        emit({ type: 'session-changed', slug, sessionId, state, snapshot });
       }
-      if (snapshot.state !== previous) {
-        emit({ type: 'aggregate-changed', slug, state: snapshot.state, previous, snapshot });
-      }
+      emitAggregateIfChanged(slug, snapshot, previousAggregate);
     },
     clearSession(slug, sessionId) {
       const sessions = bots.get(slug);
       if (sessions === undefined) return;
-      const previous = aggregateSessionStates(toRecord(sessions));
-      sessions.delete(sessionId);
+      const previousAggregate = aggregateSessionStates(toRecord(sessions));
+      if (!sessions.delete(sessionId)) return;
       const snapshot = snapshotOf(slug, sessions);
-      if (snapshot.state !== previous) {
-        emit({ type: 'aggregate-changed', slug, state: snapshot.state, previous, snapshot });
-      }
+      emitAggregateIfChanged(slug, snapshot, previousAggregate);
     },
     snapshot(slug) {
       return snapshotOf(slug, bots.get(slug) ?? new Map());

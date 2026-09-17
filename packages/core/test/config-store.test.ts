@@ -124,6 +124,6 @@ describe('resolveBotFromStores', () => {
       workspaces: { ...emptyWorkspacesDocument(), workspaces: { bot_a: '/srv/a' } },
     });
 
-    expect(result.ok && result.identity.slug).toBe('A');
+    expect(result.ok && result.identity.displayName).toBe('A');
   });
 });

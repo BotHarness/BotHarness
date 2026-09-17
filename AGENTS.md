@@ -23,7 +23,7 @@ In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create syml
 
 ## Conventions
 
-- TypeScript ESM; tests live in `test/` (vitest).
+- TypeScript ESM; tests live in `packages/*/test/` (vitest).
 - Never commit secrets: the Feishu App Secret goes to the DSH credentials service, never to config or the repo (platform spec §4, rule M8).
 - Memory rules (layout, front-matter, atomic writes, tree injection, visibility, git): see `docs/botharness.md` §4, rules M1–M11.
 - Record decisions in the specs (bump version + changelog) and, for architecture, as an ADR under `docs/adr/` instead of leaving them in chat.
