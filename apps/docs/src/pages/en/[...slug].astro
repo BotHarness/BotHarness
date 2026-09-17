@@ -1,0 +1,89 @@
+---
+/**
+ * `/en/**` — English docs collection (`docs-en`), mounted at `/en` through
+ * Nimbus's `versions.others` mechanism. Mirrors `src/pages/[...slug].astro`.
+ *
+ * Pages flagged `untranslated: true` (the generated `docs-en/dev` mirror of
+ * the Chinese dev docs) render the Chinese source plus a notice banner.
+ * `suppressVersionAlternates` keeps Nimbus from canonicalizing a language
+ * variant to its Chinese sibling — `en` is not an older docs version.
+ */
+import DocsLayout from "../../layouts/DocsLayout.astro";
+import {
+  getCollectionStaticPaths,
+  getCollectionPage,
+  getRouteFlags,
+  getSidebar,
+  getPrevNext,
+  getBreadcrumbs,
+  getEditUrl,
+  getLastUpdated,
+  getTOC,
+  entryRouteKey,
+  stripBase,
+} from "@cloudflare/nimbus-docs/runtime";
+import { components } from "../../components";
+import { UNTRANSLATED_NOTICE } from "../../lib/language";
+
+export const prerender = true;
+export const getStaticPaths = getCollectionStaticPaths("docs-en");
+
+const page = await getCollectionPage<"docs-en">(Astro);
+if (page instanceof Response) return page;
+const { entry, Content, headings } = page;
+
+const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
+
+const { sidebar: sidebarOn, tableOfContents: tocOn } = await getRouteFlags(entry);
+
+const sidebar = sidebarOn
+  ? await getSidebar(currentSlug, { collection: entry.collection })
+  : false;
+const prevNext = await getPrevNext(currentSlug, {
+  sidebarTree: sidebar === false ? [] : sidebar,
+  overrides: { prev: entry.data.prev, next: entry.data.next },
+});
+const breadcrumbs = await getBreadcrumbs(currentSlug, { collection: entry.collection });
+const editUrl = await getEditUrl(entry);
+// Frontmatter wins; git is the fallback.
+const lastUpdated = entry.data.lastUpdated ??
+  await getLastUpdated(entry);
+const tocConfig = entry.data.tableOfContents;
+const toc = tocOn && tocConfig !== false ? getTOC(headings, tocConfig) : false;
+const routeKey = entryRouteKey(entry.id);
+const markdownPath = routeKey ? `/en/${routeKey}/index.md` : "/en/index.md";
+const markdownUrl = markdownPath;
+// The OG route prefixes version collections with their mount (`/og/en/...`).
+const socialImage = entry.data.socialImage ?? `/og/en/${entry.id}.png`;
+
+// Untranslated pages are the Chinese dev mirror: show the notice instead of
+// any frontmatter banner (mirrored pages never carry one).
+const banner = entry.data.untranslated
+  ? { content: UNTRANSLATED_NOTICE, type: "note" as const }
+  : entry.data.banner;
+---
+
+<DocsLayout
+  title={entry.data.title}
+  description={entry.data.description}
+  sidebar={sidebar}
+  headings={toc}
+  breadcrumbs={breadcrumbs}
+  prevNext={prevNext}
+  mode={entry.data.mode}
+  banner={banner}
+  head={entry.data.head}
+  searchable={entry.data.searchable}
+  noindex={entry.data.noindex}
+  markdownUrl={markdownUrl}
+  socialImage={socialImage}
+  lastUpdated={lastUpdated}
+  editUrl={editUrl}
+  draft={entry.data.draft}
+  audience={entry.data.audience}
+  collection={entry.collection}
+  entryId={entry.id}
+  suppressVersionAlternates
+>
+  <Content components={components} />
+</DocsLayout>

@@ -19,6 +19,17 @@ const nimbusConfig = defineNimbusConfig({
   description:
     "给 LLM agent 一份持久身份的 DSH 插件层：PersonaBot —— 带人格、跨 session 记忆、可并发工作。",
   locale: "zh",
+  // Bilingual site. Nimbus has no i18n, but `docs-<slug>` + `versions.others`
+  // is the only mechanism that mounts a second prose collection at `/<slug>`
+  // with a working sidebar / breadcrumbs / prev-next / llms.txt tree. `en` is
+  // a language variant, not an older snapshot, so the version UI is
+  // neutralized: no picker is installed, `en` is neither deprecated nor
+  // hidden, and the `/en` route disables cross-version SEO alternates
+  // (see `suppressVersionAlternates` in `src/layouts/DocsLayout.astro`).
+  versions: {
+    current: "zh",
+    others: ["en"],
+  },
   github: null,
   socialImageAlt: "BotHarness 文档预览",
 });
