@@ -10,28 +10,28 @@ const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
 const PAGES = [
   {
     source: 'docs/architecture/botharness-architecture.md',
-    target: 'docs/architecture.mdx',
+    target: 'docs/dev/architecture.mdx',
     title: '架构与数据流',
     description: '系统上下文、模块、数据流与边界（持续维护）',
     order: 0,
   },
   {
     source: 'docs/botharness.md',
-    target: 'docs/spec/platform.mdx',
+    target: 'docs/dev/spec/platform.mdx',
     title: '平台规格',
     description: 'PersonaBot、记忆、状态与工作方式',
     order: 1,
   },
   {
     source: 'PRD.md',
-    target: 'docs/spec/app-prd.mdx',
+    target: 'docs/dev/spec/app-prd.mdx',
     title: 'DeepSeekBot 应用 PRD',
     description: '首个应用：sidebar 名册、委派与 IM 接入',
     order: 2,
   },
   {
     source: 'CONTEXT.md',
-    target: 'docs/spec/context.mdx',
+    target: 'docs/dev/spec/context.mdx',
     title: '领域词表',
     description: 'PersonaBot 术语的规范用法',
     order: 3,
@@ -39,11 +39,11 @@ const PAGES = [
 ];
 
 const LINK_REWRITES = [
-  [/\]\(\.?\/?docs\/architecture\/botharness-architecture\.(?:md|html)\)/g, '](/architecture)'],
-  [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/spec/platform)'],
-  [/\]\(\.?\/?PRD\.md\)/g, '](/spec/app-prd)'],
-  [/\]\(\.?\/?CONTEXT\.md\)/g, '](/spec/context)'],
-  [/\]\(\.?\/?docs\/adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/adr/$1)'],
+  [/\]\(\.?\/?docs\/architecture\/botharness-architecture\.(?:md|html)\)/g, '](/dev/architecture)'],
+  [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/dev/spec/platform)'],
+  [/\]\(\.?\/?PRD\.md\)/g, '](/dev/spec/app-prd)'],
+  [/\]\(\.?\/?CONTEXT\.md\)/g, '](/dev/spec/context)'],
+  [/\]\(\.?\/?docs\/adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
   [/\]\(\.?\/?README\.en?\.md\)/g, `](${GITHUB_BLOB}README.md)`],
 ];
 
@@ -121,7 +121,7 @@ function syncAdr() {
     const title = titleFrom(body, file);
     const status = sourceFrontmatter.match(/^Status:\s*(.+)$/m)?.[1]?.trim();
     const statusLine = status ? `> Status: ${status}\n\n` : '';
-    const target = `docs/adr/${file.replace(/\.md$/, '.mdx')}`;
+    const target = `docs/dev/adr/${file.replace(/\.md$/, '.mdx')}`;
     writeText(
       target,
       frontmatter({ title, order: Number.isNaN(number) ? 99 : number }) +
@@ -170,10 +170,9 @@ function syncChangelog() {
 }
 
 export function syncDocs() {
-  for (const stale of ['docs/spec', 'docs/adr', 'changelog']) {
+  for (const stale of ['docs/spec', 'docs/adr', 'docs/architecture.mdx', 'docs/dev']) {
     rmSync(join(CONTENT, stale), { recursive: true, force: true });
   }
-  rmSync(join(CONTENT, 'docs', 'architecture.mdx'), { force: true });
 
   syncPages();
   syncAdr();

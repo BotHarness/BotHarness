@@ -12,12 +12,12 @@ import { Separator } from "@/components/coss/separator";
 
 const PATHS = [
   {
-    href: "/overview",
+    href: "/docs/overview",
     title: "用户文档",
     description: "BotHarness 是什么、怎么上手 —— 从总览与快速开始进入。",
   },
   {
-    href: "/architecture",
+    href: "/dev/architecture",
     title: "开发与审计",
     description: "架构、数据流、ADR 与平台规格，面向贡献者与审计者。",
   },
@@ -100,9 +100,9 @@ export default function Landing() {
         </div>
 
         <Group>
-          <Button render={<a href="/quickstart" />}>快速开始</Button>
+          <Button render={<a href="/docs/quickstart" />}>快速开始</Button>
           <GroupSeparator />
-          <Button variant="outline" render={<a href="/architecture" />}>
+          <Button variant="outline" render={<a href="/dev/architecture" />}>
             架构与数据流
           </Button>
         </Group>
