@@ -1,11 +1,22 @@
 #!/usr/bin/env node
-import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONTENT = join(ROOT, 'apps', 'docs', 'src', 'content');
+const DIAGRAMS_RENDERED = join(ROOT, 'docs', 'architecture', 'diagrams', 'rendered');
+const DIAGRAMS_PUBLIC = join(ROOT, 'apps', 'docs', 'public', 'diagrams');
 const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
+
+const ARCHITECTURE_DIAGRAMS = [
+  { name: '01-system-context', caption: '系统上下文' },
+  { name: '02-modules', caption: '模块与包' },
+  { name: '03-boot', caption: '装载与服务暴露' },
+  { name: '04-create-bot', caption: '创建 PersonaBot（数据流）' },
+  { name: '05-im-binding', caption: 'IM 绑定解析（当前为 helper，M5 接线）' },
+  { name: '06-state', caption: '状态机与事件' },
+];
 
 const PAGES = [
   {
@@ -14,6 +25,7 @@ const PAGES = [
     title: '架构与数据流',
     description: '系统上下文、模块、数据流与边界（持续维护）',
     order: 0,
+    diagrams: ARCHITECTURE_DIAGRAMS,
   },
   {
     source: 'docs/botharness.md',
@@ -60,11 +72,25 @@ function writeText(relativePath, content) {
   writeFileSync(absolute, content, 'utf8');
 }
 
+function mermaidFenceToRuntime(code) {
+  return `${MERMAID_OPEN}\n${String(code).trimEnd()}\n${MERMAID_CLOSE}\n`;
+}
+
 function transformMermaid(body) {
-  return body.replace(
-    /```mermaid\r?\n([\s\S]*?)```\r?\n?/g,
-    (_match, code) => `${MERMAID_OPEN}\n${String(code).trimEnd()}\n${MERMAID_CLOSE}\n`,
+  return body.replace(/```mermaid\r?\n([\s\S]*?)```\r?\n?/g, (_match, code) =>
+    mermaidFenceToRuntime(code),
   );
+}
+
+function transformDiagrams(body, diagrams) {
+  let index = 0;
+  return body.replace(/```mermaid\r?\n([\s\S]*?)```\r?\n?/g, (_match, code) => {
+    const diagram = diagrams[index];
+    index += 1;
+    if (!diagram) return mermaidFenceToRuntime(code);
+    const caption = diagram.caption ? ` caption=${JSON.stringify(diagram.caption)}` : '';
+    return `<Diagram name="${diagram.name}"${caption} />\n`;
+  });
 }
 
 function rewriteLinks(body) {
@@ -95,8 +121,11 @@ function frontmatter({ title, description, order }) {
   return lines.join('\n');
 }
 
-function prepare(body) {
-  return rewriteLinks(transformMermaid(stripH1(body)));
+function prepare(body, diagrams) {
+  const transformed = diagrams
+    ? transformDiagrams(stripH1(body), diagrams)
+    : transformMermaid(stripH1(body));
+  return rewriteLinks(transformed);
 }
 
 function syncPages() {
@@ -104,7 +133,7 @@ function syncPages() {
     const raw = readText(page.source);
     const { body } = stripFrontmatter(raw);
     const title = titleFrom(body, page.title);
-    writeText(page.target, frontmatter({ ...page, title }) + prepare(body));
+    writeText(page.target, frontmatter({ ...page, title }) + prepare(body, page.diagrams));
     process.stdout.write(`docs: ${page.source} -> ${page.target}\n`);
   }
 }
@@ -169,6 +198,32 @@ function syncChangelog() {
   }
 }
 
+function syncDiagrams() {
+  rmSync(DIAGRAMS_PUBLIC, { recursive: true, force: true });
+
+  let files = [];
+  try {
+    files = readdirSync(DIAGRAMS_RENDERED)
+      .filter((name) => name.endsWith('.svg'))
+      .sort();
+  } catch {
+    process.stderr.write(
+      'diagrams: docs/architecture/diagrams/rendered is missing — run "pnpm diagrams"\n',
+    );
+    return;
+  }
+  if (files.length === 0) {
+    process.stderr.write('diagrams: no rendered SVGs found — run "pnpm diagrams"\n');
+    return;
+  }
+
+  mkdirSync(DIAGRAMS_PUBLIC, { recursive: true });
+  for (const file of files) {
+    copyFileSync(join(DIAGRAMS_RENDERED, file), join(DIAGRAMS_PUBLIC, file));
+  }
+  process.stdout.write(`diagrams: ${files.length} SVG(s) -> apps/docs/public/diagrams\n`);
+}
+
 export function syncDocs() {
   for (const stale of ['docs/spec', 'docs/adr', 'docs/architecture.mdx', 'docs/dev']) {
     rmSync(join(CONTENT, stale), { recursive: true, force: true });
@@ -177,6 +232,7 @@ export function syncDocs() {
   syncPages();
   syncAdr();
   syncChangelog();
+  syncDiagrams();
   process.stdout.write('docs sync complete\n');
 }
 

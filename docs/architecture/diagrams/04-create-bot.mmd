@@ -1,0 +1,12 @@
+flowchart TD
+  A["registry.create({ slug, displayName, … })"] --> B{"slug 合法?<br/>kebab-case ≤64"}
+  B -- 否 --> E1["reason: invalid-slug"]
+  B -- 是 --> C{"已有有效 bot.json?"}
+  C -- 是 --> E2["reason: duplicate"]
+  C -- 否 --> D{"memoryDir 为绝对路径?"}
+  D -- 否 --> E3["reason: invalid-memory-dir"]
+  D -- 是 --> F["组装 record<br/>slug/displayName/avatar/model/preset/workspaces/createdAt"]
+  F --> G["原子写：bot.json.tmp-<uuid> → rename"]
+  G --> H["mkdir memory/（默认或自定义）"]
+  H --> I["返回 ok: record"]
+  G -.->|"损坏可重建：保留既有 memory/"| H

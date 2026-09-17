@@ -5,6 +5,7 @@
  */
 
 import { Aside } from "./components/ui/aside";
+import Diagram from "./components/Diagram.astro";
 import Render from "./components/Render.astro";
 import { Card } from "./components/ui/card";
 import { CardGrid } from "./components/ui/card-grid";
@@ -16,6 +17,7 @@ export const components = {
   Aside,
   Card,
   CardGrid,
+  Diagram,
   PackageManagers,
   Render,
   Step,

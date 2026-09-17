@@ -7,3 +7,4 @@ allowBuilds:
   workerd: true
   '@astryxdesign/core': true
   '@astryxdesign/cli': true
+  puppeteer: true
