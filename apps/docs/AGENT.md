@@ -51,8 +51,45 @@ Rules:
 
 - **Components must be PascalCase and registered in `src/components.ts`.** A pre-build validator catches typos with a "did you mean" hint.
 - **Partials use `<Render file="..." />`.** Don't import `.mdx` directly. Shared content lives in `src/content/partials/<slug>.mdx`.
-- **Icons use `astro-icon` + Phosphor.** `<Icon name="ph:<glyph>" class="w-4 h-4" />` from `astro-icon/components`. Glyphs: [phosphoricons.com](https://phosphoricons.com).
+- **Icons** use the Nimbus `Icon` component (`@cloudflare/nimbus-docs/components/Icon.astro`): HugeIcons for section/nav glyphs — `<Icon name="hugeicons:book-02" class="w-4 h-4" />` — and Phosphor (`ph:<glyph>`) where a HugeIcon doesn't fit (e.g. `ph:rss`, `ph:github-logo`). Glyph sets: [hugeicons.com](https://hugeicons.com) · [phosphoricons.com](https://phosphoricons.com).
 - **Don't remove `<AgentDirective />` from `BaseLayout.astro`.** It points agents at `/llms.txt`.
+
+## Sections
+
+One build serves both domains (`botharness.ai` and `botharness.dev`):
+
+| Section | Content |
+|---|---|
+| `/docs` | User guides (`overview`, `quickstart`) |
+| `/dev` | Architecture / spec / PRD / ADR (generated from repo sources) |
+| `/changelog` | Release feed + `/changelog/<slug>` permalinks |
+
+## Bilingual layout
+
+Chinese is primary; English mounts at `/en/**` via the `docs-en` collection +
+Nimbus `versions.others` (`astro.config.ts`). Generated `/dev` pages are
+mirrored into `docs-en/dev` with `untranslated: true`, which the `/en` route
+renders with a notice banner; site-owned translations live in
+`src/content/docs-en/docs/`. `src/lib/language.ts` owns the switcher mapping
+(`/docs/x` ↔ `/en/docs/x`, fallback `/en/docs/overview`) and `Header.astro`
+renders it. Edit the repo sources — never generated files.
+
+## Diagrams
+
+`.mmd` sources live in `docs/architecture/diagrams/` at the repo root.
+`pnpm diagrams` (root) re-renders the committed light/dark `rendered/*.svg`
+and syncs them to `public/diagrams/`; the architecture page embeds those via
+the `Diagram` component (light/dark `<img>` + lightbox). The runtime mermaid
+loader remains only for ad-hoc `mermaid` fences in hand-authored pages.
+
+## Generated directories — don't edit
+
+- `src/content/docs/dev/**` — architecture / spec / ADR, from root `docs/`
+- `src/content/docs-en/dev/**` — mirror of the above (`untranslated: true`)
+- `src/content/changelog/**` — from root `docs/changelog/*.md`
+- `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
+
+`scripts/sync-docs.mjs` rebuilds all of them on every `syncDocs()` call.
 
 ## Adding things
 
