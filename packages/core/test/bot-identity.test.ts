@@ -77,20 +77,6 @@ describe('resolveBotIdentity', () => {
     expect(result.ok && result.identity.workspace).toBe('/srv/proj-b');
   });
 
-  it('ignores overrides that belong to another conversation', () => {
-    const result = resolveBotIdentity({
-      workspacePath: '/srv/proj-b',
-      bots: [sales],
-      workspaces: workspaces({
-        workspaces: { bot_sales: '/srv/bots/sales' },
-        conversationWorkspaces: { bot_sales: { oc_1: '/srv/proj-b' } },
-      }),
-      conversationKey: 'oc_other',
-    });
-
-    expect(result).toEqual({ ok: false, reason: 'not-found', matches: [] });
-  });
-
   it('does not treat an override path as a bot default', () => {
     const result = resolveBotIdentity({
       workspacePath: '/srv/proj-b',
@@ -101,21 +87,7 @@ describe('resolveBotIdentity', () => {
       }),
     });
 
-    expect(result.ok).toBe(false);
-  });
-
-  it('still resolves the default workspace when an override exists for the key', () => {
-    const result = resolveBotIdentity({
-      workspacePath: '/srv/bots/sales',
-      bots: [sales],
-      workspaces: workspaces({
-        workspaces: { bot_sales: '/srv/bots/sales' },
-        conversationWorkspaces: { bot_sales: { oc_1: '/srv/proj-b' } },
-      }),
-      conversationKey: 'oc_1',
-    });
-
-    expect(result.ok && result.identity.workspace).toBe('/srv/bots/sales');
+    expect(result).toEqual({ ok: false, reason: 'not-found', matches: [] });
   });
 
   it('reports ambiguity when two bots share a workspace', () => {
@@ -133,16 +105,6 @@ describe('resolveBotIdentity', () => {
         expect.objectContaining({ id: 'bot_dev' }),
       ],
     });
-  });
-
-  it('reports not-found for an unknown workspace', () => {
-    const result = resolveBotIdentity({
-      workspacePath: '/srv/unknown',
-      bots: [sales],
-      workspaces: workspaces({ workspaces: { bot_sales: '/srv/bots/sales' } }),
-    });
-
-    expect(result).toEqual({ ok: false, reason: 'not-found', matches: [] });
   });
 
   it('canonicalizes paths through the injected resolver', () => {

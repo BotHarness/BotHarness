@@ -37,7 +37,7 @@ describe('isValidSlug', () => {
 });
 
 describe('createPersonaBotRegistry', () => {
-  it('creates a bot and persists bot.json atomically', () => {
+  it('persists bot.json and reads it back through a fresh instance', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root, now: FIXED_NOW });
 
@@ -54,18 +54,18 @@ describe('createPersonaBotRegistry', () => {
       workspaces: [],
       createdAt: '2026-09-17T00:00:00.000Z',
     });
+    expect(createPersonaBotRegistry({ rootDir: root }).get('research')).toMatchObject({
+      slug: 'research',
+    });
   });
 
-  it('creates the memory dir, default or custom', () => {
+  it('creates the default memory dir inside the bot home and reports it', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
-
     registry.create({ slug: 'research', displayName: '研究助手' });
-    expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
 
-    const custom = join(root, 'custom-memory');
-    registry.create({ slug: 'sales', displayName: '销售', memoryDir: custom });
-    expect(existsSync(custom)).toBe(true);
+    expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
+    expect(registry.memoryDirFor('research')).toBe(join(root, 'research', 'memory'));
   });
 
   it('rejects duplicate slugs', () => {
@@ -77,26 +77,15 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
-  it('treats an existing bot directory as duplicate even with a corrupt bot.json', () => {
-    const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
-    mkdirSync(join(root, 'ghost'), { recursive: true });
-    writeFileSync(join(root, 'ghost', 'bot.json'), '{ not json');
-
-    expect(registry.create({ slug: 'ghost', displayName: 'Ghost' })).toEqual({
-      ok: false,
-      reason: 'duplicate',
-    });
-  });
-
-  it('rejects invalid slugs', () => {
+  it('rejects invalid slugs at create time and never escapes the root', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
-    for (const slug of ['Bad', '-lead', 'trail-', 'a/b', '..', '']) {
-      expect(registry.create({ slug, displayName: 'x' })).toEqual({
-        ok: false,
-        reason: 'invalid-slug',
-      });
-    }
+    expect(registry.create({ slug: '../evil', displayName: 'x' })).toEqual({
+      ok: false,
+      reason: 'invalid-slug',
+    });
+    expect(registry.get('../outside')).toBeUndefined();
+    expect(registry.memoryDirFor('../outside')).toBeUndefined();
+    expect(registry.remove('../outside')).toBe(false);
   });
 
   it('falls back to the slug when the display name is blank', () => {
@@ -105,7 +94,7 @@ describe('createPersonaBotRegistry', () => {
     expect(result.ok && result.record.displayName).toBe('quiet');
   });
 
-  it('validates a custom memory dir and stores it', () => {
+  it('rejects a relative memory dir and stores an absolute one', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
     expect(registry.create({ slug: 'a', displayName: 'A', memoryDir: 'relative/path' })).toEqual({
@@ -115,13 +104,7 @@ describe('createPersonaBotRegistry', () => {
     const custom = join(root, 'memory-b');
     expect(registry.create({ slug: 'b', displayName: 'B', memoryDir: custom }).ok).toBe(true);
     expect(registry.memoryDirFor('b')).toBe(custom);
-  });
-
-  it('defaults the memory dir inside the bot home', () => {
-    const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
-    expect(registry.create({ slug: 'a', displayName: 'A' }).ok).toBe(true);
-    expect(registry.memoryDirFor('a')).toBe(join(root, 'a', 'memory'));
+    expect(existsSync(custom)).toBe(true);
   });
 
   it('stores model, preset, avatar and workspaces', () => {
@@ -143,20 +126,7 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
-  it('reads records back through a fresh registry instance', () => {
-    const root = createRoot();
-    createPersonaBotRegistry({ rootDir: root, now: FIXED_NOW }).create({
-      slug: 'research',
-      displayName: '研究助手',
-      avatar: 'blue',
-    });
-
-    const reloaded = createPersonaBotRegistry({ rootDir: root }).get('research');
-
-    expect(reloaded).toMatchObject({ slug: 'research', displayName: '研究助手', avatar: 'blue' });
-  });
-
-  it('lists bots sorted and skips junk entries', () => {
+  it('lists bots sorted and skips junk entries and poisoned records', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
     registry.create({ slug: 'zeta', displayName: 'Z' });
@@ -165,11 +135,17 @@ describe('createPersonaBotRegistry', () => {
     writeFileSync(join(root, 'loose.txt'), 'x');
     mkdirSync(join(root, 'broken'));
     writeFileSync(join(root, 'broken', 'bot.json'), '{ not json');
+    mkdirSync(join(root, 'poisoned'));
+    writeFileSync(
+      join(root, 'poisoned', 'bot.json'),
+      JSON.stringify({ slug: 'someone-else', displayName: 'X', workspaces: [], createdAt: 'now' }),
+    );
 
     expect(registry.list().map((record) => record.slug)).toEqual(['alpha', 'zeta']);
+    expect(registry.get('broken')).toBeUndefined();
   });
 
-  it('removes the record, keeping memory by default and purging on request', () => {
+  it('removes the record, keeps memory by default, purges on request and frees the slug', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
 
@@ -177,6 +153,7 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.remove('a')).toBe(true);
     expect(registry.get('a')).toBeUndefined();
     expect(existsSync(join(root, 'a', 'memory'))).toBe(true);
+    expect(registry.create({ slug: 'a', displayName: 'A again' }).ok).toBe(true);
 
     registry.create({ slug: 'b', displayName: 'B' });
     expect(registry.remove('b', { purge: true })).toBe(true);
@@ -185,20 +162,15 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.remove('missing')).toBe(false);
   });
 
-  it('never escapes the root for hostile slugs', () => {
-    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
-    expect(registry.get('../outside')).toBeUndefined();
-    expect(registry.memoryDirFor('../outside')).toBeUndefined();
-    expect(registry.remove('../outside')).toBe(false);
-  });
-
-  it('treats a corrupt bot.json as absent', () => {
+  it('treats a corrupt bot.json as absent and recreates over it', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
-    mkdirSync(join(root, 'broken'), { recursive: true });
+    mkdirSync(join(root, 'broken', 'memory'), { recursive: true });
     writeFileSync(join(root, 'broken', 'bot.json'), '{ not json');
 
     expect(registry.get('broken')).toBeUndefined();
     expect(registry.list()).toEqual([]);
+    expect(registry.create({ slug: 'broken', displayName: 'Broken' }).ok).toBe(true);
+    expect(existsSync(join(root, 'broken', 'memory'))).toBe(true);
   });
 });

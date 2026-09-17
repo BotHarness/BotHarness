@@ -22,7 +22,8 @@ export type BotStateEvent =
       sessionId: string;
       state: SessionState;
       snapshot: BotStateSnapshot;
-    };
+    }
+  | { type: 'session-removed'; slug: string; sessionId: string; snapshot: BotStateSnapshot };
 
 export interface BotStateTracker {
   setSessionState(slug: string, sessionId: string, state: SessionState): void;
@@ -107,6 +108,7 @@ export function createBotStateTracker(): BotStateTracker {
       const previousAggregate = aggregateSessionStates(toRecord(sessions));
       if (!sessions.delete(sessionId)) return;
       const snapshot = snapshotOf(slug, sessions);
+      emit({ type: 'session-removed', slug, sessionId, snapshot });
       emitAggregateIfChanged(slug, snapshot, previousAggregate);
     },
     snapshot(slug) {

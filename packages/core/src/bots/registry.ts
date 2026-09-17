@@ -11,37 +11,14 @@ import {
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
-export const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-export const MAX_SLUG_LENGTH = 64;
-
-export interface PersonaBotRecord {
-  slug: string;
-  displayName: string;
-  avatar?: string;
-  model?: string;
-  preset?: string;
-  memoryDir?: string;
-  workspaces: string[];
-  createdAt: string;
-}
-
-export interface CreatePersonaBotInput {
-  slug: string;
-  displayName: string;
-  avatar?: string;
-  model?: string;
-  preset?: string;
-  memoryDir?: string;
-  workspaces?: string[];
-}
-
-export type CreatePersonaBotResult =
-  | { ok: true; record: PersonaBotRecord }
-  | { ok: false; reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' };
-
-export interface RemovePersonaBotOptions {
-  purge?: boolean;
-}
+import {
+  isPersonaBotRecord,
+  type CreatePersonaBotInput,
+  type CreatePersonaBotResult,
+  type PersonaBotRecord,
+  type RemovePersonaBotOptions,
+} from './persona-bot.js';
+import { isValidSlug } from './slug.js';
 
 export interface PersonaBotRegistryOptions {
   rootDir: string;
@@ -55,25 +32,6 @@ export interface PersonaBotRegistry {
   list(): PersonaBotRecord[];
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
-}
-
-export function isValidSlug(slug: string): boolean {
-  return slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && SLUG_PATTERN.test(slug);
-}
-
-function isPersonaBotRecord(value: unknown, slug: string): value is PersonaBotRecord {
-  if (typeof value !== 'object' || value === null) return false;
-  const record = value as Record<string, unknown>;
-  if (record['slug'] !== slug) return false;
-  if (typeof record['displayName'] !== 'string') return false;
-  if (typeof record['createdAt'] !== 'string') return false;
-  if (!Array.isArray(record['workspaces'])) return false;
-  if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
-  for (const key of ['avatar', 'model', 'preset', 'memoryDir'] as const) {
-    const optional = record[key];
-    if (optional !== undefined && typeof optional !== 'string') return false;
-  }
-  return true;
 }
 
 function isMissing(error: unknown): boolean {
@@ -118,9 +76,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     rootDir,
     create(input) {
       if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
-      if (existsSync(botDir(input.slug)) || read(input.slug) !== undefined) {
-        return { ok: false, reason: 'duplicate' };
-      }
+      if (read(input.slug) !== undefined) return { ok: false, reason: 'duplicate' };
 
       const memoryDir = input.memoryDir?.trim();
       if (memoryDir !== undefined && memoryDir.length > 0 && !isAbsolute(memoryDir)) {
@@ -165,7 +121,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         .sort((left, right) => left.slug.localeCompare(right.slug));
     },
     remove(slug, removeOptions) {
-      if (read(slug) === undefined) return false;
+      if (!isValidSlug(slug) || !existsSync(botDir(slug))) return false;
       if (removeOptions?.purge === true) {
         rmSync(botDir(slug), { recursive: true, force: true });
         return true;

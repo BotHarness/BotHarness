@@ -34,16 +34,30 @@ export interface ResolveBotIdentityInput {
   canonicalize?: (path: string) => string;
 }
 
+interface BotNames {
+  alias?: string;
+  botName?: string;
+}
+
 export function emptyWorkspacesDocument(): WorkspacesDocument {
   return { workspaces: {}, aliases: {}, conversationWorkspaces: {} };
 }
 
+function namesFor(bot: ImBotRecord, workspaces: WorkspacesDocument): BotNames {
+  const alias = workspaces.aliases[bot.id]?.trim() || undefined;
+  const botName = bot.botName?.trim() || undefined;
+  return {
+    ...(alias === undefined ? {} : { alias }),
+    ...(botName === undefined ? {} : { botName }),
+  };
+}
+
+function displayNameFrom(names: BotNames, id: string): string {
+  return names.alias ?? names.botName ?? id;
+}
+
 export function displayNameForBot(bot: ImBotRecord, workspaces: WorkspacesDocument): string {
-  const alias = workspaces.aliases[bot.id]?.trim();
-  if (alias) return alias;
-  const botName = bot.botName?.trim();
-  if (botName) return botName;
-  return bot.id;
+  return displayNameFrom(namesFor(bot, workspaces), bot.id);
 }
 
 function normalizeWorkspacePath(value: string, canonicalize: (path: string) => string): string {
@@ -59,14 +73,12 @@ function toIdentity(
   workspace: string,
   workspaces: WorkspacesDocument,
 ): BotIdentity {
-  const alias = workspaces.aliases[bot.id]?.trim();
-  const botName = bot.botName?.trim();
+  const names = namesFor(bot, workspaces);
   return {
     id: bot.id,
-    displayName: displayNameForBot(bot, workspaces),
+    displayName: displayNameFrom(names, bot.id),
     workspace,
-    ...(alias ? { alias } : {}),
-    ...(botName ? { botName } : {}),
+    ...names,
     ...(bot.domain === undefined ? {} : { domain: bot.domain }),
   };
 }

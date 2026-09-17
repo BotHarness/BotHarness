@@ -3,11 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { aggregateSessionStates, createBotStateTracker, type BotStateEvent } from '../src/index.js';
 
 describe('aggregateSessionStates', () => {
-  it('returns idle for no sessions', () => {
-    expect(aggregateSessionStates({})).toBe('idle');
-  });
-
   it('applies the precedence blocked > waiting > working > thinking > idle', () => {
+    expect(aggregateSessionStates({})).toBe('idle');
     expect(aggregateSessionStates({ a: 'thinking' })).toBe('thinking');
     expect(aggregateSessionStates({ a: 'thinking', b: 'working' })).toBe('working');
     expect(aggregateSessionStates({ a: 'working', b: 'waiting' })).toBe('waiting');
@@ -75,7 +72,18 @@ describe('createBotStateTracker', () => {
     expect(tracker.snapshot('research').state).toBe('blocked');
   });
 
-  it('reports done as a session event while the aggregate stays idle', () => {
+  it('does not emit when a session state is repeated', () => {
+    const tracker = createBotStateTracker();
+    const events: BotStateEvent[] = [];
+    tracker.setSessionState('research', 's1', 'working');
+    tracker.on((event) => events.push(event));
+
+    tracker.setSessionState('research', 's1', 'working');
+
+    expect(events).toEqual([]);
+  });
+
+  it('reports done as a session event while the aggregate returns to idle', () => {
     const tracker = createBotStateTracker();
     const events: BotStateEvent[] = [];
     tracker.setSessionState('research', 's1', 'working');
@@ -98,8 +106,9 @@ describe('createBotStateTracker', () => {
     tracker.clearSession('research', 's2');
 
     expect(tracker.snapshot('research').state).toBe('working');
-    expect(events).toHaveLength(1);
-    expect(events[0]).toMatchObject({
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({ type: 'session-removed', sessionId: 's2' });
+    expect(events[1]).toMatchObject({
       type: 'aggregate-changed',
       state: 'working',
       previous: 'blocked',

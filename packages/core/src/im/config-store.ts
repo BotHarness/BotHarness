@@ -8,7 +8,7 @@ import {
   type BotResolveResult,
   type ImBotRecord,
   type WorkspacesDocument,
-} from '../bots/identity.js';
+} from './identity.js';
 
 export interface ImStoresSnapshot {
   home: string;
@@ -38,15 +38,15 @@ export function parseImBotsConfig(raw: unknown): ImBotRecord[] {
   const records: ImBotRecord[] = [];
   for (const candidate of entries) {
     if (typeof candidate !== 'object' || candidate === null) continue;
-    const source = candidate as Record<string, unknown>;
-    const id = typeof source['id'] === 'string' ? source['id'].trim() : '';
+    const entry = candidate as Record<string, unknown>;
+    const id = typeof entry['id'] === 'string' ? entry['id'].trim() : '';
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) continue;
     const record: ImBotRecord = { id };
-    const botName = typeof source['botName'] === 'string' ? source['botName'].trim() : '';
+    const botName = typeof entry['botName'] === 'string' ? entry['botName'].trim() : '';
     if (botName) record.botName = botName;
-    const appId = typeof source['appId'] === 'string' ? source['appId'].trim() : '';
+    const appId = typeof entry['appId'] === 'string' ? entry['appId'].trim() : '';
     if (appId) record.appId = appId;
-    const domain = source['domain'];
+    const domain = entry['domain'];
     if (domain === 'feishu' || domain === 'lark') record.domain = domain;
     records.push(record);
   }
