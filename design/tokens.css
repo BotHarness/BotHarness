@@ -1,0 +1,12 @@
+:root {
+  --bh-ink: #0f172a;
+  --bh-ink-soft: #475569;
+  --bh-paper: #f8fafc;
+  --bh-brand: #16a34a;
+  --bh-brand-strong: #15803d;
+  --bh-accent: #2563eb;
+  --bh-radius: 12px;
+  --bh-font-sans:
+    system-ui, -apple-system, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --bh-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+}

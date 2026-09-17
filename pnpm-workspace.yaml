@@ -5,3 +5,5 @@ packages:
 allowBuilds:
   esbuild: true
   workerd: true
+  '@astryxdesign/core': true
+  '@astryxdesign/cli': true

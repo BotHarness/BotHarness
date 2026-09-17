@@ -1,4 +1,5 @@
 import { defineConfig } from "astro/config";
+import react from "@astrojs/react";
 import tailwindcss from "@tailwindcss/vite";
 import nimbus, {
   defineConfig as defineNimbusConfig,
@@ -38,6 +39,7 @@ export default defineConfig({
     defaultStrategy: "hover",
   },
   integrations: [
+    react(),
     nimbus(nimbusConfig, {
       // Authoring rules are opt-in by design — your repo, your taste. The
       // two below are the load-bearing pair: frontmatter has to validate
