@@ -4,7 +4,7 @@
 
 一个 DSH Host 可同时运行多个飞书 Bot——**每个 Bot 是群里的一位"同事"**：独立人格、独立记忆、独立上下文。Session / 线程只是交互通道，Bot 的连续性来自它的记忆文件。
 
-- **状态**：M1 进行中（[#1](https://github.com/Teamemos/DeepSeekBot/issues/1) 基座验证 + 集成地基），M0 已完成
+- **状态**：M1 进行中（[#1](https://github.com/BotHarness/DeepSeekBot/issues/1) 基座验证 + 集成地基），M0 已完成
 - **文档**：[PRD](./PRD.md)
 - **基座**：[dsh-im](https://github.com/xmanrui/dsh-im)（**独立插件叠加，不 fork**，ADR-0011；M1 只验证 Lark 国际版，六条 gate 见 `docs/m1-gate-checklist.md`）
 
