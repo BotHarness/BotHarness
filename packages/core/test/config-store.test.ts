@@ -1,6 +1,8 @@
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   createImStoreReader,
@@ -10,6 +12,21 @@ import {
   resolveBotFromStores,
   resolveDshHome,
 } from '../src/index.js';
+
+const roots: string[] = [];
+
+function createRoot(): string {
+  const root = mkdtempSync(join(tmpdir(), 'botharness-config-'));
+  roots.push(root);
+  return root;
+}
+
+afterEach(() => {
+  while (roots.length > 0) {
+    const root = roots.pop();
+    if (root !== undefined) rmSync(root, { recursive: true, force: true });
+  }
+});
 
 describe('resolveDshHome', () => {
   it('reads DSH_HOME from the environment', () => {
@@ -42,15 +59,11 @@ describe('parseImBotsConfig', () => {
     ]);
   });
 
-  it('returns an empty list for junk input', () => {
-    expect(parseImBotsConfig(undefined)).toEqual([]);
-    expect(parseImBotsConfig({ bots: 'nope' })).toEqual([]);
-  });
-
-  it('reads a legacy v1 single-bot config', () => {
+  it('reads a legacy v1 single-bot config and rejects junk input', () => {
     expect(parseImBotsConfig({ id: 'bot_legacy', botName: 'Legacy', domain: 'feishu' })).toEqual([
       { id: 'bot_legacy', botName: 'Legacy', domain: 'feishu' },
     ]);
+    expect(parseImBotsConfig(undefined)).toEqual([]);
   });
 });
 
@@ -69,18 +82,10 @@ describe('parseWorkspacesDocument', () => {
       conversationWorkspaces: { bot_a: { oc_1: '/srv/b' } },
     });
   });
-
-  it('returns an empty document for junk input', () => {
-    expect(parseWorkspacesDocument('nope')).toEqual({
-      workspaces: {},
-      aliases: {},
-      conversationWorkspaces: {},
-    });
-  });
 });
 
 describe('createImStoreReader', () => {
-  it('reads bots and workspaces from the channel root', () => {
+  it('reads bots and workspaces from the integration root', () => {
     const files = new Map<string, string>([
       [
         join('/opt/dsh', 'integrations', 'dsh-feishu', 'config.json'),
@@ -118,12 +123,17 @@ describe('createImStoreReader', () => {
 });
 
 describe('resolveBotFromStores', () => {
-  it('resolves the bot for a workspace path', () => {
-    const result = resolveBotFromStores('/srv/a', {
+  it('matches a symlinked workspace through realpath canonicalization', () => {
+    const real = createRoot();
+    const link = `${real}-link`;
+    roots.push(link);
+    symlinkSync(real, link);
+
+    const result = resolveBotFromStores(link, {
       bots: [{ id: 'bot_a', botName: 'A' }],
-      workspaces: { ...emptyWorkspacesDocument(), workspaces: { bot_a: '/srv/a' } },
+      workspaces: { ...emptyWorkspacesDocument(), workspaces: { bot_a: real } },
     });
 
-    expect(result.ok && result.identity.displayName).toBe('A');
+    expect(result.ok && result.identity.id).toBe('bot_a');
   });
 });

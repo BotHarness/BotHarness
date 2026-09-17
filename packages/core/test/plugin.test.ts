@@ -13,26 +13,18 @@ function createStubContext(): StubContext {
 }
 
 describe('plugin entry', () => {
-  it('declares its name and injected services', () => {
+  it('declares its identity', () => {
     expect(name).toBe('botharness-core');
     expect(inject).toEqual(['settings']);
   });
 
-  it('registers the settings namespace on apply', () => {
+  it('registers settings and provides the core on apply', () => {
     const ctx = createStubContext();
 
     apply(ctx as unknown as Context);
 
     expect(ctx.settings.register).toHaveBeenCalledTimes(1);
-    const [namespace] = ctx.settings.register.mock.calls[0] ?? [];
-    expect(namespace).toBe(SETTINGS_NAMESPACE);
-  });
-
-  it('provides the core service on apply', () => {
-    const ctx = createStubContext();
-
-    apply(ctx as unknown as Context);
-
+    expect(ctx.settings.register.mock.calls[0]?.[0]).toBe(SETTINGS_NAMESPACE);
     expect(ctx.provide).toHaveBeenCalledTimes(1);
     const [serviceName, service] = ctx.provide.mock.calls[0] ?? [];
     expect(serviceName).toBe('botharness');

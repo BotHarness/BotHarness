@@ -1,65 +1,23 @@
-import { join } from 'node:path';
-
-import type { Context } from '@deepseek-ai/cordis';
-import type {} from '@deepseek-ai/dsh-settings';
-import Schema from '@deepseek-ai/schemastery';
-
-import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
-import { resolveDshHome } from './im/config-store.js';
-import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
-
-export const name = 'botharness-core';
-
-export const inject = ['settings'];
-
-export const SETTINGS_NAMESPACE = 'botharness';
-
-export interface BotHarnessConfig {
-  enabled: boolean;
-}
-
-export const DEFAULT_CONFIG: BotHarnessConfig = {
-  enabled: true,
-};
-
-export const Config = Schema.object({
-  enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 BotHarness core'),
-});
-
-export interface BotHarnessCore {
-  rootDir: string;
-  registry: PersonaBotRegistry;
-  states: BotStateTracker;
-}
-
-export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
-  const rootDir = join(options.dshHome ?? resolveDshHome(), 'botharness', 'bots');
-  return {
-    rootDir,
-    registry: createPersonaBotRegistry({ rootDir }),
-    states: createBotStateTracker(),
-  };
-}
-
-export function apply(ctx: Context): void {
-  ctx.settings.register(SETTINGS_NAMESPACE, Config, { base: DEFAULT_CONFIG });
-  ctx.provide('botharness', createCore());
-}
-
 export {
-  createPersonaBotRegistry,
-  isValidSlug,
-  MAX_SLUG_LENGTH,
-  SLUG_PATTERN,
-} from './bots/registry.js';
+  apply,
+  Config,
+  createCore,
+  DEFAULT_CONFIG,
+  inject,
+  name,
+  SETTINGS_NAMESPACE,
+} from './plugin.js';
+export type { BotHarnessConfig, BotHarnessCore } from './plugin.js';
+export { createPersonaBotRegistry } from './bots/registry.js';
+export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
+export { isPersonaBotRecord } from './bots/persona-bot.js';
 export type {
   CreatePersonaBotInput,
   CreatePersonaBotResult,
   PersonaBotRecord,
-  PersonaBotRegistry,
-  PersonaBotRegistryOptions,
   RemovePersonaBotOptions,
-} from './bots/registry.js';
+} from './bots/persona-bot.js';
+export { isValidSlug, MAX_SLUG_LENGTH, SLUG_PATTERN } from './bots/slug.js';
 export { aggregateSessionStates, createBotStateTracker } from './state/bot-state.js';
 export type {
   AggregatedState,
@@ -77,7 +35,7 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
-export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './bots/identity.js';
+export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './im/identity.js';
 export type {
   BotDomain,
   BotIdentity,
@@ -85,4 +43,4 @@ export type {
   ImBotRecord,
   ResolveBotIdentityInput,
   WorkspacesDocument,
-} from './bots/identity.js';
+} from './im/identity.js';
