@@ -30,6 +30,7 @@ export interface ResolveBotIdentityInput {
   workspacePath: string;
   bots: readonly ImBotRecord[];
   workspaces: WorkspacesDocument;
+  conversationKey?: string;
   canonicalize?: (path: string) => string;
 }
 
@@ -62,7 +63,7 @@ function toIdentity(
   const botName = bot.botName?.trim();
   return {
     id: bot.id,
-    slug: alias || botName || bot.id,
+    slug: slugForBot(bot, workspaces),
     workspace,
     ...(alias ? { alias } : {}),
     ...(botName ? { botName } : {}),
@@ -77,18 +78,19 @@ export function resolveBotIdentity(input: ResolveBotIdentityInput): BotResolveRe
   const defaultTier: BotIdentity[] = [];
 
   for (const bot of input.bots) {
-    const overrides = input.workspaces.conversationWorkspaces[bot.id] ?? {};
     const candidates: Array<{ path: string; tier: 0 | 1 }> = [];
-    for (const path of Object.values(overrides)) {
-      if (path.trim()) candidates.push({ path, tier: 0 });
+    if (input.conversationKey !== undefined) {
+      const override = input.workspaces.conversationWorkspaces[bot.id]?.[input.conversationKey];
+      if (override?.trim()) candidates.push({ path: override, tier: 0 });
     }
     const base = input.workspaces.workspaces[bot.id];
     if (base?.trim()) candidates.push({ path: base, tier: 1 });
 
     for (const candidate of candidates) {
-      if (normalizeWorkspacePath(candidate.path, canonicalize) === target) {
+      const normalized = normalizeWorkspacePath(candidate.path, canonicalize);
+      if (normalized === target) {
         const tier = candidate.tier === 0 ? overridesTier : defaultTier;
-        tier.push(toIdentity(bot, candidate.path, input.workspaces));
+        tier.push(toIdentity(bot, normalized, input.workspaces));
         break;
       }
     }

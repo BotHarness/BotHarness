@@ -12,14 +12,15 @@ import {
 
 export interface ImStoresSnapshot {
   home: string;
-  channelRoot: string;
+  integrationId: string;
+  integrationRoot: string;
   bots: ImBotRecord[];
   workspaces: WorkspacesDocument;
 }
 
 export interface ImStoreReaderOptions {
   dshHome?: string;
-  channel?: string;
+  integrationId?: string;
   readFile?: (path: string) => string | undefined;
 }
 
@@ -30,11 +31,12 @@ export function resolveDshHome(env: NodeJS.ProcessEnv = process.env): string {
 
 export function parseImBotsConfig(raw: unknown): ImBotRecord[] {
   if (typeof raw !== 'object' || raw === null) return [];
-  const bots = (raw as Record<string, unknown>)['bots'];
-  if (!Array.isArray(bots)) return [];
+  const source = raw as Record<string, unknown>;
+  const bots = source['bots'];
+  const entries = Array.isArray(bots) ? bots : [source];
 
   const records: ImBotRecord[] = [];
-  for (const candidate of bots) {
+  for (const candidate of entries) {
     if (typeof candidate !== 'object' || candidate === null) continue;
     const source = candidate as Record<string, unknown>;
     const id = typeof source['id'] === 'string' ? source['id'].trim() : '';
@@ -105,20 +107,22 @@ export function canonicalizeWorkspacePath(path: string): string {
 export function createImStoreReader(options: ImStoreReaderOptions = {}) {
   const configuredHome = options.dshHome?.trim();
   const home = configuredHome ? configuredHome : resolveDshHome();
-  const channel = options.channel ?? 'dsh-feishu';
-  const channelRoot = join(home, 'integrations', channel);
+  const integrationId = options.integrationId ?? 'dsh-feishu';
+  const integrationRoot = join(home, 'integrations', integrationId);
   const reader = options.readFile ?? defaultReadFile;
 
   return {
     home,
-    channelRoot,
+    integrationId,
+    integrationRoot,
     read(): ImStoresSnapshot {
       return {
         home,
-        channelRoot,
-        bots: parseImBotsConfig(parseJson(reader, join(channelRoot, 'config.json'))),
+        integrationId,
+        integrationRoot,
+        bots: parseImBotsConfig(parseJson(reader, join(integrationRoot, 'config.json'))),
         workspaces: parseWorkspacesDocument(
-          parseJson(reader, join(channelRoot, 'workspaces.json')),
+          parseJson(reader, join(integrationRoot, 'workspaces.json')),
         ),
       };
     },
@@ -128,11 +132,13 @@ export function createImStoreReader(options: ImStoreReaderOptions = {}) {
 export function resolveBotFromStores(
   workspacePath: string,
   snapshot: Pick<ImStoresSnapshot, 'bots' | 'workspaces'>,
+  conversationKey?: string,
 ): BotResolveResult {
   return resolveBotIdentity({
     workspacePath,
     bots: snapshot.bots,
     workspaces: snapshot.workspaces,
+    ...(conversationKey === undefined ? {} : { conversationKey }),
     canonicalize: canonicalizeWorkspacePath,
   });
 }

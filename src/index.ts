@@ -10,19 +10,14 @@ export const SETTINGS_NAMESPACE = 'deepseekbot';
 
 export interface DeepSeekBotConfig {
   enabled: boolean;
-  dshHome: string;
 }
 
 export const DEFAULT_CONFIG: DeepSeekBotConfig = {
   enabled: true,
-  dshHome: '',
 };
 
 export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 DeepSeekBot 插件'),
-  dshHome: Schema.string()
-    .default(DEFAULT_CONFIG.dshHome)
-    .description('DSH_HOME 覆盖（留空则读取环境变量）'),
 });
 
 export function apply(ctx: Context): void {

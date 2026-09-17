@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   createImStoreReader,
+  emptyWorkspacesDocument,
   parseImBotsConfig,
   parseWorkspacesDocument,
   resolveBotFromStores,
@@ -44,6 +45,12 @@ describe('parseImBotsConfig', () => {
   it('returns an empty list for junk input', () => {
     expect(parseImBotsConfig(undefined)).toEqual([]);
     expect(parseImBotsConfig({ bots: 'nope' })).toEqual([]);
+  });
+
+  it('reads a legacy v1 single-bot config', () => {
+    expect(parseImBotsConfig({ id: 'bot_legacy', botName: 'Legacy', domain: 'feishu' })).toEqual([
+      { id: 'bot_legacy', botName: 'Legacy', domain: 'feishu' },
+    ]);
   });
 });
 
@@ -91,7 +98,8 @@ describe('createImStoreReader', () => {
 
     const snapshot = reader.read();
 
-    expect(snapshot.channelRoot).toBe(join('/opt/dsh', 'integrations', 'dsh-feishu'));
+    expect(snapshot.integrationId).toBe('dsh-feishu');
+    expect(snapshot.integrationRoot).toBe(join('/opt/dsh', 'integrations', 'dsh-feishu'));
     expect(snapshot.bots).toEqual([{ id: 'bot_a', botName: 'A', domain: 'lark' }]);
     expect(snapshot.workspaces.workspaces).toEqual({ bot_a: '/srv/a' });
   });
@@ -113,7 +121,7 @@ describe('resolveBotFromStores', () => {
   it('resolves the bot for a workspace path', () => {
     const result = resolveBotFromStores('/srv/a', {
       bots: [{ id: 'bot_a', botName: 'A' }],
-      workspaces: { workspaces: { bot_a: '/srv/a' }, aliases: {}, conversationWorkspaces: {} },
+      workspaces: { ...emptyWorkspacesDocument(), workspaces: { bot_a: '/srv/a' } },
     });
 
     expect(result.ok && result.identity.slug).toBe('A');

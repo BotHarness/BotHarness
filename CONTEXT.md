@@ -10,6 +10,10 @@ A DeepSeek Harness plugin where one Host runs several Feishu/Lark Bots, each wit
 A Feishu/Lark identity operated by the Host, with its own persona, workspace, model, and memory.
 _Avoid_: agent, assistant, robot, app, account
 
+**Bot slug**:
+A human-readable name for a Bot — its alias, else its name, else its id.
+_Avoid_: handle, username, display id
+
 **Workspace**:
 The on-disk home of a Bot: its working area for files and code execution, and the parent of its memory.
 _Avoid_: data directory, project, sandbox

@@ -7,3 +7,4 @@ dsh-im already provides multi-Bot management, session routing (`group:<chatId>`,
 - AC-3.2's model-facing reply-scope tool is deferred: the PoC's thread-first default comes from the base's per-Bot `groupTopicReply` config, and the override tool moves to the M6 upstream evaluation (ADR-0009 amended accordingly).
 - M1 must verify a stable session→Bot identification; memory scoping and persona injection both depend on it.
 - The PRD's `groupSessionScope` concept is retired in favour of the base's `groupTopicReply` — one less config knob to invent and maintain.
+- Bot identification reads the base's own stores (`$DSH_HOME/integrations/<channel>/{config,workspaces}.json`) because the base exposes no session→Bot seam; the coupling is isolated in one module and must be re-verified on every base bump.
