@@ -31,13 +31,13 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
 pnpm build
 ```
 
-仓库结构（规划中）：
+仓库结构（monorepo）：
 
 ```text
-packages/core        @botharness/core   # registry / memory / state / delegation
-packages/client      @botharness/client # React：roster / 详情 / 委派入口
-packages/im          @botharness/im     # IM 适配器（后置）
-packages/deepseekbot deepseekbot        # bundle + 应用
+packages/core        @botharness/core   # PersonaBot registry / 状态 / 记忆
+packages/client      @botharness/client # React：roster / 详情 / 委派入口（M3）
+packages/im          @botharness/im     # IM 适配器（M5）
+packages/deepseekbot deepseekbot        # bundle + 应用（后续）
 ```
 
-当前 `src/` 为 M1 脚手架（插件入口 + workspace→bot 解析），将迁入 `packages/core` 并降级为 IM 绑定助手。
+M1 脚手架（插件入口、settings 命名空间、workspace→bot 解析）已迁入 `packages/core`；解析保留为 IM 绑定助手。

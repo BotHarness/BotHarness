@@ -1,0 +1,3 @@
+- insert:
+    - id: botharness-core
+      name: '@botharness/core'
