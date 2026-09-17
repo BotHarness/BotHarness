@@ -29,7 +29,7 @@ In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create syml
 - Record decisions in the specs (bump version + changelog) and, for architecture, as an ADR under `docs/adr/` instead of leaving them in chat.
 - Living architecture doc: `docs/architecture/botharness-architecture.md` (inline mermaid) — update it when modules, data flow, or boundaries change; it syncs to the docs site (`apps/docs`, botharness.ai) via `scripts/sync-docs.mjs`.
 - Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`).
-- Local docs dev: `pnpm dev` (portless → https://docs.botharness.localhost) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
+- Local docs dev: `pnpm dev` (portless from `apps/docs` → https://docs.botharness.localhost; no-sudo variant `PORTLESS_PORT=8788 PORTLESS_HTTPS=0`) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
 
 ## Agent skills
 

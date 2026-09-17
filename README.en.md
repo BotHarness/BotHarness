@@ -39,9 +39,12 @@ pnpm build
 Local docs preview (WSL-friendly, stable URL):
 
 ```bash
-pnpm dev           # via portless → https://docs.botharness.localhost (first run creates + trusts a local CA)
+pnpm dev           # → https://docs.botharness.localhost (first run creates + trusts a local CA; may ask for sudo)
+PORTLESS_PORT=8788 PORTLESS_HTTPS=0 pnpm dev   # no-sudo variant → http://docs.botharness.localhost:8788
 pnpm docs:dev      # direct fallback → http://localhost:4321
 ```
+
+> portless runs from the `apps/docs` package (display name lives in that package's `portless` field); avoid Windows Hyper-V reserved port ranges (e.g. 1349–1448).
 
 Repository layout (monorepo):
 

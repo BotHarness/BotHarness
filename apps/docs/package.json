@@ -3,6 +3,9 @@
   "version": "0.0.1",
   "private": true,
   "type": "module",
+  "portless": {
+    "name": "docs.botharness"
+  },
   "scripts": {
     "sync": "node ../../scripts/sync-docs.mjs",
     "dev": "astro dev",
