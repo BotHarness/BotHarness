@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Nimbus toggles dark mode via `[data-mode="dark"]` (BaseLayout), so make
+ * Tailwind's `dark:` variant follow that attribute instead of the OS setting. */
+@custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
+
 /* ============================================================
  * Nimbus Theme — THE file you edit to customize your site.
  *
@@ -212,6 +216,23 @@
 	--shadow-sm: var(--nb-shadow-sm);
 	--shadow-default: var(--nb-shadow);
 	--shadow-lg: var(--nb-shadow-lg);
+}
+
+/* ---- coss/ui token bridges (additive) ----
+ * Aliases only: coss primitives consume the shadcn-style semantic names
+ * below; each one points at an existing --nb-* token, so no Nimbus value
+ * is redefined. `--font-heading` follows the coss font contract (sans).
+ */
+@theme {
+	--font-heading: var(--nb-font-sans);
+
+	--color-secondary: var(--nb-accent);
+	--color-secondary-foreground: var(--nb-accent-foreground);
+	--color-input: var(--nb-border-strong);
+	--color-popover: var(--nb-card);
+	--color-popover-foreground: var(--nb-card-foreground);
+	--color-destructive: var(--nb-danger);
+	--color-destructive-foreground: var(--nb-danger-foreground);
 }
 
 /* ---- Minimal overrides the plugin doesn't cover ---- */

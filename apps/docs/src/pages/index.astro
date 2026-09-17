@@ -2,7 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import Landing from "../components/landing/Landing";
 import { config } from "virtual:nimbus/config";
-import "../styles/astryx.css";
+import "../../../../design/tokens.css";
 
 // Prerender explicitly so the homepage stays a static route under
 // `output: "server"` — an adapter alone must add zero on-demand routes.
@@ -10,5 +10,9 @@ export const prerender = true;
 ---
 
 <BaseLayout title={config.title} description={config.description}>
-  <Landing />
+  <!-- `isolate` scopes Base UI layering (coss requirement); `relative` keeps
+       portaled backdrops anchored on the landing scope instead of `body`. -->
+  <div class="relative isolate" data-bh-landing>
+    <Landing />
+  </div>
 </BaseLayout>
