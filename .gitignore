@@ -15,9 +15,6 @@ coverage/
 *.pem
 *.key
 
-# reference repos (read-only checkouts for research; never committed)
-reference/
-
 # local state (sessions, memory, caches)
 .cache/
 tmp/
