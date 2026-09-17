@@ -15,7 +15,7 @@ export interface WorkspacesDocument {
 
 export interface BotIdentity {
   id: string;
-  slug: string;
+  displayName: string;
   workspace: string;
   alias?: string;
   botName?: string;
@@ -38,7 +38,7 @@ export function emptyWorkspacesDocument(): WorkspacesDocument {
   return { workspaces: {}, aliases: {}, conversationWorkspaces: {} };
 }
 
-export function slugForBot(bot: ImBotRecord, workspaces: WorkspacesDocument): string {
+export function displayNameForBot(bot: ImBotRecord, workspaces: WorkspacesDocument): string {
   const alias = workspaces.aliases[bot.id]?.trim();
   if (alias) return alias;
   const botName = bot.botName?.trim();
@@ -63,7 +63,7 @@ function toIdentity(
   const botName = bot.botName?.trim();
   return {
     id: bot.id,
-    slug: slugForBot(bot, workspaces),
+    displayName: displayNameForBot(bot, workspaces),
     workspace,
     ...(alias ? { alias } : {}),
     ...(botName ? { botName } : {}),

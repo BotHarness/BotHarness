@@ -14,11 +14,11 @@ export const inject = ['settings'];
 
 export const SETTINGS_NAMESPACE = 'botharness';
 
-export interface BotharnessConfig {
+export interface BotHarnessConfig {
   enabled: boolean;
 }
 
-export const DEFAULT_CONFIG: BotharnessConfig = {
+export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
 };
 
@@ -26,23 +26,24 @@ export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 BotHarness core'),
 });
 
-export function apply(ctx: Context): void {
-  ctx.settings.register(SETTINGS_NAMESPACE, Config, { base: DEFAULT_CONFIG });
-}
-
-export interface BotharnessCore {
+export interface BotHarnessCore {
   rootDir: string;
   registry: PersonaBotRegistry;
   states: BotStateTracker;
 }
 
-export function createCore(options: { dshHome?: string } = {}): BotharnessCore {
+export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
   const rootDir = join(options.dshHome ?? resolveDshHome(), 'botharness', 'bots');
   return {
     rootDir,
     registry: createPersonaBotRegistry({ rootDir }),
     states: createBotStateTracker(),
   };
+}
+
+export function apply(ctx: Context): void {
+  ctx.settings.register(SETTINGS_NAMESPACE, Config, { base: DEFAULT_CONFIG });
+  ctx.provide('botharness', createCore());
 }
 
 export {
@@ -57,6 +58,7 @@ export type {
   PersonaBotRecord,
   PersonaBotRegistry,
   PersonaBotRegistryOptions,
+  RemovePersonaBotOptions,
 } from './bots/registry.js';
 export { aggregateSessionStates, createBotStateTracker } from './state/bot-state.js';
 export type {
@@ -75,7 +77,7 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
-export { emptyWorkspacesDocument, resolveBotIdentity, slugForBot } from './bots/identity.js';
+export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './bots/identity.js';
 export type {
   BotDomain,
   BotIdentity,

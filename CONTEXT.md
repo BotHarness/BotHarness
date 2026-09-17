@@ -15,8 +15,12 @@ The principle that a PersonaBot's continuity comes from its memory files, not fr
 _Avoid_: session-scoped identity
 
 **Bot slug**:
-A human-readable name for a PersonaBot — its alias, else its name, else its id.
-_Avoid_: handle, username, display id
+A PersonaBot's filesystem-safe identifier — kebab-case, unique per Host.
+_Avoid_: display name, title, handle
+
+**Display name**:
+The human-facing name of a PersonaBot (`displayName`), distinct from its slug.
+_Avoid_: alias, nickname, username
 
 **Persona**:
 The role definition — character, voice, and standing instructions — that shapes how a PersonaBot replies. Human-owned: the Agent may not rewrite it.

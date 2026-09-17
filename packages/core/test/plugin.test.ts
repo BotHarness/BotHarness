@@ -5,10 +5,11 @@ import { SETTINGS_NAMESPACE, apply, inject, name } from '../src/index.js';
 
 interface StubContext {
   settings: { register: ReturnType<typeof vi.fn> };
+  provide: ReturnType<typeof vi.fn>;
 }
 
 function createStubContext(): StubContext {
-  return { settings: { register: vi.fn(() => ({})) } };
+  return { settings: { register: vi.fn(() => ({})) }, provide: vi.fn() };
 }
 
 describe('plugin entry', () => {
@@ -25,5 +26,20 @@ describe('plugin entry', () => {
     expect(ctx.settings.register).toHaveBeenCalledTimes(1);
     const [namespace] = ctx.settings.register.mock.calls[0] ?? [];
     expect(namespace).toBe(SETTINGS_NAMESPACE);
+  });
+
+  it('provides the core service on apply', () => {
+    const ctx = createStubContext();
+
+    apply(ctx as unknown as Context);
+
+    expect(ctx.provide).toHaveBeenCalledTimes(1);
+    const [serviceName, service] = ctx.provide.mock.calls[0] ?? [];
+    expect(serviceName).toBe('botharness');
+    expect(service).toMatchObject({
+      rootDir: expect.stringContaining('botharness'),
+      registry: expect.anything(),
+      states: expect.anything(),
+    });
   });
 });
