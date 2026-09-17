@@ -12,7 +12,10 @@
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "docs:dev": "pnpm --filter docs dev",
+    "docs:build": "pnpm --filter docs build",
+    "docs:deploy": "pnpm --filter docs deploy"
   },
   "devDependencies": {
     "@types/node": "^22.20.2",

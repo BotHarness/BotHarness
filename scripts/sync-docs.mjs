@@ -1,0 +1,180 @@
+#!/usr/bin/env node
+import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CONTENT = join(ROOT, 'apps', 'docs', 'src', 'content');
+const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
+
+const PAGES = [
+  {
+    source: 'docs/architecture/botharness-architecture.md',
+    target: 'docs/architecture.mdx',
+    title: '架构与数据流',
+    description: '系统上下文、模块、数据流与边界（持续维护）',
+    order: 0,
+  },
+  {
+    source: 'docs/botharness.md',
+    target: 'docs/spec/platform.mdx',
+    title: '平台规格',
+    description: 'PersonaBot、记忆、状态与工作方式',
+    order: 1,
+  },
+  {
+    source: 'PRD.md',
+    target: 'docs/spec/app-prd.mdx',
+    title: 'DeepSeekBot 应用 PRD',
+    description: '首个应用：sidebar 名册、委派与 IM 接入',
+    order: 2,
+  },
+  {
+    source: 'CONTEXT.md',
+    target: 'docs/spec/context.mdx',
+    title: '领域词表',
+    description: 'PersonaBot 术语的规范用法',
+    order: 3,
+  },
+];
+
+const LINK_REWRITES = [
+  [/\]\(\.?\/?docs\/architecture\/botharness-architecture\.(?:md|html)\)/g, '](/architecture)'],
+  [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/spec/platform)'],
+  [/\]\(\.?\/?PRD\.md\)/g, '](/spec/app-prd)'],
+  [/\]\(\.?\/?CONTEXT\.md\)/g, '](/spec/context)'],
+  [/\]\(\.?\/?docs\/adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/adr/$1)'],
+  [/\]\(\.?\/?README\.en?\.md\)/g, `](${GITHUB_BLOB}README.md)`],
+];
+
+const MERMAID_OPEN = '<pre class="mermaid">{`';
+const MERMAID_CLOSE = '`}</pre>';
+
+function readText(relativePath) {
+  return readFileSync(join(ROOT, relativePath), 'utf8');
+}
+
+function writeText(relativePath, content) {
+  const absolute = join(CONTENT, relativePath);
+  mkdirSync(dirname(absolute), { recursive: true });
+  writeFileSync(absolute, content, 'utf8');
+}
+
+function transformMermaid(body) {
+  return body.replace(
+    /```mermaid\r?\n([\s\S]*?)```\r?\n?/g,
+    (_match, code) => `${MERMAID_OPEN}\n${String(code).trimEnd()}\n${MERMAID_CLOSE}\n`,
+  );
+}
+
+function rewriteLinks(body) {
+  let output = body;
+  for (const [pattern, replacement] of LINK_REWRITES) output = output.replace(pattern, replacement);
+  return output;
+}
+
+function stripFrontmatter(body) {
+  const match = body.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/);
+  if (!match) return { frontmatter: '', body };
+  return { frontmatter: match[1] ?? '', body: body.slice(match[0].length) };
+}
+
+function stripH1(body) {
+  return body.replace(/^#\s+.*\r?\n+/, '');
+}
+
+function titleFrom(body, fallback) {
+  const match = body.match(/^#\s+(.+)$/m);
+  return match ? String(match[1]).trim() : fallback;
+}
+
+function frontmatter({ title, description, order }) {
+  const lines = ['---', `title: ${JSON.stringify(title)}`];
+  if (description) lines.push(`description: ${JSON.stringify(description)}`);
+  lines.push('sidebar:', `  order: ${order}`, '---', '', '');
+  return lines.join('\n');
+}
+
+function prepare(body) {
+  return rewriteLinks(transformMermaid(stripH1(body)));
+}
+
+function syncPages() {
+  for (const page of PAGES) {
+    const raw = readText(page.source);
+    const { body } = stripFrontmatter(raw);
+    const title = titleFrom(body, page.title);
+    writeText(page.target, frontmatter({ ...page, title }) + prepare(body));
+    process.stdout.write(`docs: ${page.source} -> ${page.target}\n`);
+  }
+}
+
+function syncAdr() {
+  const directory = join(ROOT, 'docs', 'adr');
+  const files = readdirSync(directory)
+    .filter((name) => name.endsWith('.md'))
+    .sort();
+  for (const file of files) {
+    const raw = readFileSync(join(directory, file), 'utf8');
+    const { frontmatter: sourceFrontmatter, body } = stripFrontmatter(raw);
+    const number = Number.parseInt(file.slice(0, 4), 10);
+    const title = titleFrom(body, file);
+    const status = sourceFrontmatter.match(/^Status:\s*(.+)$/m)?.[1]?.trim();
+    const statusLine = status ? `> Status: ${status}\n\n` : '';
+    const target = `docs/adr/${file.replace(/\.md$/, '.mdx')}`;
+    writeText(
+      target,
+      frontmatter({ title, order: Number.isNaN(number) ? 99 : number }) +
+        statusLine +
+        prepare(body),
+    );
+    process.stdout.write(`adr: ${file} -> ${target}\n`);
+  }
+}
+
+function parseChangelogFrontmatter(raw) {
+  const { frontmatter: text, body } = stripFrontmatter(raw);
+  const title = text
+    .match(/^title:\s*(.+)$/m)?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, '');
+  const date = text
+    .match(/^date:\s*(.+)$/m)?.[1]
+    ?.trim()
+    .replace(/^["']|["']$/g, '');
+  const tags = text
+    .match(/^tags:\s*\[(.*)\]$/m)?.[1]
+    ?.split(',')
+    .map((tag) => tag.trim())
+    .filter(Boolean);
+  return { body, title, date, tags };
+}
+
+function syncChangelog() {
+  const directory = join(ROOT, 'docs', 'changelog');
+  const files = readdirSync(directory)
+    .filter((name) => name.endsWith('.md'))
+    .sort();
+  for (const file of files) {
+    const raw = readFileSync(join(directory, file), 'utf8');
+    const { body, title, date, tags } = parseChangelogFrontmatter(raw);
+    const fallbackDate = file.slice(0, 10);
+    const lines = ['---', `title: ${JSON.stringify(title ?? file)}`];
+    lines.push(`date: ${date ?? fallbackDate}`);
+    if (tags && tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
+    lines.push('---', '', '');
+    const target = `changelog/${file.replace(/\.md$/, '.mdx')}`;
+    writeText(target, lines.join('\n') + prepare(body));
+    process.stdout.write(`changelog: ${file} -> ${target}\n`);
+  }
+}
+
+for (const stale of ['docs/spec', 'docs/adr', 'changelog']) {
+  rmSync(join(CONTENT, stale), { recursive: true, force: true });
+}
+rmSync(join(CONTENT, 'docs', 'architecture.mdx'), { force: true });
+
+syncPages();
+syncAdr();
+syncChangelog();
+process.stdout.write('docs sync complete\n');
