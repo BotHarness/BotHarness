@@ -169,7 +169,7 @@ The in-harness panel listing PersonaBots, their state, and their sessions.
 _Avoid_: dashboard, bot list
 
 **Client bridge**:
-The read-model RPC surface through which the Web Client reads and mutates PersonaBots without sharing Host services.
+The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:

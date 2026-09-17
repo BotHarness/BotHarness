@@ -198,8 +198,12 @@ export function apply(ctx: ClientContext): void {
     name: 'personabot',
     candidates: async (_session, { query, signal }) => {
       const result = await ctx.connection.rpc.call('/api', 'botharness/list', { query }, signal);
+      const value = result.value as {
+        bots: { slug: string; displayName: string }[];
+        cursor?: string;
+      };
       return result.ok
-        ? (result.value as { slug: string; displayName: string }[]).map((bot) => ({
+        ? value.bots.map((bot) => ({
             name: bot.slug,
             label: bot.displayName,
           }))
@@ -228,15 +232,15 @@ export function apply(ctx: ClientContext): void {
 
 对照 `docs/architecture/botharness-architecture.md`（2026-09-18 版本）：
 
-| #   | 架构文档说法                                                             | 一手事实                                                                                                                                                                                | 影响 / 建议                                                                                                                    |
-| --- | ------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | §1 mermaid：`Core -.->                                                   | "provide('botharness')"                                                                                                                                                                 | Client`，§3：`O->>D: inject(['botharness'])`后`ctx.botharness`                                                                 | 客户端是独立浏览器 Cordis 应用，host 服务不跨进程（`docs/subsystems/web-client.zh.md:22-28`） | 箭头改为「core →（Remote/RPC）→ client」；把 `provide('botharness')` 标注为「Host 内部服务面」 |
-| 2   | §3 Note：客户端「订阅 `states.on(...)` 拿实时状态」                      | `states` 是 Host 进程内 tracker；浏览器只能经白名单事件（`remote.$on`，第三方不可扩展 `API_REMOTE_FORWARDED_EVENTS`）或自有流/轮询（`packages/api/remotes/src/remote-events.ts:18-43`） | 把「状态事件（M3 接入）」改述为「core 暴露 RPC 读模型 + 变更通知（轮询/自有流）」；六态实时性降级或补流式设计                  |
-| 3   | §2/§1：`@botharness/client` 作为**独立包**                               | DSH 官方约定是「同一包两半侧」：Host 在 `src/`、浏览器在 `src/client/`，`dsh.client` + `./client`（`docs/cookbook/adding-a-settings-card.zh.md:7`）                                     | 可保留独立包（必须是自己的 Loader entry + `dsh.client`），但要显式记录这与 DSH 默认打包惯例不同；独立包也解决不了跨进程 inject |
-| 4   | §8 通信表：「Cordis 服务 provide/inject core → client」                  | 同上，跨进程不成立；客户端 ↔ Host 的通道是 Remote / Connection RPC                                                                                                                      | 该行拆成「Host 内 Cordis」「浏览器内 Cordis」「跨进程 RPC」三行                                                                |
-| 5   | §2 表格：`main` 面板 + `sidebar.panellist`；名册树/详情/新建；@委派      | ✅ 成立：`main` keyed + `sidebar.panellist` list + `ctx.inputTriggers`（§1.2/§1.3）                                                                                                     | 补上 id/key 必须一致、`@` 通过 input trigger source 注册这两个实现细节                                                         |
-| 6   | `/bot` 兜底                                                              | ✅ 同流水线支持 `trigger: '/'`；但没有「注册宿主命令 → 自动出现在 `/` 菜单」的公开声明式 API（需要 source 或 `CommandUiRuntime`）                                                       | 在 PRD/架构中明确 `/bot` 是客户端触发源（可自行 claim/插入文本），不是宿主命令注册                                             |
-| 7   | §6 状态机与事件：`aggregate-changed / session-changed / session-removed` | 事件名字是 core 自造；客户端消费时需在 RPC 层重新定义 wire 形状                                                                                                                         | 为 M3 定义一份「客户端读模型契约」（list/get + change cursor/version），事件类型不直接暴露到浏览器                             |
+| #   | 架构文档说法                                                                                                          | 一手事实                                                                                                                                                                                | 影响 / 建议                                                                                                                    |
+| --- | --------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | §1 mermaid：`Core -.-> \| "provide('botharness')" \| Client`，§3：`O->>D: inject(['botharness'])` 后 `ctx.botharness` | 客户端是独立浏览器 Cordis 应用，host 服务不跨进程（`docs/subsystems/web-client.zh.md:22-28`）                                                                                           | 箭头改为「core →（Remote/RPC）→ client」；把 `provide('botharness')` 标注为「Host 内部服务面」                                 |
+| 2   | §3 Note：客户端「订阅 `states.on(...)` 拿实时状态」                                                                   | `states` 是 Host 进程内 tracker；浏览器只能经白名单事件（`remote.$on`，第三方不可扩展 `API_REMOTE_FORWARDED_EVENTS`）或自有流/轮询（`packages/api/remotes/src/remote-events.ts:18-43`） | 把「状态事件（M3 接入）」改述为「core 暴露 RPC 读模型 + 变更通知（轮询/自有流）」；六态实时性降级或补流式设计                  |
+| 3   | §2/§1：`@botharness/client` 作为**独立包**                                                                            | DSH 官方约定是「同一包两半侧」：Host 在 `src/`、浏览器在 `src/client/`，`dsh.client` + `./client`（`docs/cookbook/adding-a-settings-card.zh.md:7`）                                     | 可保留独立包（必须是自己的 Loader entry + `dsh.client`），但要显式记录这与 DSH 默认打包惯例不同；独立包也解决不了跨进程 inject |
+| 4   | §8 通信表：「Cordis 服务 provide/inject core → client」                                                               | 同上，跨进程不成立；客户端 ↔ Host 的通道是 Remote / Connection RPC                                                                                                                      | 该行拆成「Host 内 Cordis」「浏览器内 Cordis」「跨进程 RPC」三行                                                                |
+| 5   | §2 表格：`main` 面板 + `sidebar.panellist`；名册树/详情/新建；@委派                                                   | ✅ 成立：`main` keyed + `sidebar.panellist` list + `ctx.inputTriggers`（§1.2/§1.3）                                                                                                     | 补上 id/key 必须一致、`@` 通过 input trigger source 注册这两个实现细节                                                         |
+| 6   | `/bot` 兜底                                                                                                           | ✅ 同流水线支持 `trigger: '/'`；但没有「注册宿主命令 → 自动出现在 `/` 菜单」的公开声明式 API（需要 source 或 `CommandUiRuntime`）                                                       | 在 PRD/架构中明确 `/bot` 是客户端触发源（可自行 claim/插入文本），不是宿主命令注册                                             |
+| 7   | §6 状态机与事件：`aggregate-changed / session-changed / session-removed`                                              | 事件名字是 core 自造；客户端消费时需在 RPC 层重新定义 wire 形状                                                                                                                         | 为 M3 定义一份「客户端读模型契约」（list/get + change cursor/version），事件类型不直接暴露到浏览器                             |
 
 （§4 的创建流程、§5 的 IM 只读解析、§7 的磁盘布局未被本次调研推翻。）
 
@@ -338,7 +342,7 @@ export function apply(ctx: ClientContext): void {
 
 DSH 的三张 catalog 都是脚本从源码生成的；建议 BotHarness 也照做，避免手抄漂移：
 
-- `/dev/reference/config`：从 `packages/core` 的 `Schema`（`SETTINGS_NAMESPACE = 'botharness'`）与 `Config` 生成字段表；
+- `/dev/reference/config`：从 `packages/core` 导出的 `Config`（schema）生成字段表；等 settings 卡片通过 `installSection` 回归后，再补 namespace 一栏；
 - `/dev/reference/tools`：从 `createMemoryTools` 的工具定义生成 `memory_read/search/write/list` 参数表；
 - `/dev/reference/events`：从 `state/bot-state.ts` 的事件联合生成「事件 → 触发 → 消费者」表（M3 客户端对接的 wire 契约也写在这里）。
 - 形态：新增 `scripts/gen-botharness-catalog.*`（或扩展 `sync-docs.mjs`），产物写进 `src/content/docs/dev/reference/*.mdx`，遵守生成禁区约定；`pnpm` 根脚本串入 `pnpm build` 前的 `syncDocs()` 路径。
