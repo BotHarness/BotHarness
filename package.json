@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "diagrams": "node scripts/render-diagrams.mjs",
+    "og:font": "node scripts/subset-og-font.mjs",
     "dev": "pnpm --filter docs exec portless",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
@@ -25,6 +26,7 @@
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
     "portless": "^0.15.6",
+    "subset-font": "^2.7.0",
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"

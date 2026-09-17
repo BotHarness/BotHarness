@@ -62,7 +62,7 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 |---|---|
 | `/docs` | User guides (`overview`, `quickstart`) |
 | `/dev` | Architecture / spec / PRD / ADR (generated from repo sources) |
-| `/changelog` | Release feed + `/changelog/<slug>` permalinks |
+| `/changelog` | Bilingual release feed + `/changelog/<slug>` + `/zh/changelog/<slug>` permalinks |
 
 ## Bilingual layout
 
@@ -81,6 +81,15 @@ route shows `本页暂未提供中文。` Site-owned translations live in
 fallback `/zh/docs/overview`) and `Header.astro` renders it. Edit the repo
 sources — never generated files.
 
+Changelog entries are language pairs keyed by base filename:
+`docs/changelog/<date>-<slug>.md` is English (primary) and
+`<date>-<slug>.zh.md` is Chinese. `scripts/sync-docs.mjs` writes each side
+into its own tree (`changelog` → `/changelog/**`, `changelog-zh` →
+`/zh/changelog/**`); when one side is missing the other language fills the
+gap flagged `untranslated`, and the page and feed entry show the notice
+banner linking to the counterpart. Keep `title` + `date` + `tags` in both
+files' frontmatter.
+
 ## Diagrams
 
 `.mmd` sources live in `docs/architecture/diagrams/` at the repo root, with
@@ -98,7 +107,10 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
   `untranslated: true`)
 - `src/content/docs-zh/dev/**` — Chinese tree at `/zh`: the same sources,
   clean, plus the Chinese architecture page
-- `src/content/changelog/**` — from root `docs/changelog/*.md`
+- `src/content/changelog/**` — English changelog tree, from root
+  `docs/changelog/<date>-<slug>.md`
+- `src/content/changelog-zh/**` — Chinese changelog tree at `/zh`, from root
+  `docs/changelog/<date>-<slug>.zh.md`
 - `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
 
 `scripts/sync-docs.mjs` rebuilds all of them on every `syncDocs()` call.
@@ -114,6 +126,7 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
 | Check it builds | `pnpm exec nimbus-docs check` — build-free preflight (env + structure + authoring + types). `--json` for an agent loop, `--fix` to repair what's safe. |
 | Custom page route | Add a file under `src/pages/`. |
 | Custom OG style | Edit `src/pages/og/_og-card-config.ts`. |
+| OG CJK font | Chinese titles need the committed Noto Sans SC subset (`public/fonts/NotoSansSC-Bold.og-subset.otf`). After editing Chinese page copy, run `pnpm og:font` from the repo root to regenerate it. |
 | Check for updates | `pnpm exec nimbus-docs outdated` — starter files behind their tag + registry components behind. |
 | Upgrade Nimbus | Update the package, then run `pnpm exec nimbus-docs migrate --dry-run --diff`. Review every change and required manual step before applying. |
 | Upgrade a starter file | `pnpm exec nimbus-docs diff <file>` to review, `diff --apply <file>` to pull a clean upstream change. |

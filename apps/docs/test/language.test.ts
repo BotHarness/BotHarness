@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   languageLinks,
+  localeAlternates,
   localizeSectionLabel,
   localizeSidebar,
   localeFromPath,
@@ -81,6 +82,50 @@ describe('languageLinks', () => {
       en: '/',
       zh: '/zh',
     });
+  });
+});
+
+describe('localeAlternates', () => {
+  it('pairs each tree with its counterpart plus an English x-default', () => {
+    expect(localeAlternates('/docs/overview/')).toEqual([
+      { hreflang: 'en', path: '/docs/overview/' },
+      { hreflang: 'zh-Hans', path: '/zh/docs/overview/' },
+      { hreflang: 'x-default', path: '/docs/overview/' },
+    ]);
+    expect(localeAlternates('/zh/docs/overview/')).toEqual([
+      { hreflang: 'en', path: '/docs/overview/' },
+      { hreflang: 'zh-Hans', path: '/zh/docs/overview/' },
+      { hreflang: 'x-default', path: '/docs/overview/' },
+    ]);
+  });
+
+  it('normalizes paths to the canonical trailing-slash form', () => {
+    expect(localeAlternates('/changelog/v1').map((alternate) => alternate.path)).toEqual([
+      '/changelog/v1/',
+      '/zh/changelog/v1/',
+      '/changelog/v1/',
+    ]);
+  });
+
+  it('maps the two landings to each other and keeps the root bare', () => {
+    expect(localeAlternates('/')).toEqual([
+      { hreflang: 'en', path: '/' },
+      { hreflang: 'zh-Hans', path: '/zh/' },
+      { hreflang: 'x-default', path: '/' },
+    ]);
+    expect(localeAlternates('/zh/')).toEqual([
+      { hreflang: 'en', path: '/' },
+      { hreflang: 'zh-Hans', path: '/zh/' },
+      { hreflang: 'x-default', path: '/' },
+    ]);
+  });
+
+  it('reuses the switcher fallbacks for pages without a counterpart', () => {
+    expect(localeAlternates('/404/')).toEqual([
+      { hreflang: 'en', path: '/404/' },
+      { hreflang: 'zh-Hans', path: '/zh/docs/overview/' },
+      { hreflang: 'x-default', path: '/404/' },
+    ]);
   });
 });
 

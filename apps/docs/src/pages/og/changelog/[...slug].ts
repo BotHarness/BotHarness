@@ -1,6 +1,6 @@
 import { getCollection } from "astro:content";
 import { OGImageRoute } from "astro-og-canvas";
-import { ogCardConfig } from "../_og-card-config";
+import { ogCardConfigFor } from "../_og-card-config";
 
 const entries = await getCollection("changelog", (entry) => !entry.data.draft);
 
@@ -16,6 +16,6 @@ export const { getStaticPaths, GET } = await OGImageRoute({
   getImageOptions: (_path, page) => ({
     title: page.title,
     description: page.description,
-    ...ogCardConfig,
+    ...ogCardConfigFor(page),
   }),
 });

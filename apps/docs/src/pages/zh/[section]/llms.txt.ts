@@ -2,9 +2,9 @@
  * `/zh/docs/llms.txt`, `/zh/dev/llms.txt`, `/zh/changelog/llms.txt` — the
  * Chinese per-section agent indexes. Nimbus only emits per-section `llms.txt`
  * for the root tree, so this route mirrors the shape from the indexed `docs-zh`
- * entries (and from the shared `changelog` collection, which the `/zh` tree
- * mirrors by hand with `/zh`-prefixed markdown URLs). Keeps the `/zh`
- * endpoints symmetric with the root instead of serving English fallbacks.
+ * entries (and from the `changelog-zh` tree, the Chinese side of the changelog
+ * pairs, with `/zh`-prefixed markdown URLs). Keeps the `/zh` endpoints
+ * symmetric with the root instead of serving English fallbacks.
  */
 import { getCollection } from "astro:content";
 import {
@@ -31,7 +31,7 @@ export function getStaticPaths() {
 
 async function sectionPages(section: Section): Promise<SectionPage[]> {
   if (section === "changelog") {
-    const entries = await getCollection("changelog", (entry) => isDiscoverable(entry));
+    const entries = await getCollection("changelog-zh", (entry) => isDiscoverable(entry));
     return entries
       .map((entry) => {
         const routeKey = entryRouteKey(entry.id);

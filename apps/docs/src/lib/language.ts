@@ -73,6 +73,37 @@ export function languageLinks(currentSlug: string): LanguageLinks {
   return { isZh, zh, en: currentSlug };
 }
 
+/** One `<link rel="alternate" hreflang>`: language tag plus counterpart path. */
+export interface LocaleAlternate {
+  hreflang: "en" | "zh-Hans" | "x-default";
+  /** Site-root-relative counterpart path, without the base. */
+  path: string;
+}
+
+/**
+ * Normalize to the canonical form Astro emits for directory routes (the
+ * counterpart of `Astro.url.pathname` / the built canonical URL), so an
+ * alternate never points at a redirecting URL. `/` stays bare.
+ */
+function canonicalPath(path: string): string {
+  return path === "/" || path.endsWith("/") ? path : `${path}/`;
+}
+
+/**
+ * hreflang alternates for a route: the English and Chinese counterparts plus
+ * `x-default` — the English page, since the root tree is primary. Counterpart
+ * resolution matches `languageLinks`, so pages without a true translation
+ * point at the same fallbacks as the language switcher.
+ */
+export function localeAlternates(currentSlug: string): LocaleAlternate[] {
+  const { en, zh } = languageLinks(currentSlug);
+  return [
+    { hreflang: "en", path: canonicalPath(en) },
+    { hreflang: "zh-Hans", path: canonicalPath(zh) },
+    { hreflang: "x-default", path: canonicalPath(en) },
+  ];
+}
+
 /** Prose the site header renders; labels are endonyms where they have one. */
 export interface SiteChromeStrings {
   /** `aria-label` on the section nav. */

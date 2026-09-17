@@ -10,23 +10,43 @@ import { render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import DateRail from "./DateRail.astro";
 import { Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/banner";
 import { components } from "@/components";
+import { untranslatedNotice, type Locale } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 interface Props {
-  entry: CollectionEntry<"changelog">;
+  entry: CollectionEntry<"changelog"> | CollectionEntry<"changelog-zh">;
   overflow?: boolean;
   /** Last visible entry — drops its trailing rail segment so the timeline
    *  closes at the final dot. The controller keeps this in sync. */
   railEnd?: boolean;
   /** URL prefix for the entry permalink; `/zh/changelog` on Chinese pages. */
   hrefBase?: string;
+  /** Tree locale — picks the fallback notice and its counterpart URL. */
+  locale?: Locale;
 }
 
-const { entry, overflow = false, railEnd = false, hrefBase = "/changelog" } = Astro.props;
+const {
+  entry,
+  overflow = false,
+  railEnd = false,
+  hrefBase = "/changelog",
+  locale = "en",
+} = Astro.props;
 const { title, date, tags } = entry.data;
 const href = withBase(`${hrefBase}/${entry.id}`, import.meta.env.BASE_URL);
 const { Content } = await render(entry);
+
+// An entry whose own language side is missing falls back to the other
+// language; flag it inline and link to the counterpart permalink.
+const counterpartBase = locale === "zh-Hans" ? "/changelog" : "/zh/changelog";
+const fallbackNotice = entry.data.untranslated
+  ? untranslatedNotice(
+      locale,
+      withBase(`${counterpartBase}/${entry.id}`, import.meta.env.BASE_URL),
+    )
+  : undefined;
 ---
 
 <article
@@ -56,6 +76,8 @@ const { Content } = await render(entry);
         </div>
       )
     }
+
+    {fallbackNotice && <Banner variant="note" content={fallbackNotice} />}
 
     <div class="docs-content nb-cl-prose mt-[1.125rem] max-w-none">
       <Content components={components} />

@@ -1,12 +1,12 @@
 ---
-title: 默认语言翻转为英文 · 中文移至 /zh
-date: 2026-09-17
+title: English becomes the default · Chinese moves to /zh
+date: 2026-09-17T17:00:00+08:00
 tags: [docs, i18n]
 ---
 
-英文成为站点主语言：根路径（`/`、`/docs/**`、`/dev/**`、`/changelog`）直接提供英文内容，中文整体迁到 `/zh/**`（`/zh`、`/zh/docs/**`、`/zh/dev/**`、`/zh/changelog`）；顶栏 `EN` / `中文` 切换保持当前路径（`/docs/overview` ↔ `/zh/docs/overview`）。
+English is now the site's primary language: the root paths (`/`, `/docs/**`, `/dev/**`, `/changelog`) serve English directly, and Chinese moves entirely to `/zh/**` (`/zh`, `/zh/docs/**`, `/zh/dev/**`, `/zh/changelog`); the header's `EN` / `中文` switch preserves the current path (`/docs/overview` ↔ `/zh/docs/overview`).
 
-- **机制**：`docs` collection 承载英文树（Nimbus `versions.current: "en"`），`docs-zh` 通过 `versions.others` 挂载到 `/zh`；旧的 `/en/**` 路由与 `docs-en` collection 移除。
-- **未翻译页面**：英文树中的 spec / PRD / ADR 仍显示中文源，页面顶部显示 `This page has not been translated yet.`；反向情况（英文页缺中文）在 `/zh` 树显示 `本页暂未提供中文。`。两个提示均不可关闭。
-- **生成**：`scripts/sync-docs.mjs` 改为把仓库中文源同时生成到两棵树（英文树带 `untranslated` 标记，中文树干净）；英文架构页写入根树，中文架构页写入 `/zh` 树。
-- **元数据**：根 `llms.txt` 描述英文树并链接 `/zh/llms.txt`，根 `llms-full.txt` 改为英文内容；sitemap / canonical / markdown alternate / RSS 按树各自正确；Pagefind 仍索引两种语言。
+- **Mechanism**: the `docs` collection holds the English tree (Nimbus `versions.current: "en"`), and `docs-zh` is mounted at `/zh` via `versions.others`; the old `/en/**` routes and the `docs-en` collection are removed.
+- **Untranslated pages**: spec / PRD / ADR in the English tree still show the Chinese source with `This page has not been translated yet.` at the top; the reverse case (an English page without Chinese) shows `本页暂未提供中文。` in the `/zh` tree. Neither notice can be dismissed.
+- **Generation**: `scripts/sync-docs.mjs` now writes the Chinese repo sources into both trees (the English tree flags the fallback with `untranslated`, the Chinese tree stays clean); the English architecture page goes to the root tree, the Chinese one to the `/zh` tree.
+- **Metadata**: the root `llms.txt` describes the English tree and links `/zh/llms.txt`; the root `llms-full.txt` is English; sitemap / canonical / markdown alternates / RSS are correct per tree; Pagefind still indexes both languages.

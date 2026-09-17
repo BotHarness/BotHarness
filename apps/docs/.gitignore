@@ -8,5 +8,8 @@ src/content/docs/dev/
 # Chinese tree mounted at /zh: generated from the Chinese repo sources.
 # Hand-authored pages under src/content/docs-zh/docs/ are tracked.
 src/content/docs-zh/dev/
+# Changelog language pairs: English primary at /changelog, Chinese at /zh.
+# Generated from docs/changelog/<date>-<slug>.md + .zh.md.
 src/content/changelog/
+src/content/changelog-zh/
 public/diagrams/

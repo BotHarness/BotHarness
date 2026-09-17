@@ -1,22 +1,26 @@
 ---
 /**
- * `/zh/changelog/<slug>` — Chinese changelog permalink. Entries are
- * Chinese, so this page is the source content with all links inside `/zh`.
+ * `/zh/changelog/<slug>` — Chinese changelog permalink, from the
+ * `changelog-zh` tree (`docs/changelog/*.zh.md`). Entries are Chinese; an
+ * entry flagged `untranslated` fell back to the English source and shows
+ * the Chinese notice banner linked to its English counterpart.
  */
 import type { GetStaticPaths } from "astro";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import { Badge } from "@/components/ui/badge";
+import { Banner } from "@/components/ui/banner";
+import { untranslatedNotice } from "@/lib/language";
 import { entryRouteKey, getCollectionStaticPaths, getCollectionPage, withBase } from "@cloudflare/nimbus-docs";
 import { components } from "@/components";
 
 export const prerender = true;
 export const getStaticPaths: GetStaticPaths = async (options) =>
-  (await getCollectionStaticPaths("changelog")(options)).filter(
+  (await getCollectionStaticPaths("changelog-zh")(options)).filter(
     (path) => path.params.slug,
   );
 
-const page = await getCollectionPage<"changelog">(Astro);
+const page = await getCollectionPage<"changelog-zh">(Astro);
 if (page instanceof Response) return page;
 const { entry, Content } = page;
 const { title, description, date, tags } = entry.data;
@@ -30,6 +34,15 @@ const markdownPath = routeKey
   : "/zh/changelog/index.md";
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
+
+// English-only entries fall back to the English source in the Chinese tree;
+// the banner links to the English counterpart.
+const fallbackNotice = entry.data.untranslated
+  ? untranslatedNotice(
+      "zh-Hans",
+      withBase(`/changelog/${routeKey}`, import.meta.env.BASE_URL),
+    )
+  : undefined;
 ---
 
 <ChangelogLayout
@@ -42,6 +55,8 @@ const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
   collection={entry.collection}
   entryId={entry.id}
 >
+  {fallbackNotice && <Banner variant="note" content={fallbackNotice} />}
+
   <a
     href={withBase("/zh/changelog", import.meta.env.BASE_URL)}
     class="group mb-9 -ml-0.5 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-muted-foreground no-underline transition-[color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.98] motion-reduce:active:scale-100"

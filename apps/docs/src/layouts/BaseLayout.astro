@@ -14,9 +14,9 @@ import {
 } from "@cloudflare/nimbus-docs/runtime";
 import AgentDirective from "@/components/AgentDirective.astro";
 import { SearchDialog } from "@/components/ui/search";
-import { siteChrome } from "@/lib/language";
+import { localeAlternates, siteChrome } from "@/lib/language";
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
-import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
+import type { BasePageProps, HeadElement } from "@cloudflare/nimbus-docs/types";
 
 type Props = BasePageProps & {
   /**
@@ -72,6 +72,29 @@ const resolvedMarkdownUrl =
   basedMarkdownUrl && Astro.site
     ? new URL(basedMarkdownUrl, Astro.site).href
     : basedMarkdownUrl;
+
+// hreflang: Nimbus has no i18n, so the tree derives alternates from the
+// route: the counterpart tree in both directions plus an English
+// `x-default` (the root tree is primary). noindex pages (404s, drafts) are
+// skipped — search engines ignore hreflang there.
+//
+// Known limitation: NimbusHead hardcodes `og:locale` (and JSON-LD
+// `inLanguage`) to `config.locale` ("en"), so `/zh/**` pages advertise the
+// primary locale there. A per-page override would duplicate the tag in
+// `<head>`, which is worse than the stale value; leave it until the
+// framework parameterizes it.
+const languageHead: HeadElement[] = noindex
+  ? []
+  : localeAlternates(pathname).map(({ hreflang, path }) => ({
+      tag: "link",
+      attrs: {
+        rel: "alternate",
+        hreflang,
+        href: Astro.site
+          ? new URL(withBase(path, baseUrl), Astro.site).href
+          : withBase(path, baseUrl),
+      },
+    }));
 ---
 
 <!doctype html>
@@ -127,7 +150,7 @@ const resolvedMarkdownUrl =
       markdownUrl={markdownUrl}
       socialImage={socialImage}
       lastUpdated={lastUpdated}
-      head={pageHead}
+      head={[...pageHead, ...languageHead]}
       collection={collection}
       entryId={suppressVersionAlternates ? undefined : entryId}
       apiVersion={apiVersion}

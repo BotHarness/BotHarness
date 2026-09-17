@@ -190,7 +190,7 @@ export default function Landing({ recent, lang = "en" }: Props) {
           {t.capabilitiesHeading}
         </h2>
         <Frame>
-          <FramePanel className="grid gap-x-6 gap-y-4 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <FramePanel className="grid gap-x-6 gap-y-4 border-[color:var(--bh-border)] p-4 transition-colors hover:border-[color:var(--bh-border-hover)] sm:grid-cols-2 lg:grid-cols-4">
             {t.capabilities.map((capability) => (
               <div key={capability.title} className="flex flex-col gap-1">
                 <span className="text-sm font-medium">{capability.title}</span>
@@ -263,7 +263,7 @@ export default function Landing({ recent, lang = "en" }: Props) {
           </a>
         </div>
         <Frame>
-          <FramePanel className="p-1">
+          <FramePanel className="border-[color:var(--bh-border)] p-1 transition-colors hover:border-[color:var(--bh-border-hover)]">
             <ul className="flex flex-col">
               {recent.map((entry, index) => (
                 <li key={entry.href} className="flex flex-col">

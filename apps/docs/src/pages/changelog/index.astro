@@ -4,8 +4,6 @@ import { getCollection } from "astro:content";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import ChangelogFeed from "@/components/changelog/ChangelogFeed.astro";
 import ChangelogFilter from "@/components/changelog/ChangelogFilter.astro";
-import { Banner } from "@/components/ui/banner";
-import { UNTRANSLATED_NOTICE_EN } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 export const prerender = true;
@@ -36,8 +34,6 @@ const description = "New features, improvements, and fixes.";
     },
   ]}
 >
-  <Banner variant="note" content={UNTRANSLATED_NOTICE_EN} />
-
   <header class="mb-14">
     <div class="flex items-center justify-between gap-4">
       {/* h1 token trio via inline style — site-wide page-title convention. */}

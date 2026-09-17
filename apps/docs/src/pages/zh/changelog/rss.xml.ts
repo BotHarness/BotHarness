@@ -1,6 +1,8 @@
 /**
- * `/zh/changelog/rss.xml` — Chinese changelog RSS feed. Entries are Chinese;
- * the feed is the same content under the `/zh` URLs.
+ * `/zh/changelog/rss.xml` — Chinese changelog RSS feed, from the
+ * `changelog-zh` tree (`docs/changelog/*.zh.md`); entries that fell back to
+ * the English source still appear (with their English title) under the `/zh`
+ * URLs.
  */
 import { getCollection } from "astro:content";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
@@ -22,7 +24,7 @@ export async function GET() {
   const feedUrl = new URL(withBase("/zh/changelog/rss.xml", import.meta.env.BASE_URL), site).href;
   const channelLink = new URL(withBase("/zh/changelog/", import.meta.env.BASE_URL), site).href;
 
-  const entries = (await getCollection("changelog", (e) => !e.data.draft)).sort(
+  const entries = (await getCollection("changelog-zh", (e) => !e.data.draft)).sort(
     (a, b) => b.data.date.getTime() - a.data.date.getTime(),
   );
 

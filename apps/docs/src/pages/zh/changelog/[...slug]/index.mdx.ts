@@ -22,12 +22,12 @@ interface SlugContext {
 }
 
 export const getStaticPaths = async () =>
-  getMarkdownStaticPaths({ collection: "changelog", surface: "source" })
+  getMarkdownStaticPaths({ collection: "changelog-zh", surface: "source" })
     .then((paths) => paths.filter((path) => path.params.slug !== undefined));
 
 export async function GET({ params, props, request }: SlugContext) {
   const payload = await getMarkdownPayload({
-    collection: "changelog",
+    collection: "changelog-zh",
     surface: "source",
     slug: params.slug,
     reference: props.reference,

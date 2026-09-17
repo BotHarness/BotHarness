@@ -16,6 +16,13 @@ function withChineseSection(body: string): string {
   return `${body.trimEnd()}\n- [中文](${href})\n`;
 }
 
+// `changelog-zh` is the Chinese side of the changelog pairs, hand-mounted at
+// `/zh/changelog`; Nimbus indexes it as a raw secondary collection, which
+// would add a `/changelog-zh` section pointing at URLs that don't exist.
+function withoutZhChangelogSection(body: string): string {
+  return body.replace(/^- \[changelog-zh\]\([^\n]*\)\n/m, "");
+}
+
 export async function GET(context: { request: Request }) {
   return agentEndpointResponse(async () => {
     const payload = await getLlmsPayload(
@@ -26,6 +33,6 @@ export async function GET(context: { request: Request }) {
       context,
     );
     if (!payload) return null;
-    return { ...payload, body: withChineseSection(payload.body) };
+    return { ...payload, body: withChineseSection(withoutZhChangelogSection(payload.body)) };
   }, prerender);
 }

@@ -26,7 +26,20 @@
  *     with the Chinese-tree copy flagged `untranslated: true` so the `/zh`
  *     route renders the Chinese notice instead.
  *
- * Never hand-edit `src/content/docs/dev/**` or `src/content/docs-zh/dev/**`.
+ * Changelog entries are language pairs keyed by base filename:
+ *
+ *   - `docs/changelog/<date>-<slug>.md`    → English (primary)
+ *   - `docs/changelog/<date>-<slug>.zh.md` → Chinese
+ *
+ * Each tree is generated from its own side (`changelog` for the English
+ * tree at `/changelog/**`, `changelog-zh` for the Chinese tree at
+ * `/zh/changelog/**`). A missing side falls back to the other language and
+ * is flagged `untranslated` so its route renders the notice banner plus a
+ * link to the counterpart.
+ *
+ * Never hand-edit anything under `src/content/docs/dev/**`,
+ * `src/content/docs-zh/dev/**`, `src/content/changelog/**`, or
+ * `src/content/changelog-zh/**`.
  */
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -278,22 +291,55 @@ function parseChangelogFrontmatter(raw) {
   return { body, title, date, tags };
 }
 
-function syncChangelog() {
+/**
+ * Group the repo's changelog files into language pairs keyed by base name.
+ * `foo.md` is the English side, `foo.zh.md` the Chinese side; either may be
+ * absent.
+ */
+function changelogPairs() {
   const directory = join(ROOT, 'docs', 'changelog');
+  const pairs = new Map();
   const files = readdirSync(directory)
     .filter((name) => name.endsWith('.md'))
     .sort();
   for (const file of files) {
-    const raw = readFileSync(join(directory, file), 'utf8');
-    const { body, title, date, tags } = parseChangelogFrontmatter(raw);
-    const fallbackDate = file.slice(0, 10);
-    const lines = ['---', `title: ${JSON.stringify(title ?? file)}`];
-    lines.push(`date: ${date ?? fallbackDate}`);
-    if (tags && tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
-    lines.push('---', '', '');
-    const target = `changelog/${file.replace(/\.md$/, '.mdx')}`;
-    writeText(target, lines.join('\n') + prepare(body));
-    process.stdout.write(`changelog: ${file} -> ${target}\n`);
+    const zh = file.endsWith('.zh.md');
+    const key = zh ? file.slice(0, -'.zh.md'.length) : file.slice(0, -'.md'.length);
+    const pair = pairs.get(key) ?? {};
+    pair[zh ? 'zh' : 'en'] = file;
+    pairs.set(key, pair);
+  }
+  return [...pairs.entries()].sort(([a], [b]) => a.localeCompare(b));
+}
+
+/** One tree's copy of a changelog entry (frontmatter + prepared body). */
+function renderChangelogEntry(variant, key, untranslated) {
+  const { body, title, date, tags } = variant;
+  const lines = ['---', `title: ${JSON.stringify(title ?? key)}`];
+  lines.push(`date: ${date ?? key.slice(0, 10)}`);
+  if (tags && tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
+  if (untranslated) lines.push('untranslated: true');
+  lines.push('---', '', '');
+  return lines.join('\n') + prepare(body);
+}
+
+/**
+ * Generate both changelog trees from the repo pairs: the English tree
+ * (`changelog`) from the `.md` side and the Chinese tree (`changelog-zh`)
+ * from the `.zh.md` side. A missing side falls back to the other language
+ * and is flagged `untranslated`.
+ */
+function syncChangelog() {
+  rmSync(join(CONTENT, 'changelog'), { recursive: true, force: true });
+  rmSync(join(CONTENT, 'changelog-zh'), { recursive: true, force: true });
+
+  for (const [key, pair] of changelogPairs()) {
+    const en = pair.en ? parseChangelogFrontmatter(readText(`docs/changelog/${pair.en}`)) : null;
+    const zh = pair.zh ? parseChangelogFrontmatter(readText(`docs/changelog/${pair.zh}`)) : null;
+    writeText(`changelog/${key}.mdx`, renderChangelogEntry(en ?? zh, key, !pair.en));
+    writeText(`changelog-zh/${key}.mdx`, renderChangelogEntry(zh ?? en, key, !pair.zh));
+    const flags = [pair.en ? 'en' : 'en←zh', pair.zh ? 'zh' : 'zh←en'].join(', ');
+    process.stdout.write(`changelog: ${key} (${flags})\n`);
   }
 }
 

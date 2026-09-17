@@ -15,7 +15,7 @@ import { config } from "virtual:nimbus/config";
 
 export const prerender = true;
 
-const COLLECTION = "changelog";
+const COLLECTION = "changelog-zh";
 const absoluteUrl = (path: string) =>
   new URL(withBase(path, import.meta.env.BASE_URL), config.site).href;
 
