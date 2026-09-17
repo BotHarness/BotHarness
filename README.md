@@ -17,9 +17,9 @@
 
 ## 状态
 
-- v1.0 基线完成（规格重组、ADR 0015–0018）
-- **M1 BotHarness 骨架**在 PR #13（`@botharness/core`：PersonaBot registry / bot home / 状态事件，38 tests 全绿），待合并
-- 下一步：M2 记忆 MVP → M3 Roster 与委派
+- v1.1 规格：SoulSnapshot / Soul registry 决策（ADR-0019/0020）
+- **M1 BotHarness 骨架**已合并（PR #13；`@botharness/core`：PersonaBot registry / bot home / 状态事件，38 tests 全绿）
+- 下一步：M2 记忆 MVP（#9）→ M3 Roster 与委派（#10）
 
 ## 灵感
 

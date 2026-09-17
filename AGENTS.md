@@ -8,7 +8,7 @@ BotHarness — a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harn
 
 - Specs: `docs/botharness.md` (platform) and `PRD.md` (DeepSeekBot app); decisions live in `docs/adr/`.
 - IM adapter base: [dsh-im](https://github.com/xmanrui/dsh-im) (multi-bot + settings UI). Reliability patterns from [dsh-lark-link](https://github.com/amlyczz/dsh-lark-link); group/thread routing from [dsh-lark-bridge](https://github.com/imetn/dsh-lark-bridge).
-- Current phase: v1.0 baseline (spec restructure + ADR 0015–0018 + M1 scaffold merged); M1 BotHarness skeleton next (registry / bot home / state events).
+- Current phase: v1.1 specs (ADR 0019–0020, SoulSnapshot / Soul registry); M1 merged (PR #13); M2 memory MVP next (#9); M6 SoulSnapshot (#17) / M7 registry (#18) planned.
 
 ## Commands
 
