@@ -1,69 +1,77 @@
-# DeepSeekBot
+# BotHarness
 
-A DeepSeek Harness plugin where one Host runs several Feishu/Lark Bots, each with its own persona and file-based memory that persists across chats, threads, and sessions.
+A DeepSeek Harness plugin layer that gives LLM agents a persistent identity: PersonaBots — bots with a persona and memory that outlive any session, chat, or workspace.
 
 ## Language
 
-### Bots and identity
+### PersonaBots
 
-**Bot**:
-A Feishu/Lark identity operated by the Host, with its own persona, workspace, model, and memory.
-_Avoid_: agent, assistant, robot, app, account
-
-**Bot slug**:
-A human-readable name for a Bot — its alias, else its name, else its id.
-_Avoid_: handle, username, display id
-
-**Workspace**:
-The on-disk home of a Bot: its working area for files and code execution, and the parent of its memory.
-_Avoid_: data directory, project, sandbox
+**PersonaBot**:
+A first-class bot entity owned by the Host: a persona plus memory that spans sessions, chats, and workspaces, able to hold several sessions at once.
+_Avoid_: bot (bare), agent, assistant, robot
 
 **Bot as a Person**:
-The principle that a Bot's identity is continuous across chats and sessions; its memory files, not any session history, make it the same Bot.
-_Avoid_: persona (that is only its voice)
+The principle that a PersonaBot's continuity comes from its memory files, not from any session history.
+_Avoid_: session-scoped identity
+
+**Bot slug**:
+A human-readable name for a PersonaBot — its alias, else its name, else its id.
+_Avoid_: handle, username, display id
 
 **Persona**:
-The role definition — character, voice, and standing instructions — that shapes how a Bot replies. Human-owned: the Agent may not rewrite it.
+The role definition — character, voice, and standing instructions — that shapes how a PersonaBot replies. Human-owned: the Agent may not rewrite it.
 _Avoid_: system prompt, character sheet, profile
 
+**Bot state**:
+The activity model in two levels: a session carries the detail (`thinking`, `working`, `waiting`, `blocked`, `done`), and the PersonaBot aggregates it (`blocked` > `waiting` > `working` > `thinking` > `idle`; `done` is a session event).
+_Avoid_: status, mood, presence
+
+**Avatar**:
+A PersonaBot's visual representation; the MVP uses deterministic blobatars, Live2D is a later renderer.
+_Avoid_: profile picture, skin
+
+### Support and execution
+
+**Harness**:
+The platform layer — BotHarness — that owns PersonaBots, their memory, state, and workspaces, and exposes them to other plugins.
+_Avoid_: framework, runtime, kernel
+
+**Host**:
+The single DSH process that runs the plugin and every PersonaBot.
+_Avoid_: server, instance, node, worker
+
+**Agent**:
+The DSH executor inside one Session. Never a PersonaBot.
+_Avoid_: using this word for PersonaBot
+
 **Session**:
-The DSH conversation a Bot holds with one chat or thread. Message history lives here; Bot identity does not.
+One run of work or conversation for a PersonaBot — DSH's execution unit, with its own progress and working directory.
 _Avoid_: conversation, context window, thread
 
-**Access policy**:
-The per-Bot list of users and chats allowed to reach it.
-_Avoid_: whitelist, permissions, ACL
+**Workspace**:
+A single host directory a Session works in; it maps one-to-one to a DSH workspace. Several workspaces may be grouped in the UI, but a workspace never spans directories.
+_Avoid_: project, multi-root folder, group
 
-### Chats and replies
+**Delegation**:
+Handing a PersonaBot work from a chat or the roster; the work runs in a Session.
+_Avoid_: assignment, task, job
 
-**Chat**:
-A Feishu/Lark conversation — group or p2p — that a Bot takes part in, identified by `chat_id`.
-_Avoid_: room, channel, group (when p2p is meant too)
-
-**DM**:
-A p2p Chat between a Bot and one user.
-_Avoid_: private chat, PM
-
-**Thread**:
-A sub-conversation opened by replying to a message inside a Chat.
-_Avoid_: topic, sub-chat, channel
-
-**Reply scope**:
-Where a Bot's answer lands: under the triggering message in the Chat (root), or inside a new Thread.
-_Avoid_: reply mode, answer position, visibility
+**Channel binding**:
+A PersonaBot's connection to an external surface — an IM app, the sidebar, or a renderer.
+_Avoid_: integration, connector
 
 ### Memory
 
 **Memory**:
-A Bot's persistent knowledge: human-readable Markdown files under its workspace, shared across every chat, thread, and session.
+A PersonaBot's persistent knowledge: human-readable Markdown files in a user-configurable memory directory, shared across every session, chat, and workspace.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **MEMORY.md**:
-The entry-point file of a Bot's memory: persona summary, usage notes, and an index of topic files with one-line summaries.
+The entry-point file of a PersonaBot's memory: persona summary, usage notes, and an index of topic files with one-line summaries.
 _Avoid_: index, README, manifest
 
 **Topic file**:
-A memory file devoted to one subject — a customer, a process, a decision — under the Bot's memory directory.
+A memory file devoted to one subject — a customer, a process, a decision — under the PersonaBot's memory directory.
 _Avoid_: note, document, page, record
 
 **Customer profile**:
@@ -82,27 +90,49 @@ _Avoid_: memory plugin, hook, background job
 The rule that Memory changes only when the model explicitly calls a Memory tool; there is no background distillation.
 _Avoid_: auto-summary, auto-extract, distillation
 
-**Attachment**:
-A file or image uploaded into a Chat, archived into the Bot's workspace at a stable path and referenced from context and Memory.
-_Avoid_: upload, media, blob
-
 **Visibility**:
 Whether a memory entry may surface outside the chat that produced it: `shared` (any chat) or `private` (its author's DMs only).
 _Avoid_: scope, ACL, secret
 
+**Attachment**:
+A file or image uploaded into a Chat, archived into the PersonaBot's workspace at a stable path and referenced from context and Memory.
+_Avoid_: upload, media, blob
+
+### Chats and replies
+
+**Chat**:
+A Feishu/Lark conversation — group or p2p — that a PersonaBot takes part in, identified by `chat_id`.
+_Avoid_: room, channel, group (when p2p is meant too)
+
+**DM**:
+A p2p Chat between a PersonaBot and one user.
+_Avoid_: private chat, PM
+
+**Thread**:
+A sub-conversation opened by replying to a message inside a Chat.
+_Avoid_: topic, sub-chat, channel
+
+**Reply scope**:
+Where a PersonaBot's answer lands: under the triggering message in the Chat (root), or inside a new Thread.
+_Avoid_: reply mode, answer position, visibility
+
 ### Host and setup
 
-**Host**:
-The single DSH process that runs the plugin and every Bot.
-_Avoid_: server, instance, node, worker
-
-**Bot registry**:
-The Host's record of Bot definitions: persona, credential reference, workspace, model, memory directory, access policy.
+**PersonaBot registry**:
+The Host's record of PersonaBot definitions and their channel bindings.
 _Avoid_: config file, database, fleet
 
+**Roster**:
+The in-harness panel listing PersonaBots, their state, and their sessions.
+_Avoid_: dashboard, bot list
+
 **Settings UI**:
-The in-harness DSH settings surface for the setup wizard, plugin settings, Bot management, memory editing, and diagnostics.
+The in-harness DSH settings surface for the setup wizard, plugin settings, PersonaBot management, memory editing, and diagnostics.
 _Avoid_: admin panel, dashboard, web console
+
+**Access policy**:
+The per-PersonaBot list of users and chats allowed to reach it.
+_Avoid_: whitelist, permissions, ACL
 
 **Credential reference**:
 A pointer to a Feishu App Secret held by the DSH credentials service; the secret itself never reaches config, repo, or logs.
