@@ -33,7 +33,7 @@ const markdownPath = routeKey
   ? `/zh/changelog/${routeKey}/index.md`
   : "/zh/changelog/index.md";
 const markdownUrl = markdownPath;
-const socialImage = entry.data.socialImage ?? `/og/changelog/${entry.id}.png`;
+const socialImage = entry.data.socialImage ?? `/og/zh/changelog/${entry.id}.png`;
 
 // English-only entries fall back to the English source in the Chinese tree;
 // the banner links to the English counterpart.
