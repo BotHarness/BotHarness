@@ -13,6 +13,7 @@
     "format:check": "oxfmt --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "dev": "pnpm --filter docs exec portless",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:deploy": "pnpm --filter docs deploy"
@@ -21,6 +22,7 @@
     "@types/node": "^22.20.2",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
+    "portless": "^0.15.6",
     "tsdown": "^0.23.0",
     "typescript": "^7.0.2",
     "vitest": "^5.0.1"

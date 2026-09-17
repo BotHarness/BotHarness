@@ -36,6 +36,16 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
 pnpm build
 ```
 
+本地文档预览（WSL 友好，稳定域名）：
+
+```bash
+pnpm dev           # → https://docs.botharness.localhost（首次生成本地 CA 并请求系统信任，可能要 sudo）
+PORTLESS_PORT=8788 PORTLESS_HTTPS=0 pnpm dev   # 免 sudo 版 → http://docs.botharness.localhost:8788
+pnpm docs:dev      # 不用 portless 的直连方式 → http://localhost:4321
+```
+
+> portless 从 `apps/docs` 包内启动（显示名在该包 `package.json` 的 `portless` 字段）；Windows 有 Hyper-V 保留端口段（如 1349–1448），选端口时避开。
+
 仓库结构（monorepo）：
 
 ```text
