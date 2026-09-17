@@ -11,7 +11,7 @@
 
 - 平台规格：[docs/botharness.md](docs/botharness.md)
 - 应用 PRD：[PRD.md](PRD.md)
-- 架构与数据流（mermaid）：[docs/architecture/botharness-architecture.html](docs/architecture/botharness-architecture.html)
+- 架构与数据流（持续维护，mermaid）：[docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · 文档站 https://botharness.ai
 - 领域词表：[CONTEXT.md](CONTEXT.md) · 决策：[docs/adr/](docs/adr/)
 - 里程碑与 tickets：仓库 Issues；路线图见规格 §7
 
