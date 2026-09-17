@@ -7,4 +7,5 @@ export default defineConfig({
   platform: 'node',
   dts: true,
   clean: true,
+  external: ['@deepseek-ai/dsh-tools', '@deepseek-ai/dsh-system-prompt', '@deepseek-ai/dsh-agent'],
 });

@@ -1,0 +1,313 @@
+import { readFileSync, readdirSync, statSync, symlinkSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { describe, expect, it } from 'vitest';
+
+import { createMemoryStore } from '../src/index.js';
+import { FIXED_NOW, createTempRoot, remember } from './helpers.js';
+
+const GROUP = { kind: 'group' } as const;
+
+describe('memory store write', () => {
+  it('writes a topic file with front-matter and regenerates MEMORY.md', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    const result = await store.write({
+      path: 'customers/acme.md',
+      body: '# Acme\n\nRenewal due.',
+      summary: 'Acme renewal',
+      sources: ['feishu:group-42'],
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      path: 'customers/acme.md',
+      summary: 'Acme renewal',
+      updatedAt: '2026-09-17T00:00:00.000Z',
+      visibility: 'shared',
+    });
+    const raw = readFileSync(join(root, 'customers/acme.md'), 'utf8');
+    expect(raw.startsWith('---\n')).toBe(true);
+    expect(raw).toContain('summary: Acme renewal');
+    expect(raw).toContain('sources:');
+    expect(raw.endsWith('---\n# Acme\n\nRenewal due.\n')).toBe(true);
+
+    const index = readFileSync(join(root, 'MEMORY.md'), 'utf8');
+    expect(index).toContain('customers/acme.md');
+    expect(index).toContain('Acme renewal');
+    expect(index).toContain('2026-09-17T00:00:00.000Z');
+  });
+
+  it('round-trips reads and reports degraded files with warnings', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await store.write({ path: 'topics/a.md', body: 'Fact one.\n', summary: 'First fact' });
+
+    const entry = store.read('topics/a.md');
+    expect(entry).toMatchObject({
+      path: 'topics/a.md',
+      summary: 'First fact',
+      updatedAt: '2026-09-17T00:00:00.000Z',
+      sources: [],
+      visibility: 'shared',
+    });
+    expect(entry?.body).toBe('Fact one.\n');
+    expect(entry?.warnings).toEqual([]);
+    expect(store.read('topics/missing.md')).toBeUndefined();
+
+    writeFileSync(join(root, 'topics/raw.md'), '# Raw notes\n\nhandwritten\n');
+    const raw = store.read('topics/raw.md');
+    expect(raw?.summary).toBe('# Raw notes');
+    expect(raw?.updatedAt).toBe(statSync(join(root, 'topics/raw.md')).mtime.toISOString());
+    expect(raw?.warnings).toContain('missing front-matter');
+  });
+
+  it('rejects writes without a summary', async () => {
+    const store = createMemoryStore({ memoryDir: createTempRoot(), now: FIXED_NOW });
+    await expect(store.write({ path: 'topics/a.md', body: 'x', summary: '   ' })).rejects.toThrow(
+      /summary/,
+    );
+  });
+
+  it('requires an owner for private writes', async () => {
+    const store = createMemoryStore({ memoryDir: createTempRoot(), now: FIXED_NOW });
+    await expect(
+      store.write({ path: 'topics/a.md', body: 'x', summary: 's', visibility: 'private' }),
+    ).rejects.toThrow(/owner/);
+  });
+
+  it('refuses to write MEMORY.md and PERSONA.md', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    await expect(store.write({ path: 'MEMORY.md', body: 'x', summary: 'hack' })).rejects.toThrow(
+      /MEMORY\.md/,
+    );
+    await expect(store.write({ path: 'PERSONA.md', body: 'x', summary: 'hack' })).rejects.toThrow(
+      /PERSONA\.md/,
+    );
+    await expect(store.write({ path: 'memory.MD', body: 'x', summary: 'hack' })).rejects.toThrow(
+      /MEMORY\.md/i,
+    );
+    expect(readdirSync(join(root, '.git')).length).toBeGreaterThan(0);
+  });
+});
+
+describe('memory store jail', () => {
+  it('rejects absolute paths, dot-dot segments and .git paths', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    const input = { body: 'x', summary: 's' };
+
+    await expect(store.write({ ...input, path: '/etc/passwd' })).rejects.toThrow();
+    await expect(store.write({ ...input, path: '../escape.md' })).rejects.toThrow();
+    await expect(store.write({ ...input, path: 'a/../../escape.md' })).rejects.toThrow();
+    await expect(store.write({ ...input, path: '.git/hooks/pre-commit' })).rejects.toThrow();
+    await expect(store.write({ ...input, path: '.gitattributes' })).rejects.toThrow(/reserved/);
+    await expect(store.write({ ...input, path: '.git/config' })).rejects.toThrow(/reserved/);
+    expect(() => store.read('../outside.md')).toThrow();
+    expect(() => store.read('.git/config')).toThrow();
+  });
+
+  it('restricts writes to .md files outside dot-directories', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    const input = { body: 'x', summary: 's' };
+
+    await expect(store.write({ ...input, path: 'notes.txt' })).rejects.toThrow(/\.md/);
+    await expect(store.write({ ...input, path: 'archive/notes.txt' })).rejects.toThrow(/\.md/);
+    await expect(store.write({ ...input, path: 'archive/.hidden/notes.md' })).rejects.toThrow(
+      /dot-director/i,
+    );
+
+    await expect(store.write({ ...input, path: 'topics/nested.md' })).resolves.toMatchObject({
+      ok: true,
+      path: 'topics/nested.md',
+    });
+    expect(store.read('topics/nested.md')?.body).toBe('x\n');
+  });
+
+  it('rejects paths that escape through a symlinked directory', async () => {
+    const root = createTempRoot();
+    const outside = createTempRoot('botharness-outside-');
+    symlinkSync(outside, join(root, 'portal'), 'dir');
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    await expect(store.write({ path: 'portal/evil.md', body: 'x', summary: 's' })).rejects.toThrow(
+      /escape|outside|path/i,
+    );
+  });
+});
+
+describe('memory store visibility', () => {
+  it('filters private entries for groups and other owners', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await remember(store, { path: 'shared.md', body: 'shared fact\n', summary: 'Shared' });
+    await remember(store, {
+      path: 'secret.md',
+      body: 'confided fact\n',
+      summary: 'Secret',
+      visibility: 'private',
+      owner: 'alice',
+    });
+    const alice = { kind: 'dm', owner: 'alice' } as const;
+    const bob = { kind: 'dm', owner: 'bob' } as const;
+
+    expect(store.read('secret.md', GROUP)).toBeUndefined();
+    expect(store.read('secret.md', bob)).toBeUndefined();
+    expect(store.read('secret.md', alice)?.body).toBe('confided fact\n');
+    expect(store.read('shared.md', GROUP)?.body).toBe('shared fact\n');
+
+    expect(store.tree(GROUP).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
+      ['shared.md'],
+    );
+    expect(store.tree(alice).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
+      ['secret.md', 'shared.md'],
+    );
+    expect(store.tree(bob).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual([
+      'shared.md',
+    ]);
+  });
+
+  it('keeps private paths and summaries out of the generated index', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await remember(store, { path: 'shared.md', body: 'shared fact\n', summary: 'Shared fact' });
+    await remember(store, {
+      path: 'confidences.md',
+      body: 'alice prefers tea\n',
+      summary: 'Tea preference',
+      visibility: 'private',
+      owner: 'alice',
+    });
+
+    const index = store.read('MEMORY.md', GROUP);
+    expect(index?.body).toContain('shared.md');
+    expect(index?.body).toContain('Shared fact');
+    expect(index?.body).not.toContain('confidences.md');
+    expect(index?.body).not.toContain('Tea preference');
+
+    const alice = { kind: 'dm', owner: 'alice' } as const;
+    expect(store.tree(alice).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
+      ['confidences.md', 'shared.md'],
+    );
+    await expect(store.search('tea', alice)).resolves.toMatchObject([
+      { path: 'confidences.md', excerpt: 'alice prefers tea' },
+    ]);
+  });
+
+  it('keeps private bodies out of the group-injected index read and hides them from search', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await remember(store, {
+      path: 'confidences.md',
+      body: 'alice prefers tea\n',
+      summary: 'Tea preference',
+      visibility: 'private',
+      owner: 'alice',
+    });
+
+    expect(store.read('confidences.md', GROUP)).toBeUndefined();
+    await expect(store.search('tea', GROUP)).resolves.toEqual([]);
+    await expect(store.search('tea', { kind: 'dm', owner: 'alice' })).resolves.toMatchObject([
+      { path: 'confidences.md', line: 8, excerpt: 'alice prefers tea' },
+    ]);
+  });
+});
+
+describe('memory store private overwrite protection', () => {
+  it('lets only the owner DM overwrite an existing private entry', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await remember(store, {
+      path: 'secret.md',
+      body: 'tea\n',
+      summary: 'Private note',
+      visibility: 'private',
+      owner: 'alice',
+    });
+    const alice = { kind: 'dm', owner: 'alice' } as const;
+    const bob = { kind: 'dm', owner: 'bob' } as const;
+
+    await expect(
+      store.write(
+        { path: 'secret.md', body: 'leak\n', summary: 'Group overwrite', visibility: 'shared' },
+        GROUP,
+      ),
+    ).resolves.toEqual({ ok: false, reason: 'forbidden-private', path: 'secret.md' });
+    await expect(
+      store.write({ path: 'secret.md', body: 'leak\n', summary: 'Bob overwrite' }, bob),
+    ).resolves.toEqual({ ok: false, reason: 'forbidden-private', path: 'secret.md' });
+    expect(store.read('secret.md', alice)?.body).toBe('tea\n');
+
+    await expect(
+      store.write(
+        {
+          path: 'secret.md',
+          body: 'tea, no coffee\n',
+          summary: 'Owner update',
+          visibility: 'private',
+          owner: 'alice',
+        },
+        alice,
+      ),
+    ).resolves.toMatchObject({ ok: true, path: 'secret.md', visibility: 'private' });
+    expect(store.read('secret.md', alice)?.body).toBe('tea, no coffee\n');
+    expect(store.read('secret.md', GROUP)).toBeUndefined();
+  });
+});
+
+describe('memory store persona', () => {
+  it('returns the persona body, keeps it out of the tree, and refuses writes', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    expect(store.persona()).toBeUndefined();
+
+    writeFileSync(join(root, 'PERSONA.md'), '# Persona\n\nBe kind.\n');
+    expect(store.persona()).toBe('# Persona\n\nBe kind.\n');
+    expect(
+      store.tree(GROUP).some((entry) => entry.kind !== 'overflow' && entry.path === 'PERSONA.md'),
+    ).toBe(false);
+
+    await expect(
+      store.write({ path: 'PERSONA.md', body: 'evil', summary: 'takeover' }),
+    ).rejects.toThrow(/PERSONA\.md/);
+  });
+});
+
+describe('memory store serialization and atomicity', () => {
+  it('serializes concurrent writes and leaves no temp files behind', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    const [first, second] = await Promise.all([
+      store.write({ path: 'first.md', body: 'first body\n', summary: 'First write' }),
+      store.write({ path: 'second.md', body: 'second body\n', summary: 'Second write' }),
+    ]);
+
+    expect(first).toMatchObject({ ok: true, path: 'first.md' });
+    expect(second).toMatchObject({ ok: true, path: 'second.md' });
+    const leftovers = readdirSync(root).filter((name) => name.includes('.tmp'));
+    expect(leftovers).toEqual([]);
+    expect(store.read('first.md')?.body).toBe('first body\n');
+    expect(store.read('second.md')?.body).toBe('second body\n');
+    const history = store.history();
+    expect(history.map((commit) => commit.message.split('\n')[0]).slice(0, 2)).toEqual([
+      'Second write',
+      'First write',
+    ]);
+  });
+
+  it('keeps the queue alive after a rejected write', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    await expect(store.write({ path: 'bad.md', body: 'x', summary: '' })).rejects.toThrow();
+    await store.write({ path: 'good.md', body: 'ok\n', summary: 'Recovered' });
+
+    expect(store.read('good.md')?.body).toBe('ok\n');
+    expect(store.history()[0]?.message.split('\n')[0]).toBe('Recovered');
+  });
+});

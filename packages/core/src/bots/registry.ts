@@ -1,16 +1,15 @@
-import { randomUUID } from 'node:crypto';
 import {
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
-  renameSync,
+  realpathSync,
   rmSync,
-  writeFileSync,
   type Dirent,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 
+import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
   isPersonaBotRecord,
   type CreatePersonaBotInput,
@@ -30,12 +29,25 @@ export interface PersonaBotRegistry {
   create(input: CreatePersonaBotInput): CreatePersonaBotResult;
   get(slug: string): PersonaBotRecord | undefined;
   list(): PersonaBotRecord[];
+  findByWorkspace(workspace: string): PersonaBotRecord | undefined;
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
 }
 
 function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
+function normalizeWorkspacePath(path: string): string {
+  let normalized = path.trim();
+  while (normalized.length > 1 && normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1);
+  }
+  try {
+    return realpathSync.native(normalized);
+  } catch {
+    return normalized;
+  }
 }
 
 export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): PersonaBotRegistry {
@@ -66,10 +78,22 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
   const write = (record: PersonaBotRecord): void => {
     const dir = botDir(record.slug);
     mkdirSync(dir, { recursive: true });
-    const target = botFile(record.slug);
-    const temporary = `${target}.${randomUUID()}.tmp`;
-    writeFileSync(temporary, `${JSON.stringify(record, null, 2)}\n`, 'utf8');
-    renameSync(temporary, target);
+    atomicWriteFile(botFile(record.slug), `${JSON.stringify(record, null, 2)}\n`);
+  };
+
+  const list = (): PersonaBotRecord[] => {
+    let entries: Dirent[];
+    try {
+      entries = readdirSync(rootDir, { withFileTypes: true });
+    } catch (error) {
+      if (isMissing(error)) return [];
+      throw error;
+    }
+    return entries
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => read(entry.name))
+      .filter((record): record is PersonaBotRecord => record !== undefined)
+      .sort((left, right) => left.slug.localeCompare(right.slug));
   };
 
   return {
@@ -106,19 +130,13 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     get(slug) {
       return read(slug);
     },
-    list() {
-      let entries: Dirent[];
-      try {
-        entries = readdirSync(rootDir, { withFileTypes: true });
-      } catch (error) {
-        if (isMissing(error)) return [];
-        throw error;
-      }
-      return entries
-        .filter((entry) => entry.isDirectory())
-        .map((entry) => read(entry.name))
-        .filter((record): record is PersonaBotRecord => record !== undefined)
-        .sort((left, right) => left.slug.localeCompare(right.slug));
+    list,
+    findByWorkspace(workspace) {
+      const target = normalizeWorkspacePath(workspace);
+      if (target.length === 0) return undefined;
+      return list().find((record) =>
+        record.workspaces.some((candidate) => normalizeWorkspacePath(candidate) === target),
+      );
     },
     remove(slug, removeOptions) {
       if (!isValidSlug(slug) || !existsSync(botDir(slug))) return false;

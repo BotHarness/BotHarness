@@ -4,7 +4,9 @@ export {
   createCore,
   DEFAULT_CONFIG,
   inject,
+  MEMORY_TREE_SECTION_ORDER,
   name,
+  PERSONA_SECTION_ORDER,
   SETTINGS_NAMESPACE,
 } from './plugin.js';
 export type { BotHarnessConfig, BotHarnessCore } from './plugin.js';
@@ -44,3 +46,35 @@ export type {
   ResolveBotIdentityInput,
   WorkspacesDocument,
 } from './im/identity.js';
+export { createMemoryStore, MemoryWriteError } from './memory/store.js';
+export type {
+  MemoryEntry,
+  MemoryStore,
+  MemoryStoreOptions,
+  MemoryVisibility,
+  MemoryWriteFailure,
+  MemoryWriteFailureReason,
+  MemoryWriteInput,
+  MemoryWriteOutcome,
+  MemoryWriteResult,
+} from './memory/store.js';
+export type { MemoryCommit } from './memory/git.js';
+export { formatMemoryTree, MEMORY_TREE_LIMIT } from './memory/tree.js';
+export type {
+  MemoryTreeEntry,
+  MemoryTreeFile,
+  MemoryTreeFolder,
+  MemoryTreeOverflow,
+} from './memory/tree.js';
+export type { MemorySearchHit } from './memory/search.js';
+export { GROUP_SCOPE } from './memory/visibility.js';
+export type { MemoryScope } from './memory/visibility.js';
+export { createMemoryTools } from './memory/tools.js';
+export type { MemoryToolsOptions } from './memory/tools.js';
+export { createMemoryService } from './memory/service.js';
+export type {
+  MemoryAgentRef,
+  MemoryScopeContext,
+  MemoryService,
+  MemoryServiceOptions,
+} from './memory/service.js';
