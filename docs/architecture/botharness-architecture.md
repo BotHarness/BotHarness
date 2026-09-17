@@ -2,7 +2,7 @@
 
 BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 agent 持久身份：**PersonaBot**——带人格、跨 session 记忆、可并发工作。DeepSeekBot 是它的首个应用（sidebar 名册 + 委派 + IM 接入）。DSH 内核不 fork；IM 由 dsh-im 基座提供通道。
 
-状态：M1 已实现（PR #13）· M2 记忆 MVP · M3 Roster 与委派 · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-18
+状态：M1 已实现（PR #13）· M2 记忆 MVP 已实现 · M3 Roster 与委派 · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-18
 
 ## 1 · 系统上下文
 
@@ -54,36 +54,58 @@ flowchart TB
 
   subgraph core["packages/core/src"]
     Plugin["plugin.ts<br/>apply / settings / provide"]
-    Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录"]
+    Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录 · findByWorkspace"]
     Slug["bots/slug.ts"]
     Record["bots/persona-bot.ts"]
     State["state/bot-state.ts<br/>五态 → 聚合 · 事件"]
     Store["im/config-store.ts<br/>只读 dsh-im JSON"]
     Identity["im/identity.ts<br/>workspace → BotIdentity"]
+    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
+    MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
+    MemoryStore["memory/store.ts<br/>读写 · 生成索引 · 每次写一个 commit"]
+    MemoryTree["memory/tree.ts<br/>目录树 · 超出折叠/溢出标记"]
+    MemorySearch["memory/search.ts<br/>rg 检索"]
+    MemoryGit["memory/git.ts<br/>每 Bot 一个 repo"]
+    FrontMatter["memory/front-matter.ts<br/>摘要 / 降级"]
   end
 
   Plugin --> Registry
   Plugin --> State
   Plugin --> Store
+  Plugin --> MemoryService
+  Plugin --> MemoryTools
   Registry --> Slug
   Registry --> Record
   Store --> Identity
+  MemoryService --> MemoryStore
+  MemoryTools --> MemoryStore
+  MemoryStore --> MemoryTree
+  MemoryStore --> MemorySearch
+  MemoryStore --> MemoryGit
+  MemoryStore --> FrontMatter
+  MemoryTree --> FrontMatter
   ImPkg -.->|"M5 写绑定"| Registry
 
   classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
   classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity ours;
+  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity,MemoryService,MemoryTools,MemoryStore,MemoryTree,MemorySearch,MemoryGit,FrontMatter ours;
   class Bundle,ClientPkg,ImPkg later;
 ```
 
-| 模块                 | 职责                                                                                        | 状态             |
-| -------------------- | ------------------------------------------------------------------------------------------- | ---------------- |
-| `plugin.ts`          | 插件入口：settings 命名空间 + `provide('botharness')`；`createCore()` 组装                  | M1 ✅            |
-| `bots/registry.ts`   | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                         | M1 ✅            |
-| `state/bot-state.ts` | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed` | M1 ✅            |
-| `im/*`               | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                     | M1 ✅（M5 接线） |
-| 记忆（M2）           | front-matter、目录树注入、`memory_*` 工具、可见性、git 版本化                               | M2               |
-| roster 客户端        | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                              | M3               |
+| 模块                     | 职责                                                                                        | 状态             |
+| ------------------------ | ------------------------------------------------------------------------------------------- | ---------------- |
+| `plugin.ts`              | 插件入口：settings 命名空间 + `provide('botharness')`；`createCore()` 组装                  | M1 ✅            |
+| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                         | M1 ✅            |
+| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed` | M1 ✅            |
+| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                     | M1 ✅（M5 接线） |
+| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                       | M2 ✅            |
+| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                | M2 ✅            |
+| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                    | M2 ✅            |
+| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt      | M2 ✅            |
+| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）   | M2 ✅            |
+| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）       | M2 ✅            |
+| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`            | M2 ✅            |
+| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                              | M3               |
 
 ## 3 · 装载与服务暴露
 
@@ -91,14 +113,21 @@ flowchart TB
 sequenceDiagram
   participant D as DSH / Cordis
   participant P as @botharness/core · plugin.ts
+  participant M as memory/service.ts
+  participant T as memory/tools.ts
   participant O as 其他插件（client / im / 第三方）
 
   D->>P: apply(ctx)
   P->>D: settings.register('botharness')
-  P->>D: provide('botharness', { rootDir, registry, states })
+  P->>M: createMemoryService({ registry })
+  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>T: createMemoryTools({ resolveStore })
+  T-->>P: memory_* 工具
+  P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
+  P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get）<br/>订阅 states.on(...) 拿实时状态
+  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.storeForAgent 取该 Session 的记忆
 ```
 
 一切走 Cordis 服务总线，无文件轮询。

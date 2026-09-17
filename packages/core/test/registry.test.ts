@@ -107,6 +107,22 @@ describe('createPersonaBotRegistry', () => {
     expect(existsSync(custom)).toBe(true);
   });
 
+  it('finds a bot by workspace, tolerating trailing slashes and unknown paths', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({
+      slug: 'research',
+      displayName: 'Research',
+      workspaces: [join(root, 'ws-a')],
+    });
+    registry.create({ slug: 'sales', displayName: 'Sales' });
+
+    expect(registry.findByWorkspace(join(root, 'ws-a'))?.slug).toBe('research');
+    expect(registry.findByWorkspace(`${join(root, 'ws-a')}/`)?.slug).toBe('research');
+    expect(registry.findByWorkspace(join(root, 'missing'))).toBeUndefined();
+    expect(registry.findByWorkspace('')).toBeUndefined();
+  });
+
   it('stores model, preset, avatar and workspaces', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
     const result = registry.create({

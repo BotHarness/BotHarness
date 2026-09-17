@@ -1,11 +1,18 @@
 sequenceDiagram
   participant D as DSH / Cordis
   participant P as @botharness/core · plugin.ts
+  participant M as memory/service.ts
+  participant T as memory/tools.ts
   participant O as other plugins (client / im / third-party)
 
   D->>P: apply(ctx)
   P->>D: settings.register('botharness')
-  P->>D: provide('botharness', { rootDir, registry, states })
+  P->>M: createMemoryService({ registry })
+  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>T: createMemoryTools({ resolveStore })
+  T-->>P: memory_* tools
+  P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
+  P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: read registry (list/get)<br/>subscribe states.on(...) for live state
+  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.storeForAgent

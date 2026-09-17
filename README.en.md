@@ -19,7 +19,8 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 
 - v1.1 spec: SoulSnapshot / Soul registry decisions (ADR-0019/0020)
 - **M1 BotHarness skeleton** merged (PR #13; `@botharness/core`: PersonaBot registry / bot home / state events; 38 tests green)
-- Next: M2 memory MVP (#9) → M3 roster & delegation (#10)
+- **M2 memory MVP** implemented (#9; front-matter / tree injection / `memory_*` / git)
+- Next: M3 roster & delegation (#10) → M6 SoulSnapshot (#17)
 
 ## Inspiration
 

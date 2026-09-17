@@ -94,10 +94,6 @@ _Avoid_: memory plugin, hook, background job
 The rule that Memory changes only when the model explicitly calls a Memory tool; there is no background distillation.
 _Avoid_: auto-summary, auto-extract, distillation
 
-**Visibility**:
-Whether a memory entry may surface outside the chat that produced it: `shared` (any chat) or `private` (its author's DMs only).
-_Avoid_: scope, ACL, secret
-
 **Attachment**:
 A file or image uploaded into a Chat, archived into the PersonaBot's workspace at a stable path and referenced from context and Memory.
 _Avoid_: upload, media, blob
@@ -133,7 +129,7 @@ A named group of Listings meant to be imported together.
 _Avoid_: collection, bundle, pack, team
 
 **Export**:
-Materializing a PersonaBot into a SoulSnapshot, filtered by visibility and exclusions.
+Materializing a PersonaBot into a SoulSnapshot, selecting which memory files and which point in time to include.
 _Avoid_: backup, dump, save
 
 **Import**:
