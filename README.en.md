@@ -36,6 +36,13 @@ pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
 pnpm build
 ```
 
+Local docs preview (WSL-friendly, stable URL):
+
+```bash
+pnpm dev           # via portless → https://docs.botharness.localhost (first run creates + trusts a local CA)
+pnpm docs:dev      # direct fallback → http://localhost:4321
+```
+
 Repository layout (monorepo):
 
 ```text
