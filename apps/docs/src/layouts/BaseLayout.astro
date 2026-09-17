@@ -9,6 +9,7 @@ import { config } from "virtual:nimbus/config";
 import {
   getCollectionLlmsUrl,
   getVersionStatus,
+  stripBase,
   withBase,
 } from "@cloudflare/nimbus-docs/runtime";
 import AgentDirective from "@/components/AgentDirective.astro";
@@ -16,7 +17,14 @@ import { SearchDialog } from "@/components/ui/search";
 import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
 
-type Props = BasePageProps;
+type Props = BasePageProps & {
+  /**
+   * Set on language-variant pages (e.g. `/en/**`). The collection is a
+   * translation of the primary docs, not an older snapshot, so Nimbus must not
+   * canonicalize it to the Chinese sibling or emit cross-version alternates.
+   */
+  suppressVersionAlternates?: boolean;
+};
 
 const {
   title,
@@ -30,9 +38,13 @@ const {
   entryId,
   apiVersion,
   coordinate,
+  suppressVersionAlternates = false,
 } = Astro.props;
-
-const lang = config.locale ?? "en";
+// Route-aware language. Nimbus has no i18n, so the site derives `<html lang>`
+// (and Pagefind's per-language index) from the URL: `/en/**` is English,
+// everything else is Simplified Chinese.
+const pathname = stripBase(Astro.url.pathname, import.meta.env.BASE_URL);
+const lang = pathname === "/en" || pathname.startsWith("/en/") ? "en" : "zh-Hans";
 // Per-page agent-index pointer. For pages in non-primary or version
 // collections, this resolves to `/<prefix>/llms.txt` (e.g. `/v0/llms.txt`
 // for a v0 docs page, `/blog/llms.txt` for a blog post). Falls back to
@@ -115,7 +127,7 @@ const resolvedMarkdownUrl =
       lastUpdated={lastUpdated}
       head={pageHead}
       collection={collection}
-      entryId={entryId}
+      entryId={suppressVersionAlternates ? undefined : entryId}
       apiVersion={apiVersion}
       coordinate={coordinate}
     />

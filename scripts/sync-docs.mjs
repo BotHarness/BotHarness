@@ -1,5 +1,32 @@
 #!/usr/bin/env node
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+/**
+ * sync-docs.mjs — generate the docs site's content from repo sources.
+ *
+ * Bilingual layout (see `apps/docs` AGENT.md):
+ *
+ *   - `docs`    — primary Chinese collection. User docs live in
+ *     `apps/docs/src/content/docs/docs/` (hand-authored), everything under
+ *     `docs/dev/**` is generated here from `docs/`, `PRD.md`, `CONTEXT.md`
+ *     and `docs/adr/`.
+ *   - `docs-en` — English collection mounted at `/en/**`. Hand-translated
+ *     pages live in `apps/docs/src/content/docs-en/docs/`; this script only
+ *     mirrors the generated `docs/dev/**` tree into `docs-en/dev/**` with
+ *     `untranslated: true` added to the frontmatter, so the `/en` route can
+ *     render the Chinese fallback with an untranslated notice.
+ *
+ * The repo files are the single source of truth: every generated file —
+ * Chinese or mirrored — is rebuilt from them on each `syncDocs()` call. Never
+ * hand-edit `src/content/docs/dev/**` or `src/content/docs-en/dev/**`.
+ */
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -161,6 +188,46 @@ function syncAdr() {
   }
 }
 
+/**
+ * Mirror the generated dev tree into the English collection. English has no
+ * translated dev docs yet, so every page is the Chinese source plus an
+ * `untranslated: true` flag the `/en` route turns into a notice banner.
+ */
+function walkFiles(directory) {
+  const files = [];
+  for (const dirent of readdirSync(directory, { withFileTypes: true })) {
+    const absolute = join(directory, dirent.name);
+    if (dirent.isDirectory()) files.push(...walkFiles(absolute));
+    else files.push(absolute);
+  }
+  return files;
+}
+
+function markUntranslated(content) {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/);
+  if (!match) return content;
+  return content.replace(match[0], `---\n${match[1]}\nuntranslated: true\n---\n`);
+}
+
+function mirrorDevToEn() {
+  const source = join(CONTENT, 'docs', 'dev');
+  const target = join(CONTENT, 'docs-en', 'dev');
+  rmSync(target, { recursive: true, force: true });
+  if (!existsSync(source)) {
+    process.stderr.write('en mirror: src/content/docs/dev is missing — nothing to mirror\n');
+    return;
+  }
+  let count = 0;
+  for (const absolute of walkFiles(source)) {
+    const relative = absolute.slice(source.length + 1);
+    const destination = join(target, relative);
+    mkdirSync(dirname(destination), { recursive: true });
+    writeFileSync(destination, markUntranslated(readFileSync(absolute, 'utf8')), 'utf8');
+    count += 1;
+  }
+  process.stdout.write(`en mirror: docs/dev -> docs-en/dev (${count} file(s))\n`);
+}
+
 function parseChangelogFrontmatter(raw) {
   const { frontmatter: text, body } = stripFrontmatter(raw);
   const title = text
@@ -231,6 +298,7 @@ export function syncDocs() {
 
   syncPages();
   syncAdr();
+  mirrorDevToEn();
   syncChangelog();
   syncDiagrams();
   process.stdout.write('docs sync complete\n');

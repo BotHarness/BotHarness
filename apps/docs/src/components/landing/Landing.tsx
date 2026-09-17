@@ -107,15 +107,23 @@ export default function Landing() {
           </Button>
         </Group>
 
-        <Button
-          variant="link"
-          size="sm"
-          render={
-            <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener" />
-          }
-        >
-          GitHub
-        </Button>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <Button
+            variant="link"
+            size="sm"
+            render={
+              <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener" />
+            }
+          >
+            GitHub
+          </Button>
+          <span aria-hidden="true" className="text-xs text-border">
+            ·
+          </span>
+          <Button variant="link" size="sm" render={<a href="/en/docs/overview" />}>
+            English
+          </Button>
+        </div>
       </section>
 
       <section className="flex flex-col gap-4 border-b border-border py-10">

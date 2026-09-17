@@ -14,9 +14,11 @@ interface Props {
   entries: CollectionEntry<"changelog">[];
   pageSize?: number;
   loadMoreHref?: string;
+  /** URL prefix for entry permalinks; `/en/changelog` on English pages. */
+  entryHrefBase?: string;
 }
 
-const { entries, pageSize, loadMoreHref = "/changelog/page/2" } = Astro.props;
+const { entries, pageSize, loadMoreHref = "/changelog/page/2", entryHrefBase = "/changelog" } = Astro.props;
 const resolvedLoadMoreHref = withBase(loadMoreHref, import.meta.env.BASE_URL);
 
 const sorted = [...entries].sort(
@@ -33,7 +35,7 @@ const lastVisibleIndex = Math.min(cap, sorted.length) - 1;
 <div class="nb-cl-feed" data-changelog-feed data-page-size={pageSize ?? ""}>
   {
     sorted.map((entry, i) => (
-      <ChangelogEntry entry={entry} overflow={i >= cap} railEnd={i === lastVisibleIndex} />
+      <ChangelogEntry entry={entry} overflow={i >= cap} railEnd={i === lastVisibleIndex} hrefBase={entryHrefBase} />
     ))
   }
 
