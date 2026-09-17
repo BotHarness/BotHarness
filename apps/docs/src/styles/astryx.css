@@ -1,0 +1,32 @@
+/*
+ * Astryx on the landing page.
+ *
+ * Layer order matters: Astryx ships its styles in `reset` / `astryx-base` /
+ * `astryx-theme` layers, and unlayered CSS always beats layered CSS. We
+ * declare the interleaved order Astryx recommends for Tailwind projects so
+ * Nimbus' utility layers keep priority on docs pages while Astryx components
+ * still style themselves on the landing page.
+ */
+@layer reset, theme, base, astryx-base, astryx-theme, components, utilities, landing;
+
+@import "@astryxdesign/core/astryx.css";
+@import "@astryxdesign/theme-neutral/theme.css";
+@import "../../../../design/tokens.css";
+
+/* Brand accents for the landing scope only. */
+[data-bh-landing] {
+  font-family: var(--bh-font-sans);
+  color: var(--bh-ink);
+}
+
+[data-bh-landing] .bh-accent {
+  color: var(--bh-brand-strong);
+}
+
+[data-bh-landing] .bh-muted {
+  color: var(--bh-ink-soft);
+}
+
+[data-bh-landing] .bh-mono {
+  font-family: var(--bh-font-mono);
+}

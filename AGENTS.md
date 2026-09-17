@@ -28,6 +28,7 @@ In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create syml
 - Memory rules (layout, front-matter, atomic writes, tree injection, visibility, git): see `docs/botharness.md` §4, rules M1–M11.
 - Record decisions in the specs (bump version + changelog) and, for architecture, as an ADR under `docs/adr/` instead of leaving them in chat.
 - Living architecture doc: `docs/architecture/botharness-architecture.md` (inline mermaid) — update it when modules, data flow, or boundaries change; it syncs to the docs site (`apps/docs`, botharness.ai) via `scripts/sync-docs.mjs`.
+- Docs site: Nimbus in `apps/docs` — content is generated from repo sources by `scripts/sync-docs.mjs` (never edit generated files); the landing page (`src/components/landing/Landing.tsx`) uses Astryx, with brand tokens in `design/tokens.css`.
 - Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`).
 
 ## Agent skills
