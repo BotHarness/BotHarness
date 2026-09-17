@@ -5,11 +5,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
-import { SETTINGS_NAMESPACE, apply, inject, name, type PersonaBotRegistry } from '../src/index.js';
+import { apply, inject, name, type PersonaBotRegistry } from '../src/index.js';
 import { createTempRoot } from './helpers.js';
 
 interface StubContext {
-  settings: { register: ReturnType<typeof vi.fn> };
   tools: { register: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
   provide: ReturnType<typeof vi.fn>;
@@ -17,7 +16,6 @@ interface StubContext {
 
 function createStubContext(): StubContext {
   return {
-    settings: { register: vi.fn(() => ({})) },
     tools: { register: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
     provide: vi.fn(),
@@ -27,16 +25,24 @@ function createStubContext(): StubContext {
 describe('plugin entry', () => {
   it('declares its identity', () => {
     expect(name).toBe('botharness-core');
-    expect(inject).toEqual(['settings', 'tools', 'systemPrompt']);
+    expect(inject).toEqual(['tools', 'systemPrompt']);
   });
 
-  it('registers settings, provides the core and registers memory tools', () => {
+  it('registers nothing when disabled', () => {
     const ctx = createStubContext();
 
-    apply(ctx as unknown as Context);
+    apply(ctx as unknown as Context, { enabled: false });
 
-    expect(ctx.settings.register).toHaveBeenCalledTimes(1);
-    expect(ctx.settings.register.mock.calls[0]?.[0]).toBe(SETTINGS_NAMESPACE);
+    expect(ctx.provide).not.toHaveBeenCalled();
+    expect(ctx.tools.register).not.toHaveBeenCalled();
+    expect(ctx.systemPrompt.section).not.toHaveBeenCalled();
+  });
+
+  it('provides the core and registers memory tools', () => {
+    const ctx = createStubContext();
+
+    apply(ctx as unknown as Context, { enabled: true });
+
     expect(ctx.provide).toHaveBeenCalledTimes(1);
     const [serviceName, service] = ctx.provide.mock.calls[0] ?? [];
     expect(serviceName).toBe('botharness');
@@ -58,7 +64,7 @@ describe('plugin entry', () => {
   it('registers persona and memory-tree prompt sections in order', () => {
     const ctx = createStubContext();
 
-    apply(ctx as unknown as Context);
+    apply(ctx as unknown as Context, { enabled: true });
 
     expect(ctx.systemPrompt.section).toHaveBeenCalledTimes(2);
     const sections = ctx.systemPrompt.section.mock.calls.map((call) => call[0]);
@@ -82,7 +88,7 @@ describe('plugin entry', () => {
     vi.stubEnv('DSH_HOME', home);
     try {
       const ctx = createStubContext();
-      apply(ctx as unknown as Context);
+      apply(ctx as unknown as Context, { enabled: true });
 
       const core = ctx.provide.mock.calls[0]?.[1] as { registry: PersonaBotRegistry } | undefined;
       expect(core).toBeDefined();

@@ -56,4 +56,4 @@ packages/im          @botharness/im     # IM 适配器（M5）
 packages/deepseekbot deepseekbot        # bundle + 应用（后续）
 ```
 
-M1 脚手架（插件入口、settings 命名空间、workspace→bot 解析）已迁入 `packages/core`；解析保留为 IM 绑定助手。
+M1 脚手架（插件入口、workspace→bot 解析）已迁入 `packages/core`；解析保留为 IM 绑定助手。

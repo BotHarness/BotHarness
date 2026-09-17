@@ -120,6 +120,15 @@ const PAGES = [
       description: 'PersonaBot 术语的规范用法',
     },
   },
+  {
+    slug: 'dev/spec/client-bridge',
+    order: 4,
+    zh: {
+      source: 'docs/client-bridge.md',
+      title: '客户端桥',
+      description: 'Web Client 与 core 之间的读模型 RPC 契约（M3 初稿）',
+    },
+  },
 ];
 
 const LINK_REWRITES = [
@@ -127,6 +136,7 @@ const LINK_REWRITES = [
   [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/dev/spec/platform)'],
   [/\]\(\.?\/?PRD\.md\)/g, '](/dev/spec/app-prd)'],
   [/\]\(\.?\/?CONTEXT\.md\)/g, '](/dev/spec/context)'],
+  [/\]\(\.?\/?docs\/client-bridge\.md\)/g, '](/dev/spec/client-bridge)'],
   [/\]\(\.?\/?docs\/adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
   [/\]\(\.?\/?README\.en?\.md\)/g, `](${GITHUB_BLOB}README.md)`],
 ];

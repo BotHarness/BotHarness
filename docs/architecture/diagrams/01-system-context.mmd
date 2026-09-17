@@ -5,16 +5,19 @@ flowchart LR
   subgraph Host["DSH Host · 单进程"]
     IM["dsh-im 基座<br/>通道 · 会话路由 · 流式卡片 · 设置页"]
     Core["@botharness/core<br/>registry · 状态 · IM 绑定解析"]
-    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
     Agent["DSH Agent<br/>每 Session 一个执行体"]
+  end
+
+  subgraph Browser["Web Client · 浏览器（独立 Cordis 应用）"]
+    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
   end
 
   User -->|"@ / 委派"| Client
   User -->|"群消息"| Feishu
   Feishu <-->|"长连接（出站）"| IM
   IM --> Agent
-  Client --> Agent
-  Core -.->|"provide('botharness')"| Client
+  Core -->|"RPC（读模型）"| Client
+  Client -.->|"RPC（写操作）"| Core
   Core -.->|"只读 config.json / workspaces.json"| IM
   Agent -.->|"状态事件（M3 接入）"| Core
 

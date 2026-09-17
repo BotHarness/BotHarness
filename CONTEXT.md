@@ -168,6 +168,10 @@ _Avoid_: config file, database, fleet
 The in-harness panel listing PersonaBots, their state, and their sessions.
 _Avoid_: dashboard, bot list
 
+**Client bridge**:
+The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
+_Avoid_: remote, IPC, gateway
+
 **Settings UI**:
 The in-harness DSH settings surface for the setup wizard, plugin settings, PersonaBot management, memory editing, and diagnostics.
 _Avoid_: admin panel, dashboard, web console

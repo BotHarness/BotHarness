@@ -16,16 +16,19 @@ flowchart LR
   subgraph Host["DSH Host · single process"]
     IM["dsh-im base<br/>channels · conversation routing · streaming cards · settings page"]
     Core["@botharness/core<br/>registry · state · IM binding resolution"]
-    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
     Agent["DSH Agent<br/>one executor per Session"]
+  end
+
+  subgraph Browser["Web Client · browser (separate Cordis app)"]
+    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
   end
 
   User -->|"@ / delegate"| Client
   User -->|"group message"| Feishu
   Feishu <-->|"long connection (outbound)"| IM
   IM --> Agent
-  Client --> Agent
-  Core -.->|"provide('botharness')"| Client
+  Core -->|"RPC (read model)"| Client
+  Client -.->|"RPC (writes)"| Core
   Core -.->|"read-only config.json / workspaces.json"| IM
   Agent -.->|"state events (wired in M3)"| Core
 
@@ -37,7 +40,7 @@ flowchart LR
   class Client later;
 ```
 
-Two entry points (DSH Web roster/delegation, Feishu group IM), one PersonaBot brain.
+Two entry points (DSH Web roster/delegation, Feishu group IM), one PersonaBot brain. The browser half is not part of the Host process: the only cross-process path is RPC (ADR-0023).
 
 ## 2 · Modules & packages
 
@@ -55,7 +58,7 @@ flowchart TB
   Bundle --> ImPkg
 
   subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply / settings / provide"]
+    Plugin["plugin.ts<br/>apply(config) / provide"]
     Registry["bots/registry.ts<br/>CRUD · atomic writes · memory dir · findByWorkspace"]
     Slug["bots/slug.ts"]
     Record["bots/persona-bot.ts"]
@@ -96,7 +99,7 @@ flowchart TB
 
 | Module                   | Responsibility                                                                                                   | Status            |
 | ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `plugin.ts`              | Plugin entry: settings namespace + `provide('botharness')`; assembled by `createCore()`                          | M1 ✅             |
+| `plugin.ts`              | Plugin entry: `apply(ctx, config)` (`enabled` gate) + `provide('botharness')`; assembled by `createCore()`       | M1 ✅             |
 | `bots/registry.ts`       | PersonaBot lifecycle + atomic persistence; `remove` keeps memory by default, only `purge` clears it              | M1 ✅             |
 | `state/bot-state.ts`     | Five session states reported → PersonaBot aggregation; `aggregate-changed / session-changed / session-removed`   | M1 ✅             |
 | `im/*`                   | Read-only dsh-im store (v1/v2/v3 compatible) + workspace→BotIdentity (IM binding helper)                         | M1 ✅ (M5 wiring) |
@@ -117,22 +120,26 @@ sequenceDiagram
   participant P as @botharness/core · plugin.ts
   participant M as memory/service.ts
   participant T as memory/tools.ts
-  participant O as other plugins (client / im / third-party)
+  participant O as Host plugins (im / third-party)
+  participant C as Web Client (browser)
 
-  D->>P: apply(ctx)
-  P->>D: settings.register('botharness')
+  D->>P: apply(ctx, config)
   P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>D: provide('botharness', { rootDir, registry, states, memory }) (Host-internal)
   P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* tools
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.storeForAgent
+  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) (Host-internal)
+  C->>D: connection.rpc.call('/api', 'botharness/<method>') (from M3)
+  D-->>C: { ok, value | error }
+  Note over P: M3: register read-model endpoints via connection.rpc / fetch (ADR-0023)
+  Note over C: read model + refresh/polling<br/>no Host service injection<br/>no direct states.on
 ```
 
-Everything goes through the Cordis service bus — no file polling.
+Everything Host-internal goes through the Cordis service bus; the browser half reads the model over the client-bridge RPC — no cross-process injection, no file polling.
 
 ## 4 · Creating a PersonaBot (data flow)
 
@@ -194,6 +201,8 @@ stateDiagram-v2
 | `session-changed`   | any session state change (even if aggregate holds) | session detail         |
 | `session-removed`   | session ended / cleaned up                         | tree refresh           |
 
+Events are emitted inside the Host process only. The browser never subscribes directly: the roster gets state through the client-bridge read model with refresh/polling (ADR-0023).
+
 ## 7 · On-disk data
 
 Ours (written by the registry):
@@ -216,14 +225,16 @@ $DSH_HOME/integrations/dsh-feishu/
 
 ## 8 · Communication & boundaries
 
-| Channel                            | Direction                    | Notes                                                                                         |
-| ---------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------- |
-| Cordis service `provide/inject`    | core → client/im/third-party | the `botharness` service; no global singleton                                                 |
-| Tracker subscription `states.on()` | core → client                | in-process events, not polling                                                                |
-| DSH event bus `ctx.on`             | DSH/dsh-im → core            | M3 subscribes to `agent/*` to drive state                                                     |
-| Feishu / Lark                      | dsh-im ↔ open platform       | outbound long connection; no public ingress (webhook exception, see [PRD](/dev/spec/app-prd)) |
-| dsh-im disk                        | read-only                    | only through the single `im/` module; no fork / no patch                                      |
-| Secrets                            | —                            | only in the DSH credentials service; zero plaintext in the repo                               |
+| Channel                                  | Direction                            | Notes                                                                                           |
+| ---------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
+| Host-internal Cordis `provide/inject`    | core → Host plugins (im/third-party) | the `botharness` service; same process only, no global singleton                                |
+| Host-internal tracker `states.on()`      | core → Host consumers                | in-process events, not polling; the browser never subscribes directly                           |
+| Browser-internal Cordis (slots/triggers) | between client plugins               | the Web Client is a separate Cordis app; the shell injects its module baseline                  |
+| Cross-process Connection RPC             | client ↔ core                        | `botharness/<method>` read model; `{ ok, value \| error }` + cursor; refresh/polling (ADR-0023) |
+| DSH event bus `ctx.on`                   | DSH/dsh-im → core                    | M3 subscribes to `agent/*` to drive state                                                       |
+| Feishu / Lark                            | dsh-im ↔ open platform               | outbound long connection; no public ingress (webhook exception, see [PRD](/dev/spec/app-prd))   |
+| dsh-im disk                              | read-only                            | only through the single `im/` module; no fork / no patch                                        |
+| Secrets                                  | —                                    | only in the DSH credentials service; zero plaintext in the repo                                 |
 
 ## 9 · How to maintain
 
