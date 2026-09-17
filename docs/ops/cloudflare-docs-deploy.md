@@ -2,8 +2,8 @@
 
 `apps/docs` 是 Nimbus（Astro 7）静态站点，产出 `dist/`，由 Cloudflare Workers Static Assets 托管。
 
-- 生产域名：`botharness.ai`
-- `.dev`：301 → `botharness.ai`（zone 级 Single Redirect，**不**绑 Worker）
+- 域名：**`botharness.ai` 与 `botharness.dev` 都绑定同一个 Worker**，服务同一份站点（同一构建、同一内容）
+- 区块：`/docs` 用户文档 · `/dev` 开发者与审计（规格 / PRD / ADR / 架构） · `/changelog`
 - Account：`332e72d480d7cb3e60ee671d3ca0cad0`（yangmufeng233@gmail.com）
 - Worker 名：`botharness-docs`（见 `apps/docs/wrangler.jsonc`）
 
@@ -15,11 +15,7 @@
    - **Root directory**：`apps/docs`
    - **Build command**：`pnpm build`（会先跑 `scripts/sync-docs.mjs`）
    - **Deploy command**：`pnpm exec wrangler deploy`
-4. 首次构建通过后，Worker 会拿到 `<version>-botharness-docs.<subdomain>.workers.dev`；把它加为自定义域名 `botharness.ai`（Settings → Domains & Routes → Add custom domain）。
-5. `.dev` 不绑定 Worker：在 `botharness.dev` zone 加一条 **Single Redirect**（Rules → Redirect Rules）：
-   - 条件：`Hostname equals botharness.dev`（以及 `www.botharness.dev` 可选）
-   - 目标：`https://botharness.ai$1`，状态码 `301`
-   - 需要 `.dev` zone 里有一条代理的占位记录（`A 192.0.2.0` 或 `AAAA 100::`，Proxied）。
+4. 首次构建通过后，Worker 会拿到 `<version>-botharness-docs.<subdomain>.workers.dev`；在 Settings → Domains & Routes 把 **`botharness.ai` 和 `botharness.dev` 都加为自定义域名**（同一 Worker、同一份内容，无需重定向）。
 
 ## PR 预览
 

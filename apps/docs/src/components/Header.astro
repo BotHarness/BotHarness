@@ -1,12 +1,11 @@
 ---
-import type { SidebarSection } from "@cloudflare/nimbus-docs/types";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { Button } from "./ui/button";
 import { LinkButton } from "./ui/link-button";
 import { ThemeToggle } from "./ui/theme-toggle";
 import SearchTrigger from "./ui/search/SearchTrigger.astro";
 import { config } from "virtual:nimbus/config";
-import { getSidebarSections, stripBase, withBase } from "@cloudflare/nimbus-docs/runtime";
+import { stripBase, withBase } from "@cloudflare/nimbus-docs/runtime";
 
 interface Props {
   /** Astro collection id for the current page, forwarded from DocsLayout. */
@@ -19,22 +18,22 @@ interface Props {
    * shouldn't show a button that opens an empty dialog. Default `true`.
    */
   showSidebar?: boolean;
-  sections?: SidebarSection[];
 }
 
-// `entryId` is part of Props as a forward-compat hook (the version-switcher
-// recipe reads it) but the base Header doesn't use it — leave it off the
-// destructure to avoid an unused-var warning.
-const { collection, showSidebar = true, sections: sectionsProp } = Astro.props;
+const { showSidebar = true } = Astro.props;
 
 // Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
-const sections =
-  sectionsProp ?? (await getSidebarSections(currentSlug, { collection }));
-const showSections = sections.length >= 2;
 const homeHref = withBase("/", import.meta.env.BASE_URL);
-const resolveSectionHref = (href: string): string =>
-  withBase(href, import.meta.env.BASE_URL);
+
+const SITE_LINKS = [
+  { href: "/docs/overview", label: "文档", icon: "hugeicons:book-02", prefix: "/docs" },
+  { href: "/dev/architecture", label: "开发与审计", icon: "hugeicons:code", prefix: "/dev" },
+  { href: "/changelog", label: "Changelog", icon: "hugeicons:megaphone-01", prefix: "/changelog" },
+];
+
+const isActive = (prefix: string): boolean =>
+  currentSlug === prefix || currentSlug.startsWith(`${prefix}/`);
 ---
 
 <header class="sticky top-0 z-30 border-b border-border bg-card/80 backdrop-blur-lg">
@@ -48,24 +47,26 @@ const resolveSectionHref = (href: string): string =>
         </a>
       </slot>
 
-      {showSections && (
-        <nav aria-label="Sections" class="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border h-6 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {sections.map((section) => (
-            <a
-              href={resolveSectionHref(section.href)}
-              aria-current={section.isActive ? "page" : undefined}
-              class:list={[
-                "px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors shrink-0 whitespace-nowrap",
-                section.isActive
-                  ? "text-foreground bg-accent"
-                  : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
-              ]}
-            >
-              {section.label}
-            </a>
-          ))}
-        </nav>
-      )}
+      <nav
+        aria-label="Sections"
+        class="hidden md:flex items-center gap-1 ml-4 pl-4 border-l border-border h-6 min-w-0 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      >
+        {SITE_LINKS.map((link) => (
+          <a
+            href={withBase(link.href, import.meta.env.BASE_URL)}
+            aria-current={isActive(link.prefix) ? "page" : undefined}
+            class:list={[
+              "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[0.8125rem] font-medium no-underline transition-colors shrink-0 whitespace-nowrap",
+              isActive(link.prefix)
+                ? "text-foreground bg-accent"
+                : "text-muted-foreground hover:text-foreground hover:bg-accent/60",
+            ]}
+          >
+            <Icon name={link.icon} class="w-3.5 h-3.5" />
+            <span class="hidden lg:inline">{link.label}</span>
+          </a>
+        ))}
+      </nav>
     </div>
 
     <div class="flex items-center gap-2 shrink-0">
