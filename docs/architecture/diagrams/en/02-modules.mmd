@@ -1,0 +1,34 @@
+flowchart TB
+  subgraph pkgs["monorepo packages"]
+    Bundle["deepseekbot<br/>bundle + app (M5)"]
+    CorePkg["@botharness/core<br/>host domain services (M1 done)"]
+    ClientPkg["@botharness/client<br/>React client (M3)"]
+    ImPkg["@botharness/im<br/>IM adapter (M5)"]
+  end
+
+  Bundle --> CorePkg
+  Bundle --> ClientPkg
+  Bundle --> ImPkg
+
+  subgraph core["packages/core/src"]
+    Plugin["plugin.ts<br/>apply / settings / provide"]
+    Registry["bots/registry.ts<br/>CRUD · atomic writes · memory dir"]
+    Slug["bots/slug.ts"]
+    Record["bots/persona-bot.ts"]
+    State["state/bot-state.ts<br/>five states → aggregate · events"]
+    Store["im/config-store.ts<br/>read-only dsh-im JSON"]
+    Identity["im/identity.ts<br/>workspace → BotIdentity"]
+  end
+
+  Plugin --> Registry
+  Plugin --> State
+  Plugin --> Store
+  Registry --> Slug
+  Registry --> Record
+  Store --> Identity
+  ImPkg -.->|"write binding (M5)"| Registry
+
+  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
+  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
+  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity ours;
+  class Bundle,ClientPkg,ImPkg later;

@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> idle
+  idle --> thinking: delegate / wake
+  thinking --> working: start execution
+  working --> waiting: needs approval / waiting on someone
+  waiting --> working: resume after confirmation
+  working --> blocked: failure / missing precondition
+  blocked --> working: retry after fix
+  thinking --> blocked: stuck
+  working --> done: finished (session event)
+  done --> idle: aggregate back to idle

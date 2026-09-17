@@ -1,0 +1,11 @@
+sequenceDiagram
+  participant D as DSH / Cordis
+  participant P as @botharness/core · plugin.ts
+  participant O as other plugins (client / im / third-party)
+
+  D->>P: apply(ctx)
+  P->>D: settings.register('botharness')
+  P->>D: provide('botharness', { rootDir, registry, states })
+  O->>D: inject(['botharness'])
+  D-->>O: ctx.botharness
+  Note over O: read registry (list/get)<br/>subscribe states.on(...) for live state

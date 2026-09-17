@@ -9,10 +9,13 @@
  *     `docs/dev/**` is generated here from `docs/`, `PRD.md`, `CONTEXT.md`
  *     and `docs/adr/`.
  *   - `docs-en` — English collection mounted at `/en/**`. Hand-translated
- *     pages live in `apps/docs/src/content/docs-en/docs/`; this script only
- *     mirrors the generated `docs/dev/**` tree into `docs-en/dev/**` with
+ *     pages live in `apps/docs/src/content/docs-en/docs/`; this script mirrors
+ *     the generated `docs/dev/**` tree into `docs-en/dev/**` with
  *     `untranslated: true` added to the frontmatter, so the `/en` route can
- *     render the Chinese fallback with an untranslated notice.
+ *     render the Chinese fallback with an untranslated notice. Pages with an
+ *     English source (`PAGES` entries carrying `lang: 'en'`, i.e. the
+ *     architecture page) are written from that source instead and are exempt
+ *     from the mirror.
  *
  * The repo files are the single source of truth: every generated file —
  * Chinese or mirrored — is rebuilt from them on each `syncDocs()` call. Never
@@ -45,6 +48,15 @@ const ARCHITECTURE_DIAGRAMS = [
   { name: '06-state', caption: '状态机与事件' },
 ];
 
+const ARCHITECTURE_DIAGRAMS_EN = [
+  { name: '01-system-context', caption: 'System context' },
+  { name: '02-modules', caption: 'Modules & packages' },
+  { name: '03-boot', caption: 'Boot & service exposure' },
+  { name: '04-create-bot', caption: 'Creating a PersonaBot (data flow)' },
+  { name: '05-im-binding', caption: 'IM binding resolution (helper today, wired in M5)' },
+  { name: '06-state', caption: 'State machine & events' },
+];
+
 const PAGES = [
   {
     source: 'docs/architecture/botharness-architecture.md',
@@ -53,6 +65,15 @@ const PAGES = [
     description: '系统上下文、模块、数据流与边界（持续维护）',
     order: 0,
     diagrams: ARCHITECTURE_DIAGRAMS,
+  },
+  {
+    source: 'docs/architecture/botharness-architecture.en.md',
+    target: 'docs-en/dev/architecture.mdx',
+    title: 'BotHarness Architecture & Data Flow',
+    description: 'System context, modules, data flow and boundaries (living doc)',
+    order: 0,
+    lang: 'en',
+    diagrams: ARCHITECTURE_DIAGRAMS_EN,
   },
   {
     source: 'docs/botharness.md',
@@ -109,14 +130,15 @@ function transformMermaid(body) {
   );
 }
 
-function transformDiagrams(body, diagrams) {
+function transformDiagrams(body, diagrams, lang) {
   let index = 0;
   return body.replace(/```mermaid\r?\n([\s\S]*?)```\r?\n?/g, (_match, code) => {
     const diagram = diagrams[index];
     index += 1;
     if (!diagram) return mermaidFenceToRuntime(code);
+    const langAttr = lang === 'en' ? ' lang="en"' : '';
     const caption = diagram.caption ? ` caption=${JSON.stringify(diagram.caption)}` : '';
-    return `<Diagram name="${diagram.name}"${caption} />\n`;
+    return `<Diagram name="${diagram.name}"${caption}${langAttr} />\n`;
   });
 }
 
@@ -148,21 +170,42 @@ function frontmatter({ title, description, order }) {
   return lines.join('\n');
 }
 
-function prepare(body, diagrams) {
+/**
+ * English sources may carry a maintainer note as an HTML comment directly
+ * under the H1 (kept readable in the repo). MDX only accepts JSX-style
+ * comments, so drop a leading note when generating the page.
+ */
+function stripMaintainerNote(body) {
+  return body.replace(/^(#\s+[^\r\n]*\r?\n+)\s*<!--[\s\S]*?-->\s*\r?\n+/, '$1');
+}
+
+function prepare(body, diagrams, lang) {
+  const source = stripMaintainerNote(body);
   const transformed = diagrams
-    ? transformDiagrams(stripH1(body), diagrams)
-    : transformMermaid(stripH1(body));
+    ? transformDiagrams(stripH1(source), diagrams, lang)
+    : transformMermaid(stripH1(source));
   return rewriteLinks(transformed);
 }
 
+/**
+ * Generate every `PAGES` entry. Returns the translated `/en` pages keyed by
+ * their path relative to `docs-en/dev` so the mirror below can keep them
+ * instead of overwriting them with the Chinese fallback.
+ */
 function syncPages() {
+  const translated = new Map();
   for (const page of PAGES) {
     const raw = readText(page.source);
     const { body } = stripFrontmatter(raw);
     const title = titleFrom(body, page.title);
-    writeText(page.target, frontmatter({ ...page, title }) + prepare(body, page.diagrams));
+    const content = frontmatter({ ...page, title }) + prepare(body, page.diagrams, page.lang);
+    writeText(page.target, content);
+    if (page.lang === 'en') {
+      translated.set(page.target.slice('docs-en/dev/'.length), content);
+    }
     process.stdout.write(`docs: ${page.source} -> ${page.target}\n`);
   }
+  return translated;
 }
 
 function syncAdr() {
@@ -189,9 +232,11 @@ function syncAdr() {
 }
 
 /**
- * Mirror the generated dev tree into the English collection. English has no
- * translated dev docs yet, so every page is the Chinese source plus an
- * `untranslated: true` flag the `/en` route turns into a notice banner.
+ * Mirror the generated dev tree into the English collection. Most pages have
+ * no English source, so they are the Chinese source plus an `untranslated: true`
+ * flag the `/en` route turns into a notice banner. `translated` holds pages
+ * with a real English source (keyed by path relative to `docs-en/dev`); their
+ * generated content is written verbatim — no `untranslated` flag, no banner.
  */
 function walkFiles(directory) {
   const files = [];
@@ -209,7 +254,7 @@ function markUntranslated(content) {
   return content.replace(match[0], `---\n${match[1]}\nuntranslated: true\n---\n`);
 }
 
-function mirrorDevToEn() {
+function mirrorDevToEn(translated) {
   const source = join(CONTENT, 'docs', 'dev');
   const target = join(CONTENT, 'docs-en', 'dev');
   rmSync(target, { recursive: true, force: true });
@@ -217,15 +262,24 @@ function mirrorDevToEn() {
     process.stderr.write('en mirror: src/content/docs/dev is missing — nothing to mirror\n');
     return;
   }
-  let count = 0;
+  let mirrored = 0;
+  let kept = 0;
   for (const absolute of walkFiles(source)) {
-    const relative = absolute.slice(source.length + 1);
+    const relative = absolute.slice(source.length + 1).replaceAll('\\', '/');
     const destination = join(target, relative);
     mkdirSync(dirname(destination), { recursive: true });
-    writeFileSync(destination, markUntranslated(readFileSync(absolute, 'utf8')), 'utf8');
-    count += 1;
+    const english = translated.get(relative);
+    if (english) {
+      writeFileSync(destination, english, 'utf8');
+      kept += 1;
+    } else {
+      writeFileSync(destination, markUntranslated(readFileSync(absolute, 'utf8')), 'utf8');
+      mirrored += 1;
+    }
   }
-  process.stdout.write(`en mirror: docs/dev -> docs-en/dev (${count} file(s))\n`);
+  process.stdout.write(
+    `en mirror: docs/dev -> docs-en/dev (${mirrored} mirrored, ${kept} translated)\n`,
+  );
 }
 
 function parseChangelogFrontmatter(raw) {
@@ -268,27 +322,40 @@ function syncChangelog() {
 function syncDiagrams() {
   rmSync(DIAGRAMS_PUBLIC, { recursive: true, force: true });
 
-  let files = [];
-  try {
-    files = readdirSync(DIAGRAMS_RENDERED)
-      .filter((name) => name.endsWith('.svg'))
-      .sort();
-  } catch {
+  const copySvgs = (source, target) => {
+    let files = [];
+    try {
+      files = readdirSync(source)
+        .filter((name) => name.endsWith('.svg'))
+        .sort();
+    } catch {
+      return null;
+    }
+    if (files.length === 0) return null;
+    mkdirSync(target, { recursive: true });
+    for (const file of files) {
+      copyFileSync(join(source, file), join(target, file));
+    }
+    return files.length;
+  };
+
+  const zh = copySvgs(DIAGRAMS_RENDERED, DIAGRAMS_PUBLIC);
+  if (zh === null) {
     process.stderr.write(
       'diagrams: docs/architecture/diagrams/rendered is missing — run "pnpm diagrams"\n',
     );
     return;
   }
-  if (files.length === 0) {
-    process.stderr.write('diagrams: no rendered SVGs found — run "pnpm diagrams"\n');
+  process.stdout.write(`diagrams: ${zh} SVG(s) -> apps/docs/public/diagrams\n`);
+
+  const en = copySvgs(join(DIAGRAMS_RENDERED, 'en'), join(DIAGRAMS_PUBLIC, 'en'));
+  if (en === null) {
+    process.stderr.write(
+      'diagrams: docs/architecture/diagrams/rendered/en is missing — run "pnpm diagrams"\n',
+    );
     return;
   }
-
-  mkdirSync(DIAGRAMS_PUBLIC, { recursive: true });
-  for (const file of files) {
-    copyFileSync(join(DIAGRAMS_RENDERED, file), join(DIAGRAMS_PUBLIC, file));
-  }
-  process.stdout.write(`diagrams: ${files.length} SVG(s) -> apps/docs/public/diagrams\n`);
+  process.stdout.write(`diagrams: ${en} SVG(s) -> apps/docs/public/diagrams/en\n`);
 }
 
 export function syncDocs() {
@@ -296,9 +363,9 @@ export function syncDocs() {
     rmSync(join(CONTENT, stale), { recursive: true, force: true });
   }
 
-  syncPages();
+  const translated = syncPages();
   syncAdr();
-  mirrorDevToEn();
+  mirrorDevToEn(translated);
   syncChangelog();
   syncDiagrams();
   process.stdout.write('docs sync complete\n');

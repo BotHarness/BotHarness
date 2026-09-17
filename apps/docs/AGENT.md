@@ -69,23 +69,29 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 Chinese is primary; English mounts at `/en/**` via the `docs-en` collection +
 Nimbus `versions.others` (`astro.config.ts`). Generated `/dev` pages are
 mirrored into `docs-en/dev` with `untranslated: true`, which the `/en` route
-renders with a notice banner; site-owned translations live in
-`src/content/docs-en/docs/`. `src/lib/language.ts` owns the switcher mapping
-(`/docs/x` ↔ `/en/docs/x`, fallback `/en/docs/overview`) and `Header.astro`
-renders it. Edit the repo sources — never generated files.
+renders with a notice banner; the architecture page is the exception — it is
+generated from the maintained English source `docs/architecture/botharness-architecture.en.md`
+(no banner). Site-owned translations live in `src/content/docs-en/docs/`.
+`src/lib/language.ts` owns the switcher mapping (`/docs/x` ↔ `/en/docs/x`,
+fallback `/en/docs/overview`) and `Header.astro` renders it. Edit the repo
+sources — never generated files.
 
 ## Diagrams
 
-`.mmd` sources live in `docs/architecture/diagrams/` at the repo root.
-`pnpm diagrams` (root) re-renders the committed light/dark `rendered/*.svg`
-and syncs them to `public/diagrams/`; the architecture page embeds those via
-the `Diagram` component (light/dark `<img>` + lightbox). The runtime mermaid
-loader remains only for ad-hoc `mermaid` fences in hand-authored pages.
+`.mmd` sources live in `docs/architecture/diagrams/` at the repo root, with
+English variants in `diagrams/en/`. `pnpm diagrams` (root) re-renders the
+committed light/dark `rendered/*.svg` (English under `rendered/en/`) and syncs
+them to `public/diagrams/` (`public/diagrams/en/`); the architecture page
+embeds those via the `Diagram` component (light/dark `<img>` + lightbox),
+passing `lang="en"` on the English page. The runtime mermaid loader remains
+only for ad-hoc `mermaid` fences in hand-authored pages.
 
 ## Generated directories — don't edit
 
 - `src/content/docs/dev/**` — architecture / spec / ADR, from root `docs/`
-- `src/content/docs-en/dev/**` — mirror of the above (`untranslated: true`)
+- `src/content/docs-en/dev/**` — English dev tree: mirrored from the above
+  (`untranslated: true`), except pages with a maintained English source
+  (architecture)
 - `src/content/changelog/**` — from root `docs/changelog/*.md`
 - `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
 
