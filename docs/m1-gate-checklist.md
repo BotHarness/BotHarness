@@ -32,6 +32,7 @@
 - 代码侧证据：`test/bot-identity.test.ts`（默认工作区、会话覆盖优先级、歧义/未命中、realpath 规范化）。
 - 实机步骤：对每个 Bot 发起一次会话；核对 DSH session 的 `cwd` 与 `workspaces.json` 中该 Bot 的工作区一致；`resolveBotFromStores(cwd)` 返回对应 botId。
 - 预期：无歧义（两个 Bot 不共享工作区）；配置了 `conversationWorkspaces` 覆盖时同样命中。
+- 注意：解析器按 dsh-im 的**默认**路径读取；若基座配置过 `dataDir` / `workspacesPath` 覆盖，记录偏差。
 - 结果：
 
 ## Gate ⑤ 流式卡片 + 「已受理」反馈

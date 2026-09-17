@@ -48,14 +48,14 @@ describe('resolveBotIdentity', () => {
     expect(result.ok && result.identity.slug).toBe('sales');
   });
 
-  it('tolerates trailing slashes and whitespace', () => {
+  it('normalizes trailing slashes and whitespace', () => {
     const result = resolveBotIdentity({
       workspacePath: '  /srv/bots/sales/  ',
       bots: [sales],
-      workspaces: workspaces({ workspaces: { bot_sales: '/srv/bots/sales' } }),
+      workspaces: workspaces({ workspaces: { bot_sales: '/srv/bots/sales/' } }),
     });
 
-    expect(result.ok).toBe(true);
+    expect(result.ok && result.identity.workspace).toBe('/srv/bots/sales');
   });
 
   it('falls back to the bot id when no alias or name exists', () => {
@@ -63,7 +63,35 @@ describe('resolveBotIdentity', () => {
     expect(slugForBot(anon, emptyWorkspacesDocument())).toBe('bot_anon');
   });
 
-  it('prefers a conversation override over the default workspace', () => {
+  it('matches a conversation override only when its key is given', () => {
+    const result = resolveBotIdentity({
+      workspacePath: '/srv/proj-b',
+      bots: [sales],
+      workspaces: workspaces({
+        workspaces: { bot_sales: '/srv/bots/sales' },
+        conversationWorkspaces: { bot_sales: { oc_1: '/srv/proj-b' } },
+      }),
+      conversationKey: 'oc_1',
+    });
+
+    expect(result.ok && result.identity.workspace).toBe('/srv/proj-b');
+  });
+
+  it('ignores overrides that belong to another conversation', () => {
+    const result = resolveBotIdentity({
+      workspacePath: '/srv/proj-b',
+      bots: [sales],
+      workspaces: workspaces({
+        workspaces: { bot_sales: '/srv/bots/sales' },
+        conversationWorkspaces: { bot_sales: { oc_1: '/srv/proj-b' } },
+      }),
+      conversationKey: 'oc_other',
+    });
+
+    expect(result).toEqual({ ok: false, reason: 'not-found', matches: [] });
+  });
+
+  it('does not treat an override path as a bot default', () => {
     const result = resolveBotIdentity({
       workspacePath: '/srv/proj-b',
       bots: [sales],
@@ -73,10 +101,10 @@ describe('resolveBotIdentity', () => {
       }),
     });
 
-    expect(result.ok && result.identity.workspace).toBe('/srv/proj-b');
+    expect(result.ok).toBe(false);
   });
 
-  it('still resolves the default workspace when an override exists elsewhere', () => {
+  it('still resolves the default workspace when an override exists for the key', () => {
     const result = resolveBotIdentity({
       workspacePath: '/srv/bots/sales',
       bots: [sales],
@@ -84,6 +112,7 @@ describe('resolveBotIdentity', () => {
         workspaces: { bot_sales: '/srv/bots/sales' },
         conversationWorkspaces: { bot_sales: { oc_1: '/srv/proj-b' } },
       }),
+      conversationKey: 'oc_1',
     });
 
     expect(result.ok && result.identity.workspace).toBe('/srv/bots/sales');
@@ -125,5 +154,6 @@ describe('resolveBotIdentity', () => {
     });
 
     expect(result.ok && result.identity.id).toBe('bot_sales');
+    expect(result.ok && result.identity.workspace).toBe('/srv/real');
   });
 });
