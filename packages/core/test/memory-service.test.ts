@@ -61,22 +61,4 @@ describe('createMemoryService', () => {
     writeFileSync(join(store.memoryDir, 'PERSONA.md'), '# Persona\n\nCalm.\n');
     expect(service.storeForCwd(workspace)?.persona()).toBe('# Persona\n\nCalm.\n');
   });
-
-  it('exposes a DM scope for the configured owner and defaults to local', () => {
-    const root = createTempRoot();
-    const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
-
-    expect(createMemoryService({ registry }).resolveScope()).toEqual({
-      kind: 'dm',
-      owner: 'local',
-    });
-    expect(createMemoryService({ registry, ownerId: ' alice ' }).resolveScope({})).toEqual({
-      kind: 'dm',
-      owner: 'alice',
-    });
-    expect(createMemoryService({ registry, ownerId: '   ' }).resolveScope()).toEqual({
-      kind: 'dm',
-      owner: 'local',
-    });
-  });
 });

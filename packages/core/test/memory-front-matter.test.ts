@@ -13,8 +13,6 @@ describe('parseMemoryFile', () => {
       'sources:',
       '  - feishu:group-42',
       '  - 2026-09-17',
-      'visibility: private',
-      'owner: alice',
       'tags:',
       '  - customer',
       '  - priority',
@@ -32,8 +30,6 @@ describe('parseMemoryFile', () => {
       summary: 'Acme account plan',
       updatedAt: '2026-09-17T08:30:00.000Z',
       sources: ['feishu:group-42', '2026-09-17'],
-      visibility: 'private',
-      owner: 'alice',
       tags: ['customer', 'priority'],
     });
     expect(parsed.body).toBe('# Acme\n\nRenewal due in Q4.\n');
@@ -46,7 +42,6 @@ describe('parseMemoryFile', () => {
       summary: '# Notes',
       updatedAt: '2026-09-01T12:00:00.000Z',
       sources: [],
-      visibility: 'shared',
     });
     expect(parsed.body).toBe('# Notes\n\nFirst fact.\n');
     expect(parsed.warnings).toEqual(['missing front-matter']);
@@ -61,7 +56,7 @@ describe('parseMemoryFile', () => {
     expect(parsed.warnings.some((warning) => warning.includes('front-matter'))).toBe(true);
   });
 
-  it('defaults missing optional fields and keeps shared visibility', () => {
+  it('defaults missing optional fields', () => {
     const text = '---\nsummary: Minimal\nupdated_at: 2026-09-10T00:00:00.000Z\n---\nBody.\n';
     const parsed = parseMemoryFile(text, { mtime: MTIME });
 
@@ -69,7 +64,6 @@ describe('parseMemoryFile', () => {
       summary: 'Minimal',
       updatedAt: '2026-09-10T00:00:00.000Z',
       sources: [],
-      visibility: 'shared',
     });
     expect(parsed.warnings).toEqual([]);
     expect(parsed.body).toBe('Body.\n');
@@ -81,7 +75,6 @@ describe('parseMemoryFile', () => {
       'summary: 42',
       'updated_at: not-a-date',
       'sources: single-string',
-      'visibility: secret',
       'tags: nope',
       '---',
       'Real first line',
@@ -92,13 +85,11 @@ describe('parseMemoryFile', () => {
     expect(parsed.document.summary).toBe('Real first line');
     expect(parsed.document.updatedAt).toBe('2026-09-01T12:00:00.000Z');
     expect(parsed.document.sources).toEqual([]);
-    expect(parsed.document.visibility).toBe('shared');
     expect(parsed.document.tags).toBeUndefined();
     const joined = parsed.warnings.join('\n');
     expect(joined).toContain('summary');
     expect(joined).toContain('updated_at');
     expect(joined).toContain('sources');
-    expect(joined).toContain('visibility');
     expect(joined).toContain('tags');
   });
 
@@ -118,8 +109,6 @@ describe('serializeMemoryFile', () => {
       summary: 'Quarterly plan: "growth"',
       updatedAt: '2026-09-18T00:00:00.000Z',
       sources: ['session:abc', '2026-09-18'],
-      visibility: 'private' as const,
-      owner: 'alice',
       tags: ['plan'],
     };
     const body = '# Plan\n\nSteps.\n';
@@ -140,13 +129,13 @@ describe('serializeMemoryFile', () => {
         summary: 'Bare',
         updatedAt: '2026-09-18T00:00:00.000Z',
         sources: [],
-        visibility: 'shared',
       },
       'Body.\n',
     );
 
     expect(serialized).not.toContain('tags');
     expect(serialized).not.toContain('owner');
-    expect(serialized).toContain('visibility: shared');
+    expect(serialized).not.toContain('visibility');
+    expect(serialized).toContain('summary: Bare');
   });
 });

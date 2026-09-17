@@ -18,13 +18,13 @@ flowchart TB
     State["state/bot-state.ts<br/>five states → aggregate · events"]
     Store["im/config-store.ts<br/>read-only dsh-im JSON"]
     Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot · DM/group scope"]
+    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
     MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>read/write · visibility · generated index · one commit per write"]
+    MemoryStore["memory/store.ts<br/>read/write · generated index · one commit per write"]
     MemoryTree["memory/tree.ts<br/>directory tree · fold / overflow marker"]
     MemorySearch["memory/search.ts<br/>rg search"]
     MemoryGit["memory/git.ts<br/>one repo per bot"]
-    FrontMatter["memory/front-matter.ts<br/>summary / visibility degradation"]
+    FrontMatter["memory/front-matter.ts<br/>summary / degradation"]
   end
 
   Plugin --> Registry

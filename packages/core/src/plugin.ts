@@ -60,7 +60,6 @@ export function apply(ctx: Context): void {
 
   for (const tool of createMemoryTools({
     resolveStore: (exec) => core.memory.storeForAgent(exec.agent),
-    resolveScope: (exec) => core.memory.resolveScope(exec),
   })) {
     ctx.tools.register(tool);
   }
@@ -76,7 +75,7 @@ export function apply(ctx: Context): void {
     text: ({ agent }) => {
       const store = core.memory.storeForAgent(agent);
       if (store === undefined) return '';
-      return formatMemoryTree(store.tree(core.memory.resolveScope({ agent })));
+      return formatMemoryTree(store.tree());
     },
   });
 }

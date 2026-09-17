@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach } from 'vitest';
 
-import type { MemoryStore, MemoryWriteInput, MemoryWriteOutcome } from '../src/index.js';
+import type { MemoryStore, MemoryWriteInput, MemoryWriteResult } from '../src/index.js';
 
 const roots: string[] = [];
 
@@ -25,6 +25,6 @@ export function cleanupTempRoots(): void {
 
 afterEach(cleanupTempRoots);
 
-export function remember(store: MemoryStore, input: MemoryWriteInput): Promise<MemoryWriteOutcome> {
+export function remember(store: MemoryStore, input: MemoryWriteInput): Promise<MemoryWriteResult> {
   return store.write(input);
 }

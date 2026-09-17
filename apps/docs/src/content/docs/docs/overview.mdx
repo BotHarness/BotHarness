@@ -10,7 +10,7 @@ BotHarness is a **plugin layer on top of DeepSeek Harness (DSH)** that gives LLM
 Existing harnesses work one session at a time — across sessions there is at most a "cloud memory", with no Bot entity that has a persona and can work across conversations. That is the layer BotHarness fills:
 
 - **PersonaBot**: a first-class entity — persona, cross-session memory, state, channel bindings, and several Sessions handled at once
-- **Memory**: file-first (front-matter, directory-tree injection, tool-driven writes, visibility, git versioning)
+- **Memory**: file-first (front-matter, directory-tree injection, tool-driven writes, git versioning)
 - **How work happens**: delegation (@PersonaBot hands work off, executes it in the background, and reports back), with tiered approvals
 - **No DSH fork**: delivered as an SDK + bundle; capabilities like IM come from bases such as dsh-im
 

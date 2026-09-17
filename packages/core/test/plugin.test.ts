@@ -75,7 +75,7 @@ describe('plugin entry', () => {
     expect(tree?.text({ agent: { session: { header: { cwd: '/no/such/workspace' } } } })).toBe('');
   });
 
-  it('wires the DM scope into the registered memory tools', async () => {
+  it('wires the memory store into the registered memory tools and tree section', async () => {
     const home = createTempRoot('botharness-plugin-');
     const workspace = join(home, 'workspace');
     mkdirSync(workspace);
@@ -104,7 +104,6 @@ describe('plugin entry', () => {
           path: 'confidences.md',
           body: 'tea over coffee\n',
           summary: 'Preference',
-          visibility: 'private',
         },
         exec,
       );

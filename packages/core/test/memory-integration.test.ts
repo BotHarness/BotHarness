@@ -27,7 +27,6 @@ describe('memory across sessions', () => {
     const service = createMemoryService({ registry, now: FIXED_NOW });
     const tools = createMemoryTools({
       resolveStore: (exec: ToolRunContext) => service.storeForAgent(exec.agent),
-      resolveScope: (exec: ToolRunContext) => service.resolveScope(exec),
     });
 
     const sessionA = {
@@ -49,7 +48,7 @@ describe('memory across sessions', () => {
 
     const hits = await byName(tools, 'memory_search').execute({ query: 'renew in q4' }, sessionB);
     expect(hits).toEqual([
-      { path: 'customers/acme.md', line: 10, excerpt: 'Decision: renew in Q4.' },
+      { path: 'customers/acme.md', line: 9, excerpt: 'Decision: renew in Q4.' },
     ]);
 
     const body = await byName(tools, 'memory_read').execute(

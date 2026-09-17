@@ -10,7 +10,7 @@ BotHarness 是 **DeepSeek Harness（DSH）之上的插件层**，给 LLM agent �
 现有 harness 都以 session 为单位——跨 session 至多是一份"云记忆"，没有带人格、可跨会话工作的 Bot 实体。BotHarness 补的就是这一层：
 
 - **PersonaBot**：一等实体——persona、跨 session 记忆、状态、频道绑定，可同时处理多个 Session
-- **记忆**：文件优先（front-matter、目录树注入、工具写、可见性、git 版本化）
+- **记忆**：文件优先（front-matter、目录树注入、工具写、git 版本化）
 - **工作方式**：委派制（@PersonaBot 交付工作，后台执行并汇报），审批分级
 - **不 fork DSH**：以 SDK + bundle 形态交付，IM 等能力由 dsh-im 等基座提供
 

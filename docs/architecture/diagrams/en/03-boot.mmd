@@ -9,10 +9,10 @@ sequenceDiagram
   P->>D: settings.register('botharness')
   P->>M: createMemoryService({ registry })
   P->>D: provide('botharness', { rootDir, registry, states, memory })
-  P->>T: createMemoryTools({ resolveStore, resolveScope })
+  P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* tools
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.resolveScope / storeForAgent
+  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.storeForAgent

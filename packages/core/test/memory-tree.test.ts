@@ -6,8 +6,6 @@ import { describe, expect, it } from 'vitest';
 import { MEMORY_TREE_LIMIT, createMemoryStore, formatMemoryTree } from '../src/index.js';
 import { FIXED_NOW, createTempRoot } from './helpers.js';
 
-const GROUP = { kind: 'group' } as const;
-
 describe('memory tree', () => {
   it('lists sorted file entries with front-matter summaries and degrades raw files', async () => {
     const root = createTempRoot();
@@ -18,7 +16,7 @@ describe('memory tree', () => {
     writeFileSync(join(root, 'PERSONA.md'), '# Persona\n');
     writeFileSync(join(root, 'MEMORY.md'), '# ignored\n');
 
-    const entries = store.tree(GROUP);
+    const entries = store.tree();
 
     expect(entries.map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual([
       'alpha.md',
@@ -45,7 +43,7 @@ describe('memory tree', () => {
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
     await store.write({ path: 'root.md', body: 'root\n', summary: 'Root note' });
 
-    const entries = store.tree(GROUP);
+    const entries = store.tree();
 
     expect(entries.length).toBeLessThanOrEqual(MEMORY_TREE_LIMIT);
     expect(entries).toContainEqual({ kind: 'folder', path: 'bulk/', count: MEMORY_TREE_LIMIT + 5 });
@@ -66,7 +64,7 @@ describe('memory tree', () => {
     }
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
 
-    const entries = store.tree(GROUP);
+    const entries = store.tree();
 
     expect(entries.length).toBe(MEMORY_TREE_LIMIT);
     expect(entries.at(-1)).toEqual({ kind: 'overflow', count: 6 });
@@ -90,11 +88,11 @@ describe('memory search', () => {
       summary: 'B',
     });
 
-    const hits = await store.search('acme', GROUP);
+    const hits = await store.search('acme');
 
     expect(hits).toEqual([
-      { path: 'customers/acme.md', line: 8, excerpt: 'acme again' },
-      { path: 'topics/a.md', line: 8, excerpt: 'ACME renewal in Q4' },
+      { path: 'customers/acme.md', line: 7, excerpt: 'acme again' },
+      { path: 'topics/a.md', line: 7, excerpt: 'ACME renewal in Q4' },
     ]);
   });
 
@@ -105,10 +103,8 @@ describe('memory search', () => {
     writeFileSync(join(root, 'PERSONA.md'), 'zebra persona\n');
     writeFileSync(join(root, 'MEMORY.md'), 'zebra index\n');
 
-    expect(await store.search('zebra', GROUP)).toEqual([]);
-    expect(await store.search('plain', GROUP)).toEqual([
-      { path: 'a.md', line: 7, excerpt: 'plain body' },
-    ]);
+    expect(await store.search('zebra')).toEqual([]);
+    expect(await store.search('plain')).toEqual([{ path: 'a.md', line: 6, excerpt: 'plain body' }]);
   });
 
   it('returns nothing for blank queries and truncates long excerpts', async () => {
@@ -117,8 +113,8 @@ describe('memory search', () => {
     const longLine = `${'x'.repeat(400)} needle`;
     await store.write({ path: 'long.md', body: `${longLine}\n`, summary: 'Long' });
 
-    expect(await store.search('   ', GROUP)).toEqual([]);
-    const hits = await store.search('needle', GROUP);
+    expect(await store.search('   ')).toEqual([]);
+    const hits = await store.search('needle');
     expect(hits).toHaveLength(1);
     expect(hits[0]?.excerpt.endsWith('...')).toBe(true);
     expect(hits[0]?.excerpt.length).toBe(243);

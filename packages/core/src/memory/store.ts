@@ -6,7 +6,6 @@ import {
   parseMemoryFile,
   serializeMemoryFile,
   type MemoryDocument,
-  type MemoryVisibility,
   type ParsedMemoryFile,
 } from './front-matter.js';
 import { createMemoryGit, type MemoryCommit } from './git.js';
@@ -18,9 +17,6 @@ import {
   readMemoryDocument,
   type MemoryTreeEntry,
 } from './tree.js';
-import { GROUP_SCOPE, isVisibleInScope, type MemoryScope } from './visibility.js';
-
-export type { MemoryVisibility } from './front-matter.js';
 
 export class MemoryWriteError extends Error {
   constructor(message: string) {
@@ -39,8 +35,6 @@ export interface MemoryEntry {
   summary: string;
   updatedAt: string;
   sources: string[];
-  visibility: MemoryVisibility;
-  owner?: string;
   tags?: string[];
   body: string;
   warnings: string[];
@@ -51,8 +45,6 @@ export interface MemoryWriteInput {
   body: string;
   summary: string;
   sources?: string[];
-  visibility?: MemoryVisibility;
-  owner?: string;
   tags?: string[];
   source?: 'agent' | 'human';
 }
@@ -62,27 +54,15 @@ export interface MemoryWriteResult {
   path: string;
   summary: string;
   updatedAt: string;
-  visibility: MemoryVisibility;
-  owner?: string;
   commit: string;
 }
 
-export type MemoryWriteFailureReason = 'forbidden-private';
-
-export interface MemoryWriteFailure {
-  ok: false;
-  reason: MemoryWriteFailureReason;
-  path: string;
-}
-
-export type MemoryWriteOutcome = MemoryWriteResult | MemoryWriteFailure;
-
 export interface MemoryStore {
   memoryDir: string;
-  read(path: string, scope?: MemoryScope): MemoryEntry | undefined;
-  write(input: MemoryWriteInput, scope?: MemoryScope): Promise<MemoryWriteOutcome>;
-  tree(scope?: MemoryScope): MemoryTreeEntry[];
-  search(query: string, scope?: MemoryScope): Promise<MemorySearchHit[]>;
+  read(path: string): MemoryEntry | undefined;
+  write(input: MemoryWriteInput): Promise<MemoryWriteResult>;
+  tree(): MemoryTreeEntry[];
+  search(query: string): Promise<MemorySearchHit[]>;
   persona(): string | undefined;
   history(limit?: number): MemoryCommit[];
 }
@@ -96,10 +76,8 @@ function toEntry(relativePath: string, parsed: ParsedMemoryFile): MemoryEntry {
     summary: document.summary,
     updatedAt: document.updatedAt,
     sources: document.sources,
-    visibility: document.visibility,
     body: parsed.body,
     warnings: parsed.warnings,
-    ...(document.owner === undefined ? {} : { owner: document.owner }),
     ...(document.tags === undefined ? {} : { tags: document.tags }),
   };
 }
@@ -125,11 +103,11 @@ function renderIndex(entries: MemoryTreeEntry[]): string {
   return `${lines.join('\n')}\n`;
 }
 
-function listVisibleFiles(root: string, scope: MemoryScope): MemorySearchFile[] {
+function listSearchFiles(root: string): MemorySearchFile[] {
   const files: MemorySearchFile[] = [];
   for (const relativePath of listMemoryFiles(root)) {
     const parsed = readMemoryDocument(root, relativePath);
-    if (parsed === undefined || !isVisibleInScope(parsed.document, scope)) continue;
+    if (parsed === undefined) continue;
     files.push({ path: relativePath, skipLines: parsed.frontMatterLines });
   }
   return files;
@@ -152,7 +130,7 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
   };
 
   const writeIndex = (): void => {
-    const entries = collectTreeEntries(root, (document) => document.visibility === 'shared');
+    const entries = collectTreeEntries(root);
     atomicWriteFile(join(root, 'MEMORY.md'), renderIndex(entries));
   };
 
@@ -173,46 +151,28 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
 
   return {
     memoryDir: root,
-    read(path, scope = GROUP_SCOPE) {
+    read(path) {
       const relativePath = toMemoryRelativePath(path);
       const parsed = readParsed(relativePath);
       if (parsed === undefined) return undefined;
-      if (!isVisibleInScope(parsed.document, scope)) return undefined;
       return toEntry(relativePath, parsed);
     },
-    write(input, scope = GROUP_SCOPE) {
+    write(input) {
       return enqueue(() => {
         const summary = (input.summary ?? '').trim().replaceAll(/\s+/gu, ' ');
         if (summary.length === 0) {
           throw new MemoryWriteError('memory write requires a non-empty summary');
         }
-        const visibility = input.visibility ?? 'shared';
-        const owner = input.owner?.trim();
-        if (visibility === 'private' && (owner === undefined || owner.length === 0)) {
-          throw new MemoryWriteError('private memory write requires an owner');
-        }
         const relativePath = toMemoryWritePath(input.path);
         if (PROTECTED_WRITES.has(relativePath.toLowerCase())) {
           throw new MemoryWriteError(`memory write refused: ${relativePath} is not agent-writable`);
-        }
-        const existing = readParsed(relativePath);
-        if (existing?.document.visibility === 'private') {
-          const permitted =
-            scope.kind === 'dm' &&
-            existing.document.owner !== undefined &&
-            existing.document.owner === scope.owner;
-          if (!permitted) {
-            return { ok: false, reason: 'forbidden-private', path: relativePath };
-          }
         }
         const target = resolveMemoryPath(root, relativePath);
         const document: MemoryDocument = {
           summary,
           updatedAt: now().toISOString(),
           sources: input.sources ?? [],
-          visibility,
           ...(input.tags === undefined ? {} : { tags: input.tags }),
-          ...(owner === undefined || owner.length === 0 ? {} : { owner }),
         };
         const body = input.body.endsWith('\n') ? input.body : `${input.body}\n`;
         mkdirSync(dirname(target), { recursive: true });
@@ -224,17 +184,15 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
           path: relativePath,
           summary,
           updatedAt: document.updatedAt,
-          visibility,
           commit,
-          ...(document.owner === undefined ? {} : { owner: document.owner }),
         };
       });
     },
-    tree(scope = GROUP_SCOPE) {
-      return collectTreeEntries(root, (document) => isVisibleInScope(document, scope));
+    tree() {
+      return collectTreeEntries(root);
     },
-    async search(query, scope = GROUP_SCOPE) {
-      return searchMemoryFiles(root, listVisibleFiles(root, scope), query);
+    async search(query) {
+      return searchMemoryFiles(root, listSearchFiles(root), query);
     },
     persona() {
       return readMemoryDocument(root, 'PERSONA.md')?.body;

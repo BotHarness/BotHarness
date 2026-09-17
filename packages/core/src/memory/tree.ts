@@ -1,7 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { parseMemoryFile, type MemoryDocument, type ParsedMemoryFile } from './front-matter.js';
+import { parseMemoryFile, type ParsedMemoryFile } from './front-matter.js';
 
 export interface MemoryTreeFile {
   kind: 'file';
@@ -125,13 +125,12 @@ function foldEntries(files: MemoryTreeFile[], limit: number): MemoryTreeEntry[] 
 
 export function collectTreeEntries(
   root: string,
-  isIncluded: (document: MemoryDocument) => boolean,
   limit: number = MEMORY_TREE_LIMIT,
 ): MemoryTreeEntry[] {
   const files: MemoryTreeFile[] = [];
   for (const relativePath of listMemoryFiles(root)) {
     const parsed = readMemoryDocument(root, relativePath);
-    if (parsed === undefined || !isIncluded(parsed.document)) continue;
+    if (parsed === undefined) continue;
     files.push({
       kind: 'file',
       path: relativePath,

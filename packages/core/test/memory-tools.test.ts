@@ -5,7 +5,6 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it } from 'vitest';
 
 import {
-  GROUP_SCOPE,
   createMemoryService,
   createMemoryStore,
   createMemoryTools,
@@ -33,9 +32,11 @@ describe('createMemoryTools', () => {
     expect(tools.every((tool) => tool.description.length > 0)).toBe(true);
   });
 
-  it('does not expose a model-settable write source', () => {
+  it('does not expose a model-settable write source or visibility', () => {
     const write = byName(createMemoryTools({ resolveStore: () => undefined }), 'memory_write');
     expect(Object.keys(write.parameters)).not.toContain('source');
+    expect(Object.keys(write.parameters)).not.toContain('visibility');
+    expect(Object.keys(write.parameters)).not.toContain('owner');
     expect(JSON.stringify(write.parameters)).not.toContain('"source"');
   });
 
@@ -78,7 +79,7 @@ describe('createMemoryTools', () => {
     expect(String(listed)).toContain('customers/acme.md — Acme profile');
 
     const hits = await byName(tools, 'memory_search').execute({ query: 'renewal' }, STUB_EXEC);
-    expect(hits).toEqual([{ path: 'customers/acme.md', line: 10, excerpt: 'Renewal Q4.' }]);
+    expect(hits).toEqual([{ path: 'customers/acme.md', line: 9, excerpt: 'Renewal Q4.' }]);
   });
 
   it('renders search hits as text blocks', async () => {
@@ -94,7 +95,7 @@ describe('createMemoryTools', () => {
     const value = await search.execute({ query: 'alpha' }, STUB_EXEC);
     const rendered = search.output.render({ query: 'alpha' }, value as never);
 
-    expect(rendered).toEqual([{ type: 'text', text: 'a.md:7: alpha fact' }]);
+    expect(rendered).toEqual([{ type: 'text', text: 'a.md:6: alpha fact' }]);
   });
 
   it('rejects writes without a summary and hostile paths', async () => {
@@ -109,102 +110,46 @@ describe('createMemoryTools', () => {
     await expect(
       write.execute({ path: '../evil.md', body: 'x', summary: 's' }, STUB_EXEC),
     ).rejects.toThrow(/escape|relative|reserved/i);
-    await expect(
-      write.execute({ path: 'a.md', body: 'x', summary: 's', visibility: 'private' }, STUB_EXEC),
-    ).rejects.toThrow(/DM|private|owner/);
   });
 
-  it('takes private ownership from the DM scope and hides it from group scopes', async () => {
+  it('overwrites an existing entry and reports the new body', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    const tools = createMemoryTools({
-      resolveStore: () => store,
-      resolveScope: () => ({ kind: 'dm', owner: 'alice' }),
-    });
+    const tools = createMemoryTools({ resolveStore: () => store });
     const write = byName(tools, 'memory_write');
     const read = byName(tools, 'memory_read');
 
-    await write.execute(
-      {
-        path: 'secret.md',
-        body: 'tea over coffee\n',
-        summary: 'Preference',
-        visibility: 'private',
-      },
-      STUB_EXEC,
-    );
-    expect((await read.execute({ path: 'secret.md' }, STUB_EXEC)) as string).toContain('tea');
+    await write.execute({ path: 'note.md', body: 'first\n', summary: 'First' }, STUB_EXEC);
+    await write.execute({ path: 'note.md', body: 'second\n', summary: 'Second' }, STUB_EXEC);
 
-    const groupTools = createMemoryTools({ resolveStore: () => store });
-    await expect(
-      byName(groupTools, 'memory_read').execute({ path: 'secret.md' }, STUB_EXEC),
-    ).rejects.toThrow(/not found|no memory file/i);
-    await expect(
-      byName(groupTools, 'memory_search').execute({ query: 'tea' }, STUB_EXEC),
-    ).resolves.toEqual([]);
+    expect(await read.execute({ path: 'note.md' }, STUB_EXEC)).toBe('second\n');
+    expect(store.history()[0]?.message.split('\n')[0]).toBe('Second');
   });
 
-  it('wires the service DM scope so owner writes land and group reads miss', async () => {
+  it('resolves the store through the memory service for an agent cwd', async () => {
     const root = createTempRoot();
     const workspace = join(root, 'workspace');
     mkdirSync(workspace);
     const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
-    registry.create({ slug: 'alice-bot', displayName: 'Alice Bot', workspaces: [workspace] });
-    const service = createMemoryService({ registry, now: FIXED_NOW, ownerId: 'alice' });
+    registry.create({ slug: 'local-bot', displayName: 'Local Bot', workspaces: [workspace] });
+    const service = createMemoryService({ registry, now: FIXED_NOW });
     const tools = createMemoryTools({
       resolveStore: (exec) => service.storeForAgent(exec.agent),
-      resolveScope: (exec) => service.resolveScope(exec),
     });
-    const dmExec = {
+    const exec = {
       agent: { session: { header: { cwd: workspace } } },
     } as unknown as ToolRunContext;
 
     await byName(tools, 'memory_write').execute(
-      {
-        path: 'confidences.md',
-        body: 'alice prefers tea\n',
-        summary: 'Preference',
-        visibility: 'private',
-      },
-      dmExec,
+      { path: 'confidences.md', body: 'tea over coffee\n', summary: 'Preference' },
+      exec,
     );
 
-    expect(await byName(tools, 'memory_read').execute({ path: 'confidences.md' }, dmExec)).toBe(
-      'alice prefers tea\n',
+    expect(await byName(tools, 'memory_read').execute({ path: 'confidences.md' }, exec)).toBe(
+      'tea over coffee\n',
     );
-
-    const groupTools = createMemoryTools({
-      resolveStore: (exec) => service.storeForAgent(exec.agent),
-      resolveScope: () => GROUP_SCOPE,
-    });
-    await expect(
-      byName(groupTools, 'memory_read').execute({ path: 'confidences.md' }, dmExec),
-    ).rejects.toThrow(/not found|no memory file/i);
-  });
-
-  it('surfaces a refused overwrite of another owner private entry', async () => {
-    const root = createTempRoot();
-    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    const aliceTools = createMemoryTools({
-      resolveStore: () => store,
-      resolveScope: () => ({ kind: 'dm', owner: 'alice' }),
-    });
-    await byName(aliceTools, 'memory_write').execute(
-      {
-        path: 'secret.md',
-        body: 'tea\n',
-        summary: 'Preference',
-        visibility: 'private',
-      },
-      STUB_EXEC,
+    expect(String(await byName(tools, 'memory_list').execute({}, exec))).toContain(
+      'confidences.md — Preference',
     );
-
-    const groupTools = createMemoryTools({ resolveStore: () => store });
-    await expect(
-      byName(groupTools, 'memory_write').execute(
-        { path: 'secret.md', body: 'leak\n', summary: 'Overwrite' },
-        STUB_EXEC,
-      ),
-    ).rejects.toThrow(/forbidden-private/);
   });
 });

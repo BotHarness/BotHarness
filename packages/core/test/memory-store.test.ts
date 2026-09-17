@@ -4,9 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createMemoryStore } from '../src/index.js';
-import { FIXED_NOW, createTempRoot, remember } from './helpers.js';
-
-const GROUP = { kind: 'group' } as const;
+import { FIXED_NOW, createTempRoot } from './helpers.js';
 
 describe('memory store write', () => {
   it('writes a topic file with front-matter and regenerates MEMORY.md', async () => {
@@ -25,7 +23,6 @@ describe('memory store write', () => {
       path: 'customers/acme.md',
       summary: 'Acme renewal',
       updatedAt: '2026-09-17T00:00:00.000Z',
-      visibility: 'shared',
     });
     const raw = readFileSync(join(root, 'customers/acme.md'), 'utf8');
     expect(raw.startsWith('---\n')).toBe(true);
@@ -50,7 +47,6 @@ describe('memory store write', () => {
       summary: 'First fact',
       updatedAt: '2026-09-17T00:00:00.000Z',
       sources: [],
-      visibility: 'shared',
     });
     expect(entry?.body).toBe('Fact one.\n');
     expect(entry?.warnings).toEqual([]);
@@ -70,11 +66,38 @@ describe('memory store write', () => {
     );
   });
 
-  it('requires an owner for private writes', async () => {
-    const store = createMemoryStore({ memoryDir: createTempRoot(), now: FIXED_NOW });
-    await expect(
-      store.write({ path: 'topics/a.md', body: 'x', summary: 's', visibility: 'private' }),
-    ).rejects.toThrow(/owner/);
+  it('ignores legacy visibility front-matter and keeps every file visible', async () => {
+    const root = createTempRoot();
+    writeFileSync(
+      join(root, 'legacy.md'),
+      [
+        '---',
+        'summary: Legacy note',
+        'updated_at: 2026-09-01T00:00:00.000Z',
+        'sources: []',
+        'visibility: private',
+        'owner: alice',
+        '---',
+        'legacy fact',
+        '',
+      ].join('\n'),
+    );
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+
+    const entry = store.read('legacy.md');
+    expect(entry?.summary).toBe('Legacy note');
+    expect(entry?.warnings).toEqual([]);
+    expect(
+      store.tree().map((treeEntry) => (treeEntry.kind === 'overflow' ? '' : treeEntry.path)),
+    ).toEqual(['legacy.md']);
+    expect(await store.search('legacy')).toEqual([
+      { path: 'legacy.md', line: 8, excerpt: 'legacy fact' },
+    ]);
+
+    await store.write({ path: 'topics/new.md', body: 'new\n', summary: 'New note' });
+    const index = readFileSync(join(root, 'MEMORY.md'), 'utf8');
+    expect(index).toContain('legacy.md');
+    expect(index).toContain('topics/new.md');
   });
 
   it('refuses to write MEMORY.md and PERSONA.md', async () => {
@@ -140,125 +163,6 @@ describe('memory store jail', () => {
   });
 });
 
-describe('memory store visibility', () => {
-  it('filters private entries for groups and other owners', async () => {
-    const root = createTempRoot();
-    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    await remember(store, { path: 'shared.md', body: 'shared fact\n', summary: 'Shared' });
-    await remember(store, {
-      path: 'secret.md',
-      body: 'confided fact\n',
-      summary: 'Secret',
-      visibility: 'private',
-      owner: 'alice',
-    });
-    const alice = { kind: 'dm', owner: 'alice' } as const;
-    const bob = { kind: 'dm', owner: 'bob' } as const;
-
-    expect(store.read('secret.md', GROUP)).toBeUndefined();
-    expect(store.read('secret.md', bob)).toBeUndefined();
-    expect(store.read('secret.md', alice)?.body).toBe('confided fact\n');
-    expect(store.read('shared.md', GROUP)?.body).toBe('shared fact\n');
-
-    expect(store.tree(GROUP).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
-      ['shared.md'],
-    );
-    expect(store.tree(alice).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
-      ['secret.md', 'shared.md'],
-    );
-    expect(store.tree(bob).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual([
-      'shared.md',
-    ]);
-  });
-
-  it('keeps private paths and summaries out of the generated index', async () => {
-    const root = createTempRoot();
-    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    await remember(store, { path: 'shared.md', body: 'shared fact\n', summary: 'Shared fact' });
-    await remember(store, {
-      path: 'confidences.md',
-      body: 'alice prefers tea\n',
-      summary: 'Tea preference',
-      visibility: 'private',
-      owner: 'alice',
-    });
-
-    const index = store.read('MEMORY.md', GROUP);
-    expect(index?.body).toContain('shared.md');
-    expect(index?.body).toContain('Shared fact');
-    expect(index?.body).not.toContain('confidences.md');
-    expect(index?.body).not.toContain('Tea preference');
-
-    const alice = { kind: 'dm', owner: 'alice' } as const;
-    expect(store.tree(alice).map((entry) => (entry.kind === 'overflow' ? '' : entry.path))).toEqual(
-      ['confidences.md', 'shared.md'],
-    );
-    await expect(store.search('tea', alice)).resolves.toMatchObject([
-      { path: 'confidences.md', excerpt: 'alice prefers tea' },
-    ]);
-  });
-
-  it('keeps private bodies out of the group-injected index read and hides them from search', async () => {
-    const root = createTempRoot();
-    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    await remember(store, {
-      path: 'confidences.md',
-      body: 'alice prefers tea\n',
-      summary: 'Tea preference',
-      visibility: 'private',
-      owner: 'alice',
-    });
-
-    expect(store.read('confidences.md', GROUP)).toBeUndefined();
-    await expect(store.search('tea', GROUP)).resolves.toEqual([]);
-    await expect(store.search('tea', { kind: 'dm', owner: 'alice' })).resolves.toMatchObject([
-      { path: 'confidences.md', line: 8, excerpt: 'alice prefers tea' },
-    ]);
-  });
-});
-
-describe('memory store private overwrite protection', () => {
-  it('lets only the owner DM overwrite an existing private entry', async () => {
-    const root = createTempRoot();
-    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
-    await remember(store, {
-      path: 'secret.md',
-      body: 'tea\n',
-      summary: 'Private note',
-      visibility: 'private',
-      owner: 'alice',
-    });
-    const alice = { kind: 'dm', owner: 'alice' } as const;
-    const bob = { kind: 'dm', owner: 'bob' } as const;
-
-    await expect(
-      store.write(
-        { path: 'secret.md', body: 'leak\n', summary: 'Group overwrite', visibility: 'shared' },
-        GROUP,
-      ),
-    ).resolves.toEqual({ ok: false, reason: 'forbidden-private', path: 'secret.md' });
-    await expect(
-      store.write({ path: 'secret.md', body: 'leak\n', summary: 'Bob overwrite' }, bob),
-    ).resolves.toEqual({ ok: false, reason: 'forbidden-private', path: 'secret.md' });
-    expect(store.read('secret.md', alice)?.body).toBe('tea\n');
-
-    await expect(
-      store.write(
-        {
-          path: 'secret.md',
-          body: 'tea, no coffee\n',
-          summary: 'Owner update',
-          visibility: 'private',
-          owner: 'alice',
-        },
-        alice,
-      ),
-    ).resolves.toMatchObject({ ok: true, path: 'secret.md', visibility: 'private' });
-    expect(store.read('secret.md', alice)?.body).toBe('tea, no coffee\n');
-    expect(store.read('secret.md', GROUP)).toBeUndefined();
-  });
-});
-
 describe('memory store persona', () => {
   it('returns the persona body, keeps it out of the tree, and refuses writes', async () => {
     const root = createTempRoot();
@@ -268,7 +172,7 @@ describe('memory store persona', () => {
     writeFileSync(join(root, 'PERSONA.md'), '# Persona\n\nBe kind.\n');
     expect(store.persona()).toBe('# Persona\n\nBe kind.\n');
     expect(
-      store.tree(GROUP).some((entry) => entry.kind !== 'overflow' && entry.path === 'PERSONA.md'),
+      store.tree().some((entry) => entry.kind !== 'overflow' && entry.path === 'PERSONA.md'),
     ).toBe(false);
 
     await expect(

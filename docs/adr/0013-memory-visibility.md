@@ -1,3 +1,5 @@
+> Superseded by [ADR-0021](0021-memory-has-no-visibility.md): memory entries carry no visibility; sharing is decided at export time.
+
 # Memory is one brain with per-entry visibility
 
 A Bot keeps one memory across every chat, but each entry carries `visibility`: `shared` by default, or `private` when written from a DM. Private entries record their author (`owner`); group turns filter them from both tree injection and search, and they are injectable only in that owner's DMs. The Bot therefore keeps one identity and one store, while disclosure follows where a fact was confided.

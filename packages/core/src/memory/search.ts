@@ -53,7 +53,7 @@ function run(
   });
 }
 
-function parseRipgrepOutput(output: string): MemorySearchHit[] {
+export function parseRipgrepOutput(output: string): MemorySearchHit[] {
   const hits: MemorySearchHit[] = [];
   for (const rawLine of output.split('\n')) {
     if (rawLine.length === 0) continue;
@@ -108,6 +108,7 @@ export async function searchMemoryFiles(
       [
         '--no-heading',
         '--line-number',
+        '--with-filename',
         '--fixed-strings',
         '--ignore-case',
         '--no-messages',

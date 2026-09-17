@@ -62,13 +62,13 @@ flowchart TB
     State["state/bot-state.ts<br/>five states → aggregate · events"]
     Store["im/config-store.ts<br/>read-only dsh-im JSON"]
     Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot · DM/group scope"]
+    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
     MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>read/write · visibility · generated index · one commit per write"]
+    MemoryStore["memory/store.ts<br/>read/write · generated index · one commit per write"]
     MemoryTree["memory/tree.ts<br/>directory tree · fold / overflow marker"]
     MemorySearch["memory/search.ts<br/>rg search"]
     MemoryGit["memory/git.ts<br/>one repo per bot"]
-    FrontMatter["memory/front-matter.ts<br/>summary / visibility degradation"]
+    FrontMatter["memory/front-matter.ts<br/>summary / degradation"]
   end
 
   Plugin --> Registry
@@ -94,20 +94,20 @@ flowchart TB
   class Bundle,ClientPkg,ImPkg later;
 ```
 
-| Module                   | Responsibility                                                                                                        | Status            |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `plugin.ts`              | Plugin entry: settings namespace + `provide('botharness')`; assembled by `createCore()`                               | M1 ✅             |
-| `bots/registry.ts`       | PersonaBot lifecycle + atomic persistence; `remove` keeps memory by default, only `purge` clears it                   | M1 ✅             |
-| `state/bot-state.ts`     | Five session states reported → PersonaBot aggregation; `aggregate-changed / session-changed / session-removed`        | M1 ✅             |
-| `im/*`                   | Read-only dsh-im store (v1/v2/v3 compatible) + workspace→BotIdentity (IM binding helper)                              | M1 ✅ (M5 wiring) |
-| `memory/front-matter.ts` | Front-matter parse/serialize + graceful degradation (first line + mtime; invalid YAML never throws)                   | M2 ✅             |
-| `memory/store.ts`        | Memory read/write: path jail, atomic writes, serial queue, visibility filter, `MEMORY.md` index, one commit per write | M2 ✅             |
-| `memory/tree.ts`         | Directory tree: front-matter summary + `updated_at`; ≤1000 paths, oversized dirs folded to counts                     | M2 ✅             |
-| `memory/search.ts`       | Case-insensitive search (`rg` when available, pure-Node fallback); skips front-matter, returns path/line/excerpt      | M2 ✅             |
-| `memory/tools.ts`        | DSH tools `memory_read / memory_search / memory_write / memory_list` (write requires summary)                         | M2 ✅             |
-| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` mapping; one store per memory dir (serial across Sessions)                    | M2 ✅             |
-| `memory/git.ts`          | One repo per bot: single `main` branch, `.gitattributes` forcing LF, local identity, `history()`                      | M2 ✅             |
-| roster client            | `main` panel + `sidebar.panellist`; roster tree / detail / create; @delegation                                        | M3                |
+| Module                   | Responsibility                                                                                                   | Status            |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `plugin.ts`              | Plugin entry: settings namespace + `provide('botharness')`; assembled by `createCore()`                          | M1 ✅             |
+| `bots/registry.ts`       | PersonaBot lifecycle + atomic persistence; `remove` keeps memory by default, only `purge` clears it              | M1 ✅             |
+| `state/bot-state.ts`     | Five session states reported → PersonaBot aggregation; `aggregate-changed / session-changed / session-removed`   | M1 ✅             |
+| `im/*`                   | Read-only dsh-im store (v1/v2/v3 compatible) + workspace→BotIdentity (IM binding helper)                         | M1 ✅ (M5 wiring) |
+| `memory/front-matter.ts` | Front-matter parse/serialize + graceful degradation (first line + mtime; invalid YAML never throws)              | M2 ✅             |
+| `memory/store.ts`        | Memory read/write: path jail, atomic writes, serial queue, `MEMORY.md` index, one commit per write               | M2 ✅             |
+| `memory/tree.ts`         | Directory tree: front-matter summary + `updated_at`; ≤1000 paths, oversized dirs folded to counts                | M2 ✅             |
+| `memory/search.ts`       | Case-insensitive search (`rg` when available, pure-Node fallback); skips front-matter, returns path/line/excerpt | M2 ✅             |
+| `memory/tools.ts`        | DSH tools `memory_read / memory_search / memory_write / memory_list` (write requires summary)                    | M2 ✅             |
+| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` mapping; one store per memory dir (serial across Sessions)               | M2 ✅             |
+| `memory/git.ts`          | One repo per bot: single `main` branch, `.gitattributes` forcing LF, local identity, `history()`                 | M2 ✅             |
+| roster client            | `main` panel + `sidebar.panellist`; roster tree / detail / create; @delegation                                   | M3                |
 
 ## 3 · Boot & service exposure
 
@@ -123,13 +123,13 @@ sequenceDiagram
   P->>D: settings.register('botharness')
   P->>M: createMemoryService({ registry })
   P->>D: provide('botharness', { rootDir, registry, states, memory })
-  P->>T: createMemoryTools({ resolveStore, resolveScope })
+  P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* tools
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.resolveScope / storeForAgent
+  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) for live state<br/>resolve this Session's memory via memory.storeForAgent
 ```
 
 Everything goes through the Cordis service bus — no file polling.

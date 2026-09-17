@@ -60,13 +60,13 @@ flowchart TB
     State["state/bot-state.ts<br/>五态 → 聚合 · 事件"]
     Store["im/config-store.ts<br/>只读 dsh-im JSON"]
     Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot · DM/群 scope"]
+    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
     MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>读写 · 可见性 · 生成索引 · 每次写一个 commit"]
+    MemoryStore["memory/store.ts<br/>读写 · 生成索引 · 每次写一个 commit"]
     MemoryTree["memory/tree.ts<br/>目录树 · 超出折叠/溢出标记"]
     MemorySearch["memory/search.ts<br/>rg 检索"]
     MemoryGit["memory/git.ts<br/>每 Bot 一个 repo"]
-    FrontMatter["memory/front-matter.ts<br/>摘要 / 可见性降级"]
+    FrontMatter["memory/front-matter.ts<br/>摘要 / 降级"]
   end
 
   Plugin --> Registry
@@ -99,7 +99,7 @@ flowchart TB
 | `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed` | M1 ✅            |
 | `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                     | M1 ✅（M5 接线） |
 | `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                       | M2 ✅            |
-| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、可见性过滤、`MEMORY.md` 生成、每次写入一个 commit    | M2 ✅            |
+| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                | M2 ✅            |
 | `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                    | M2 ✅            |
 | `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt      | M2 ✅            |
 | `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）   | M2 ✅            |
@@ -121,13 +121,13 @@ sequenceDiagram
   P->>D: settings.register('botharness')
   P->>M: createMemoryService({ registry })
   P->>D: provide('botharness', { rootDir, registry, states, memory })
-  P->>T: createMemoryTools({ resolveStore, resolveScope })
+  P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* 工具
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.resolveScope / storeForAgent 取该 Session 的记忆
+  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.storeForAgent 取该 Session 的记忆
 ```
 
 一切走 Cordis 服务总线，无文件轮询。

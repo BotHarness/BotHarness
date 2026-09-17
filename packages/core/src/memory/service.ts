@@ -1,32 +1,22 @@
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
-import type { MemoryScope } from './visibility.js';
 
 export interface MemoryAgentRef {
   session?: { header?: { cwd?: string } };
 }
 
-export interface MemoryScopeContext {
-  agent?: MemoryAgentRef | undefined;
-}
-
 export interface MemoryServiceOptions {
   registry: PersonaBotRegistry;
   now?: () => Date;
-  ownerId?: string;
 }
 
 export interface MemoryService {
   storeForCwd(cwd: string | undefined): MemoryStore | undefined;
   storeForAgent(agent: MemoryAgentRef | undefined): MemoryStore | undefined;
-  resolveScope(context?: MemoryScopeContext): MemoryScope;
 }
 
 export function createMemoryService(options: MemoryServiceOptions): MemoryService {
   const { registry } = options;
-  const configuredOwner = options.ownerId?.trim();
-  const ownerId =
-    configuredOwner === undefined || configuredOwner.length === 0 ? 'local' : configuredOwner;
   const stores = new Map<string, MemoryStore>();
 
   const storeForCwd = (cwd: string | undefined): MemoryStore | undefined => {
@@ -50,9 +40,6 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     storeForCwd,
     storeForAgent(agent) {
       return storeForCwd(agent?.session?.header?.cwd);
-    },
-    resolveScope() {
-      return { kind: 'dm', owner: ownerId };
     },
   };
 }

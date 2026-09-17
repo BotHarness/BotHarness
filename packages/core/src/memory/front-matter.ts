@@ -1,14 +1,10 @@
 import { parse, stringify } from 'yaml';
 
-export type MemoryVisibility = 'shared' | 'private';
-
 export interface MemoryDocument {
   summary: string;
   updatedAt: string;
   sources: string[];
-  visibility: MemoryVisibility;
   tags?: string[];
-  owner?: string;
 }
 
 export interface ParsedMemoryFile {
@@ -138,29 +134,10 @@ export function parseMemoryFile(text: string, options: ParseMemoryFileOptions): 
     sources = stringList(fields['sources'], 'sources', warnings);
   }
 
-  let visibility: MemoryVisibility = 'shared';
-  const rawVisibility = fields['visibility'];
-  if (rawVisibility !== undefined) {
-    if (rawVisibility === 'private' || rawVisibility === 'shared') {
-      visibility = rawVisibility;
-    } else {
-      warnings.push('invalid front-matter field: visibility');
-    }
-  }
-
   let tags: string[] | undefined;
   if (fields['tags'] !== undefined) {
     const parsedTags = stringList(fields['tags'], 'tags', warnings);
     if (parsedTags.length > 0) tags = parsedTags;
-  }
-
-  let owner: string | undefined;
-  if (fields['owner'] !== undefined) {
-    if (typeof fields['owner'] === 'string' && fields['owner'].trim().length > 0) {
-      owner = fields['owner'].trim();
-    } else {
-      warnings.push('invalid front-matter field: owner');
-    }
   }
 
   return {
@@ -168,9 +145,7 @@ export function parseMemoryFile(text: string, options: ParseMemoryFileOptions): 
       summary,
       updatedAt,
       sources,
-      visibility,
       ...(tags === undefined ? {} : { tags }),
-      ...(owner === undefined ? {} : { owner }),
     },
     body,
     frontMatterLines: split.frontMatterLines,
@@ -183,10 +158,8 @@ export function serializeMemoryFile(document: MemoryDocument, body: string): str
     summary: document.summary,
     updated_at: document.updatedAt,
     sources: document.sources,
-    visibility: document.visibility,
   };
   if (document.tags !== undefined) fields['tags'] = document.tags;
-  if (document.owner !== undefined) fields['owner'] = document.owner;
   const yamlText = stringify(fields).trimEnd();
   return `---\n${yamlText}\n---\n${body}`;
 }

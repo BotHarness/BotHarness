@@ -51,11 +51,7 @@ export type {
   MemoryEntry,
   MemoryStore,
   MemoryStoreOptions,
-  MemoryVisibility,
-  MemoryWriteFailure,
-  MemoryWriteFailureReason,
   MemoryWriteInput,
-  MemoryWriteOutcome,
   MemoryWriteResult,
 } from './memory/store.js';
 export type { MemoryCommit } from './memory/git.js';
@@ -67,14 +63,7 @@ export type {
   MemoryTreeOverflow,
 } from './memory/tree.js';
 export type { MemorySearchHit } from './memory/search.js';
-export { GROUP_SCOPE } from './memory/visibility.js';
-export type { MemoryScope } from './memory/visibility.js';
 export { createMemoryTools } from './memory/tools.js';
 export type { MemoryToolsOptions } from './memory/tools.js';
 export { createMemoryService } from './memory/service.js';
-export type {
-  MemoryAgentRef,
-  MemoryScopeContext,
-  MemoryService,
-  MemoryServiceOptions,
-} from './memory/service.js';
+export type { MemoryAgentRef, MemoryService, MemoryServiceOptions } from './memory/service.js';

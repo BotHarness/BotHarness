@@ -9,10 +9,10 @@ sequenceDiagram
   P->>D: settings.register('botharness')
   P->>M: createMemoryService({ registry })
   P->>D: provide('botharness', { rootDir, registry, states, memory })
-  P->>T: createMemoryTools({ resolveStore, resolveScope })
+  P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* 工具
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.resolveScope / storeForAgent 取该 Session 的记忆
+  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.storeForAgent 取该 Session 的记忆
