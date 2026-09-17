@@ -33,7 +33,7 @@ In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create syml
 
 ### Issue tracker
 
-Issues and specs live as GitHub issues on `Teamemos/DeepSeekBot` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
+Issues and specs live as GitHub issues on `BotHarness/DeepSeekBot` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 
