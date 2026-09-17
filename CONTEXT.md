@@ -102,6 +102,48 @@ _Avoid_: scope, ACL, secret
 A file or image uploaded into a Chat, archived into the PersonaBot's workspace at a stable path and referenced from context and Memory.
 _Avoid_: upload, media, blob
 
+### Soul and sharing
+
+**Soul**:
+A PersonaBot's persona plus its memory — the identity content that spans sessions and freezes into a SoulSnapshot.
+_Avoid_: character, profile, data
+
+**SoulSnapshot**:
+An immutable, content-addressed package of a Soul: the `bot.md` manifest, setup instructions, `PERSONA.md`, and selected memory; the unit the registry stores, lists, and imports.
+_Avoid_: export, backup, bot zip, image
+
+**Soul registry**:
+The hosted service that stores, versions, and serves SoulSnapshots — the marketplace backend, distinct from the Host's PersonaBot registry.
+_Avoid_: hub, store, database
+
+**Listing**:
+A bot's presence in the Soul registry: one `@handle/slug` namespace, a description, and its Versions.
+_Avoid_: repo, page, entry
+
+**Version**:
+A human-named tag pointing at one immutable SoulSnapshot digest under a Listing.
+_Avoid_: release, build, revision
+
+**Handle**:
+An account's unique public identifier, used as the namespace of its Listings; never the account's email.
+_Avoid_: username, account id
+
+**Bot set**:
+A named group of Listings meant to be imported together.
+_Avoid_: collection, bundle, pack, team
+
+**Export**:
+Materializing a PersonaBot into a SoulSnapshot, filtered by visibility and exclusions.
+_Avoid_: backup, dump, save
+
+**Import**:
+Creating a new PersonaBot from a SoulSnapshot, from a file or the Soul registry; always a copy.
+_Avoid_: install, clone, pull, restore
+
+**Publish**:
+Uploading a SoulSnapshot to the Soul registry as a Version.
+_Avoid_: upload, push, submit
+
 ### Chats and replies
 
 **Chat**:

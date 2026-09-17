@@ -2,7 +2,7 @@
 
 BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 agent 持久身份：**PersonaBot**——带人格、跨 session 记忆、可并发工作。DeepSeekBot 是它的首个应用（sidebar 名册 + 委派 + IM 接入）。DSH 内核不 fork；IM 由 dsh-im 基座提供通道。
 
-状态：M1 已实现（PR #13）· M2 记忆 MVP · M3 Roster 与委派 · M5 IM 适配器 · 更新 2026-09-17
+状态：M1 已实现（PR #13）· M2 记忆 MVP · M3 Roster 与委派 · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-18
 
 ## 1 · 系统上下文
 

@@ -140,7 +140,7 @@
 
 ## 4. BotHarness 范式建议：可携带的 PersonaBot 包（提案，非已决策）
 
-> 本节是在调研结论之上的设计提案，不构成一手来源事实，也还不是 ADR。若方向确认，应落为 ADR（候选 0019）+ `docs/botharness.md` 规格与 changelog，并在 `CONTEXT.md` 增补术语。
+> 本节是在调研结论之上的设计提案。**2026-09-18 已固化为 ADR-0019 / ADR-0020 与规格 v1.1**（`docs/botharness.md`、`CONTEXT.md`、changelog），此处保留提案原文以供对照。
 >
 > 一句话范式：**导出的是「人」，不是「经历」。** 包携带 persona + 可选记忆 + 给接收者的 setup instructions，永远不携带会话、运行环境与凭据；导入总是创建独立新副本，且在人类审阅前不生效。
 
@@ -232,13 +232,18 @@ share_policy: ask | allowed | no-redistribution # 荣誉制，非 DRM
 - **代码边界**：core 提供 `exportBot(slug, opts)` / `inspectPackage(path)` / `importBot(path, opts)`；client 提供导出向导与导入审阅页；不触碰 DSH 上游。
 - **术语增补（CONTEXT.md）**：Bot package（PersonaBot package）、Export profile、Import review、Provenance、Dormant private entry。
 
-### 4.7 待决问题（给人类）
+### 4.7 决议（2026-09-18，已固化）
 
-1. 包格式最终选**目录包**（建议）还是单 `.md`（OMB 风格，粘贴友好但记忆变大后失真）？
-2. `backup` 档位是否进 v1，还是直接用 M6 的「目录复制」？
-3. `memory: all` 是否 v1 就允许？（建议：v1 只放 `none|shared`，`all` 等加密包）
-4. `requires` 是否允许包内附 `tools/` 脚本内容？（建议否，PoC 不携带可执行内容）
-5. 是否导出 git 历史（快照 vs 完整 repo）？（建议 v1 只导快照，导入后单提交）
+| 议题         | 结果                                                                                                                                                    |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 平台形态     | **真服务**（Cloudflare Workers + Hyperdrive → PlanetScale + Drizzle + R2；BetterAuth email OTP + Google）——推翻本提案的 repo-as-database 备选；ADR-0019 |
+| 第一阶段范围 | 只分享单个 Bot；collection 后置，语义 = **Bot set**（可整体导入）；ADR-0019                                                                             |
+| 包格式       | 目录包（zip 信封），入口 `bot.md`；`kind: template \| handoff \| backup`；附件不进 v1；25MB 上限；ADR-0020                                              |
+| 记忆开关     | `none \| shared \| all \| paths`；`all` 仅 `backup`（二次确认）；导出前 M8 重扫，命中硬拒绝；ADR-0020、规格 v1.1                                        |
+| Git          | 快照非指针；`export-ignore` ∪ 临时排除；单分支、每 turn commit、写入必带 `summary`；未来 UI 管历史（clone + reset）；ADR-0020、M6                       |
+| 命名         | `@handle/slug` + Listing → Version；URL/深链预留；ADR-0020                                                                                              |
+| 许可/溯源    | 公开 listing 默认 CC-BY-4.0；`share_policy`；再导出保留 `provenance.upstream`；ADR-0020                                                                 |
+| 审核         | 默认公开 + 自动闸门 + 举报下架（不人工预审）——与提案的「先私有链接」相反；ADR-0019                                                                      |
 
 ## 5. 时间线（一手来源）
 

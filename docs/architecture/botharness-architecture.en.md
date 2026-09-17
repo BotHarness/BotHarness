@@ -4,7 +4,7 @@
 
 BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives agents a persistent identity: **PersonaBot** — a persona with memory that spans sessions and can work concurrently. DeepSeekBot is its first app (sidebar roster + delegation + IM integration). The DSH core is not forked; IM channels come from the dsh-im base.
 
-Status: M1 implemented (PR #13) · M2 memory MVP · M3 roster & delegation · M5 IM adapter · updated 2026-09-17
+Status: M1 implemented (PR #13) · M2 memory MVP · M3 roster & delegation · M5 IM adapter · M6 SoulSnapshot · M7 Soul registry (ADR-0019/0020) · updated 2026-09-18
 
 ## 1 · System context
 
