@@ -1,5 +1,7 @@
 # BotHarness
 
+**中文** ｜ [English](./README.en.md)
+
 给 LLM agent 一份**持久身份**的 DSH 插件层：PersonaBot —— 带人格、跨 session 记忆、可并发工作的 Bot。
 
 - **BotHarness**（本仓库）：平台层 —— PersonaBot 实体、记忆、状态与工作方式（SDK + bundle，**不 fork DSH**，ADR-0015）
@@ -9,12 +11,15 @@
 
 - 平台规格：[docs/botharness.md](docs/botharness.md)
 - 应用 PRD：[PRD.md](PRD.md)
+- 架构与数据流（mermaid）：[docs/architecture/botharness-architecture.html](docs/architecture/botharness-architecture.html)
 - 领域词表：[CONTEXT.md](CONTEXT.md) · 决策：[docs/adr/](docs/adr/)
 - 里程碑与 tickets：仓库 Issues；路线图见规格 §7
 
 ## 状态
 
-v1.0 基线完成（平台/应用规格重组、ADR 0015–0018、M1 插件脚手架合入）；下一步 **M1 BotHarness 骨架**（`@botharness/core` + PersonaBot registry + bot home + 状态事件）。
+- v1.0 基线完成（规格重组、ADR 0015–0018）
+- **M1 BotHarness 骨架**在 PR #13（`@botharness/core`：PersonaBot registry / bot home / 状态事件，38 tests 全绿），待合并
+- 下一步：M2 记忆 MVP → M3 Roster 与委派
 
 ## 灵感
 

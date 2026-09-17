@@ -1,0 +1,48 @@
+# BotHarness
+
+[中文](./README.md) ｜ **English**
+
+A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identity: **PersonaBots** — bots with a persona and memory that spans sessions, able to work concurrently.
+
+- **BotHarness** (this repo): the platform layer — PersonaBot entities, memory, state, and how work happens (SDK + bundle; **no DSH fork**, ADR-0015)
+- **DeepSeekBot**: the first app — brings PersonaBots into the DSH sidebar (create, @delegate, keep working) and connects Feishu / Lark
+
+## Docs
+
+- Platform spec: [docs/botharness.md](docs/botharness.md) _(Chinese)_
+- App PRD: [PRD.md](PRD.md) _(Chinese)_
+- Architecture & data flow (mermaid): [docs/architecture/botharness-architecture.html](docs/architecture/botharness-architecture.html)
+- Glossary: [CONTEXT.md](CONTEXT.md) · Decisions: [docs/adr/](docs/adr/)
+- Milestones & tickets: repo Issues; roadmap in spec §7
+
+## Status
+
+- v1.0 baseline done (spec restructure, ADR 0015–0018)
+- **M1 BotHarness skeleton** in PR #13 (`@botharness/core`: PersonaBot registry / bot home / state events; 38 tests green), pending merge
+- Next: M2 memory MVP → M3 roster & delegation
+
+## Inspiration
+
+- **Grok Bot**: every Bot has its own computer, memory, state, and works autonomously
+- **DeepSeek Harness**: a plugin host that carries other plugins
+
+## Development
+
+Toolchain: pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown; the client package (`@botharness/client`) uses React (DSH client contract) + blobatar.
+
+```bash
+pnpm install
+pnpm lint && pnpm format:check && pnpm typecheck && pnpm test
+pnpm build
+```
+
+Repository layout (monorepo):
+
+```text
+packages/core        @botharness/core   # PersonaBot registry / state (memory lands in M2)
+packages/client      @botharness/client # React: roster / detail / delegation entry (M3)
+packages/im          @botharness/im     # IM adapter (M5)
+packages/deepseekbot deepseekbot        # bundle + app (later)
+```
+
+The M1 scaffold (plugin entry, settings namespace, workspace→bot resolution) now lives in `packages/core`; the resolver is kept as the IM binding helper.
