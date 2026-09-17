@@ -1,0 +1,11 @@
+stateDiagram-v2
+  [*] --> idle
+  idle --> thinking: 委派 / 唤醒
+  thinking --> working: 开始执行
+  working --> waiting: 需要审批 / 等人
+  waiting --> working: 确认后继续
+  working --> blocked: 失败 / 缺条件
+  blocked --> working: 修复后重试
+  thinking --> blocked: 卡住
+  working --> done: 完成（session 事件）
+  done --> idle: 聚合回 idle

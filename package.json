@@ -13,12 +13,14 @@
     "format:check": "oxfmt --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "diagrams": "node scripts/render-diagrams.mjs",
     "dev": "pnpm --filter docs exec portless",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:deploy": "pnpm --filter docs deploy"
   },
   "devDependencies": {
+    "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/node": "^22.20.2",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",

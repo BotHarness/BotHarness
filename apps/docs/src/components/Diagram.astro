@@ -1,0 +1,316 @@
+---
+interface Props {
+  name: string;
+  caption?: string;
+}
+
+const { name, caption } = Astro.props;
+
+const label = caption ?? name;
+const base = import.meta.env.BASE_URL;
+const lightSrc = `${base}diagrams/${name}.svg`;
+const darkSrc = `${base}diagrams/${name}.dark.svg`;
+const sourceUrl = `https://github.com/BotHarness/BotHarness/blob/main/docs/architecture/diagrams/${name}.mmd`;
+---
+
+<figure class="nb-diagram" data-caption={label}>
+  <button class="nb-diagram-frame" type="button" aria-label={`放大图示：${label}`}>
+    <img
+      class="nb-diagram-light"
+      src={lightSrc}
+      alt={label}
+      loading="lazy"
+      decoding="async"
+    />
+    <img
+      class="nb-diagram-dark"
+      src={darkSrc}
+      alt=""
+      aria-hidden="true"
+      loading="lazy"
+      decoding="async"
+    />
+  </button>
+  <figcaption class="nb-diagram-caption">
+    <span class="nb-diagram-label">{label}</span>
+    <span class="nb-diagram-links">
+      <a href={sourceUrl} target="_blank" rel="noreferrer">mmd</a>
+      <a href={lightSrc} target="_blank" rel="noreferrer">svg</a>
+    </span>
+  </figcaption>
+</figure>
+
+<style>
+  .nb-diagram {
+    margin: 1.5rem 0;
+    overflow: hidden;
+    border: 1px solid var(--nb-border);
+    border-radius: 0.625rem;
+    background: var(--nb-card);
+  }
+
+  .nb-diagram-frame {
+    display: block;
+    width: 100%;
+    margin: 0;
+    padding: 1rem;
+    border: 0;
+    background: transparent;
+    cursor: zoom-in;
+  }
+
+  .nb-diagram-frame:hover {
+    background: color-mix(in oklch, var(--nb-muted) 45%, transparent);
+  }
+
+  .nb-diagram-frame img {
+    display: block;
+    width: 100%;
+    height: auto;
+    margin: 0 auto;
+  }
+
+  .nb-diagram-frame .nb-diagram-dark {
+    display: none;
+  }
+
+  :global([data-mode="dark"]) .nb-diagram-frame .nb-diagram-light {
+    display: none;
+  }
+
+  :global([data-mode="dark"]) .nb-diagram-frame .nb-diagram-dark {
+    display: block;
+  }
+
+  .nb-diagram-caption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.875rem;
+    border-top: 1px solid var(--nb-border);
+    color: var(--nb-muted-foreground);
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .nb-diagram-links {
+    display: inline-flex;
+    flex-shrink: 0;
+    gap: 0.5rem;
+  }
+
+  .nb-diagram-links a {
+    color: inherit;
+    text-underline-offset: 2px;
+  }
+
+  .nb-diagram-links a:hover {
+    color: var(--nb-foreground);
+  }
+
+  :global(.nb-diagram-dialog) {
+    width: min(96vw, 96rem);
+    max-width: none;
+    height: 94vh;
+    max-height: 94vh;
+    margin: auto;
+    padding: 0;
+    overflow: hidden;
+    border: 1px solid var(--nb-border);
+    border-radius: 0.75rem;
+    background: var(--nb-card);
+    color: var(--nb-foreground);
+  }
+
+  :global(.nb-diagram-dialog[open]) {
+    display: flex;
+    flex-direction: column;
+    animation: nb-diagram-pop 150ms ease-out;
+  }
+
+  :global(.nb-diagram-dialog::backdrop) {
+    background: rgb(0 0 0 / 0.75);
+  }
+
+  @keyframes nb-diagram-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  :global(.nb-diagram-toolbar) {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--nb-border);
+    background: color-mix(in oklch, var(--nb-muted) 50%, transparent);
+  }
+
+  :global(.nb-diagram-toolbar button) {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2rem;
+    height: 2rem;
+    padding: 0 0.5rem;
+    border: 1px solid var(--nb-border);
+    border-radius: 0.375rem;
+    background: var(--nb-card);
+    color: var(--nb-foreground);
+    font-size: 0.875rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  :global(.nb-diagram-toolbar button:hover) {
+    background: var(--nb-accent);
+  }
+
+  :global(.nb-diagram-toolbar button:last-child) {
+    margin-left: auto;
+  }
+
+  :global(.nb-diagram-stage) {
+    flex: 1;
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    overflow: auto;
+    scrollbar-gutter: stable;
+    padding: 1rem;
+    background: var(--nb-card);
+  }
+
+  :global(.nb-diagram-stage img) {
+    display: block;
+    width: auto;
+    max-width: none;
+    height: auto;
+    margin: 0 auto;
+  }
+</style>
+
+<script>
+  const ZOOM_STEP = 1.25;
+  const MIN_ZOOM = 0.1;
+  const MAX_ZOOM = 8;
+  const STAGE_PADDING = 32;
+
+  let dialog: HTMLDialogElement | null = null;
+  let stage: HTMLElement | null = null;
+  let diagramImage: HTMLImageElement | null = null;
+  let zoom = 1;
+  let naturalWidth = 0;
+  let fitBase = 0;
+
+  function computeFitWidth(): number {
+    if (!stage) return 0;
+    const natural = naturalWidth || 1280;
+    return Math.min(Math.max(stage.clientWidth - STAGE_PADDING, 240), natural);
+  }
+
+  function applyZoom(): void {
+    if (!diagramImage || fitBase <= 0) return;
+    diagramImage.style.width = `${Math.round(fitBase * zoom)}px`;
+  }
+
+  function setZoom(next: number): void {
+    if (fitBase <= 0) return;
+    zoom = Math.min(Math.max(next, MIN_ZOOM), MAX_ZOOM);
+    applyZoom();
+  }
+
+  function getDialog(): HTMLDialogElement {
+    if (dialog) return dialog;
+
+    dialog = document.createElement("dialog");
+    dialog.className = "nb-diagram-dialog";
+    dialog.innerHTML = `
+      <div class="nb-diagram-toolbar">
+        <button type="button" data-diagram-zoom="out" aria-label="缩小" title="缩小">−</button>
+        <button type="button" data-diagram-zoom="in" aria-label="放大" title="放大">+</button>
+        <button type="button" data-diagram-zoom="fit" aria-label="适应窗口" title="适应窗口">适应</button>
+        <button type="button" data-diagram-zoom="actual" aria-label="原始大小" title="原始大小">100%</button>
+        <button type="button" data-diagram-zoom="close" aria-label="关闭" title="关闭">×</button>
+      </div>
+      <div class="nb-diagram-stage"><img alt="" /></div>
+    `;
+    document.body.appendChild(dialog);
+
+    stage = dialog.querySelector<HTMLElement>(".nb-diagram-stage");
+    diagramImage = dialog.querySelector<HTMLImageElement>("img");
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        dialog?.close();
+        return;
+      }
+      if (!(event.target instanceof Element)) return;
+      const button = event.target.closest<HTMLButtonElement>("button[data-diagram-zoom]");
+      if (!button) return;
+      const action = button.dataset.diagramZoom;
+      if (action === "in") setZoom(zoom * ZOOM_STEP);
+      else if (action === "out") setZoom(zoom / ZOOM_STEP);
+      else if (action === "fit") setZoom(1);
+      else if (action === "actual") setZoom(naturalWidth / fitBase);
+      else if (action === "close") dialog?.close();
+    });
+
+    return dialog;
+  }
+
+  function openDialog(figure: HTMLElement): void {
+    const target = getDialog();
+    if (!stage || !diagramImage) return;
+
+    const dark = document.documentElement.getAttribute("data-mode") === "dark";
+    const source = figure.querySelector<HTMLImageElement>(
+      dark ? "img.nb-diagram-dark" : "img.nb-diagram-light",
+    );
+
+    naturalWidth = source?.naturalWidth || 1280;
+    zoom = 1;
+    stage.scrollTop = 0;
+    stage.scrollLeft = 0;
+
+    diagramImage.alt = figure.dataset.caption ?? "";
+    diagramImage.addEventListener("load", applyZoom, { once: true });
+    if (source) diagramImage.src = source.currentSrc || source.src;
+
+    target.setAttribute("aria-label", figure.dataset.caption ?? "Diagram");
+    target.showModal();
+    fitBase = computeFitWidth();
+    applyZoom();
+    target.querySelector<HTMLButtonElement>('[data-diagram-zoom="close"]')?.focus();
+  }
+
+  function setup(): void {
+    dialog = null;
+    stage = null;
+    diagramImage = null;
+
+    for (const figure of document.querySelectorAll<HTMLElement>("figure.nb-diagram")) {
+      if (figure.dataset.bound === "true") continue;
+      figure.dataset.bound = "true";
+      figure
+        .querySelector<HTMLButtonElement>(".nb-diagram-frame")
+        ?.addEventListener("click", () => openDialog(figure));
+    }
+  }
+
+  window.addEventListener("resize", () => {
+    if (dialog?.open) {
+      fitBase = computeFitWidth();
+      applyZoom();
+    }
+  });
+
+  document.addEventListener("astro:page-load", setup);
+</script>
