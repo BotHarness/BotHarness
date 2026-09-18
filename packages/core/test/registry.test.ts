@@ -68,6 +68,50 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.memoryDirFor('research')).toBe(join(root, 'research', 'memory'));
   });
 
+  it('writes a placeholder PERSONA.md on create and keeps it on later attempts', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+
+    const personaFile = join(root, 'ada', 'memory', 'PERSONA.md');
+    expect(readFileSync(personaFile, 'utf8')).toBe('# Ada\n');
+
+    expect(registry.create({ slug: 'ada', displayName: 'Ada again', persona: '# Evil\n' })).toEqual(
+      {
+        ok: false,
+        reason: 'duplicate',
+      },
+    );
+    expect(readFileSync(personaFile, 'utf8')).toBe('# Ada\n');
+  });
+
+  it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada', persona: '# Ada\n\nBe kind.\n' });
+    expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+      '# Ada\n\nBe kind.\n',
+    );
+
+    mkdirSync(join(root, 'broken', 'memory'), { recursive: true });
+    writeFileSync(join(root, 'broken', 'bot.json'), '{ not json');
+    writeFileSync(join(root, 'broken', 'memory', 'PERSONA.md'), '# Handwritten\n');
+    expect(registry.create({ slug: 'broken', displayName: 'Broken', persona: '# Bot\n' }).ok).toBe(
+      true,
+    );
+    expect(readFileSync(join(root, 'broken', 'memory', 'PERSONA.md'), 'utf8')).toBe(
+      '# Handwritten\n',
+    );
+  });
+
+  it('puts PERSONA.md beside a custom memory dir', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    const custom = join(root, 'outside-memory');
+    registry.create({ slug: 'ada', displayName: 'Ada', memoryDir: custom });
+    expect(readFileSync(join(custom, 'PERSONA.md'), 'utf8')).toBe('# Ada\n');
+  });
+
   it('rejects duplicate slugs', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
     expect(registry.create({ slug: 'a', displayName: 'A' }).ok).toBe(true);
@@ -164,6 +208,95 @@ describe('createPersonaBotRegistry', () => {
     expect(padded.ok && padded.record).toMatchObject({ tag: '研究', description: '一行简介' });
     expect(blank.ok && 'tag' in blank.record).toBe(false);
     expect(blank.ok && 'description' in blank.record).toBe(false);
+  });
+
+  it('updates editable fields, persists them, and clears blanks', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      tag: '旧',
+      description: '旧简介',
+      avatar: 'red',
+      model: 'old-model',
+      preset: 'old-preset',
+      workspaces: ['/old'],
+    });
+
+    const result = registry.update('ada', {
+      displayName: '  Ada Lovelace  ',
+      tag: '研究',
+      description: '',
+      avatar: 'blue',
+      workspaces: ['/srv/a', '/srv/b'],
+    });
+
+    expect(result.ok && result.record).toMatchObject({
+      slug: 'ada',
+      displayName: 'Ada Lovelace',
+      tag: '研究',
+      avatar: 'blue',
+      workspaces: ['/srv/a', '/srv/b'],
+    });
+    expect(result.ok && 'description' in result.record).toBe(false);
+    expect(result.ok && result.record.model).toBe('old-model');
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')).toMatchObject({
+      displayName: 'Ada Lovelace',
+      avatar: 'blue',
+      workspaces: ['/srv/a', '/srv/b'],
+    });
+  });
+
+  it('rejects updates for unknown slugs and invalid input', () => {
+    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+
+    expect(registry.update('missing', { tag: 'x' })).toEqual({ ok: false, reason: 'not-found' });
+    expect(registry.update('../evil', { tag: 'x' })).toEqual({ ok: false, reason: 'not-found' });
+    expect(registry.update('ada', { displayName: '   ' })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
+    expect(registry.update('ada', { workspaces: 'nope' as unknown as string[] })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
+    expect(registry.update('ada', { tag: '研究' }).ok).toBe(true);
+  });
+
+  it('pauses and resumes through setPaused', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+
+    const paused = registry.setPaused('ada', true);
+    expect(paused.ok && paused.record.paused).toBe(true);
+    expect(registry.get('ada')?.paused).toBe(true);
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.paused).toBe(true);
+
+    const resumed = registry.setPaused('ada', false);
+    expect(resumed.ok && 'paused' in resumed.record).toBe(false);
+    expect(registry.get('ada')?.paused).toBeUndefined();
+    expect(registry.setPaused('missing', true)).toEqual({ ok: false, reason: 'not-found' });
+  });
+
+  it('drops records whose paused flag is not a boolean', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({ rootDir: root });
+    mkdirSync(join(root, 'broken'));
+    writeFileSync(
+      join(root, 'broken', 'bot.json'),
+      JSON.stringify({
+        slug: 'broken',
+        displayName: 'Broken',
+        workspaces: [],
+        createdAt: 'now',
+        paused: 'yes',
+      }),
+    );
+
+    expect(registry.get('broken')).toBeUndefined();
   });
 
   it('lists bots sorted and skips junk entries and poisoned records', () => {

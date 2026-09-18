@@ -5,6 +5,7 @@ import {
   readdirSync,
   realpathSync,
   rmSync,
+  writeFileSync,
   type Dirent,
 } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
@@ -14,8 +15,10 @@ import {
   isPersonaBotRecord,
   type CreatePersonaBotInput,
   type CreatePersonaBotResult,
+  type PersonaBotPatch,
   type PersonaBotRecord,
   type RemovePersonaBotOptions,
+  type UpdatePersonaBotResult,
 } from './persona-bot.js';
 import { isValidSlug } from './slug.js';
 
@@ -32,6 +35,8 @@ export interface PersonaBotRegistry {
   findByWorkspace(workspace: string): PersonaBotRecord | undefined;
   remove(slug: string, options?: RemovePersonaBotOptions): boolean;
   memoryDirFor(slug: string): string | undefined;
+  update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
+  setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -96,6 +101,32 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       .sort((left, right) => left.slug.localeCompare(right.slug));
   };
 
+  const memoryDirOf = (record: PersonaBotRecord): string =>
+    record.memoryDir ?? defaultMemoryDir(record.slug);
+
+  const ensurePersonaFile = (memoryDir: string, body: string): void => {
+    mkdirSync(memoryDir, { recursive: true });
+    try {
+      writeFileSync(join(memoryDir, 'PERSONA.md'), body, { encoding: 'utf8', flag: 'wx' });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    }
+  };
+
+  const applyOptionalText = (
+    record: PersonaBotRecord,
+    key: 'tag' | 'description' | 'avatar' | 'model' | 'preset',
+    value: string | undefined,
+  ): void => {
+    if (value === undefined) return;
+    const trimmed = value.trim();
+    if (trimmed.length === 0) {
+      delete record[key];
+      return;
+    }
+    record[key] = trimmed;
+  };
+
   return {
     rootDir,
     create(input) {
@@ -126,9 +157,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ...(memoryDir ? { memoryDir } : {}),
       };
       write(record);
-      mkdirSync(memoryDir && memoryDir.length > 0 ? memoryDir : defaultMemoryDir(input.slug), {
-        recursive: true,
-      });
+      const persona = input.persona;
+      ensurePersonaFile(
+        memoryDirOf(record),
+        persona !== undefined && persona.trim().length > 0 ? persona : `# ${record.displayName}\n`,
+      );
       return { ok: true, record };
     },
     get(slug) {
@@ -154,7 +187,40 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     memoryDirFor(slug) {
       const record = read(slug);
       if (record === undefined) return undefined;
-      return record.memoryDir ?? defaultMemoryDir(slug);
+      return memoryDirOf(record);
+    },
+    update(slug, patch) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (patch.displayName !== undefined) {
+        const displayName = patch.displayName.trim();
+        if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
+        record.displayName = displayName;
+      }
+      applyOptionalText(record, 'tag', patch.tag);
+      applyOptionalText(record, 'description', patch.description);
+      applyOptionalText(record, 'avatar', patch.avatar);
+      applyOptionalText(record, 'model', patch.model);
+      applyOptionalText(record, 'preset', patch.preset);
+      if (patch.workspaces !== undefined) {
+        if (
+          !Array.isArray(patch.workspaces) ||
+          !patch.workspaces.every((workspace) => typeof workspace === 'string')
+        ) {
+          return { ok: false, reason: 'invalid-input' };
+        }
+        record.workspaces = [...patch.workspaces];
+      }
+      write(record);
+      return { ok: true, record };
+    },
+    setPaused(slug, paused) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (paused) record.paused = true;
+      else delete record.paused;
+      write(record);
+      return { ok: true, record };
     },
   };
 }

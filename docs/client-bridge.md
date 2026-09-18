@@ -1,10 +1,10 @@
-# 客户端桥（Client Bridge）规格（初稿）
+# 客户端桥（Client Bridge）规格
 
 | 项       | 内容                                                                            |
 | -------- | ------------------------------------------------------------------------------- |
-| 版本     | v0.1（初稿，随 M3 落地回填）                                                    |
-| 日期     | 2026-09-18                                                                      |
-| 状态     | Draft                                                                           |
+| 版本     | v0.2（M3.1 落地回填，读模型 + create/update/pause/resume）                      |
+| 日期     | 2026-09-19                                                                      |
+| 状态     | Implemented（`list/get/create/update/pause/resume`）                            |
 | 适用范围 | M3（Roster 与委派）：`@botharness/client` ↔ `@botharness/core` 的读模型契约     |
 | 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）                              |
 | 上位规格 | `docs/botharness.md` §6；架构 `docs/architecture/botharness-architecture.md` §8 |
@@ -13,14 +13,14 @@
 
 Web Client 是**独立的浏览器 Cordis 应用**，与 Host 分开组装、分开加载；分层是「Host 状态 → Remote 传输 → Client model → UI adapter → Slots」。因此 `ctx.provide('botharness', core)` 只对 Host 内插件可见，浏览器半侧**不能** `inject` 该服务。
 
-core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只依赖这份 wire 契约，不依赖任何 Host 对象。方法名与信封在 M3 实现时冻结，本文标「初稿」处允许改名。
+core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只依赖这份 wire 契约，不依赖任何 Host 对象。方法名与信封已随 M3.1 实现冻结。
 
 ## 2. 传输与信封
 
 - 通道：通用 Connection RPC（共享 `/api`），无需 Typert 代码生成。
 - 客户端调用：`ctx.connection.rpc.call('/api', 'botharness/<method>', payload, signal)`
 - Host 注册：`ctx.connection.rpc.intercept('/api', …)`，或精确路由 `ctx.connection.fetch.register({ path: '/api/…' })`。
-- 响应信封（初稿）：
+- 响应信封：
 
   ```ts
   type BridgeResult<T> =
@@ -30,20 +30,20 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 - `code` 用稳定枚举（如 `invalid-slug`、`duplicate`、`not-found`、`invalid-input`），`message` 只供展示；服务端错误不得带堆栈或凭据。
 
-## 3. 方法面（初稿）
+## 3. 方法面
 
 命名一律 `botharness/<method>`，unary、无副作用泄漏；写方法与读方法同一信封。
 
-| 方法                | 入参（初稿）                                                                   | 出参（初稿）                            | 说明                                |
-| ------------------- | ------------------------------------------------------------------------------ | --------------------------------------- | ----------------------------------- |
-| `botharness/list`   | `{ query?, since? }`                                                           | `{ bots: PersonaBotSummary[]; cursor }` | roster 名册；`since` 增量           |
-| `botharness/get`    | `{ slug }`                                                                     | `{ bot: PersonaBotDetail }`             | 详情（含记忆入口、workspaces）      |
-| `botharness/create` | `{ slug, displayName, persona?, model?, preset?, workspaces?, avatarSeed? }`   | `{ bot: PersonaBotDetail }`             | 新建向导；persona 写入 `PERSONA.md` |
-| `botharness/update` | `{ slug, patch: { displayName?, model?, preset?, workspaces?, avatarSeed? } }` | `{ bot: PersonaBotDetail }`             | 编辑；不写 persona（人属）          |
-| `botharness/pause`  | `{ slug }`                                                                     | `{ bot: PersonaBotDetail }`             | 暂停后续委派；状态仍在读模型中      |
-| `botharness/resume` | `{ slug }`                                                                     | `{ bot: PersonaBotDetail }`             | 恢复委派                            |
+| 方法                | 入参                                                                                               | 出参                                    | 说明                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- |
+| `botharness/list`   | `{ query?, since? }`                                                                               | `{ bots: PersonaBotSummary[]; cursor }` | roster 名册；`since` 增量                                     |
+| `botharness/get`    | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 详情（含记忆入口、workspaces）                                |
+| `botharness/create` | `{ slug, displayName, persona?, tag?, description?, model?, preset?, workspaces?, avatarSeed? }`   | `{ bot: PersonaBotDetail }`             | 新建向导；persona 写入 `PERSONA.md`（缺省占位、已存在不覆盖） |
+| `botharness/update` | `{ slug, patch: { displayName?, tag?, description?, model?, preset?, workspaces?, avatarSeed? } }` | `{ bot: PersonaBotDetail }`             | 编辑；不写 persona（人属）；空字符串清空可选字段              |
+| `botharness/pause`  | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 暂停后续委派；状态仍在读模型中（`paused: true`）              |
+| `botharness/resume` | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 恢复委派；读模型清除 `paused`                                 |
 
-`PersonaBotSummary` 至少含 `slug / displayName / avatarSeed / aggregateState / updatedAt`；`aggregateState` 为五态聚合（六态是展示派生，见 `docs/botharness.md` §3）。委派（delegate）与记忆编辑不在本初稿：前者依赖工位会话（M3 并行设计），后者复用 `memory_*` 工具语义后另行补方法。
+`PersonaBotSummary` 含 `slug / displayName / tag? / description? / avatar? / paused? / aggregateState / workspaces / createdAt`；`PersonaBotDetail` 追加 `model? / preset? / memoryDir? / sessions`。`aggregateState` 为五态聚合（六态是展示派生，见 `docs/botharness.md` §3）。委派（delegate）与记忆编辑不在已实现面：前者依赖工位会话，后者复用 `memory_*` 工具语义后另行补方法。
 
 ## 4. 刷新与变更模型
 
@@ -80,7 +80,7 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 
 ## 8. 未决
 
-- `list/get` 已实现（`packages/core/src/bridge/`，字段：`slug/displayName/avatar/aggregateState/workspaces/createdAt`）；`create/update/pause/resume` 待补；全部冻结后本页升 v1.0。
+- 六个桥方法（`list/get/create/update/pause/resume`）已实现（`packages/core/src/bridge/`）；写方法只落 `bot.json`，persona 仅 create 时写 `PERSONA.md` 且不覆盖。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态实时性等级与私有流（如做）的鉴权与背压。

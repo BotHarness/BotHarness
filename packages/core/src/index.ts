@@ -25,8 +25,10 @@ export { isPersonaBotRecord } from './bots/persona-bot.js';
 export type {
   CreatePersonaBotInput,
   CreatePersonaBotResult,
+  PersonaBotPatch,
   PersonaBotRecord,
   RemovePersonaBotOptions,
+  UpdatePersonaBotResult,
 } from './bots/persona-bot.js';
 export { isValidSlug, MAX_SLUG_LENGTH, SLUG_PATTERN } from './bots/slug.js';
 export { aggregateSessionStates, createBotStateTracker } from './state/bot-state.js';
