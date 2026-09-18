@@ -1,0 +1,24 @@
+{
+  "name": "deepseekbot",
+  "version": "0.0.0",
+  "private": true,
+  "description": "DeepSeekBot bundle: BotHarness core + web client, installed as one profile layer",
+  "files": [
+    "cordis.patch.yml"
+  ],
+  "type": "module",
+  "peerDependencies": {
+    "@botharness/client": "*",
+    "@botharness/core": "*"
+  },
+  "engines": {
+    "dsh": "0.1.5-rc.2",
+    "node": ">=22"
+  },
+  "dsh": {
+    "manifestVersion": 1,
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
