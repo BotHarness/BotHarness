@@ -79,7 +79,7 @@
 - **入口与 Bot Inbox**：所有来源事件（Channel / DM / Bridge / 其他 Session / 系统，将来 webhook）进入 PersonaBot 的 Bot Inbox——派生投影而非队列；投递 ≠ 已处理，忽略是合法结果。准入由 **Channel membership** 策略决定（`muted` / `mentions` / `all`，默认 `all`）；事件再分触发：immediate（@我、DM、blocked/审批、其他 Session 直接消息）立即唤醒；digest（普通未读，默认 30 秒或 5 条合并为有界摘要）；silent（只记录）。可过滤维度：`type ∈ {user, bot, bridged}` × `channel` × `unread`。触发策略为 Host 强制的 durable 配置，Settings UI 可改；Orchestrator 只决定每批怎么处理（ADR-0025）。
 - **Orchestrator Session（主会话）**：每 PersonaBot 同一时刻一个，长期存续但不持续跑 turn——按 Bot Inbox 批次唤醒；决定回复、派发给已有工作 Session、或新开 Session；上下文交给 DSH `compaction-basic`，Session id 保持稳定（ADR-0024）。它默认独占 Channel 工具（"一张嘴"）。
 - **工作 Session**：独立 root Session，可位于不同 Workspace（`ensureSession(sessionId, cwd)`），可并行多个；每个 Session 的 Agent 可再派生 DSH subagent 做会话内子任务，但 subagent 不构成 PersonaBot 级身份（ADR-0024）。
-- **Channel 与 Bridge**：Channel（`dm` / `group chat`）历史为每 Channel append-only NDJSON（ADR-0030）；Bridge 可把外部来源投递到 Channel 或直接进 Bot Inbox，出站回复默认免审批并按外部 thread 路由；发送者本人不入自己的 Bot Inbox，平台回显按外部 id 去重（ADR-0026 增补）。
+- **Channel 与 Bridge**：Channel（`dm` / `group chat`）历史为每 Channel append-only NDJSON（ADR-0030）；Bridge 可把外部来源投递到 Channel 或直接进 Bot Inbox，出站回复默认免审批并按外部 thread 路由；发送者本人不入自己的 Bot Inbox，平台回显按外部 id 去重（ADR-0026 增补）；用户自配 Bridge 可能再次带回 BOT 自己的历史消息——不阻止、不校验，来源（Bridge / 外部 thread / 外部作者）记录在消息上供 BOT 识别。
 - **Agent 消息工具**：`inbox_list` / `channel_read` / `channel_history` / `channel_send`；默认仅 Orchestrator Session 可见，经 `capabilities.tools.allow` 控制（ADR-0029）。
 - **Session 间消息**：同一 PersonaBot 内可直接互发（Host 总线，`plugin` + relay 注入；请求-回复带超时与 interrupt），Orchestrator 留 audit 副本；跨 PersonaBot 暂经 Orchestrator（后置）。投递是 hint，不承诺 exactly-once。
 - **状态感知**：Orchestrator 默认 pull（`sessionQuery` 读状态/最近输出，零打扰）；工作 Session 在里程碑、阻塞、需要决策时 push（immediate）。Memory 只放长期事实。

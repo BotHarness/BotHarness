@@ -1,0 +1,63 @@
+---
+title: 概念
+description: BOT 模式、Channel、Channel section、inbox、Bridge、Session 与 Builder。
+sidebar:
+  order: 30
+---
+
+BotHarness 给你的是 **PersonaBot**：带人格、且记忆能跨 Session 存续的 Bot。在 DSH Web UI 里，你通过 **BOT 模式**使用它们。
+
+## 两种模式
+
+- **DSH 模式** 是原生 harness：Workspace 下挂 Session，你先选目录再工作。
+- **BOT 模式** 以聊天为先：你和 Bot 对话，Session 是聊天背后的执行细节。
+
+切换入口是「新会话」下方的 **BOT 模式**；点「新会话」总是回到 DSH 模式。
+
+## 和 Bot 对话
+
+- 点击一个 Bot 打开的是 **DM**——聊天，不是 session 界面。你不会看到 thinking 或工具调用轨迹，那些留在幕后。
+- **群聊**（chatroom）和 IM 一样：建一个 Channel，把 Bot 和人拉进来，大家一起读写。
+- 你发消息，Bot 处理完后回复。未读事件显示为红点，直到你读过。
+
+## Channel 与 Channel section
+
+**Channel** 是会话空间，类型分为 **DM**（一个 Bot 与一个人）和 **group chat**（多成员，也就是群聊）。Channel 的历史保存在本地、是可读的文件——你的聊天记录属于你。
+
+**Channel section** 是你自建的可折叠分组，用来组织 Channel。它只是本地摆放方式（像聊天应用里的分组），不会随 Bot 导出。
+
+## Bot Inbox 与 Human Inbox
+
+每个 Bot 有一个 **Bot Inbox**：来自它的 Channel 与 Bridge 的、被接收的事件。Bot 像人一样清理收件箱——阅读、标记已读、采取行动；需要旧上下文时，它也会按需翻阅 Channel 历史，一次翻一点。
+
+Dashboard 上的 **Human Inbox** 汇总所有 Bot 中需要*你*处理的事情。
+
+对每个 Channel，Bot 的通知策略是 `muted`、`mentions` 或 `all`（默认 `all`：加入 Channel 即接收全部消息）。被 @ 一定唤醒。
+
+## Session、右侧面板与 Workspace
+
+Bot 的工作在 **Session** 中进行。DM 或 Channel 的右侧面板列出该 Bot 的 Session——状态、Workspace、最近活动——点击可打开；目前只读。
+
+Bot 的 **主会话** 长期存续：它盯住 Bot Inbox，决定回复什么、派发什么、要不要新开 Session。它会出现在右侧面板，标注为「主会话」。
+
+Bot 不被绑定在某个目录：它可以在你的整台电脑上工作。每个 Session 仍运行在一个 Workspace 目录里；当 Bot 需要访问习惯目录之外的文件时，会先问你（复用 DSH approval）。
+
+## Bridge
+
+**Bridge** 把外部来源——飞书群 / thread、直播间、webhook——接到某个 Channel 或直接接到 Bot 的 Bot Inbox。它负责入站投递，并知道回复发到哪里（例如正确的飞书 thread）。
+
+对外部聊天的回复默认直接发送，不需要额外审批；其他外部动作仍会询问。
+
+如果你桥接的来源里包含某个 Bot 早先发出的消息，这条消息可以正常再次进入 inbox。我们会记录每条消息的来源——Bridge、外部 thread、作者——而不是静默拦截你的配置。
+
+## Builder 与创建 Bot
+
+第一次还没有任何 Bot 时，会出现 **创建 Bot** 按钮。它会创建 **Builder**：一个内置标准人格的普通 Bot，通过对话帮你创建其他 Bot。你可以编辑或删除它。
+
+此后，**+** 按钮提供两种创建方式：和 Builder 对话，或填表。
+
+任何 Bot 在工具白名单允许 `bot_create` 时都能创建 Bot；Builder 默认包含该工具。
+
+## 记忆
+
+人格与记忆属于 Bot，而不属于某个 Session：每个 Session、每个聊天、每个 Workspace 里都是同一份记忆。聊天记录存在 Channel 里；Session 日志是执行轨迹，不是你的聊天记录。
