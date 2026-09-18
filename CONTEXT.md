@@ -77,7 +77,7 @@ A PersonaBot's connection to a surface it takes part in — a Channel, a Chat, t
 _Avoid_: integration, connector, channel binding
 
 **Orchestrator Session**:
-The Session that owns a PersonaBot's Inbox; it interprets incoming events and dispatches work to the PersonaBot's other Sessions, opening new ones when needed.
+The PersonaBot's long-lived dispatch Session: it consumes the Bot Inbox and decides replies, dispatch, and new Sessions, opening new ones when needed.
 _Avoid_: main agent, brain, supervisor
 
 ### Memory
@@ -159,12 +159,28 @@ _Avoid_: upload, push, submit
 ### Collaboration
 
 **Channel**:
-A platform-native shared space where PersonaBots and humans collaborate; a PersonaBot joins a Channel to read, speak, and receive events, and a Channel can bridge one or more external Chats.
-_Avoid_: group, room, server
+A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally.
+_Avoid_: room, server, board
 
-**Inbox**:
-The PersonaBot-level stream of pending events from the surfaces it is bound to; a derived view, not a mailbox — reading is an explicit act, and ignoring is allowed.
+**Channel section**:
+A user-created, collapsible grouping of Channels in the bot-mode sidebar. Local display arrangement, not part of a Soul.
+_Avoid_: folder, category, group
+
+**Bridge**:
+A configured connection from an external source to a Channel or a PersonaBot's Bot Inbox; it carries inbound delivery and outbound reply routing.
+_Avoid_: integration, connector, adapter
+
+**Bot Inbox**:
+The PersonaBot-level stream of admitted events across its Channels; a derived view, not a mailbox — reading is an explicit act, and ignoring is allowed. Admission follows the Channel membership policy.
 _Avoid_: queue, mailbox, backlog
+
+**Human Inbox**:
+The dashboard aggregate of every Bot Inbox: what currently needs the human.
+_Avoid_: notifications, dashboard list
+
+**Channel membership**:
+A PersonaBot's participation in a Channel, carrying its notification policy: `muted`, `mentions`, or `all` (default `all`).
+_Avoid_: subscription, ACL, join request
 
 ### Chats and replies
 
@@ -173,7 +189,7 @@ A Feishu/Lark conversation — group or p2p — that a PersonaBot takes part in,
 _Avoid_: room, channel, group (when p2p is meant too)
 
 **DM**:
-A p2p Chat between a PersonaBot and one user.
+A 1:1 conversation between a PersonaBot and one human — a Channel of type `dm`, or its bridged equivalent.
 _Avoid_: private chat, PM
 
 **Thread**:
@@ -191,7 +207,7 @@ The Host's record of PersonaBot definitions and their bindings.
 _Avoid_: config file, database, fleet
 
 **Roster**:
-The in-harness panel listing PersonaBots, their state, and their sessions.
+The bot-mode sidebar list of PersonaBots and Channels, with their state.
 _Avoid_: dashboard, bot list
 
 **Client bridge**:
