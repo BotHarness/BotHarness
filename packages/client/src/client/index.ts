@@ -1,61 +1,78 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
-import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
-import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
+import type { ILayout, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
-import { RosterIcon } from './roster-icon.js';
-import { RosterPanel, type RosterPanelFace } from './roster-panel.js';
+import { BotPanelIcon, BotModeToggle, BotSidebar } from './bot-sidebar.js';
+import { BotMain, BotPanel } from './bot-main.js';
+import { createBridgeCall, loadBots } from './bridge.js';
+import { CSS } from './styles.js';
+import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers'];
+export const inject = ['slots', 'connection', 'inputTriggers', 'layout'];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
-interface BridgeRpc {
-  call(
-    channel: string,
-    endpoint: string,
-    payload: unknown,
-    signal?: AbortSignal,
-  ): Promise<ConnectionRpcResult<unknown>>;
+function installStyles(): () => void {
+  if (typeof document === 'undefined') return () => {};
+  const style = document.createElement('style');
+  style.setAttribute('data-botharness', 'client');
+  style.textContent = CSS;
+  document.head.appendChild(style);
+  return () => {
+    style.remove();
+  };
 }
 
-/**
- * Read the browser Connection service structurally: DSH ships the
- * `Context.connection` merge on the Host root only, and the assembled app
- * provides the service at runtime through the Connection plugin.
- */
-function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
-  const candidate = (ctx as unknown as { connection?: { rpc?: BridgeRpc } }).connection;
-  return candidate?.rpc;
+function toggleMode(ctx: ClientContext): void {
+  const next = store.getSnapshot().mode === 'bot' ? 'dsh' : 'bot';
+  const layout = (ctx as unknown as { layout?: ILayout }).layout;
+  if (layout === undefined) {
+    store.setMode(next);
+    return;
+  }
+  layout.selectPanel(next === 'bot' ? PANEL_ID : null);
+}
+
+function registerModeShadow(
+  ctx: ClientContext,
+  name: 'sidebar.workspaces' | 'main',
+  register: () => () => void,
+): void {
+  ctx.slots.inject(name, () => {
+    let dispose: (() => void) | undefined;
+    const reconcile = (): void => {
+      if (store.getSnapshot().mode === 'bot') {
+        if (dispose === undefined) dispose = register();
+      } else if (dispose !== undefined) {
+        dispose();
+        dispose = undefined;
+      }
+    };
+    const unsubscribe = store.subscribe(reconcile);
+    reconcile();
+    return () => {
+      unsubscribe();
+      dispose?.();
+      dispose = undefined;
+    };
+  });
 }
 
 export function apply(ctx: ClientContext): void {
-  const call = async (
-    endpoint: string,
-    payload: Record<string, unknown>,
-    signal?: AbortSignal,
-  ): Promise<ConnectionRpcResult<unknown>> => {
-    const rpc = connectionRpc(ctx);
-    if (rpc === undefined) {
-      return {
-        ok: false,
-        error: { code: 'unavailable', message: 'Connection RPC is not available', details: {} },
-      };
-    }
-    return rpc.call('/api', `botharness/${endpoint}`, payload, signal);
-  };
+  const call = createBridgeCall(ctx);
 
-  const face: RosterPanelFace = {
-    async list(query) {
-      const result = await call('list', query === undefined ? {} : { query });
-      if (!result.ok) throw new Error(result.error.message);
-      return result.value;
-    },
-  };
+  ctx.effect(installStyles, 'botharness: client styles');
+  ctx.effect(() => {
+    const controller = new AbortController();
+    void store.load((signal) => loadBots(call, signal), controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, 'botharness: roster load');
 
   ctx.slots.inject('sidebar.panellist', () =>
     ctx.slots.register(
@@ -65,17 +82,39 @@ export function apply(ctx: ClientContext): void {
         order: 20,
         label: () => 'PersonaBots',
       },
-      RosterIcon,
+      BotPanelIcon,
     ),
   );
+
+  ctx.slots.inject('sidebar.footer.action', () =>
+    ctx.slots.register(
+      {
+        name: 'sidebar.footer.action',
+        id: 'botharness-mode',
+        order: 100,
+        inject: () => ({ toggleMode: () => toggleMode(ctx) }),
+      },
+      BotModeToggle,
+    ),
+  );
+
   ctx.slots.inject('main', () =>
     ctx.slots.register(
       {
         name: 'main',
         key: PANEL_ID,
-        inject: () => face,
       },
-      RosterPanel,
+      BotPanel,
+    ),
+  );
+
+  registerModeShadow(ctx, 'sidebar.workspaces', () =>
+    ctx.slots.register({ name: 'sidebar.workspaces', priority: -100 }, BotSidebar),
+  );
+  registerModeShadow(ctx, 'main', () =>
+    ctx.slots.register(
+      { name: 'main', key: 'conversation' as MainPanelId, priority: -100 },
+      BotMain,
     ),
   );
 

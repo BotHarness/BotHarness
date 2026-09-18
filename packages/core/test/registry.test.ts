@@ -128,6 +128,8 @@ describe('createPersonaBotRegistry', () => {
     const result = registry.create({
       slug: 'research',
       displayName: '研究助手',
+      tag: '研究',
+      description: '检索与写作',
       avatar: 'blue',
       model: 'deepseek-chat',
       preset: 'standard',
@@ -135,11 +137,33 @@ describe('createPersonaBotRegistry', () => {
     });
 
     expect(result.ok && result.record).toMatchObject({
+      tag: '研究',
+      description: '检索与写作',
       avatar: 'blue',
       model: 'deepseek-chat',
       preset: 'standard',
       workspaces: ['/srv/materials'],
     });
+  });
+
+  it('trims tag and description and omits blank ones', () => {
+    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    const padded = registry.create({
+      slug: 'padded',
+      displayName: 'Padded',
+      tag: '  研究  ',
+      description: '  一行简介  ',
+    });
+    const blank = registry.create({
+      slug: 'blank',
+      displayName: 'Blank',
+      tag: '   ',
+      description: '',
+    });
+
+    expect(padded.ok && padded.record).toMatchObject({ tag: '研究', description: '一行简介' });
+    expect(blank.ok && 'tag' in blank.record).toBe(false);
+    expect(blank.ok && 'description' in blank.record).toBe(false);
   });
 
   it('lists bots sorted and skips junk entries and poisoned records', () => {

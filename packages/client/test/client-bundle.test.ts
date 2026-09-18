@@ -36,6 +36,10 @@ beforeAll(async () => {
         },
       },
     },
+    TextEncoder,
+    TextDecoder,
+    AbortController,
+    AbortSignal,
     console,
   };
   vm.createContext(sandbox);
@@ -60,10 +64,10 @@ describe('@botharness/client browser bundle', () => {
     expect(bundleCode).not.toContain('require("@deepseek-ai/');
   });
 
-  it('exposes the plugin and registers the roster panel plus the @ mention source', () => {
+  it('exposes the plugin and registers the DSH-mode entries plus the @ mention source', () => {
     const plugin = loadedEntry().factory((id) => requireFromTest(id));
     expect(plugin['name']).toBe('botharness-client');
-    expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers']);
+    expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers', 'layout']);
 
     const registered: string[] = [];
     const sources: unknown[] = [];
@@ -80,6 +84,9 @@ describe('@botharness/client browser bundle', () => {
           call: async () => ({ ok: true, value: { bots: [] } }),
         },
       },
+      layout: {
+        selectPanel: () => undefined,
+      },
       inputTriggers: {
         registerSource: (source: unknown) => {
           sources.push(source);
@@ -94,8 +101,62 @@ describe('@botharness/client browser bundle', () => {
 
     (plugin['apply'] as (ctx: unknown) => void)(scoped);
 
-    expect(registered).toEqual(['sidebar.panellist', 'main']);
+    expect(registered).toEqual(['sidebar.panellist', 'sidebar.footer.action', 'main']);
     expect(sources).toHaveLength(1);
     expect((sources[0] as { trigger?: string }).trigger).toBe('@');
+  });
+
+  it('shadows the workspaces region and the conversation panel in bot mode', () => {
+    const plugin = loadedEntry().factory((id) => requireFromTest(id));
+
+    interface ShadowSpec {
+      name: string;
+      key?: string;
+      priority?: number;
+      inject?: () => Record<string, unknown>;
+    }
+
+    const registered: ShadowSpec[] = [];
+    const disposed: ShadowSpec[] = [];
+    const scoped = {
+      slots: {
+        inject: (_name: string, callback: () => unknown) => callback(),
+        register: (spec: ShadowSpec) => {
+          registered.push(spec);
+          return () => {
+            disposed.push(spec);
+          };
+        },
+      },
+      connection: {
+        rpc: {
+          call: async () => ({ ok: true, value: { bots: [] } }),
+        },
+      },
+      inputTriggers: {
+        registerSource: () => () => undefined,
+      },
+      effect: (callback: () => unknown) => {
+        callback();
+        return () => undefined;
+      },
+    };
+
+    (plugin['apply'] as (ctx: unknown) => void)(scoped);
+    expect(registered.map((spec) => spec.name)).toEqual([
+      'sidebar.panellist',
+      'sidebar.footer.action',
+      'main',
+    ]);
+
+    const footer = registered.find((spec) => spec.name === 'sidebar.footer.action');
+    const face = footer?.inject?.() as { toggleMode: () => void } | undefined;
+    face?.toggleMode();
+
+    expect(registered[3]).toEqual({ name: 'sidebar.workspaces', priority: -100 });
+    expect(registered[4]).toEqual({ name: 'main', key: 'conversation', priority: -100 });
+
+    face?.toggleMode();
+    expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 });

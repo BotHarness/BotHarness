@@ -10,6 +10,8 @@ import type {
 export interface PersonaBotSummary {
   slug: string;
   displayName: string;
+  tag?: string;
+  description?: string;
   avatar?: string;
   aggregateState: AggregatedState;
   workspaces: string[];
@@ -63,6 +65,8 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     aggregateState: snapshot.state,
     workspaces: [...record.workspaces],
     createdAt: record.createdAt,
+    ...(record.tag === undefined ? {} : { tag: record.tag }),
+    ...(record.description === undefined ? {} : { description: record.description }),
     ...(record.avatar === undefined ? {} : { avatar: record.avatar }),
   };
 }
