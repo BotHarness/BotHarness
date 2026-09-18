@@ -1,0 +1,29 @@
+---
+name: dsh-ui
+description: Use when building, styling, or reviewing in-harness UI — the BotHarness client plugin inside the DeepSeek Harness Web Client. Trigger on new or changed components under `packages/client`, layout or padding alignment with native DSH, tokens/primitives or theme questions, slot and shadow wiring, and any "match the native shell" request.
+---
+
+# DSH-native UI
+
+The in-harness UI is part of the shell, not a standalone app (ADR-0028): style with `--dsw-*` tokens, compose with `ui-primitives`, and copy the native layout contract instead of inventing spacing. **Measure the running shell; do not guess.**
+
+## Build order
+
+1. **Slot wiring** — register through the documented seams: `sidebar.footer.action` for the persistent entry; shadow `sidebar.workspaces` and `main key=conversation` only while a mode is active, reconciling from one store and disposing on exit. Keep one entry per concept. Done when the entry appears in the running shell and the shipped UI returns intact when the mode is off.
+2. **Tokens** — every colour, font, and radius reads from `--dsw-*` (static/alias/specific layers); dark arrives through `body[data-ds-dark-theme]`. Brand accents stay inside the ≤3-entry alias block. Done when the `styles-tokens` guard passes and a dark pass shows no unreadable text.
+3. **Layout** — apply the native inset contract in `references/native-contract.md`. Done when top-level content measures 16px from both sidebar edges and list-row backgrounds reach the scrollbar gutter.
+4. **Primitives & icons** — use the exported set (`Input`, `Tag`, `Pill`, `StateDot`, `Tooltip`, …) and `Icon*Outline16` glyphs where geometry matches; keep a custom icon only where the set has no analogue. Done when controls sit on the shell's grid; record every deliberate omission (for example the 36px capsule `Button`) in the PR.
+5. **Verify & ship** — `pnpm format && pnpm lint && pnpm typecheck && pnpm test && pnpm build`; confirm the client bundle requires only react-family plus declared baseline modules; check the `web-dev` profile in light and dark. Done when the bundle revision changed and both themes pass by eye.
+
+## Rules
+
+- **Native lookups beat intuition**: extract the shipped CSS from the installed packages before adding spacing or a control (`references/native-contract.md` has the recipe).
+- **One authority per concept**: one mode entry, one projection of state; a second entry point reads as a second feature.
+- **Tokens over literals**; the guard test enforces it.
+- **Baseline externals only** in the client bundle; adding one updates the bundle contract test in the same commit.
+- **Modes unwind**: shadows and listeners reconcile from a single store and dispose cleanly.
+
+## Reference
+
+- `references/native-contract.md` — measured sidebar geometry, the shipped-CSS extraction recipe, and the headless measurement script.
+- `docs/adr/0028-in-harness-ui-uses-dsh-design-system.md` and `docs/research/2026-09-18-dsh-design-tokens-vs-coss.md` hold the decision and the token inventory.

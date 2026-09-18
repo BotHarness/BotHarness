@@ -53,3 +53,7 @@ When creating or updating a PR, use the `visual-pr` skill to write the descripti
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). See `docs/agents/domain.md`.
+
+### UI guidelines
+
+Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens, `ui-primitives`, the native inset contract, and the measure-the-shell workflow (ADR-0028).
