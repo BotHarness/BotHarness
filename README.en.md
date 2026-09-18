@@ -56,4 +56,4 @@ packages/im          @botharness/im     # IM adapter (M5)
 packages/deepseekbot deepseekbot        # bundle + app (later)
 ```
 
-The M1 scaffold (plugin entry, settings namespace, workspace→bot resolution) now lives in `packages/core`; the resolver is kept as the IM binding helper.
+The M1 scaffold (plugin entry, workspace→bot resolution) now lives in `packages/core`; the resolver is kept as the IM binding helper.

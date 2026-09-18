@@ -7,7 +7,6 @@ export {
   MEMORY_TREE_SECTION_ORDER,
   name,
   PERSONA_SECTION_ORDER,
-  SETTINGS_NAMESPACE,
 } from './plugin.js';
 export type { BotHarnessConfig, BotHarnessCore } from './plugin.js';
 export { createPersonaBotRegistry } from './bots/registry.js';

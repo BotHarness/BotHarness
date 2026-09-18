@@ -14,16 +14,19 @@ flowchart LR
   subgraph Host["DSH Host · 单进程"]
     IM["dsh-im 基座<br/>通道 · 会话路由 · 流式卡片 · 设置页"]
     Core["@botharness/core<br/>registry · 状态 · IM 绑定解析"]
-    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
     Agent["DSH Agent<br/>每 Session 一个执行体"]
+  end
+
+  subgraph Browser["Web Client · 浏览器（独立 Cordis 应用）"]
+    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
   end
 
   User -->|"@ / 委派"| Client
   User -->|"群消息"| Feishu
   Feishu <-->|"长连接（出站）"| IM
   IM --> Agent
-  Client --> Agent
-  Core -.->|"provide('botharness')"| Client
+  Core -->|"RPC（读模型）"| Client
+  Client -.->|"RPC（写操作）"| Core
   Core -.->|"只读 config.json / workspaces.json"| IM
   Agent -.->|"状态事件（M3 接入）"| Core
 
@@ -35,7 +38,7 @@ flowchart LR
   class Client later;
 ```
 
-两条入口（DSH Web 的 roster/委派、飞书群的 IM），同一颗 PersonaBot 大脑。
+两条入口（DSH Web 的 roster/委派、飞书群的 IM），同一颗 PersonaBot 大脑。浏览器半侧不是 Host 进程的一部分：跨进程只有 RPC（ADR-0023）。
 
 ## 2 · 模块与包
 
@@ -53,7 +56,7 @@ flowchart TB
   Bundle --> ImPkg
 
   subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply / settings / provide"]
+    Plugin["plugin.ts<br/>apply(config) / provide"]
     Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录 · findByWorkspace"]
     Slug["bots/slug.ts"]
     Record["bots/persona-bot.ts"]
@@ -92,20 +95,20 @@ flowchart TB
   class Bundle,ClientPkg,ImPkg later;
 ```
 
-| 模块                     | 职责                                                                                        | 状态             |
-| ------------------------ | ------------------------------------------------------------------------------------------- | ---------------- |
-| `plugin.ts`              | 插件入口：settings 命名空间 + `provide('botharness')`；`createCore()` 组装                  | M1 ✅            |
-| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                         | M1 ✅            |
-| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed` | M1 ✅            |
-| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                     | M1 ✅（M5 接线） |
-| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                       | M2 ✅            |
-| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                | M2 ✅            |
-| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                    | M2 ✅            |
-| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt      | M2 ✅            |
-| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）   | M2 ✅            |
-| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）       | M2 ✅            |
-| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`            | M2 ✅            |
-| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                              | M3               |
+| 模块                     | 职责                                                                                           | 状态             |
+| ------------------------ | ---------------------------------------------------------------------------------------------- | ---------------- |
+| `plugin.ts`              | 插件入口：`apply(ctx, config)`（`enabled` 门控）+ `provide('botharness')`；`createCore()` 组装 | M1 ✅            |
+| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                            | M1 ✅            |
+| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed`    | M1 ✅            |
+| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                        | M1 ✅（M5 接线） |
+| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                          | M2 ✅            |
+| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                   | M2 ✅            |
+| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                       | M2 ✅            |
+| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt         | M2 ✅            |
+| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）      | M2 ✅            |
+| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）          | M2 ✅            |
+| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`               | M2 ✅            |
+| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                                 | M3               |
 
 ## 3 · 装载与服务暴露
 
@@ -115,22 +118,26 @@ sequenceDiagram
   participant P as @botharness/core · plugin.ts
   participant M as memory/service.ts
   participant T as memory/tools.ts
-  participant O as 其他插件（client / im / 第三方）
+  participant O as Host 插件（im / 第三方）
+  participant C as Web Client（浏览器）
 
-  D->>P: apply(ctx)
-  P->>D: settings.register('botharness')
+  D->>P: apply(ctx, config)
   P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })
+  P->>D: provide('botharness', { rootDir, registry, states, memory })（仅 Host 内）
   P->>T: createMemoryTools({ resolveStore })
   T-->>P: memory_* 工具
   P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
   P->>D: systemPrompt.section(persona · memory-tree)
   O->>D: inject(['botharness'])
   D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...) 拿实时状态<br/>经 memory.storeForAgent 取该 Session 的记忆
+  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...)（仅 Host 内）
+  C->>D: connection.rpc.call('/api', 'botharness/<method>')（M3 起）
+  D-->>C: { ok, value | error }
+  Note over P: M3：经 connection.rpc / fetch 注册读模型端点（ADR-0023）
+  Note over C: 读模型 + 刷新/轮询；不 inject Host 服务，<br/>不直接订阅 states.on
 ```
 
-一切走 Cordis 服务总线，无文件轮询。
+Host 内一切走 Cordis 服务总线；浏览器半侧经客户端桥 RPC 读模型，不跨进程 inject、无文件轮询。
 
 ## 4 · 创建 PersonaBot（数据流）
 
@@ -192,6 +199,8 @@ stateDiagram-v2
 | `session-changed`   | 任一 Session 状态变化（含聚合不动时） | 会话详情             |
 | `session-removed`   | 会话结束 / 清理                       | 树刷新               |
 
+事件只在 Host 进程内发出。浏览器端不直接订阅：roster 经客户端桥读模型 + 刷新/轮询获得状态（ADR-0023）。
+
 ## 7 · 磁盘数据
 
 我们的（registry 写入）：
@@ -214,14 +223,16 @@ $DSH_HOME/integrations/dsh-feishu/
 
 ## 8 · 通信与边界
 
-| 通道                         | 方向                    | 说明                                         |
-| ---------------------------- | ----------------------- | -------------------------------------------- |
-| Cordis 服务 `provide/inject` | core → client/im/第三方 | `botharness` 服务；无全局单例                |
-| Tracker 订阅 `states.on()`   | core → client           | 进程内事件，非轮询                           |
-| DSH 事件总线 `ctx.on`        | DSH/dsh-im → core       | M3 接 `agent/*` 驱动状态                     |
-| 飞书 / Lark                  | dsh-im ↔ 开放平台       | 长连接出站；无公网入口（webhook 例外见 PRD） |
-| dsh-im 磁盘                  | 只读                    | 只经 `im/` 一个模块；不 fork / 不 patch      |
-| Secrets                      | —                       | 只在 DSH credentials 服务；仓库零明文        |
+| 通道                                 | 方向                          | 说明                                                                                   |
+| ------------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------- |
+| Host 内 Cordis 服务 `provide/inject` | core → Host 插件（im/第三方） | `botharness` 服务仅同进程可见；无全局单例                                              |
+| Host 内 Tracker 订阅 `states.on()`   | core → Host 消费者            | 进程内事件，非轮询；浏览器不直接订阅                                                   |
+| 浏览器内 Cordis（slots/触发源等）    | client 插件之间               | Web Client 是独立 Cordis 应用，shell 基线由宿主注入                                    |
+| 跨进程 Connection RPC                | client ↔ core                 | `botharness/<method>` 读模型；`{ ok, value \| error }` + cursor；刷新/轮询（ADR-0023） |
+| DSH 事件总线 `ctx.on`                | DSH/dsh-im → core             | M3 接 `agent/*` 驱动状态                                                               |
+| 飞书 / Lark                          | dsh-im ↔ 开放平台             | 长连接出站；无公网入口（webhook 例外见 PRD）                                           |
+| dsh-im 磁盘                          | 只读                          | 只经 `im/` 一个模块；不 fork / 不 patch                                                |
+| Secrets                              | —                             | 只在 DSH credentials 服务；仓库零明文                                                  |
 
 ## 9 · 如何维护
 

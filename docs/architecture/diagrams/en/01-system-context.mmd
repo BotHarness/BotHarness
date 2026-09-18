@@ -5,16 +5,19 @@ flowchart LR
   subgraph Host["DSH Host · single process"]
     IM["dsh-im base<br/>channels · conversation routing · streaming cards · settings page"]
     Core["@botharness/core<br/>registry · state · IM binding resolution"]
-    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
     Agent["DSH Agent<br/>one executor per Session"]
+  end
+
+  subgraph Browser["Web Client · browser (separate Cordis app)"]
+    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
   end
 
   User -->|"@ / delegate"| Client
   User -->|"group message"| Feishu
   Feishu <-->|"long connection (outbound)"| IM
   IM --> Agent
-  Client --> Agent
-  Core -.->|"provide('botharness')"| Client
+  Core -->|"RPC (read model)"| Client
+  Client -.->|"RPC (writes)"| Core
   Core -.->|"read-only config.json / workspaces.json"| IM
   Agent -.->|"state events (wired in M3)"| Core
 

@@ -26,14 +26,13 @@
     "@deepseek-ai/dsh-tools": "0.1.5-rc.2"
   },
   "engines": {
+    "dsh": "0.1.5-rc.2",
     "node": ">=22"
   },
   "dsh": {
+    "manifestVersion": 1,
     "bundle": {
       "patch": "./cordis.patch.yml"
-    },
-    "compatibility": {
-      "dsh": "0.1.5-alpha.1"
     }
   }
 }
