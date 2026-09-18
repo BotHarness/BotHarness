@@ -9,6 +9,16 @@ export {
   PERSONA_SECTION_ORDER,
 } from './plugin.js';
 export type { BotHarnessConfig, BotHarnessCore } from './plugin.js';
+export { createBridgeMethods } from './bridge/methods.js';
+export type {
+  BridgeError,
+  BridgeMethods,
+  BridgeMethodsDeps,
+  BridgeResult,
+  PersonaBotDetail,
+  PersonaBotSummary,
+} from './bridge/methods.js';
+export { BRIDGE_ENDPOINT_PREFIX, createBridgeRpcHandler, registerBridge } from './bridge/rpc.js';
 export { createPersonaBotRegistry } from './bots/registry.js';
 export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
 export { isPersonaBotRecord } from './bots/persona-bot.js';

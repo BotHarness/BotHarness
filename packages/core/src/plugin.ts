@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import Schema from '@deepseek-ai/schemastery';
 
+import { createBridgeMethods } from './bridge/methods.js';
+import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
@@ -60,6 +62,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   })) {
     ctx.tools.register(tool);
   }
+
+  registerBridge(ctx, createBridgeMethods({ registry: core.registry, states: core.states }));
 
   ctx.systemPrompt.section({
     name: 'botharness:persona',

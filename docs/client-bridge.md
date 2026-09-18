@@ -66,11 +66,11 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 - **产物格式**：lazy-CJS closure factory，入口 `lib/client.js`，自注册 `window.__ModuleLoader__.load({ id: '@botharness/client', factory: (require) => { … } })`，带 sourcemap。
 - **外置基线**：只外置 shell 注入的模块表（`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`）；其余依赖（含 blobatar）全部内联。
 - **纯净门禁**：跨插件只允许 `import type`，不得值导入；跨包协作走 Cordis 服务或 slot。
-- **构建风险**：DSH 的共享客户端 preset（`clientBundle()`）未发布，本仓库需手写等价的 tsdown/rolldown 构建；这是 M3 的最大工程风险（ADR-0023）。
+- **构建**：共享 preset（`clientBundle()`）未发布，等价构建已在根 `tsdown.config.ts`（`clientBundleOptions`）实现：banner/footer 生成 closure factory，`pnpm build` 产出 `lib/client.js` + `lib/client.js.map`。契约由 `packages/client/test/client-bundle.test.ts` 覆盖（自注册、只外置 shell 基线、插件注册）。剩余风险转移到 M3.5：把该 Loader entry 装进真实 profile 并加载。
 
 ## 7. 未决
 
-- 方法名与 `PersonaBotSummary/Detail` 字段未冻结；M3 代码落地后本页回填为 v1.0。
+- `list/get` 已实现（`packages/core/src/bridge/`，字段：`slug/displayName/avatar/aggregateState/workspaces/createdAt`）；`create/update/pause/resume` 待补；全部冻结后本页升 v1.0。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态实时性等级与私有流（如做）的鉴权与背压。

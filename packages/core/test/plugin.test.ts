@@ -12,14 +12,24 @@ interface StubContext {
   tools: { register: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
   provide: ReturnType<typeof vi.fn>;
+  effect: ReturnType<typeof vi.fn>;
+  inject: ReturnType<typeof vi.fn>;
+  connection: { rpc: { intercept: ReturnType<typeof vi.fn> } };
 }
 
 function createStubContext(): StubContext {
-  return {
+  const ctx: StubContext = {
     tools: { register: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
     provide: vi.fn(),
+    effect: vi.fn((callback: () => unknown) => callback()),
+    inject: vi.fn(),
+    connection: { rpc: { intercept: vi.fn(() => async () => undefined) } },
   };
+  ctx.inject.mockImplementation((_deps: string[], callback: (scoped: StubContext) => void) => {
+    callback(ctx);
+  });
+  return ctx;
 }
 
 describe('plugin entry', () => {
@@ -79,6 +89,18 @@ describe('plugin entry', () => {
       '',
     );
     expect(tree?.text({ agent: { session: { header: { cwd: '/no/such/workspace' } } } })).toBe('');
+  });
+
+  it('registers the client bridge on the connection service', () => {
+    const ctx = createStubContext();
+
+    apply(ctx as unknown as Context, { enabled: true });
+
+    expect(ctx.connection.rpc.intercept).toHaveBeenCalledTimes(1);
+    const [channel, matches] = ctx.connection.rpc.intercept.mock.calls[0] ?? [];
+    expect(channel).toBe('/api');
+    expect(matches('botharness/list')).toBe(true);
+    expect(matches('other/list')).toBe(false);
   });
 
   it('wires the memory store into the registered memory tools and tree section', async () => {
