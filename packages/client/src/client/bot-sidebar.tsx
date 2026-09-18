@@ -117,28 +117,30 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
       <div className="bh-side-head">
         对话 <Tag tone="neutral">{contacts.length}</Tag>
       </div>
-      {contacts.map((bot) => {
-        const botState = toBotState(bot.aggregateState);
-        const selected = state.selectedSlug === bot.slug;
-        return (
-          <button
-            key={bot.slug}
-            type="button"
-            className={`bh-contact${selected ? ' bh-selected' : ''}`}
-            onClick={() => store.select(bot.slug)}
-          >
-            <Blobatar seed={bot.slug} size={34} />
-            <span className="bh-body">
-              <span className="bh-top">
-                <span className="bh-name">{bot.displayName}</span>
-                {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+      <div className="bh-list-area">
+        {contacts.map((bot) => {
+          const botState = toBotState(bot.aggregateState);
+          const selected = state.selectedSlug === bot.slug;
+          return (
+            <button
+              key={bot.slug}
+              type="button"
+              className={`bh-contact${selected ? ' bh-selected' : ''}`}
+              onClick={() => store.select(bot.slug)}
+            >
+              <Blobatar seed={bot.slug} size={34} />
+              <span className="bh-body">
+                <span className="bh-top">
+                  <span className="bh-name">{bot.displayName}</span>
+                  {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+                </span>
+                <span className="bh-msg">{bot.description ?? STATE_LABELS[botState]}</span>
               </span>
-              <span className="bh-msg">{bot.description ?? STATE_LABELS[botState]}</span>
-            </span>
-            {needsYou(botState) ? <span className="bh-unread" title="需要你" /> : null}
-          </button>
-        );
-      })}
+              {needsYou(botState) ? <span className="bh-unread" title="需要你" /> : null}
+            </button>
+          );
+        })}
+      </div>
       {contacts.length === 0 && bots.length > 0 ? (
         <div className="bh-note">没有匹配的 Bot</div>
       ) : null}
@@ -150,13 +152,15 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
       {workspaces.length === 0 ? (
         <div className="bh-note">还没有绑定工作区</div>
       ) : (
-        workspaces.map((name) => (
-          <div className="bh-ws-row" key={name}>
-            <IconFolderOpenOutline16 size={16} />
-            <span className="bh-name">{name}</span>
-            <span className="bh-meta">0 个会话</span>
-          </div>
-        ))
+        <div className="bh-list-area">
+          {workspaces.map((name) => (
+            <div className="bh-ws-row" key={name}>
+              <IconFolderOpenOutline16 size={16} />
+              <span className="bh-name">{name}</span>
+              <span className="bh-meta">0 个会话</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

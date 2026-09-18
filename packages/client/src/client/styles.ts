@@ -41,7 +41,7 @@ export const CSS = `
   gap: 6px;
   align-items: center;
   margin-bottom: 10px;
-  padding: 0 8px 0 4px;
+  padding: 0 0 0 4px;
 }
 .bh-search-input {
   flex: 1;
@@ -69,7 +69,7 @@ export const CSS = `
   grid-template-columns: 1fr 1fr;
   gap: 6px 8px;
   margin-bottom: 12px;
-  padding: 0 8px 0 4px;
+  padding: 0 0 0 4px;
 }
 .bh-pinned {
   display: flex;
@@ -125,7 +125,7 @@ export const CSS = `
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 8px 4px 4px;
+  padding: 6px 0 4px 4px;
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -133,6 +133,10 @@ export const CSS = `
   user-select: none;
 }
 
+.bh-list-area {
+  /* 原生 listArea 约定：抵消 root 的右衬，让列表行贴到滚动条边缘（行自己带 8px）。 */
+  margin-right: calc(-1 * var(--dsh-sidebar-inline-padding));
+}
 .bh-contact {
   display: flex;
   align-items: center;
@@ -208,10 +212,10 @@ export const CSS = `
 .bh-note {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
-  padding: 6px 8px 6px 4px;
+  padding: 6px 0 6px 4px;
 }
 .bh-error {
-  margin: 4px 8px 10px 4px;
+  margin: 4px 0 10px 4px;
   border: 1px solid var(--dsw-alias-state-error-secondary);
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
