@@ -26,7 +26,11 @@ export const CSS = `
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 6px 0 4px;
+  /* 原生 WorkspaceBrowser 的 root 约定：右侧内衬 = --dsh-session-list-edge-inset
+     （= --dsh-sidebar-inline-padding，12px）。外层 regionArea 已抵消 sidebar 的右
+     侧 padding 并给 4px 左衬（见 hHd-Xa_regionArea），所以注册方必须自己补右衬，
+     左衬仿其 listArea。 */
+  padding: 6px var(--dsh-sidebar-inline-padding) 4px 4px;
 }
 .bh-region-rail {
   padding: 0;
