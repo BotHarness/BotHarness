@@ -7,16 +7,32 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createBridgeRpcHandler } from '../src/bridge/rpc.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
+import { createChannelStore } from '../src/channels/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 
 const roots: string[] = [];
+
+function tickingNow(): () => Date {
+  let value = Date.parse('2026-09-19T00:00:00.000Z');
+  return () => {
+    value += 1000;
+    return new Date(value);
+  };
+}
 
 function setup() {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
   const states = createBotStateTracker();
-  return { root, registry, states, methods: createBridgeMethods({ registry, states }) };
+  const channels = createChannelStore({ rootDir: join(root, 'channels'), now: tickingNow() });
+  return {
+    root,
+    registry,
+    states,
+    channels,
+    methods: createBridgeMethods({ registry, states, channels }),
+  };
 }
 
 afterEach(() => {
@@ -288,6 +304,118 @@ describe('bridge methods', () => {
     });
   });
 
+  it('lists, opens, and creates local channels', () => {
+    const { methods } = setup();
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    expect(methods.channels({})).toEqual({ ok: true, value: { channels: [] } });
+
+    const dm = methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+    expect(dm.ok && dm.value.channel).toMatchObject({
+      id: 'dm-ada',
+      type: 'dm',
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+    });
+    const again = methods.channelDm({ slug: 'ada' });
+    expect(again.ok && again.value.channel.id).toBe('dm-ada');
+    expect(again.ok && again.value.channel.name).toBe('Ada');
+
+    const group = methods.channelCreate({ name: 'Design Team', members: ['ada', 'bob'] });
+    expect(group.ok && group.value.channel).toMatchObject({
+      id: 'group-design-team',
+      type: 'group',
+      name: 'Design Team',
+      members: ['ada', 'bob'],
+    });
+    const listed = methods.channels({});
+    expect(listed.ok && listed.value.channels.map((channel) => channel.id)).toEqual([
+      'group-design-team',
+      'dm-ada',
+    ]);
+  });
+
+  it('rejects malformed channel payloads with stable error codes', async () => {
+    const { methods } = setup();
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+
+    expect(methods.channelDm({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'slug is required' },
+    });
+    expect(methods.channelDm({ slug: 'Ada' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'invalid slug: Ada' },
+    });
+    expect(methods.channelCreate({ members: [] })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'name is required' },
+    });
+    expect(methods.channelCreate({ name: 'Team', members: 'ada' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'members must be an array of bot slugs' },
+    });
+    expect(methods.channelMessages({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'channelId is required' },
+    });
+    expect(methods.channelMessages({ channelId: 'dm-missing' })).toEqual({
+      ok: false,
+      error: { code: 'not-found', message: 'unknown Channel: dm-missing' },
+    });
+    expect(methods.channelMessages({ channelId: 'dm-ada', limit: 0 })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'limit must be a positive integer' },
+    });
+    expect(await methods.channelSend({ channelId: 'dm-ada', body: '   ' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'body is required' },
+    });
+    expect(await methods.channelSend({ channelId: 'dm-nope', body: 'hi' })).toEqual({
+      ok: false,
+      error: { code: 'not-found', message: 'unknown Channel: dm-nope' },
+    });
+  });
+
+  it('records human messages locally and pages them newest-first', async () => {
+    const { methods } = setup();
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+
+    const first = await methods.channelSend({ channelId: 'dm-ada', body: 'hello' });
+    expect(first).toEqual({
+      ok: true,
+      value: {
+        message: {
+          id: expect.any(String),
+          at: expect.any(String),
+          author: { kind: 'human' },
+          body: 'hello',
+        },
+      },
+    });
+    const second = await methods.channelSend({ channelId: 'dm-ada', body: 'again' });
+    expect(second.ok).toBe(true);
+    const third = await methods.channelSend({ channelId: 'dm-ada', body: 'third' });
+    expect(third.ok).toBe(true);
+
+    const page = methods.channelMessages({ channelId: 'dm-ada' });
+    expect(page.ok && page.value.messages.map((message) => message.body)).toEqual([
+      'third',
+      'again',
+      'hello',
+    ]);
+
+    const oldest = await methods.channelSend({ channelId: 'dm-ada', body: 'oldest' });
+    expect(oldest.ok).toBe(true);
+    const cursor = third.ok ? third.value.message.id : '';
+    const older = methods.channelMessages({ channelId: 'dm-ada', before: cursor, limit: 2 });
+    expect(older.ok && older.value.messages.map((message) => message.body)).toEqual([
+      'again',
+      'hello',
+    ]);
+  });
+
   it('maps endpoints and rejects unknown ones through the RPC handler', async () => {
     const { registry, methods } = setup();
     registry.create({ slug: 'ada', displayName: 'Ada' });
@@ -303,6 +431,19 @@ describe('bridge methods', () => {
     );
     const paused = await handler('botharness/pause', { slug: 'bob' }, signal);
     const resumed = await handler('botharness/resume', { slug: 'bob' }, signal);
+    const channels = await handler('botharness/channels', {}, signal);
+    const dm = await handler('botharness/channelDm', { slug: 'bob', displayName: 'Bob' }, signal);
+    const group = await handler(
+      'botharness/channelCreate',
+      { name: 'Team', members: ['bob'] },
+      signal,
+    );
+    const sent = await handler(
+      'botharness/channelSend',
+      { channelId: 'dm-bob', body: 'hi' },
+      signal,
+    );
+    const messages = await handler('botharness/channelMessages', { channelId: 'dm-bob' }, signal);
     const unknown = await handler('botharness/nope', {}, signal);
 
     expect(listed.ok && Array.isArray((listed.value as { bots: unknown[] }).bots)).toBe(true);
@@ -312,6 +453,15 @@ describe('bridge methods', () => {
     expect(
       resumed.ok && (resumed.value as { bot: { paused?: boolean } }).bot.paused,
     ).toBeUndefined();
+    expect(channels.ok && Array.isArray((channels.value as { channels: unknown[] }).channels)).toBe(
+      true,
+    );
+    expect(dm.ok && (dm.value as { channel: { id: string } }).channel.id).toBe('dm-bob');
+    expect(group.ok && (group.value as { channel: { id: string } }).channel.id).toBe('group-team');
+    expect(sent.ok && (sent.value as { message: { body: string } }).message.body).toBe('hi');
+    expect(
+      messages.ok && (messages.value as { messages: { body: string }[] }).messages[0]?.body,
+    ).toBe('hi');
     expect(unknown).toEqual({
       ok: false,
       error: {

@@ -21,6 +21,28 @@ export type {
 export { BRIDGE_ENDPOINT_PREFIX, createBridgeRpcHandler, registerBridge } from './bridge/rpc.js';
 export { createPersonaBotRegistry } from './bots/registry.js';
 export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
+export {
+  dmChannelId,
+  groupChannelIdBase,
+  isChannelMessage,
+  isChannelRecord,
+  isValidChannelId,
+  slugifyChannelName,
+} from './channels/channel.js';
+export type {
+  ChannelMessage,
+  ChannelMessageAuthor,
+  ChannelMessageExternal,
+  ChannelRecord,
+  ChannelType,
+} from './channels/channel.js';
+export { createChannelStore, DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE } from './channels/store.js';
+export type {
+  ChannelReadOptions,
+  ChannelStore,
+  ChannelStoreOptions,
+  CreateChannelGroupInput,
+} from './channels/store.js';
 export { isPersonaBotRecord } from './bots/persona-bot.js';
 export type {
   CreatePersonaBotInput,

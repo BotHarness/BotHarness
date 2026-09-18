@@ -1,9 +1,14 @@
+import { randomUUID } from 'node:crypto';
+
+import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import type { ChannelStore } from '../channels/store.js';
 import type {
   CreatePersonaBotResult,
   PersonaBotPatch,
   PersonaBotRecord,
 } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import { isValidSlug } from '../bots/slug.js';
 import type {
   AggregatedState,
   BotStateSnapshot,
@@ -44,11 +49,17 @@ export interface BridgeMethods {
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  channels(payload: unknown): BridgeResult<{ channels: ChannelRecord[] }>;
+  channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
+  channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
 }
 
 export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
   states: BotStateTracker;
+  channels: ChannelStore;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -90,6 +101,15 @@ function invalidInput(message: string): BridgeResult<never> {
 
 function unknownBot(slug: string): BridgeResult<never> {
   return { ok: false, error: { code: 'not-found', message: `unknown PersonaBot: ${slug}` } };
+}
+
+function unknownChannel(id: string): BridgeResult<never> {
+  return { ok: false, error: { code: 'not-found', message: `unknown Channel: ${id}` } };
+}
+
+function asNonBlank(source: Record<string, unknown>, key: string): string | undefined {
+  const value = source[key];
+  return typeof value === 'string' && value.trim().length > 0 ? value : undefined;
 }
 
 function createFailure(
@@ -259,6 +279,74 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     resume(payload) {
       return setPaused(payload, false);
+    },
+    channels() {
+      return { ok: true, value: { channels: deps.channels.list() } };
+    },
+    channelDm(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      if (slug === undefined) return invalidInput('slug is required');
+      if (!isValidSlug(slug)) return invalidInput(`invalid slug: ${slug}`);
+      const displayName = parseOptional(source, 'displayName');
+      if (!displayName.ok) return invalidInput('invalid channelDm payload');
+      const channel = deps.channels.getOrCreateDm(slug, displayName.value ?? slug);
+      if (channel === undefined) return invalidInput(`invalid slug: ${slug}`);
+      return { ok: true, value: { channel } };
+    },
+    channelCreate(payload) {
+      const source = asObject(payload);
+      const name = asNonBlank(source, 'name');
+      if (name === undefined) return invalidInput('name is required');
+      const members = source['members'];
+      if (
+        !Array.isArray(members) ||
+        !members.every((entry) => typeof entry === 'string' && entry.trim().length > 0)
+      ) {
+        return invalidInput('members must be an array of bot slugs');
+      }
+      const channel = deps.channels.createGroup({ name, members: [...members] });
+      return { ok: true, value: { channel } };
+    },
+    channelMessages(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      if (deps.channels.get(channelId) === undefined) return unknownChannel(channelId);
+      const before = parseOptional(source, 'before');
+      if (!before.ok) return invalidInput('invalid channelMessages payload');
+      const limitValue = source['limit'];
+      let limit: number | undefined;
+      if (limitValue !== undefined) {
+        if (typeof limitValue !== 'number' || !Number.isInteger(limitValue) || limitValue < 1) {
+          return invalidInput('limit must be a positive integer');
+        }
+        limit = limitValue;
+      }
+      const cursor = before.value?.trim();
+      const messages = deps.channels.readMessages(channelId, {
+        ...(cursor === undefined || cursor.length === 0 ? {} : { before: cursor }),
+        ...(limit === undefined ? {} : { limit }),
+      });
+      return { ok: true, value: { messages } };
+    },
+    async channelSend(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      const body = source['body'];
+      if (typeof body !== 'string' || body.trim().length === 0) {
+        return invalidInput('body is required');
+      }
+      const message: ChannelMessage = {
+        id: randomUUID(),
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body,
+      };
+      const appended = await deps.channels.appendMessage(channelId, message);
+      if (appended === undefined) return unknownChannel(channelId);
+      return { ok: true, value: { message: appended } };
     },
   };
 }

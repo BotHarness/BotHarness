@@ -37,6 +37,16 @@ export function createBridgeRpcHandler(methods: BridgeMethods): ConnectionRpcHan
         return toRpc(methods.pause(payload));
       case `${BRIDGE_ENDPOINT_PREFIX}resume`:
         return toRpc(methods.resume(payload));
+      case `${BRIDGE_ENDPOINT_PREFIX}channels`:
+        return toRpc(methods.channels(payload));
+      case `${BRIDGE_ENDPOINT_PREFIX}channelDm`:
+        return toRpc(methods.channelDm(payload));
+      case `${BRIDGE_ENDPOINT_PREFIX}channelCreate`:
+        return toRpc(methods.channelCreate(payload));
+      case `${BRIDGE_ENDPOINT_PREFIX}channelMessages`:
+        return toRpc(methods.channelMessages(payload));
+      case `${BRIDGE_ENDPOINT_PREFIX}channelSend`:
+        return toRpc(await methods.channelSend(payload));
       default:
         return failure('not-found', `unknown bridge endpoint: ${endpoint}`);
     }

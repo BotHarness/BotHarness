@@ -61,6 +61,7 @@ describe('plugin entry', () => {
       registry: expect.anything(),
       states: expect.anything(),
       memory: expect.anything(),
+      channels: expect.anything(),
     });
     expect(ctx.tools.register).toHaveBeenCalledTimes(4);
     expect(ctx.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([

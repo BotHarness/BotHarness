@@ -1,13 +1,13 @@
 # 客户端桥（Client Bridge）规格
 
-| 项       | 内容                                                                            |
-| -------- | ------------------------------------------------------------------------------- |
-| 版本     | v0.2（M3.1 落地回填，读模型 + create/update/pause/resume）                      |
-| 日期     | 2026-09-19                                                                      |
-| 状态     | Implemented（`list/get/create/update/pause/resume`）                            |
-| 适用范围 | M3（Roster 与委派）：`@botharness/client` ↔ `@botharness/core` 的读模型契约     |
-| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）                              |
-| 上位规格 | `docs/botharness.md` §6；架构 `docs/architecture/botharness-architecture.md` §8 |
+| 项       | 内容                                                                                                  |
+| -------- | ----------------------------------------------------------------------------------------------------- |
+| 版本     | v0.3（M3 本地 Channel 消息面：channels/channelDm/channelCreate/channelMessages/channelSend，无投递）  |
+| 日期     | 2026-09-19                                                                                            |
+| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法）                              |
+| 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/client` ↔ `@botharness/core` 的读模型契约      |
+| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）、ADR-0029 / ADR-0030（Channel 与本地 NDJSON 历史） |
+| 上位规格 | `docs/botharness.md` §6；架构 `docs/architecture/botharness-architecture.md` §8                       |
 
 ## 1. 为什么需要桥
 
@@ -34,14 +34,21 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 命名一律 `botharness/<method>`，unary、无副作用泄漏；写方法与读方法同一信封。
 
-| 方法                | 入参                                                                                               | 出参                                    | 说明                                                          |
-| ------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- |
-| `botharness/list`   | `{ query?, since? }`                                                                               | `{ bots: PersonaBotSummary[]; cursor }` | roster 名册；`since` 增量                                     |
-| `botharness/get`    | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 详情（含记忆入口、workspaces）                                |
-| `botharness/create` | `{ slug, displayName, persona?, tag?, description?, model?, preset?, workspaces?, avatarSeed? }`   | `{ bot: PersonaBotDetail }`             | 新建向导；persona 写入 `PERSONA.md`（缺省占位、已存在不覆盖） |
-| `botharness/update` | `{ slug, patch: { displayName?, tag?, description?, model?, preset?, workspaces?, avatarSeed? } }` | `{ bot: PersonaBotDetail }`             | 编辑；不写 persona（人属）；空字符串清空可选字段              |
-| `botharness/pause`  | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 暂停后续委派；状态仍在读模型中（`paused: true`）              |
-| `botharness/resume` | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 恢复委派；读模型清除 `paused`                                 |
+| 方法                         | 入参                                                                                               | 出参                                    | 说明                                                          |
+| ---------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------- | ------------------------------------------------------------- |
+| `botharness/list`            | `{ query?, since? }`                                                                               | `{ bots: PersonaBotSummary[]; cursor }` | roster 名册；`since` 增量                                     |
+| `botharness/get`             | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 详情（含记忆入口、workspaces）                                |
+| `botharness/create`          | `{ slug, displayName, persona?, tag?, description?, model?, preset?, workspaces?, avatarSeed? }`   | `{ bot: PersonaBotDetail }`             | 新建向导；persona 写入 `PERSONA.md`（缺省占位、已存在不覆盖） |
+| `botharness/update`          | `{ slug, patch: { displayName?, tag?, description?, model?, preset?, workspaces?, avatarSeed? } }` | `{ bot: PersonaBotDetail }`             | 编辑；不写 persona（人属）；空字符串清空可选字段              |
+| `botharness/pause`           | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 暂停后续委派；状态仍在读模型中（`paused: true`）              |
+| `botharness/resume`          | `{ slug }`                                                                                         | `{ bot: PersonaBotDetail }`             | 恢复委派；读模型清除 `paused`                                 |
+| `botharness/channels`        | `{}`                                                                                               | `{ channels: ChannelRecord[] }`         | M3 本地 Channel 列表；`updatedAt` 新→旧                       |
+| `botharness/channelDm`       | `{ slug, displayName? }`                                                                           | `{ channel }`                           | 打开 BOT 的 DM（幂等）；M3 仅本地                             |
+| `botharness/channelCreate`   | `{ name, members }`                                                                                | `{ channel }`                           | 新建群聊 Channel；M3 仅本地                                   |
+| `botharness/channelMessages` | `{ channelId, before?, limit? }`                                                                   | `{ messages }`                          | 历史分页（newest-first，默认 50 / 上限 200）；M3 仅本地       |
+| `botharness/channelSend`     | `{ channelId, body }`                                                                              | `{ message }`                           | 写本地 NDJSON（`author.kind = 'human'`）；M3 无投递           |
+
+`ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (bot slugs) / botSlug? (dm) / createdAt / updatedAt`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。历史权威是每 Channel 的 `messages.ndjson`（ADR-0030）；M3 的五个 channel 方法只读写本地文件、不做投递，群聊暂不写 BOT 回复（v1.1 Channel 工具）。`before` 是消息 id 游标：返回比该消息更旧的一页。
 
 `PersonaBotSummary` 含 `slug / displayName / tag? / description? / avatar? / paused? / aggregateState / workspaces / createdAt`；`PersonaBotDetail` 追加 `model? / preset? / memoryDir? / sessions`。`aggregateState` 为五态聚合（六态是展示派生，见 `docs/botharness.md` §3）。委派（delegate）与记忆编辑不在已实现面：前者依赖工位会话，后者复用 `memory_*` 工具语义后另行补方法。
 
@@ -80,7 +87,7 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 
 ## 8. 未决
 
-- 六个桥方法（`list/get/create/update/pause/resume`）已实现（`packages/core/src/bridge/`）；写方法只落 `bot.json`，persona 仅 create 时写 `PERSONA.md` 且不覆盖。
+- 十一个桥方法（`list/get/create/update/pause/resume` 与 `channels/channelDm/channelCreate/channelMessages/channelSend`）已实现（`packages/core/src/bridge/`）；前六个只落 `bot.json`/`PERSONA.md`，channel 五个读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson}`（ADR-0030），M3 无投递、群聊 BOT 回复待 v1.1 Channel 工具。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态实时性等级与私有流（如做）的鉴权与背压。
