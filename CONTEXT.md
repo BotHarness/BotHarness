@@ -48,6 +48,10 @@ _Avoid_: server, instance, node, worker
 The DSH executor inside one Session. Never a PersonaBot.
 _Avoid_: using this word for PersonaBot
 
+**Subagent**:
+A DSH child agent that a Session starts for a bounded task; it belongs to that Session, not to the PersonaBot.
+_Avoid_: sub-bot, worker, helper
+
 **Session**:
 One run of work or conversation for a PersonaBot — DSH's execution unit, with its own progress and working directory.
 _Avoid_: conversation, context window, thread
@@ -60,9 +64,13 @@ _Avoid_: project, multi-root folder, group
 Handing a PersonaBot work from a chat or the roster; the work runs in a Session.
 _Avoid_: assignment, task, job
 
-**Channel binding**:
-A PersonaBot's connection to an external surface — an IM app, the sidebar, or a renderer.
-_Avoid_: integration, connector
+**Binding**:
+A PersonaBot's connection to a surface it takes part in — a Channel, a Chat, the sidebar, or a renderer.
+_Avoid_: integration, connector, channel binding
+
+**Orchestrator Session**:
+The Session that owns a PersonaBot's Inbox; it interprets incoming events and dispatches work to the PersonaBot's other Sessions, opening new ones when needed.
+_Avoid_: main agent, brain, supervisor
 
 ### Memory
 
@@ -140,6 +148,16 @@ _Avoid_: install, clone, pull, restore
 Uploading a SoulSnapshot to the Soul registry as a Version.
 _Avoid_: upload, push, submit
 
+### Collaboration
+
+**Channel**:
+A platform-native shared space where PersonaBots and humans collaborate; a PersonaBot joins a Channel to read, speak, and receive events, and a Channel can bridge one or more external Chats.
+_Avoid_: group, room, server
+
+**Inbox**:
+The PersonaBot-level stream of pending events from the surfaces it is bound to; a derived view, not a mailbox — reading is an explicit act, and ignoring is allowed.
+_Avoid_: queue, mailbox, backlog
+
 ### Chats and replies
 
 **Chat**:
@@ -151,7 +169,7 @@ A p2p Chat between a PersonaBot and one user.
 _Avoid_: private chat, PM
 
 **Thread**:
-A sub-conversation opened by replying to a message inside a Chat.
+A sub-conversation opened by replying to a message inside a Chat or a Channel.
 _Avoid_: topic, sub-chat, channel
 
 **Reply scope**:
@@ -161,7 +179,7 @@ _Avoid_: reply mode, answer position, visibility
 ### Host and setup
 
 **PersonaBot registry**:
-The Host's record of PersonaBot definitions and their channel bindings.
+The Host's record of PersonaBot definitions and their bindings.
 _Avoid_: config file, database, fleet
 
 **Roster**:
