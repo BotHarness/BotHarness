@@ -1,13 +1,13 @@
 # BotHarness 规格（PoC）
 
-| 项       | 内容                                                                                   |
-| -------- | -------------------------------------------------------------------------------------- |
-| 版本     | v1.6                                                                                   |
-| 日期     | 2026-09-18                                                                             |
-| 状态     | Draft                                                                                  |
-| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                               |
-| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                         |
-| 决策记录 | `docs/adr/`（v1.6 新增 0024 Orchestrator 拓扑、0025 Inbox 触发、0026 Channel/Binding） |
+| 项       | 内容                                                                               |
+| -------- | ---------------------------------------------------------------------------------- |
+| 版本     | v1.7                                                                               |
+| 日期     | 2026-09-18                                                                         |
+| 状态     | Draft                                                                              |
+| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                           |
+| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                     |
+| 决策记录 | `docs/adr/`（v1.7 新增 0027 模型选择不随 Soul 发布；PersonaBot 最小 profile 字段） |
 
 ## 1. 定位与缺口
 
@@ -18,21 +18,21 @@
 
 ## 2. 实体模型
 
-| 实体                     | 定义                                                           | 关键关系                                                                          |
-| ------------------------ | -------------------------------------------------------------- | --------------------------------------------------------------------------------- |
-| **PersonaBot**           | 一等实体：persona、跨 session 记忆、状态、Bindings             | 可并发多个 Session；同一时刻一个 Orchestrator Session（ADR-0016/0024）            |
-| **Session**              | DSH 执行单元：一次工作/对话，有独立进度与 cwd                  | 属于一个 PersonaBot；**工作 = Session**（ADR-0017）                               |
-| **Workspace**            | 单个主机目录，与 DSH workspace 1:1                             | Session 的 cwd；可多个，UI 可分组（ADR-0018）                                     |
-| **Agent**                | DSH 的会话内执行体                                             | 每 Session 一个；**不指 PersonaBot**                                              |
-| **Orchestrator Session** | 每 PersonaBot 一个：拥有 Inbox，决定回复/派发/新开 Session     | 由 Inbox 批次唤醒；id 稳定、不做 rollover（ADR-0024/0025）                        |
-| **Channel**              | 平台内一等协作空间：PersonaBot 与人类共同参与                  | 可桥接外部 Chat（Lark 随 M5）（ADR-0026）                                         |
-| **Binding**              | PersonaBot 到参与表面的连接：Channel / Chat / sidebar/renderer | 可有多个；不再按 binding 把消息路由到固定 Session（ADR-0026）                     |
-| **Inbox**                | PersonaBot 级事件流（派生投影，非队列）                        | 来源：Channel / Chat / DM / 其他 Session / 系统；由 Orchestrator 消费（ADR-0025） |
-| **Memory**               | 文件优先的持久知识（§4）                                       | 用户可配目录，跨一切作用域                                                        |
+| 实体                     | 定义                                                                                | 关键关系                                                                          |
+| ------------------------ | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| **PersonaBot**           | 一等实体：persona、profile（name/tag/description）、跨 session 记忆、状态、Bindings | 可并发多个 Session；同一时刻一个 Orchestrator Session（ADR-0016/0024）            |
+| **Session**              | DSH 执行单元：一次工作/对话，有独立进度与 cwd                                       | 属于一个 PersonaBot；**工作 = Session**（ADR-0017）                               |
+| **Workspace**            | 单个主机目录，与 DSH workspace 1:1                                                  | Session 的 cwd；可多个，UI 可分组（ADR-0018）                                     |
+| **Agent**                | DSH 的会话内执行体                                                                  | 每 Session 一个；**不指 PersonaBot**                                              |
+| **Orchestrator Session** | 每 PersonaBot 一个：拥有 Inbox，决定回复/派发/新开 Session                          | 由 Inbox 批次唤醒；id 稳定、不做 rollover（ADR-0024/0025）                        |
+| **Channel**              | 平台内一等协作空间：PersonaBot 与人类共同参与                                       | 可桥接外部 Chat（Lark 随 M5）（ADR-0026）                                         |
+| **Binding**              | PersonaBot 到参与表面的连接：Channel / Chat / sidebar/renderer                      | 可有多个；不再按 binding 把消息路由到固定 Session（ADR-0026）                     |
+| **Inbox**                | PersonaBot 级事件流（派生投影，非队列）                                             | 来源：Channel / Chat / DM / 其他 Session / 系统；由 Orchestrator 消费（ADR-0025） |
+| **Memory**               | 文件优先的持久知识（§4）                                                            | 用户可配目录，跨一切作用域                                                        |
 
 目录约定：
 
-- `$DSH_HOME/botharness/bots/<slug>/bot.json`：机器元数据（slug、displayName、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
+- `$DSH_HOME/botharness/bots/<slug>/bot.json`：机器元数据（slug、displayName、tag、description、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
 - `PERSONA.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<slug>/memory/`）。
 
 ## 3. 状态模型
@@ -82,6 +82,7 @@
 - **审批分级**：只读 + 记忆/家内写入自由；外部副作用（对外发消息、外部 API、家外写）置 `waiting`，等有人对话时确认（DSH approval 需要 open turn）。
 - **自主性**：事件驱动（无 scheduler/心跳）；「主动」= 跨来源、跨 Workspace、自主选择 Session。PoC 仍只做委派制（ADR-0025）。
 - **工具面**：per-PersonaBot `capabilities.tools.allow`；激活时 `ctx.tools.restrict` 裁剪；未知名字先过滤并告警；核心 Memory 工具强制并集；UI 写路径后置。
+- **模型选择**：全局默认 + per-PersonaBot 覆盖（本地解析）；模型与凭据**不随 SoulSnapshot 发布**，导入方用自己的模型（ADR-0027）。
 - **落地节奏**：M3 = roster + @委派 + 工位会话（目标模型的第一个切片）；Inbox、Orchestrator、跨 Session 总线在 M4 后排期；Channel 的 Lark 桥接随 M5。
 - **已知约束**：DSH web profile 对"从未打开过的程序化 agent"起 turn 有开放问题（Discussion #6617）；工位会话存活是 M3/M4 的验证项。
 - **Task 不存在**（ADR-0017）。
@@ -132,4 +133,4 @@
 | Orchestrator 中枢成本与单点                | 批次唤醒 + 可忽略语义 + DSH compaction；消耗随 Inbox 量而非聊天量增长（ADR-0025）    |
 | 自建跨 Session 总线的可靠性                | durable 投影 + MessageId 去重 + 超时/interrupt；relay 失败返回结构化错误（ADR-0024） |
 
-**开放项**：工位会话的 wake 实测；Live2D 信号面（模型/工具/响应 → 动作）；跨 PersonaBot 通信（经 Orchestrator）的 API 形状；跨 Session 请求-回复的超时/取消语义；Inbox 触发策略的 Settings UI 表达与默认值实测；Channel ↔ Lark 群/thread 映射（M5）。
+**开放项**：工位会话的 wake 实测；Live2D 信号面（模型/工具/响应 → 动作）；跨 PersonaBot 通信（经 Orchestrator）的 API 形状；跨 Session 请求-回复的超时/取消语义；Inbox 触发策略的 Settings UI 表达与默认值实测；Channel ↔ Lark 群/thread 映射（M5）；user 级共享记忆（跨 PersonaBot，Grok Bot 形态）是否引入。

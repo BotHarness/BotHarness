@@ -68,7 +68,17 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 - **纯净门禁**：跨插件只允许 `import type`，不得值导入；跨包协作走 Cordis 服务或 slot。
 - **构建**：共享 preset（`clientBundle()`）未发布，等价构建已在根 `tsdown.config.ts`（`clientBundleOptions`）实现：banner/footer 生成 closure factory，`pnpm build` 产出 `lib/client.js` + `lib/client.js.map`。契约由 `packages/client/test/client-bundle.test.ts` 覆盖（自注册、只外置 shell 基线、插件注册）。剩余风险转移到 M3.5：把该 Loader entry 装进真实 profile 并加载。
 
-## 7. 未决
+## 7. 本地开发环路（dev profile + HMR）
+
+M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实验收。
+
+- **准备（一次）**：pin `@deepseek-ai/dsh@0.1.5-rc.2`，用隔离 `DSH_HOME`，把本地 bundle 装进专用 `web-dev` profile（`dsh plugin --profile web-dev add <path>`）；bundle 成员变化需要重启。先决条件：`deepseekbot` 最小 bundle 尚未建立，core/client 还没有 Loader entry 挂载。
+- **运行**：`dsh web --profile web-dev`。
+- **迭代客户端**：改 `packages/client` 后跑根 `pnpm build`，产出新的 `lib/client.js`；`dsh-client-hmr` 检测 bundle 字节变化（`ClientModuleRegistry.rebuilt` 重哈希 → revision 变化 → 推送新入口图），浏览器自动换新。仅 sourcemap 变化不触发重载。
+- **迭代 Host**：Cordis 插件注册都走 `ctx.effect`，vendored HMR 直接生效，无需重启。
+- **参考**：client-modules（bundle 路由、revision、`onRebuilt`/`onGraphChanged`）；extension-cookbook（plugin hot-reload）。
+
+## 8. 未决
 
 - `list/get` 已实现（`packages/core/src/bridge/`，字段：`slug/displayName/avatar/aggregateState/workspaces/createdAt`）；`create/update/pause/resume` 待补；全部冻结后本页升 v1.0。
 - 委派与取消的方法形状（工位会话就绪后）。

@@ -108,6 +108,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       }
 
       const displayName = input.displayName.trim();
+      const tag = input.tag?.trim();
+      const description = input.description?.trim();
       const avatar = input.avatar?.trim();
       const model = input.model?.trim();
       const preset = input.preset?.trim();
@@ -116,6 +118,8 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         displayName: displayName.length > 0 ? displayName : input.slug,
         workspaces: input.workspaces ?? [],
         createdAt: now().toISOString(),
+        ...(tag ? { tag } : {}),
+        ...(description ? { description } : {}),
         ...(avatar ? { avatar } : {}),
         ...(model ? { model } : {}),
         ...(preset ? { preset } : {}),

@@ -26,7 +26,13 @@ afterEach(() => {
 describe('bridge methods', () => {
   it('lists PersonaBots with their aggregate state', () => {
     const { registry, states, methods } = setup();
-    registry.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/tmp/ada'] });
+    registry.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      tag: '研究',
+      description: '数学与计算',
+      workspaces: ['/tmp/ada'],
+    });
     states.setSessionState('ada', 'session-1', 'working');
 
     const result = methods.list({});
@@ -38,12 +44,48 @@ describe('bridge methods', () => {
           {
             slug: 'ada',
             displayName: 'Ada',
+            tag: '研究',
+            description: '数学与计算',
             aggregateState: 'working',
             workspaces: ['/tmp/ada'],
             createdAt: expect.any(String),
           },
         ],
       },
+    });
+  });
+
+  it('omits tag and description when the record has none', () => {
+    const { registry, methods } = setup();
+    registry.create({ slug: 'plain', displayName: 'Plain' });
+
+    const result = methods.list({});
+
+    expect(result).toEqual({
+      ok: true,
+      value: {
+        bots: [
+          {
+            slug: 'plain',
+            displayName: 'Plain',
+            aggregateState: 'idle',
+            workspaces: [],
+            createdAt: expect.any(String),
+          },
+        ],
+      },
+    });
+  });
+
+  it('carries tag and description into the detail read model', () => {
+    const { registry, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada', tag: '研究', description: '数学与计算' });
+
+    const result = methods.get({ slug: 'ada' });
+
+    expect(result.ok && result.value.bot).toMatchObject({
+      tag: '研究',
+      description: '数学与计算',
     });
   });
 
