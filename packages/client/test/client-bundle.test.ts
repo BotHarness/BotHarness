@@ -17,6 +17,37 @@ interface LoadedEntry {
 const requireFromTest = createRequire(import.meta.url);
 const tempDir = mkdtempSync(join(tmpdir(), 'botharness-client-bundle-'));
 
+const BASELINE_MODULES = new Set([
+  'react',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+  'react-dom',
+  'react-dom/client',
+  '@deepseek-ai/cordis',
+  '@deepseek-ai/dsh-client-store',
+  '@deepseek-ai/dsh-client-ui-slots',
+  '@deepseek-ai/dsh-client-ui-primitives',
+  '@deepseek-ai/dsh-client-ui-dockkit',
+]);
+
+function isBaselineModule(id: string): boolean {
+  return BASELINE_MODULES.has(id) || id.startsWith('react/');
+}
+
+function baselineModuleStub(): Record<string, unknown> {
+  const stub: Record<string, unknown> = {};
+  return new Proxy(stub, {
+    get: (target, property) => {
+      if (typeof property !== 'string') return undefined;
+      if (!(property in target)) target[property] = () => null;
+      return target[property];
+    },
+  });
+}
+
+const shellRequire = (id: string): unknown =>
+  id.startsWith('@deepseek-ai/') ? baselineModuleStub() : requireFromTest(id);
+
 let bundleCode = '';
 let entry: LoadedEntry | undefined;
 
@@ -60,12 +91,16 @@ describe('@botharness/client browser bundle', () => {
   it('externalizes the shell baseline and inlines everything else', () => {
     const required = [...bundleCode.matchAll(/require\("([^"]+)"\)/g)].map((match) => match[1]);
     expect(required.length).toBeGreaterThan(0);
-    expect(required.every((id) => id === 'react' || id?.startsWith('react/'))).toBe(true);
-    expect(bundleCode).not.toContain('require("@deepseek-ai/');
+    expect(required.every((id) => id !== undefined && isBaselineModule(id))).toBe(true);
+    expect(required).toContain('@deepseek-ai/dsh-client-ui-primitives');
+    const nonBaselineShell = required.filter(
+      (id) => typeof id === 'string' && id.startsWith('@deepseek-ai/') && !BASELINE_MODULES.has(id),
+    );
+    expect(nonBaselineShell).toEqual([]);
   });
 
   it('exposes the plugin and registers the DSH-mode entries plus the @ mention source', () => {
-    const plugin = loadedEntry().factory((id) => requireFromTest(id));
+    const plugin = loadedEntry().factory(shellRequire);
     expect(plugin['name']).toBe('botharness-client');
     expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers', 'layout']);
 
@@ -107,7 +142,7 @@ describe('@botharness/client browser bundle', () => {
   });
 
   it('shadows the workspaces region and the conversation panel in bot mode', () => {
-    const plugin = loadedEntry().factory((id) => requireFromTest(id));
+    const plugin = loadedEntry().factory(shellRequire);
 
     interface ShadowSpec {
       name: string;

@@ -1,8 +1,10 @@
 import { useSyncExternalStore, type ReactElement } from 'react';
 
+import { Input, StateDot, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+
 import { Blobatar } from './avatar.js';
 import { ChatIcon, DashboardIcon, PlusIcon, RobotIcon, SearchIcon } from './icons.js';
-import { needsYou, STATE_LABELS, toBotState } from './labels.js';
+import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import { store, type BotSummary, type ClientState } from './store.js';
 
 export function useClientState(): ClientState {
@@ -43,26 +45,29 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
   return (
     <div className="bh-root bh-region">
       <div className="bh-search-row">
-        <button
-          type="button"
-          className="bh-icon-btn"
-          title="Dashboard"
-          onClick={() => store.select(undefined)}
-        >
-          <DashboardIcon size={16} />
-        </button>
-        <label className="bh-search-box">
-          <SearchIcon size={14} />
-          <input
-            type="search"
-            placeholder="搜索 Bot"
-            value={state.query}
-            onChange={(event) => store.setQuery(event.target.value)}
-          />
-        </label>
-        <button type="button" className="bh-icon-btn" title="新建 PersonaBot（尚未接入）">
-          <PlusIcon size={16} />
-        </button>
+        <Tooltip label="Dashboard" delayMs={500}>
+          <button
+            type="button"
+            className="bh-icon-btn"
+            aria-label="Dashboard"
+            onClick={() => store.select(undefined)}
+          >
+            <DashboardIcon size={16} />
+          </button>
+        </Tooltip>
+        <Input
+          className="bh-search-input"
+          icon={<SearchIcon size={16} />}
+          type="search"
+          placeholder="搜索 Bot"
+          value={state.query}
+          onChange={(event) => store.setQuery(event.target.value)}
+        />
+        <Tooltip label="新建 PersonaBot（尚未接入）" delayMs={500}>
+          <button type="button" className="bh-icon-btn" aria-label="新建 PersonaBot（尚未接入）">
+            <PlusIcon size={16} />
+          </button>
+        </Tooltip>
       </div>
 
       {state.status === 'loading' && bots.length === 0 ? (
@@ -87,10 +92,12 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
                 className={`bh-pinned${selected ? ' bh-selected' : ''}`}
                 onClick={() => store.select(bot.slug)}
               >
-                <span className="bh-presence" data-state={botState} />
+                <span className="bh-presence">
+                  <StateDot state={toStateDot(botState)} size={5} />
+                </span>
                 <Blobatar seed={bot.slug} size={54} />
                 <span className="bh-name">{bot.displayName}</span>
-                {bot.tag !== undefined ? <span className="bh-tag">{bot.tag}</span> : null}
+                {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
               </button>
             );
           })}
@@ -98,7 +105,7 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
       ) : null}
 
       <div className="bh-side-head">
-        对话 <span className="bh-count">{contacts.length}</span>
+        对话 <Tag tone="neutral">{contacts.length}</Tag>
       </div>
       {contacts.map((bot) => {
         const botState = toBotState(bot.aggregateState);
@@ -114,7 +121,7 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
             <span className="bh-body">
               <span className="bh-top">
                 <span className="bh-name">{bot.displayName}</span>
-                {bot.tag !== undefined ? <span className="bh-tag">{bot.tag}</span> : null}
+                {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
               </span>
               <span className="bh-msg">{bot.description ?? STATE_LABELS[botState]}</span>
             </span>
@@ -127,10 +134,8 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
       ) : null}
 
       <div className="bh-side-head" style={{ marginTop: 8 }}>
-        工作区 <span className="bh-count">{workspaces.length}</span>
-        {needsYouCount > 0 ? (
-          <span className="bh-count bh-warn">{needsYouCount} 需要你</span>
-        ) : null}
+        工作区 <Tag tone="neutral">{workspaces.length}</Tag>
+        {needsYouCount > 0 ? <Tag tone="warning">{needsYouCount} 需要你</Tag> : null}
       </div>
       {workspaces.length === 0 ? (
         <div className="bh-note">还没有绑定工作区</div>
@@ -161,9 +166,16 @@ export function BotModeToggle({
   );
   const label = mode === 'bot' ? 'DSH 模式' : 'BOT 模式';
   return (
-    <button type="button" className="bh-root bh-mode-switch" title={label} onClick={toggleMode}>
-      {mode === 'bot' ? <ChatIcon size={15} /> : <RobotIcon size={15} />}
-      {wide ? <span className="bh-grow">{label}</span> : null}
-    </button>
+    <Tooltip label={label} delayMs={500}>
+      <button
+        type="button"
+        className="bh-root bh-mode-switch"
+        aria-label={label}
+        onClick={toggleMode}
+      >
+        {mode === 'bot' ? <ChatIcon size={15} /> : <RobotIcon size={15} />}
+        {wide ? <span className="bh-grow">{label}</span> : null}
+      </button>
+    </Tooltip>
   );
 }

@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
+import { Pill, StateDot, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+
 import { Blobatar } from './avatar.js';
 import { StateDistributionChart } from './bot-chart.js';
 import { useClientState } from './bot-sidebar.js';
@@ -9,6 +11,7 @@ import {
   STATE_LABELS,
   STATE_ORDER,
   toBotState,
+  toStateDot,
   type BotState,
 } from './labels.js';
 import { store, type BotSummary, type ClientState } from './store.js';
@@ -55,7 +58,7 @@ function Dashboard({ state }: { state: ClientState }): ReactElement {
     <div className="bh-root bh-main">
       <div className="bh-topbar">
         <span className="bh-title">Bot Dashboard</span>
-        <span className="bh-pill">全体 PersonaBot 概况</span>
+        <Pill className="bh-pill">全体 PersonaBot 概况</Pill>
       </div>
       <div className="bh-content">
         <div className="bh-dash">
@@ -111,8 +114,8 @@ function BotView({ bot }: { bot: BotSummary }): ReactElement {
       <div className="bh-topbar">
         <Blobatar seed={bot.slug} size={22} />
         <span className="bh-title">{bot.displayName}</span>
-        {bot.tag !== undefined ? <span className="bh-tag">{bot.tag}</span> : null}
-        <span className="bh-pill">对话 + 事件流</span>
+        {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+        <Pill className="bh-pill">对话 + 事件流</Pill>
       </div>
       <div className="bh-content">
         <div className="bh-bot-view">
@@ -122,7 +125,7 @@ function BotView({ bot }: { bot: BotSummary }): ReactElement {
                 <Blobatar seed={bot.slug} size={72} />
                 <div className="bh-big">DSH 会话视图</div>
                 <div>委派会话接入后，在这里与 {bot.displayName} 对话</div>
-                <div style={{ color: '#9ca3af' }}>记忆 / 审批入口后续接入</div>
+                <div className="bh-dim">记忆 / 审批入口后续接入</div>
               </div>
             </div>
             <div className="bh-composer">在 DSH 会话里回复 · 委派与记忆入口后续接入</div>
@@ -130,18 +133,17 @@ function BotView({ bot }: { bot: BotSummary }): ReactElement {
           <aside className="bh-events-pane">
             <div className="bh-events-head">
               <h3>
-                {bot.displayName} 的事件流 <span className="bh-dot" data-state={botState} />
+                {bot.displayName} 的事件流 <StateDot state={toStateDot(botState)} size={7} />
               </h3>
               <div className="bh-filters">
                 {EVENT_FILTERS.map((item) => (
-                  <button
+                  <Pill
                     key={item.key}
-                    type="button"
-                    className={`bh-chip${filter === item.key ? ' bh-on' : ''}`}
+                    active={filter === item.key}
                     onClick={() => setFilter(item.key)}
                   >
                     {item.label}
-                  </button>
+                  </Pill>
                 ))}
               </div>
             </div>
