@@ -101,7 +101,7 @@ describe('@botharness/client browser bundle', () => {
 
     (plugin['apply'] as (ctx: unknown) => void)(scoped);
 
-    expect(registered).toEqual(['sidebar.panellist', 'sidebar.footer.action', 'main']);
+    expect(registered).toEqual(['sidebar.footer.action', 'main']);
     expect(sources).toHaveLength(1);
     expect((sources[0] as { trigger?: string }).trigger).toBe('@');
   });
@@ -143,18 +143,14 @@ describe('@botharness/client browser bundle', () => {
     };
 
     (plugin['apply'] as (ctx: unknown) => void)(scoped);
-    expect(registered.map((spec) => spec.name)).toEqual([
-      'sidebar.panellist',
-      'sidebar.footer.action',
-      'main',
-    ]);
+    expect(registered.map((spec) => spec.name)).toEqual(['sidebar.footer.action', 'main']);
 
     const footer = registered.find((spec) => spec.name === 'sidebar.footer.action');
     const face = footer?.inject?.() as { toggleMode: () => void } | undefined;
     face?.toggleMode();
 
-    expect(registered[3]).toEqual({ name: 'sidebar.workspaces', priority: -100 });
-    expect(registered[4]).toEqual({ name: 'main', key: 'conversation', priority: -100 });
+    expect(registered[2]).toEqual({ name: 'sidebar.workspaces', priority: -100 });
+    expect(registered[3]).toEqual({ name: 'main', key: 'conversation', priority: -100 });
 
     face?.toggleMode();
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);

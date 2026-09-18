@@ -1,7 +1,5 @@
 import { useSyncExternalStore, type ReactElement } from 'react';
 
-import type { SidebarPanelIconOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client';
-
 import { Blobatar } from './avatar.js';
 import { ChatIcon, DashboardIcon, PlusIcon, RobotIcon, SearchIcon } from './icons.js';
 import { needsYou, STATE_LABELS, toBotState } from './labels.js';
@@ -149,10 +147,6 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
   );
 }
 
-export function BotPanelIcon({ size }: SidebarPanelIconOwnerProps): ReactElement {
-  return <RobotIcon size={size} />;
-}
-
 export function BotModeToggle({
   wide,
   toggleMode,
@@ -165,12 +159,11 @@ export function BotModeToggle({
     () => store.getSnapshot().mode,
     () => 'dsh' as const,
   );
-  const label = mode === 'bot' ? '切回 DSH 工作区' : '打开 PersonaBots';
+  const label = mode === 'bot' ? 'DSH 模式' : 'BOT 模式';
   return (
     <button type="button" className="bh-root bh-mode-switch" title={label} onClick={toggleMode}>
       {mode === 'bot' ? <ChatIcon size={15} /> : <RobotIcon size={15} />}
       {wide ? <span className="bh-grow">{label}</span> : null}
-      {wide ? <span className="bh-kbd">常驻</span> : null}
     </button>
   );
 }

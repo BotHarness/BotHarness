@@ -4,7 +4,7 @@ import type { ILayout, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/cli
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
-import { BotPanelIcon, BotModeToggle, BotSidebar } from './bot-sidebar.js';
+import { BotModeToggle, BotSidebar } from './bot-sidebar.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { createBridgeCall, loadBots } from './bridge.js';
 import { CSS } from './styles.js';
@@ -73,18 +73,6 @@ export function apply(ctx: ClientContext): void {
       controller.abort();
     };
   }, 'botharness: roster load');
-
-  ctx.slots.inject('sidebar.panellist', () =>
-    ctx.slots.register(
-      {
-        name: 'sidebar.panellist',
-        id: PANEL_ID,
-        order: 20,
-        label: () => 'PersonaBots',
-      },
-      BotPanelIcon,
-    ),
-  );
 
   ctx.slots.inject('sidebar.footer.action', () =>
     ctx.slots.register(

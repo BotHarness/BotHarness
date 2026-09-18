@@ -275,27 +275,23 @@ export const CSS = `
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 10px;
-  border: 1px solid var(--bh-line);
+  padding: 7px 10px;
+  border: 0;
   border-radius: 8px;
-  background: #fff;
+  background: transparent;
   cursor: pointer;
-  color: #374151;
+  color: inherit;
+  font: inherit;
 }
 .bh-mode-switch:hover {
-  background: #f3f4f6;
+  background: rgba(15, 23, 42, 0.06);
 }
 .bh-mode-switch .bh-grow {
   flex: 1;
   text-align: left;
-  font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.bh-mode-switch .bh-kbd {
-  font-size: 10px;
-  color: var(--bh-muted);
 }
 
 .bh-main {
