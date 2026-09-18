@@ -13,6 +13,7 @@
     "format:check": "oxfmt --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "prototype:roster": "portless prototype.botharness node scripts/prototype-roster.mjs",
     "diagrams": "node scripts/render-diagrams.mjs",
     "og:font": "node scripts/subset-og-font.mjs",
     "dev": "pnpm --filter docs exec portless",

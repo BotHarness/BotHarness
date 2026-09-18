@@ -1,0 +1,1033 @@
+/* 原型计划：三种结构不同的 PersonaBot 名册 UI（树形 / 卡片 / 活动流）， 在模拟的 DSH 外壳中通过
+?variant= 与底部浮动切换器切换。 这是 throwaway 原型，只回答"应该长什么样"，不含真实数据与交互。 */
+
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>原型 · PersonaBot 名册</title>
+    <style>
+      :root {
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --ink: #1c1f24;
+        --muted: #6b7280;
+        --line: #e5e7eb;
+        --accent: #4f46e5;
+        --state-thinking: #3b82f6;
+        --state-working: #16a34a;
+        --state-waiting: #d97706;
+        --state-blocked: #dc2626;
+        --state-idle: #9ca3af;
+        --state-done: #94a3b8;
+        --radius: 10px;
+        --shadow: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 12px rgba(16, 24, 40, 0.06);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font:
+          14px/1.5 -apple-system,
+          'Segoe UI',
+          'PingFang SC',
+          'Microsoft YaHei',
+          sans-serif;
+        color: var(--ink);
+        background: var(--bg);
+        height: 100vh;
+        overflow: hidden;
+      }
+      #app {
+        display: flex;
+        height: 100vh;
+      }
+      .rail {
+        width: 56px;
+        flex: 0 0 56px;
+        background: #14161a;
+        color: #cbd5e1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 0;
+      }
+      .rail .logo {
+        width: 30px;
+        height: 30px;
+        border-radius: 8px;
+        background: linear-gradient(135deg, #4f46e5, #22d3ee);
+        margin-bottom: 10px;
+      }
+      .rail button {
+        width: 40px;
+        height: 40px;
+        border: 0;
+        border-radius: 9px;
+        background: transparent;
+        color: #94a3b8;
+        font-size: 16px;
+        cursor: pointer;
+      }
+      .rail button.active {
+        background: #262b33;
+        color: #fff;
+      }
+      .main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+        background: var(--panel);
+        border-bottom: 1px solid var(--line);
+      }
+      .topbar h1 {
+        font-size: 16px;
+        margin: 0;
+      }
+      .badge {
+        font-size: 12px;
+        color: var(--muted);
+        background: #f1f2f4;
+        border-radius: 999px;
+        padding: 2px 9px;
+      }
+      .badge.warn {
+        color: #b45309;
+        background: #fef3c7;
+      }
+      .spacer {
+        flex: 1;
+      }
+      .btn {
+        border: 1px solid var(--line);
+        background: var(--panel);
+        color: var(--ink);
+        padding: 6px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+      }
+      .btn.primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+      .content {
+        flex: 1;
+        min-height: 0;
+        overflow: auto;
+        padding: 16px;
+      }
+      .prototype-flag {
+        position: fixed;
+        top: 10px;
+        right: 12px;
+        z-index: 50;
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        background: #111827;
+        color: #f9fafb;
+        padding: 3px 8px;
+        border-radius: 6px;
+        opacity: 0.85;
+      }
+
+      /* 状态 */
+      .state {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+      .dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--state-idle);
+        flex: 0 0 auto;
+      }
+      .state[data-state='thinking'] .dot {
+        background: var(--state-thinking);
+      }
+      .state[data-state='working'] .dot {
+        background: var(--state-working);
+      }
+      .state[data-state='waiting'] .dot {
+        background: var(--state-waiting);
+      }
+      .state[data-state='blocked'] .dot {
+        background: var(--state-blocked);
+      }
+      .state[data-state='done'] .dot {
+        background: var(--state-done);
+      }
+      .state[data-state='thinking'] {
+        color: #1d4ed8;
+      }
+      .state[data-state='working'] {
+        color: #15803d;
+      }
+      .state[data-state='waiting'] {
+        color: #b45309;
+      }
+      .state[data-state='blocked'] {
+        color: #b91c1c;
+      }
+      .avatar {
+        border-radius: 50%;
+        flex: 0 0 auto;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      /* A · 树形 */
+      .tree-layout {
+        display: grid;
+        grid-template-columns: 340px 1fr;
+        gap: 16px;
+        height: 100%;
+        min-height: 0;
+      }
+      .tree-pane {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: auto;
+      }
+      .tree-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        cursor: pointer;
+        border-bottom: 1px solid #f3f4f6;
+      }
+      .tree-row:hover {
+        background: #fafafa;
+      }
+      .tree-row.selected {
+        background: #eef2ff;
+      }
+      .tree-row .name {
+        font-weight: 600;
+      }
+      .tree-row .sub {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .tree-row .twist {
+        width: 14px;
+        color: var(--muted);
+        font-size: 11px;
+      }
+      .tree-row .meta {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .tree-indent-1 {
+        padding-left: 30px;
+      }
+      .tree-indent-2 {
+        padding-left: 50px;
+      }
+      .detail {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 18px;
+        overflow: auto;
+      }
+      .detail h2 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+      .detail .entry {
+        margin-top: 14px;
+      }
+      .detail .entry h3 {
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        margin: 0 0 6px;
+      }
+      .kv {
+        display: grid;
+        grid-template-columns: 80px 1fr;
+        gap: 6px 10px;
+        font-size: 13px;
+      }
+      .kv dt {
+        color: var(--muted);
+      }
+      .report {
+        border-left: 3px solid var(--line);
+        padding-left: 10px;
+        margin: 8px 0;
+      }
+      .report .time {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      /* B · 卡片 */
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 14px;
+      }
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        box-shadow: var(--shadow);
+        padding: 14px;
+        cursor: pointer;
+        transition: transform 0.08s ease;
+      }
+      .card:hover {
+        transform: translateY(-1px);
+      }
+      .card-head {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .card-head .name {
+        font-weight: 700;
+        font-size: 15px;
+      }
+      .card-head .state {
+        margin-left: auto;
+      }
+      .card .bio {
+        color: var(--muted);
+        font-size: 12px;
+        margin: 6px 0 10px;
+      }
+      .chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 10px;
+      }
+      .chip {
+        font-size: 11px;
+        color: #374151;
+        background: #f1f2f4;
+        border-radius: 999px;
+        padding: 2px 8px;
+      }
+      .session-mini {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 5px 0;
+        border-top: 1px solid #f3f4f6;
+        font-size: 13px;
+      }
+      .session-mini .title {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .session-mini .time {
+        margin-left: auto;
+        color: var(--muted);
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .card .last-report {
+        margin-top: 10px;
+        font-size: 12px;
+        color: var(--muted);
+        border-top: 1px dashed var(--line);
+        padding-top: 8px;
+      }
+      .scrim {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.25);
+        z-index: 30;
+      }
+      .slideover {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: min(440px, 92vw);
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        z-index: 31;
+        box-shadow: -12px 0 32px rgba(16, 24, 40, 0.12);
+        padding: 18px;
+        overflow: auto;
+      }
+      .slideover .close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+      }
+
+      /* C · 活动流 */
+      .summary {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+      .summary .stat {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 10px 14px;
+        min-width: 110px;
+      }
+      .summary .stat .num {
+        font-size: 20px;
+        font-weight: 700;
+      }
+      .summary .stat .lbl {
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .filters {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 10px;
+      }
+      .filters .chip {
+        cursor: pointer;
+      }
+      .filters .chip.on {
+        background: #111827;
+        color: #fff;
+      }
+      .activity {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        overflow: hidden;
+      }
+      .act-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 14px;
+        border-bottom: 1px solid #f3f4f6;
+        cursor: pointer;
+      }
+      .act-row:hover {
+        background: #fafafa;
+      }
+      .act-row .who {
+        flex: 0 0 auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        width: 150px;
+      }
+      .act-row .who .name {
+        font-weight: 600;
+      }
+      .act-row .what {
+        min-width: 0;
+        flex: 1;
+      }
+      .act-row .what .title {
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .act-row .what .progress {
+        color: var(--muted);
+        font-size: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .act-row .when {
+        color: var(--muted);
+        font-size: 12px;
+        flex: 0 0 auto;
+      }
+      .act-expand {
+        padding: 12px 16px 16px 176px;
+        background: #fbfbfc;
+        border-bottom: 1px solid #f3f4f6;
+        font-size: 13px;
+      }
+      .act-expand .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      /* 切换器 */
+      .switcher {
+        position: fixed;
+        left: 50%;
+        bottom: 16px;
+        transform: translateX(-50%);
+        z-index: 60;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #111827;
+        color: #f9fafb;
+        padding: 8px 12px;
+        border-radius: 999px;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+        font-size: 13px;
+      }
+      .switcher button {
+        background: transparent;
+        color: inherit;
+        border: 0;
+        font-size: 16px;
+        cursor: pointer;
+        padding: 0 4px;
+      }
+      .switcher .label {
+        min-width: 190px;
+        text-align: center;
+      }
+      .switcher .hint {
+        color: #9ca3af;
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="prototype-flag">PROTOTYPE</div>
+    <div id="app"></div>
+    <div class="switcher" id="switcher">
+      <button id="prev" title="上一个变体（←）">←</button>
+      <div class="label" id="variant-label"></div>
+      <button id="next" title="下一个变体（→）">→</button>
+      <span class="hint">?variant=A|B|C</span>
+    </div>
+    <script>
+      const BOTS = [
+        {
+          slug: 'ada',
+          name: 'Ada',
+          avatar: '#7c5cff',
+          bio: '研究助手 · 文献与写作',
+          state: 'working',
+          workspaces: ['lab'],
+          sessions: [
+            {
+              id: 's1',
+              title: '文献综述：RAG 评测方法',
+              state: 'working',
+              progress: '工具调用 12/40 · 已写 3 个章节',
+              workspace: 'lab',
+              updated: '2 分钟前',
+            },
+            {
+              id: 's2',
+              title: '周报整理',
+              state: 'done',
+              progress: '完成于 10:24',
+              workspace: 'lab',
+              updated: '1 小时前',
+            },
+          ],
+          reports: [
+            { at: '10:24', text: '周报已整理：3 篇论文、2 个实验结论。' },
+            { at: '昨天', text: '检索策略从 BM25 换成混合检索，命中率 +18%。' },
+          ],
+        },
+        {
+          slug: 'scout',
+          name: 'Scout',
+          avatar: '#ff8a3d',
+          bio: '客户跟进 · Acme / Beta',
+          state: 'waiting',
+          workspaces: ['acme', 'beta'],
+          sessions: [
+            {
+              id: 's3',
+              title: 'Acme 季度回访',
+              state: 'waiting',
+              progress: '等待确认：外发回访消息',
+              workspace: 'acme',
+              updated: '5 分钟前',
+            },
+            {
+              id: 's4',
+              title: 'Beta 需求梳理',
+              state: 'idle',
+              progress: '未开始',
+              workspace: 'beta',
+              updated: '昨天',
+            },
+          ],
+          reports: [{ at: '11:02', text: 'Acme 回访草稿已就绪，等待你确认后发送。' }],
+        },
+        {
+          slug: 'nori',
+          name: 'Nori',
+          avatar: '#2bb673',
+          bio: '运维值日 · 告警排查',
+          state: 'blocked',
+          workspaces: ['infra'],
+          sessions: [
+            {
+              id: 's5',
+              title: '告警排查：磁盘写满',
+              state: 'blocked',
+              progress: '失败：无法连接节点 db-3',
+              workspace: 'infra',
+              updated: '20 分钟前',
+            },
+          ],
+          reports: [{ at: '10:40', text: '节点 db-3 连接超时，重试 3 次仍失败，需要网络权限。' }],
+        },
+      ];
+
+      const STATE_LABEL = {
+        thinking: '思考中',
+        working: '执行中',
+        waiting: '等待中',
+        blocked: '阻塞',
+        idle: '空闲',
+        done: '完成',
+      };
+      const VARIANTS = { A: 'A · 树形名册', B: 'B · 卡片名册', C: 'C · 活动流' };
+      const uiState = {
+        variant: 'A',
+        selectedBot: 'ada',
+        selectedSession: 's1',
+        openBot: null,
+        filter: 'all',
+        expanded: null,
+      };
+
+      function avatar(bot, size) {
+        return (
+          '<span class="avatar" style="width:' +
+          size +
+          'px;height:' +
+          size +
+          'px;background:' +
+          bot.avatar +
+          ';font-size:' +
+          Math.round(size * 0.42) +
+          'px">' +
+          bot.name.slice(0, 1) +
+          '</span>'
+        );
+      }
+      function stateEl(state) {
+        return (
+          '<span class="state" data-state="' +
+          state +
+          '"><span class="dot"></span>' +
+          STATE_LABEL[state] +
+          '</span>'
+        );
+      }
+      function esc(text) {
+        return String(text).replace(
+          /[&<>"]/g,
+          (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c],
+        );
+      }
+      function botOf(slug) {
+        return BOTS.find((bot) => bot.slug === slug);
+      }
+      function sessionOf(id) {
+        for (const bot of BOTS) {
+          const hit = bot.sessions.find((s) => s.id === id);
+          if (hit) return { bot, session: hit };
+        }
+        return undefined;
+      }
+
+      /* ---------- A · 树形名册 ---------- */
+      function renderTree() {
+        const rows = BOTS.map((bot) => {
+          const open = uiState.openBot === bot.slug;
+          const head =
+            '<div class="tree-row' +
+            (uiState.selectedBot === bot.slug && !uiState.selectedSession ? ' selected' : '') +
+            '" data-act="toggle-bot" data-slug="' +
+            bot.slug +
+            '">' +
+            '<span class="twist">' +
+            (open ? '▾' : '▸') +
+            '</span>' +
+            avatar(bot, 26) +
+            '<div><div class="name">' +
+            esc(bot.name) +
+            '</div><div class="sub">' +
+            esc(bot.bio) +
+            '</div></div>' +
+            '<span class="meta">' +
+            stateEl(bot.state) +
+            '</span></div>';
+          if (!open) return head;
+          const groups = bot.workspaces
+            .map((workspace) => {
+              const sessions = bot.sessions.filter((s) => s.workspace === workspace);
+              const sessionRows = sessions
+                .map(
+                  (s) =>
+                    '<div class="tree-row tree-indent-2' +
+                    (uiState.selectedSession === s.id ? ' selected' : '') +
+                    '" data-act="select-session" data-id="' +
+                    s.id +
+                    '">' +
+                    '<span class="dot"></span><div><div>' +
+                    esc(s.title) +
+                    '</div><div class="sub">' +
+                    esc(s.progress) +
+                    '</div></div>' +
+                    '<span class="meta">' +
+                    stateEl(s.state) +
+                    '<span class="sub">' +
+                    esc(s.updated) +
+                    '</span></span></div>',
+                )
+                .join('');
+              return (
+                '<div class="tree-row tree-indent-1"><span class="twist">▾</span><div><div class="name">' +
+                esc(workspace) +
+                '</div><div class="sub">workspace · ' +
+                sessions.length +
+                ' 个会话</div></div></div>' +
+                sessionRows
+              );
+            })
+            .join('');
+          return head + groups;
+        }).join('');
+        return (
+          '<div class="tree-layout"><div class="tree-pane">' +
+          rows +
+          '</div>' +
+          renderDetail() +
+          '</div>'
+        );
+      }
+      function renderDetail() {
+        if (uiState.selectedSession) {
+          const found = sessionOf(uiState.selectedSession);
+          const s = found.session;
+          return (
+            '<div class="detail"><h2>' +
+            esc(s.title) +
+            '</h2><div class="state" data-state="' +
+            s.state +
+            '"><span class="dot"></span>' +
+            STATE_LABEL[s.state] +
+            ' · ' +
+            esc(found.bot.name) +
+            '</div>' +
+            '<div class="entry"><h3>进度</h3><div>' +
+            esc(s.progress) +
+            '</div></div>' +
+            '<div class="entry"><h3>工作区</h3><div class="kv"><dt>workspace</dt><dd>' +
+            esc(s.workspace) +
+            '</dd><dt>更新</dt><dd>' +
+            esc(s.updated) +
+            '</dd></div></div>' +
+            '<div class="entry"><h3>操作</h3><div style="display:flex;gap:8px"><button class="btn primary">打开会话</button><button class="btn">在此委派</button></div></div></div>'
+          );
+        }
+        const bot = botOf(uiState.selectedBot);
+        return (
+          '<div class="detail"><h2>' +
+          esc(bot.name) +
+          '</h2><div class="state" data-state="' +
+          bot.state +
+          '"><span class="dot"></span>' +
+          STATE_LABEL[bot.state] +
+          '</div>' +
+          '<div class="entry"><h3>人格</h3><div>' +
+          esc(bot.bio) +
+          '</div></div>' +
+          '<div class="entry"><h3>工作区</h3><div>' +
+          bot.workspaces.map((w) => '<span class="chip">' + esc(w) + '</span>').join(' ') +
+          '</div></div>' +
+          '<div class="entry"><h3>最近汇报</h3>' +
+          bot.reports
+            .map(
+              (r) =>
+                '<div class="report"><div class="time">' +
+                esc(r.at) +
+                '</div><div>' +
+                esc(r.text) +
+                '</div></div>',
+            )
+            .join('') +
+          '</div>' +
+          '<div class="entry"><h3>记忆</h3><button class="btn">打开记忆目录</button></div></div>'
+        );
+      }
+
+      /* ---------- B · 卡片名册 ---------- */
+      function renderCards() {
+        const cards = BOTS.map((bot) => {
+          const sessions = bot.sessions
+            .slice(0, 3)
+            .map(
+              (s) =>
+                '<div class="session-mini"><span class="dot" data-state="' +
+                s.state +
+                '" style="background:var(--state-' +
+                s.state +
+                ')"></span><span class="title">' +
+                esc(s.title) +
+                '</span><span class="time">' +
+                esc(s.updated) +
+                '</span></div>',
+            )
+            .join('');
+          const last = bot.reports[0];
+          return (
+            '<div class="card" data-act="open-card" data-slug="' +
+            bot.slug +
+            '">' +
+            '<div class="card-head">' +
+            avatar(bot, 34) +
+            '<div><div class="name">' +
+            esc(bot.name) +
+            '</div><div style="color:var(--muted);font-size:12px">' +
+            esc(bot.bio) +
+            '</div></div>' +
+            stateEl(bot.state) +
+            '</div>' +
+            '<div class="chips">' +
+            bot.workspaces.map((w) => '<span class="chip">' + esc(w) + '</span>').join('') +
+            '</div>' +
+            sessions +
+            (last ? '<div class="last-report">最近：' + esc(last.text) + '</div>' : '') +
+            '</div>'
+          );
+        }).join('');
+        const slide = uiState.openBot ? renderSlideOver(botOf(uiState.openBot)) : '';
+        return '<div class="cards">' + cards + '</div>' + slide;
+      }
+      function renderSlideOver(bot) {
+        return (
+          '<div class="scrim" data-act="close-card"></div><div class="slideover"><button class="btn close" data-act="close-card">关闭</button>' +
+          '<h2 style="margin:0 0 4px;font-size:18px">' +
+          esc(bot.name) +
+          '</h2>' +
+          stateEl(bot.state) +
+          '<div class="entry" style="margin-top:14px"><h3>会话</h3>' +
+          bot.sessions
+            .map(
+              (s) =>
+                '<div class="session-mini" style="border-top:1px solid #f3f4f6;padding:8px 0"><div style="flex:1"><div>' +
+                esc(s.title) +
+                '</div><div style="color:var(--muted);font-size:12px">' +
+                esc(s.progress) +
+                '</div></div>' +
+                stateEl(s.state) +
+                '</div>',
+            )
+            .join('') +
+          '</div>' +
+          '<div style="margin-top:14px"><h3 style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">最近汇报</h3>' +
+          bot.reports
+            .map(
+              (r) =>
+                '<div class="report"><div class="time">' +
+                esc(r.at) +
+                '</div><div>' +
+                esc(r.text) +
+                '</div></div>',
+            )
+            .join('') +
+          '</div>' +
+          '<div style="display:flex;gap:8px;margin-top:14px"><button class="btn primary">打开主会话</button><button class="btn">委派任务</button></div></div>'
+        );
+      }
+
+      /* ---------- C · 活动流 ---------- */
+      const URGENCY = { blocked: 0, waiting: 1, working: 2, thinking: 3, idle: 4, done: 5 };
+      function renderActivity() {
+        const all = [];
+        for (const bot of BOTS) for (const s of bot.sessions) all.push({ bot, session: s });
+        const filtered = all
+          .filter(
+            ({ session }) =>
+              uiState.filter === 'all' ||
+              (uiState.filter === 'need' &&
+                (session.state === 'blocked' || session.state === 'waiting')) ||
+              (uiState.filter === 'active' &&
+                (session.state === 'working' || session.state === 'thinking')) ||
+              (uiState.filter === 'idle' && (session.state === 'idle' || session.state === 'done')),
+          )
+          .sort((a, b) => URGENCY[a.session.state] - URGENCY[b.session.state]);
+        const counts = { need: 0, active: 0, idle: 0 };
+        for (const { session } of all) {
+          if (session.state === 'blocked' || session.state === 'waiting') counts.need += 1;
+          else if (session.state === 'working' || session.state === 'thinking') counts.active += 1;
+          else counts.idle += 1;
+        }
+        const rows = filtered
+          .map(({ bot, session }) => {
+            const expanded = uiState.expanded === session.id;
+            const head =
+              '<div class="act-row" data-act="toggle-expand" data-id="' +
+              session.id +
+              '">' +
+              '<div class="who">' +
+              avatar(bot, 24) +
+              '<span class="name">' +
+              esc(bot.name) +
+              '</span></div>' +
+              '<div class="what"><div class="title">' +
+              esc(session.title) +
+              '</div><div class="progress">' +
+              esc(session.progress) +
+              '</div></div>' +
+              stateEl(session.state) +
+              '<span class="when">' +
+              esc(session.updated) +
+              '</span></div>';
+            if (!expanded) return head;
+            return (
+              head +
+              '<div class="act-expand"><div class="kv"><dt>工作区</dt><dd>' +
+              esc(session.workspace) +
+              '</dd><dt>PersonaBot</dt><dd>' +
+              esc(bot.bio) +
+              '</dd></div>' +
+              '<div class="actions"><button class="btn primary">打开会话</button><button class="btn">在此委派</button><button class="btn">标记已读</button></div></div>'
+            );
+          })
+          .join('');
+        const filterCh = (key, label) =>
+          '<span class="chip' +
+          (uiState.filter === key ? ' on' : '') +
+          '" data-act="filter" data-key="' +
+          key +
+          '">' +
+          label +
+          '</span>';
+        return (
+          '<div class="summary">' +
+          '<div class="stat"><div class="num" style="color:var(--state-waiting)">' +
+          counts.need +
+          '</div><div class="lbl">需要你</div></div>' +
+          '<div class="stat"><div class="num" style="color:var(--state-working)">' +
+          counts.active +
+          '</div><div class="lbl">进行中</div></div>' +
+          '<div class="stat"><div class="num">' +
+          counts.idle +
+          '</div><div class="lbl">空闲 / 完成</div></div></div>' +
+          '<div class="filters">' +
+          filterCh('all', '全部') +
+          filterCh('need', '需要我') +
+          filterCh('active', '进行中') +
+          filterCh('idle', '空闲') +
+          '</div>' +
+          '<div class="activity">' +
+          rows +
+          '</div>'
+        );
+      }
+
+      /* ---------- 外壳与切换 ---------- */
+      function renderMain() {
+        const body =
+          uiState.variant === 'A'
+            ? renderTree()
+            : uiState.variant === 'B'
+              ? renderCards()
+              : renderActivity();
+        return (
+          '<div class="main"><div class="topbar"><h1>PersonaBots</h1>' +
+          '<span class="badge">' +
+          BOTS.length +
+          ' 个</span><span class="badge warn">1 个需要你</span>' +
+          '<span class="spacer"></span><button class="btn primary">新建 PersonaBot</button></div>' +
+          '<div class="content">' +
+          body +
+          '</div></div>'
+        );
+      }
+      function render() {
+        document.getElementById('app').innerHTML =
+          '<div class="rail"><div class="logo"></div><button title="会话">💬</button><button title="文件">📁</button><button title="插件">🧩</button><button class="active" title="PersonaBots">🤖</button></div>' +
+          renderMain();
+        document.getElementById('variant-label').textContent = VARIANTS[uiState.variant];
+      }
+
+      function setVariant(next) {
+        uiState.variant = next;
+        uiState.openBot = null;
+        uiState.expanded = null;
+        try {
+          history.replaceState(null, '', '?variant=' + next);
+        } catch (error) {
+          location.hash = 'variant=' + next;
+        }
+        render();
+      }
+      const keys = Object.keys(VARIANTS);
+      function cycle(step) {
+        const index = keys.indexOf(uiState.variant);
+        setVariant(keys[(index + step + keys.length) % keys.length]);
+      }
+
+      document.getElementById('app').addEventListener('click', (event) => {
+        const cell = event.target.closest('[data-act]');
+        if (!cell) return;
+        const act = cell.dataset.act;
+        if (act === 'toggle-bot')
+          uiState.openBot = uiState.openBot === cell.dataset.slug ? null : cell.dataset.slug;
+        if (act === 'select-session') {
+          uiState.selectedSession = cell.dataset.id;
+          const found = sessionOf(cell.dataset.id);
+          uiState.selectedBot = found.bot.slug;
+        }
+        if (act === 'open-card') uiState.openBot = cell.dataset.slug;
+        if (act === 'close-card') uiState.openBot = null;
+        if (act === 'toggle-expand')
+          uiState.expanded = uiState.expanded === cell.dataset.id ? null : cell.dataset.id;
+        if (act === 'filter') uiState.filter = cell.dataset.key;
+        render();
+      });
+      document.getElementById('prev').addEventListener('click', () => cycle(-1));
+      document.getElementById('next').addEventListener('click', () => cycle(1));
+      window.addEventListener('keydown', (event) => {
+        const tag = document.activeElement && document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement.isContentEditable)
+          return;
+        if (event.key === 'ArrowLeft') cycle(-1);
+        if (event.key === 'ArrowRight') cycle(1);
+      });
+
+      const params = new URLSearchParams(location.search);
+      const fromHash = location.hash.startsWith('#variant=')
+        ? location.hash.slice('#variant='.length)
+        : null;
+      const initial = params.get('variant') || fromHash;
+      uiState.variant = keys.includes(initial) ? initial : 'A';
+      render();
+    </script>
+  </body>
+</html>
