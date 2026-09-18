@@ -48,6 +48,10 @@ _Avoid_: server, instance, node, worker
 The DSH executor inside one Session. Never a PersonaBot.
 _Avoid_: using this word for PersonaBot
 
+**Subagent**:
+A DSH child agent that a Session starts for a bounded task; it belongs to that Session, not to the PersonaBot.
+_Avoid_: sub-bot, worker, helper
+
 **Session**:
 One run of work or conversation for a PersonaBot — DSH's execution unit, with its own progress and working directory.
 _Avoid_: conversation, context window, thread
