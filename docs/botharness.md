@@ -2,12 +2,12 @@
 
 | 项       | 内容                                                                               |
 | -------- | ---------------------------------------------------------------------------------- |
-| 版本     | v1.7                                                                               |
-| 日期     | 2026-09-18                                                                         |
-| 状态     | Draft                                                                              |
-| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                           |
-| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                     |
-| 决策记录 | `docs/adr/`（v1.7 新增 0027 模型选择不随 Soul 发布；PersonaBot 最小 profile 字段） |
+| 版本     | v1.8                                                                                   |
+| 日期     | 2026-09-18                                                                             |
+| 状态     | Draft                                                                                  |
+| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                               |
+| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                         |
+| 决策记录 | `docs/adr/`（v1.8 新增 0028 in-harness UI 采用 DSH design system）                     |
 
 ## 1. 定位与缺口
 
@@ -102,6 +102,7 @@
 - 扩展面：其他 Host 插件可读 registry、订阅状态事件、注册 renderer；不提供路由与回复位置的覆盖（沿用 ADR-0011，路由类需求走上游）。
 - 客户端事实：DSH 客户端组件是 React，且浏览器半侧是**独立 Cordis 应用**——不能 `inject` host 服务；客户端经**客户端桥（读模型 RPC）**读写 PersonaBot（ADR-0023，规格 `docs/client-bridge.md`）。shell 只共享 `react`/`react-dom` 等基线，第三方依赖必须打进 lazily-loaded bundle（blobatar 走这条）。
 - 插件配置走 DSH 规范通道：导出 `Config` + `apply(ctx, config)`，`enabled` 是组合层开关；settings 卡片推迟到 M3+ 以 `installSection` + 动态注入回归（ADR-0022）。
+- 客户端设计系统：in-harness UI 使用 DSH design tokens（`--dsw-*`）与基线 `@deepseek-ai/dsh-client-ui-primitives`，随宿主浅/深主题；COSS 仅用于 docs/landing（ADR-0028）。
 
 ## 7. 里程碑
 
