@@ -283,6 +283,13 @@ importers:
         version: 4.132.0(@types/node@22.20.3)
 
   packages/client:
+    dependencies:
+      '@blobatar/react':
+        specifier: ^2.7.0
+        version: 2.7.0(blobatar@2.7.0(react@18.3.1))(react@18.3.1)
+      blobatar:
+        specifier: ^2.7.0
+        version: 2.7.0(react@18.3.1)
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.2
@@ -613,6 +620,12 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  '@blobatar/react@2.7.0':
+    resolution: {integrity: sha512-rysDM1+2qoeIwIezVw/em+ZxOMyqqjqJOGNEvtOOU1nFp0jmzyEjlXtJTDM6xPKamq59pq6wcG9+mHIUZV572A==}
+    peerDependencies:
+      blobatar: 2.x
+      react: '>=18'
 
   '@braintree/sanitize-url@7.1.2':
     resolution: {integrity: sha512-jigsZK+sMF/cuiB7sERuo9V7N9jx+dhmHHnQyDSVdpZwVutaBu7WvNYqMDLSgFgfB30n452TP3vjDAvFC973mA==}
@@ -2917,6 +2930,17 @@ packages:
 
   blake3-wasm@2.1.5:
     resolution: {integrity: sha512-F1+K8EbfOZE49dtoPtmxUQrpXaBIl3ICvasLh+nJta0xkz+9kF/7uet9fLnwKqhDrmj6g+6K3Tw9yQPUg2ka5g==}
+
+  blobatar@2.7.0:
+    resolution: {integrity: sha512-tL1p2J3dXE/Z9U/ITwHqU7HBHmTH+Am+hif1J1hWAhvFT1VYC2HG+eXtN7081yuY+L2lrp9bs/VaF7dVH3S2jw==}
+    peerDependencies:
+      react: '>=18'
+      vue: '>=3'
+    peerDependenciesMeta:
+      react:
+        optional: true
+      vue:
+        optional: true
 
   boolbase@1.0.0:
     resolution: {integrity: sha512-JZOSA7Mo9sNGB8+UjSgzdLtokWAky1zbztM3WRLCbZ70/3cTANmQmOdR7y2g+J0e2WXywy1yS468tY+IruqEww==}
@@ -5288,6 +5312,11 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.3.0
 
+  '@blobatar/react@2.7.0(blobatar@2.7.0(react@18.3.1))(react@18.3.1)':
+    dependencies:
+      blobatar: 2.7.0(react@18.3.1)
+      react: 18.3.1
+
   '@braintree/sanitize-url@7.1.2': {}
 
   '@bruits/satteri-darwin-arm64@0.10.5':
@@ -7194,6 +7223,10 @@ snapshots:
   baseline-browser-mapping@2.11.24: {}
 
   blake3-wasm@2.1.5: {}
+
+  blobatar@2.7.0(react@18.3.1):
+    optionalDependencies:
+      react: 18.3.1
 
   boolbase@1.0.0: {}
 

@@ -2,7 +2,7 @@
 
 | 项        | 内容                                                                                                                                                                                                                  |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v1.1（PoC）                                                                                                                                                                                                           |
+| 版本      | v1.2（PoC）                                                                                                                                                                                                           |
 | 日期      | 2026-09-18                                                                                                                                                                                                            |
 | 状态      | Draft                                                                                                                                                                                                                 |
 | 形态      | **BotHarness 的首个应用**：DSH 插件 bundle                                                                                                                                                                            |
@@ -10,6 +10,7 @@
 | 上游依赖  | DSH（开发者预览，**必须 pin**）；dsh-im（通道基座）；blobatar（MVP 形象）                                                                                                                                             |
 | v1.0 变更 | 重组：平台层（PersonaBot、记忆、状态、工作方式）移入 `docs/botharness.md`，本 PRD 只描述 DeepSeekBot 应用；路线从 IM-first 调整为 **sidebar-first**（IM 作为第一个真实渠道，见 M5）；仓库更名 `BotHarness/BotHarness` |
 | v1.1 变更 | 对齐平台 v1.6（ADR-0024/0025/0026）：US-2/AC-2.2 委派目标态 = 独立工作 Session；术语对齐 `CONTEXT.md`（Channel / Binding / Inbox / Orchestrator Session）；跨 PersonaBot 通信目标路径 = 经 Orchestrator               |
+| v1.2 变更 | 对齐平台 v1.7：PersonaBot 最小 profile = displayName / tag（岗位）/ description，AC-1.3 向导同步；模型选择为本地策略、不随 SoulSnapshot 发布（ADR-0027）                                                              |
 
 ## 0. 历史变更（v0.2–v0.9）
 
@@ -37,7 +38,7 @@
 
 - AC-1.1 `main` 面板显示名册：头像 + 聚合状态（六态）。
 - AC-1.2 多层可折叠树：PersonaBot > Workspace > Session，显示每个 Session 的进度。
-- AC-1.3 新建向导：名字、persona（写入 `PERSONA.md`）、模型/preset、首个 workspace、头像种子。
+- AC-1.3 新建向导：名字（displayName）、标签（tag）、描述（description）、persona（写入 `PERSONA.md`）、模型/preset、首个 workspace、头像种子。
 - AC-1.4 详情页：人格、记忆入口、workspaces、最近汇报。
 
 ### US-2 委派与持续工作（P0）

@@ -22,6 +22,14 @@ _Avoid_: display name, title, handle
 The human-facing name of a PersonaBot (`displayName`), distinct from its slug.
 _Avoid_: alias, nickname, username
 
+**Bot tag**:
+A single human-facing role label for a PersonaBot — its "job title" in lists and chat headers.
+_Avoid_: category, label, badge
+
+**Bot description**:
+A one-line human-facing summary of what a PersonaBot is for.
+_Avoid_: bio, intro, slogan
+
 **Persona**:
 The role definition — character, voice, and standing instructions — that shapes how a PersonaBot replies. Human-owned: the Agent may not rewrite it.
 _Avoid_: system prompt, character sheet, profile

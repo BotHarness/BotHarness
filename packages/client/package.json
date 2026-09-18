@@ -16,6 +16,10 @@
     },
     "./package.json": "./package.json"
   },
+  "dependencies": {
+    "@blobatar/react": "^2.7.0",
+    "blobatar": "^2.7.0"
+  },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
     "@deepseek-ai/dsh-client-connection": "0.1.5-rc.2",
