@@ -26,7 +26,7 @@ export const CSS = `
   height: 100%;
   overflow-y: auto;
   overflow-x: hidden;
-  padding: 10px 10px 4px;
+  padding: 6px 0 4px;
 }
 .bh-region-rail {
   padding: 0;
@@ -37,6 +37,7 @@ export const CSS = `
   gap: 6px;
   align-items: center;
   margin-bottom: 10px;
+  padding: 0 8px;
 }
 .bh-search-input {
   flex: 1;
@@ -64,6 +65,7 @@ export const CSS = `
   grid-template-columns: 1fr 1fr;
   gap: 6px 8px;
   margin-bottom: 12px;
+  padding: 0 8px;
 }
 .bh-pinned {
   display: flex;
@@ -119,7 +121,7 @@ export const CSS = `
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 4px 4px;
+  padding: 6px 10px 4px;
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -132,7 +134,7 @@ export const CSS = `
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 7px 6px;
+  padding: 7px 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -182,7 +184,7 @@ export const CSS = `
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 6px;
+  padding: 6px 8px;
   border-radius: 7px;
   color: var(--dsw-alias-label-secondary);
 }
@@ -202,10 +204,10 @@ export const CSS = `
 .bh-note {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
-  padding: 6px 4px;
+  padding: 6px 10px;
 }
 .bh-error {
-  margin: 4px 4px 10px;
+  margin: 4px 8px 10px;
   border: 1px solid var(--dsw-alias-state-error-secondary);
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
@@ -219,7 +221,7 @@ export const CSS = `
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 7px 10px;
+  padding: 7px 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;

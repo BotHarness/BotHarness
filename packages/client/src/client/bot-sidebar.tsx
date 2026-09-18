@@ -1,9 +1,19 @@
 import { useSyncExternalStore, type ReactElement } from 'react';
 
-import { Input, StateDot, Tag, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  IconAgentPresetOutline16,
+  IconFolderOpenOutline16,
+  IconNewChatOutline16,
+  IconPlusOutline16,
+  IconSearchOutline16,
+  Input,
+  StateDot,
+  Tag,
+  Tooltip,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { Blobatar } from './avatar.js';
-import { ChatIcon, DashboardIcon, PlusIcon, RobotIcon, SearchIcon } from './icons.js';
+import { DashboardIcon } from './icons.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import { store, type BotSummary, type ClientState } from './store.js';
 
@@ -57,7 +67,7 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
         </Tooltip>
         <Input
           className="bh-search-input"
-          icon={<SearchIcon size={16} />}
+          icon={<IconSearchOutline16 size={16} />}
           type="search"
           placeholder="搜索 Bot"
           value={state.query}
@@ -65,7 +75,7 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
         />
         <Tooltip label="新建 PersonaBot（尚未接入）" delayMs={500}>
           <button type="button" className="bh-icon-btn" aria-label="新建 PersonaBot（尚未接入）">
-            <PlusIcon size={16} />
+            <IconPlusOutline16 size={16} />
           </button>
         </Tooltip>
       </div>
@@ -142,7 +152,7 @@ export function BotSidebar({ wide }: { wide: boolean }): ReactElement {
       ) : (
         workspaces.map((name) => (
           <div className="bh-ws-row" key={name}>
-            <span aria-hidden="true">📁</span>
+            <IconFolderOpenOutline16 size={16} />
             <span className="bh-name">{name}</span>
             <span className="bh-meta">0 个会话</span>
           </div>
@@ -173,7 +183,11 @@ export function BotModeToggle({
         aria-label={label}
         onClick={toggleMode}
       >
-        {mode === 'bot' ? <ChatIcon size={15} /> : <RobotIcon size={15} />}
+        {mode === 'bot' ? (
+          <IconNewChatOutline16 size={16} />
+        ) : (
+          <IconAgentPresetOutline16 size={16} />
+        )}
         {wide ? <span className="bh-grow">{label}</span> : null}
       </button>
     </Tooltip>
