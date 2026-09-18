@@ -28,9 +28,9 @@ export const CSS = `
   overflow-x: hidden;
   /* 原生 WorkspaceBrowser 的 root 约定：右侧内衬 = --dsh-session-list-edge-inset
      （= --dsh-sidebar-inline-padding，12px）。外层 regionArea 已抵消 sidebar 的右
-     侧 padding 并给 4px 左衬（见 hHd-Xa_regionArea），所以注册方必须自己补右衬，
-     左衬仿其 listArea。 */
-  padding: 6px var(--dsh-sidebar-inline-padding) 4px 4px;
+     侧 padding 并给 4px 左衬（见 hHd-Xa_regionArea）；顶层内容再补 4px 左衬即与
+     原生 sectionHeader / 新会话行（20px）对齐。 */
+  padding: 6px var(--dsh-sidebar-inline-padding) 4px 0;
 }
 .bh-region-rail {
   padding: 0;
@@ -41,7 +41,7 @@ export const CSS = `
   gap: 6px;
   align-items: center;
   margin-bottom: 10px;
-  padding: 0 8px;
+  padding: 0 8px 0 4px;
 }
 .bh-search-input {
   flex: 1;
@@ -69,7 +69,7 @@ export const CSS = `
   grid-template-columns: 1fr 1fr;
   gap: 6px 8px;
   margin-bottom: 12px;
-  padding: 0 8px;
+  padding: 0 8px 0 4px;
 }
 .bh-pinned {
   display: flex;
@@ -125,7 +125,7 @@ export const CSS = `
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 10px 4px;
+  padding: 6px 8px 4px 4px;
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -138,7 +138,7 @@ export const CSS = `
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 7px 8px;
+  padding: 7px 8px 7px 4px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -188,7 +188,7 @@ export const CSS = `
   display: flex;
   align-items: center;
   gap: 7px;
-  padding: 6px 8px;
+  padding: 6px 8px 6px 4px;
   border-radius: 7px;
   color: var(--dsw-alias-label-secondary);
 }
@@ -208,10 +208,10 @@ export const CSS = `
 .bh-note {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
-  padding: 6px 10px;
+  padding: 6px 8px 6px 4px;
 }
 .bh-error {
-  margin: 4px 8px 10px;
+  margin: 4px 8px 10px 4px;
   border: 1px solid var(--dsw-alias-state-error-secondary);
   background: var(--dsw-alias-interactive-bg-hover-danger);
   color: var(--dsw-alias-state-error-primary);
