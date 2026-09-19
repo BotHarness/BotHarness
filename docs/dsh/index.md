@@ -1,6 +1,6 @@
-# DSH Plugin Development
+# DSH and Cordis Plugin Development
 
-A DeepSeek Harness plugin has two halves: a **host half** that registers tools, services, events and settings, and a **client half** that draws UI into the official slots over RPC. This section is the full-stack authoring guide — written as an agent skill you can install, rendered here for people.
+Reliable DSH plugin design starts before Host or Client code: name the runtime objects precisely, then choose the seam that matches the requirement. This section is a foundation-first guide—written as an installable agent skill and rendered here for people. Host, Client and Slots remain available as implementation branches after the shared Context and Decision Tree.
 
 ## Install the skill
 
@@ -12,13 +12,16 @@ npx skills add BotHarness/dsh-skill
 
 ## What's inside
 
-| Page                                   | Covers                                                                                |
-| -------------------------------------- | ------------------------------------------------------------------------------------- |
-| [The full guide](/dsh/guide)           | Mental model, extension-point decision table, host and client workflows, top pitfalls |
-| [Host-side reference](/dsh/host)       | Package manifest, `cordis.patch.yml`, tools, events, settings, credentials, lifecycle |
-| [Client-side reference](/dsh/client)   | `dsh.client`, client services and hooks, generic RPC, the lazy-CJS build contract     |
-| [Slot catalog](/dsh/slots)             | Every UI slot with its kind, scope and use                                            |
-| [Community UI patterns](/dsh/patterns) | How 13 community plugins build UI — build routes, proven practices, drift hazards     |
+| Page                                         | Covers                                                                                              |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| [Canonical context](/dsh/context)            | DSH, Cordis and BotHarness leading words; native and proposed boundaries                            |
+| [Decision tree](/dsh/decision-tree)          | Choose Service, Event, Registry, SessionEvent, Projection, storage, execution or UI seams           |
+| [Bot runtime architecture](/dsh/bot-runtime) | Keep product IM, PersonaBot/Work ownership and native Subagent delegation as three different graphs |
+| [The full guide](/dsh/guide)                 | Foundation-first workflow, implementation branches and top pitfalls                                 |
+| [Host-side reference](/dsh/host)             | Package manifest, `cordis.patch.yml`, tools, events, settings, credentials, lifecycle               |
+| [Client-side reference](/dsh/client)         | `dsh.client`, client services and hooks, Typert/API Gateway, the lazy-CJS build contract            |
+| [Slot catalog](/dsh/slots)                   | Every UI slot with its kind, scope and use                                                          |
+| [Community UI patterns](/dsh/patterns)       | How 13 community plugins build UI—build routes, proven practices, drift hazards                     |
 
 ## Honest boundaries
 

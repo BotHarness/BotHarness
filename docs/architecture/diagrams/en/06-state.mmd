@@ -1,11 +1,22 @@
-stateDiagram-v2
-  [*] --> idle
-  idle --> thinking: delegate / wake
-  thinking --> working: start execution
-  working --> waiting: needs approval / waiting on someone
-  waiting --> working: resume after confirmation
-  working --> blocked: failure / missing precondition
-  blocked --> working: retry after fix
-  thinking --> blocked: stuck
-  working --> done: finished (session event)
-  done --> idle: aggregate back to idle
+flowchart TB
+  subgraph Profile["One DSH profile"]
+    DB[("botharness.db<br/>operational authority")]
+    Files["Persona + Memory files<br/>human-readable authority"]
+    CAS["Attachment / Soul CAS bytes"]
+    DSHS["DSH SessionPersistence<br/>transcripts · execution"]
+    Creds["DSH credentials / settings"]
+  end
+
+  Barrier["Manual Export Profile<br/>backup barrier + consistent snapshots"]
+  Package["one compressed<br/>.botharness-backup"]
+  Stage["Import Profile staging<br/>validate · migrate · dependency check"]
+  Target["Restore As New / Replace Existing<br/>cold + suspended authorities"]
+
+  DB --> Barrier
+  Files --> Barrier
+  CAS --> Barrier
+  DSHS -.->|"adapter-supported facets"| Barrier
+  Creds -.->|"declarations only; never secrets"| Barrier
+  Barrier --> Package
+  Package --> Stage
+  Stage --> Target

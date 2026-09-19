@@ -10,6 +10,6 @@ A PersonaBot's model choice is deployment-local: a global default with an option
 
 ## Consequences
 
-- `bot.json` keeps the per-bot override for local use; exports drop it.
+- The BotHarness operational database keeps the per-bot override for local use; PersonaBot exports drop it (ADR-0041).
 - Snapshot manifests must not grow model or credential fields; import prompts the importer to pick a model (default: the global setting).
 - Memory stays per-PersonaBot (ADR-0002/0013); a user-level shared memory layer (Grok-Bot style) remains an open question, not part of this decision.

@@ -54,20 +54,20 @@ const SKILL = '.agents/skills/dsh-plugin-dev/';
 
 const ARCHITECTURE_DIAGRAMS_ZH = [
   { name: '01-system-context', caption: '系统上下文' },
-  { name: '02-modules', caption: '模块与包' },
-  { name: '03-boot', caption: '装载与服务暴露' },
-  { name: '04-create-bot', caption: '创建 PersonaBot（数据流）' },
-  { name: '05-im-binding', caption: 'IM 绑定解析（当前为 helper，M5 接线）' },
-  { name: '06-state', caption: '状态机与事件' },
+  { name: '02-modules', caption: 'Deep modules 与所有权' },
+  { name: '03-boot', caption: 'Host 启动、迁移与 recovery' },
+  { name: '04-create-bot', caption: 'Messaging 事务与外部副作用' },
+  { name: '05-im-binding', caption: 'Orchestrator 与 Work control plane' },
+  { name: '06-state', caption: '持久化、导出与恢复边界' },
 ];
 
 const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '01-system-context', caption: 'System context' },
-  { name: '02-modules', caption: 'Modules & packages' },
-  { name: '03-boot', caption: 'Boot & service exposure' },
-  { name: '04-create-bot', caption: 'Creating a PersonaBot (data flow)' },
-  { name: '05-im-binding', caption: 'IM binding resolution (helper today, wired in M5)' },
-  { name: '06-state', caption: 'State machine & events' },
+  { name: '02-modules', caption: 'Deep modules and ownership' },
+  { name: '03-boot', caption: 'Host boot, migration, and recovery' },
+  { name: '04-create-bot', caption: 'Messaging transaction and external side effects' },
+  { name: '05-im-binding', caption: 'Orchestrator and Work control plane' },
+  { name: '06-state', caption: 'Persistence, export, and restore boundaries' },
 ];
 
 /**
@@ -420,36 +420,57 @@ function provenanceFields({ skillVersion, verifiedAgainst, upstreamSha, verified
 
 const SKILL_PAGES = [
   {
-    slug: 'dsh/guide',
+    slug: 'dsh/context',
     order: 1,
+    source: `${SKILL}references/context.md`,
+    title: 'Canonical context',
+    description: 'Precise DSH, Cordis and BotHarness vocabulary and boundaries',
+  },
+  {
+    slug: 'dsh/decision-tree',
+    order: 2,
+    source: `${SKILL}references/decision-tree.md`,
+    title: 'Decision tree',
+    description: 'Choose the correct DSH seam before implementation',
+  },
+  {
+    slug: 'dsh/bot-runtime',
+    order: 3,
+    source: `${SKILL}references/bot-runtime-architecture.md`,
+    title: 'Bot runtime architecture',
+    description: 'Keep product IM, Work ownership and DSH delegation separate',
+  },
+  {
+    slug: 'dsh/guide',
+    order: 4,
     source: `${SKILL}SKILL.md`,
     title: 'The full guide',
-    description: 'Mental model, extension points, workflows and pitfalls',
+    description: 'Foundation-first workflow, implementation branches and pitfalls',
   },
   {
     slug: 'dsh/host',
-    order: 2,
+    order: 5,
     source: `${SKILL}references/host.md`,
     title: 'Host-side reference',
     description: 'Package manifest, patches, tools, events, lifecycle',
   },
   {
     slug: 'dsh/client',
-    order: 3,
+    order: 6,
     source: `${SKILL}references/client.md`,
     title: 'Client-side reference',
     description: 'dsh.client, slots, RPC and the lazy-CJS build contract',
   },
   {
     slug: 'dsh/slots',
-    order: 4,
+    order: 7,
     source: `${SKILL}references/slots.md`,
     title: 'Slot catalog',
     description: 'Every UI slot with kind, scope and use',
   },
   {
     slug: 'dsh/patterns',
-    order: 5,
+    order: 8,
     source: `${SKILL}references/community-ui-patterns.md`,
     title: 'Community UI patterns',
     description:
@@ -480,7 +501,7 @@ function syncSkill() {
       frontmatter({
         title,
         description:
-          'Full-stack DSH plugin authoring guide — install the skill, read the references',
+          'Foundation-first DSH and Cordis design guide — install the skill, then follow its decision tree',
         order: 0,
         untranslated: variant.untranslated,
         extra: provenance,

@@ -122,7 +122,7 @@ ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
 
 ## Sessions, projections, agents
 
-- `ctx.sessions` — in-memory append-only store; `session/event` is the only persistent truth; cold reads via `sessionPersistence`/`sessionQuery`.
+- `ctx.sessions` — live in-memory Session access; committed SessionEvents form the canonical durable log through `sessionPersistence`, while `session/event` is the process-local post-commit notification and `sessionQuery` is a derived cold-search seam.
 - `ctx.sessionProjections.register(...)` — fold session events into domain state exposed to UI/other plugins; registration is an effect (key leaves snapshots on unload); history can be lazily folded (`docs/subsystems/session-projection.zh.md:205`).
 - `ctx.agents`: `followup(msg)` queues next-turn prompt and wakes the driver; `steer(msg)` submits next-step input; `inject(msg)` adds durable model-facing context without waking; `cancel`, `whenIdle`.
 - Dynamic context injection patterns: durable `agent.inject({ content, source })`, `agent/pre-step` waterfall (append to `decision.messages`), or `systemPrompt` contributions. Golden sample: `packages/context/time-context/src/index.ts:153-221`.

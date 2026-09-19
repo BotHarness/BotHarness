@@ -1,12 +1,22 @@
-flowchart TD
-  A["registry.create({ slug, displayName, … })"] --> B{"valid slug?<br/>kebab-case ≤64"}
-  B -- no --> E1["reason: invalid-slug"]
-  B -- yes --> C{"existing valid bot.json?"}
-  C -- yes --> E2["reason: duplicate"]
-  C -- no --> D{"memoryDir is absolute?"}
-  D -- no --> E3["reason: invalid-memory-dir"]
-  D -- yes --> F["assemble record<br/>slug/displayName/avatar/model/preset/workspaces/createdAt"]
-  F --> G["atomic write: bot.json.tmp-<uuid> → rename"]
-  G --> H["mkdir memory/ (default or custom)"]
-  H --> I["return ok: record"]
-  G -.->|"rebuild if corrupt: keep existing memory/"| H
+sequenceDiagram
+  participant P as Provider adapter
+  participant M as Messaging command
+  participant DB as botharness.db
+  participant N as Post-commit notifier
+  participant O as Orchestrator
+  participant X as Provider service
+
+  P->>M: verified event + account fingerprint + capabilities
+  M->>DB: BEGIN IMMEDIATE
+  M->>DB: append Source Event / Revision
+  M->>DB: Channel placement (optional)
+  M->>DB: evaluate exact Trigger + Wake Policy revision
+  M->>DB: create Inbox Admission / Attention facts
+  M->>DB: COMMIT
+  DB-->>N: committed fact ids
+  N-->>O: wake at policy-selected safe boundary
+  O->>M: Reply or authorized Service Action
+  M->>DB: validate current revision + capability + grant and write Outbox Intent
+  M->>X: execute with stable idempotency identity
+  X-->>M: receipt / failure / unknown outcome
+  M->>DB: append attempt and outcome facts

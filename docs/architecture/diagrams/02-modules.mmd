@@ -1,50 +1,31 @@
 flowchart TB
-  subgraph pkgs["monorepo packages"]
-    Bundle["deepseekbot<br/>bundle + 应用（M5）"]
-    CorePkg["@botharness/core<br/>host 域服务（M1 已实现）"]
-    ClientPkg["@botharness/client<br/>React 客户端（M3）"]
-    ImPkg["@botharness/im<br/>IM 适配器（M5）"]
+  Root["Host composition root<br/>lifecycle · dependency wiring"]
+  DB["Operational Database Owner<br/>writer lease · schema generation · transaction"]
+
+  subgraph Modules["BotHarness deep modules"]
+    Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
+    Memory["Memory<br/>files · context delivery · tools"]
+    Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
+    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Portable["Portability<br/>Soul · export · backup · restore"]
+    Views["Read models<br/>RPC · UI projections"]
   end
 
-  Bundle --> CorePkg
-  Bundle --> ClientPkg
-  Bundle --> ImPkg
-
-  subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply(config) / provide"]
-    Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录 · findByWorkspace"]
-    Slug["bots/slug.ts"]
-    Record["bots/persona-bot.ts"]
-    State["state/bot-state.ts<br/>五态 → 聚合 · 事件"]
-    Store["im/config-store.ts<br/>只读 dsh-im JSON"]
-    Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
-    MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>读写 · 生成索引 · 每次写一个 commit"]
-    MemoryTree["memory/tree.ts<br/>目录树 · 超出折叠/溢出标记"]
-    MemorySearch["memory/search.ts<br/>rg 检索"]
-    MemoryGit["memory/git.ts<br/>每 Bot 一个 repo"]
-    FrontMatter["memory/front-matter.ts<br/>摘要 / 降级"]
-  end
-
-  Plugin --> Registry
-  Plugin --> State
-  Plugin --> Store
-  Plugin --> MemoryService
-  Plugin --> MemoryTools
-  Registry --> Slug
-  Registry --> Record
-  Store --> Identity
-  MemoryService --> MemoryStore
-  MemoryTools --> MemoryStore
-  MemoryStore --> MemoryTree
-  MemoryStore --> MemorySearch
-  MemoryStore --> MemoryGit
-  MemoryStore --> FrontMatter
-  MemoryTree --> FrontMatter
-  ImPkg -.->|"M5 写绑定"| Registry
-
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity,MemoryService,MemoryTools,MemoryStore,MemoryTree,MemorySearch,MemoryGit,FrontMatter ours;
-  class Bundle,ClientPkg,ImPkg later;
+  Root --> DB
+  Root --> Bots
+  Root --> Memory
+  Root --> Msg
+  Root --> Work
+  Root --> Portable
+  Root --> Views
+  DB --> Bots
+  DB --> Msg
+  DB --> Work
+  DB --> Portable
+  Bots --> Memory
+  Bots --> Work
+  Msg --> Work
+  Bots --> Views
+  Msg --> Views
+  Work --> Views
+  Portable --> Views

@@ -55,7 +55,7 @@ Client services (`packages/client/README.md`, package READMEs):
 | `ctx.locale` | `register(ns, { zh, en })`, `addLanguage`, `bind(ns)` (both dictionaries required in object form) |
 | `ctx.sessions` / `ctx.workspaces` | React-free client read models; consume via `useSessions`/`useSession`/`useWorkspaces` |
 | `ctx.remote` | Typert remote calls `ctx.remote.<ns>.<method>()`, `$on`, `$host` |
-| `ctx.connection` | generic RPC + connection generation/reconnect |
+| `ctx.connection` | transport primitives and connection generation/reconnect; `/api` remains API Gateway-owned |
 | `ctx.uiSession` | session source + `registerPendingInteraction` |
 | `ctx.theme`, `ctx.layout`, `ctx.sidebarRight`, `ctx.resources`, `ctx.settingsScope`, `ctx.fileUpload`, `ctx.modules` | theme, main-panel selection, right-bar navigation, resource protocols, plugin settings cards, uploads, module table |
 
@@ -83,26 +83,30 @@ export function apply(ctx: Context): void {
 
 Full catalog: `references/slots.md`.
 
-## RPC / host communication
+## Typert / API Gateway host communication
 
-Generic Connection RPC — the route any third-party plugin can use:
+The browser calls `POST /api/<namespace>/<method>` through `@deepseek-ai/dsh-api-gateway`. The gateway owns the route's **single interceptor** and claims methods from the Typert Registry.
 
-```ts
-// host half (registered on the current fiber; unload = unregister)
-ctx.connection.rpc.handle('/my-plugin', async (endpoint, payload, signal) => { /* ConnectionRpcResult */ })
-ctx.connection.rpc.intercept('/api', ep => ep.startsWith('my-plugin/'), handler)
-ctx.connection.fetch.register({ path: '/api/my-plugin/stream', methods: ['GET'], requestBody: 'streaming', fetch: async (req) => new Response(…) })
+In BotHarness, the Host Plugin provides a `TypertRemoteService` with a `typertRemote` namespace binding and remote-method descriptors. Standard decorators do not survive this repository's oxc/tsdown pipeline, so `packages/core/src/bridge/rpc.ts` writes the protocol descriptor directly (SRC markers, no code generation). The client uses the Typert `ctx.remote` face or the gateway wire contract generated/defined for that namespace.
 
-// browser half
-const r = await ctx.connection.rpc.call('/my-plugin', 'list', { query: '' }, signal)
-if (!r.ok) { /* r.error.code / r.error.message / r.error.details */ }
+Hard guardrail: do not register `connection.rpc.intercept('/api', …)` in a third-party Plugin. A second interceptor shadows native controllers (`settings`, model providers, plugin settings, directory picker) while the custom endpoint may appear to work.
+
+Wire shape used by the current host:
+
+```text
+POST /api/<namespace>/<method>
+{ type: "client-request", rpcId, method, payload: { args: { ...namedArgs } } }
+
+-> server-response envelope
+   ok: true with value
+   or ok: false with { code, message, details }
 ```
 
-- Envelope: `{ ok: true, value } | { ok: false, error: { code, message, details } }` — never rejects.
-- `payload` is handed to the handler untouched. `'/api'` is reserved for `intercept`; independent channels mount an authenticated physical route.
-- Trust boundary: host/origin allowlist + signed cookie; `dsh web --host 0.0.0.0` is unsupported.
-- Browser half cannot inject host services. Streaming options: Typert logical streams (in-repo only), whitelisted `$events` forwards (first-party whitelist, not extendable), or your own SSE/long-poll on an exact fetch route.
-- Typert `@Remote` needs the in-repo generator pipeline (`dsh-typert-generator`); outside the monorepo this is unverified — prefer generic RPC.
+- Omit absent named arguments; the decoder rejects explicit `undefined` fields.
+- Browser code cannot inject Host Services. The remote Service is the capability adapter across that boundary.
+- Streaming requires a supported Typert logical stream or an exact authenticated fetch/SSE route verified against the pinned Host; `$events` forwarding is first-party whitelisted.
+- A separate Connection RPC channel (`rpc.handle('/my-plugin', …)` with matching client channel) is a distinct physical route, not a way to extend `/api`. Verify authentication, cancellation, and reconnect behavior before selecting it.
+- Trust boundary: Host/origin allowlist plus signed cookie; `dsh web --host 0.0.0.0` is unsupported.
 
 ## Build contract (must be replicated; no published preset)
 

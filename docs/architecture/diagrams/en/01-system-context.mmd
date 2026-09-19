@@ -1,29 +1,38 @@
 flowchart LR
-  User["User (DSH Web / people in a Feishu group)"]
-  Feishu["Feishu / Lark Open Platform"]
+  Human["Human<br/>DSH Web / IM"]
+  External["Feishu / Lark<br/>webhook / future providers"]
 
-  subgraph Host["DSH Host · single process"]
-    IM["dsh-im base<br/>channels · conversation routing · streaming cards · settings page"]
-    Core["@botharness/core<br/>registry · state · IM binding resolution"]
-    Agent["DSH Agent<br/>one executor per Session"]
+  subgraph Browser["DSH Web Client"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
   end
 
-  subgraph Browser["Web Client · browser (separate Cordis app)"]
-    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
+  subgraph Host["DSH Host · single profile writer"]
+    API["Client Bridge RPC"]
+    Identity["PersonaBot & Memory"]
+    Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
+    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Transfer["Portability<br/>Export · Backup · Restore"]
+    DB[("botharness.db")]
   end
 
-  User -->|"@ / delegate"| Client
-  User -->|"group message"| Feishu
-  Feishu <-->|"long connection (outbound)"| IM
-  IM --> Agent
-  Core -->|"RPC (read model)"| Client
-  Client -.->|"RPC (writes)"| Core
-  Core -.->|"read-only config.json / workspaces.json"| IM
-  Agent -.->|"state events (wired in M3)"| Core
+  subgraph DSH["DSH-owned runtime"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Credentials["Credentials · profile settings"]
+  end
 
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef dsh fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class Core ours;
-  class IM dsh;
-  class Client later;
+  Human --> UI
+  External <--> Messaging
+  UI <--> API
+  API --> Identity
+  API --> Messaging
+  API --> BotWork
+  API --> Transfer
+  Identity --> DB
+  Messaging --> DB
+  BotWork --> DB
+  Transfer --> DB
+  Identity <--> Sessions
+  Messaging --> BotWork
+  BotWork <--> Sessions
+  Messaging -.-> Credentials
+  Transfer -.-> Sessions

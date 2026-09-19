@@ -9,7 +9,7 @@ A PersonaBot is owned by the BotHarness registry and carries its identity, perso
 
 ## Consequences
 
-- The M1 resolver (workspace → bot) is demoted to an IM adapter binding helper; session↔PersonaBot ownership moves to the registry.
+- The M1 resolver (workspace → bot) is demoted to an IM adapter binding helper; explicit Session ownership moves to the registry and is persisted separately from PersonaBot Soul files (ADR-0035).
 - A PersonaBot may hold several sessions and several workspaces; each workspace is a single directory (ADR-0018) and work is represented by sessions (ADR-0017).
 - Six canonical values (`idle`, `thinking`, `working`, `waiting`, `blocked`, `done`) come from Grok Bot's proven vocabulary; `done` stays a session event.
-- `PERSONA.md` and `memory/` move with the user-configurable memory directory; machine metadata stays in the BotHarness home.
+- `PERSONA.md` and `memory/` remain in the user-configurable Soul directory; operational registry metadata lives in the profile's BotHarness database (ADR-0041).
