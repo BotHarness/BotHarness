@@ -26,3 +26,7 @@ All of this is display configuration and lives browser-local in `roster.json` (p
 - New client work splits into tickets: row styling, section management, sort modes, and move (drag + context menu).
 - Spec §2/§5 and PRD US-1 carry the model; ADR-0028's update records the vendored-glyph exception.
 - `CONTEXT.md` gains Section order / Sort mode / 未分组; "未分组" is a product term, not a synonym for a folder.
+
+## Update (2026-09-19) — arrangement moves host-side
+
+The second paragraph's "all of this is display configuration and lives browser-local in `roster.json`" no longer holds for the arrangement. Sections (name, membership, order) and pins move into the DSH storage domain `botharness_roster` on the host, exposed to the client through fine-grained `botharness/*` bridge methods; the rejected "store the arrangement on the Host" option is superseded — the arrangement is durable per-host data, like workspace order in `ui-workspace`. The sort mode moves into the DSH settings namespace `ui-bot-mode` (per-profile, cross-browser) so it can also appear as a General settings row, with the sidebar `...` menu reading and writing the same scope; only `collapsed` remains browser-local view state. The SoulSnapshot avoidance still holds — nothing here enters `bot.json` or a snapshot. The legacy browser `roster.json` is migrated once (arrangement into the domain, sort mode into the settings namespace) and kept as a backup. Details and the full map: ADR-0034.
