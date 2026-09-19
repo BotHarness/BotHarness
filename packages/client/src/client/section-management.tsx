@@ -24,7 +24,7 @@ const SORT_INHERIT = '恢复自动';
 /** Caller class that paints the delete confirm's outline button in the error colour. */
 export const DANGER_ACTION_CLASS = 'bh-danger-action';
 
-/** The global default menu of the Bots header: heading plus the two concrete modes. */
+/** The global default menu of the message-list header: heading plus the two concrete modes. */
 export function globalSortMenuItems(): readonly MenuEntry[] {
   return [
     { type: 'label', id: 'sort-label', text: SORT_LABEL },

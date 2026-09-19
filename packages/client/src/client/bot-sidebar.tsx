@@ -279,7 +279,7 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
     <div className="bh-root bh-region">
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
-          Bots
+          消息
         </span>
         <div className={`bh-search-slot${searchOpen ? ' bh-search-slot-open' : ''}`}>
           <div
