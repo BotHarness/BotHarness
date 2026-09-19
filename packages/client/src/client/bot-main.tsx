@@ -54,10 +54,10 @@ function Welcome({ state }: { state: ClientState }): ReactElement {
         <div className="bh-placeholder">
           <IconAgentPresetOutline16 size={32} />
           <div className="bh-big">与 PersonaBot 对话</div>
-          <div>从左侧选择一个 BOT 或 Channel 开始</div>
+          <div>从左侧选择一个 BOT 或频道开始</div>
           {state.bots.length === 0 ? (
             <div className="bh-dim">
-              还没有 BOT；「+」菜单可以新建群聊，BOT 创建随创建向导（#41）到来。
+              还没有 BOT；「+」菜单可以新建频道，BOT 创建随创建向导（#41）到来。
             </div>
           ) : null}
         </div>

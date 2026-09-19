@@ -463,7 +463,8 @@ button:has(.bh-panel-glyph) {
   height: 20px;
 }
 .bh-section-head:hover .bh-row-actions,
-.bh-section-head:focus-within .bh-row-actions {
+.bh-section-head:focus-within .bh-row-actions,
+.bh-section-head.bh-menu-open .bh-row-actions {
   display: inline-flex;
 }
 .bh-row-action {
@@ -493,22 +494,56 @@ button:has(.bh-panel-glyph) {
   }
 }
 
-.bh-create-card {
+/* 原生 .projectRow 的固定末位桶（ADR-0031「未分组」）：只读标签，无折叠与操作。 */
+.bh-ungrouped-head {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 0 4px 10px;
-  padding: 10px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 10px;
+  align-items: center;
+  box-sizing: border-box;
+  height: 34px;
+  gap: 6px;
+  padding: 0 8px;
 }
-.bh-create-title {
-  font-weight: 600;
+
+/* 原生 WorkspaceBrowser .deleteAction：Modal 确认按钮走 error 色描边文本。
+   双类提升特异性，压过 Modal 外挂载顺序下 primitives 的 outline 规则。 */
+.bh-danger-action.bh-danger-action:not(:disabled) {
+  color: var(--dsw-alias-state-error-primary);
 }
-.bh-create-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
+
+/* 原生 WorkspaceBrowser 的 .renameInput（shipped dialog 用的是 feature-local
+   普通 input，不是 primitives Input）：类自身拥有完整盒模型，Modal 在 body
+   下也不依赖 .bh-root 前缀。几何逐项对齐原生：高 44、内衬 7/14、圆角 22、
+   border-l4、透明底、14/22 label-primary、outline none。 */
+.bh-name-input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 44px;
+  padding: 7px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 22px;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+.bh-name-input::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+.bh-name-input:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+/* 创建失败提示留在 Modal 体内；Modal 在 body 下，不能依赖 .bh-root 前缀。 */
+.bh-modal-error {
+  margin-top: 8px;
+  border: 1px solid var(--dsw-alias-state-error-secondary);
+  background: var(--dsw-alias-interactive-bg-hover-danger);
+  color: var(--dsw-alias-state-error-primary);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .bh-note {

@@ -48,4 +48,12 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-arrow-open \{\s*transform: rotate\(90deg\)/);
     expect(source).toMatch(/\.bh-channel-row\.bh-selected \{\s*background: var\(--bh-hover\)/);
   });
+
+  it('copies the native rename input box model without portaled overrides', () => {
+    expect(source).toMatch(/\.bh-name-input \{[^}]*box-sizing: border-box/);
+    expect(source).toMatch(/\.bh-name-input \{[^}]*height: 44px/);
+    expect(source).toMatch(/\.bh-name-input \{[^}]*padding: 7px 14px/);
+    expect(source).toMatch(/\.bh-name-input \{[^}]*border-radius: 22px/);
+    expect(source).not.toContain('bh-modal-input');
+  });
 });
