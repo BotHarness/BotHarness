@@ -128,3 +128,30 @@ export { createMemoryTools } from './memory/tools.js';
 export type { MemoryToolsOptions } from './memory/tools.js';
 export { createMemoryService } from './memory/service.js';
 export type { MemoryAgentRef, MemoryService, MemoryServiceOptions } from './memory/service.js';
+export {
+  mountOperationalDatabase,
+  OPERATIONAL_DATABASE_FILENAME,
+  OperationalDatabaseError,
+} from './database/owner.js';
+export type {
+  OperationalDatabaseDiagnostics,
+  OperationalDatabaseErrorCode,
+  OperationalDatabaseErrorDetails,
+  OperationalDatabaseMetrics,
+  OperationalDatabaseMode,
+  OperationalDatabaseOwner,
+  OperationalDatabaseOwnerOptions,
+  PostCommitNotification,
+  ProfileWriterLeaseMetadata,
+} from './database/owner.js';
+export {
+  defineSchemaPlan,
+  FOUNDATION_SCHEMA_GENERATION,
+  FOUNDATION_SCHEMA_PLAN,
+  LEGACY_FORWARD_MIGRATION_PLAN,
+} from './database/schema.js';
+export type {
+  LegacyForwardMigrationPlanEntry,
+  SchemaMigration,
+  SchemaPlan,
+} from './database/schema.js';
