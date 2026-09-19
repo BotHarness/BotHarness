@@ -14,6 +14,7 @@ import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
+import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 
@@ -42,9 +43,12 @@ export interface BotHarnessCore {
   states: BotStateTracker;
   memory: MemoryService;
   channels: ChannelStore;
+  roster: RosterStore;
 }
 
-export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
+export function createCore(
+  options: { dshHome?: string; warn?: (message: string) => void } = {},
+): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({ rootDir });
@@ -54,12 +58,13 @@ export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
     states: createBotStateTracker(),
     memory: createMemoryService({ registry }),
     channels: createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') }),
+    roster: createRosterStore({ warn: options.warn }),
   };
 }
 
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
-  const core = createCore();
+  const core = createCore({ warn: (message) => ctx.logger.warn(message) });
   ctx.provide('botharness', core);
 
   for (const tool of createMemoryTools({
@@ -75,8 +80,18 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       states: core.states,
       channels: core.channels,
       sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
+      roster: core.roster,
     }),
   );
+
+  // Storage is an optional capability: without it the plugin still loads and
+  // the bridge reports `storage-unavailable` for arrangement writes.
+  ctx.inject(['storageDomain'], (storageCtx) => {
+    void core.roster.attach(storageCtx.storageDomain).catch((error: unknown) => {
+      ctx.logger.warn(`botharness: failed to open the roster domain: ${String(error)}`);
+    });
+    storageCtx.effect(() => () => core.roster.detach(), 'botharness: roster domain');
+  });
 
   ctx.systemPrompt.section({
     name: 'botharness:persona',

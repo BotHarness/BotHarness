@@ -1,14 +1,21 @@
 import {
+  assignRosterChannel,
+  BridgeCallError,
   createGroupChannel,
+  createRosterSection,
   errorMessage,
   loadBots,
   loadChannelMessages,
   loadChannels,
+  loadRoster,
   loadSessions,
   openDmChannel,
+  removeRosterSection,
+  renameRosterSection,
   sendChannelMessage,
   type BridgeCall,
 } from './bridge.js';
+import { planSectionChannelOrder, type RosterSection } from './roster.js';
 import type {
   ChannelSummary,
   ClientStore,
@@ -18,15 +25,60 @@ import type {
 
 export interface BridgeActions {
   load(signal?: AbortSignal): Promise<void>;
+  refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   send(body: string): Promise<boolean>;
   createGroup(name: string): Promise<ChannelSummary | undefined>;
+  createSection(name: string): Promise<RosterSection | undefined>;
+  renameSection(sectionId: string, name: string): Promise<boolean>;
+  removeSection(sectionId: string): Promise<boolean>;
+  assignChannel(channelId: string, sectionId: string | undefined, index?: number): Promise<boolean>;
+  /** Freeze a section's channel order through positioned channelAssign writes. */
+  setSectionChannelOrder(sectionId: string, order: readonly string[]): Promise<boolean>;
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
   const currentSelection = (): ConversationSelection | undefined =>
     clientStore.getSnapshot().selection;
+
+  const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
+    try {
+      const snapshot = await loadRoster(call, signal);
+      if (signal?.aborted === true) return;
+      clientStore.setRosterState({
+        pins: snapshot.pins,
+        sections: snapshot.sections,
+        readOnly: false,
+      });
+    } catch (error) {
+      if (signal?.aborted === true) return;
+      if (error instanceof BridgeCallError && error.code === 'storage-unavailable') {
+        clientStore.setRosterState({ readOnly: true });
+        return;
+      }
+      console.warn('botharness: roster refresh failed', error);
+    }
+  };
+
+  const reportRosterFailure = (error: unknown): void => {
+    if (error instanceof BridgeCallError && error.code === 'storage-unavailable') {
+      clientStore.setRosterState({ readOnly: true });
+    }
+    console.warn('botharness: roster write failed', error);
+  };
+
+  /** Run one durable arrangement mutation, then re-read `rosterGet`. */
+  const rosterMutate = async (operation: () => Promise<void>): Promise<boolean> => {
+    try {
+      await operation();
+      await refreshRoster();
+      return true;
+    } catch (error) {
+      reportRosterFailure(error);
+      return false;
+    }
+  };
 
   const loadSessionsFor = async (slug: string, selection: ConversationSelection): Promise<void> => {
     clientStore.setSessions({ status: 'loading', items: [], error: undefined });
@@ -82,8 +134,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       } catch (error) {
         if (signal?.aborted === true) return;
         clientStore.setRosterStatus('error', errorMessage(error));
+        return;
       }
+      await refreshRoster(signal);
     },
+    refreshRoster,
     async openBot(slug) {
       const snapshot = clientStore.getSnapshot();
       const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
@@ -152,6 +207,44 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       clientStore.upsertChannel(channel);
       await openChannelById(channel.id);
       return channel;
+    },
+    async createSection(name) {
+      try {
+        const section = await createRosterSection(call, name);
+        await refreshRoster();
+        return section;
+      } catch (error) {
+        reportRosterFailure(error);
+        return undefined;
+      }
+    },
+    async renameSection(sectionId, name) {
+      return rosterMutate(async () => {
+        await renameRosterSection(call, sectionId, name);
+      });
+    },
+    async removeSection(sectionId) {
+      return rosterMutate(async () => {
+        await removeRosterSection(call, sectionId);
+      });
+    },
+    async assignChannel(channelId, sectionId, index) {
+      return rosterMutate(async () => {
+        await assignRosterChannel(call, channelId, sectionId, index);
+      });
+    },
+    async setSectionChannelOrder(sectionId, order) {
+      const section = clientStore
+        .getSnapshot()
+        .roster.sections.find((candidate) => candidate.id === sectionId);
+      if (section === undefined) return false;
+      const target = planSectionChannelOrder(section, order);
+      if (target === undefined) return true;
+      return rosterMutate(async () => {
+        for (let index = 0; index < target.length; index += 1) {
+          await assignRosterChannel(call, target[index] as string, sectionId, index);
+        }
+      });
     },
   };
 }

@@ -1,18 +1,20 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  addChannelToSection,
-  addSection,
+  backupLegacyRoster,
   clearLegacySortPreference,
   defaultStorage,
+  hasRosterMigrated,
+  loadLegacyRosterArrangement,
   loadRosterConfig,
+  markRosterMigrated,
+  parseLegacyRosterArrangement,
   parseRosterConfig,
   readLegacySortPreference,
-  removeSection,
-  renameSection,
+  ROSTER_BACKUP_KEY,
   ROSTER_CONFIG_KEY,
+  ROSTER_MIGRATED_KEY,
   saveRosterConfig,
-  setSectionChannelOrder,
   toggleSectionCollapsed,
   type ConfigStorage,
   type RosterConfig,
@@ -30,193 +32,122 @@ function memoryStorage(seed?: string): ConfigStorage {
 }
 
 function config(patch?: Partial<RosterConfig>): RosterConfig {
-  return { pins: [], sections: [], ...patch };
+  return { collapsed: {}, ...patch };
 }
 
-describe('roster display config', () => {
-  it('keeps valid pins and sections, dropping malformed entries', () => {
+describe('browser roster view config', () => {
+  it('keeps only collapsed flags and drops malformed entries', () => {
     const parsed = parseRosterConfig({
-      pins: ['ada', 'ada', 42, '', 'scout'],
+      collapsed: { s1: true, s2: false, s3: 'yes', '': true },
+      pins: ['ada'],
+      sections: [{ id: 's9', name: 'A', channels: [], collapsed: true }],
+      sortMode: 'manual',
+    });
+
+    expect(parsed).toEqual({ collapsed: { s1: true, s9: true } });
+  });
+
+  it('reads collapse state out of a pre-migration record', () => {
+    const parsed = parseRosterConfig({
+      pins: ['ada'],
       sections: [
-        { id: 'research', name: ' 研究 ', channels: ['group-lab', 'group-lab', 7] },
-        { id: '', name: 'blank id', channels: [] },
-        { id: 'no-name', name: '   ', channels: [] },
-        { id: 'collapsed', name: '折叠', channels: [], collapsed: true },
-        'not-an-object',
+        { id: 'section-1', name: 'A', channels: ['c1'], collapsed: true },
+        { id: 'section-2', name: 'B', channels: [] },
       ],
     });
 
-    expect(parsed).toEqual({
-      pins: ['ada', 'scout'],
-      sections: [
-        { id: 'research', name: '研究', channels: ['group-lab'] },
-        { id: 'collapsed', name: '折叠', channels: [], collapsed: true },
-      ],
-    });
+    expect(parsed).toEqual({ collapsed: { 'section-1': true } });
   });
 
-  it('falls back to defaults on unknown top-level shapes without breaking the roster', () => {
-    expect(parseRosterConfig([])).toEqual({ pins: [], sections: [] });
-    expect(parseRosterConfig('nope')).toEqual({ pins: [], sections: [] });
-    expect(parseRosterConfig({ pins: 'ada', sections: { id: 'x' }, sortMode: 'sideways' })).toEqual(
-      {
-        pins: [],
-        sections: [],
-      },
-    );
-    expect(parseRosterConfig({ sortMode: 'manual', futureKey: { nested: true } })).toEqual({
-      pins: [],
-      sections: [],
-    });
-  });
-
-  it('treats missing or corrupt storage as an empty config', () => {
-    expect(loadRosterConfig(undefined)).toEqual({ pins: [], sections: [] });
-    expect(loadRosterConfig(memoryStorage())).toEqual({ pins: [], sections: [] });
-    expect(loadRosterConfig(memoryStorage('{oops'))).toEqual({
-      pins: [],
-      sections: [],
-    });
+  it('falls back to an empty config on unknown shapes', () => {
+    expect(parseRosterConfig([])).toEqual({ collapsed: {} });
+    expect(parseRosterConfig('nope')).toEqual({ collapsed: {} });
+    expect(loadRosterConfig(undefined)).toEqual({ collapsed: {} });
+    expect(loadRosterConfig(memoryStorage())).toEqual({ collapsed: {} });
+    expect(loadRosterConfig(memoryStorage('{oops'))).toEqual({ collapsed: {} });
   });
 
   it('round-trips through storage', () => {
     const storage = memoryStorage();
-    const stored = config({
-      pins: ['ada'],
-      sections: [{ id: 'research', name: '研究', channels: ['group-lab'] }],
-    });
+    const stored = config({ collapsed: { s1: true } });
 
     saveRosterConfig(stored, storage);
 
     expect(loadRosterConfig(storage)).toEqual(stored);
+    expect(JSON.parse(storage.getItem(ROSTER_CONFIG_KEY)!)).toEqual({ collapsed: { s1: true } });
   });
 
   it('toggles one section without touching the others', () => {
-    const base = config({
-      sections: [
-        { id: 'a', name: 'A', channels: [] },
-        { id: 'b', name: 'B', channels: [], collapsed: true },
-      ],
-    });
+    const base = config({ collapsed: { b: true } });
 
     const collapsed = toggleSectionCollapsed(base, 'a');
-    expect(collapsed.sections).toEqual([
-      { id: 'a', name: 'A', channels: [], collapsed: true },
-      { id: 'b', name: 'B', channels: [], collapsed: true },
-    ]);
+    expect(collapsed.collapsed).toEqual({ b: true, a: true });
 
     const reopened = toggleSectionCollapsed(collapsed, 'b');
-    expect(reopened.sections[1]).toEqual({ id: 'b', name: 'B', channels: [], collapsed: false });
-  });
-
-  it('adds a trimmed empty section with a fresh id', () => {
-    const base = config({
-      sections: [{ id: 'section-1', name: '既有', channels: ['group-lab'] }],
-    });
-
-    const next = addSection(base, '  新增  ');
-    expect(next).toEqual({
-      pins: [],
-      sections: [
-        { id: 'section-1', name: '既有', channels: ['group-lab'] },
-        { id: 'section-2', name: '新增', channels: [] },
-      ],
-    });
-    expect(base.sections).toHaveLength(1);
-  });
-
-  it('skips taken ids and ignores a blank name', () => {
-    const base = config({
-      sections: [
-        { id: 'section-2', name: 'A', channels: [] },
-        { id: 'section-3', name: 'B', channels: [] },
-      ],
-    });
-
-    expect(addSection(base, 'C').sections[2]?.id).toBe('section-4');
-    expect(addSection(base, '   ')).toBe(base);
-  });
-
-  it('renames a section with a trimmed name and ignores a blank submit', () => {
-    const base = config({
-      sections: [
-        { id: 'a', name: '旧名', channels: ['group-1'], collapsed: true },
-        { id: 'b', name: 'B', channels: [] },
-      ],
-    });
-
-    const renamed = renameSection(base, 'a', '  新名  ');
-    expect(renamed.sections[0]).toEqual({
-      id: 'a',
-      name: '新名',
-      channels: ['group-1'],
-      collapsed: true,
-    });
-    expect(renamed.sections[1]?.name).toBe('B');
-    expect(renameSection(base, 'a', '   ')).toBe(base);
-  });
-
-  it('removes only the section and leaves its channels to the roster', () => {
-    const base = config({
-      pins: ['ada'],
-      sections: [
-        { id: 'a', name: 'A', channels: ['group-1', 'group-2'] },
-        { id: 'b', name: 'B', channels: ['group-3'] },
-      ],
-    });
-
-    const next = removeSection(base, 'a');
-    expect(next.sections).toEqual([{ id: 'b', name: 'B', channels: ['group-3'] }]);
-    expect(next.pins).toEqual(['ada']);
-    expect(removeSection(base, 'missing')).toBe(base);
-  });
-
-  it('assigns a created channel to its section once', () => {
-    const base = config({ sections: [{ id: 'a', name: 'A', channels: ['group-1'] }] });
-
-    const next = addChannelToSection(base, 'a', 'group-2');
-    expect(next.sections[0]?.channels).toEqual(['group-1', 'group-2']);
-    expect(addChannelToSection(next, 'a', 'group-2')).toBe(next);
-    expect(addChannelToSection(base, 'missing', 'group-9')).toBe(base);
-  });
-
-  it('freezes one section order while preserving every member', () => {
-    const base = config({
-      sections: [
-        { id: 'a', name: 'A', channels: ['c1', 'c2', 'c3'] },
-        { id: 'b', name: 'B', channels: ['c9'] },
-      ],
-    });
-
-    const next = setSectionChannelOrder(base, 'a', ['c3', 'c1']);
-    expect(next.sections[0]?.channels).toEqual(['c3', 'c1', 'c2']);
-    expect(next.sections[1]?.channels).toEqual(['c9']);
-    expect(base.sections[0]?.channels).toEqual(['c1', 'c2', 'c3']);
-  });
-
-  it('ignores non-members, duplicates, and unknown sections', () => {
-    const base = config({ sections: [{ id: 'a', name: 'A', channels: ['c1', 'c2'] }] });
-
-    const reordered = setSectionChannelOrder(base, 'a', ['c2', 'ghost', 'c2', 'c1']);
-    expect(reordered.sections[0]?.channels).toEqual(['c2', 'c1']);
-    expect(setSectionChannelOrder(base, 'a', ['c1'])).toBe(base);
-    expect(setSectionChannelOrder(base, 'missing', ['c1'])).toBe(base);
-  });
-
-  it('drops sort fields wherever they appear in the roster record', () => {
-    const parsed = parseRosterConfig({
-      sortMode: 'manual',
-      sections: [{ id: 'a', name: 'A', channels: [], sortMode: 'manual' }],
-    });
-
-    expect(parsed).toEqual({
-      pins: [],
-      sections: [{ id: 'a', name: 'A', channels: [] }],
-    });
+    expect(reopened.collapsed).toEqual({ a: true });
+    expect(base.collapsed).toEqual({ b: true });
   });
 
   it('tolerates a browser without storage', () => {
     expect(defaultStorage()).toBeUndefined();
+  });
+});
+
+describe('legacy roster arrangement export', () => {
+  it('parses trimmed section names, channel order, and collapse flags', () => {
+    expect(
+      parseLegacyRosterArrangement({
+        pins: ['ada', 'ada', 42, '', 'scout'],
+        sections: [
+          { id: 'section-1', name: ' 研究 ', channels: ['c1', 'c1', 7], collapsed: true },
+          { id: '', name: 'blank id', channels: [] },
+          { id: 'section-2', name: '   ', channels: [] },
+          'not-an-object',
+        ],
+      }),
+    ).toEqual({
+      pins: ['ada', 'scout'],
+      sections: [{ id: 'section-1', name: '研究', channels: ['c1'], collapsed: true }],
+    });
+  });
+
+  it('returns undefined when the record has nothing to migrate', () => {
+    expect(parseLegacyRosterArrangement(undefined)).toBeUndefined();
+    expect(parseLegacyRosterArrangement('nope')).toBeUndefined();
+    expect(parseLegacyRosterArrangement([])).toBeUndefined();
+    expect(parseLegacyRosterArrangement({ collapsed: { s1: true } })).toBeUndefined();
+    expect(parseLegacyRosterArrangement({ pins: [], sections: [] })).toBeUndefined();
+    expect(loadLegacyRosterArrangement(memoryStorage('{oops'))).toBeUndefined();
+  });
+
+  it('reads the arrangement from browser storage', () => {
+    const storage = memoryStorage(
+      JSON.stringify({ pins: ['ada'], sections: [{ id: 's1', name: 'A', channels: ['c1'] }] }),
+    );
+
+    expect(loadLegacyRosterArrangement(storage)).toEqual({
+      pins: ['ada'],
+      sections: [{ id: 's1', name: 'A', channels: ['c1'] }],
+    });
+  });
+
+  it('copies the legacy record aside once before it is cleared', () => {
+    const storage = memoryStorage(JSON.stringify({ pins: ['ada'], sections: [] }));
+    const legacy = storage.getItem(ROSTER_CONFIG_KEY)!;
+
+    backupLegacyRoster(storage);
+    backupLegacyRoster(storage);
+
+    expect(storage.getItem(ROSTER_BACKUP_KEY)).toBe(legacy);
+  });
+
+  it('writes and reads the migration marker', () => {
+    const storage = memoryStorage();
+    expect(hasRosterMigrated(storage)).toBe(false);
+    markRosterMigrated(storage);
+    expect(storage.getItem(ROSTER_MIGRATED_KEY)).toEqual(expect.any(String));
+    expect(hasRosterMigrated(storage)).toBe(true);
+    expect(hasRosterMigrated(undefined)).toBe(false);
   });
 });
 
@@ -241,14 +172,6 @@ describe('legacy sort preference export', () => {
     });
   });
 
-  it('exports per-section modes without a legacy global field', () => {
-    const storage = memoryStorage(
-      JSON.stringify({ sections: [{ id: 's1', name: 'A', channels: [], sortMode: 'manual' }] }),
-    );
-
-    expect(readLegacySortPreference(storage)).toEqual({ sections: { s1: 'manual' } });
-  });
-
   it('returns undefined when nothing is worth migrating', () => {
     expect(readLegacySortPreference(undefined)).toBeUndefined();
     expect(readLegacySortPreference(memoryStorage())).toBeUndefined();
@@ -259,7 +182,7 @@ describe('legacy sort preference export', () => {
     ).toBeUndefined();
   });
 
-  it('clears every legacy sort field while keeping pins and section rows', () => {
+  it('clears every legacy sort field while keeping the remaining record', () => {
     const storage = memoryStorage(
       JSON.stringify({
         pins: ['ada'],
@@ -280,8 +203,5 @@ describe('legacy sort preference export', () => {
         { id: 's2', name: 'B', channels: [] },
       ],
     });
-
-    clearLegacySortPreference(storage);
-    expect(JSON.parse(storage.getItem(ROSTER_CONFIG_KEY)!).sections[0].sortMode).toBeUndefined();
   });
 });

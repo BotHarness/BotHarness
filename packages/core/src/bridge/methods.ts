@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
+import { z } from 'zod';
+
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelStore } from '../channels/store.js';
 import type {
@@ -9,6 +11,13 @@ import type {
 } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { isValidSlug } from '../bots/slug.js';
+import {
+  RosterStore,
+  RosterUnavailableError,
+  RosterUnknownSectionError,
+  type RosterSection,
+  type RosterSnapshot,
+} from '../roster/store.js';
 import {
   isInsideWorkspace,
   type BotSessionSource,
@@ -60,6 +69,13 @@ export interface BridgeMethods {
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
+  rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
+  sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
+  sectionRename(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
+  sectionRemove(payload: unknown): Promise<BridgeResult<{ removed: boolean }>>;
+  channelAssign(payload: unknown): Promise<BridgeResult<Record<string, never>>>;
+  sectionReorder(payload: unknown): Promise<BridgeResult<{ sectionOrder: string[] }>>;
+  pinsSet(payload: unknown): Promise<BridgeResult<{ pins: string[] }>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -67,6 +83,7 @@ export interface BridgeMethodsDeps {
   states: BotStateTracker;
   channels: ChannelStore;
   sessions: BotSessionSource;
+  roster: RosterStore;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -113,6 +130,31 @@ function unknownBot(slug: string): BridgeResult<never> {
 function unknownChannel(id: string): BridgeResult<never> {
   return { ok: false, error: { code: 'not-found', message: `unknown Channel: ${id}` } };
 }
+
+function unavailable(): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'storage-unavailable', message: 'roster storage is unavailable' },
+  };
+}
+
+function unknownSection(sectionId: string): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'not-found', message: `unknown Channel section: ${sectionId}` },
+  };
+}
+
+const sectionCreatePayload = z.object({ name: z.string() });
+const sectionRenamePayload = z.object({ sectionId: z.string().min(1), name: z.string() });
+const sectionRemovePayload = z.object({ sectionId: z.string().min(1) });
+const channelAssignPayload = z.object({
+  channelId: z.string().min(1),
+  sectionId: z.union([z.string().min(1), z.null()]).optional(),
+  index: z.number().int().min(0).optional(),
+});
+const sectionReorderPayload = z.object({ order: z.array(z.string()) });
+const pinsSetPayload = z.object({ pins: z.array(z.string()) });
 
 function asNonBlank(source: Record<string, unknown>, key: string): string | undefined {
   const value = source[key];
@@ -164,6 +206,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   const detailOf = (record: PersonaBotRecord): { bot: PersonaBotDetail } => ({
     bot: detail(record, deps.states.snapshot(record.slug)),
   });
+
+  const rosterWrite = async <T>(operation: () => Promise<T>): Promise<BridgeResult<T>> => {
+    try {
+      return { ok: true, value: await operation() };
+    } catch (error) {
+      if (error instanceof RosterUnavailableError) return unavailable();
+      if (error instanceof RosterUnknownSectionError) return unknownSection(error.sectionId);
+      throw error;
+    }
+  };
 
   const setPaused = (
     payload: unknown,
@@ -368,6 +420,59 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         )
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       return { ok: true, value: { sessions } };
+    },
+    rosterGet() {
+      try {
+        return { ok: true, value: deps.roster.snapshot() };
+      } catch (error) {
+        if (error instanceof RosterUnavailableError) return unavailable();
+        throw error;
+      }
+    },
+    async sectionCreate(payload) {
+      const parsed = sectionCreatePayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid sectionCreate payload');
+      const name = parsed.data.name.trim();
+      if (name.length === 0) return invalidInput('name is required');
+      return rosterWrite(async () => ({ section: await deps.roster.sectionCreate(name) }));
+    },
+    async sectionRename(payload) {
+      const parsed = sectionRenamePayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid sectionRename payload');
+      const name = parsed.data.name.trim();
+      if (name.length === 0) return invalidInput('name is required');
+      return rosterWrite(async () => ({
+        section: await deps.roster.sectionRename(parsed.data.sectionId, name),
+      }));
+    },
+    async sectionRemove(payload) {
+      const parsed = sectionRemovePayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid sectionRemove payload');
+      return rosterWrite(async () => ({
+        removed: await deps.roster.sectionRemove(parsed.data.sectionId),
+      }));
+    },
+    async channelAssign(payload) {
+      const parsed = channelAssignPayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid channelAssign payload');
+      const { channelId, index } = parsed.data;
+      const sectionId = parsed.data.sectionId ?? undefined;
+      return rosterWrite(async () => {
+        await deps.roster.channelAssign(channelId, sectionId, index);
+        return {};
+      });
+    },
+    async sectionReorder(payload) {
+      const parsed = sectionReorderPayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid sectionReorder payload');
+      return rosterWrite(async () => ({
+        sectionOrder: await deps.roster.sectionReorder(parsed.data.order),
+      }));
+    },
+    async pinsSet(payload) {
+      const parsed = pinsSetPayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid pinsSet payload');
+      return rosterWrite(async () => ({ pins: await deps.roster.pinsSet(parsed.data.pins) }));
     },
   };
 }

@@ -10,6 +10,7 @@ import type {
   PersonaBotSummary,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { SessionSummary } from '../sessions/source.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
@@ -21,6 +22,7 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     'invalid-slug': Record<string, never>;
     duplicate: Record<string, never>;
     'not-found': Record<string, never>;
+    'storage-unavailable': Record<string, never>;
   }
 }
 
@@ -61,6 +63,10 @@ function toRemoteError(error: BridgeError): RemoteError {
 function unwrap<T>(result: BridgeResult<T>): T {
   if (result.ok) return result.value;
   throw toRemoteError(result.error);
+}
+
+async function unwrapAsync<T>(result: Promise<BridgeResult<T>>): Promise<T> {
+  return unwrap(await result);
 }
 
 /**
@@ -154,6 +160,38 @@ export class BotharnessBridgeService extends TypertRemoteService {
   sessions(slug: string): { sessions: SessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
   }
+
+  rosterGet(): RosterSnapshot {
+    return unwrap(this.methods.rosterGet({}));
+  }
+
+  sectionCreate(name: string): Promise<{ section: RosterSection }> {
+    return unwrapAsync(this.methods.sectionCreate({ name }));
+  }
+
+  sectionRename(sectionId: string, name: string): Promise<{ section: RosterSection }> {
+    return unwrapAsync(this.methods.sectionRename({ sectionId, name }));
+  }
+
+  sectionRemove(sectionId: string): Promise<{ removed: boolean }> {
+    return unwrapAsync(this.methods.sectionRemove({ sectionId }));
+  }
+
+  channelAssign(
+    channelId: string,
+    sectionId?: string | null,
+    index?: number,
+  ): Promise<Record<string, never>> {
+    return unwrapAsync(this.methods.channelAssign({ channelId, sectionId, index }));
+  }
+
+  sectionReorder(order: string[]): Promise<{ sectionOrder: string[] }> {
+    return unwrapAsync(this.methods.sectionReorder({ order }));
+  }
+
+  pinsSet(pins: string[]): Promise<{ pins: string[] }> {
+    return unwrapAsync(this.methods.pinsSet({ pins }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -169,6 +207,13 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelMessages',
   'channelSend',
   'sessions',
+  'rosterGet',
+  'sectionCreate',
+  'sectionRename',
+  'sectionRemove',
+  'channelAssign',
+  'sectionReorder',
+  'pinsSet',
 ]);
 
 /**

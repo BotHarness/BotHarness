@@ -315,3 +315,88 @@ describe('legacy roster.json sort migration', () => {
     expect(stored(storage)).toEqual({ pins: [] });
   });
 });
+
+describe('roster migration sort-mode remap', () => {
+  it('re-keys accepted per-section modes onto host-generated ids', async () => {
+    const scope = fakeHost({
+      value: { sortMode: 'updated', sortModes: { 'section-1': 'manual' } },
+      user: { sortModes: { 'section-1': 'manual' } },
+    });
+    const prefs = new BotModePrefs();
+    prefs.attach(scope.host);
+
+    const applied = await prefs.remapSectionSortModes(
+      new Map([
+        ['section-1', 'host-1'],
+        ['section-2', 'host-2'],
+      ]),
+    );
+
+    expect(applied).toBe(true);
+    expect(scope.mutate).toHaveBeenCalledWith([
+      { op: 'unset', path: ['sortModes', 'section-1'] },
+      { op: 'set', path: ['sortModes', 'host-1'], value: 'manual' },
+    ]);
+    expect(prefs.source.getSnapshot().sortModes).toEqual({ 'host-1': 'manual' });
+  });
+
+  it('carries modes that only the legacy record still holds', async () => {
+    const storage = memoryStorage(
+      JSON.stringify({
+        sections: [{ id: 'section-1', name: 'A', channels: [], sortMode: 'manual' }],
+      }),
+    );
+    const scope = fakeHost();
+    const prefs = new BotModePrefs(storage);
+    prefs.attach(scope.host);
+
+    const applied = await prefs.remapSectionSortModes(new Map([['section-1', 'host-1']]));
+
+    expect(applied).toBe(true);
+    expect(scope.mutate).toHaveBeenCalledWith([
+      { op: 'unset', path: ['sortModes', 'section-1'] },
+      { op: 'set', path: ['sortModes', 'host-1'], value: 'manual' },
+    ]);
+  });
+
+  it('reports pending when a legacy mode has no writable Host scope', async () => {
+    const storage = memoryStorage(
+      JSON.stringify({
+        sections: [{ id: 'section-1', name: 'A', channels: [], sortMode: 'manual' }],
+      }),
+    );
+    const prefs = new BotModePrefs(storage);
+
+    await expect(prefs.remapSectionSortModes(new Map([['section-1', 'host-1']]))).resolves.toBe(
+      false,
+    );
+  });
+
+  it('writes nothing when no mapped legacy id carries a mode', async () => {
+    const scope = fakeHost();
+    const prefs = new BotModePrefs();
+    prefs.attach(scope.host);
+
+    await expect(prefs.remapSectionSortModes(new Map([['section-1', 'host-1']]))).resolves.toBe(
+      true,
+    );
+    expect(scope.mutate).not.toHaveBeenCalled();
+  });
+
+  it('restores the published modes when the Host rejects the remap', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const scope = fakeHost({
+      value: { sortMode: 'updated', sortModes: { 'section-1': 'manual' } },
+      user: { sortModes: { 'section-1': 'manual' } },
+    });
+    scope.host.mutate = async () => Promise.reject(new Error('offline'));
+    const prefs = new BotModePrefs();
+    prefs.attach(scope.host);
+
+    await expect(prefs.remapSectionSortModes(new Map([['section-1', 'host-1']]))).resolves.toBe(
+      false,
+    );
+    expect(prefs.source.getSnapshot().sortModes).toEqual({ 'section-1': 'manual' });
+    warn.mockRestore();
+  });
+});

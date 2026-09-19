@@ -10,6 +10,7 @@ import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.j
 import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bridge/rpc.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
+import { createRosterStore } from '../src/roster/store.js';
 import type { BotSessionSource } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 
@@ -33,6 +34,7 @@ function setup() {
     states: createBotStateTracker(),
     channels,
     sessions,
+    roster: createRosterStore(),
   });
   const ctx = new Context();
   const service = registerBridge(ctx, methods);
@@ -57,7 +59,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twelve bridge endpoints for typert claims', () => {
+  it('marks exactly the nineteen bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -73,6 +75,13 @@ describe('bridge typert service', () => {
       'channelMessages',
       'channelSend',
       'sessions',
+      'rosterGet',
+      'sectionCreate',
+      'sectionRename',
+      'sectionRemove',
+      'channelAssign',
+      'sectionReorder',
+      'pinsSet',
     ]);
   });
 
@@ -101,6 +110,13 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.channelMessages)).toEqual(['channelId', 'before', 'limit']);
     expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);
+    expect(parameterNames(service.rosterGet)).toEqual([]);
+    expect(parameterNames(service.sectionCreate)).toEqual(['name']);
+    expect(parameterNames(service.sectionRename)).toEqual(['sectionId', 'name']);
+    expect(parameterNames(service.sectionRemove)).toEqual(['sectionId']);
+    expect(parameterNames(service.channelAssign)).toEqual(['channelId', 'sectionId', 'index']);
+    expect(parameterNames(service.sectionReorder)).toEqual(['order']);
+    expect(parameterNames(service.pinsSet)).toEqual(['pins']);
   });
 
   it('dispatches named arguments into the read model', async () => {

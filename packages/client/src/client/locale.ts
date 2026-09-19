@@ -14,6 +14,7 @@ export const zh = {
   'sort.row.memory': '仅当前会话生效，不会保存',
   'section.rename': '重命名',
   'section.delete': '删除',
+  'roster.readOnly': '名册存储不可用，陈列只读',
 } as const satisfies Record<string, string>;
 
 /** BotHarness dictionary key union. */
@@ -30,6 +31,7 @@ export const en = {
   'sort.row.memory': 'Applies in this session only; not saved',
   'section.rename': 'Rename',
   'section.delete': 'Delete',
+  'roster.readOnly': 'Roster storage unavailable; the arrangement is read-only',
 } satisfies Record<BotHarnessKey, string>;
 
 /** Namespace-bound translate function carried by both surfaces. */

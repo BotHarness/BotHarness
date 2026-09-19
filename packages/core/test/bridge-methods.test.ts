@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
+import { createRosterStore } from '../src/roster/store.js';
 import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 
@@ -32,7 +33,13 @@ function setup(sessionSummaries: SessionSummary[] = []) {
     registry,
     states,
     channels,
-    methods: createBridgeMethods({ registry, states, channels, sessions }),
+    methods: createBridgeMethods({
+      registry,
+      states,
+      channels,
+      sessions,
+      roster: createRosterStore(),
+    }),
   };
 }
 

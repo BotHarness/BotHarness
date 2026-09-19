@@ -49,7 +49,8 @@ import type { BridgeActions } from '../src/client/actions.js';
 import { BotSidebar } from '../src/client/bot-sidebar.js';
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
-import { removeSection, type RosterConfig } from '../src/client/roster-config.js';
+import type { RosterConfig } from '../src/client/roster-config.js';
+import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
 
@@ -86,19 +87,34 @@ const FLAT_CHANNEL: ChannelSummary = {
 function stubActions(): BridgeActions {
   return {
     load: vi.fn(async () => undefined),
+    refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     send: vi.fn(async () => false),
     createGroup: vi.fn(async () => undefined),
+    createSection: vi.fn(async () => undefined),
+    renameSection: vi.fn(async () => true),
+    removeSection: vi.fn(async () => true),
+    assignChannel: vi.fn(async () => true),
+    setSectionChannelOrder: vi.fn(async () => true),
   };
 }
 
 function config(patch?: Partial<RosterConfig>): RosterConfig {
-  return { pins: [], sections: [], ...patch };
+  return { collapsed: {}, ...patch };
 }
 
-function setConfig(value: RosterConfig): void {
-  store.setConfig(value);
+function section(id: string, name: string, channelIds: string[]): RosterSection {
+  return { id, name, channelIds };
+}
+
+function setRoster(patch?: Partial<RosterSnapshot>): void {
+  store.setRosterState({
+    pins: [],
+    sections: [],
+    readOnly: false,
+    ...patch,
+  });
 }
 
 let prefs: BotModePrefsSnapshot = {
@@ -153,8 +169,9 @@ beforeEach(() => {
   store.setMode('dsh');
   store.setQuery('');
   store.select(undefined);
-  setConfig(config());
+  store.setConfig(config());
   store.setRoster([], []);
+  setRoster();
   prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
   setSortMode = vi.fn();
   setSectionSortMode = vi.fn();
@@ -165,13 +182,14 @@ afterEach(() => {
   store.setMode('dsh');
   store.setQuery('');
   store.select(undefined);
-  setConfig(config());
+  store.setConfig(config());
   store.setRoster([], []);
+  setRoster();
 });
 
 describe('bot sidebar rows', () => {
   it('renders the native projectRow anatomy for section headers', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
@@ -188,7 +206,7 @@ describe('bot sidebar rows', () => {
   });
 
   it('renders channels as one-line native session rows without extra indentation', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
@@ -212,12 +230,17 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('文件研究助手');
   });
 
+  it('renders the read-only note after a roster write reported storage-unavailable', () => {
+    setRoster();
+    store.setRosterState({ readOnly: true });
+    const markup = renderSidebar();
+
+    expect(markup).toContain('名册存储不可用，陈列只读');
+  });
+
   it('drops the channel run and the open arrow while a section is collapsed', () => {
-    setConfig(
-      config({
-        sections: [{ id: 's1', name: '工作流', channels: ['c-section'], collapsed: true }],
-      }),
-    );
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
+    store.setConfig(config({ collapsed: { s1: true } }));
     store.setRoster([], [SECTION_CHANNEL]);
     const markup = renderSidebar();
 
@@ -277,7 +300,7 @@ describe('bot sidebar rows', () => {
   });
 
   it('renders the section menu in native order with the mode checked and danger last', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     prefs = { sortMode: 'updated', sortModes: { s1: 'manual' }, mode: 'host', status: 'ready' };
     store.setRoster([], [SECTION_CHANNEL]);
     renderSidebar();
@@ -305,14 +328,14 @@ describe('bot sidebar rows', () => {
   });
 
   it('checks inherit when a section has no stored mode', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: [] }] }));
+    setRoster({ sections: [section('s1', '工作流', [])] });
     renderSidebar();
 
     expect(menuWithItem('rename').selectedId).toBe('inherit');
   });
 
   it('writes section modes through the shared policy and clears with inherit', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: [] }] }));
+    setRoster({ sections: [section('s1', '工作流', [])] });
     renderSidebar();
 
     const onSelect = menuWithItem('rename')['onSelect'] as (id: string) => void;
@@ -341,7 +364,7 @@ describe('bot sidebar rows', () => {
       name: '新频道',
       updatedAt: '2026-09-19T12:00:00.000Z',
     };
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-old', 'c-new'] }] }));
+    setRoster({ sections: [section('s1', '工作流', ['c-old', 'c-new'])] });
     store.setRoster([], [older, newer]);
 
     const auto = renderSidebar();
@@ -382,7 +405,7 @@ describe('bot sidebar rows', () => {
   });
 
   it('wires drag only on section channels and leaves 未分组 undraggable', () => {
-    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([], [SECTION_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
@@ -392,16 +415,14 @@ describe('bot sidebar rows', () => {
   });
 
   it('moves a deleted section channel into the bottom ungrouped bucket', () => {
-    const withSection = config({
-      sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }],
-    });
-    setConfig(withSection);
+    setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([], [SECTION_CHANNEL]);
     const before = renderSidebar();
     expect(before).toContain('一级渠道');
     expect(before.indexOf('工作流')).toBeLessThan(before.indexOf('一级渠道'));
 
-    setConfig(removeSection(withSection, 's1'));
+    // The host drops the section and its membership; the client re-reads.
+    setRoster({ sections: [] });
     const after = renderSidebar();
     expect(after).not.toContain('工作流');
     expect(after).toContain('未分组');
