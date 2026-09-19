@@ -328,6 +328,69 @@ describe('bot sidebar rows', () => {
     expect(setSectionSortMode).not.toHaveBeenCalled();
   });
 
+  it('orders a section by its resolved mode: manual override, else the global default', () => {
+    const older = {
+      ...SECTION_CHANNEL,
+      id: 'c-old',
+      name: '旧频道',
+      updatedAt: '2026-09-18T00:00:00.000Z',
+    };
+    const newer = {
+      ...SECTION_CHANNEL,
+      id: 'c-new',
+      name: '新频道',
+      updatedAt: '2026-09-19T12:00:00.000Z',
+    };
+    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-old', 'c-new'] }] }));
+    store.setRoster([], [older, newer]);
+
+    const auto = renderSidebar();
+    expect(auto.indexOf('新频道')).toBeLessThan(auto.indexOf('旧频道'));
+
+    prefs = { sortMode: 'updated', sortModes: { s1: 'manual' }, mode: 'host', status: 'ready' };
+    const manual = renderSidebar();
+    expect(manual.indexOf('旧频道')).toBeLessThan(manual.indexOf('新频道'));
+
+    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
+    const inherited = renderSidebar();
+    expect(inherited.indexOf('旧频道')).toBeLessThan(inherited.indexOf('新频道'));
+  });
+
+  it('orders the ungrouped bucket by the global default (never a manual override)', () => {
+    const older = {
+      ...FLAT_CHANNEL,
+      id: 'c-old',
+      name: '旧频道',
+      updatedAt: '2026-09-18T00:00:00.000Z',
+    };
+    const newer = {
+      ...FLAT_CHANNEL,
+      id: 'c-new',
+      name: '新频道',
+      updatedAt: '2026-09-19T12:00:00.000Z',
+    };
+    store.setRoster([], [older, newer]);
+
+    prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
+    const auto = renderSidebar();
+    expect(auto.indexOf('未分组')).toBeLessThan(auto.indexOf('新频道'));
+    expect(auto.indexOf('新频道')).toBeLessThan(auto.indexOf('旧频道'));
+
+    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
+    const manual = renderSidebar();
+    expect(manual.indexOf('旧频道')).toBeLessThan(manual.indexOf('新频道'));
+  });
+
+  it('wires drag only on section channels and leaves 未分组 undraggable', () => {
+    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    store.setRoster([], [SECTION_CHANNEL, FLAT_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup.match(/draggable="true"/g)).toHaveLength(1);
+    expect(markup).toContain('一级渠道');
+    expect(markup).toContain('散装渠道');
+  });
+
   it('moves a deleted section channel into the bottom ungrouped bucket', () => {
     const withSection = config({
       sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }],

@@ -12,6 +12,7 @@ import {
   renameSection,
   ROSTER_CONFIG_KEY,
   saveRosterConfig,
+  setSectionChannelOrder,
   toggleSectionCollapsed,
   type ConfigStorage,
   type RosterConfig,
@@ -177,6 +178,29 @@ describe('roster display config', () => {
     expect(next.sections[0]?.channels).toEqual(['group-1', 'group-2']);
     expect(addChannelToSection(next, 'a', 'group-2')).toBe(next);
     expect(addChannelToSection(base, 'missing', 'group-9')).toBe(base);
+  });
+
+  it('freezes one section order while preserving every member', () => {
+    const base = config({
+      sections: [
+        { id: 'a', name: 'A', channels: ['c1', 'c2', 'c3'] },
+        { id: 'b', name: 'B', channels: ['c9'] },
+      ],
+    });
+
+    const next = setSectionChannelOrder(base, 'a', ['c3', 'c1']);
+    expect(next.sections[0]?.channels).toEqual(['c3', 'c1', 'c2']);
+    expect(next.sections[1]?.channels).toEqual(['c9']);
+    expect(base.sections[0]?.channels).toEqual(['c1', 'c2', 'c3']);
+  });
+
+  it('ignores non-members, duplicates, and unknown sections', () => {
+    const base = config({ sections: [{ id: 'a', name: 'A', channels: ['c1', 'c2'] }] });
+
+    const reordered = setSectionChannelOrder(base, 'a', ['c2', 'ghost', 'c2', 'c1']);
+    expect(reordered.sections[0]?.channels).toEqual(['c2', 'c1']);
+    expect(setSectionChannelOrder(base, 'a', ['c1'])).toBe(base);
+    expect(setSectionChannelOrder(base, 'missing', ['c1'])).toBe(base);
   });
 
   it('drops sort fields wherever they appear in the roster record', () => {

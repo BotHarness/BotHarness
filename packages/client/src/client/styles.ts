@@ -425,6 +425,46 @@ button:has(.bh-panel-glyph) {
   line-height: 20px;
 }
 
+/* 原生 ui-workspace sessionRow 的拖拽插入线（ADR-0031）：伪元素绝对定位，
+   不占布局；箭头 + 2px 规则线，起点在行内 4px、右缘留 4px。行是 button，
+   伪元素在 .bh-root .bh-channel-row 下同样生效。 */
+.bh-channel-row.bh-drop-before,
+.bh-channel-row.bh-drop-after {
+  position: relative;
+}
+.bh-channel-row.bh-drop-before::before,
+.bh-channel-row.bh-drop-after::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 4px;
+  height: 12px;
+  background:
+    linear-gradient(
+      55deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 0 / 5px 7px no-repeat,
+    linear-gradient(
+      125deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 5px / 5px 7px no-repeat,
+    linear-gradient(
+      var(--dsw-alias-state-business-primary) 0 0
+    ) 4px 5px / calc(100% - 4px) 2px no-repeat;
+  pointer-events: none;
+}
+.bh-channel-row.bh-drop-before::before {
+  top: -7px;
+}
+.bh-channel-row.bh-drop-after::after {
+  bottom: -7px;
+}
+
 /* 原生 .projectRow：34px、gap 6、padding 0 8px；折叠三角 150ms 旋转 90°。 */
 .bh-section-head {
   height: 34px;

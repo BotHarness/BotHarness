@@ -132,6 +132,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         const message = await sendChannelMessage(call, channel.id, text);
         const latest = clientStore.getSnapshot().conversation;
         if (latest.channel?.id !== channel.id) return false;
+        // The host writes the channel's updatedAt on append; mirror it so
+        // recency sorting re-renders without a reload.
+        clientStore.upsertChannel({ ...channel, updatedAt: message.at });
         clientStore.setConversation({
           sending: false,
           messages: [...latest.messages, message],

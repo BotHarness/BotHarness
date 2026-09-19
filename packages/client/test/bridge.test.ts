@@ -181,7 +181,7 @@ describe('bridge actions', () => {
     expect(state.sessions.items.map((session) => session.id)).toEqual(['s1']);
   });
 
-  it('sends a message, appends it locally, and clears the sending flag', async () => {
+  it('sends a message, appends it locally, and mirrors the channel updatedAt', async () => {
     const { clientStore, actions } = setup();
     await actions.load();
     await actions.openBot('ada');
@@ -192,6 +192,9 @@ describe('bridge actions', () => {
     expect(sent).toBe(true);
     expect(state.conversation.sending).toBe(false);
     expect(state.conversation.messages.at(-1)).toMatchObject({ body: 'hello' });
+    expect(state.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
+      '2026-09-19T00:03:00.000Z',
+    );
   });
 
   it('creates a group channel, selects it, and surfaces failures', async () => {
