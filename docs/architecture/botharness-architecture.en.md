@@ -141,6 +141,27 @@ sequenceDiagram
 
 Everything Host-internal goes through the Cordis service bus; the browser half reads the model over the client-bridge RPC — no cross-process injection, no file polling.
 
+### 3.1 · BOT-mode preferences (#68)
+
+The Host half (`packages/client/src/index.ts`) registers the `ui-bot-mode` namespace with `ctx.settings` (schemastery: global `sortMode` plus per-section `sortModes`, defaulting to `updated` / `{}`); the browser half reads and writes it through `ctx.settingsScope.bind({ namespace: 'ui-bot-mode' })` (global `set`, per-section `mutate` path operations), and the policy store adopts accepted values when `settings/document-updated` arrives:
+
+```mermaid
+sequenceDiagram
+  participant H as Host · client/src/index.ts
+  participant S as DSH settings (settings.yaml)
+  participant P as Browser · BotModePrefs (shared store)
+  participant U as sidebar `...` menu / General settings row
+
+  H->>S: settings.register('ui-bot-mode', schema)
+  S-->>P: settingsScope.bind(...) → status/value/user
+  U->>P: setSortMode / setSectionSortMode (optimistic write)
+  P->>S: set('sortMode') / mutate(path ['sortModes', id])
+  S-->>P: settings/document-updated → adopt
+  Note over P,U: one store, two entries; legacy roster.json sort fields migrate once
+```
+
+Deviation record: the Host half uses `settings.register(ns, schema)`, not the cookbook-preferred `installSection(ctx, ns, Config, config, { setSource, onChange })` — this plugin has no `cordis.yml` entry config to serve as the base, so schema defaults carry the whole defaulting behavior; switch to `installSection` when an entry config appears.
+
 ## 4 · Creating a PersonaBot (data flow)
 
 ```mermaid

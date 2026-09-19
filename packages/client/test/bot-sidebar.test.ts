@@ -7,6 +7,7 @@ const captured = vi.hoisted(() => ({
     open: boolean;
     items: readonly Record<string, unknown>[];
     selectedId?: string | undefined;
+    onSelect?: (id: string) => void;
   }>,
 }));
 
@@ -46,6 +47,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import type { BridgeActions } from '../src/client/actions.js';
 import { BotSidebar } from '../src/client/bot-sidebar.js';
+import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
+import { zh, type BotHarnessKey } from '../src/client/locale.js';
 import { removeSection, type RosterConfig } from '../src/client/roster-config.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
@@ -91,21 +94,41 @@ function stubActions(): BridgeActions {
 }
 
 function config(patch?: Partial<RosterConfig>): RosterConfig {
-  return { pins: [], sections: [], sortMode: 'auto', ...patch };
+  return { pins: [], sections: [], ...patch };
 }
 
 function setConfig(value: RosterConfig): void {
   store.setConfig(value);
 }
 
+let prefs: BotModePrefsSnapshot = {
+  sortMode: 'updated',
+  sortModes: {},
+  mode: 'host',
+  status: 'ready',
+};
+let setSortMode = vi.fn();
+let setSectionSortMode = vi.fn();
+
 function renderSidebar(): string {
-  return renderToStaticMarkup(createElement(BotSidebar, { wide: true, actions: stubActions() }));
+  return renderToStaticMarkup(
+    createElement(BotSidebar, {
+      wide: true,
+      actions: stubActions(),
+      useBotModePrefs: ((selector: (snapshot: BotModePrefsSnapshot) => unknown) =>
+        selector(prefs)) as never,
+      setSortMode,
+      setSectionSortMode,
+      t: ((key: BotHarnessKey) => zh[key]) as never,
+    }),
+  );
 }
 
 function menuWithLabel(label: string): {
   open: boolean;
   items: readonly Record<string, unknown>[];
   selectedId?: string | undefined;
+  onSelect?: (id: string) => void;
 } {
   const found = captured.menus.find((menu) =>
     menu.items.some((item) => item['type'] === 'label' && item['text'] === label),
@@ -118,6 +141,7 @@ function menuWithItem(id: string): {
   open: boolean;
   items: readonly Record<string, unknown>[];
   selectedId?: string | undefined;
+  onSelect?: (id: string) => void;
 } {
   const found = captured.menus.find((menu) => menu.items.some((item) => item['id'] === id));
   if (found === undefined) throw new Error(`menu with item ${id} not rendered`);
@@ -131,6 +155,9 @@ beforeEach(() => {
   store.select(undefined);
   setConfig(config());
   store.setRoster([], []);
+  prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
+  setSortMode = vi.fn();
+  setSectionSortMode = vi.fn();
 });
 
 afterEach(() => {
@@ -225,35 +252,50 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('placeholder="搜索 BOT 或频道"');
   });
 
-  it('renders the global sort menu as a labeled check list of the two concrete modes', () => {
-    setConfig(config({ sortMode: 'manual' }));
+  it('renders the global sort menu from the shared policy store', () => {
+    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
     renderSidebar();
 
     const menu = menuWithLabel('排序方式');
-    expect(menu.items.map((item) => item['id'])).toEqual(['sort-label', 'auto', 'manual']);
+    expect(menu.items.map((item) => item['id'])).toEqual(['sort-label', 'updated', 'manual']);
     expect(menu.items[0]?.['type']).toBe('label');
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
+    expect(menu.items.slice(1).map((item) => item['label'])).toEqual(['最近更新', '手动排序']);
     expect(menu.selectedId).toBe('manual');
   });
 
+  it('writes the shared policy store when the global sort menu picks a mode', () => {
+    renderSidebar();
+
+    const onSelect = menuWithLabel('排序方式')['onSelect'] as (id: string) => void;
+    onSelect('manual');
+    expect(setSortMode).toHaveBeenCalledWith('manual');
+
+    setSortMode.mockClear();
+    onSelect('unrelated');
+    expect(setSortMode).not.toHaveBeenCalled();
+  });
+
   it('renders the section menu in native order with the mode checked and danger last', () => {
-    setConfig(
-      config({
-        sections: [{ id: 's1', name: '工作流', channels: ['c-section'], sortMode: 'manual' }],
-      }),
-    );
+    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: ['c-section'] }] }));
+    prefs = { sortMode: 'updated', sortModes: { s1: 'manual' }, mode: 'host', status: 'ready' };
     store.setRoster([], [SECTION_CHANNEL]);
     renderSidebar();
 
     const menu = menuWithItem('rename');
     expect(menu.items.map((item) => item['id'])).toEqual([
       'sort-label',
-      'auto',
+      'updated',
       'manual',
       'inherit',
       'section-separator',
       'rename',
       'delete',
+    ]);
+    expect(menu.items.slice(1, 4).map((item) => item['label'])).toEqual([
+      '最近更新',
+      '手动排序',
+      '恢复自动',
     ]);
     expect(menu.items[4]?.['type']).toBe('separator');
     expect(menu.items[5]).toMatchObject({ id: 'rename', label: '重命名' });
@@ -267,6 +309,23 @@ describe('bot sidebar rows', () => {
     renderSidebar();
 
     expect(menuWithItem('rename').selectedId).toBe('inherit');
+  });
+
+  it('writes section modes through the shared policy and clears with inherit', () => {
+    setConfig(config({ sections: [{ id: 's1', name: '工作流', channels: [] }] }));
+    renderSidebar();
+
+    const onSelect = menuWithItem('rename')['onSelect'] as (id: string) => void;
+    onSelect('manual');
+    expect(setSectionSortMode).toHaveBeenCalledWith('s1', 'manual');
+
+    setSectionSortMode.mockClear();
+    onSelect('inherit');
+    expect(setSectionSortMode).toHaveBeenCalledWith('s1', undefined);
+
+    setSectionSortMode.mockClear();
+    onSelect('unrelated');
+    expect(setSectionSortMode).not.toHaveBeenCalled();
   });
 
   it('moves a deleted section channel into the bottom ungrouped bucket', () => {
