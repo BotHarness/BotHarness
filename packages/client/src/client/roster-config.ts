@@ -1,4 +1,5 @@
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
+import { reconcileOrder } from './roster-order.js';
 
 export interface ChannelSectionConfig {
   id: string;
@@ -206,6 +207,33 @@ export function addChannelToSection(
       section.id === sectionId
         ? { ...section, channels: [...section.channels, channelId] }
         : section,
+    ),
+  };
+}
+
+/**
+ * Replace one section's channel order — the manual-order seam for #55. Until
+ * #66 moves the arrangement into the `botharness_roster` host domain, the
+ * section's `channels` array is the frozen manual order; #66 reroutes this
+ * write to the bridge. Membership is preserved: ids the caller omits stay at
+ * the end in their previous order.
+ */
+export function setSectionChannelOrder(
+  config: RosterConfig,
+  sectionId: string,
+  order: readonly string[],
+): RosterConfig {
+  const section = config.sections.find((candidate) => candidate.id === sectionId);
+  if (section === undefined) return config;
+  const next = reconcileOrder(order, section.channels);
+  const unchanged =
+    next.length === section.channels.length &&
+    next.every((id, index) => id === section.channels[index]);
+  if (unchanged) return config;
+  return {
+    ...config,
+    sections: config.sections.map((candidate) =>
+      candidate.id === sectionId ? { ...candidate, channels: next } : candidate,
     ),
   };
 }

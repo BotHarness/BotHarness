@@ -31,10 +31,18 @@ import {
   removeSection,
   renameSection,
   saveRosterConfig,
+  setSectionChannelOrder,
   toggleSectionCollapsed,
   type ChannelSectionConfig,
   type RosterConfig,
 } from './roster-config.js';
+import { useChannelDrag, type ChannelDragProps, type ChannelDropTarget } from './channel-drag.js';
+import {
+  commitScopeReorder,
+  orderScopeChannels,
+  resolvedSortMode,
+  rowDropHalf,
+} from './roster-order.js';
 import {
   CreateChannelModal,
   CreateSectionModal,
@@ -151,16 +159,52 @@ function ChannelRow({
   channel,
   selected,
   actions,
+  drag,
 }: {
   channel: ChannelSummary;
   selected: boolean;
   actions: BridgeActions;
+  drag?: ChannelDragProps | undefined;
 }): ReactElement {
+  const marker = drag?.marker ?? null;
+  const markerClass =
+    marker === 'before' ? ' bh-drop-before' : marker === 'after' ? ' bh-drop-after' : '';
   return (
     <button
       type="button"
-      className={`bh-channel-row${selected ? ' bh-selected' : ''}`}
+      className={`bh-channel-row${selected ? ' bh-selected' : ''}${markerClass}`}
       onClick={() => void actions.openChannel(channel.id)}
+      draggable={drag !== undefined}
+      onDragStart={
+        drag === undefined
+          ? undefined
+          : (event) => {
+              event.dataTransfer.effectAllowed = 'move';
+              event.dataTransfer.setData('text/plain', channel.id);
+              drag.start();
+            }
+      }
+      onDragEnd={drag?.end}
+      onDragOver={
+        drag === undefined
+          ? undefined
+          : (event) => {
+              if (!drag.active) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              drag.hover(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+            }
+      }
+      onDrop={
+        drag === undefined
+          ? undefined
+          : (event) => {
+              if (!drag.active) return;
+              event.preventDefault();
+              if (event.dataTransfer.dropEffect === 'none') return;
+              drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+            }
+      }
     >
       <span className="bh-channel-slot" aria-hidden="true">
         #
@@ -216,8 +260,6 @@ export function BotSidebar({
     };
   }, [searchOpen, state.query]);
 
-  if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
-
   const query = state.query.trim().toLowerCase();
   const bots = state.bots.filter(
     (bot) => matchesQuery(query, bot.displayName, bot.tag) || bot.slug.includes(query),
@@ -231,12 +273,25 @@ export function BotSidebar({
   });
   const sectionedIds = new Set(state.config.sections.flatMap((section) => section.channels));
   const flatBots = bots.filter((bot) => !pinned.has(bot.slug));
-  const ungroupedChannels = channels.filter((channel) => !sectionedIds.has(channel.id));
+  const ungroupedChannels = orderScopeChannels(
+    channels.filter((channel) => !sectionedIds.has(channel.id)),
+    prefs.sortMode,
+  );
+  /**
+   * Resolve one section's order from a channel source. Rendering passes the
+   * query-filtered list; the drag commit passes the unfiltered list so a
+   * filtered view can never change membership semantics.
+   */
+  const sectionOrder = (
+    section: ChannelSectionConfig,
+    source: readonly ChannelSummary[],
+  ): ChannelSummary[] => {
+    const visible = source.filter((channel) => section.channels.includes(channel.id));
+    const mode = resolvedSortMode(prefs.sortModes[section.id], prefs.sortMode);
+    return orderScopeChannels(visible, mode, section.channels);
+  };
   const sections: SectionView[] = state.config.sections
-    .map((section) => ({
-      section,
-      channels: channels.filter((channel) => section.channels.includes(channel.id)),
-    }))
+    .map((section) => ({ section, channels: sectionOrder(section, channels) }))
     .filter((entry) => query.length === 0 || entry.channels.length > 0);
   const visibleCount =
     pinnedBots.length +
@@ -285,6 +340,37 @@ export function BotSidebar({
   const toggleSection = (sectionId: string): void => {
     persistConfig(toggleSectionCollapsed(store.getSnapshot().config, sectionId));
   };
+
+  /**
+   * Commit one in-section drop: freeze the unfiltered order into the section's
+   * `channels` array (the #66 seam) and flip the scope to an explicit manual
+   * override when it was still automatic. Deriving from the full section order
+   * keeps members hidden by an active search exactly where they were. The
+   * source scope is the only scope touched; #56 extends this to cross-scope
+   * drops.
+   */
+  const commitChannelDrag = (
+    drag: { sectionId: string; channelId: string },
+    target: ChannelDropTarget,
+  ): void => {
+    const config = store.getSnapshot().config;
+    const section = config.sections.find((candidate) => candidate.id === drag.sectionId);
+    if (section === undefined) return;
+    const reorder = commitScopeReorder(
+      sectionOrder(section, groupChannels).map((channel) => channel.id),
+      drag.channelId,
+      target.channelId,
+      target.half,
+      prefs.sortModes[section.id] === 'manual',
+    );
+    if (reorder === undefined) return;
+    persistConfig(setSectionChannelOrder(config, section.id, reorder.order));
+    if (reorder.setManualOverride) setSectionSortMode(section.id, 'manual');
+  };
+
+  const { propsFor: channelDragProps } = useChannelDrag(commitChannelDrag);
+
+  if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
 
   const createSectionId = createRequest?.kind === 'channel' ? createRequest.sectionId : undefined;
   const createSection =
@@ -530,6 +616,7 @@ export function BotSidebar({
                       channel={channel}
                       selected={selectedChannel === channel.id}
                       actions={actions}
+                      drag={channelDragProps(section.id, channel.id)}
                     />
                   ))}
             </div>

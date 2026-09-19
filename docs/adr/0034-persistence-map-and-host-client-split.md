@@ -32,3 +32,7 @@ First load migrates once: if the host domain is empty and the legacy browser-loc
 - `RemoteErrorDetailsMap` gains `storage-unavailable` so a profile without a storage backend fails writes with a stable code.
 - Spec §2 gains the persistence table; ADR-0031's update records the split (sections/pins/order host-side in the domain, sort preference in `ui-bot-mode`, `collapsed` local).
 - Tests cover the domain spec, the migration (empty/non-empty/legacy-absent/backup), the seven methods, and the client split.
+
+## Update (2026-09-20) — temporary manual-order seam until #66
+
+#55 shipped the per-scope sort behavior before the `botharness_roster` migration, so the frozen **manual order** of a section is temporarily persisted as that section's `channels` array order in the legacy browser `roster.json`, behind one helper (`setSectionChannelOrder` in `packages/client/src/client/roster-config.ts`). The client reads it back through the same array (render-side reconciliation appends members the stored order omits). This does not change the destination: #66 still moves section membership/order host-side and reroutes that single write to the `channelAssign`/`sectionReorder` bridge methods, after which the local `channels` array is only the migration source. The sort-mode preference itself already lives in `ui-bot-mode` settings (#68) as decided above.

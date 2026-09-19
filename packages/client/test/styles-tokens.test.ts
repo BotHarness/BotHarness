@@ -49,6 +49,13 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-channel-row\.bh-selected \{\s*background: var\(--bh-hover\)/);
   });
 
+  it('carries the native channel drag insert-line recipe', () => {
+    expect(source).toMatch(/\.bh-channel-row\.bh-drop-before::before/);
+    expect(source).toMatch(/\.bh-channel-row\.bh-drop-after::after/);
+    expect(source).toMatch(/\.bh-drop-before::before \{\s*top: -7px/);
+    expect(source).toMatch(/\.bh-drop-after::after \{\s*bottom: -7px/);
+  });
+
   it('copies the native rename input box model without portaled overrides', () => {
     expect(source).toMatch(/\.bh-name-input \{[^}]*box-sizing: border-box/);
     expect(source).toMatch(/\.bh-name-input \{[^}]*height: 44px/);
