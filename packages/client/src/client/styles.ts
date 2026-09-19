@@ -279,16 +279,48 @@ button:has(.bh-panel-glyph) {
   display: block;
 }
 
-.bh-list-area {
-  /* 原生 listArea 约定：抵消 root 的右衬，让列表行贴到滚动条边缘（行自己带 8px）。 */
-  margin-right: calc(-1 * var(--dsh-sidebar-inline-padding));
+/* 原生 .flatList/.groupSection 行距：同一 scope 内相邻行 2px。 */
+.bh-list-area > * + * {
+  margin-top: 2px;
 }
+/* 原生 .groupSection 区块距：section 之间、平铺列表与首个 section 之间 4px。 */
+.bh-list-area + .bh-section,
+.bh-section + .bh-section {
+  margin-top: 4px;
+}
+
+/* 原生 .projectRow/.sessionRow 共同几何：8px 圆角、0 8px 内衬、悬停 alias
+   token。行盒落在 root 内容右缘（280px 侧栏 = x12..268），与原生行同表一致。 */
+/* .bh-root 前缀压过表单控件的 font: inherit 重置，让行盒与原生行同为
+   14px/20px（可见文本各自声明字号）。 */
+.bh-root .bh-section-head,
+.bh-root .bh-channel-row {
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+  text-align: left;
+  font-size: 14px;
+  line-height: 20px;
+  user-select: none;
+}
+.bh-section-head:hover,
+.bh-channel-row:hover,
+.bh-channel-row.bh-selected {
+  background: var(--bh-hover);
+}
+
 .bh-contact {
   display: flex;
   align-items: center;
   gap: 9px;
   width: 100%;
-  padding: 7px 8px 7px 4px;
+  padding: 7px 8px;
   border: 0;
   border-radius: 8px;
   background: transparent;
@@ -301,7 +333,7 @@ button:has(.bh-panel-glyph) {
   background: var(--bh-hover);
 }
 .bh-contact.bh-selected {
-  background: var(--bh-selected);
+  background: var(--bh-hover);
 }
 .bh-contact .bh-body {
   min-width: 0;
@@ -357,25 +389,53 @@ button:has(.bh-panel-glyph) {
   font-size: 12px;
 }
 
-.bh-section-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 6px 4px;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--dsw-alias-label-tertiary);
-  cursor: pointer;
-  font: inherit;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  text-align: left;
+/* 原生 .sessionRow：32px、gap 0（标题自带 margin）、无额外缩进；标题 14/20。 */
+.bh-channel-row {
+  height: 32px;
+  gap: 0;
+  padding: 0 8px;
 }
-.bh-section-head:hover {
-  background: var(--bh-hover);
+.bh-row-slot,
+.bh-channel-slot {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-row-slot {
+  color: var(--dsw-alias-label-caption);
+}
+.bh-channel-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0 6px 0 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+}
+.bh-channel-meta {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* 原生 .projectRow：34px、gap 6、padding 0 8px；折叠三角 150ms 旋转 90°。 */
+.bh-section-head {
+  height: 34px;
+  gap: 6px;
+  padding: 0 8px;
+}
+.bh-arrow {
+  transition: transform 150ms var(--ds-ease-in-out);
+}
+.bh-arrow-open {
+  transform: rotate(90deg);
 }
 .bh-section-name {
   flex: 1;
@@ -383,9 +443,54 @@ button:has(.bh-panel-glyph) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
 }
 .bh-section-count {
-  flex: 0 0 auto;
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 20px;
+}
+
+/* 原生 .rowActions：16px 字形、gap 12、仅悬停显示（菜单打开时的常显由
+   row 组件的 menu-open 变体在交互接线时补上）。 */
+.bh-row-actions {
+  flex: none;
+  display: none;
+  align-items: center;
+  gap: 12px;
+  height: 20px;
+}
+.bh-section-head:hover .bh-row-actions,
+.bh-section-head:focus-within .bh-row-actions {
+  display: inline-flex;
+}
+.bh-row-action {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  border-radius: 4px;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+.bh-row-action:not(:disabled):hover {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-row-action:disabled {
+  cursor: default;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bh-arrow {
+    transition: none;
+  }
 }
 
 .bh-create-card {

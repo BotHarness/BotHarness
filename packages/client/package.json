@@ -4,6 +4,7 @@
   "private": true,
   "description": "BotHarness web client: PersonaBot roster and delegation entries",
   "files": [
+    "THIRD_PARTY_NOTICES.md",
     "dist",
     "lib"
   ],

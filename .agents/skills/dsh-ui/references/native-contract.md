@@ -14,6 +14,20 @@ Measured against DSH `0.1.5-rc.2` (`@deepseek-ai/dsh-client-ui-sidebar`, `@deeps
 
 Shipped reference (extracted): `hHd-Xa_regionArea`, `bhn1Oq_root`, `bhn1Oq_listArea`, `YDXeBa_sessionRow`.
 
+### Measured rows (280px sidebar, light theme)
+
+| Row | Box | CSS |
+| --- | --- | --- |
+| `.projectRow` (section header) | x 12, right 268, 256×34 | `padding: 0 8px`, `gap: 6px`, radius 8, `--dsw-alias-label-primary`; hover `--dsw-alias-interactive-bg-hover`; triangle `IconTriangleRightFill14` rotates 90° in 150ms `var(--ds-ease-in-out)`; trailing 16px glyphs, gap 12, hover-only |
+| `.sessionRow` (channel/session) | x 12, right 268, 256×32 | `padding: 0 8px`, `gap: 0`, title `14px/20px` with `margin: 0 6px 0 4px` after the 16px leading slot; hover and selected both `--dsw-alias-interactive-bg-hover` |
+| scopes | — | 2px between rows of one list/section, 4px between `.groupSection` blocks |
+
+Both rows stop at the root content edge (12px from each sidebar edge). The
+extracted `.listArea` `margin-right: -12px` is cancelled by `.list`'s own
+`margin-right: 2px`, `padding-right: 2px` and 8px stable scrollbar gutter; a
+registrant whose scroll root already carries the 12px right inset must not add
+the bleed itself or its rows measure 12px wider than native.
+
 ## Tokens
 
 - Three layers: `--dsw-static-*`, `--dsw-alias-*`, `--dsw-specific-*`; dark theme under `body[data-ds-dark-theme]` — never write a theme selector.

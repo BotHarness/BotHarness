@@ -3,13 +3,13 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } 
 import {
   Button,
   IconAgentPresetOutline16,
-  IconChevronDownOutline14,
-  IconChevronRightOutline14,
   IconCloseFill14,
+  IconEllipsisOutline16,
   IconFolderOpenOutline16,
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
+  IconTriangleRightFill14,
   Input,
   Menu,
   StateDot,
@@ -138,19 +138,15 @@ function ChannelRow({
   return (
     <button
       type="button"
-      className={`bh-contact${selected ? ' bh-selected' : ''}`}
+      className={`bh-channel-row${selected ? ' bh-selected' : ''}`}
       onClick={() => void actions.openChannel(channel.id)}
     >
-      <span className="bh-channel-mark" aria-hidden="true">
+      <span className="bh-channel-slot" aria-hidden="true">
         #
       </span>
-      <span className="bh-body">
-        <span className="bh-top">
-          <span className="bh-name">{channel.name}</span>
-        </span>
-        <span className="bh-msg">
-          {channel.members.length > 0 ? `${channel.members.length} 位成员` : '还没有成员'}
-        </span>
+      <span className="bh-channel-title">{channel.name}</span>
+      <span className="bh-channel-meta">
+        {channel.members.length > 0 ? `${channel.members.length} 位成员` : '还没有成员'}
       </span>
     </button>
   );
@@ -400,50 +396,81 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
         </div>
       ) : null}
 
-      <div className="bh-list-area">
-        {flatBots.map((bot) => (
-          <BotRow key={bot.slug} bot={bot} selected={selectedBot === bot.slug} actions={actions} />
-        ))}
-        {flatChannels.map((channel) => (
-          <ChannelRow
-            key={channel.id}
-            channel={channel}
-            selected={selectedChannel === channel.id}
-            actions={actions}
-          />
-        ))}
-      </div>
+      {flatBots.length + flatChannels.length > 0 ? (
+        <div className="bh-list-area">
+          {flatBots.map((bot) => (
+            <BotRow
+              key={bot.slug}
+              bot={bot}
+              selected={selectedBot === bot.slug}
+              actions={actions}
+            />
+          ))}
+          {flatChannels.map((channel) => (
+            <ChannelRow
+              key={channel.id}
+              channel={channel}
+              selected={selectedChannel === channel.id}
+              actions={actions}
+            />
+          ))}
+        </div>
+      ) : null}
 
       {sections.map(({ section, channels: sectionChannels }) => {
         const collapsed = section.collapsed === true;
         return (
-          <div key={section.id}>
-            <button
-              type="button"
-              className="bh-section-head"
-              aria-expanded={!collapsed}
-              onClick={() => toggleSection(section.id)}
-            >
-              {collapsed ? (
-                <IconChevronRightOutline14 size={14} />
-              ) : (
-                <IconChevronDownOutline14 size={14} />
-              )}
-              <span className="bh-section-name">{section.name}</span>
-              <span className="bh-section-count">{sectionChannels.length}</span>
-            </button>
-            {collapsed ? null : (
-              <div className="bh-list-area">
-                {sectionChannels.map((channel) => (
-                  <ChannelRow
-                    key={channel.id}
-                    channel={channel}
-                    selected={selectedChannel === channel.id}
-                    actions={actions}
+          <div key={section.id} className="bh-section">
+            <div className="bh-list-area">
+              <div
+                className="bh-section-head"
+                role="button"
+                tabIndex={0}
+                aria-expanded={!collapsed}
+                onClick={() => toggleSection(section.id)}
+                onKeyDown={(event) => {
+                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                  event.preventDefault();
+                  toggleSection(section.id);
+                }}
+              >
+                <span className="bh-row-slot" aria-hidden="true">
+                  <IconTriangleRightFill14
+                    className={collapsed ? 'bh-arrow' : 'bh-arrow bh-arrow-open'}
                   />
-                ))}
+                </span>
+                <span className="bh-section-name">{section.name}</span>
+                <span className="bh-section-count">{sectionChannels.length}</span>
+                <span className="bh-row-actions">
+                  <button
+                    type="button"
+                    className="bh-row-action"
+                    aria-label={`「${section.name}」排序方式`}
+                    disabled
+                  >
+                    <IconEllipsisOutline16 />
+                  </button>
+                  <button
+                    type="button"
+                    className="bh-row-action"
+                    aria-label={`在「${section.name}」中创建 Channel`}
+                    disabled
+                  >
+                    <IconPlusOutline16 />
+                  </button>
+                </span>
               </div>
-            )}
+              {collapsed
+                ? null
+                : sectionChannels.map((channel) => (
+                    <ChannelRow
+                      key={channel.id}
+                      channel={channel}
+                      selected={selectedChannel === channel.id}
+                      actions={actions}
+                    />
+                  ))}
+            </div>
           </div>
         );
       })}

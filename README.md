@@ -57,3 +57,7 @@ packages/deepseekbot deepseekbot        # bundle + 应用（后续）
 ```
 
 M1 脚手架（插件入口、workspace→bot 解析）已迁入 `packages/core`；解析保留为 IM 绑定助手。
+
+## 许可
+
+MIT，见 [LICENSE](./LICENSE)；分发代码中的第三方素材见 [packages/client/THIRD_PARTY_NOTICES.md](./packages/client/THIRD_PARTY_NOTICES.md)。
