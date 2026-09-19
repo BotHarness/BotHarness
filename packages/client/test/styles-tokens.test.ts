@@ -35,4 +35,17 @@ describe('client styles', () => {
     expect(entries.length).toBeGreaterThan(0);
     expect(entries.length).toBeLessThanOrEqual(3);
   });
+
+  it('wires the measured native row geometry and spacing', () => {
+    expect(source).toMatch(/\.bh-section-head \{[^}]*height: 34px/);
+    expect(source).toMatch(/\.bh-section-head \{[^}]*gap: 6px/);
+    expect(source).toMatch(/\.bh-section-head \{[^}]*padding: 0 8px/);
+    expect(source).toMatch(/\.bh-channel-row \{[^}]*height: 32px/);
+    expect(source).toMatch(/\.bh-channel-row \{[^}]*padding: 0 8px/);
+    expect(source).toMatch(/\.bh-list-area > \* \+ \* \{\s*margin-top: 2px/);
+    expect(source).toMatch(/\.bh-section \+ \.bh-section \{\s*margin-top: 4px/);
+    expect(source).toMatch(/\.bh-section-head:hover \.bh-row-actions,[^}]*display: inline-flex/);
+    expect(source).toMatch(/\.bh-arrow-open \{\s*transform: rotate\(90deg\)/);
+    expect(source).toMatch(/\.bh-channel-row\.bh-selected \{\s*background: var\(--bh-hover\)/);
+  });
 });
