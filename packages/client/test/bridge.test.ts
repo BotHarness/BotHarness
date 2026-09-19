@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createActions } from '../src/client/actions.js';
 import {
@@ -157,6 +157,7 @@ describe('bridge actions', () => {
           { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
         ],
       }),
+      rosterGet: () => ({ pins: [], sections: [] }),
       ...extra,
     });
     return { clientStore, actions: createActions(call, clientStore) };
@@ -235,5 +236,143 @@ describe('bridge actions', () => {
       status: 'error',
       error: 'RPC is not available',
     });
+  });
+
+  it('mirrors the host arrangement into the roster state', async () => {
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: ['ada'],
+        sections: [
+          { id: 's2', name: '研究', channelIds: [] },
+          { id: 's1', name: '工作流', channelIds: ['c1'] },
+        ],
+      }),
+    });
+
+    await actions.load();
+
+    expect(clientStore.getSnapshot().roster).toEqual({
+      pins: ['ada'],
+      sections: [
+        { id: 's2', name: '研究', channelIds: [] },
+        { id: 's1', name: '工作流', channelIds: ['c1'] },
+      ],
+      readOnly: false,
+    });
+  });
+
+  it('creates a section through the bridge and refreshes the roster', async () => {
+    const writes: unknown[] = [];
+    let sections: Array<{ id: string; name: string; channelIds: string[] }> = [];
+    const { clientStore, actions } = setup({
+      sectionCreate: (payload) => {
+        writes.push(payload);
+        const created = { id: 'host-1', name: String(payload['name']), channelIds: [] };
+        sections = [...sections, created];
+        return { section: created };
+      },
+      rosterGet: () => ({ pins: [], sections }),
+    });
+
+    const created = await actions.createSection('研究');
+
+    expect(writes).toEqual([{ name: '研究' }]);
+    expect(created).toEqual({ id: 'host-1', name: '研究', channelIds: [] });
+    expect(clientStore.getSnapshot().roster.sections).toEqual([
+      { id: 'host-1', name: '研究', channelIds: [] },
+    ]);
+  });
+
+  it('freezes a section order through positioned channelAssign writes', async () => {
+    const assignments: Array<Record<string, unknown>> = [];
+    let channelIds = ['c1', 'c2', 'c3'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's1', name: 'A', channelIds }],
+      }),
+      channelAssign: (payload) => {
+        assignments.push(payload);
+        const channelId = String(payload['channelId']);
+        const index = Number(payload['index']);
+        const without = channelIds.filter((id) => id !== channelId);
+        channelIds = [...without.slice(0, index), channelId, ...without.slice(index)];
+      },
+    });
+    await actions.load();
+
+    const applied = await actions.setSectionChannelOrder('s1', ['c3', 'c1', 'c2']);
+
+    expect(applied).toBe(true);
+    expect(assignments).toEqual([
+      { channelId: 'c3', sectionId: 's1', index: 0 },
+      { channelId: 'c1', sectionId: 's1', index: 1 },
+      { channelId: 'c2', sectionId: 's1', index: 2 },
+    ]);
+    expect(clientStore.getSnapshot().roster.sections[0]?.channelIds).toEqual(['c3', 'c1', 'c2']);
+  });
+
+  it('marks the roster read-only when a write reports storage-unavailable', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const clientStore = createStore();
+    const call: BridgeCall = async (endpoint) => {
+      if (endpoint === 'rosterGet') {
+        return { ok: true, value: { pins: [], sections: [] } };
+      }
+      if (endpoint === 'sectionCreate') {
+        return {
+          ok: false,
+          error: {
+            code: 'storage-unavailable',
+            message: 'roster storage is unavailable',
+            details: {},
+          },
+        };
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+    const actions = createActions(call, clientStore);
+    await actions.load();
+
+    await expect(actions.createSection('A')).resolves.toBeUndefined();
+    expect(clientStore.getSnapshot().roster.readOnly).toBe(true);
+    warn.mockRestore();
+  });
+
+  it('marks the roster read-only on the first load and clears it when a later load succeeds', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const clientStore = createStore();
+    let unavailable = true;
+    const call: BridgeCall = async (endpoint) => {
+      if (endpoint === 'list') return { ok: true, value: { bots: [] } };
+      if (endpoint === 'channels') return { ok: true, value: { channels: [] } };
+      if (endpoint === 'rosterGet') {
+        return unavailable
+          ? {
+              ok: false,
+              error: {
+                code: 'storage-unavailable',
+                message: 'roster storage is unavailable',
+                details: {},
+              },
+            }
+          : { ok: true, value: { pins: ['ada'], sections: [] } };
+      }
+      throw new Error(`unexpected endpoint: ${endpoint}`);
+    };
+    const actions = createActions(call, clientStore);
+
+    await actions.load();
+    expect(clientStore.getSnapshot().roster.readOnly).toBe(true);
+    expect(clientStore.getSnapshot().status).toBe('ready');
+
+    unavailable = false;
+    await actions.refreshRoster();
+    expect(clientStore.getSnapshot().roster).toEqual({
+      pins: ['ada'],
+      sections: [],
+      readOnly: false,
+    });
+    warn.mockRestore();
   });
 });

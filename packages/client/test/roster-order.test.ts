@@ -4,10 +4,10 @@ import {
   commitScopeReorder,
   moveWithinOrder,
   orderScopeChannels,
-  reconcileOrder,
   resolvedSortMode,
   rowDropHalf,
 } from '../src/client/roster-order.js';
+import { reconcileOrder } from '../src/client/roster.js';
 import type { ChannelSummary } from '../src/client/store.js';
 
 function channel(id: string, updatedAt: string, patch?: Partial<ChannelSummary>): ChannelSummary {

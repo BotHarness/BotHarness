@@ -1,4 +1,5 @@
 import type { BotModeSortMode } from '../bot-mode-settings.js';
+import { reconcileOrder } from './roster.js';
 import type { ChannelSummary } from './store.js';
 
 /**
@@ -13,32 +14,6 @@ export function resolvedSortMode(
   global: BotModeSortMode,
 ): BotModeSortMode {
   return override ?? global;
-}
-
-/**
- * Restore one scope's membership to a preferred order: the preferred ids that
- * are members come first (first occurrence wins), then every member the
- * preferred order omitted, in its existing order. Shared by the render-side
- * reconciliation and the frozen `channels`-array write.
- * @param preferred - Stored order to apply.
- * @param members - Current membership ids in their existing order.
- * @returns Member ids in the reconciled order; inputs are not mutated.
- */
-export function reconcileOrder(preferred: readonly string[], members: readonly string[]): string[] {
-  const known = new Set(members);
-  const next: string[] = [];
-  const seen = new Set<string>();
-  for (const id of preferred) {
-    if (!known.has(id) || seen.has(id)) continue;
-    seen.add(id);
-    next.push(id);
-  }
-  for (const id of members) {
-    if (seen.has(id)) continue;
-    seen.add(id);
-    next.push(id);
-  }
-  return next;
 }
 
 function updatedAtTime(updatedAt: string): number {

@@ -44,7 +44,7 @@ import {
   sectionMenuItems,
 } from '../src/client/section-management.js';
 
-const SECTION = { id: 's1', name: '工作流', channels: [] };
+const SECTION = { id: 's1', name: '工作流', channelIds: [] };
 
 const t = (key: BotHarnessKey): string => zh[key];
 
@@ -192,7 +192,7 @@ describe('section delete modal', () => {
     const onCancel = vi.fn();
     renderToStaticMarkup(
       createElement(SectionDeleteModal, {
-        section: { ...SECTION, name: '工作流', channels: ['c1'] },
+        section: { ...SECTION, name: '工作流', channelIds: ['c1'] },
         onCancel,
         onDelete,
       }),

@@ -1,4 +1,5 @@
 import type { RosterConfig } from './roster-config.js';
+import type { RosterSection } from './roster.js';
 
 export type ClientMode = 'dsh' | 'bot';
 
@@ -62,6 +63,14 @@ export interface SessionsState {
   error: string | undefined;
 }
 
+/** Host-owned arrangement mirrored from `rosterGet`; never written locally. */
+export interface RosterState {
+  pins: readonly string[];
+  sections: readonly RosterSection[];
+  /** True while the host reports `storage-unavailable`; the UI stays read-only. */
+  readOnly: boolean;
+}
+
 export interface ClientState {
   mode: ClientMode;
   bots: readonly BotSummary[];
@@ -70,6 +79,7 @@ export interface ClientState {
   error: string | undefined;
   query: string;
   config: RosterConfig;
+  roster: RosterState;
   selection: ConversationSelection | undefined;
   conversation: ConversationState;
   sessions: SessionsState;
@@ -83,6 +93,7 @@ export interface ClientStore {
   setConfig(config: RosterConfig): void;
   setRosterStatus(status: ClientStatus, error: string | undefined): void;
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
+  setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
@@ -101,6 +112,14 @@ function initialConversation(): ConversationState {
 
 function initialSessions(): SessionsState {
   return { status: 'idle', items: [], error: undefined };
+}
+
+function initialRoster(): RosterState {
+  return {
+    pins: [],
+    sections: [],
+    readOnly: false,
+  };
 }
 
 function sameSelection(
@@ -123,7 +142,8 @@ export function createStore(): ClientStore {
     status: 'idle',
     error: undefined,
     query: '',
-    config: { pins: [], sections: [] },
+    config: { collapsed: {} },
+    roster: initialRoster(),
     selection: undefined,
     conversation: initialConversation(),
     sessions: initialSessions(),
@@ -157,6 +177,9 @@ export function createStore(): ClientStore {
     },
     setRoster(bots, channels) {
       update({ bots, channels, status: 'ready', error: undefined });
+    },
+    setRosterState(patch) {
+      update({ roster: { ...state.roster, ...patch } });
     },
     upsertChannel(channel) {
       const existing = state.channels.filter((candidate) => candidate.id !== channel.id);

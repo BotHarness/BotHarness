@@ -2,7 +2,7 @@
 
 BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 agent 持久身份：**PersonaBot**——带人格、跨 session 记忆、可并发工作。DeepSeekBot 是它的首个应用（sidebar 名册 + 委派 + IM 接入）。DSH 内核不 fork；IM 由 dsh-im 基座提供通道。
 
-状态：M1 已实现（PR #13）· M2 记忆 MVP 已实现 · M3 Roster 与委派 · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-18
+状态：M1 已实现（PR #13）· M2 记忆 MVP 已实现 · M3 Roster 与委派（名册陈列迁 Host `botharness_roster`，#66） · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-20
 
 ## 1 · 系统上下文
 
@@ -95,20 +95,21 @@ flowchart TB
   class Bundle,ClientPkg,ImPkg later;
 ```
 
-| 模块                     | 职责                                                                                           | 状态             |
-| ------------------------ | ---------------------------------------------------------------------------------------------- | ---------------- |
-| `plugin.ts`              | 插件入口：`apply(ctx, config)`（`enabled` 门控）+ `provide('botharness')`；`createCore()` 组装 | M1 ✅            |
-| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                            | M1 ✅            |
-| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed`    | M1 ✅            |
-| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                        | M1 ✅（M5 接线） |
-| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                          | M2 ✅            |
-| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                   | M2 ✅            |
-| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                       | M2 ✅            |
-| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt         | M2 ✅            |
-| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）      | M2 ✅            |
-| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）          | M2 ✅            |
-| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`               | M2 ✅            |
-| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                                 | M3               |
+| 模块                     | 职责                                                                                                                         | 状态             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| `plugin.ts`              | 插件入口：`apply(ctx, config)`（`enabled` 门控）+ `provide('botharness')`；`createCore()` 组装                               | M1 ✅            |
+| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                                                          | M1 ✅            |
+| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed`                                  | M1 ✅            |
+| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                                                      | M1 ✅（M5 接线） |
+| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                                                        | M2 ✅            |
+| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                                                 | M2 ✅            |
+| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                                                     | M2 ✅            |
+| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt                                       | M2 ✅            |
+| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）                                    | M2 ✅            |
+| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）                                        | M2 ✅            |
+| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`                                             | M2 ✅            |
+| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                                                               | M3               |
+| `roster/{spec,store}.ts` | `botharness_roster` 存储域（global `pins/sectionOrder` + `sections` 表）；Host 生成 id；可选 `storageDomain`（缺省只读降级） | M3 ✅ #66        |
 
 ## 3 · 装载与服务暴露
 
@@ -159,6 +160,24 @@ sequenceDiagram
 ```
 
 偏差记录：Host 半用 `settings.register(ns, schema)`，不用 cookbook 主推的 `installSection(ctx, ns, Config, config, { setSource, onChange })` —— 本插件没有可作 base 的 `cordis.yml` entry config，默认值与缺省行为完全由 schema 承担；出现 entry 配置需求时再切换到 `installSection`。
+
+### 3.2 · 名册陈列（#66）
+
+陈列（section 名称/成员/顺序、pins）的权威在 Host storage 域 `botharness_roster`（json 后端、`version 1`、`layout: single`；ADR-0034）；浏览器只经七个细粒度桥方法读写，写后重拉 `rosterGet`（无乐观状态）。storage 是可选能力：没有 `storageDomain` 时插件照常加载，roster 的读写都回 `storage-unavailable`（`rosterGet` 不假装空陈列），客户端首屏即只读、后端可用后重载恢复。
+
+```mermaid
+sequenceDiagram
+  participant U as 浏览器 · BotSidebar
+  participant B as botharness/* 桥（BotharnessBridgeService）
+  participant R as core/roster/store.ts
+  participant S as botharness_roster（json 后端）
+
+  U->>B: rosterGet / sectionCreate / sectionRename / sectionRemove /<br/>channelAssign / sectionReorder / pinsSet
+  B->>R: zod 校验后的动作
+  R->>S: 域写（global / sections 表，返回即已落盘）
+  B-->>U: { ok, value }（写后客户端重拉 rosterGet）
+  Note over U,S: 旧 roster.json 一次性迁移：空域 + 有旧键时建 section、<br/>按序归属、pins、重映射 sortModes，然后备份清理；有域不覆盖
+```
 
 ## 4 · 创建 PersonaBot（数据流）
 

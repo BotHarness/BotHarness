@@ -11,7 +11,7 @@ import { errorMessage } from './bridge.js';
 import type { BotHarnessKey } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
-import type { ChannelSectionConfig } from './roster-config.js';
+import type { RosterSection } from './roster.js';
 
 /** Narrow translate seat consumed by pure menu builders (the slot `t` seat is a superset). */
 export type BotMenuTranslate = (key: BotHarnessKey) => string;
@@ -86,7 +86,7 @@ function NameField({
 }
 
 export interface SectionRenameModalProps {
-  section: ChannelSectionConfig;
+  section: RosterSection;
   onCancel: () => void;
   onRename: (name: string) => void;
 }
@@ -138,7 +138,7 @@ export function SectionRenameModal({
 }
 
 export interface SectionDeleteModalProps {
-  section: ChannelSectionConfig;
+  section: RosterSection;
   onCancel: () => void;
   onDelete: () => void;
 }

@@ -7,6 +7,7 @@ import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import { apply, inject, name, type PersonaBotRegistry } from '../src/index.js';
+import { createFakeRosterDomain } from './roster-fixture.js';
 import { createTempRoot } from './helpers.js';
 
 interface Stubs {
@@ -56,6 +57,7 @@ describe('plugin entry', () => {
       states: expect.anything(),
       memory: expect.anything(),
       channels: expect.anything(),
+      roster: expect.anything(),
     });
     expect(stubs.tools.register).toHaveBeenCalledTimes(4);
     expect(stubs.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([
@@ -109,7 +111,54 @@ describe('plugin entry', () => {
       'channelMessages',
       'channelSend',
       'sessions',
+      'rosterGet',
+      'sectionCreate',
+      'sectionRename',
+      'sectionRemove',
+      'channelAssign',
+      'sectionReorder',
+      'pinsSet',
     ]);
+  });
+
+  it('opens the roster domain when storageDomain is served', async () => {
+    const { ctx } = createStubContext();
+    const fake = createFakeRosterDomain();
+    ctx.provide('storageDomain', fake.facility as never);
+
+    apply(ctx, { enabled: true });
+
+    const core = ctx.get('botharness') as { roster: { available: boolean } } | undefined;
+    await vi.waitFor(() => {
+      expect(core?.roster.available).toBe(true);
+    });
+    const bridge = ctx.get('botharnessBridge');
+    expect(bridge?.rosterGet()).toEqual({
+      pins: [],
+      sectionOrder: [],
+      sections: [],
+    });
+  });
+
+  it('keeps loading without storageDomain and reports the roster unavailable', async () => {
+    const { ctx } = createStubContext();
+
+    apply(ctx, { enabled: true });
+
+    const core = ctx.get('botharness') as { roster: { available: boolean } } | undefined;
+    expect(core?.roster.available).toBe(false);
+    const bridge = ctx.get('botharnessBridge');
+    expect(bridge).toBeDefined();
+    try {
+      bridge?.rosterGet();
+      expect.unreachable('rosterGet should throw while storage is unavailable');
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: 'RemoteError',
+        code: 'storage-unavailable',
+        message: 'roster storage is unavailable',
+      });
+    }
   });
 
   it('wires the memory store into the registered memory tools and tree section', async () => {

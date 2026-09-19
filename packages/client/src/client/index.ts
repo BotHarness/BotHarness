@@ -17,6 +17,7 @@ import { createBridgeCall } from './bridge.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
+import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
 
@@ -38,21 +39,30 @@ function installStyles(): () => void {
 }
 
 export function apply(ctx: ClientContext): void {
+  const storage = defaultStorage();
   const call = createBridgeCall(ctx);
   const actions: BridgeActions = createActions(call, store);
+  const prefs = new BotModePrefs(storage);
 
   ctx.effect(installStyles, 'botharness: client styles');
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness: dictionaries');
   ctx.effect(() => {
-    store.setConfig(loadRosterConfig(defaultStorage()));
+    store.setConfig(loadRosterConfig(storage));
     const controller = new AbortController();
-    void actions.load(controller.signal);
+    void actions.load(controller.signal).then(async () => {
+      if (controller.signal.aborted) return;
+      const outcome = await migrateLegacyRoster({
+        storage,
+        call,
+        remapSortModes: (mapping) => prefs.remapSectionSortModes(mapping),
+      });
+      if (outcome === 'migrated') await actions.refreshRoster(controller.signal);
+    });
     return () => {
       controller.abort();
     };
   }, 'botharness: roster load');
 
-  const prefs = new BotModePrefs(defaultStorage());
   ctx.inject(['settingsScope'], (settingsCtx) => {
     const scope = settingsCtx.settingsScope.bind<BotModeSettings>({
       namespace: BOT_MODE_NAMESPACE,

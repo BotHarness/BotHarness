@@ -1,21 +1,33 @@
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
-import { reconcileOrder } from './roster-order.js';
+import { uniqueStrings } from './roster.js';
 
-export interface ChannelSectionConfig {
+/**
+ * Browser-local BOT-mode view state after ADR-0034: only `collapsed` remains
+ * here. The durable arrangement (sections/pins/order) lives in the host
+ * `botharness_roster` domain and the sort preference in `ui-bot-mode`; the
+ * legacy record fields are kept as the one-time migration source.
+ */
+export interface RosterConfig {
+  collapsed: Record<string, boolean>;
+}
+
+export interface ConfigStorage {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+}
+
+/** One section row as stored by the pre-#66 legacy record. */
+export interface LegacyRosterSection {
   id: string;
   name: string;
   channels: string[];
   collapsed?: boolean;
 }
 
-export interface RosterConfig {
+/** The legacy arrangement still readable from `roster.json` for migration. */
+export interface LegacyRosterArrangement {
   pins: string[];
-  sections: ChannelSectionConfig[];
-}
-
-export interface ConfigStorage {
-  getItem(key: string): string | null;
-  setItem(key: string, value: string): void;
+  sections: LegacyRosterSection[];
 }
 
 /** Legacy browser sort preference exported from `roster.json` before #68. */
@@ -28,20 +40,14 @@ export interface LegacySortPreference {
 
 export const ROSTER_CONFIG_KEY = 'botharness/roster.json';
 
-function emptyConfig(): RosterConfig {
-  return { pins: [], sections: [] };
-}
+/** One-time copy of the pre-#66 record, written before the live key is cleared. */
+export const ROSTER_BACKUP_KEY = 'botharness/roster.json.backup';
 
-function uniqueStrings(value: unknown): string[] {
-  if (!Array.isArray(value)) return [];
-  const seen = new Set<string>();
-  const result: string[] = [];
-  for (const entry of value) {
-    if (typeof entry !== 'string' || entry.length === 0 || seen.has(entry)) continue;
-    seen.add(entry);
-    result.push(entry);
-  }
-  return result;
+/** Marker written after a successful roster migration. */
+export const ROSTER_MIGRATED_KEY = 'botharness/roster.migrated';
+
+function emptyConfig(): RosterConfig {
+  return { collapsed: {} };
 }
 
 function legacyMode(value: unknown): BotModeSortMode | undefined {
@@ -63,31 +69,32 @@ function legacyRecord(storage: ConfigStorage | undefined): Record<string, unknow
   }
 }
 
+function collapsedMap(value: unknown): Record<string, boolean> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return {};
+  const collapsed: Record<string, boolean> = {};
+  for (const [id, flag] of Object.entries(value as Record<string, unknown>)) {
+    if (id.length > 0 && flag === true) collapsed[id] = true;
+  }
+  return collapsed;
+}
+
 export function parseRosterConfig(value: unknown): RosterConfig {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return emptyConfig();
   const record = value as Record<string, unknown>;
-  const sections: ChannelSectionConfig[] = [];
+  const collapsed = collapsedMap(record['collapsed']);
+  // A pre-migration record carries collapse state inside its section rows;
+  // keep it readable until the migration re-keys it to host section ids.
   if (Array.isArray(record['sections'])) {
     for (const entry of record['sections']) {
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
       const raw = entry as Record<string, unknown>;
       const id = raw['id'];
-      const name = raw['name'];
-      if (typeof id !== 'string' || id.length === 0) continue;
-      if (typeof name !== 'string' || name.trim().length === 0) continue;
-      const section: ChannelSectionConfig = {
-        id,
-        name: name.trim(),
-        channels: uniqueStrings(raw['channels']),
-      };
-      if (raw['collapsed'] === true) section.collapsed = true;
-      sections.push(section);
+      if (typeof id === 'string' && id.length > 0 && raw['collapsed'] === true) {
+        collapsed[id] = true;
+      }
     }
   }
-  return {
-    pins: uniqueStrings(record['pins']),
-    sections,
-  };
+  return { collapsed };
 }
 
 export function loadRosterConfig(storage: ConfigStorage | undefined): RosterConfig {
@@ -101,12 +108,102 @@ export function loadRosterConfig(storage: ConfigStorage | undefined): RosterConf
   }
 }
 
-export function saveRosterConfig(config: RosterConfig, storage: ConfigStorage | undefined): void {
-  if (storage === undefined) return;
+/**
+ * Persist the local view config.
+ * @returns `true` when the record was written; `false` on denied storage.
+ */
+export function saveRosterConfig(
+  config: RosterConfig,
+  storage: ConfigStorage | undefined,
+): boolean {
+  if (storage === undefined) return false;
   try {
     storage.setItem(ROSTER_CONFIG_KEY, JSON.stringify(config));
+    return true;
   } catch {
-    return;
+    return false;
+  }
+}
+
+export function toggleSectionCollapsed(config: RosterConfig, sectionId: string): RosterConfig {
+  const collapsed = { ...config.collapsed };
+  if (collapsed[sectionId] === true) delete collapsed[sectionId];
+  else collapsed[sectionId] = true;
+  return { collapsed };
+}
+
+/**
+ * Parse the pre-#66 arrangement out of a legacy record. `undefined` means the
+ * record carries nothing worth migrating (already migrated or never had one).
+ */
+export function parseLegacyRosterArrangement(value: unknown): LegacyRosterArrangement | undefined {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
+  const record = value as Record<string, unknown>;
+  const sections: LegacyRosterSection[] = [];
+  if (Array.isArray(record['sections'])) {
+    for (const entry of record['sections']) {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
+      const raw = entry as Record<string, unknown>;
+      const id = raw['id'];
+      const name = raw['name'];
+      if (typeof id !== 'string' || id.length === 0) continue;
+      if (typeof name !== 'string' || name.trim().length === 0) continue;
+      const section: LegacyRosterSection = {
+        id,
+        name: name.trim(),
+        channels: uniqueStrings(raw['channels']),
+      };
+      if (raw['collapsed'] === true) section.collapsed = true;
+      sections.push(section);
+    }
+  }
+  const pins = uniqueStrings(record['pins']);
+  if (pins.length === 0 && sections.length === 0) return undefined;
+  return { pins, sections };
+}
+
+/** Read the legacy arrangement from browser storage, when one is present. */
+export function loadLegacyRosterArrangement(
+  storage: ConfigStorage | undefined,
+): LegacyRosterArrangement | undefined {
+  return parseLegacyRosterArrangement(legacyRecord(storage));
+}
+
+/**
+ * Copy the current live record aside once, before the migration clears it.
+ * @returns `true` when the record is backed up or nothing needed backing up;
+ *   `false` when storage denied the copy.
+ */
+export function backupLegacyRoster(storage: ConfigStorage | undefined): boolean {
+  if (storage === undefined) return false;
+  try {
+    const raw = storage.getItem(ROSTER_CONFIG_KEY);
+    if (raw === null || raw.length === 0) return true;
+    if (storage.getItem(ROSTER_BACKUP_KEY) !== null) return true;
+    storage.setItem(ROSTER_BACKUP_KEY, raw);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Record that the arrangement migration completed. */
+export function markRosterMigrated(storage: ConfigStorage | undefined): void {
+  if (storage === undefined) return;
+  try {
+    storage.setItem(ROSTER_MIGRATED_KEY, new Date().toISOString());
+  } catch {
+    // The marker is informational; a denied write does not undo the migration.
+  }
+}
+
+/** Whether this browser already ran the one-shot arrangement migration. */
+export function hasRosterMigrated(storage: ConfigStorage | undefined): boolean {
+  if (storage === undefined) return false;
+  try {
+    return storage.getItem(ROSTER_MIGRATED_KEY) !== null;
+  } catch {
+    return false;
   }
 }
 
@@ -138,7 +235,7 @@ export function readLegacySortPreference(
   };
 }
 
-/** Drop the legacy sort fields, leaving pins/sections for their own migration. */
+/** Drop the legacy sort fields, leaving the remaining record for its own migration. */
 export function clearLegacySortPreference(storage: ConfigStorage | undefined): void {
   const record = legacyRecord(storage);
   if (record === undefined) return;
@@ -163,88 +260,6 @@ export function clearLegacySortPreference(storage: ConfigStorage | undefined): v
   } catch {
     // Storage denied: the legacy fields stay and the migration retries on the next load.
   }
-}
-
-export function addSection(config: RosterConfig, name: string): RosterConfig {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return config;
-  const taken = new Set(config.sections.map((section) => section.id));
-  let counter = config.sections.length + 1;
-  while (taken.has(`section-${counter}`)) counter += 1;
-  return {
-    ...config,
-    sections: [...config.sections, { id: `section-${counter}`, name: trimmed, channels: [] }],
-  };
-}
-
-export function renameSection(config: RosterConfig, sectionId: string, name: string): RosterConfig {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) return config;
-  return {
-    ...config,
-    sections: config.sections.map((section) =>
-      section.id === sectionId ? { ...section, name: trimmed } : section,
-    ),
-  };
-}
-
-export function removeSection(config: RosterConfig, sectionId: string): RosterConfig {
-  const sections = config.sections.filter((section) => section.id !== sectionId);
-  if (sections.length === config.sections.length) return config;
-  return { ...config, sections };
-}
-
-export function addChannelToSection(
-  config: RosterConfig,
-  sectionId: string,
-  channelId: string,
-): RosterConfig {
-  const target = config.sections.find((section) => section.id === sectionId);
-  if (target === undefined || target.channels.includes(channelId)) return config;
-  return {
-    ...config,
-    sections: config.sections.map((section) =>
-      section.id === sectionId
-        ? { ...section, channels: [...section.channels, channelId] }
-        : section,
-    ),
-  };
-}
-
-/**
- * Replace one section's channel order — the manual-order seam for #55. Until
- * #66 moves the arrangement into the `botharness_roster` host domain, the
- * section's `channels` array is the frozen manual order; #66 reroutes this
- * write to the bridge. Membership is preserved: ids the caller omits stay at
- * the end in their previous order.
- */
-export function setSectionChannelOrder(
-  config: RosterConfig,
-  sectionId: string,
-  order: readonly string[],
-): RosterConfig {
-  const section = config.sections.find((candidate) => candidate.id === sectionId);
-  if (section === undefined) return config;
-  const next = reconcileOrder(order, section.channels);
-  const unchanged =
-    next.length === section.channels.length &&
-    next.every((id, index) => id === section.channels[index]);
-  if (unchanged) return config;
-  return {
-    ...config,
-    sections: config.sections.map((candidate) =>
-      candidate.id === sectionId ? { ...candidate, channels: next } : candidate,
-    ),
-  };
-}
-
-export function toggleSectionCollapsed(config: RosterConfig, sectionId: string): RosterConfig {
-  return {
-    ...config,
-    sections: config.sections.map((section) =>
-      section.id === sectionId ? { ...section, collapsed: section.collapsed !== true } : section,
-    ),
-  };
 }
 
 export function defaultStorage(): ConfigStorage | undefined {

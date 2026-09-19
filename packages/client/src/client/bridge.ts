@@ -8,6 +8,23 @@ import type {
   ChannelSummary,
   SessionSummary,
 } from './store.js';
+import {
+  parseRosterSection,
+  parseRosterSnapshot,
+  type RosterSection,
+  type RosterSnapshot,
+} from './roster.js';
+
+/** Failure carrying the Host's stable bridge error code. */
+export class BridgeCallError extends Error {
+  constructor(
+    readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'BridgeCallError';
+  }
+}
 
 export interface BridgeRpc {
   call(
@@ -80,7 +97,7 @@ async function unwrap(
   signal?: AbortSignal,
 ): Promise<unknown> {
   const result = await call(endpoint, payload, signal);
-  if (!result.ok) throw new Error(result.error.message);
+  if (!result.ok) throw new BridgeCallError(result.error.code, result.error.message);
   return result.value;
 }
 
@@ -270,4 +287,62 @@ export async function loadSessions(
   signal?: AbortSignal,
 ): Promise<SessionSummary[]> {
   return parseSessionSummaries(await unwrap(call, 'sessions', { slug }, signal));
+}
+
+export async function loadRoster(call: BridgeCall, signal?: AbortSignal): Promise<RosterSnapshot> {
+  return parseRosterSnapshot(await unwrap(call, 'rosterGet', {}, signal));
+}
+
+export async function createRosterSection(
+  call: BridgeCall,
+  name: string,
+  signal?: AbortSignal,
+): Promise<RosterSection> {
+  const value = await unwrap(call, 'sectionCreate', { name }, signal);
+  const section = parseRosterSection(asRecord(value)?.['section']);
+  if (section === undefined) throw new Error('invalid sectionCreate response');
+  return section;
+}
+
+export async function renameRosterSection(
+  call: BridgeCall,
+  sectionId: string,
+  name: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'sectionRename', { sectionId, name }, signal);
+}
+
+export async function removeRosterSection(
+  call: BridgeCall,
+  sectionId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'sectionRemove', { sectionId }, signal);
+}
+
+export async function assignRosterChannel(
+  call: BridgeCall,
+  channelId: string,
+  sectionId: string | undefined,
+  index?: number,
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'channelAssign', { channelId, sectionId, index }, signal);
+}
+
+export async function reorderRosterSections(
+  call: BridgeCall,
+  order: readonly string[],
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'sectionReorder', { order }, signal);
+}
+
+export async function setRosterPins(
+  call: BridgeCall,
+  pins: readonly string[],
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'pinsSet', { pins }, signal);
 }

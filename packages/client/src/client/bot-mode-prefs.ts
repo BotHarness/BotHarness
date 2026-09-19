@@ -200,6 +200,53 @@ export class BotModePrefs {
     this.persist(this.host.mutate([op]));
   }
 
+  /**
+   * Re-key per-section sort modes from legacy section ids to the
+   * host-generated ids the roster migration created. The accepted Host state
+   * wins over a mode still only in the legacy record; the legacy key is
+   * cleared and the host key written in one mutation, awaited so the roster
+   * migration can roll back when this fails.
+   * @param mapping - Legacy section id → host section id.
+   * @returns `true` when every mapped mode is persisted (or none needed persisting).
+   */
+  async remapSectionSortModes(mapping: ReadonlyMap<string, string>): Promise<boolean> {
+    const host = this.host;
+    const snapshot = this.source.getSnapshot();
+    const legacy = readLegacySortPreference(this.storage)?.sections ?? {};
+    const modes = new Map<string, BotModeSortMode>(Object.entries(legacy));
+    for (const [id, mode] of Object.entries(snapshot.sortModes)) modes.set(id, mode);
+    const ops: BotModePathOp[] = [];
+    const next = { ...snapshot.sortModes };
+    let pending = false;
+    for (const [legacyId, hostId] of mapping) {
+      const mode = modes.get(legacyId);
+      if (mode === undefined) continue;
+      if (host === undefined) {
+        pending = true;
+        continue;
+      }
+      delete next[legacyId];
+      next[hostId] = mode;
+      ops.push({ op: 'unset', path: [BOT_MODE_SORT_MODES_FIELD, legacyId] });
+      ops.push({ op: 'set', path: [BOT_MODE_SORT_MODES_FIELD, hostId], value: mode });
+    }
+    if (pending || host === undefined) return false;
+    if (ops.length === 0) return true;
+    this.source.update((draft) => {
+      draft.sortModes = next;
+    });
+    try {
+      await host.mutate(ops);
+      return true;
+    } catch (error) {
+      this.source.update((draft) => {
+        draft.sortModes = snapshot.sortModes;
+      });
+      console.warn('botharness: failed to remap the BOT-mode sort modes', error);
+      return false;
+    }
+  }
+
   /** Adopt the latest accepted Host section without writing it back. */
   private sync(): void {
     const host = this.host;

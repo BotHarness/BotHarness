@@ -24,6 +24,15 @@ export {
   BotharnessBridgeService,
   registerBridge,
 } from './bridge/rpc.js';
+export {
+  createRosterStore,
+  RosterStore,
+  RosterUnavailableError,
+  RosterUnknownSectionError,
+} from './roster/store.js';
+export type { RosterDomainFacility, RosterSection, RosterSnapshot } from './roster/store.js';
+export { rosterDomainSpec, rosterDomainState, rosterSectionRecord } from './roster/spec.js';
+export type { RosterDomainState, RosterSectionRecord } from './roster/spec.js';
 export { createPersonaBotRegistry } from './bots/registry.js';
 export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
 export {

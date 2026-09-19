@@ -25,17 +25,12 @@ import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js'
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import {
-  addChannelToSection,
-  addSection,
   defaultStorage,
-  removeSection,
-  renameSection,
   saveRosterConfig,
-  setSectionChannelOrder,
   toggleSectionCollapsed,
-  type ChannelSectionConfig,
   type RosterConfig,
 } from './roster-config.js';
+import type { RosterSection } from './roster.js';
 import { useChannelDrag, type ChannelDragProps, type ChannelDropTarget } from './channel-drag.js';
 import {
   commitScopeReorder,
@@ -113,7 +108,7 @@ interface SidebarProps {
 }
 
 interface SectionView {
-  section: ChannelSectionConfig;
+  section: RosterSection;
   channels: ChannelSummary[];
 }
 
@@ -235,8 +230,8 @@ export function BotSidebar({
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
-  const [renameTarget, setRenameTarget] = useState<ChannelSectionConfig | undefined>(undefined);
-  const [deleteTarget, setDeleteTarget] = useState<ChannelSectionConfig | undefined>(undefined);
+  const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
+  const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
   const searchRoot = useRef<HTMLDivElement | null>(null);
   const searchInput = useRef<HTMLInputElement | null>(null);
 
@@ -266,12 +261,12 @@ export function BotSidebar({
   );
   const groupChannels = state.channels.filter((channel) => channel.type === 'group');
   const channels = groupChannels.filter((channel) => matchesQuery(query, channel.name));
-  const pinned = new Set(state.config.pins);
-  const pinnedBots = state.config.pins.flatMap((slug) => {
+  const pinned = new Set(state.roster.pins);
+  const pinnedBots = state.roster.pins.flatMap((slug) => {
     const bot = bots.find((candidate) => candidate.slug === slug);
     return bot === undefined ? [] : [bot];
   });
-  const sectionedIds = new Set(state.config.sections.flatMap((section) => section.channels));
+  const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
   const flatBots = bots.filter((bot) => !pinned.has(bot.slug));
   const ungroupedChannels = orderScopeChannels(
     channels.filter((channel) => !sectionedIds.has(channel.id)),
@@ -283,14 +278,14 @@ export function BotSidebar({
    * filtered view can never change membership semantics.
    */
   const sectionOrder = (
-    section: ChannelSectionConfig,
+    section: RosterSection,
     source: readonly ChannelSummary[],
   ): ChannelSummary[] => {
-    const visible = source.filter((channel) => section.channels.includes(channel.id));
+    const visible = source.filter((channel) => section.channelIds.includes(channel.id));
     const mode = resolvedSortMode(prefs.sortModes[section.id], prefs.sortMode);
-    return orderScopeChannels(visible, mode, section.channels);
+    return orderScopeChannels(visible, mode, section.channelIds);
   };
-  const sections: SectionView[] = state.config.sections
+  const sections: SectionView[] = state.roster.sections
     .map((section) => ({ section, channels: sectionOrder(section, channels) }))
     .filter((entry) => query.length === 0 || entry.channels.length > 0);
   const visibleCount =
@@ -318,7 +313,7 @@ export function BotSidebar({
     if (isBotModeSortMode(id)) setSortMode(id);
   };
 
-  const selectSectionMenu = (section: ChannelSectionConfig, id: string): void => {
+  const selectSectionMenu = (section: RosterSection, id: string): void => {
     setSectionMenuId(undefined);
     if (id === 'inherit') {
       setSectionSortMode(section.id, undefined);
@@ -342,8 +337,8 @@ export function BotSidebar({
   };
 
   /**
-   * Commit one in-section drop: freeze the unfiltered order into the section's
-   * `channels` array (the #66 seam) and flip the scope to an explicit manual
+   * Commit one in-section drop: freeze the unfiltered displayed order through
+   * positioned `channelAssign` writes and flip the scope to an explicit manual
    * override when it was still automatic. Deriving from the full section order
    * keeps members hidden by an active search exactly where they were. The
    * source scope is the only scope touched; #56 extends this to cross-scope
@@ -353,8 +348,9 @@ export function BotSidebar({
     drag: { sectionId: string; channelId: string },
     target: ChannelDropTarget,
   ): void => {
-    const config = store.getSnapshot().config;
-    const section = config.sections.find((candidate) => candidate.id === drag.sectionId);
+    const section = store
+      .getSnapshot()
+      .roster.sections.find((candidate) => candidate.id === drag.sectionId);
     if (section === undefined) return;
     const reorder = commitScopeReorder(
       sectionOrder(section, groupChannels).map((channel) => channel.id),
@@ -364,8 +360,8 @@ export function BotSidebar({
       prefs.sortModes[section.id] === 'manual',
     );
     if (reorder === undefined) return;
-    persistConfig(setSectionChannelOrder(config, section.id, reorder.order));
     if (reorder.setManualOverride) setSectionSortMode(section.id, 'manual');
+    void actions.setSectionChannelOrder(section.id, reorder.order);
   };
 
   const { propsFor: channelDragProps } = useChannelDrag(commitChannelDrag);
@@ -376,7 +372,7 @@ export function BotSidebar({
   const createSection =
     createSectionId === undefined
       ? undefined
-      : state.config.sections.find((section) => section.id === createSectionId);
+      : state.roster.sections.find((section) => section.id === createSectionId);
 
   return (
     <div className="bh-root bh-region">
@@ -501,6 +497,7 @@ export function BotSidebar({
       {state.status === 'error' && state.error !== undefined ? (
         <div className="bh-error">名册加载失败：{state.error}</div>
       ) : null}
+      {state.roster.readOnly ? <div className="bh-note">{t('roster.readOnly')}</div> : null}
       {state.status === 'ready' && state.bots.length === 0 && groupChannels.length === 0 ? (
         <div className="bh-note">还没有 BOT。创建向导与 Builder 随 v1.1 到来。</div>
       ) : null}
@@ -542,7 +539,7 @@ export function BotSidebar({
       ) : null}
 
       {sections.map(({ section, channels: sectionChannels }) => {
-        const collapsed = section.collapsed === true;
+        const collapsed = state.config.collapsed[section.id] === true;
         const menuOpenForSection = sectionMenuId === section.id;
         return (
           <div key={section.id} className="bh-section">
@@ -649,7 +646,7 @@ export function BotSidebar({
             setCreateRequest(undefined);
           }}
           onCreate={(name) => {
-            persistConfig(addSection(store.getSnapshot().config, name));
+            void actions.createSection(name);
             setCreateRequest(undefined);
           }}
         />
@@ -665,9 +662,7 @@ export function BotSidebar({
             const channel = await actions.createGroup(name);
             if (channel === undefined) return;
             if (createSectionId !== undefined) {
-              persistConfig(
-                addChannelToSection(store.getSnapshot().config, createSectionId, channel.id),
-              );
+              await actions.assignChannel(channel.id, createSectionId);
             }
             setCreateRequest(undefined);
           }}
@@ -682,7 +677,7 @@ export function BotSidebar({
             setRenameTarget(undefined);
           }}
           onRename={(name) => {
-            persistConfig(renameSection(store.getSnapshot().config, renameTarget.id, name));
+            void actions.renameSection(renameTarget.id, name);
             setRenameTarget(undefined);
           }}
         />
@@ -695,7 +690,7 @@ export function BotSidebar({
           }}
           onDelete={() => {
             setSectionSortMode(deleteTarget.id, undefined);
-            persistConfig(removeSection(store.getSnapshot().config, deleteTarget.id));
+            void actions.removeSection(deleteTarget.id);
             if (createSectionId === deleteTarget.id) setCreateRequest(undefined);
             setDeleteTarget(undefined);
           }}
