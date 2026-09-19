@@ -39,7 +39,7 @@ The activity model in two levels: a session carries the detail (`thinking`, `wor
 _Avoid_: status, mood, presence
 
 **Avatar**:
-A PersonaBot's visual representation; the MVP uses deterministic blobatars, Live2D is a later renderer.
+A PersonaBot's visual representation; the default is a deterministic blobatar generated from the bot slug (DM Channel rows show the bot's avatar, group Channels show a glyph), and Live2D is a later renderer.
 _Avoid_: profile picture, skin
 
 ### Support and execution
@@ -165,6 +165,18 @@ _Avoid_: room, server, board
 **Channel section**:
 A user-created, collapsible grouping of Channels in the bot-mode sidebar. Local display arrangement, not part of a Soul.
 _Avoid_: folder, category, group
+
+**Section order (区块顺序)**:
+The order of Channel sections in the bot-mode sidebar: creation order by default, user-arranged afterwards.
+_Avoid_: priority, layout order
+
+**Sort mode (排序模式)**:
+How a sidebar scope orders its rows: `auto` (newest message first), `manual` (the user's frozen order), or `inherit` (follow the global default).
+_Avoid_: ordering, sort preference, sorter
+
+**未分组 (Ungrouped)**:
+The fixed bottom bucket of the bot-mode sidebar for Channels that belong to no Channel section; flat, not collapsible, and always sorted by the global default.
+_Avoid_: default folder, inbox, loose channels
 
 **Bridge**:
 A configured connection from an external source to a Channel or a PersonaBot's Bot Inbox; it carries inbound delivery and outbound reply routing.

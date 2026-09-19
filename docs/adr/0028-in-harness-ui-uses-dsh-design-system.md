@@ -13,3 +13,7 @@ The DSH Web Client ships a real design system: three token layers (`--dsw-static
 - `packages/client/src/client/styles.ts` maps onto `--dsw-*` only; controls are replaced with `ui-primitives` where the exported set fits, while the layout stays ours.
 - UI acceptance runs in the `web-dev` profile in both themes.
 - botharness.ai keeps COSS as its external brand surface; product and marketing may share accents through a small alias map, never a shared component library.
+
+## Update (2026-09-19)
+
+Icon-set gaps are filled by **vendoring external glyphs** as first-party components — Lucide (ISC), starting with hash and group chat, each with an attribution header, plus `packages/client/THIRD_PARTY_NOTICES.md` — not by adding a component library or a runtime icon dependency. The rule above stands unchanged for our own UI: DSH tokens and primitives, no second design system (ADR-0032).
