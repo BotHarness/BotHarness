@@ -57,3 +57,7 @@ Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the d
 ### UI guidelines
 
 Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens, `ui-primitives`, the native inset contract, and the measure-the-shell workflow (ADR-0028).
+
+### DSH development
+
+Developing, running, or debugging against a local DSH instance follows the `dsh-dev` skill: dev-loop/profile operations, the `/api` transport contract (api-gateway owns the single interceptor — never `connection.rpc.intercept('/api')`), and the headless debugging playbook. Diagnosed DSH traps must be recorded there in the same change (pitfall log).

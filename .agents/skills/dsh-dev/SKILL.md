@@ -1,0 +1,56 @@
+---
+name: dsh-dev
+description: Use when developing, running, or debugging BotHarness against a local DeepSeek Harness instance — the dev loop (profile install, build, restart, HMR), DSH_HOME/profile management, the web `/api` transport contract, plugin endpoint wiring, and diagnosing 404/connection/白屏 failures ("works in tests, broken in DSH"). Trigger on dsh profile, web-dev, dev server, bridge RPC, /api 404, plugin not loading, HMR, settings/模型/插件页报错.
+---
+
+# DSH development & debugging
+
+BotHarness is a plugin layer inside DSH: unit tests do not cover the real boot. Every trap in this skill was invisible to `pnpm test` and only appeared in a running `dsh --profile web-dev`. **Validate against the running shell, not the test suite.**
+
+## Prime directive: `/api` belongs to the API gateway
+
+The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). The route and its **single interceptor** are owned by `@deepseek-ai/dsh-api-gateway`, which claims endpoints from the **typert registry** (all native controllers register there).
+
+- **Never** call `connection.rpc.intercept('/api', …)` from a plugin. The slot is taken; a second interceptor shadows every native API (`settings/describe`, `llm/listProviders`, plugins, `directoryPicker/list` …) with a plain-text `404 not found` while your own endpoints keep working.
+- Expose plugin endpoints through the gateway/typert claim path: a `TypertRemoteService` subclass with a `typertRemote` binding and remote-method markers (SRC, no codegen). `botharness/*` migrated this way in #50 (`packages/core/src/bridge/rpc.ts`); native `@deepseek-ai/dsh-api-*` controllers are the reference.
+- Wire contract: `POST /api/<namespace>/<method>` with `{ type: "client-request", rpcId, method, payload: { args: {…named args} } }`; `undefined` fields are rejected by the decoder. Failures come back as a `server-response` envelope (`ok:false`), not HTTP errors.
+
+## Dev loop (WSL, fnm node)
+
+```bash
+DSH_HOME=$HOME/.dsh-m35 dsh plugin --profile web-dev add ./packages/{core,client,deepseekbot}  # once / on bundle member change
+pnpm build                                    # client: dsh-client-hmr pushes the new revision; host: rides Cordis HMR
+DSH_HOME=$HOME/.dsh-m35 setsid nohup dsh --profile web-dev --no-open > /tmp/dsh-web.log 2>&1 &
+```
+
+- The boot prints a **one-shot token URL** — it rotates on every restart; reopen the URL after restarting.
+- Start with `setsid nohup … &`; a plain `&` dies with the wrapper shell.
+- After a restart, **verify the boot before trusting it**: `references/debugging-playbook.md` §1 (cookie + API probe). A half-booted instance serves the UI but 404s every API.
+- Bundle **member** changes need a restart; host code is HMR-live; client code needs `pnpm build`.
+
+## Profile model
+
+- Isolated `DSH_HOME` (ours: `~/.dsh-m35`); profiles live in `$DSH_HOME/profiles/<name>`: `package.json` (`dsh.profile.bundles`), `cordis.yml`, user patch layer `cordis.patch.yml`, `node_modules` (our bundles via `link:`).
+- `dsh web …` initializes the **`web` template** (`dsh-base` + `dsh-web-app`); a bare `dsh --profile <new>` initializes the minimal template (`dsh-base` only). Our `web-dev` = web template + `deepseekbot`.
+- **Always pass `DSH_HOME`** — without it commands silently target `~/.dsh` and initialize profiles there.
+- `cordis.patch.yml` is the bisect tool: disable a plugin (`- id: botharness-core` / `disabled: true`) or override config, no reinstall needed.
+
+## Pitfall log
+
+When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) in the same change**. Entries:
+
+| # | Trap | Symptom | Cause / fix |
+| - | ---- | ------- | ----------- |
+| 1 | `/api` single interceptor | Native APIs 404 `not found`; custom plugin endpoint works | **Resolved in #50**: api-gateway owns the slot and claims endpoints from the typert registry; `botharness/*` now registers a `TypertRemoteService` (SRC markers). Do not reintroduce `connection.rpc.intercept('/api', …)`. |
+| 2 | Half-booted instance | UI loads, every API 404 | restart raced/lost plugin layer; restart again and verify with the cookie probe (playbook §1) |
+| 3 | `pkill -f "<pattern>"` self-match | command dies with no output | the wrapper's own cmdline contains the pattern; use `[x]` trick (`pkill -f "[n]o-open"`) |
+| 4 | Shell variables eaten in nested wrappers | `$VAR`/`$(…)` come out empty | write a script file for anything with variables; avoid inline `$` in loop commands |
+| 5 | `DSH_HOME` omitted | profiles/installs land in `~/.dsh` | always set `DSH_HOME` for every `dsh` command |
+| 6 | Standard decorators not emittable | vitest `SyntaxError` on raw `@Remote`; tsdown passes decorators through untouched | this toolchain (oxc/tsdown) can't compile TC39 decorators — write the `@deepseek-ai/dsh-typert-protocol/remote-methods` descriptor manually (`version: 1`, `invocation: { kind: "direct" }`) and lock its shape with a test (#50) |
+
+## Reference
+
+- **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.1.5-rc.2`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.
+- `references/debugging-playbook.md` — boot verification, status-code semantics, WS mux probe, bisect recipes, headless puppeteer probe.
+- `references/probe-web.mjs` — headless browser probe (console errors, failed requests, WS, internal fetch); run from the repo.
+- `dsh-ui` skill — in-harness UI rules; `docs/client-bridge.md` §7 — dev loop; ADR-0023 / #50 — bridge transport contract.
