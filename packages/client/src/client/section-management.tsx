@@ -8,41 +8,36 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { errorMessage } from './bridge.js';
+import type { BotHarnessKey } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 import type { ChannelSectionConfig } from './roster-config.js';
 
-/** Native sort heading (ui-workspace `orderBy.label`). */
-const SORT_LABEL = '排序方式';
-/** Auto scope mode: newest message first (native `orderBy.updated`). */
-const SORT_AUTO = '最近更新';
-/** Manual scope mode: the user's frozen order (native `orderBy.manual`). */
-const SORT_MANUAL = '手动排序';
-/** Return a scope to the global default (issue-C copy). */
-const SORT_INHERIT = '恢复自动';
+/** Narrow translate seat consumed by pure menu builders (the slot `t` seat is a superset). */
+export type BotMenuTranslate = (key: BotHarnessKey) => string;
 
 /** Caller class that paints the delete confirm's outline button in the error colour. */
 export const DANGER_ACTION_CLASS = 'bh-danger-action';
 
 /** The global default menu of the message-list header: heading plus the two concrete modes. */
-export function globalSortMenuItems(): readonly MenuEntry[] {
+export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   return [
-    { type: 'label', id: 'sort-label', text: SORT_LABEL },
-    { id: 'auto', label: SORT_AUTO },
-    { id: 'manual', label: SORT_MANUAL },
+    { type: 'label', id: 'sort-label', text: t('sort.menu.label') },
+    { id: 'updated', label: t('sort.updated') },
+    { id: 'manual', label: t('sort.manual') },
   ];
 }
 
 /** One section's menu, in native order: sort heading/modes, then rename, then danger delete. */
-export function sectionMenuItems(): readonly MenuEntry[] {
+export function sectionMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   return [
-    { type: 'label', id: 'sort-label', text: SORT_LABEL },
-    { id: 'auto', label: SORT_AUTO },
-    { id: 'manual', label: SORT_MANUAL },
-    { id: 'inherit', label: SORT_INHERIT },
+    { type: 'label', id: 'sort-label', text: t('sort.menu.label') },
+    { id: 'updated', label: t('sort.updated') },
+    { id: 'manual', label: t('sort.manual') },
+    { id: 'inherit', label: t('sort.inherit') },
     { type: 'separator', id: 'section-separator' },
-    { id: 'rename', label: '重命名', icon: <IconEditOutline16 /> },
-    { id: 'delete', label: '删除', icon: <IconTrashOutline16 />, danger: true },
+    { id: 'rename', label: t('section.rename'), icon: <IconEditOutline16 /> },
+    { id: 'delete', label: t('section.delete'), icon: <IconTrashOutline16 />, danger: true },
   ];
 }
 

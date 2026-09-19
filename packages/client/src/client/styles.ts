@@ -743,4 +743,56 @@ button:has(.bh-panel-glyph) {
   gap: 8px;
   padding: 6px 8px;
 }
+
+/* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
+   TranscriptViewRow): title + description left, selector pill right, hairline
+   separator the General section strips on its last child. */
+.bh-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+  border-bottom: 0.5px solid var(--dsw-alias-border-l2);
+}
+.bh-sort-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 48px;
+}
+.bh-sort-row-title {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+.bh-sort-row-desc {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-sort-selector {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  height: 36px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 18px;
+  background: var(--dsw-alias-bg-module-platform);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+.bh-sort-selector:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-sort-chevron {
+  flex: none;
+}
 `;

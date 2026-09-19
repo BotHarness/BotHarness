@@ -33,12 +33,41 @@ interface Spec {
   id?: string;
   key?: string;
   priority?: number;
+  order?: number;
   label?: string;
   inject?: () => unknown;
 }
 
-function createScoped(specs: Spec[], disposed: Spec[]) {
+interface FakeScope {
+  getSnapshot(): {
+    status: 'ready';
+    value: { sortMode: 'updated'; sortModes: Record<string, never> };
+    user: Record<string, never>;
+    writable: boolean;
+    mode: 'host';
+  };
+  subscribe(listener: () => void): () => void;
+  set(field: string, value: unknown): Promise<void>;
+  mutate(ops: readonly unknown[]): Promise<void>;
+}
+
+function fakeScope(): FakeScope {
   return {
+    getSnapshot: () => ({
+      status: 'ready',
+      value: { sortMode: 'updated', sortModes: {} },
+      user: {},
+      writable: true,
+      mode: 'host',
+    }),
+    subscribe: () => () => undefined,
+    set: async () => undefined,
+    mutate: async () => undefined,
+  };
+}
+
+function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
+  const scoped: Record<string, unknown> = {
     slots: {
       inject: (_name: string, callback: () => unknown) => callback(),
       register: (spec: Spec) => {
@@ -56,11 +85,22 @@ function createScoped(specs: Spec[], disposed: Spec[]) {
     inputTriggers: {
       registerSource: () => () => undefined,
     },
+    locale: {
+      register: () => () => undefined,
+      bind: () => (key: string) => key,
+    },
     effect: (callback: () => unknown) => {
       callback();
       return () => undefined;
     },
+    inject: (_deps: string[], callback: (ctx: unknown) => unknown) => {
+      if (withSettings) {
+        callback({ ...scoped, settingsScope: { bind: () => fakeScope() } });
+      }
+      return () => undefined;
+    },
   };
+  return scoped;
 }
 
 describe('client apply', () => {
@@ -81,10 +121,29 @@ describe('client apply', () => {
       'sidebar.workspaces',
       'main',
     ]);
-    expect(specs[2]).toMatchObject({ name: 'sidebar.workspaces', priority: -100 });
+    expect(specs[2]).toMatchObject({
+      name: 'sidebar.workspaces',
+      priority: -100,
+      locale: 'botharness',
+    });
     expect(specs[3]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
+  });
+
+  it('registers the General settings row only while settingsScope is served', () => {
+    store.setMode('dsh');
+    const specs: Spec[] = [];
+    const disposed: Spec[] = [];
+    apply(createScoped(specs, disposed, true) as never);
+
+    const row = specs.find((spec) => spec.name === 'settings.general.item');
+    expect(row).toMatchObject({ id: 'bot-mode-sort', order: 30, locale: 'botharness' });
+    expect(row?.inject).toBeTypeOf('function');
+
+    const withoutSettings: Spec[] = [];
+    apply(createScoped(withoutSettings, []) as never);
+    expect(withoutSettings.some((spec) => spec.name === 'settings.general.item')).toBe(false);
   });
 });

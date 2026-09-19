@@ -3,16 +3,15 @@ import { describe, expect, it } from 'vitest';
 import {
   addChannelToSection,
   addSection,
+  clearLegacySortPreference,
   defaultStorage,
   loadRosterConfig,
   parseRosterConfig,
+  readLegacySortPreference,
   removeSection,
   renameSection,
   ROSTER_CONFIG_KEY,
   saveRosterConfig,
-  sectionSortMode,
-  setGlobalSortMode,
-  setSectionSortMode,
   toggleSectionCollapsed,
   type ConfigStorage,
   type RosterConfig,
@@ -30,7 +29,7 @@ function memoryStorage(seed?: string): ConfigStorage {
 }
 
 function config(patch?: Partial<RosterConfig>): RosterConfig {
-  return { pins: [], sections: [], sortMode: 'auto', ...patch };
+  return { pins: [], sections: [], ...patch };
 }
 
 describe('roster display config', () => {
@@ -52,52 +51,30 @@ describe('roster display config', () => {
         { id: 'research', name: '研究', channels: ['group-lab'] },
         { id: 'collapsed', name: '折叠', channels: [], collapsed: true },
       ],
-      sortMode: 'auto',
     });
-  });
-
-  it('keeps a valid per-section sort mode and drops inherit/unknown values', () => {
-    const parsed = parseRosterConfig({
-      sections: [
-        { id: 'auto', name: 'A', channels: [], sortMode: 'auto' },
-        { id: 'manual', name: 'B', channels: [], sortMode: 'manual' },
-        { id: 'inherit', name: 'C', channels: [], sortMode: 'inherit' },
-        { id: 'junk', name: 'D', channels: [], sortMode: 42 },
-      ],
-    });
-
-    expect(parsed.sections).toEqual([
-      { id: 'auto', name: 'A', channels: [], sortMode: 'auto' },
-      { id: 'manual', name: 'B', channels: [], sortMode: 'manual' },
-      { id: 'inherit', name: 'C', channels: [] },
-      { id: 'junk', name: 'D', channels: [] },
-    ]);
   });
 
   it('falls back to defaults on unknown top-level shapes without breaking the roster', () => {
-    expect(parseRosterConfig([])).toEqual({ pins: [], sections: [], sortMode: 'auto' });
-    expect(parseRosterConfig('nope')).toEqual({ pins: [], sections: [], sortMode: 'auto' });
+    expect(parseRosterConfig([])).toEqual({ pins: [], sections: [] });
+    expect(parseRosterConfig('nope')).toEqual({ pins: [], sections: [] });
     expect(parseRosterConfig({ pins: 'ada', sections: { id: 'x' }, sortMode: 'sideways' })).toEqual(
       {
         pins: [],
         sections: [],
-        sortMode: 'auto',
       },
     );
     expect(parseRosterConfig({ sortMode: 'manual', futureKey: { nested: true } })).toEqual({
       pins: [],
       sections: [],
-      sortMode: 'manual',
     });
   });
 
   it('treats missing or corrupt storage as an empty config', () => {
-    expect(loadRosterConfig(undefined)).toEqual({ pins: [], sections: [], sortMode: 'auto' });
-    expect(loadRosterConfig(memoryStorage())).toEqual({ pins: [], sections: [], sortMode: 'auto' });
+    expect(loadRosterConfig(undefined)).toEqual({ pins: [], sections: [] });
+    expect(loadRosterConfig(memoryStorage())).toEqual({ pins: [], sections: [] });
     expect(loadRosterConfig(memoryStorage('{oops'))).toEqual({
       pins: [],
       sections: [],
-      sortMode: 'auto',
     });
   });
 
@@ -105,7 +82,7 @@ describe('roster display config', () => {
     const storage = memoryStorage();
     const stored = config({
       pins: ['ada'],
-      sections: [{ id: 'research', name: '研究', channels: ['group-lab'], sortMode: 'manual' }],
+      sections: [{ id: 'research', name: '研究', channels: ['group-lab'] }],
     });
 
     saveRosterConfig(stored, storage);
@@ -143,7 +120,6 @@ describe('roster display config', () => {
         { id: 'section-1', name: '既有', channels: ['group-lab'] },
         { id: 'section-2', name: '新增', channels: [] },
       ],
-      sortMode: 'auto',
     });
     expect(base.sections).toHaveLength(1);
   });
@@ -203,37 +179,85 @@ describe('roster display config', () => {
     expect(addChannelToSection(base, 'missing', 'group-9')).toBe(base);
   });
 
-  it('stores scope sort modes: section default inherits, global default is auto', () => {
-    expect(sectionSortMode({ id: 'a', name: 'A', channels: [] })).toBe('inherit');
-
-    const base = config({ sections: [{ id: 'a', name: 'A', channels: [] }] });
-    const manual = setSectionSortMode(base, 'a', 'manual');
-    expect(manual.sections[0]?.sortMode).toBe('manual');
-    expect(sectionSortMode(manual.sections[0]!)).toBe('manual');
-
-    const auto = setSectionSortMode(manual, 'a', 'auto');
-    expect(auto.sections[0]?.sortMode).toBe('auto');
-
-    const cleared = setSectionSortMode(auto, 'a', 'inherit');
-    expect(cleared.sections[0]).toEqual({ id: 'a', name: 'A', channels: [] });
-    expect(sectionSortMode(cleared.sections[0]!)).toBe('inherit');
-
-    const collapsed = config({
-      sections: [{ id: 'a', name: 'A', channels: [], collapsed: true, sortMode: 'manual' }],
-    });
-    expect(setSectionSortMode(collapsed, 'a', 'inherit').sections[0]).toEqual({
-      id: 'a',
-      name: 'A',
-      channels: [],
-      collapsed: true,
+  it('drops sort fields wherever they appear in the roster record', () => {
+    const parsed = parseRosterConfig({
+      sortMode: 'manual',
+      sections: [{ id: 'a', name: 'A', channels: [], sortMode: 'manual' }],
     });
 
-    expect(setGlobalSortMode(config(), 'manual').sortMode).toBe('manual');
-    expect(setGlobalSortMode(config(), 'auto').sortMode).toBe('auto');
-    expect(setGlobalSortMode(config({ sortMode: 'manual' }), 'manual').sortMode).toBe('manual');
+    expect(parsed).toEqual({
+      pins: [],
+      sections: [{ id: 'a', name: 'A', channels: [] }],
+    });
   });
 
   it('tolerates a browser without storage', () => {
     expect(defaultStorage()).toBeUndefined();
+  });
+});
+
+describe('legacy sort preference export', () => {
+  it('maps the legacy global and per-section modes to the settings vocabulary', () => {
+    const storage = memoryStorage(
+      JSON.stringify({
+        sortMode: 'auto',
+        sections: [
+          { id: 's1', name: 'A', channels: [], sortMode: 'manual' },
+          { id: 's2', name: 'B', channels: [], sortMode: 'auto' },
+          { id: 's3', name: 'C', channels: [], sortMode: 'inherit' },
+          { id: 's4', name: 'D', channels: [] },
+          { id: 's5', name: 'E', channels: [], sortMode: 'sideways' },
+        ],
+      }),
+    );
+
+    expect(readLegacySortPreference(storage)).toEqual({
+      global: 'updated',
+      sections: { s1: 'manual', s2: 'updated' },
+    });
+  });
+
+  it('exports per-section modes without a legacy global field', () => {
+    const storage = memoryStorage(
+      JSON.stringify({ sections: [{ id: 's1', name: 'A', channels: [], sortMode: 'manual' }] }),
+    );
+
+    expect(readLegacySortPreference(storage)).toEqual({ sections: { s1: 'manual' } });
+  });
+
+  it('returns undefined when nothing is worth migrating', () => {
+    expect(readLegacySortPreference(undefined)).toBeUndefined();
+    expect(readLegacySortPreference(memoryStorage())).toBeUndefined();
+    expect(readLegacySortPreference(memoryStorage('{oops'))).toBeUndefined();
+    expect(readLegacySortPreference(memoryStorage('[]'))).toBeUndefined();
+    expect(
+      readLegacySortPreference(memoryStorage('{"sortMode":"sideways","sections":[]}')),
+    ).toBeUndefined();
+  });
+
+  it('clears every legacy sort field while keeping pins and section rows', () => {
+    const storage = memoryStorage(
+      JSON.stringify({
+        pins: ['ada'],
+        sortMode: 'manual',
+        sections: [
+          { id: 's1', name: 'A', channels: ['c1'], sortMode: 'manual', collapsed: true },
+          { id: 's2', name: 'B', channels: [], sortMode: 'auto' },
+        ],
+      }),
+    );
+
+    clearLegacySortPreference(storage);
+
+    expect(JSON.parse(storage.getItem(ROSTER_CONFIG_KEY)!)).toEqual({
+      pins: ['ada'],
+      sections: [
+        { id: 's1', name: 'A', channels: ['c1'], collapsed: true },
+        { id: 's2', name: 'B', channels: [] },
+      ],
+    });
+
+    clearLegacySortPreference(storage);
+    expect(JSON.parse(storage.getItem(ROSTER_CONFIG_KEY)!).sections[0].sortMode).toBeUndefined();
   });
 });

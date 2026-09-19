@@ -33,6 +33,7 @@ vi.mock('../src/client/name-input.js', () => ({
   },
 }));
 
+import { zh, type BotHarnessKey } from '../src/client/locale.js';
 import {
   CreateChannelModal,
   CreateSectionModal,
@@ -44,6 +45,8 @@ import {
 } from '../src/client/section-management.js';
 
 const SECTION = { id: 's1', name: '工作流', channels: [] };
+
+const t = (key: BotHarnessKey): string => zh[key];
 
 function lastButton(label: string): Record<string, unknown> {
   const found = captured.buttons.findLast((button) => button['children'] === label);
@@ -75,18 +78,18 @@ beforeEach(() => {
 
 describe('section menus', () => {
   it('orders the global default menu as heading plus the two concrete modes', () => {
-    expect(globalSortMenuItems().map((item) => ('id' in item ? item.id : undefined))).toEqual([
+    expect(globalSortMenuItems(t).map((item) => ('id' in item ? item.id : undefined))).toEqual([
       'sort-label',
-      'auto',
+      'updated',
       'manual',
     ]);
   });
 
   it('orders the section menu: sort modes, rename, danger delete last', () => {
-    const items = sectionMenuItems();
+    const items = sectionMenuItems(t);
     expect(items.map((item) => ('id' in item ? item.id : undefined))).toEqual([
       'sort-label',
-      'auto',
+      'updated',
       'manual',
       'inherit',
       'section-separator',

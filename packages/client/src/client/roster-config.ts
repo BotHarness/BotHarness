@@ -1,22 +1,15 @@
-export type SectionSortMode = 'inherit' | 'auto' | 'manual';
-
-/** The global default only chooses between the two concrete orderings; `inherit` is itself the default. */
-export type GlobalSortMode = 'auto' | 'manual';
+import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 
 export interface ChannelSectionConfig {
   id: string;
   name: string;
   channels: string[];
   collapsed?: boolean;
-  /** Omitted means `inherit` (follow the global default). */
-  sortMode?: SectionSortMode;
 }
 
 export interface RosterConfig {
   pins: string[];
   sections: ChannelSectionConfig[];
-  /** Global default the scopes using `inherit` follow. */
-  sortMode: GlobalSortMode;
 }
 
 export interface ConfigStorage {
@@ -24,10 +17,18 @@ export interface ConfigStorage {
   setItem(key: string, value: string): void;
 }
 
+/** Legacy browser sort preference exported from `roster.json` before #68. */
+export interface LegacySortPreference {
+  /** Global default, when the legacy key stored one. */
+  global?: BotModeSortMode;
+  /** Per-section modes by legacy section id; `inherit` was stored as absence. */
+  sections: Record<string, BotModeSortMode>;
+}
+
 export const ROSTER_CONFIG_KEY = 'botharness/roster.json';
 
 function emptyConfig(): RosterConfig {
-  return { pins: [], sections: [], sortMode: 'auto' };
+  return { pins: [], sections: [] };
 }
 
 function uniqueStrings(value: unknown): string[] {
@@ -42,13 +43,23 @@ function uniqueStrings(value: unknown): string[] {
   return result;
 }
 
-function parseGlobalSortMode(value: unknown): GlobalSortMode {
-  return value === 'manual' ? 'manual' : 'auto';
+function legacyMode(value: unknown): BotModeSortMode | undefined {
+  if (value === 'auto') return 'updated';
+  return isBotModeSortMode(value) ? value : undefined;
 }
 
-function parseSectionSortMode(value: unknown): SectionSortMode | undefined {
-  if (value !== 'inherit' && value !== 'auto' && value !== 'manual') return undefined;
-  return value === 'inherit' ? undefined : value;
+function legacyRecord(storage: ConfigStorage | undefined): Record<string, unknown> | undefined {
+  if (storage === undefined) return undefined;
+  try {
+    const raw = storage.getItem(ROSTER_CONFIG_KEY);
+    if (raw === null || raw.length === 0) return undefined;
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
+    return parsed as Record<string, unknown>;
+  } catch {
+    // Corrupt storage has no legacy preference to export.
+    return undefined;
+  }
 }
 
 export function parseRosterConfig(value: unknown): RosterConfig {
@@ -69,15 +80,12 @@ export function parseRosterConfig(value: unknown): RosterConfig {
         channels: uniqueStrings(raw['channels']),
       };
       if (raw['collapsed'] === true) section.collapsed = true;
-      const sortMode = parseSectionSortMode(raw['sortMode']);
-      if (sortMode !== undefined) section.sortMode = sortMode;
       sections.push(section);
     }
   }
   return {
     pins: uniqueStrings(record['pins']),
     sections,
-    sortMode: parseGlobalSortMode(record['sortMode']),
   };
 }
 
@@ -98,6 +106,61 @@ export function saveRosterConfig(config: RosterConfig, storage: ConfigStorage | 
     storage.setItem(ROSTER_CONFIG_KEY, JSON.stringify(config));
   } catch {
     return;
+  }
+}
+
+/**
+ * Export the legacy global and per-section sort preference. The caller owns
+ * the one-shot migration; this helper only reads the roster record shape.
+ */
+export function readLegacySortPreference(
+  storage: ConfigStorage | undefined,
+): LegacySortPreference | undefined {
+  const record = legacyRecord(storage);
+  if (record === undefined) return undefined;
+  const global = legacyMode(record['sortMode']);
+  const sections: Record<string, BotModeSortMode> = {};
+  if (Array.isArray(record['sections'])) {
+    for (const entry of record['sections']) {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
+      const raw = entry as Record<string, unknown>;
+      const id = raw['id'];
+      if (typeof id !== 'string' || id.length === 0) continue;
+      const mode = legacyMode(raw['sortMode']);
+      if (mode !== undefined) sections[id] = mode;
+    }
+  }
+  if (global === undefined && Object.keys(sections).length === 0) return undefined;
+  return {
+    ...(global === undefined ? {} : { global }),
+    sections,
+  };
+}
+
+/** Drop the legacy sort fields, leaving pins/sections for their own migration. */
+export function clearLegacySortPreference(storage: ConfigStorage | undefined): void {
+  const record = legacyRecord(storage);
+  if (record === undefined) return;
+  let changed = false;
+  if ('sortMode' in record) {
+    delete record['sortMode'];
+    changed = true;
+  }
+  if (Array.isArray(record['sections'])) {
+    for (const entry of record['sections']) {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
+      const raw = entry as Record<string, unknown>;
+      if ('sortMode' in raw) {
+        delete raw['sortMode'];
+        changed = true;
+      }
+    }
+  }
+  if (!changed) return;
+  try {
+    storage?.setItem(ROSTER_CONFIG_KEY, JSON.stringify(record));
+  } catch {
+    // Storage denied: the legacy fields stay and the migration retries on the next load.
   }
 }
 
@@ -153,36 +216,6 @@ export function toggleSectionCollapsed(config: RosterConfig, sectionId: string):
     sections: config.sections.map((section) =>
       section.id === sectionId ? { ...section, collapsed: section.collapsed !== true } : section,
     ),
-  };
-}
-
-export function sectionSortMode(section: ChannelSectionConfig): SectionSortMode {
-  return section.sortMode ?? 'inherit';
-}
-
-export function setGlobalSortMode(config: RosterConfig, mode: GlobalSortMode): RosterConfig {
-  if (config.sortMode === mode) return config;
-  return { ...config, sortMode: mode };
-}
-
-export function setSectionSortMode(
-  config: RosterConfig,
-  sectionId: string,
-  mode: SectionSortMode,
-): RosterConfig {
-  return {
-    ...config,
-    sections: config.sections.map((section) => {
-      if (section.id !== sectionId) return section;
-      if (mode !== 'inherit') return { ...section, sortMode: mode };
-      const cleared: ChannelSectionConfig = {
-        id: section.id,
-        name: section.name,
-        channels: section.channels,
-      };
-      if (section.collapsed === true) cleared.collapsed = true;
-      return cleared;
-    }),
   };
 }
 

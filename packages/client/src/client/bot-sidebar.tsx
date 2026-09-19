@@ -16,9 +16,14 @@ import {
   type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
+import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store';
+
+import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
 import { Blobatar } from './avatar.js';
+import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
+import type { BotHarnessTranslate } from './locale.js';
 import {
   addChannelToSection,
   addSection,
@@ -26,9 +31,6 @@ import {
   removeSection,
   renameSection,
   saveRosterConfig,
-  sectionSortMode,
-  setGlobalSortMode,
-  setSectionSortMode,
   toggleSectionCollapsed,
   type ChannelSectionConfig,
   type RosterConfig,
@@ -96,6 +98,10 @@ export function createBotPanelEntry(
 interface SidebarProps {
   wide: boolean;
   actions: BridgeActions;
+  useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
+  setSortMode: (mode: BotModeSortMode) => void;
+  setSectionSortMode: (sectionId: string, mode: BotModeSortMode | undefined) => void;
+  t: BotHarnessTranslate;
 }
 
 interface SectionView {
@@ -170,8 +176,16 @@ function ChannelRow({
 /** Open creation dialog: a new Channel (optionally inside a section) or a new section. */
 type CreateRequest = { kind: 'section' } | { kind: 'channel'; sectionId?: string };
 
-export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
+export function BotSidebar({
+  wide,
+  actions,
+  useBotModePrefs,
+  setSortMode,
+  setSectionSortMode,
+  t,
+}: SidebarProps): ReactElement {
   const state = useClientState();
+  const prefs = useBotModePrefs((value) => value);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
@@ -246,14 +260,17 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
 
   const selectSortMenu = (id: string): void => {
     setSortMenuOpen(false);
-    if (id !== 'auto' && id !== 'manual') return;
-    persistConfig(setGlobalSortMode(store.getSnapshot().config, id));
+    if (isBotModeSortMode(id)) setSortMode(id);
   };
 
   const selectSectionMenu = (section: ChannelSectionConfig, id: string): void => {
     setSectionMenuId(undefined);
-    if (id === 'auto' || id === 'manual' || id === 'inherit') {
-      persistConfig(setSectionSortMode(store.getSnapshot().config, section.id, id));
+    if (id === 'inherit') {
+      setSectionSortMode(section.id, undefined);
+      return;
+    }
+    if (isBotModeSortMode(id)) {
+      setSectionSortMode(section.id, id);
       return;
     }
     if (id === 'rename') {
@@ -357,8 +374,8 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
                 </button>
               </Tooltip>
             }
-            items={globalSortMenuItems()}
-            selectedId={state.config.sortMode}
+            items={globalSortMenuItems(t)}
+            selectedId={prefs.sortMode}
             onSelect={selectSortMenu}
             onClose={() => {
               setSortMenuOpen(false);
@@ -485,8 +502,8 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
                         <IconEllipsisOutline16 />
                       </button>
                     }
-                    items={sectionMenuItems()}
-                    selectedId={sectionSortMode(section)}
+                    items={sectionMenuItems(t)}
+                    selectedId={sectionSortMode(prefs, section.id)}
                     onSelect={(id) => selectSectionMenu(section, id)}
                     onClose={() => {
                       setSectionMenuId(undefined);
@@ -590,6 +607,7 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
             setDeleteTarget(undefined);
           }}
           onDelete={() => {
+            setSectionSortMode(deleteTarget.id, undefined);
             persistConfig(removeSection(store.getSnapshot().config, deleteTarget.id));
             if (createSectionId === deleteTarget.id) setCreateRequest(undefined);
             setDeleteTarget(undefined);

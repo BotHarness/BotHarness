@@ -139,6 +139,27 @@ sequenceDiagram
 
 Host 内一切走 Cordis 服务总线；浏览器半侧经客户端桥 RPC 读模型，不跨进程 inject、无文件轮询。
 
+### 3.1 · BOT 模式偏好（#68）
+
+Host 半在 `packages/client/src/index.ts` 向 `ctx.settings` 注册命名空间 `ui-bot-mode`（schemastery：全局 `sortMode` + per-section `sortModes`，默认 `updated` / `{}`）；浏览器半经 `ctx.settingsScope.bind({ namespace: 'ui-bot-mode' })` 读写（全局 `set`、per-section `mutate` 路径操作），`settings/document-updated` 到达时由 policy store adopt：
+
+```mermaid
+sequenceDiagram
+  participant H as Host · client/src/index.ts
+  participant S as DSH settings（settings.yaml）
+  participant P as 浏览器 · BotModePrefs（共享 store）
+  participant U as sidebar `...` 菜单 / General 设置行
+
+  H->>S: settings.register('ui-bot-mode', schema)
+  S-->>P: settingsScope.bind(...) → status/value/user
+  U->>P: setSortMode / setSectionSortMode（乐观写）
+  P->>S: set('sortMode') / mutate(path ['sortModes', id])
+  S-->>P: settings/document-updated → adopt
+  Note over P,U: 一份 store、两个入口；旧 roster.json 排序字段一次性迁入
+```
+
+偏差记录：Host 半用 `settings.register(ns, schema)`，不用 cookbook 主推的 `installSection(ctx, ns, Config, config, { setSource, onChange })` —— 本插件没有可作 base 的 `cordis.yml` entry config，默认值与缺省行为完全由 schema 承担；出现 entry 配置需求时再切换到 `installSection`。
+
 ## 4 · 创建 PersonaBot（数据流）
 
 ```mermaid

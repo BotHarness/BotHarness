@@ -123,7 +123,7 @@ export function createStore(): ClientStore {
     status: 'idle',
     error: undefined,
     query: '',
-    config: { pins: [], sections: [], sortMode: 'auto' },
+    config: { pins: [], sections: [] },
     selection: undefined,
     conversation: initialConversation(),
     sessions: initialSessions(),

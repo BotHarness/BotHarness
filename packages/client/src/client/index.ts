@@ -1,13 +1,20 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
+import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
+// Type-only: the `settingsScope` Context merge and the settings slot contract.
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
+import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
+import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
+import { BotModeRow } from './bot-mode-row.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createBridgeCall } from './bridge.js';
+import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
 import { CSS } from './styles.js';
@@ -15,7 +22,7 @@ import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers', 'layout'];
+export const inject = ['slots', 'connection', 'inputTriggers', 'layout', 'locale'];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
@@ -35,6 +42,7 @@ export function apply(ctx: ClientContext): void {
   const actions: BridgeActions = createActions(call, store);
 
   ctx.effect(installStyles, 'botharness: client styles');
+  ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness: dictionaries');
   ctx.effect(() => {
     store.setConfig(loadRosterConfig(defaultStorage()));
     const controller = new AbortController();
@@ -43,6 +51,29 @@ export function apply(ctx: ClientContext): void {
       controller.abort();
     };
   }, 'botharness: roster load');
+
+  const prefs = new BotModePrefs(defaultStorage());
+  ctx.inject(['settingsScope'], (settingsCtx) => {
+    const scope = settingsCtx.settingsScope.bind<BotModeSettings>({
+      namespace: BOT_MODE_NAMESPACE,
+    });
+    prefs.attach(scope);
+    settingsCtx.slots.inject('settings.general.item', () =>
+      settingsCtx.slots.register(
+        {
+          name: 'settings.general.item',
+          id: 'bot-mode-sort',
+          order: 30,
+          locale: LOCALE_NS,
+          inject: () => botModePrefsFace(prefs),
+        },
+        BotModeRow,
+      ),
+    );
+    return () => {
+      prefs.detach();
+    };
+  });
 
   ctx.slots.inject('sidebar.panellist', () =>
     ctx.slots.register(
@@ -74,7 +105,12 @@ export function apply(ctx: ClientContext): void {
     'sidebar.workspaces',
     () =>
       ctx.slots.register(
-        { name: 'sidebar.workspaces', priority: -100, inject: () => ({ actions }) },
+        {
+          name: 'sidebar.workspaces',
+          priority: -100,
+          locale: LOCALE_NS,
+          inject: () => ({ actions, ...botModePrefsFace(prefs) }),
+        },
         BotSidebar,
       ),
     store,
