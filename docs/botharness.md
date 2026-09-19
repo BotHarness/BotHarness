@@ -1,13 +1,13 @@
 # BotHarness 规格（PoC）
 
-| 项       | 内容                                                                                        |
-| -------- | ------------------------------------------------------------------------------------------- |
-| 版本     | v1.10                                                                                       |
-| 日期     | 2026-09-19                                                                                  |
-| 状态     | Draft                                                                                       |
-| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                    |
-| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                              |
-| 决策记录 | `docs/adr/`（v1.10 新增 0031 sidebar 组织与排序、0032 头像与图标；0028 增补 vendored 字形） |
+| 项       | 内容                                                                                                                                                                                    |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 版本     | v1.11                                                                                                                                                                                   |
+| 日期     | 2026-09-19                                                                                                                                                                              |
+| 状态     | Draft                                                                                                                                                                                   |
+| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                |
+| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                          |
+| 决策记录 | `docs/adr/`（v1.11 新增 0034 持久化地图与主客分界；v1.10 新增 0031 sidebar 组织与排序、0032 头像与图标；0028 增补 vendored 字形；排序偏好落在 `ui-bot-mode` settings 命名空间，见 #68） |
 
 ## 1. 定位与缺口
 
@@ -18,25 +18,42 @@
 
 ## 2. 实体模型
 
-| 实体                     | 定义                                                                                | 关键关系                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| **PersonaBot**           | 一等实体：persona、profile（name/tag/description）、跨 session 记忆、状态、Bindings | 可并发多个 Session；同一时刻一个 Orchestrator Session（ADR-0016/0024）          |
-| **Session**              | DSH 执行单元：一次工作/对话，有独立进度与 cwd                                       | 属于一个 PersonaBot；**工作 = Session**（ADR-0017）                             |
-| **Workspace**            | 单个主机目录，与 DSH workspace 1:1                                                  | Session 的 cwd；可多个，UI 可分组（ADR-0018）                                   |
-| **Agent**                | DSH 的会话内执行体                                                                  | 每 Session 一个；**不指 PersonaBot**                                            |
-| **Orchestrator Session** | 每 PersonaBot 一个：拥有 Bot Inbox，决定回复/派发/新开 Session                      | 长期存续、按 Bot Inbox 批次唤醒；id 稳定（ADR-0024/0025）                       |
-| **Channel**              | 平台内会话空间；类型 `dm`（BOT ↔ 人）/ `group chat`（多成员，口语 chatroom）        | 历史本地 append-only；可由 Bridge 接入外部来源（ADR-0026/0030）                 |
-| **Binding**              | PersonaBot 到参与表面的连接：Channel / Chat / sidebar/renderer                      | 可有多个；不再按 binding 把消息路由到固定 Session（ADR-0026）                   |
-| **Bridge**               | 配置关系：外部来源 ↔ Channel 或 Bot Inbox                                           | 入站投递 + 出站回复路由；回显按外部 id 去重（ADR-0026 增补）                    |
-| **Bot Inbox**            | PersonaBot 级待处理事件投影（跨 Channel，非队列）                                   | 准入按 Channel membership 策略（muted/mentions/all，默认 all）（ADR-0025）      |
-| **Human Inbox**          | Dashboard 上聚合所有 Bot Inbox 的待人工视图                                         | 只显示需要人类动作的事件                                                        |
-| **Channel section**      | bot-mode sidebar 中用户自建的可折叠 Channel 分组                                    | 本地展示配置（roster.json：pins / sections / 排序模式），不随 SoulSnapshot 导出 |
-| **Memory**               | 文件优先的持久知识（§4）                                                            | 用户可配目录，跨一切作用域                                                      |
+| 实体                     | 定义                                                                                | 关键关系                                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **PersonaBot**           | 一等实体：persona、profile（name/tag/description）、跨 session 记忆、状态、Bindings | 可并发多个 Session；同一时刻一个 Orchestrator Session（ADR-0016/0024）                                                                                         |
+| **Session**              | DSH 执行单元：一次工作/对话，有独立进度与 cwd                                       | 属于一个 PersonaBot；**工作 = Session**（ADR-0017）                                                                                                            |
+| **Workspace**            | 单个主机目录，与 DSH workspace 1:1                                                  | Session 的 cwd；可多个，UI 可分组（ADR-0018）                                                                                                                  |
+| **Agent**                | DSH 的会话内执行体                                                                  | 每 Session 一个；**不指 PersonaBot**                                                                                                                           |
+| **Orchestrator Session** | 每 PersonaBot 一个：拥有 Bot Inbox，决定回复/派发/新开 Session                      | 长期存续、按 Bot Inbox 批次唤醒；id 稳定（ADR-0024/0025）                                                                                                      |
+| **Channel**              | 平台内会话空间；类型 `dm`（BOT ↔ 人）/ `group chat`（多成员，口语 chatroom）        | 历史本地 append-only；可由 Bridge 接入外部来源（ADR-0026/0030）                                                                                                |
+| **Binding**              | PersonaBot 到参与表面的连接：Channel / Chat / sidebar/renderer                      | 可有多个；不再按 binding 把消息路由到固定 Session（ADR-0026）                                                                                                  |
+| **Bridge**               | 配置关系：外部来源 ↔ Channel 或 Bot Inbox                                           | 入站投递 + 出站回复路由；回显按外部 id 去重（ADR-0026 增补）                                                                                                   |
+| **Bot Inbox**            | PersonaBot 级待处理事件投影（跨 Channel，非队列）                                   | 准入按 Channel membership 策略（muted/mentions/all，默认 all）（ADR-0025）                                                                                     |
+| **Human Inbox**          | Dashboard 上聚合所有 Bot Inbox 的待人工视图                                         | 只显示需要人类动作的事件                                                                                                                                       |
+| **Channel section**      | bot-mode sidebar 中用户自建的可折叠 Channel 分组                                    | 陈列存 Host `botharness_roster` 域（成员/名称/顺序 + pins），排序偏好在 `ui-bot-mode` settings，折叠状态在浏览器本地；不随 SoulSnapshot 导出（§2.1、ADR-0034） |
+| **Memory**               | 文件优先的持久知识（§4）                                                            | 用户可配目录，跨一切作用域                                                                                                                                     |
 
 目录约定：
 
 - `$DSH_HOME/botharness/bots/<slug>/bot.json`：机器元数据（slug、displayName、tag、description、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
 - `PERSONA.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<slug>/memory/`）。
+
+### 2.1 持久化地图（ADR-0034）
+
+一类状态一个家；主机（Host）与浏览器各管各的，客户端不碰主机文件与 `ctx.storage`。存储域是**可选能力**（`ctx.inject(['storageDomain'], cb)` 或 `ctx.get`），没有域后端时核心插件照常加载。
+
+| 类别                                                | 存放                                                                               | 权威 / 说明                                                                                                                                                                                                   |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Bot 身份 / 记忆 / persona                           | `$DSH_HOME/botharness/bots/<slug>/`（用户所有，可 git、可打包）                    | 文件优先（§4、ADR-0002）；M6/M7 以整目录为快照/发布单元                                                                                                                                                       |
+| Channel 元数据 + 消息                               | `…/channels/<id>/{channel.json, messages.ndjson}`                                  | append-only 日志是权威（ADR-0030 不变）                                                                                                                                                                       |
+| 名册陈列（section 成员/名称/顺序、pins）            | DSH storage 域 **`botharness_roster`**（json 后端，`version 1`、`layout: single`） | global 槽 `{ pins, sectionOrder }` + `sections` 表（key = **主机生成**的 section id）`{ name, channelIds }`；客户端经 `botharness/*` 桥方法读写                                                               |
+| 排序偏好（`sortMode` 全局/每 section）              | DSH settings 命名空间 **`ui-bot-mode`**（`settings.yaml`，per-profile、跨浏览器）  | 客户端经 `ctx.settingsScope.bind({ namespace: 'ui-bot-mode' })` 读写，刷新走转发的 `settings/document-updated`；sidebar `...` 菜单与 General 设置行同一份 store（非 loopback 页面写入仅进程内，DSH 既有行为） |
+| 折叠状态（`collapsed`）                             | 浏览器 localStorage                                                                | 只影响本浏览器的展示（sort 之外的视图状态）                                                                                                                                                                   |
+| 派生 / 分析（未读、消息计数、搜索/筛选、dashboard） | 未来 SQLite 索引（ADR-0005 可选索引）                                              | NDJSON 日志仍是权威，索引可重建；`dsh-storage-sqlite` 当前未安装                                                                                                                                              |
+| 实时推送                                            | v1.1：`botharness` 命名空间的 `mode: 'stream'` remote 方法                         | 先 roster 后 channel 消息，IM 式推送；`domain/changed` 仅进程内、**不可**转发到客户端                                                                                                                         |
+
+- 桥规则：主机拥有或消费的一切经 `botharness` typert remote 命名空间暴露（细粒度动作型方法与 `ui-workspace` 对齐：`rosterGet`、`sectionCreate`、`sectionRename`、`sectionRemove`、`channelAssign`、`sectionReorder`、`pinsSet`）；纯瞬态 UI 状态留在客户端。
+- 迁移：主机域为空且浏览器存在旧 `roster.json` 时一次性迁入并保留备份（陈列进 `botharness_roster`，排序偏好进 `ui-bot-mode` settings，旧键清理）；各自只迁移一次。
 
 ## 3. 状态模型
 
@@ -89,9 +106,11 @@
 - **工具面**：per-PersonaBot `capabilities.tools.allow`；激活时 `ctx.tools.restrict` 裁剪；未知名字先过滤并告警；核心 Memory 工具强制并集；UI 写路径后置。
 - **模型选择**：全局默认 + per-PersonaBot 覆盖（本地解析）；模型与凭据**不随 SoulSnapshot 发布**，导入方用自己的模型（ADR-0027）。
 - **Bot 模式 UI**：sidebar = 置顶 BOT 网格（始终手动）→ Channel section（可折叠、用户自建、手排，默认创建顺序）→ 未分组（固定底部，平铺、不可折叠）；点击 BOT 打开 DM 聊天；Session 在右侧面板（只读列表 + 切换，含「主会话」）；Workspace 不在 sidebar 呈现。入口在「新会话」下方（ADR-0029）。
-- **sidebar 操作（ADR-0031）**：头部 = `Bots` 标签 + 右侧 **search → `...`（排序菜单）→ `+`（创建菜单：创建 BOT（#41 前禁用）/ 创建 Channel / 创建 Channel section）**；section 头 `+` 在区内建 Channel，`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位；Modal 红描边确认，Channel 回落未分组、绝不删除）。移动 = 原生 HTML5 DnD（复刻 ui-workspace 插入线 / 半行投放）＋右键「移动到 ▸ [sections + 未分组]」（`Menu` 一级子菜单，光标锚定）；Channel 重命名/删除暂缓。展示配置只存浏览器本地 `roster.json`，不进 Host 存储、`bot.json` 或 SoulSnapshot。
-- **排序模式（ADR-0031）**：每个 scope（section / 未分组）三态 `auto`（最新消息在前，按 Channel `updatedAt`）/ `manual`（冻结用户顺序）/ `inherit`（跟随全局默认；section 默认、未分组恒定）；全局默认在头部 `...` 菜单设置；首次手动拖拽或拖入切 `manual` 并冻结当前顺序，源 scope 模式不变，「恢复自动」回 `inherit`。行几何对齐原生实测：section 头 34px（`projectRow`）、Channel/session 行 32px、`padding: 0 8px`、行距 2px、区块距 4px、悬停/选中 `--dsw-alias-interactive-bg-hover`、折叠三角 `IconTriangleRightFill14` 旋转 90°、操作字形悬停才显示、Channel 无额外缩进。
+- **sidebar 操作（ADR-0031）**：头部 = `Bots` 标签 + 右侧 **search → `...`（排序菜单）→ `+`（创建菜单：创建 BOT（#41 前禁用）/ 创建 Channel / 创建 Channel section）**；section 头 `+` 在区内建 Channel，`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位；Modal 红描边确认，Channel 回落未分组、绝不删除）。移动 = 原生 HTML5 DnD（复刻 ui-workspace 插入线 / 半行投放）＋右键「移动到 ▸ [sections + 未分组]」（`Menu` 一级子菜单，光标锚定）；Channel 重命名/删除暂缓。陈列（section 成员/名称/顺序、pins）存 Host `botharness_roster` 域，经细粒度 `botharness/*` 桥方法读写、section id 由 Host 生成；排序偏好存 Host settings 命名空间 `ui-bot-mode`（#68），折叠状态在浏览器本地。不随 SoulSnapshot 导出（§2.1、ADR-0034）。
+- **排序模式（ADR-0031）**：每个 scope（section / 未分组）三态 `auto`（最新消息在前，按 Channel `updatedAt`）/ `manual`（冻结用户顺序）/ `inherit`（跟随全局默认；section 默认、未分组恒定）；全局默认在头部 `...` 菜单设置；首次手动拖拽或拖入切 `manual` 并冻结当前顺序，源 scope 模式不变，「恢复自动」回 `inherit`。排序偏好（全局 + 每 section）存 Host settings 命名空间 `ui-bot-mode`（`settingsScope` 读写、`settings/document-updated` 刷新），折叠状态留浏览器本地（§2.1、ADR-0034）。行几何对齐原生实测：section 头 34px（`projectRow`）、Channel/session 行 32px、`padding: 0 8px`、行距 2px、区块距 4px、悬停/选中 `--dsw-alias-interactive-bg-hover`、折叠三角 `IconTriangleRightFill14` 旋转 90°、操作字形悬停才显示、Channel 无额外缩进。
 - **头像与图标（ADR-0032）**：默认头像 = 由 slug 确定性生成的静态 blobatar（本轮只用字符串生成器）；DM Channel 行显示 Bot 头像，群 Channel 行用字形；DSH 字形缺口以 vendored Lucide（ISC）首方组件补齐（hash / 群聊先行），随包附 `THIRD_PARTY_NOTICES.md`；自定义头像与动效/表情留 v1.1。
+- **实时同步（v1.1，ADR-0034）**：`botharness` 命名空间加 `mode: 'stream'` remote 方法（Host AsyncIterable、客户端 `connection.rpc.open`），先推 roster 变更、后推 channel 消息，IM 式；`domain/changed` 是进程内事件且不可转发（api-remotes 白名单静态），客户端不得依赖；现有 unary 方法面不变。
+- **排序偏好设置行（#68，ADR-0034）**：Settings → General 加一行 `settings.general.item`（与对话显示/忙碌发送/主题同模式），暴露与 sidebar `...` 菜单相同的 `ui-bot-mode` 排序偏好——一个 policy store、两个入口；该设置行**不迁移任何既有 sidebar UI**，只是新增入口。General 行槽位在 dev 中不可靠时退到 cookbook 标准的 `settings.plugin.item` 卡片（记录为 fallback）。
 - **创建与 onboarding**：首次无 BOT 时显示创建按钮 → 按需创建 Builder（普通 BOT，可删）；之后从「+」菜单选择 Builder 对话或表单向导；`bot_create` 由工具白名单控制（ADR-0029）。
 - **落地节奏**：M3 = bot-mode IA + chat UI 外壳 + 本地消息存储（第一个切片）；Bot Inbox / Orchestrator / Channel 工具 / Bridge / 跨 Session 总线在 M4 后排期（v1.1，#30）；Channel 的 Lark 桥接随 M5。
 - **已知约束**：DSH web profile 对"从未打开过的程序化 agent"起 turn 有开放问题（Discussion #6617）；工位会话存活是 M3/M4 的验证项。
@@ -131,20 +150,22 @@
 
 ## 8. 风险与开放问题
 
-| 风险                                       | 缓解                                                                                 |
-| ------------------------------------------ | ------------------------------------------------------------------------------------ |
-| #6617：web profile 冷 agent 起不了 turn    | 工位会话 + 存活 owner agent；M3/M4 实测                                              |
-| DSH 预览期破坏性变更                       | pin 版本；薄插件边界；契约测试                                                       |
-| dsh-im 无 session→bot seam                 | 自持 registry；IM 绑定只在适配器读基座存储（ADR-0011 后果）                          |
-| 记忆污染 / 私事外泄                        | 工具写 + `sources` + 导出时选择分享边界（ADR-0012/0021）                             |
-| 自主动作越权                               | 审批分级（§5）；`waiting` 状态可见                                                   |
-| 多根目录需求                               | 多个 Workspace + UI 分组；需要时再走多根文件工具（ADR-0018）                         |
-| 默认公开的恶意/钓鱼 Bot                    | 上传自动闸门（密钥扫描硬拒绝、类型白名单、大小、解压炸弹）；举报 → 下架 → 封号       |
-| 平台成本与依赖（Cloudflare / PlanetScale） | 公开免费 + 私有/超额付费；schema 预留 `plan`/`quota`（ADR-0019）                     |
-| 快照触及他人内容与许可                     | `license` + `share_policy` + `provenance.upstream`（ADR-0020）；再导出必须保留原字段 |
-| Orchestrator 中枢成本与单点                | 批次唤醒 + 可忽略语义 + DSH compaction；消耗随 Inbox 量而非聊天量增长（ADR-0025）    |
-| 自建跨 Session 总线的可靠性                | durable 投影 + MessageId 去重 + 超时/interrupt；relay 失败返回结构化错误（ADR-0024） |
-| 消息回灌 / 重复投递                        | 发送者排除 + 外部 id 去重 + 本地/回显合并（ADR-0026 增补）                           |
-| 本地消息增长与保留                         | append-only NDJSON + 保留策略开放项；SQLite 仅索引（ADR-0030）                       |
+| 风险                                       | 缓解                                                                                                      |
+| ------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| #6617：web profile 冷 agent 起不了 turn    | 工位会话 + 存活 owner agent；M3/M4 实测                                                                   |
+| DSH 预览期破坏性变更                       | pin 版本；薄插件边界；契约测试                                                                            |
+| dsh-im 无 session→bot seam                 | 自持 registry；IM 绑定只在适配器读基座存储（ADR-0011 后果）                                               |
+| 记忆污染 / 私事外泄                        | 工具写 + `sources` + 导出时选择分享边界（ADR-0012/0021）                                                  |
+| 自主动作越权                               | 审批分级（§5）；`waiting` 状态可见                                                                        |
+| 多根目录需求                               | 多个 Workspace + UI 分组；需要时再走多根文件工具（ADR-0018）                                              |
+| 默认公开的恶意/钓鱼 Bot                    | 上传自动闸门（密钥扫描硬拒绝、类型白名单、大小、解压炸弹）；举报 → 下架 → 封号                            |
+| 平台成本与依赖（Cloudflare / PlanetScale） | 公开免费 + 私有/超额付费；schema 预留 `plan`/`quota`（ADR-0019）                                          |
+| 快照触及他人内容与许可                     | `license` + `share_policy` + `provenance.upstream`（ADR-0020）；再导出必须保留原字段                      |
+| Orchestrator 中枢成本与单点                | 批次唤醒 + 可忽略语义 + DSH compaction；消耗随 Inbox 量而非聊天量增长（ADR-0025）                         |
+| 自建跨 Session 总线的可靠性                | durable 投影 + MessageId 去重 + 超时/interrupt；relay 失败返回结构化错误（ADR-0024）                      |
+| 消息回灌 / 重复投递                        | 发送者排除 + 外部 id 去重 + 本地/回显合并（ADR-0026 增补）                                                |
+| 本地消息增长与保留                         | append-only NDJSON + 保留策略开放项；SQLite 仅索引（ADR-0030）                                            |
+| 陈列数据只在 Host / 单浏览器               | 陈列经 `botharness_roster` 跨浏览器共享；折叠状态本浏览器有效；迁移保留备份（ADR-0034）                   |
+| 非 loopback 页面 settings 写入仅进程内     | DSH 既有行为（scope `unavailable`/memory 模式）；客户端按快照 status 降级，不假装已持久化（ADR-0034/#68） |
 
-**开放项**：工位会话的 wake 实测；Live2D 信号面（模型/工具/响应 → 动作）；跨 PersonaBot 通信（经 Orchestrator）的 API 形状；跨 Session 请求-回复的超时/取消语义；消息保留/GC 策略；Bot Inbox 触发策略的 Settings UI 表达（默认 `all`）；Channel ↔ Lark 群/thread 映射（M5）；user 级共享记忆（跨 PersonaBot，Grok Bot 形态）是否引入。
+**开放项**：工位会话的 wake 实测；Live2D 信号面（模型/工具/响应 → 动作）；跨 PersonaBot 通信（经 Orchestrator）的 API 形状；跨 Session 请求-回复的超时/取消语义；消息保留/GC 策略；Bot Inbox 触发策略的 Settings UI 表达（默认 `all`）；Channel ↔ Lark 群/thread 映射（M5）；user 级共享记忆（跨 PersonaBot，Grok Bot 形态）是否引入；派生索引（未读/计数/搜索）何时启用 SQLite（ADR-0005/0034）。
