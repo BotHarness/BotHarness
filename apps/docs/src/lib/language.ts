@@ -9,7 +9,7 @@
  * paths fall back to the English landing.
  */
 
-const ZH_SECTIONS = ["/docs", "/dev", "/changelog"] as const;
+const ZH_SECTIONS = ["/docs", "/dsh", "/dev", "/changelog"] as const;
 
 /** Site locales, matching `<html lang>`: English root + Simplified Chinese. */
 export type Locale = "en" | "zh-Hans";
@@ -111,6 +111,7 @@ export interface SiteChromeStrings {
   /** `aria-label` on the language switcher. */
   language: string;
   docs: string;
+  dsh: string;
   dev: string;
   changelog: string;
   /** `aria-label` on the mobile menu button. */
@@ -131,6 +132,8 @@ export interface SiteChromeStrings {
   skipToContent: string;
   /** Badge on a page still in draft. */
   draft: string;
+  /** Label of the DSH Dev Docs provenance bar (skill version / DSH revision). */
+  provenance: string;
   /** Badge splitting agent- and human-facing content. */
   forHumans: string;
   /** Link to the page source. */
@@ -143,6 +146,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
       sections: "站点分区",
       language: "语言",
       docs: "文档",
+      dsh: "DSH 开发",
       dev: "开发与审计",
       changelog: "Changelog",
       openNavigation: "打开导航",
@@ -154,6 +158,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
       filterNavigation: "筛选导航",
       skipToContent: "跳到正文",
       draft: "草稿",
+      provenance: "出处",
       forHumans: "面向人类",
       editPage: "编辑此页",
     };
@@ -162,6 +167,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
     sections: "Sections",
     language: "Language",
     docs: "Docs",
+    dsh: "DSH Dev",
     dev: "Development & Audit",
     changelog: "Changelog",
     openNavigation: "Open navigation",
@@ -173,6 +179,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
     filterNavigation: "Filter navigation",
     skipToContent: "Skip to content",
     draft: "Draft",
+    provenance: "Provenance",
     forHumans: "For humans",
     editPage: "Edit this page",
   };

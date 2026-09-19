@@ -16,7 +16,7 @@ import { config } from "virtual:nimbus/config";
 
 export const prerender = true;
 
-const SECTIONS = ["docs", "dev", "changelog"] as const;
+const SECTIONS = ["docs", "dsh", "dev", "changelog"] as const;
 type Section = (typeof SECTIONS)[number];
 
 interface SectionPage {

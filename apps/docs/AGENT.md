@@ -61,6 +61,7 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 | Section | Content |
 |---|---|
 | `/docs` | User guides (`overview`, `quickstart`) |
+| `/dsh` | DSH plugin development (generated from `.agents/skills/dsh-plugin-dev/` + `docs/dsh/`) |
 | `/dev` | Architecture / spec / PRD / ADR (generated from repo sources) |
 | `/changelog` | Bilingual release feed + `/changelog/<slug>` + `/zh/changelog/<slug>` permalinks |
 
@@ -107,6 +108,11 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
   `untranslated: true`)
 - `src/content/docs-zh/dev/**` — Chinese tree at `/zh`: the same sources,
   clean, plus the Chinese architecture page
+- `src/content/docs/dsh/**` — DSH Dev Docs: the landing from `docs/dsh/index.md`
+  and the skill pages from `.agents/skills/dsh-plugin-dev/`, each carrying the
+  skill's provenance fields
+- `src/content/docs-zh/dsh/**` — Chinese tree: the hand-written landing
+  (`docs/dsh/index.zh.md`); skill pages are English flagged `untranslated`
 - `src/content/changelog/**` — English changelog tree, from root
   `docs/changelog/<date>-<slug>.md`
 - `src/content/changelog-zh/**` — Chinese changelog tree at `/zh`, from root

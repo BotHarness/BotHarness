@@ -14,6 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "diagrams": "node scripts/render-diagrams.mjs",
+    "sync:skill": "node scripts/sync-skill.mjs",
     "og:font": "node scripts/subset-og-font.mjs",
     "dev": "pnpm --filter docs exec portless",
     "docs:dev": "pnpm --filter docs dev",

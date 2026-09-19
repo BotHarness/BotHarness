@@ -237,3 +237,21 @@ _Avoid_: whitelist, permissions, ACL
 **Credential reference**:
 A pointer to a Feishu App Secret held by the DSH credentials service; the secret itself never reaches config, repo, or logs.
 _Avoid_: secret, API key, token
+
+### Developer docs and distribution
+
+**DSH Dev Docs**:
+The `/dsh` section of the BotHarness docs site that teaches external developers how to build DSH plugins.
+_Avoid_: tutorials, handbook, dev portal, wiki
+
+**dsh-plugin-dev**:
+The agent-facing skill with our full-stack DSH plugin authoring guide (host + client); the one artifact that DSH Dev Docs renders and that external developers download.
+_Avoid_: prompt, guide, doc
+
+**dsh-skill**:
+The standalone GitHub repo (`BotHarness/dsh-skill`) whose root is dsh-plugin-dev itself — the one-line install source, mirrored from this monorepo, never hand-edited.
+_Avoid_: package, plugin, marketplace
+
+**Provenance**:
+The source, version, and time stamp every published skill artifact and DSH Dev Docs page carries, stating which DSH version (and upstream revision) its claims were verified against, and when.
+_Avoid_: disclaimer, changelog, metadata (bare)

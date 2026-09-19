@@ -50,6 +50,7 @@ const CONTENT = join(ROOT, 'apps', 'docs', 'src', 'content');
 const DIAGRAMS_RENDERED = join(ROOT, 'docs', 'architecture', 'diagrams', 'rendered');
 const DIAGRAMS_PUBLIC = join(ROOT, 'apps', 'docs', 'public', 'diagrams');
 const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
+const SKILL = '.agents/skills/dsh-plugin-dev/';
 
 const ARCHITECTURE_DIAGRAMS_ZH = [
   { name: '01-system-context', caption: '系统上下文' },
@@ -197,11 +198,12 @@ function titleFrom(body, fallback) {
   return match ? String(match[1]).trim() : fallback;
 }
 
-function frontmatter({ title, description, order, untranslated }) {
+function frontmatter({ title, description, order, untranslated, extra = [] }) {
   const lines = ['---', `title: ${JSON.stringify(title)}`];
   if (description) lines.push(`description: ${JSON.stringify(description)}`);
   lines.push('sidebar:', `  order: ${order}`);
   if (untranslated) lines.push('untranslated: true');
+  lines.push(...extra);
   lines.push('---', '', '');
   return lines.join('\n');
 }
@@ -392,6 +394,116 @@ function syncDiagrams() {
   process.stdout.write(`diagrams: ${en} SVG(s) -> apps/docs/public/diagrams/en\n`);
 }
 
+/** Provenance metadata from the skill's frontmatter; reused by every DSH Dev Docs page. */
+function skillProvenance() {
+  const { frontmatter: text } = stripFrontmatter(readText(`${SKILL}SKILL.md`));
+  const lines = text.split(/\r?\n/);
+  const start = lines.findIndex((line) => line.trim() === 'metadata:');
+  const fields = {};
+  if (start === -1) return fields;
+  for (const line of lines.slice(start + 1)) {
+    const match = line.match(/^\s+([A-Za-z][A-Za-z0-9]*):\s*"?(.*?)"?\s*$/);
+    if (!match) break;
+    fields[match[1]] = match[2];
+  }
+  return fields;
+}
+
+function provenanceFields({ skillVersion, verifiedAgainst, upstreamSha, verifiedAt }) {
+  return [
+    `skillVersion: ${JSON.stringify(skillVersion)}`,
+    `verifiedAgainst: ${JSON.stringify(verifiedAgainst)}`,
+    `upstreamSha: ${JSON.stringify(upstreamSha)}`,
+    `verifiedAt: ${JSON.stringify(verifiedAt)}`,
+  ];
+}
+
+const SKILL_PAGES = [
+  {
+    slug: 'dsh/guide',
+    order: 1,
+    source: `${SKILL}SKILL.md`,
+    title: 'The full guide',
+    description: 'Mental model, extension points, workflows and pitfalls',
+  },
+  {
+    slug: 'dsh/host',
+    order: 2,
+    source: `${SKILL}references/host.md`,
+    title: 'Host-side reference',
+    description: 'Package manifest, patches, tools, events, lifecycle',
+  },
+  {
+    slug: 'dsh/client',
+    order: 3,
+    source: `${SKILL}references/client.md`,
+    title: 'Client-side reference',
+    description: 'dsh.client, slots, RPC and the lazy-CJS build contract',
+  },
+  {
+    slug: 'dsh/slots',
+    order: 4,
+    source: `${SKILL}references/slots.md`,
+    title: 'Slot catalog',
+    description: 'Every UI slot with kind, scope and use',
+  },
+  {
+    slug: 'dsh/patterns',
+    order: 5,
+    source: `${SKILL}references/community-ui-patterns.md`,
+    title: 'Community UI patterns',
+    description:
+      'How the ecosystem builds DSH plugin UI — build routes, proven practices, drift hazards',
+  },
+];
+
+/**
+ * DSH Dev Docs: render the dsh-plugin-dev skill (`.agents/skills/dsh-plugin-dev/`)
+ * into the `dsh/` section of both trees, plus the hand-written landing
+ * (`docs/dsh/index.md` + `.zh.md`). Every page carries the skill's provenance
+ * fields so readers can see which DSH revision its claims were verified
+ * against — the mirror repo ships the same values.
+ */
+function syncSkill() {
+  const provenance = provenanceFields(skillProvenance());
+
+  const landing = [
+    { tree: 'docs', source: 'docs/dsh/index.md', untranslated: false },
+    { tree: 'docs-zh', source: 'docs/dsh/index.zh.md', untranslated: false },
+  ];
+  for (const variant of landing) {
+    const raw = readText(variant.source);
+    const { body } = stripFrontmatter(raw);
+    const title = titleFrom(body, 'DSH Plugin Development');
+    writeText(
+      `${variant.tree}/dsh/index.mdx`,
+      frontmatter({
+        title,
+        description:
+          'Full-stack DSH plugin authoring guide — install the skill, read the references',
+        order: 0,
+        untranslated: variant.untranslated,
+        extra: provenance,
+      }) + prepare(body),
+    );
+    process.stdout.write(`skill: ${variant.source} -> ${variant.tree}/dsh/index.mdx\n`);
+  }
+
+  for (const page of SKILL_PAGES) {
+    const raw = readText(page.source);
+    const { body } = stripFrontmatter(raw);
+    writeText(
+      `docs/${page.slug}.mdx`,
+      frontmatter({ ...page, untranslated: false, extra: provenance }) + prepare(body),
+    );
+    writeText(
+      `docs-zh/${page.slug}.mdx`,
+      frontmatter({ ...page, untranslated: true, extra: provenance }) + prepare(body),
+    );
+    process.stdout.write(`skill: ${page.source} -> ${page.slug} (docs + docs-zh)\n`);
+  }
+}
+
 export function syncDocs() {
   for (const stale of [
     'docs/spec',
@@ -399,6 +511,8 @@ export function syncDocs() {
     'docs/architecture.mdx',
     'docs/dev',
     'docs-zh/dev',
+    'docs/dsh',
+    'docs-zh/dsh',
   ]) {
     rmSync(join(CONTENT, stale), { recursive: true, force: true });
   }
@@ -406,6 +520,7 @@ export function syncDocs() {
   syncPages();
   syncAdr();
   syncChangelog();
+  syncSkill();
   syncDiagrams();
   process.stdout.write('docs sync complete\n');
 }

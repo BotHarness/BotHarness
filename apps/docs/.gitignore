@@ -12,4 +12,8 @@ src/content/docs-zh/dev/
 # Generated from docs/changelog/<date>-<slug>.md + .zh.md.
 src/content/changelog/
 src/content/changelog-zh/
+# DSH Dev Docs at /dsh: landing from docs/dsh/index{,zh}.md, skill pages from
+# .agents/skills/dsh-plugin-dev/.
+src/content/docs/dsh/
+src/content/docs-zh/dsh/
 public/diagrams/
