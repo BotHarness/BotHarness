@@ -47,6 +47,7 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 | 4 | Shell variables eaten in nested wrappers | `$VAR`/`$(…)` come out empty | write a script file for anything with variables; avoid inline `$` in loop commands |
 | 5 | `DSH_HOME` omitted | profiles/installs land in `~/.dsh` | always set `DSH_HOME` for every `dsh` command |
 | 6 | Standard decorators not emittable | vitest `SyntaxError` on raw `@Remote`; tsdown passes decorators through untouched | this toolchain (oxc/tsdown) can't compile TC39 decorators — write the `@deepseek-ai/dsh-typert-protocol/remote-methods` descriptor manually (`version: 1`, `invocation: { kind: "direct" }`) and lock its shape with a test (#50) |
+| 7 | `sidebar.panellist` row has no toggle or geometry seam | Clicking the active entry re-runs `selectPanel(id)` (a no-op), so the mode never exits; the shell row spans the full content box, 2px wider per side than the 新会话 row | Own the row from inside the glyph: render a wrapper span, target the shell button with `button:has(.bh-panel-glyph)` (`width: auto; margin-inline: 2px` = native `.newSession` insets), and while active render an `inset: 0` hit layer whose `onClickCapture` stops React propagation and calls `ctx.layout.selectPanel(null)` (`layout` must be declared in the plugin's `inject`) |
 
 ## Reference
 

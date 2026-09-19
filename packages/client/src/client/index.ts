@@ -6,7 +6,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
 import { createActions, type BridgeActions } from './actions.js';
 import { BotMain, BotPanel } from './bot-main.js';
-import { BotPanelIcon, BotSidebar } from './bot-sidebar.js';
+import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { registerModeShadow } from './mode.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
@@ -15,7 +15,7 @@ import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers'];
+export const inject = ['slots', 'connection', 'inputTriggers', 'layout'];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
@@ -52,7 +52,9 @@ export function apply(ctx: ClientContext): void {
         order: 10,
         label: 'BOT 模式',
       },
-      BotPanelIcon,
+      createBotPanelEntry(() => {
+        ctx.layout.selectPanel(null);
+      }),
     ),
   );
 

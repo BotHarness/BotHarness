@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  addSection,
   defaultStorage,
   loadRosterConfig,
   parseRosterConfig,
@@ -79,6 +80,36 @@ describe('roster display config', () => {
 
     const reopened = toggleSectionCollapsed(collapsed, 'b');
     expect(reopened.sections[1]).toEqual({ id: 'b', name: 'B', channels: [], collapsed: false });
+  });
+
+  it('adds a trimmed empty section with a fresh id', () => {
+    const base = {
+      pins: [],
+      sections: [{ id: 'section-1', name: '既有', channels: ['group-lab'] }],
+    };
+
+    const next = addSection(base, '  新增  ');
+    expect(next).toEqual({
+      pins: [],
+      sections: [
+        { id: 'section-1', name: '既有', channels: ['group-lab'] },
+        { id: 'section-2', name: '新增', channels: [] },
+      ],
+    });
+    expect(base.sections).toHaveLength(1);
+  });
+
+  it('skips taken ids and ignores a blank name', () => {
+    const config = {
+      pins: [],
+      sections: [
+        { id: 'section-2', name: 'A', channels: [] },
+        { id: 'section-3', name: 'B', channels: [] },
+      ],
+    };
+
+    expect(addSection(config, 'C').sections[2]?.id).toBe('section-4');
+    expect(addSection(config, '   ')).toBe(config);
   });
 
   it('tolerates a browser without storage', () => {

@@ -102,7 +102,7 @@ describe('@botharness/client browser bundle', () => {
   it('exposes the plugin and registers the bot-mode panel plus the @ mention source', () => {
     const plugin = loadedEntry().factory(shellRequire);
     expect(plugin['name']).toBe('botharness-client');
-    expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers']);
+    expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers', 'layout']);
 
     const registered: {
       name: string;

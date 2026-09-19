@@ -77,6 +77,18 @@ export function saveRosterConfig(config: RosterConfig, storage: ConfigStorage | 
   }
 }
 
+export function addSection(config: RosterConfig, name: string): RosterConfig {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) return config;
+  const taken = new Set(config.sections.map((section) => section.id));
+  let counter = config.sections.length + 1;
+  while (taken.has(`section-${counter}`)) counter += 1;
+  return {
+    ...config,
+    sections: [...config.sections, { id: `section-${counter}`, name: trimmed, channels: [] }],
+  };
+}
+
 export function toggleSectionCollapsed(config: RosterConfig, sectionId: string): RosterConfig {
   return {
     ...config,

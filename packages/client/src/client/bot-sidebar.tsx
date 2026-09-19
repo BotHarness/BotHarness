@@ -1,10 +1,12 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
   IconAgentPresetOutline16,
   IconChevronDownOutline14,
   IconChevronRightOutline14,
+  IconCloseFill14,
+  IconFolderOpenOutline16,
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
@@ -13,6 +15,7 @@ import {
   StateDot,
   Tag,
   Tooltip,
+  type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -20,6 +23,7 @@ import { Blobatar } from './avatar.js';
 import { errorMessage } from './bridge.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import {
+  addSection,
   defaultStorage,
   saveRosterConfig,
   toggleSectionCollapsed,
@@ -31,8 +35,50 @@ export function useClientState(): ClientState {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
 }
 
-export function BotPanelIcon({ size }: { size: number }): ReactElement {
-  return <IconAgentPresetOutline16 size={size} />;
+export interface BotPanelEntryProps {
+  size: number;
+  active: boolean;
+}
+
+/**
+ * Sidebar panel glyph for the selected panel. While active, an absolutely
+ * positioned hit target covers the whole shell row (see the
+ * `button:has(.bh-panel-glyph)` rule in styles.ts) and turns the shell's
+ * re-selection click into a mode exit; the capture handler stops React's
+ * propagation so the shell's own `selectPanel(id)` never runs.
+ */
+export function BotPanelIcon({
+  size,
+  active,
+  onExit,
+}: {
+  size: number;
+  active: boolean;
+  onExit: () => void;
+}): ReactElement {
+  return (
+    <span className="bh-panel-glyph">
+      <IconAgentPresetOutline16 size={size} />
+      {active ? (
+        <span
+          className="bh-panel-glyph-hit"
+          aria-hidden="true"
+          onClickCapture={(event) => {
+            event.stopPropagation();
+            onExit();
+          }}
+        />
+      ) : null}
+    </span>
+  );
+}
+
+export function createBotPanelEntry(
+  onExit: () => void,
+): (props: BotPanelEntryProps) => ReactElement {
+  return function BotPanelEntry({ size, active }) {
+    return <BotPanelIcon size={size} active={active} onExit={onExit} />;
+  };
 }
 
 interface SidebarProps {
@@ -113,10 +159,33 @@ function ChannelRow({
 export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
   const state = useClientState();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [groupOpen, setGroupOpen] = useState(false);
-  const [groupName, setGroupName] = useState('');
-  const [groupError, setGroupError] = useState<string | undefined>(undefined);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [createMode, setCreateMode] = useState<'channel' | 'section' | undefined>(undefined);
+  const [createName, setCreateName] = useState('');
+  const [createError, setCreateError] = useState<string | undefined>(undefined);
   const [creating, setCreating] = useState(false);
+  const searchRoot = useRef<HTMLDivElement | null>(null);
+  const searchInput = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (searchOpen) searchInput.current?.focus({ preventScroll: true });
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    const onClick = (event: MouseEvent): void => {
+      if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) {
+        return;
+      }
+      searchInput.current?.blur();
+      if (state.query.trim() !== '') return;
+      setSearchOpen(false);
+    };
+    document.addEventListener('click', onClick);
+    return () => {
+      document.removeEventListener('click', onClick);
+    };
+  }, [searchOpen, state.query]);
 
   if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
 
@@ -124,9 +193,8 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
   const bots = state.bots.filter(
     (bot) => matchesQuery(query, bot.displayName, bot.tag) || bot.slug.includes(query),
   );
-  const channels = state.channels.filter(
-    (channel) => channel.type === 'group' && matchesQuery(query, channel.name),
-  );
+  const groupChannels = state.channels.filter((channel) => channel.type === 'group');
+  const channels = groupChannels.filter((channel) => matchesQuery(query, channel.name));
   const pinned = new Set(state.config.pins);
   const pinnedBots = state.config.pins.flatMap((slug) => {
     const bot = bots.find((candidate) => candidate.slug === slug);
@@ -152,30 +220,57 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
 
   const selectMenu = (id: string): void => {
     setMenuOpen(false);
-    if (id === 'group') {
-      setGroupName('');
-      setGroupError(undefined);
-      setGroupOpen(true);
+    if (id === 'channel' || id === 'section') {
+      setCreateName('');
+      setCreateError(undefined);
+      setCreateMode(id);
     }
   };
 
-  const submitGroup = async (): Promise<void> => {
-    const name = groupName.trim();
-    if (name.length === 0 || creating) return;
+  const submitCreate = async (): Promise<void> => {
+    const name = createName.trim();
+    if (name.length === 0 || creating || createMode === undefined) return;
+    if (createMode === 'section') {
+      const next = addSection(state.config, name);
+      store.setConfig(next);
+      saveRosterConfig(next, defaultStorage());
+      setCreateMode(undefined);
+      setCreateName('');
+      return;
+    }
     setCreating(true);
-    setGroupError(undefined);
+    setCreateError(undefined);
     try {
       const channel = await actions.createGroup(name);
       if (channel !== undefined) {
-        setGroupOpen(false);
-        setGroupName('');
+        setCreateMode(undefined);
+        setCreateName('');
       }
     } catch (error) {
-      setGroupError(errorMessage(error));
+      setCreateError(errorMessage(error));
     } finally {
       setCreating(false);
     }
   };
+
+  const menuItems: MenuEntry[] = [
+    {
+      id: 'bot',
+      label: '创建 BOT',
+      icon: <IconAgentPresetOutline16 size={16} />,
+      disabled: true,
+    },
+    {
+      id: 'channel',
+      label: '创建 Channel',
+      icon: <IconNewChatOutline16 size={16} />,
+    },
+    {
+      id: 'section',
+      label: '创建 Channel section',
+      icon: <IconFolderOpenOutline16 size={16} />,
+    },
+  ];
 
   const toggleSection = (sectionId: string): void => {
     const next = toggleSectionCollapsed(state.config, sectionId);
@@ -185,42 +280,91 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
 
   return (
     <div className="bh-root bh-region">
-      <div className="bh-search-row">
-        <Input
-          className="bh-search-input"
-          icon={<IconSearchOutline16 size={16} />}
-          type="search"
-          placeholder="搜索 BOT 或 Channel"
-          value={state.query}
-          onChange={(event) => store.setQuery(event.target.value)}
-        />
-        <Menu
-          open={menuOpen}
-          portal
-          anchor={
-            <Tooltip label="新建" delayMs={500}>
+      <div className="bh-header">
+        <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
+          Bots
+        </span>
+        <div className={`bh-search-slot${searchOpen ? ' bh-search-slot-open' : ''}`}>
+          <div
+            ref={searchRoot}
+            className={`bh-search${searchOpen ? ' bh-search-open' : ''}`}
+            onClick={() => {
+              setMenuOpen(false);
+              setSearchOpen(true);
+              searchInput.current?.focus();
+            }}
+          >
+            <Tooltip label="搜索" side="bottom" delayMs={500} disabled={searchOpen}>
               <button
                 type="button"
-                className="bh-icon-btn"
-                aria-label="新建"
-                onClick={() => setMenuOpen((value) => !value)}
+                className="bh-search-btn"
+                aria-label="搜索"
+                aria-expanded={searchOpen}
+                onClick={() => {
+                  setMenuOpen(false);
+                  setSearchOpen(true);
+                }}
               >
-                <IconPlusOutline16 size={16} />
+                <IconSearchOutline16 size={searchOpen ? 11 : 14} />
               </button>
             </Tooltip>
-          }
-          items={[
-            { id: 'group', label: '新建群聊', icon: <IconNewChatOutline16 size={16} /> },
-            {
-              id: 'bot',
-              label: '新建 BOT（创建向导开发中）',
-              icon: <IconAgentPresetOutline16 size={16} />,
-              disabled: true,
-            },
-          ]}
-          onSelect={selectMenu}
-          onClose={() => setMenuOpen(false)}
-        />
+            <input
+              ref={searchInput}
+              className="bh-search-input"
+              type="text"
+              placeholder="搜索 BOT 或 Channel"
+              value={state.query}
+              tabIndex={searchOpen ? 0 : -1}
+              onChange={(event) => store.setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key !== 'Escape') return;
+                store.setQuery('');
+                setSearchOpen(false);
+              }}
+            />
+            {searchOpen ? (
+              <button
+                type="button"
+                className="bh-clear-btn"
+                aria-label="清除搜索"
+                onClick={(event) => {
+                  event.stopPropagation();
+                  store.setQuery('');
+                  setSearchOpen(false);
+                }}
+              >
+                <IconCloseFill14 />
+              </button>
+            ) : null}
+          </div>
+        </div>
+        <div className={`bh-header-actions${searchOpen ? ' bh-header-actions-hidden' : ''}`}>
+          <Menu
+            open={menuOpen}
+            portal
+            dense
+            align="end"
+            anchor={
+              <Tooltip label="新建" side="bottom" delayMs={500}>
+                <button
+                  type="button"
+                  className="bh-icon-btn"
+                  aria-label="新建"
+                  onClick={() => {
+                    setMenuOpen((value) => !value);
+                  }}
+                >
+                  <IconPlusOutline16 size={16} />
+                </button>
+              </Tooltip>
+            }
+            items={menuItems}
+            onSelect={selectMenu}
+            onClose={() => {
+              setMenuOpen(false);
+            }}
+          />
+        </div>
       </div>
 
       {state.status === 'loading' && state.bots.length === 0 ? (
@@ -229,10 +373,10 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
       {state.status === 'error' && state.error !== undefined ? (
         <div className="bh-error">名册加载失败：{state.error}</div>
       ) : null}
-      {state.status === 'ready' && state.bots.length === 0 && channels.length === 0 ? (
+      {state.status === 'ready' && state.bots.length === 0 && groupChannels.length === 0 ? (
         <div className="bh-note">还没有 BOT。创建向导与 Builder 随 v1.1 到来。</div>
       ) : null}
-      {visibleCount === 0 && (state.bots.length > 0 || channels.length > 0) ? (
+      {visibleCount === 0 && (state.bots.length > 0 || groupChannels.length > 0) ? (
         <div className="bh-note">没有匹配的 BOT 或 Channel</div>
       ) : null}
 
@@ -304,36 +448,44 @@ export function BotSidebar({ wide, actions }: SidebarProps): ReactElement {
         );
       })}
 
-      {groupOpen ? (
+      {createMode !== undefined ? (
         <div className="bh-create-card">
-          <div className="bh-create-title">新建群聊</div>
-          <div className="bh-note">先建一个本地群聊；BOT 参与和消息投递随 v1.1 到来。</div>
+          <div className="bh-create-title">
+            {createMode === 'section' ? '创建 Channel section' : '创建 Channel'}
+          </div>
+          <div className="bh-note">
+            {createMode === 'section'
+              ? '新 section 只影响本机名册的分组显示。'
+              : '先建一个本地 Channel；BOT 参与和消息投递随 v1.1 到来。'}
+          </div>
           <Input
             autoFocus
-            placeholder="群聊名称"
-            value={groupName}
-            onChange={(event) => setGroupName(event.target.value)}
+            placeholder={createMode === 'section' ? 'Section 名称' : 'Channel 名称'}
+            value={createName}
+            onChange={(event) => setCreateName(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Enter') {
                 event.preventDefault();
-                void submitGroup();
+                void submitCreate();
               }
             }}
           />
           <div className="bh-create-actions">
-            <Button variant="ghost" size="sm" onClick={() => setGroupOpen(false)}>
+            <Button variant="ghost" size="sm" onClick={() => setCreateMode(undefined)}>
               取消
             </Button>
             <Button
               variant="primary"
               size="sm"
-              disabled={groupName.trim().length === 0 || creating}
-              onClick={() => void submitGroup()}
+              disabled={createName.trim().length === 0 || creating}
+              onClick={() => void submitCreate()}
             >
               创建
             </Button>
           </div>
-          {groupError !== undefined ? <div className="bh-error">创建失败：{groupError}</div> : null}
+          {createError !== undefined ? (
+            <div className="bh-error">创建失败：{createError}</div>
+          ) : null}
         </div>
       ) : null}
     </div>
