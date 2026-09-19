@@ -1,29 +1,38 @@
 flowchart LR
-  User["用户（DSH Web / 飞书群里的人）"]
-  Feishu["飞书 / Lark 开放平台"]
+  Human["Human<br/>DSH Web / IM"]
+  External["Feishu / Lark<br/>webhook / future providers"]
 
-  subgraph Host["DSH Host · 单进程"]
-    IM["dsh-im 基座<br/>通道 · 会话路由 · 流式卡片 · 设置页"]
-    Core["@botharness/core<br/>registry · 状态 · IM 绑定解析"]
-    Agent["DSH Agent<br/>每 Session 一个执行体"]
+  subgraph Browser["DSH Web Client"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
   end
 
-  subgraph Browser["Web Client · 浏览器（独立 Cordis 应用）"]
-    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
+  subgraph Host["DSH Host · single profile writer"]
+    API["Client Bridge RPC"]
+    Identity["PersonaBot & Memory"]
+    Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
+    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Transfer["Portability<br/>Export · Backup · Restore"]
+    DB[("botharness.db")]
   end
 
-  User -->|"@ / 委派"| Client
-  User -->|"群消息"| Feishu
-  Feishu <-->|"长连接（出站）"| IM
-  IM --> Agent
-  Core -->|"RPC（读模型）"| Client
-  Client -.->|"RPC（写操作）"| Core
-  Core -.->|"只读 config.json / workspaces.json"| IM
-  Agent -.->|"状态事件（M3 接入）"| Core
+  subgraph DSH["DSH-owned runtime"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Credentials["Credentials · profile settings"]
+  end
 
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef dsh fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class Core ours;
-  class IM dsh;
-  class Client later;
+  Human --> UI
+  External <--> Messaging
+  UI <--> API
+  API --> Identity
+  API --> Messaging
+  API --> BotWork
+  API --> Transfer
+  Identity --> DB
+  Messaging --> DB
+  BotWork --> DB
+  Transfer --> DB
+  Identity <--> Sessions
+  Messaging --> BotWork
+  BotWork <--> Sessions
+  Messaging -.-> Credentials
+  Transfer -.-> Sessions

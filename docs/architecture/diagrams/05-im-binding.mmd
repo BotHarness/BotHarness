@@ -1,14 +1,14 @@
-sequenceDiagram
-  participant S as DSH Session（cwd = 工作区）
-  participant R as im/config-store.ts
-  participant F as dsh-im 磁盘（只读）
-  participant I as im/identity.ts
-  participant G as registry（M5）
-
-  S->>R: read()
-  R->>F: integrations/dsh-feishu/config.json + workspaces.json
-  F-->>R: bots[] · workspaces/aliases/conversationWorkspaces
-  S->>I: resolveBotIdentity(workspace, conversationKey?)
-  I-->>S: ok / ambiguous / not-found → BotIdentity{ id, displayName }
-  S->>G: 写绑定：BotIdentity → registry slug（M5）
-  Note over R,F: 基座升级需重验；不 fork、不 patch
+flowchart LR
+  Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
+  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
+  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
+  Gate -- "yes" --> Runtime["BotWork Runtime"]
+  O -->|"send_work_request / stop_work"| Runtime
+  Runtime <--> W1["Independent Work Session A"]
+  Runtime <--> W2["Independent Work Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
+  Report --> Inbox
+  Notice --> Inbox
+  W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]

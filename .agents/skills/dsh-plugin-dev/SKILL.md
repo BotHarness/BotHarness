@@ -1,100 +1,77 @@
 ---
 name: dsh-plugin-dev
-description: Build full-stack DeepSeek Harness (DSH) plugins — host-side bundle plugins (tools, services, events, settings, credentials) and client-side web UI (slots, lazy-CJS bundles, client↔host RPC). Use when creating or modifying a DSH plugin package (dsh.bundle / dsh.client, cordis.patch.yml), registering tools or UI slots, wiring client RPC, packaging/installing a plugin into a DSH profile, or debugging a plugin that installs/compiles but does not activate or show up.
+description: Design, build, or review DeepSeek Harness (DSH) and Cordis plugins. Use for Plugin/Fiber/Bundle/Profile/Patch composition; Service/Provider/Consumer capability seams; Registry/Registration/Agent Scope/Service Isolation; Cordis Events; SessionEvent/projections/persistence; execution worlds, jobs, storage; Typert/API Gateway; Slots; or BotHarness PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work Session architecture. Start with the canonical vocabulary and decision tree before reaching host, client, UI, or community implementation details.
 license: MIT
 metadata:
-  skillVersion: "0.2.0"
+  skillVersion: "0.3.0"
   verifiedAgainst: "dsh 0.1.6-alpha.2"
   upstreamSha: "ddefc45fbc7f8e46dd73185e68295696d1297887"
-  verifiedAt: "2026-09-19"
-  sources: "docs/research/2026-09-19-dsh-plugin-authoring-host.md, docs/research/2026-09-19-dsh-plugin-authoring-client.md, docs/research/2026-09-19-dsh-client-ui-common-patterns.md, docs/research/2026-09-19-dsh-client-ui-flagship-dives.md, docs/research/2026-09-19-dsh-market-deep-dive.md, docs/research/2026-09-19-dsh-client-build-templates.md"
+  verifiedAt: "2026-09-20"
+  sources: "pinned DSH upstream and docs/research authoring reports; dsh_research foundations; BotHarness CONTEXT.md and accepted ADRs 0035-0045"
 ---
 
-# DSH Plugin Development (full-stack)
+# DSH plugin development
 
-Skill v0.2.0 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`, 2026-09-17; verified 2026-09-19). MIT licensed. Developer preview — breaking changes are expected, and upstream fixes can invalidate specific claims; when a fact matters, verify against the pinned upstream rather than npm registry packages (published `dsh-client-*` are `0.0.1-rc.1`, far behind the host).
+Skill v0.3.0 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
 
-Deep dives (repo root):
-- `docs/research/2026-09-19-dsh-plugin-authoring-host.md` — host-side facts with `file:line` citations.
-- `docs/research/2026-09-19-dsh-plugin-authoring-client.md` — client-side facts with `file:line` citations.
-- `docs/research/2026-09-18-dsh-plugin-installation.md` — `dsh plugin` CLI, profile layout, layer stack.
-- `docs/research/2026-09-19-dsh-community-plugins-survey.md` — community exemplars (what to borrow).
-- `docs/research/2026-09-19-dsh-client-ui-common-patterns.md` + `…-flagship-dives.md` + `…-dsh-market-deep-dive.md` — how community plugins actually build UI.
-- `docs/research/2026-09-19-dsh-client-build-templates.md` — the three client-build templates compared (use when setting up a build).
+## Foundation-first workflow
+
+1. Read [`references/context.md`](references/context.md) completely. Name the objects and boundaries with its canonical vocabulary. This step is complete when every important noun maps to one defined term and DSH-native APIs are separated from product-layer proposals.
+2. Follow [`references/decision-tree.md`](references/decision-tree.md). Classify each requirement as durable fact, command/query, runtime notification/interception, registration, projection/presentation, product data, or execution concern. This step is complete when each responsibility has one primary seam and explicit ownership/lifecycle.
+3. For PersonaBot, Channel, Source Event, Bot Inbox, Wake Policy, Orchestrator Session, Work Session, or Subagent Session work, read [`references/bot-runtime-architecture.md`](references/bot-runtime-architecture.md). This step is complete when the IM graph, product ownership graph, and DSH delegation graph are not conflated.
+4. Load only the implementation branch needed:
+   - [`references/host.md`](references/host.md) — Bundle/Profile/Patch, Plugin/Fiber, Service, Tool, Event, Session, lifecycle, publish.
+   - [`references/client.md`](references/client.md) — browser Cordis application, Typert/API Gateway, client models, build and verification.
+   - [`references/slots.md`](references/slots.md) — only when adding or changing a UI contribution.
+   - [`references/community-ui-patterns.md`](references/community-ui-patterns.md) — only when selecting a proven UI/build pattern or checking ecosystem drift.
+5. Implement through the selected seams, then validate install → boot → registration → exercise → unload/restart as applicable. A compiling package is not an activated Plugin.
+
+Deep source reports live under `docs/research/`; the three `dsh_research/` documents are inputs to the foundational references. For BotHarness product semantics, root `CONTEXT.md` and accepted ADRs supersede raw research drafts.
 
 ## Mental model
 
-1. **One package, up to two halves.** Host half: a Cordis plugin (`export function apply(ctx, config)`) mounted as a Loader entry. Client half: declared by `dsh.client`, built into a prebuilt lazy-CJS bundle the host serves at `/plugins/...` and the browser renders into declarative slots.
-2. **Every registration is an effect.** `ctx.on`, `ctx.tools.register`, `ctx.provide`, `ctx.slots.register`, `ctx.effect` all auto-dispose with the fiber. Never rely on module-level side effects.
-3. **Installed ≠ registered.** Host rows activate only when a patch (`cordis.patch.yml`) inserts them by package name; the client half is only scanned if its package is a *live* Loader entry. "It compiles" means nothing.
-4. **Talk through seams, not imports.** Plugins exchange runtime values only via `ctx.<service>`; cross-package imports are `import type` + `declare module` for types. No `@deepseek-ai/*` runtime value imports between plugins (build purity gate enforces this on the client half).
+- **Plugin/Fiber ownership:** a Plugin is a lifecycle container; its Fiber owns Services, listeners, Registrations, effects, and child Plugins. Registrations leave with the Fiber.
+- **Three composition levels:** Bundle/Profile/Patch selects and configures Plugins; the Plugin tree owns runtime lifecycle; Registries compose live contributions. Profile is runtime composition, not user identity or Session isolation.
+- **Capability seam:** `Consumer → Service Definition → Provider`. A Tool is a model-facing Consumer, not a Service synonym.
+- **Visibility vs resolution:** Agent Scope selects visible Registrations; Service Isolation selects which Service instance resolves in a context subtree. They are orthogonal.
+- **Facts vs notification:** SessionEvent is durable, replayable truth. `session/event` is the process-local Cordis notification after commit. Other Cordis Events coordinate live work.
+- **Derived state:** Projection folds history into a read model. Session Query is a derived search index. Conversation Assembly combines an event window and transient state into presentation nodes.
+- **Two application halves:** a package may have a Host Cordis Plugin and a separate browser Cordis Plugin. Runtime values cross package boundaries through Services, Events, Typert, and Slots—not value imports.
 
-## Pick the extension point
+## Fast seam check
 
 | Goal | Mechanism | Side |
 | --- | --- | --- |
 | Add a tool | `defineTool` + `ctx.tools.register` | host |
 | Gate/approve tool calls | `ctx.on('tools/pre-execute', …)` (waterfall) + `ctx.approval` / `ctx.tools.guard()` | host |
-| Expose a capability to other plugins | `ctx.provide(name, value)` or `class X extends Service` + `declare module` | host |
+| Expose a capability to Consumers | Service Definition + Provider (`ctx.provide` or `Service`) | host |
 | React to agent/session lifecycle | `ctx.on('session/event', …)`, `agent/pre-step`, `agent/status`, … | host |
 | Inject context into the model | `agent.inject(...)`, `agent/pre-step`, `ctx.systemPrompt.section/context` | host |
 | Persist session-derived state | `ctx.sessionProjections.register(...)` (driven by `session/event`) | host |
 | Long/background work | `ctx.jobs.start({ kind, label, owner, run })` | host |
 | Plugin config / secrets | `ctx.settings.installSection(...)`; `ctx.credentials.resolve(ref)` | host |
 | UI panel, header action, settings card | client slots via `ctx.slots.inject(key, () => ctx.slots.register(...))` | client |
-| UI needs host data | `ctx.connection.rpc.call(...)` ↔ `ctx.connection.rpc.handle/intercept(...)` | both |
+| UI needs host capability | Typert remote Service claimed by API Gateway | both |
 
 ## Host-side workflow
 
-1. **Package contract** — `type: "module"`, built `main`/`exports`, and:
-   ```json
-   {
-     "files": ["lib/index.js", "cordis.patch.yml"],
-     "engines": { "dsh": ">=0.1.5-rc.1 <0.1.6" },
-     "dsh": { "manifestVersion": 1, "bundle": { "patch": "./cordis.patch.yml" } }
-   }
-   ```
-   `engines.dsh`/`manifestVersion` are declarative only (never enforced). `files` must include the patch file. Official deps invariant: `@deepseek-ai/cordis` in both `peerDependencies` and `devDependencies` (mirrored), `@deepseek-ai/schemastery` in `dependencies`.
-2. **`cordis.patch.yml`** — top-level YAML array. Insert your row by package name, anchor it with a stable `id`:
-   ```yaml
-   - insert:
-       - id: botharness-core
-         name: '@botharness/core'
-         config: { enabled: true }
-   ```
-   Layers apply in order: bundle list → profile patch → home patch → `--patch` overlays. A later layer **replaces the whole `config` object** (no deep merge). Use `[]` to disable a layer; an empty file fails startup.
-3. **Plugin module** — `name` (diagnostics), `inject` (required services only), `Config` (Schemastery/Standard Schema, gains defaults at load), `apply(ctx, config)`. See `references/host.md` for tools/services/events code.
-4. **Validate before installing** — `dsh --profile <p> --dump-config` (composed rows + sources; no app start). Then `dsh plugin --profile <p> add <pkg|tarball|git>`; bundle changes require a process restart, patch-file edits hot-reload only where HMR is enabled.
-5. **Smoke-test the real host lifecycle** — install → boot → register → exercise → uninstall → reboot. `dsh-testkit` (community, unaudited) automates this shape; BotHarness M3.5 gate uses the same checkpoints.
-
-Golden samples in the pinned upstream (read-only reference): `packages/context/time-context` (tiny host plugin covering projections + `agent/pre-step` + `ctx.effect`), `packages/feedback/message-feedback` (Service subclass + event declaration merge), `packages/context/agent-instructions` (optional services, durable injection), `packages/bundle/{base,web-app}` (composition layers).
+Read [`references/host.md`](references/host.md), then validate package contract → composed Profile → live Fiber → registered capability → exercised behavior → disposal/restart. `--dump-config` proves composition, not activation.
 
 ## Client-side workflow
 
-1. **Manifest** — `exports["./client"]` → built `lib/client.js`; `dsh.client: { platform: "web", inject?: [...], external?: [...] }`. `inject` here is a code-arrival edge (pre-delivers injected packages' factories), not an activation edge; activation is still Cordis service `inject`.
-2. **Browser half** — `src/client/index.ts`: `export const inject = ['slots', ...]`; `export function apply(ctx)`; register UI through `ctx.slots.inject(key, () => ctx.slots.register({ name, id/key, order, label }, Component))`. Components are pure props (the five shares) and never see `ctx`; data comes from standard hooks (`useSessions`, `useSession`, `useStore`, …). No module-level side effects; every registration needs a stable `id`/`key` and `order`.
-3. **Host half stays required** — an empty `src/index.ts` (`export function apply() {}`) so the package is a Loader entry and its `dsh.client` gets scanned. Two-half-same-package is the official shape (`exports: { ".": …, "./client": … }`).
-4. **Build contract you must replicate outside the upstream monorepo** — there is **no published client build preset**. Target: CJS, `platform: browser`, entry `lib/client.js`, each output wrapped in a self-registration banner `window.__ModuleLoader__.load({ id, factory: (require) => … })`, baseline externals (`react`, `react/jsx-runtime`, `react-dom`, `react-dom/client`, `@deepseek-ai/cordis`, `@deepseek-ai/dsh-client-store`, `@deepseek-ai/dsh-client-ui-slots`, `@deepseek-ai/dsh-client-ui-primitives`, `@deepseek-ai/dsh-client-ui-dockkit`), everything else inlined, CSS Modules injected as `<style data-plugin>`, sourcemaps, and entry mtime touched after chunks (HMR revision). Details in `references/client.md`; pick a proven template in `references/community-ui-patterns.md` §1/§6.
-5. **Host communication** — generic RPC is the supported third-party route: client `ctx.connection.rpc.call(channel, endpoint, payload, signal)`; host `ctx.connection.rpc.handle('/my-plugin', handler)` or `intercept('/api', …)`. Envelope: `{ ok: true, value } | { ok: false, error: { code, message, details } }` — never rejects. Streaming: register an exact `ctx.connection.fetch.register` route and use fetch/SSE. Avoid Typert `@Remote` outside the upstream monorepo (generator depends on in-repo tsconfig faces; unverified).
-6. **Debug loop** — rebuild `lib/client.js` on change (`tsdown --watch`); the browser half hot-replaces via HMR polling or a page refresh. Failure signatures (bundle not found, not self-registering, undeclared slot, silent missing UI) are tabulated in `references/client.md`; verify with `window.__DSH_BOOT__.entries`, Network `/plugins/<pkg>/client.js`, and `Settings → Plugins → Plugin list`.
+Read [`references/client.md`](references/client.md) for the browser Cordis application, supported Typert/API Gateway boundary, client models, lazy-CJS build contract, and verification. Load [`references/slots.md`](references/slots.md) only when the requirement actually contributes UI.
 
-Slot catalog (full tables in `references/slots.md`):
+### `/api` transport rule
 
-| Need | Slot | Kind/scope |
-| --- | --- | --- |
-| Roster/main panel | `sidebar.panellist` (id=X) + `main` (key=X) | list + keyed / root |
-| Session quick action | `conversation.session.header.actions` | list / session |
-| Frame-level overlay/status | `shell.overlay` | list / root |
-| Settings row / plugin page | `settings.general.item`; `plugins.item`, `plugins.bundle.config` | list/keyed / root |
-| Composer takeover (e.g. asking user) | `conversation.composer` | chain / session |
-| Tool call card | `tool.call.toolview` (key = tool name) | keyed / session |
+`@deepseek-ai/dsh-api-gateway` owns the single `/api` interceptor and claims endpoints from the Typert Registry. A third-party Plugin must not register another `connection.rpc.intercept('/api', …)`: it shadows native APIs. In this repository, expose plugin endpoints through a `TypertRemoteService` with a `typertRemote` binding and remote-method markers; see `packages/core/src/bridge/rpc.ts`.
 
 ## BotHarness specifics
 
-- Host half lives in `packages/core` (`@botharness/core`, `dsh.bundle.patch` → `cordis.patch.yml`). M3 adds a `deepseekbot` bundle package and `@botharness/client`; follow the official two-half layout or give the client package a thin host half so it becomes a Loader entry.
-- Decisions already made (**do not re-litigate**): generic Connection RPC over Typert (`docs/client-bridge.md`, ADR 0023); self-built client bundle replicating the official contract is the top M3 engineering risk; secrets go through the credentials seam, never config (M8); memory is not an official seam — ours is "system-prompt section + tools + file truth" (the official mapping in `extension-cookbook`).
-- Repo conventions: TypeScript ESM strict, pnpm 12 / Node ≥22, tsdown builds, tests in `packages/*/test` (vitest). Run `pnpm lint && pnpm format:check && pnpm typecheck && pnpm test` before calling work done.
-- Current gaps to fix when touching `packages/core`: missing `declare module` Context merge, `exports["."].types`, `engines.node` (`>=22` vs upstream `^22.19.0 || >=24.0.0`).
+- Host capability lives in `packages/core`; the browser half lives in `packages/client`; `packages/deepseekbot` composes the Bundle.
+- The supported remote boundary is the API Gateway/Typert claim path implemented in `packages/core/src/bridge/rpc.ts`.
+- Secrets use the credentials Service; config stores a credential reference, never secret material.
+- Persona memory is a BotHarness capability: file truth + system-prompt section + Tools. It is not a native DSH persistence seam.
+- PersonaBot, Channel, Source Event, Inbox Admission, Attention Decision, Wake Policy, Orchestrator Session, Work Session, and the proposed Messaging/Attention/Bot Runtime/BotWork Runtime capability seams are defined in [`references/bot-runtime-architecture.md`](references/bot-runtime-architecture.md). Label them **BotHarness-proposed** when contrasting them with DSH-native APIs.
 
 ## Top pitfalls
 
@@ -105,13 +82,16 @@ Slot catalog (full tables in `references/slots.md`):
 5. `execute` must observe `exec.signal`, return exactly the declared `output.schema` JSON value, and throw only on infrastructure failure (registry maps to `isError`).
 6. Client value-importing another plugin's package fails the purity gate — go through slots/services.
 7. UI silently missing = parent slot not mounted, wrong keyed key, id collision shadowed, or the client bundle never rebuilt.
-8. Client components cannot inject host services — everything host-side goes through RPC.
+8. Client components cannot inject host Services — cross through Typert/API Gateway or consume client read models.
 9. Unhandled promise rejections outside `apply` are fatal to boot; wrap async work in `ctx.effect`.
 10. npm package name ≠ plugin identity — row `name`, bundle ids, and client wire ids are separate things; keep them stable.
 
 ## References
 
+- `references/context.md` — canonical DSH/Cordis/BotHarness vocabulary and native-vs-proposed boundary.
+- `references/decision-tree.md` — requirement-to-seam decisions, including Cordis dispatch and persistence choices.
+- `references/bot-runtime-architecture.md` — PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work/Subagent ownership and communication networks.
 - `references/host.md` — host API surface: plugin shapes, tools DSL, events/waterfall, settings, credentials, system prompt, sessions/agents, lifecycle, publish/validate.
-- `references/client.md` — `dsh.client` fields, client services/hooks, RPC, build contract, failure table, verification checklist.
+- `references/client.md` — `dsh.client` fields, client services/hooks, Typert/API Gateway, build contract, failure table, verification checklist.
 - `references/slots.md` — full slot catalog with kinds/scopes and source declarations.
 - `references/community-ui-patterns.md` — field notes from 13 community plugins: build routes, data channels, slot/RPC conventions, proven practices, drift hazards, anti-patterns.

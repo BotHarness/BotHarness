@@ -12,12 +12,13 @@ There is **no published client build preset**, so every out-of-tree plugin repli
 | **esbuild + hand-written loader wrapper** | dsh-rewind | Most explicit and auditable — post-build smoke assertions, build hash — but you lose CSS Modules unless you add a plugin. Good fallback. |
 | **Not portable — avoid** | dynamic import of a local harness checkout (agent-team); `../tsdown.client.ts` out-of-repo path (side-tasks, plugin-store); hand-written JS bundle with no build (channel-view, herald) | Cannot build standalone; artifact/source drift is unverifiable. |
 
-The UI surface has converged. What varies is the **data channel**:
+The UI surface has converged. What varies is the **data channel**. The list records field usage, not an endorsement:
 
 - official faces/hooks (`ctx.sessions`, `ctx.workspaces`, `uiConversation`) — the default for reads;
-- generic Connection RPC on `/api` — use for writes your plugin owns;
+- API Gateway/Typert remote Services — the supported `/api` route; BotHarness uses SRC remote-method descriptors;
+- generic Connection RPC on a plugin-owned channel — separate physical route; verify auth/reconnect/cancellation and never intercept `/api`;
 - plugin-private HTTP routes (`fetch('/my-plugin/...')`) — needs your own auth story (one live plugin has an open security complaint for this);
-- Typert `@Remote` — in-repo generation; out-of-tree reproducibility unproven;
+- Typert `@Remote` code generation — common upstream; out-of-tree generation may need adaptation, while descriptor-based registration is proven in BotHarness;
 - direct DOM/FS reads — brittle; seen in the wild, avoid.
 
 ## 2. Commonalities worth copying
@@ -29,7 +30,7 @@ The UI surface has converged. What varies is the **data channel**:
 - Read from official client services first; `useSyncExternalStore` over a store/controller, not ad-hoc subscriptions in components.
 - Style with `--dsw-*` tokens; no Tailwind, no component library. CSS Modules or injected `<style data-plugin>`.
 - i18n via `ctx.locale.register(NS, { zh, en })` + the `locale: NS` registration field; slot labels as thunks.
-- Name your own channel `<pkg-or-ns>/<method>` or `/api/<ns>/*`.
+- Give a Typert remote Service a stable namespace, or name a distinct plugin-owned channel `<pkg-or-ns>/<method>`; `/api` remains API Gateway-owned.
 - Ship a bilingual README with screenshots; declare Node 22.19+/24+.
 
 ## 3. Field-proven best practices
