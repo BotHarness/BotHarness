@@ -2,8 +2,8 @@
 
 | 项        | 内容                                                                                                                                                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v1.3（PoC）                                                                                                                                                                                                                             |
-| 日期      | 2026-09-18                                                                                                                                                                                                                              |
+| 版本      | v1.4（PoC）                                                                                                                                                                                                                             |
+| 日期      | 2026-09-19                                                                                                                                                                                                                              |
 | 状态      | Draft                                                                                                                                                                                                                                   |
 | 形态      | **BotHarness 的首个应用**：DSH 插件 bundle                                                                                                                                                                                              |
 | 平台规格  | `docs/botharness.md`（PersonaBot / 记忆 / 状态 / 工作方式）                                                                                                                                                                             |
@@ -12,6 +12,7 @@
 | v1.1 变更 | 对齐平台 v1.6（ADR-0024/0025/0026）：US-2/AC-2.2 委派目标态 = 独立工作 Session；术语对齐 `CONTEXT.md`（Channel / Binding / Inbox / Orchestrator Session）；跨 PersonaBot 通信目标路径 = 经 Orchestrator                                 |
 | v1.2 变更 | 对齐平台 v1.7：PersonaBot 最小 profile = displayName / tag（岗位）/ description，AC-1.3 向导同步；模型选择为本地策略、不随 SoulSnapshot 发布（ADR-0027）                                                                                |
 | v1.3 变更 | 对齐平台 v1.9（ADR-0029/0030 + 0026 增补）：BOT 模式改为聊天优先（点击 BOT 即 DM，session 移右侧面板，workspace 弱化）；Channel/Section/Bridge/Bot Inbox 术语；M3 收敛为 IA + 聊天外壳 + 本地消息存储，Bot Inbox 及 Channel 工具落 v1.1 |
+| v1.4 变更 | 对齐平台 v1.10（ADR-0031/0032）：sidebar 区块排序与移动、未分组、默认 blobatar 头像与字形图标、行几何对齐原生实测；自定义头像与头像动效/表情留 v1.1                                                                                     |
 
 ## 0. 历史变更（v0.2–v0.9）
 
@@ -37,10 +38,12 @@
 
 > 作为用户，我在 DSH 里看到所有 PersonaBot——形象（blobatar）、状态、工作树；能创建/删除/编辑。
 
-- AC-1.1 bot-mode sidebar 平铺列表：头像 + 聚合状态（六态）+ 未读点；置顶区仅 BOT。
-- AC-1.2 点击 BOT 打开 DM 聊天（IM 样式，本地消息）；BOT 与 Channel（群聊）同列；用户可建可折叠 Channel section 组织 Channel。
+- AC-1.1 bot-mode sidebar 平铺列表：头像 + 聚合状态（六态）+ 未读点；头像为 slug 确定性生成的默认 blobatar（DM 行显示 Bot 头像，群 Channel 行用字形），行几何对齐原生实测（ADR-0031/0032）；置顶区仅 BOT。
+- AC-1.2 点击 BOT 打开 DM 聊天（IM 样式，本地消息）；BOT 与 Channel（群聊）同列；用户可建可折叠 Channel section 组织 Channel，section 可手排，Channel 可在 section 间拖动或经右键「移动到」菜单归位；未归属的 Channel 落在底部「未分组」（平铺、不可折叠、不参与手动排序）。
 - AC-1.3 创建：首次无 BOT 的空状态按钮 → 按需创建 Builder；此后「+」菜单选择「Builder 对话创建」或「表单向导」；表单字段：名字、标签、描述、persona、模型/preset、workspace、头像种子。
 - AC-1.4 DM 右侧 session 面板：列出该 BOT 的 sessions（状态 / workspace / 最近活动，含「主会话」），点击切换；只读。
+- AC-1.5 排序：每个 scope（section / 未分组）排序方式 `auto` / `manual` / `inherit`（section 默认 `inherit`，未分组恒 `inherit`）；全局默认在 Bots 头部 `...` 菜单设置；首次手动拖拽或拖入切 `manual` 并冻结当前顺序，「恢复自动」回 `inherit`（ADR-0031）。
+- AC-1.6 section 操作：section 头 `+` 在区内新建 Channel；`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位，Modal 红描边确认）；删除 section 只把 Channel 回落到未分组，不删内容（ADR-0031）。
 
 ### US-2 委派与持续工作（P0）
 
@@ -80,7 +83,7 @@
 | 编号 | 需求                 | 优先级 | 说明                                                         |
 | ---- | -------------------- | ------ | ------------------------------------------------------------ |
 | FR-1 | bundle 组装          | P0     | core + client + 适配器；一条命令安装                         |
-| FR-2 | Roster / 详情 / 新建 | P0     | DSH client 包（React + blobatar）                            |
+| FR-2 | Roster / 详情 / 新建 | P0     | DSH client 包（React + blobatar + vendored 字形）            |
 | FR-3 | @委派与命令          | P0     | composer `@` + `/bot`                                        |
 | FR-4 | 记忆编辑器入口       | P0     | 复用平台记忆工具与 git                                       |
 | FR-5 | 审批队列             | P0     | `waiting` 展示与确认；approval 需 open turn                  |
@@ -151,15 +154,17 @@ dsh --profile <profile>            # 启动；浏览器打开 dsh web 进入「�
 
 ## 附录 D：暂缓项记录
 
-| 项                    | 原因                                                                | 触发条件                    |
-| --------------------- | ------------------------------------------------------------------- | --------------------------- |
-| Live2D 渲染           | 独立插件，消费原始模型/工具/响应信号                                | 后续单独 grill/wayfinder    |
-| Docker `sbx` 沙箱起步 | DSH 内建 sandbox 已覆盖文件隔离                                     | 需要网络白名单 / microVM 时 |
-| DM 独立记忆分区       | 单脑 + 导出时选择分享边界（ADR-0021）                               | 合规要求更严时              |
-| 多根 workspace        | 单目录 1:1（ADR-0018）                                              | 编码场景真实需要时          |
-| 跨 PersonaBot 通信    | 目标态经 Orchestrator（ADR-0024）；PoC 只留 seam（registry + 事件） | 单 Bot 闭环成立后           |
-| 无人值守调度          | 委派制先行                                                          | Bot 需要自己发起工作时      |
-| 消息保留 / GC         | append-only 文件先落地，保留策略未定（ADR-0030 开放项）             | 数据量或合规要求出现时      |
+| 项                    | 原因                                                                      | 触发条件                    |
+| --------------------- | ------------------------------------------------------------------------- | --------------------------- |
+| Live2D 渲染           | 独立插件，消费原始模型/工具/响应信号                                      | 后续单独 grill/wayfinder    |
+| Docker `sbx` 沙箱起步 | DSH 内建 sandbox 已覆盖文件隔离                                           | 需要网络白名单 / microVM 时 |
+| DM 独立记忆分区       | 单脑 + 导出时选择分享边界（ADR-0021）                                     | 合规要求更严时              |
+| 多根 workspace        | 单目录 1:1（ADR-0018）                                                    | 编码场景真实需要时          |
+| 跨 PersonaBot 通信    | 目标态经 Orchestrator（ADR-0024）；PoC 只留 seam（registry + 事件）       | 单 Bot 闭环成立后           |
+| 无人值守调度          | 委派制先行                                                                | Bot 需要自己发起工作时      |
+| 消息保留 / GC         | append-only 文件先落地，保留策略未定（ADR-0030 开放项）                   | 数据量或合规要求出现时      |
+| 自定义头像            | 需要设计（预设 / 上传 / 裁剪）；MVP 用 slug 确定性生成（ADR-0032）        | 设计通过后（v1.1）          |
+| 头像动效 / 表情       | blobatar motion.css 与 bundle CSS 注入集成未决；Safari 未验证（ADR-0032） | v1.1 单独开票               |
 
 ## 附录 E：工程基础设施（v0.6 初始化，v1.0 增补）
 
@@ -182,6 +187,6 @@ dsh --profile <profile>            # 启动；浏览器打开 dsh web 进入「�
 - 技能初始化（对应 `setup-matt-pocock-skills`）：
   - Issue tracker：**GitHub Issues**（`BotHarness/BotHarness`，`gh` CLI；PR 不作 triage 入口）——见 `docs/agents/issue-tracker.md`
   - Triage 标签：默认五角色（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）——见 `docs/agents/triage-labels.md`
-  - 领域文档：单 context；根 `CONTEXT.md` + `docs/adr/`（30 篇）——见 `docs/agents/domain.md`
+  - 领域文档：单 context；根 `CONTEXT.md` + `docs/adr/`（32 篇）——见 `docs/agents/domain.md`
   - `AGENTS.md` 已加入 `## Agent skills` 区块
 - 常用技能：`/grill-with-docs`（对齐 + 领域建模）、`/to-spec`、`/to-tickets`、`/tdd`、`/diagnosing-bugs`、`/code-review`、`/research`、`/handoff`、`/wizard`。
