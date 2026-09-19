@@ -9,15 +9,17 @@ import Schema from '@deepseek-ai/schemastery';
 import { createBridgeMethods } from './bridge/methods.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { createChannelStore, type ChannelStore } from './channels/store.js';
 import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
+import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 
 export const name = 'botharness-core';
 
-export const inject = ['tools', 'systemPrompt'];
+export const inject = ['tools', 'systemPrompt', 'sessions'];
 
 export const PERSONA_SECTION_ORDER = 10400;
 export const MEMORY_TREE_SECTION_ORDER = 10500;
@@ -39,16 +41,19 @@ export interface BotHarnessCore {
   registry: PersonaBotRegistry;
   states: BotStateTracker;
   memory: MemoryService;
+  channels: ChannelStore;
 }
 
 export function createCore(options: { dshHome?: string } = {}): BotHarnessCore {
-  const rootDir = join(options.dshHome ?? resolveDshHome(), 'botharness', 'bots');
+  const dshHome = options.dshHome ?? resolveDshHome();
+  const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({ rootDir });
   return {
     rootDir,
     registry,
     states: createBotStateTracker(),
     memory: createMemoryService({ registry }),
+    channels: createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') }),
   };
 }
 
@@ -63,7 +68,15 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ctx.tools.register(tool);
   }
 
-  registerBridge(ctx, createBridgeMethods({ registry: core.registry, states: core.states }));
+  registerBridge(
+    ctx,
+    createBridgeMethods({
+      registry: core.registry,
+      states: core.states,
+      channels: core.channels,
+      sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
+    }),
+  );
 
   ctx.systemPrompt.section({
     name: 'botharness:persona',

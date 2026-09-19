@@ -18,15 +18,44 @@ export type {
   PersonaBotDetail,
   PersonaBotSummary,
 } from './bridge/methods.js';
-export { BRIDGE_ENDPOINT_PREFIX, createBridgeRpcHandler, registerBridge } from './bridge/rpc.js';
+export {
+  BRIDGE_NAMESPACE,
+  BRIDGE_SERVICE_KEY,
+  BotharnessBridgeService,
+  registerBridge,
+} from './bridge/rpc.js';
 export { createPersonaBotRegistry } from './bots/registry.js';
 export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
+export {
+  dmChannelId,
+  groupChannelIdBase,
+  isChannelMessage,
+  isChannelRecord,
+  isValidChannelId,
+  slugifyChannelName,
+} from './channels/channel.js';
+export type {
+  ChannelMessage,
+  ChannelMessageAuthor,
+  ChannelMessageExternal,
+  ChannelRecord,
+  ChannelType,
+} from './channels/channel.js';
+export { createChannelStore, DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE } from './channels/store.js';
+export type {
+  ChannelReadOptions,
+  ChannelStore,
+  ChannelStoreOptions,
+  CreateChannelGroupInput,
+} from './channels/store.js';
 export { isPersonaBotRecord } from './bots/persona-bot.js';
 export type {
   CreatePersonaBotInput,
   CreatePersonaBotResult,
+  PersonaBotPatch,
   PersonaBotRecord,
   RemovePersonaBotOptions,
+  UpdatePersonaBotResult,
 } from './bots/persona-bot.js';
 export { isValidSlug, MAX_SLUG_LENGTH, SLUG_PATTERN } from './bots/slug.js';
 export { aggregateSessionStates, createBotStateTracker } from './state/bot-state.js';
@@ -46,6 +75,20 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
+export {
+  createDshSessionSource,
+  isInsideWorkspace,
+  SESSION_TITLE_MAX_CHARS,
+  sessionTitle,
+  summarizeSession,
+} from './sessions/source.js';
+export type {
+  BotSessionSource,
+  DshSession,
+  DshSessionEvent,
+  DshSessionStore,
+  SessionSummary,
+} from './sessions/source.js';
 export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './im/identity.js';
 export type {
   BotDomain,

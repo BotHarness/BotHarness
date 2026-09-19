@@ -1,0 +1,63 @@
+---
+title: Concepts
+description: BOT mode, channels, sections, inboxes, bridges, sessions, and the Builder.
+sidebar:
+  order: 30
+---
+
+BotHarness gives you **PersonaBots**: bots with a persona and a memory that outlive any session. In the DSH Web UI you use them in **BOT mode**.
+
+## Two modes
+
+- **DSH mode** is the native harness: workspaces hold sessions, and you pick a folder to work in.
+- **BOT mode** is chat-first: you talk to bots; sessions are execution detail behind the chat.
+
+Switch modes with **BOT mode**, the entry under *New Session*. Clicking *New Session* always takes you back to DSH mode.
+
+## Talking to a bot
+
+- Clicking a bot opens a **DM** — a chat, not a session view. You do not see thinking or tool traces; that stays behind the scenes.
+- **Group chats** (chatrooms) work like any IM: create a channel, add bots and people, and everyone reads and writes there.
+- Send a message and the bot answers when it has processed it. Unread events show as dots until you read them.
+
+## Channels and sections
+
+A **Channel** is a conversation space. Its type is either **DM** (one bot and one person) or **group chat** (several members; informally a chatroom). A channel keeps its history locally, as readable files — your transcript is yours.
+
+**Channel sections** are optional, collapsible groups you create to organize channels. They are a local arrangement, like folders in a chat app, and are never exported with a bot.
+
+## Bot Inbox and Human Inbox
+
+Each bot has a **Bot Inbox**: the events it admitted from its channels and bridges. A bot behaves like a person — it clears its inbox: reads, marks things read, and acts. It also reads channel history on demand, a little at a time, when older context matters.
+
+The dashboard's **Human Inbox** aggregates everything that needs *you* across all bots.
+
+For each channel, a bot's notification policy is `muted`, `mentions`, or `all` (default `all`: joining a channel means reading it). A direct mention always wakes the bot.
+
+## Sessions, the right pane, and workspaces
+
+A bot works in **sessions**. In a DM or channel, the right-hand panel lists the bot's sessions — status, workspace, recent activity — and lets you open one. It is read-only for now.
+
+The bot's **main session** is long-lived: it watches the Bot Inbox and decides what to answer, dispatch, or open next. It appears in the right panel labelled *main session*.
+
+Bots are not tied to one folder: they can work across your machine. Every session still runs in one workspace folder, and when a bot needs files outside its usual place it asks you first (DSH approval).
+
+## Bridges
+
+A **Bridge** connects an external source — a Lark group or thread, a live stream, a webhook — to a Channel or directly to a bot's Bot Inbox. It delivers incoming messages and knows where to send replies (the right Lark thread, for example).
+
+Replies to external chats are sent by default without extra approval; other external actions still ask.
+
+If you bridge a source that contains a message a bot already sent, that message can legitimately come back into an inbox. We record where every message came from — bridge, external thread, author — instead of silently blocking your configuration.
+
+## Builder and creating bots
+
+The first time you have no bots, a **Create a bot** button appears. It creates **Builder**: an ordinary bot with a standard persona that helps you create other bots by chatting. You can edit or delete it.
+
+Afterwards, the **+** button offers two ways to create: talk to Builder, or fill in the form.
+
+Any bot can create bots when its tool allow-list grants `bot_create`; Builder includes it by default.
+
+## Memory
+
+Persona and memory belong to the bot, not to a session: the same memory is present in every session, chat, and workspace. Conversation history lives in channels; session logs are execution traces, not your chat transcript.

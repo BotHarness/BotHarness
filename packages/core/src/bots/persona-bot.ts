@@ -9,11 +9,13 @@ export interface PersonaBotRecord {
   memoryDir?: string;
   workspaces: string[];
   createdAt: string;
+  paused?: boolean;
 }
 
 export interface CreatePersonaBotInput {
   slug: string;
   displayName: string;
+  persona?: string;
   tag?: string;
   description?: string;
   avatar?: string;
@@ -27,6 +29,20 @@ export type CreatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
   | { ok: false; reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' };
 
+export interface PersonaBotPatch {
+  displayName?: string;
+  tag?: string;
+  description?: string;
+  avatar?: string;
+  model?: string;
+  preset?: string;
+  workspaces?: string[];
+}
+
+export type UpdatePersonaBotResult =
+  | { ok: true; record: PersonaBotRecord }
+  | { ok: false; reason: 'not-found' | 'invalid-input' };
+
 export interface RemovePersonaBotOptions {
   purge?: boolean;
 }
@@ -37,6 +53,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   if (record['slug'] !== slug) return false;
   if (typeof record['displayName'] !== 'string') return false;
   if (typeof record['createdAt'] !== 'string') return false;
+  if (record['paused'] !== undefined && typeof record['paused'] !== 'boolean') return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
   for (const key of ['tag', 'description', 'avatar', 'model', 'preset', 'memoryDir'] as const) {

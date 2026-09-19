@@ -1,0 +1,47 @@
+# Native contract
+
+Measured against DSH `0.1.5-rc.2` (`@deepseek-ai/dsh-client-ui-sidebar`, `@deepseek-ai/dsh-client-ui-workspace`) and verified in the running `web-dev` profile. Numbers are CSS pixels from the sidebar's outer left edge.
+
+## Sidebar geometry
+
+| Layer | CSS | Effect |
+| --- | --- | --- |
+| sidebar root | `padding-inline: var(--dsh-sidebar-inline-padding)` (12px) | content starts at 12 |
+| shell `regionArea` (where a `sidebar.workspaces` registrant renders) | `padding-left: 4px; margin-left: -4px` (net 0) and `margin-right: calc(-1 * var(--dsh-sidebar-inline-padding))` | the right inset is the registrant's job; the rail variant zeroes both |
+| registrant root | `padding-right: var(--dsh-sidebar-inline-padding)` | content right edge back to 12 |
+| top-level rows (search, section headers, empty states) | own `padding: … 4px` | 16px on both edges — the symmetric result |
+| list rows | wrap in `list-area`: `margin-right: calc(-1 * var(--dsh-sidebar-inline-padding))`; row `padding: … 8px` | row background bleeds under the scrollbar; text inset 8 |
+
+Shipped reference (extracted): `hHd-Xa_regionArea`, `bhn1Oq_root`, `bhn1Oq_listArea`, `YDXeBa_sessionRow`.
+
+## Tokens
+
+- Three layers: `--dsw-static-*`, `--dsw-alias-*`, `--dsw-specific-*`; dark theme under `body[data-ds-dark-theme]` — never write a theme selector.
+- Surfaces: `--dsw-alias-bg-base`, `--dsw-specific-sidebar-fill`; borders `--dsw-alias-border-l2`; text `--dsw-alias-label-primary|secondary|tertiary`; hover `--dsw-alias-interactive-bg-hover`; selection `--dsw-specific-sidebar-nav-item-active`; states `--dsw-alias-state-business|success|warn|error-primary`.
+- Brand accents live in one `@bh-brand-aliases` block (≤3 entries); the `styles-tokens` test fails on any other `#hex`/`rgb(`/`hsl(`.
+
+## Primitives and icons
+
+- `@deepseek-ai/dsh-client-ui-primitives` is a shell baseline module: value-import it, keep it external in the bundle.
+- Exports used so far: `Input`, `Tag`, `Pill`, `StateDot`, `Tooltip`, and the `Icon*Outline16` glyph set (`IconSearchOutline16`, `IconPlusOutline16`, `IconAgentPresetOutline16`, `IconNewChatOutline16`, `IconFolderOpenOutline16`, `IconChevronDownOutline14`, …). Icons carry `aria-label` on the button because the glyph itself does not.
+- The `Button` export is a 36/28px capsule: wrong geometry for 32px square icon buttons and full-width rows — keep those hand-rolled and styled from tokens.
+
+## Extract the shipped CSS
+
+```bash
+cd /tmp && npm pack @deepseek-ai/dsh-client-ui-workspace@0.1.5-rc.2 --pack-destination /tmp
+mkdir -p /tmp/ui-workspace && tar -xzf /tmp/deepseek-ai-dsh-client-ui-workspace-0.1.5-rc.2.tgz -C /tmp/ui-workspace
+# sidebar bundle already exists at packages/client/node_modules/@deepseek-ai/dsh-client-ui-sidebar/lib/client.js
+```
+
+```js
+// node: print every CSS rule whose selector or body matches a filter
+const fs = require('fs');
+const s = fs.readFileSync('/tmp/ui-workspace/package/lib/client.js', 'utf8');
+const rules = [...s.matchAll(/\.[A-Za-z0-9_\-:\[\] >,+*]{1,80}\{[^{}]{1,260}\}/g)].map((m) => m[0]);
+console.log([...new Set(rules.filter((r) => r.includes('listArea')))].join('\n'));
+```
+
+## Measure the running shell
+
+Use the Puppeteer install from `node_modules/.pnpm/puppeteer@*/node_modules/puppeteer` with a `createRequire` shim, load the DSH web URL, then read `getBoundingClientRect()` + `getComputedStyle()` for the native rows (`新会话`, `设置`) and our elements in one table. The token URL is one-shot per browser: reuse the curl cookie jar or restart `dsh web` for a fresh token before the headless run.
