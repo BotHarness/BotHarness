@@ -1,13 +1,13 @@
 # 客户端桥（Client Bridge）规格
 
-| 项       | 内容                                                                                                  |
-| -------- | ----------------------------------------------------------------------------------------------------- |
-| 版本     | v0.3（M3 本地 Channel 消息面：channels/channelDm/channelCreate/channelMessages/channelSend，无投递）  |
-| 日期     | 2026-09-19                                                                                            |
-| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法）                              |
-| 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/client` ↔ `@botharness/core` 的读模型契约      |
-| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）、ADR-0029 / ADR-0030（Channel 与本地 NDJSON 历史） |
-| 上位规格 | `docs/botharness.md` §6；架构 `docs/architecture/botharness-architecture.md` §8                       |
+| 项       | 内容                                                                                                                      |
+| -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| 版本     | v0.5（桥端点改为 Typert gateway 认领，移除 `/api` interceptor）                                                           |
+| 日期     | 2026-09-19                                                                                                                |
+| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法 + `sessions`）                                     |
+| 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/client` ↔ `@botharness/core` 的读模型契约                          |
+| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）及其 2026-09-19 更新、ADR-0029 / ADR-0030（Channel 与本地 NDJSON 历史） |
+| 上位规格 | `docs/botharness.md` §6；架构 `docs/architecture/botharness-architecture.md` §8                                           |
 
 ## 1. 为什么需要桥
 
@@ -17,9 +17,12 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 ## 2. 传输与信封
 
-- 通道：通用 Connection RPC（共享 `/api`），无需 Typert 代码生成。
-- 客户端调用：`ctx.connection.rpc.call('/api', 'botharness/<method>', payload, signal)`
-- Host 注册：`ctx.connection.rpc.intercept('/api', …)`，或精确路由 `ctx.connection.fetch.register({ path: '/api/…' })`。
+- 通道：通用 Connection RPC（共享 `/api`）。`/api` 路由与其**唯一 interceptor 槽位**归 `@deepseek-ai/dsh-api-gateway`；插件端点必须经 gateway 认领，**不得** `connection.rpc.intercept('/api', …)`（见 #50）。
+- 客户端调用：`ctx.connection.rpc.call('/api', 'botharness/<method>', { args: { …命名参数 } }, signal)`。
+- Host 注册：`BotharnessBridgeService extends TypertRemoteService`（Cordis 服务键 `botharnessBridge`，wire namespace `botharness`），随 `ctx.provide`/Service 生命周期注册；gateway 扫描带 `typertRemote` 绑定的服务与 remote-method descriptor（SRC markers，无构建期 codegen）后认领 `botharness/*`。
+  - 方法参数按**命名 wire 字段**传递（与下表入参同名）；缺省可省（SRC codec 允许 missing），未知字段会被 gateway 拒绝为 `gateway/arguments-invalid`。
+  - 构建链（rolldown/oxc）不 emit 标准装饰器语法，故 descriptor 由 `markRemoteMethods` 直接写入（键 `@deepseek-ai/dsh-typert-protocol/remote-methods`，version 1），格式由 `packages/core/test/bridge-rpc.test.ts` 锁住。
+- 失败映射：方法抛 `RemoteError(code, message, {})`；gateway 原样编码为响应信封的 error 分支，客户端仍按 `{ ok: false, error }` 处理。
 - 响应信封：
 
   ```ts
@@ -47,8 +50,11 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | `botharness/channelCreate`   | `{ name, members }`                                                                                | `{ channel }`                           | 新建群聊 Channel；M3 仅本地                                   |
 | `botharness/channelMessages` | `{ channelId, before?, limit? }`                                                                   | `{ messages }`                          | 历史分页（newest-first，默认 50 / 上限 200）；M3 仅本地       |
 | `botharness/channelSend`     | `{ channelId, body }`                                                                              | `{ message }`                           | 写本地 NDJSON（`author.kind = 'human'`）；M3 无投递           |
+| `botharness/sessions`        | `{ slug }`                                                                                         | `{ sessions: SessionSummary[] }`        | BOT 的会话列表：cwd 落在其 workspace 内；`updatedAt` 新→旧    |
 
 `ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (bot slugs) / botSlug? (dm) / createdAt / updatedAt`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。历史权威是每 Channel 的 `messages.ndjson`（ADR-0030）；M3 的五个 channel 方法只读写本地文件、不做投递，群聊暂不写 BOT 回复（v1.1 Channel 工具）。`before` 是消息 id 游标：返回比该消息更旧的一页。
+
+`SessionSummary` 含 `id / title / cwd / updatedAt`；标题取会话日志里第一条 `user/message` 的文本（无则空串，客户端回退展示），`updatedAt` 取最后一条事件时间（无事件回退 `createdAt`）。`sessions` 只读 DSH Host 当前在册的会话（`ctx.sessions.list()`），按 cwd 是否位于 BOT 的任一 workspace 内过滤；Orchestrator / 主会话标注等数据 v1.1 才有。
 
 `PersonaBotSummary` 含 `slug / displayName / tag? / description? / avatar? / paused? / aggregateState / workspaces / createdAt`；`PersonaBotDetail` 追加 `model? / preset? / memoryDir? / sessions`。`aggregateState` 为五态聚合（六态是展示派生，见 `docs/botharness.md` §3）。委派（delegate）与记忆编辑不在已实现面：前者依赖工位会话，后者复用 `memory_*` 工具语义后另行补方法。
 
@@ -58,14 +64,15 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 - **不做实时推送**：`states.on(...)` 是 Host 进程内 tracker；上游 Remote 事件白名单（`API_REMOTE_FORWARDED_EVENTS`）是第一方静态清单，第三方包无法追加。「六态实时」若被验证为必须，再在 `fetch.register` 的私有路由上做 SSE/长轮询，wire 形状仍走 `botharness/*`。
 - 客户端必须以「读模型可能过期」为前提渲染：加载态、错误态、空态都是一等 UI。
 
-## 5. 为什么不走 Cordis inject / Typert
+## 5. 为什么不走 Cordis inject / 为什么最终走 Typert SRC
 
-| 路径                     | 结论                                                                                         |
-| ------------------------ | -------------------------------------------------------------------------------------------- |
-| `inject(['botharness'])` | 不成立：浏览器与 Host 是两个 Cordis 应用，跨进程没有服务注入                                 |
-| Typert `@Remote`         | 暂缓：需构建期代码生成 + 第一方 assembly；仓库外可复现性未验证；留作 M3.5 安装门通过后的候选 |
-| 直接 `states.on` 推送    | 不成立：转发事件白名单是第一方静态文件，第三方不可扩展                                       |
-| 现在做 SSE               | 暂缓：MVP 需要的是刷新而非实时；私有流在方法面不变的前提下可后加                             |
+| 路径                     | 结论                                                                                                                        |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `inject(['botharness'])` | 不成立：浏览器与 Host 是两个 Cordis 应用，跨进程没有服务注入                                                                |
+| Typert 严格 codegen      | 暂缓：需构建期生成 + 第一方 assembly；仓库外可复现性未验证                                                                  |
+| Typert SRC markers       | 已采用（#50）：`TypertRemoteService` + `typertRemote` 绑定即可被 gateway 认领，无需 codegen；`/api` 单槽位仍归 gateway 所有 |
+| 直接 `states.on` 推送    | 不成立：转发事件白名单是第一方静态文件，第三方不可扩展                                                                      |
+| 现在做 SSE               | 暂缓：MVP 需要的是刷新而非实时；私有流在方法面不变的前提下可后加                                                            |
 
 ## 6. 客户端包与 bundle 约束
 
@@ -87,7 +94,7 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 
 ## 8. 未决
 
-- 十一个桥方法（`list/get/create/update/pause/resume` 与 `channels/channelDm/channelCreate/channelMessages/channelSend`）已实现（`packages/core/src/bridge/`）；前六个只落 `bot.json`/`PERSONA.md`，channel 五个读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson}`（ADR-0030），M3 无投递、群聊 BOT 回复待 v1.1 Channel 工具。
+- 十二个桥方法（`list/get/create/update/pause/resume`、`channels/channelDm/channelCreate/channelMessages/channelSend` 与 `sessions`）已实现（`packages/core/src/bridge/`）；前六个只落 `bot.json`/`PERSONA.md`，channel 五个读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson}`（ADR-0030），`sessions` 读 `ctx.sessions`（仅当前在册会话），M3 无投递、群聊 BOT 回复待 v1.1 Channel 工具。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态实时性等级与私有流（如做）的鉴权与背压。

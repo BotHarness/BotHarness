@@ -1,0 +1,142 @@
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { Context } from '@deepseek-ai/cordis';
+import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol';
+import { afterEach, describe, expect, it } from 'vitest';
+
+import { createBridgeMethods, type BridgeMethods } from '../src/bridge/methods.js';
+import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bridge/rpc.js';
+import { createPersonaBotRegistry } from '../src/bots/registry.js';
+import { createChannelStore } from '../src/channels/store.js';
+import type { BotSessionSource } from '../src/sessions/source.js';
+import { createBotStateTracker } from '../src/state/bot-state.js';
+
+const roots: string[] = [];
+
+afterEach(() => {
+  for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
+});
+
+function setup() {
+  const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-rpc-'));
+  roots.push(root);
+  const registry = createPersonaBotRegistry({ rootDir: root });
+  const channels = createChannelStore({
+    rootDir: join(root, 'channels'),
+    now: () => new Date('2026-09-19T00:00:00.000Z'),
+  });
+  const sessions: BotSessionSource = { list: () => [] };
+  const methods: BridgeMethods = createBridgeMethods({
+    registry,
+    states: createBotStateTracker(),
+    channels,
+    sessions,
+  });
+  const ctx = new Context();
+  const service = registerBridge(ctx, methods);
+  return { root, registry, methods, service };
+}
+
+function parameterNames(method: (...args: never[]) => unknown): string[] {
+  const source = Function.prototype.toString.call(method);
+  const open = source.indexOf('(');
+  const close = source.indexOf(')', open + 1);
+  const body = source.slice(open + 1, close).trim();
+  return body.length === 0 ? [] : body.split(',').map((part) => part.trim());
+}
+
+describe('bridge typert service', () => {
+  it('registers under the gateway service key with the botharness namespace', () => {
+    const { service } = setup();
+
+    expect(service.name).toBe(BRIDGE_SERVICE_KEY);
+    expect(service.typertRemote.service).toBe(service);
+    expect(service.typertRemote.serviceKey).toBe(BRIDGE_SERVICE_KEY);
+    expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
+  });
+
+  it('marks exactly the twelve bridge endpoints for typert claims', () => {
+    const { service } = setup();
+
+    expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
+      'list',
+      'get',
+      'create',
+      'update',
+      'pause',
+      'resume',
+      'channels',
+      'channelDm',
+      'channelCreate',
+      'channelMessages',
+      'channelSend',
+      'sessions',
+    ]);
+  });
+
+  it('keeps every method signature parseable by the gateway SRC resolver', () => {
+    const { service } = setup();
+
+    expect(parameterNames(service.list)).toEqual(['query']);
+    expect(parameterNames(service.get)).toEqual(['slug']);
+    expect(parameterNames(service.create)).toEqual([
+      'slug',
+      'displayName',
+      'persona',
+      'tag',
+      'description',
+      'model',
+      'preset',
+      'workspaces',
+      'avatarSeed',
+    ]);
+    expect(parameterNames(service.update)).toEqual(['slug', 'patch']);
+    expect(parameterNames(service.pause)).toEqual(['slug']);
+    expect(parameterNames(service.resume)).toEqual(['slug']);
+    expect(parameterNames(service.channels)).toEqual([]);
+    expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);
+    expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
+    expect(parameterNames(service.channelMessages)).toEqual(['channelId', 'before', 'limit']);
+    expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
+    expect(parameterNames(service.sessions)).toEqual(['slug']);
+  });
+
+  it('dispatches named arguments into the read model', async () => {
+    const { service, registry } = setup();
+
+    const created = service.create('ada', 'Ada', '# Ada\n', '研究');
+    expect(created.bot).toMatchObject({ slug: 'ada', displayName: 'Ada', tag: '研究' });
+    expect(registry.get('ada')).toBeDefined();
+    expect(service.get('ada').bot.slug).toBe('ada');
+    expect(service.list('ada').bots.map((bot) => bot.slug)).toEqual(['ada']);
+    expect(service.pause('ada').bot.paused).toBe(true);
+    expect(service.resume('ada').bot.paused).toBeUndefined();
+
+    const dm = service.channelDm('ada', 'Ada');
+    expect(dm.channel.id).toBe('dm-ada');
+    expect(service.channels().channels.map((channel) => channel.id)).toEqual(['dm-ada']);
+    const sent = await service.channelSend('dm-ada', 'hello');
+    expect(sent.message.body).toBe('hello');
+    expect(service.channelMessages('dm-ada').messages[0]?.body).toBe('hello');
+    expect(service.sessions('ada').sessions).toEqual([]);
+  });
+
+  it('throws RemoteError failures so the gateway keeps code and message on the wire', () => {
+    const { service } = setup();
+
+    try {
+      service.get('missing');
+      expect.unreachable('service.get should throw');
+    } catch (error) {
+      expect(error).toMatchObject({
+        name: 'RemoteError',
+        isDSHRemoteError: true,
+        code: 'not-found',
+        message: 'unknown PersonaBot: missing',
+        details: {},
+      });
+    }
+  });
+});

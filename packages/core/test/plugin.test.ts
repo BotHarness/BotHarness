@@ -1,70 +1,64 @@
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-import type { Context } from '@deepseek-ai/cordis';
+import { Context } from '@deepseek-ai/cordis';
+import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol';
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it, vi } from 'vitest';
 
 import { apply, inject, name, type PersonaBotRegistry } from '../src/index.js';
 import { createTempRoot } from './helpers.js';
 
-interface StubContext {
+interface Stubs {
   tools: { register: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
-  provide: ReturnType<typeof vi.fn>;
-  effect: ReturnType<typeof vi.fn>;
-  inject: ReturnType<typeof vi.fn>;
-  connection: { rpc: { intercept: ReturnType<typeof vi.fn> } };
+  sessions: { list: ReturnType<typeof vi.fn> };
 }
 
-function createStubContext(): StubContext {
-  const ctx: StubContext = {
+function createStubContext(): { ctx: Context; stubs: Stubs } {
+  const ctx = new Context();
+  const stubs: Stubs = {
     tools: { register: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
-    provide: vi.fn(),
-    effect: vi.fn((callback: () => unknown) => callback()),
-    inject: vi.fn(),
-    connection: { rpc: { intercept: vi.fn(() => async () => undefined) } },
+    sessions: { list: vi.fn(() => []) },
   };
-  ctx.inject.mockImplementation((_deps: string[], callback: (scoped: StubContext) => void) => {
-    callback(ctx);
-  });
-  return ctx;
+  ctx.provide('tools', stubs.tools);
+  ctx.provide('systemPrompt', stubs.systemPrompt);
+  ctx.provide('sessions', stubs.sessions);
+  return { ctx, stubs };
 }
 
 describe('plugin entry', () => {
   it('declares its identity', () => {
     expect(name).toBe('botharness-core');
-    expect(inject).toEqual(['tools', 'systemPrompt']);
+    expect(inject).toEqual(['tools', 'systemPrompt', 'sessions']);
   });
 
   it('registers nothing when disabled', () => {
-    const ctx = createStubContext();
+    const { ctx, stubs } = createStubContext();
 
-    apply(ctx as unknown as Context, { enabled: false });
+    apply(ctx, { enabled: false });
 
-    expect(ctx.provide).not.toHaveBeenCalled();
-    expect(ctx.tools.register).not.toHaveBeenCalled();
-    expect(ctx.systemPrompt.section).not.toHaveBeenCalled();
+    expect(ctx.get('botharness')).toBeUndefined();
+    expect(ctx.get('botharnessBridge')).toBeUndefined();
+    expect(stubs.tools.register).not.toHaveBeenCalled();
+    expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
   });
 
   it('provides the core and registers memory tools', () => {
-    const ctx = createStubContext();
+    const { ctx, stubs } = createStubContext();
 
-    apply(ctx as unknown as Context, { enabled: true });
+    apply(ctx, { enabled: true });
 
-    expect(ctx.provide).toHaveBeenCalledTimes(1);
-    const [serviceName, service] = ctx.provide.mock.calls[0] ?? [];
-    expect(serviceName).toBe('botharness');
-    expect(service).toMatchObject({
+    expect(ctx.get('botharness')).toMatchObject({
       rootDir: expect.stringContaining('botharness'),
       registry: expect.anything(),
       states: expect.anything(),
       memory: expect.anything(),
       channels: expect.anything(),
     });
-    expect(ctx.tools.register).toHaveBeenCalledTimes(4);
-    expect(ctx.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([
+    expect(stubs.tools.register).toHaveBeenCalledTimes(4);
+    expect(stubs.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([
       'memory_list',
       'memory_read',
       'memory_search',
@@ -73,12 +67,12 @@ describe('plugin entry', () => {
   });
 
   it('registers persona and memory-tree prompt sections in order', () => {
-    const ctx = createStubContext();
+    const { ctx, stubs } = createStubContext();
 
-    apply(ctx as unknown as Context, { enabled: true });
+    apply(ctx, { enabled: true });
 
-    expect(ctx.systemPrompt.section).toHaveBeenCalledTimes(2);
-    const sections = ctx.systemPrompt.section.mock.calls.map((call) => call[0]);
+    expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
+    const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
     const persona = sections.find((section) => section?.name === 'botharness:persona');
     const tree = sections.find((section) => section?.name === 'botharness:memory-tree');
     expect(persona?.order).toBeLessThan(tree?.order ?? 0);
@@ -92,16 +86,30 @@ describe('plugin entry', () => {
     expect(tree?.text({ agent: { session: { header: { cwd: '/no/such/workspace' } } } })).toBe('');
   });
 
-  it('registers the client bridge on the connection service', () => {
-    const ctx = createStubContext();
+  it('registers the client bridge as a typert service on the gateway namespace', () => {
+    const { ctx } = createStubContext();
 
-    apply(ctx as unknown as Context, { enabled: true });
+    apply(ctx, { enabled: true });
 
-    expect(ctx.connection.rpc.intercept).toHaveBeenCalledTimes(1);
-    const [channel, matches] = ctx.connection.rpc.intercept.mock.calls[0] ?? [];
-    expect(channel).toBe('/api');
-    expect(matches('botharness/list')).toBe(true);
-    expect(matches('other/list')).toBe(false);
+    const bridge = ctx.get('botharnessBridge');
+    expect(bridge).toBeDefined();
+    expect(bridge?.typertRemote.namespace).toBe('botharness');
+    expect(
+      remoteMethods(bridge as object).map((marker) => marker.exportName ?? marker.method),
+    ).toEqual([
+      'list',
+      'get',
+      'create',
+      'update',
+      'pause',
+      'resume',
+      'channels',
+      'channelDm',
+      'channelCreate',
+      'channelMessages',
+      'channelSend',
+      'sessions',
+    ]);
   });
 
   it('wires the memory store into the registered memory tools and tree section', async () => {
@@ -110,14 +118,14 @@ describe('plugin entry', () => {
     mkdirSync(workspace);
     vi.stubEnv('DSH_HOME', home);
     try {
-      const ctx = createStubContext();
-      apply(ctx as unknown as Context, { enabled: true });
+      const { ctx, stubs } = createStubContext();
+      apply(ctx, { enabled: true });
 
-      const core = ctx.provide.mock.calls[0]?.[1] as { registry: PersonaBotRegistry } | undefined;
+      const core = ctx.get('botharness') as { registry: PersonaBotRegistry } | undefined;
       expect(core).toBeDefined();
       core?.registry.create({ slug: 'local-bot', displayName: 'Local', workspaces: [workspace] });
 
-      const tools = ctx.tools.register.mock.calls.map(
+      const tools = stubs.tools.register.mock.calls.map(
         (call) => call[0] as ToolDefinition | undefined,
       );
       const write = tools.find((tool) => tool?.name === 'memory_write');
@@ -138,7 +146,7 @@ describe('plugin entry', () => {
       );
       expect(await read?.execute({ path: 'confidences.md' }, exec)).toBe('tea over coffee\n');
 
-      const sections = ctx.systemPrompt.section.mock.calls.map((call) => call[0]);
+      const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const tree = sections.find((section) => section?.name === 'botharness:memory-tree');
       expect(tree?.text({ agent: exec.agent })).toContain('confidences.md — Preference');
     } finally {

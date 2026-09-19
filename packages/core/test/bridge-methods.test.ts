@@ -5,9 +5,9 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { createBridgeRpcHandler } from '../src/bridge/rpc.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
+import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 
 const roots: string[] = [];
@@ -20,18 +20,19 @@ function tickingNow(): () => Date {
   };
 }
 
-function setup() {
+function setup(sessionSummaries: SessionSummary[] = []) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
   const states = createBotStateTracker();
   const channels = createChannelStore({ rootDir: join(root, 'channels'), now: tickingNow() });
+  const sessions: BotSessionSource = { list: () => sessionSummaries };
   return {
     root,
     registry,
     states,
     channels,
-    methods: createBridgeMethods({ registry, states, channels }),
+    methods: createBridgeMethods({ registry, states, channels, sessions }),
   };
 }
 
@@ -416,59 +417,68 @@ describe('bridge methods', () => {
     ]);
   });
 
-  it('maps endpoints and rejects unknown ones through the RPC handler', async () => {
-    const { registry, methods } = setup();
-    registry.create({ slug: 'ada', displayName: 'Ada' });
-    const handler = createBridgeRpcHandler(methods);
-    const signal = new AbortController().signal;
-
-    const listed = await handler('botharness/list', {}, signal);
-    const created = await handler('botharness/create', { slug: 'bob', displayName: 'Bob' }, signal);
-    const updated = await handler(
-      'botharness/update',
-      { slug: 'bob', patch: { tag: 'x' } },
-      signal,
-    );
-    const paused = await handler('botharness/pause', { slug: 'bob' }, signal);
-    const resumed = await handler('botharness/resume', { slug: 'bob' }, signal);
-    const channels = await handler('botharness/channels', {}, signal);
-    const dm = await handler('botharness/channelDm', { slug: 'bob', displayName: 'Bob' }, signal);
-    const group = await handler(
-      'botharness/channelCreate',
-      { name: 'Team', members: ['bob'] },
-      signal,
-    );
-    const sent = await handler(
-      'botharness/channelSend',
-      { channelId: 'dm-bob', body: 'hi' },
-      signal,
-    );
-    const messages = await handler('botharness/channelMessages', { channelId: 'dm-bob' }, signal);
-    const unknown = await handler('botharness/nope', {}, signal);
-
-    expect(listed.ok && Array.isArray((listed.value as { bots: unknown[] }).bots)).toBe(true);
-    expect(created.ok && (created.value as { bot: { slug: string } }).bot.slug).toBe('bob');
-    expect(updated.ok && (updated.value as { bot: { tag?: string } }).bot.tag).toBe('x');
-    expect(paused.ok && (paused.value as { bot: { paused?: boolean } }).bot.paused).toBe(true);
-    expect(
-      resumed.ok && (resumed.value as { bot: { paused?: boolean } }).bot.paused,
-    ).toBeUndefined();
-    expect(channels.ok && Array.isArray((channels.value as { channels: unknown[] }).channels)).toBe(
-      true,
-    );
-    expect(dm.ok && (dm.value as { channel: { id: string } }).channel.id).toBe('dm-bob');
-    expect(group.ok && (group.value as { channel: { id: string } }).channel.id).toBe('group-team');
-    expect(sent.ok && (sent.value as { message: { body: string } }).message.body).toBe('hi');
-    expect(
-      messages.ok && (messages.value as { messages: { body: string }[] }).messages[0]?.body,
-    ).toBe('hi');
-    expect(unknown).toEqual({
-      ok: false,
-      error: {
-        code: 'not-found',
-        message: 'unknown bridge endpoint: botharness/nope',
-        details: {},
+  it('lists sessions whose cwd sits inside the bot workspaces, newest first', () => {
+    const summaries: SessionSummary[] = [
+      {
+        id: 'session-1',
+        title: 'older',
+        cwd: '/srv/ada',
+        updatedAt: '2026-09-19T01:00:00.000Z',
       },
+      {
+        id: 'session-2',
+        title: 'newer',
+        cwd: '/srv/ada/sub',
+        updatedAt: '2026-09-19T03:00:00.000Z',
+      },
+      {
+        id: 'session-3',
+        title: 'outside',
+        cwd: '/srv/other',
+        updatedAt: '2026-09-19T04:00:00.000Z',
+      },
+      {
+        id: 'session-4',
+        title: 'prefix trap',
+        cwd: '/srv/ada-extra',
+        updatedAt: '2026-09-19T05:00:00.000Z',
+      },
+    ];
+    const { methods } = setup(summaries);
+    methods.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/ada/'] });
+
+    const result = methods.sessions({ slug: 'ada' });
+
+    expect(result.ok && result.value.sessions.map((session) => session.id)).toEqual([
+      'session-2',
+      'session-1',
+    ]);
+  });
+
+  it('returns an empty session list for a bot without workspaces', () => {
+    const { methods } = setup([
+      {
+        id: 'session-1',
+        title: 'anywhere',
+        cwd: '/srv/ada',
+        updatedAt: '2026-09-19T01:00:00.000Z',
+      },
+    ]);
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    expect(methods.sessions({ slug: 'ada' })).toEqual({ ok: true, value: { sessions: [] } });
+  });
+
+  it('rejects malformed or unknown session reads', () => {
+    const { methods } = setup();
+
+    expect(methods.sessions({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'slug is required' },
+    });
+    expect(methods.sessions({ slug: 'missing' })).toEqual({
+      ok: false,
+      error: { code: 'not-found', message: 'unknown PersonaBot: missing' },
     });
   });
 });

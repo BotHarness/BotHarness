@@ -14,11 +14,12 @@ import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
+import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 
 export const name = 'botharness-core';
 
-export const inject = ['tools', 'systemPrompt'];
+export const inject = ['tools', 'systemPrompt', 'sessions'];
 
 export const PERSONA_SECTION_ORDER = 10400;
 export const MEMORY_TREE_SECTION_ORDER = 10500;
@@ -73,6 +74,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       registry: core.registry,
       states: core.states,
       channels: core.channels,
+      sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
     }),
   );
 

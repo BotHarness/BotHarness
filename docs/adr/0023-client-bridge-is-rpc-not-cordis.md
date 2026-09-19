@@ -18,3 +18,7 @@ The Web Client is a separate browser Cordis application assembled independently 
 - `@botharness/client` needs its own Loader entry and `dsh.client` manifest; DSH's shared client build preset is unpublished, so the lazy-CJS bundle (`window.__ModuleLoader__.load`) is hand-rolled — the M3 top engineering risk.
 - The browser half treats every RPC result as a plain value and renders loading/error states; no Host object graph leaks into React props.
 - Evidence: `docs/research/2026-09-18-dsh-client-ui-and-docs-ia.md` (§1.4, §1.5, §2).
+
+## Update (2026-09-19) — registration goes through the Typert gateway
+
+`ctx.connection.rpc.intercept('/api', …)` squats the single interceptor slot owned by `@deepseek-ai/dsh-api-gateway`, so every native API 404s while `botharness/*` keeps working (#50). The Host half now registers `BotharnessBridgeService` — a `TypertRemoteService` (Cordis key `botharnessBridge`, wire namespace `botharness`) with SRC remote-method markers — and the gateway claims `botharness/*` from the typert registry; no build-time codegen. The wire contract keeps its shape with a Typert argument envelope: the client calls `ctx.connection.rpc.call('/api', 'botharness/<method>', { args: { …named arguments } }, signal)`, and failures ride `RemoteError` back into the same `{ ok: false, error }` branch. The rest of this decision is unchanged.

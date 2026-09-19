@@ -18,7 +18,12 @@ export type {
   PersonaBotDetail,
   PersonaBotSummary,
 } from './bridge/methods.js';
-export { BRIDGE_ENDPOINT_PREFIX, createBridgeRpcHandler, registerBridge } from './bridge/rpc.js';
+export {
+  BRIDGE_NAMESPACE,
+  BRIDGE_SERVICE_KEY,
+  BotharnessBridgeService,
+  registerBridge,
+} from './bridge/rpc.js';
 export { createPersonaBotRegistry } from './bots/registry.js';
 export type { PersonaBotRegistry, PersonaBotRegistryOptions } from './bots/registry.js';
 export {
@@ -70,6 +75,20 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
+export {
+  createDshSessionSource,
+  isInsideWorkspace,
+  SESSION_TITLE_MAX_CHARS,
+  sessionTitle,
+  summarizeSession,
+} from './sessions/source.js';
+export type {
+  BotSessionSource,
+  DshSession,
+  DshSessionEvent,
+  DshSessionStore,
+  SessionSummary,
+} from './sessions/source.js';
 export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './im/identity.js';
 export type {
   BotDomain,
