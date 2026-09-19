@@ -30,38 +30,208 @@ export const CSS = `
      （= --dsh-sidebar-inline-padding，12px）。外层 regionArea 已抵消 sidebar 的右
      侧 padding 并给 4px 左衬（见 hHd-Xa_regionArea）；顶层内容再补 4px 左衬即与
      原生 sectionHeader / 新会话行（20px）对齐。 */
-  padding: 6px var(--dsh-sidebar-inline-padding) 4px 0;
+  padding: 0 var(--dsh-sidebar-inline-padding) 4px 0;
 }
 .bh-region-rail {
   padding: 0;
 }
 
-.bh-search-row {
+/* 原生 工作区 sectionHeader 模式（ui-workspace WorkspaceBrowser.module.css）：
+   36px 高、gap 4、左衬 4、上下 margin 2/4；原生 header 还向内容右缘外挂 4px
+   （margin-right: -4px），但最右侧按钮仍停在内容右缘（实测 280px 侧栏里
+   添加按钮右缘 268），因为原生 header 尾部还有一个占掉 gap 的调用流锚点。
+   这里用 padding-right: 4px 复现同一条可见边，不再多一个尾部节点。 */
+.bh-header {
+  flex: none;
   display: flex;
-  gap: 6px;
   align-items: center;
-  margin-bottom: 10px;
+  justify-content: flex-end;
+  gap: 4px;
+  height: 36px;
+  box-sizing: border-box;
   padding: 0 4px;
+  margin: 2px -4px 4px 0;
+  border-radius: 12px;
+  overflow: hidden;
+  color: var(--dsw-alias-label-tertiary);
 }
-.bh-search-input {
-  flex: 1;
+.bh-header-label {
+  flex: none;
+  max-width: 45%;
   min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 14px;
+  line-height: 20px;
+  transition:
+    max-width 180ms var(--ds-ease-in-out),
+    margin-right 180ms var(--ds-ease-in-out),
+    opacity 120ms var(--ds-ease-in-out),
+    transform 180ms var(--ds-ease-in-out),
+    visibility 0s linear;
 }
-.bh-icon-btn {
-  width: 32px;
-  height: 32px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
-  background: var(--dsw-alias-button-elevated-fill);
+.bh-header-label-hidden {
+  max-width: 0;
+  margin-right: -4px;
+  opacity: 0;
+  transform: translateX(-4px);
+  visibility: hidden;
+}
+.bh-search-slot {
+  flex: 1;
+  max-width: 28px;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  margin-left: auto;
+  box-sizing: border-box;
+  transition: max-width 180ms var(--ds-ease-in-out);
+}
+.bh-search-slot-open {
+  max-width: 100%;
+}
+.bh-search {
+  flex: none;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  height: 28px;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  cursor: text;
   color: var(--dsw-alias-label-secondary);
-  cursor: pointer;
+  overflow: hidden;
+  transition:
+    width 180ms var(--ds-ease-in-out),
+    padding 180ms var(--ds-ease-in-out),
+    border-color 180ms var(--ds-ease-in-out);
+}
+.bh-search-open {
+  width: calc(100% + 4px);
+  height: 30px;
+  margin-inline: -2px;
+  padding-right: 4px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 10px;
+  color: var(--dsw-alias-label-caption);
+}
+.bh-search-btn {
+  flex: none;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: inherit;
+}
+.bh-search-open .bh-search-btn {
+  height: 30px;
+}
+.bh-search-btn:hover {
+  background: var(--bh-hover);
+}
+.bh-search-open .bh-search-btn:hover {
+  background: transparent;
+}
+.bh-search-input {
+  flex: 1;
+  width: 0;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  opacity: 0;
+  pointer-events: none;
+  font: inherit;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-primary);
+  transition: opacity 120ms var(--ds-ease-in-out);
+}
+.bh-search-open .bh-search-input {
+  margin-left: -2px;
+  opacity: 1;
+  pointer-events: auto;
+}
+.bh-search-input::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-clear-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-clear-btn:hover {
+  background: var(--bh-hover);
+}
+.bh-header-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 60px;
+  overflow: hidden;
+  transition:
+    max-width 180ms var(--ds-ease-in-out),
+    opacity 120ms var(--ds-ease-in-out),
+    transform 180ms var(--ds-ease-in-out);
+}
+.bh-header-actions-hidden {
+  max-width: 0;
+  opacity: 0;
+  transform: translateX(4px);
+  visibility: hidden;
+  pointer-events: none;
+}
+.bh-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
 }
 .bh-icon-btn:hover {
   background: var(--bh-hover);
+}
+
+/* 原生侧栏面板行占满内容盒（ui-sidebar .panelRow width:100%），而原生
+   新会话行每侧内收 2px（.newSession margin: 0 2px 8px）。面板行由外壳渲染，
+   我们只注入图标，因此用 :has() 认领带本插件图标的行并对齐同一组
+   horizontal insets；active 时同一条行内命中层把再次点击变成退出模式。 */
+button:has(.bh-panel-glyph) {
+  position: relative;
+  width: auto;
+  margin-inline: 2px;
+}
+.bh-panel-glyph {
+  display: inline-flex;
+}
+.bh-panel-glyph-hit {
+  position: absolute;
+  inset: 0;
 }
 
 .bh-pinned-grid {
