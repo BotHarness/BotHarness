@@ -1,14 +1,6 @@
-import type { StateDotState } from '@deepseek-ai/dsh-client-ui-primitives';
+import { relativeTime, type StateDotState } from '@deepseek-ai/dsh-client-ui-primitives';
 
 export type BotState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'idle';
-
-export const STATE_ORDER: readonly BotState[] = [
-  'thinking',
-  'working',
-  'waiting',
-  'blocked',
-  'idle',
-];
 
 export const STATE_LABELS: Record<BotState, string> = {
   thinking: '思考中',
@@ -16,14 +8,6 @@ export const STATE_LABELS: Record<BotState, string> = {
   waiting: '需要确认',
   blocked: '阻塞',
   idle: '空闲',
-};
-
-export const STATE_COLORS: Record<BotState, string> = {
-  thinking: 'var(--dsw-alias-state-business-primary)',
-  working: 'var(--dsw-alias-state-success-primary)',
-  waiting: 'var(--dsw-alias-state-warn-primary)',
-  blocked: 'var(--dsw-alias-state-error-primary)',
-  idle: 'var(--dsw-alias-label-tertiary)',
 };
 
 const STATE_DOTS: Record<BotState, StateDotState> = {
@@ -52,6 +36,20 @@ export function needsYou(state: BotState): boolean {
   return state === 'waiting' || state === 'blocked';
 }
 
-export function stateLabel(value: string | undefined): string {
-  return STATE_LABELS[toBotState(value)];
+export function formatRelativeTime(at: number, now: number): string {
+  const { unit, n } = relativeTime(at, now);
+  switch (unit) {
+    case 'now':
+      return '刚刚';
+    case 'minutes':
+      return `${n} 分钟前`;
+    case 'hours':
+      return `${n} 小时前`;
+    case 'days':
+      return `${n} 天前`;
+    case 'months':
+      return `${n} 个月前`;
+    case 'years':
+      return `${n} 年前`;
+  }
 }

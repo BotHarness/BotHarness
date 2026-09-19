@@ -1,18 +1,21 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
-import type { ILayout, MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
+import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
-import { BotModeToggle, BotSidebar } from './bot-sidebar.js';
+import { createActions, type BridgeActions } from './actions.js';
 import { BotMain, BotPanel } from './bot-main.js';
-import { createBridgeCall, loadBots } from './bridge.js';
+import { BotPanelIcon, BotSidebar } from './bot-sidebar.js';
+import { createBridgeCall } from './bridge.js';
+import { registerModeShadow } from './mode.js';
+import { defaultStorage, loadRosterConfig } from './roster-config.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers', 'layout'];
+export const inject = ['slots', 'connection', 'inputTriggers'];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
@@ -27,62 +30,29 @@ function installStyles(): () => void {
   };
 }
 
-function toggleMode(ctx: ClientContext): void {
-  const next = store.getSnapshot().mode === 'bot' ? 'dsh' : 'bot';
-  const layout = (ctx as unknown as { layout?: ILayout }).layout;
-  if (layout === undefined) {
-    store.setMode(next);
-    return;
-  }
-  layout.selectPanel(next === 'bot' ? PANEL_ID : null);
-}
-
-function registerModeShadow(
-  ctx: ClientContext,
-  name: 'sidebar.workspaces' | 'main',
-  register: () => () => void,
-): void {
-  ctx.slots.inject(name, () => {
-    let dispose: (() => void) | undefined;
-    const reconcile = (): void => {
-      if (store.getSnapshot().mode === 'bot') {
-        if (dispose === undefined) dispose = register();
-      } else if (dispose !== undefined) {
-        dispose();
-        dispose = undefined;
-      }
-    };
-    const unsubscribe = store.subscribe(reconcile);
-    reconcile();
-    return () => {
-      unsubscribe();
-      dispose?.();
-      dispose = undefined;
-    };
-  });
-}
-
 export function apply(ctx: ClientContext): void {
   const call = createBridgeCall(ctx);
+  const actions: BridgeActions = createActions(call, store);
 
   ctx.effect(installStyles, 'botharness: client styles');
   ctx.effect(() => {
+    store.setConfig(loadRosterConfig(defaultStorage()));
     const controller = new AbortController();
-    void store.load((signal) => loadBots(call, signal), controller.signal);
+    void actions.load(controller.signal);
     return () => {
       controller.abort();
     };
   }, 'botharness: roster load');
 
-  ctx.slots.inject('sidebar.footer.action', () =>
+  ctx.slots.inject('sidebar.panellist', () =>
     ctx.slots.register(
       {
-        name: 'sidebar.footer.action',
-        id: 'botharness-mode',
-        order: 100,
-        inject: () => ({ toggleMode: () => toggleMode(ctx) }),
+        name: 'sidebar.panellist',
+        id: PANEL_ID,
+        order: 10,
+        label: 'BOT 模式',
       },
-      BotModeToggle,
+      BotPanelIcon,
     ),
   );
 
@@ -91,19 +61,36 @@ export function apply(ctx: ClientContext): void {
       {
         name: 'main',
         key: PANEL_ID,
+        inject: () => ({ actions }),
       },
       BotPanel,
     ),
   );
 
-  registerModeShadow(ctx, 'sidebar.workspaces', () =>
-    ctx.slots.register({ name: 'sidebar.workspaces', priority: -100 }, BotSidebar),
+  registerModeShadow(
+    ctx,
+    'sidebar.workspaces',
+    () =>
+      ctx.slots.register(
+        { name: 'sidebar.workspaces', priority: -100, inject: () => ({ actions }) },
+        BotSidebar,
+      ),
+    store,
   );
-  registerModeShadow(ctx, 'main', () =>
-    ctx.slots.register(
-      { name: 'main', key: 'conversation' as MainPanelId, priority: -100 },
-      BotMain,
-    ),
+  registerModeShadow(
+    ctx,
+    'main',
+    () =>
+      ctx.slots.register(
+        {
+          name: 'main',
+          key: 'conversation' as MainPanelId,
+          priority: -100,
+          inject: () => ({ actions }),
+        },
+        BotMain,
+      ),
+    store,
   );
 
   const mention: InputTriggerSource = {

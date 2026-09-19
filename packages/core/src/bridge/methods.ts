@@ -9,6 +9,11 @@ import type {
 } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { isValidSlug } from '../bots/slug.js';
+import {
+  isInsideWorkspace,
+  type BotSessionSource,
+  type SessionSummary,
+} from '../sessions/source.js';
 import type {
   AggregatedState,
   BotStateSnapshot,
@@ -54,12 +59,14 @@ export interface BridgeMethods {
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
+  sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
 }
 
 export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
   states: BotStateTracker;
   channels: ChannelStore;
+  sessions: BotSessionSource;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -347,6 +354,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const appended = await deps.channels.appendMessage(channelId, message);
       if (appended === undefined) return unknownChannel(channelId);
       return { ok: true, value: { message: appended } };
+    },
+    sessions(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      const record = deps.registry.get(slug);
+      if (record === undefined) return unknownBot(slug);
+      const workspaces = record.workspaces;
+      const sessions = deps.sessions
+        .list()
+        .filter((session) =>
+          workspaces.some((workspace) => isInsideWorkspace(session.cwd, workspace)),
+        )
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      return { ok: true, value: { sessions } };
     },
   };
 }
