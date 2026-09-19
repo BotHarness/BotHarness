@@ -184,6 +184,7 @@ dsh --profile <profile>            # 启动；浏览器打开 dsh web 进入「�
 
 - 来源：[mattpocock/skills](https://github.com/mattpocock/skills)（37 个技能，MIT）——安装于 `.agents/skills/`，`.claude/skills/` 为符号链接；`skills-lock.json` 锁定来源与哈希。
 - 更新：`npx skills@latest update`。**勿手动格式化这些第三方文件**（oxfmt/oxlint 已忽略 `.agents`、`.claude`、`agent`）。
+- 首发技能 **`dsh-plugin-dev`**（全栈 DSH 插件开发：host/client、槽位、RPC、构建与打包）——本仓 `.agents/skills/` 为 canonical，镜像仓 [`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) 供一键安装（`npx skills add BotHarness/dsh-skill`）；站点渲染为 `botharness.ai/dsh`（DSH Dev Docs）。发布 `pnpm sync:skill` + tag；出处/版本/时间见 skill 的 Provenance（ADR-0033）。
 - 技能初始化（对应 `setup-matt-pocock-skills`）：
   - Issue tracker：**GitHub Issues**（`BotHarness/BotHarness`，`gh` CLI；PR 不作 triage 入口）——见 `docs/agents/issue-tracker.md`
   - Triage 标签：默认五角色（`needs-triage` / `needs-info` / `ready-for-agent` / `ready-for-human` / `wontfix`）——见 `docs/agents/triage-labels.md`

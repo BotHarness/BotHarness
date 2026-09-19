@@ -15,6 +15,12 @@ export const collections = {
         // Chinese source. The root route renders these with the "not
         // translated yet" banner.
         untranslated: z.boolean().optional(),
+        // DSH Dev Docs (`dsh/**`): provenance of the dsh-plugin-dev skill the
+        // page was generated from. Rendered as a provenance bar by DocsLayout.
+        skillVersion: z.string().optional(),
+        verifiedAgainst: z.string().optional(),
+        upstreamSha: z.string().optional(),
+        verifiedAt: z.string().optional(),
       },
     }),
   ),
@@ -30,6 +36,10 @@ export const collections = {
         // Mirror of `docs`: set on a `/zh` page that only exists in English
         // (rare). The `/zh` route renders these with the Chinese notice.
         untranslated: z.boolean().optional(),
+        skillVersion: z.string().optional(),
+        verifiedAgainst: z.string().optional(),
+        upstreamSha: z.string().optional(),
+        verifiedAt: z.string().optional(),
       },
     }),
   ),
