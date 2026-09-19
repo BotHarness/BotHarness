@@ -57,3 +57,7 @@ packages/deepseekbot deepseekbot        # bundle + app (later)
 ```
 
 The M1 scaffold (plugin entry, workspace→bot resolution) now lives in `packages/core`; the resolver is kept as the IM binding helper.
+
+## License
+
+MIT — see [LICENSE](./LICENSE); third-party works distributed inside the client bundle are listed in [packages/client/THIRD_PARTY_NOTICES.md](./packages/client/THIRD_PARTY_NOTICES.md).
