@@ -1,13 +1,13 @@
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
-  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
-  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  O -->|"list / inspect"| Dir["Durable Assignment Directory"]
+  O -->|"create_assignment"| Gate{"Global active Assignments < limit?<br/>default 3"}
   Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
-  Gate -- "yes" --> Runtime["BotWork Runtime"]
-  O -->|"send_work_request / stop_work"| Runtime
-  Runtime <--> W1["Independent Work Session A"]
-  Runtime <--> W2["Independent Work Session B"]
-  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  Gate -- "yes" --> Runtime["Assignment Runtime"]
+  O -->|"send_assignment_request / stop_assignment"| Runtime
+  Runtime <--> W1["Independent Assignment Session A"]
+  Runtime <--> W2["Independent Assignment Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
   W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
   Report --> Inbox
   Notice --> Inbox

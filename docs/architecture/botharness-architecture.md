@@ -1,10 +1,10 @@
 # BotHarness 架构与数据流
 
-BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久身份：**PersonaBot**。PersonaBot 的人格与 Memory 跨 Session 延续；它用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Work Session。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Work Directory、委派和 IM 接入。
+BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久身份：**PersonaBot**。PersonaBot 的人格与 Memory 跨 Session 延续；它用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Assignment Session。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Assignment Directory、委派和 IM 接入。
 
-本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、BotWork Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-20。
+本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、Assignment Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-20。
 
-产品术语以根目录 [`CONTEXT.md`](/zh/dev/design/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/design/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Work 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
+产品术语以根目录 [`CONTEXT.md`](/zh/dev/design/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/design/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Assignment 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
 
 迁移阶段保持可验证：#66 的 `botharness_roster` 是当前 roster 权威；#79 只先建立 `botharness.db` owner，#80 才将 roster 与 Session ownership 单向迁入。目标图表示迁移完成后的所有权，不表示运行时现在已经双写两套存储。
 
@@ -18,20 +18,20 @@ flowchart LR
   External["Feishu / Lark<br/>webhook / future providers"]
 
   subgraph Browser["DSH Web Client"]
-    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Assignments · Settings"]
   end
 
   subgraph Host["DSH Host · single profile writer"]
     API["Client Bridge RPC"]
     Identity["PersonaBot & Memory"]
     Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
-    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Assignments["Assignment Runtime<br/>Orchestrator · Assignment Directory"]
     Transfer["Portability<br/>Export · Backup · Restore"]
     DB[("botharness.db")]
   end
 
   subgraph DSH["DSH-owned runtime"]
-    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Assignment Sessions · Subagent"]
     Credentials["Credentials · profile settings"]
   end
 
@@ -40,15 +40,15 @@ flowchart LR
   UI <--> API
   API --> Identity
   API --> Messaging
-  API --> BotWork
+  API --> Assignments
   API --> Transfer
   Identity --> DB
   Messaging --> DB
-  BotWork --> DB
+  Assignments --> DB
   Transfer --> DB
   Identity <--> Sessions
-  Messaging --> BotWork
-  BotWork <--> Sessions
+  Messaging --> Assignments
+  Assignments <--> Sessions
   Messaging -.-> Credentials
   Transfer -.-> Sessions
 ```
@@ -66,7 +66,7 @@ flowchart TB
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
     Memory["Memory<br/>files · context delivery · tools"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
-    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
     Views["Read models<br/>RPC · UI projections"]
   end
@@ -75,19 +75,19 @@ flowchart TB
   Root --> Bots
   Root --> Memory
   Root --> Msg
-  Root --> Work
+  Root --> Assignments
   Root --> Portable
   Root --> Views
   DB --> Bots
   DB --> Msg
-  DB --> Work
+  DB --> Assignments
   DB --> Portable
   Bots --> Memory
-  Bots --> Work
-  Msg --> Work
+  Bots --> Assignments
+  Msg --> Assignments
   Bots --> Views
   Msg --> Views
-  Work --> Views
+  Assignments --> Views
   Portable --> Views
 ```
 
@@ -96,7 +96,7 @@ flowchart TB
 | PersonaBot  | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容    |
 | Memory      | `PERSONA.md`、Memory files、context assembly contract                                                   | Inbox 内容、自动蒸馏                  |
 | Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
-| BotWork     | Work Directory、Work Request/Delivery Intent、capacity admission、report/lifecycle routing              | DSH transcript、Subagent runtime      |
+| Assignments | Assignment Directory、Assignment Request/Delivery Intent、capacity admission、report/lifecycle routing  | DSH transcript、Subagent runtime      |
 | Portability | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式 |
 | Read models | 查询、分页、UI-friendly projection                                                                      | 业务事实与写入规则                    |
 
@@ -156,28 +156,32 @@ Source Event 是内容唯一权威；Channel 和 Inbox 都只保存关系。Repl
 
 Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完成后的安全边界、当前 turn 结束后，或 idle 时启动新 turn。普通外部消息不打断正在执行的 model/tool step；只有 DSH 明确支持且策略授权的控制路径才能 steer。
 
-## 5 · Orchestrator 与 Work control plane
+## 5 · Orchestrator 与 Assignment control plane
+
+Human 不负责创建或选择执行 Conversation。PersonaBot DM 是唯一聊天入口：消息先成为 Source Event，经 Bot Inbox 交给 Orchestrator；Orchestrator 再决定直接回复，或在授权与 capacity 内创建、复用和管理多个 Assignment Session。UI 只把后者按 purpose 和 state 投影到 `事项` 列表中，不会把 Orchestrator Session 显示成事项。
+
+PersonaBot navigation 只出现在 DM：`Chat` 与 `Memory` 是主要 destination，其下直接平铺事项列表。选择某个事项会打开只读详情；原始 DSH Session 仅通过显式次级操作进入。group Channel 不显示该导航。首个 tracer bullet 先交付 Chat 与 files-first Memory 闭环，Assignment 列表随后消费 Assignment Directory read model。
 
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
-  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
-  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  O -->|"list / inspect"| Dir["Durable Assignment Directory"]
+  O -->|"create_assignment"| Gate{"Global active Assignments < limit?<br/>default 3"}
   Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
-  Gate -- "yes" --> Runtime["BotWork Runtime"]
-  O -->|"send_work_request / stop_work"| Runtime
-  Runtime <--> W1["Independent Work Session A"]
-  Runtime <--> W2["Independent Work Session B"]
-  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  Gate -- "yes" --> Runtime["Assignment Runtime"]
+  O -->|"send_assignment_request / stop_assignment"| Runtime
+  Runtime <--> W1["Independent Assignment Session A"]
+  Runtime <--> W2["Independent Assignment Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
   W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
   Report --> Inbox
   Notice --> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
-Work Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过五个工具 `list_work`、`inspect_work`、`create_work`、`send_work_request`、`stop_work` 管理它们。Work 只能用 `report_to_orchestrator` 回报；v1 没有 Work-to-Work 直连、广播或等待队列。
+Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过五个工具 `list_assignments`、`inspect_assignment`、`create_assignment`、`send_assignment_request`、`stop_assignment` 管理它们。Assignment Agent 只能用 `report_to_orchestrator` 回报；v1 没有 Assignment-to-Assignment 直连、广播或等待队列。
 
-Work Request 的 `context-update`、`next-step`、`next-turn` 分别映射到经过验证的 DSH inject、steer、followup seam；普通请求不 cancel 当前 step。跨 SQLite/DSH 边界只保留最小 Work Delivery Intent，重启时有界 reconciliation；歧义进入 `needs-repair`，不扩张为通用 workflow engine。
+Assignment Request 的 `context-update`、`next-step`、`next-turn` 分别映射到经过验证的 DSH inject、steer、followup seam；普通请求不 cancel 当前 step。跨 SQLite/DSH 边界只保留最小 Assignment Delivery Intent，重启时有界 reconciliation；歧义进入 `needs-repair`，不扩张为通用 workflow engine。
 
 ## 6 · 持久化、导出与恢复边界
 
@@ -219,17 +223,17 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 ## 7 · 关键边界
 
 - 正常运行只认 explicit Session ownership；`cwd` 只可作为迁移/修复提示，不能决定 PersonaBot 身份。
-- DSH Session 状态是执行权威；BotHarness 只投影 activity/last-run，并将 semantic Work Report 与 Host Lifecycle Notice 分开。
+- DSH Session 状态是执行权威；BotHarness 只投影 activity/last-run，并将 semantic Assignment Report 与 Host Lifecycle Notice 分开。
 - Provider capability 不等于授权；发现一个飞书频道也不自动授予向它发消息的权限。
 - UI 不直接读文件或数据库，不自己推导业务状态；它消费 Host read models，并把 command 交回 owning module。
-- PersonaBot archive 先关闭 admissions、wakes 和外部 actions，再停止 Orchestrator、Work 与 owned Subagents；purge 是单独的破坏性动作。
+- PersonaBot archive 先关闭 admissions、wakes 和外部 actions，再停止 Orchestrator、Assignment 与 owned Subagents；purge 是单独的破坏性动作。
 - Browser 与 Host 是两个 Cordis 应用；Host service 不跨进程 inject，统一走 `/api` client bridge。
 
 ## 8 · 实现顺序与可并发范围
 
 1. #77 验证 pinned DSH 的 Agent/SessionPersistence/Subagent seams；#79 建立 operational database owner。这两项可并行。
 2. #80 在 #77 与 #79 后实现 explicit Session ownership 和 activity projection。
-3. #81 在 #77、#79、#80 后实现 BotWork Runtime；#47 的 Work coordination 依赖它。
+3. #81 在 #77、#79、#80 后实现 Assignment Runtime；#47 的 Assignment coordination 依赖它。
 4. #78 可与上述工作并行研究 Feishu provider contract，但 #48 的 adapter 实现受它约束。
 5. #74、#75、#76 是各自 focused design/grill；其中 #75 与 sidebar 排序 #55 可并行。
 

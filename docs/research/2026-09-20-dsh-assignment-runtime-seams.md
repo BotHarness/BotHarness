@@ -1,4 +1,4 @@
-# DSH BotWork runtime seam validation
+# DSH Assignment runtime seam validation
 
 Date: 2026-09-20
 Issue: [#77](https://github.com/BotHarness/BotHarness/issues/77)
@@ -6,15 +6,15 @@ Scope: read-only validation of the DSH seams required by ADR-0035 and ADR-0045. 
 
 ## Verdict
 
-DSH `0.1.5-rc.2` has the low-level primitives BotHarness needs to create and resume an independent Work Agent, choose a precise step/turn delivery boundary, query cold sessions, rebuild derived query state, enumerate continuable subagent descendants, and restrict tools. The pinned macOS Web profile also woke both a newly created idle root Agent and a cold-resumed root Agent without opening the conversation UI.
+DSH `0.1.5-rc.2` has the low-level primitives BotHarness needs to create and resume an independent Assignment Session, choose a precise step/turn delivery boundary, query cold sessions, rebuild derived query state, enumerate continuable subagent descendants, and restrict tools. The pinned macOS Web profile also woke both a newly created idle root Agent and a cold-resumed root Agent without opening the conversation UI.
 
 Three architecture assumptions must be corrected before implementation:
 
-1. A Work Agent is an independent runtime root, so it cannot use `ctx.subagents.sendMessage()` to report to an Orchestrator. BotHarness needs its own Work-directory/message adapter.
-2. DSH tool scopes make role restrictions implementable, but DSH does not infer the Orchestrator/Work/Subagent roles. BotHarness must explicitly register and deny the role-specific tools, including on native subagents.
+1. An Assignment Session is an independent runtime root, so it cannot use `ctx.subagents.sendMessage()` to report to an Orchestrator. BotHarness needs its own Assignment-directory/message adapter.
+2. DSH tool scopes make role restrictions implementable, but DSH does not infer the Orchestrator/Assignment/Subagent roles. BotHarness must explicitly register and deny the role-specific tools, including on native subagents.
 3. DSH provides a browser ZIP **export**, not an import/restore round trip. An exported session ZIP is not a portable restore artifact unless BotHarness later owns a separate, versioned import adapter.
 
-No upstream blocker prevents the first BotWork implementation if those boundaries are accepted.
+No upstream blocker prevents the first Assignment implementation if those boundaries are accepted.
 
 ## Validation environment
 
@@ -70,25 +70,25 @@ The statuses below distinguish three evidence levels:
 
 | Seam                                                                                 | Status         | Evidence                                   | Classification                                         | Implementation consequence                                                                                                                                   |
 | ------------------------------------------------------------------------------------ | -------------- | ------------------------------------------ | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `ctx.agents.create()` with `parentAgent` omitted creates an independent runtime root | **PASS**       | Web runtime, pinned tests/source           | Supported upstream seam                                | Create every Work Agent without `parentAgent`; record the logical Orchestrator relationship in BotHarness, not DSH runtime ownership.                        |
-| `AgentHandle` is the teardown/ownership capability                                   | **PASS**       | Pinned tests/source                        | Supported upstream seam                                | The BotWork registry must retain the handle and be the only BotHarness component that disposes it.                                                           |
-| `ctx.agents.resume()` restores a persisted root                                      | **PASS**       | Web runtime, pinned tests/source           | Supported upstream seam                                | Cold Work activation can resume by durable Work Session id, then deliver input.                                                                              |
+| `ctx.agents.create()` with `parentAgent` omitted creates an independent runtime root | **PASS**       | Web runtime, pinned tests/source           | Supported upstream seam                                | Create every Assignment Session without `parentAgent`; record the logical Orchestrator relationship in BotHarness, not DSH runtime ownership.                |
+| `AgentHandle` is the teardown/ownership capability                                   | **PASS**       | Pinned tests/source                        | Supported upstream seam                                | The Assignment Runtime must retain the handle and be the only BotHarness component that disposes it.                                                         |
+| `ctx.agents.resume()` restores a persisted root                                      | **PASS**       | Web runtime, pinned tests/source           | Supported upstream seam                                | A cold Assignment Session can resume by its durable Session id, then deliver input.                                                                          |
 | `followup`, `steer`, `inject` step/turn boundaries                                   | **PASS**       | 196 agent-loop tests, pinned source        | Supported upstream seam                                | Map wake policies explicitly; do not treat these operations as synonyms.                                                                                     |
 | `whenIdle()` and `cancel({ keepInbox: true })` convergence                           | **PASS**       | 196 agent-loop tests, pinned source        | Supported upstream seam                                | `whenIdle()` is whole-Agent quiescence, not acknowledgement of one message. `keepInbox` preserves unclaimed pending work only.                               |
 | Newly created idle root wakes from `followup()` in Web profile                       | **PASS**       | Web runtime                                | Supported in tested environment                        | No UI-open workaround is required on this macOS profile.                                                                                                     |
-| Cold persisted root wakes after `resume()` + `followup()`                            | **PASS**       | Web runtime                                | Supported upstream seam                                | A cold Work entry needs resume before delivery; there is no generic send-to-inactive-root API.                                                               |
+| Cold persisted root wakes after `resume()` + `followup()`                            | **PASS**       | Web runtime                                | Supported upstream seam                                | A cold Assignment entry needs resume before delivery; there is no generic send-to-inactive-root API.                                                         |
 | Windows/out-of-tree-plugin reproduction of upstream Discussion #6617                 | **UNVERIFIED** | Not this host                              | Environment-specific upstream risk                     | Keep a Windows/profile smoke test if Windows becomes a supported host; do not encode a UI-open workaround from the discussion alone.                         |
-| Cold session query without making an Agent live                                      | **PASS**       | 169 query/export tests, pinned source      | Supported upstream seam                                | Read-only Work status/listing can use Session Query and BotHarness projections without waking Work.                                                          |
+| Cold session query without making an Agent live                                      | **PASS**       | 169 query/export tests, pinned source      | Supported upstream seam                                | Read-only Assignment status/listing can use Session Query and BotHarness projections without waking Assignment.                                              |
 | Projection/cache rebuild after restart                                               | **PASS**       | 169 query/export tests, pinned source      | Supported upstream seam                                | Treat query SQLite/projection caches as derived, rebuildable state.                                                                                          |
 | Persistence `flush()` durability barrier                                             | **PASS**       | 175 JSONL persistence tests, pinned source | Supported upstream seam                                | Await flush before a coordinated stop/export boundary; it is not part of the BotHarness SQLite transaction.                                                  |
 | DSH session ZIP export                                                               | **PASS**       | 169 query/export tests, pinned source      | Supported, browser-only upstream seam                  | Export includes root, descendants, and attachments; live roots are flushed first.                                                                            |
 | DSH session ZIP import/restore                                                       | **FAIL**       | Pinned packages/source                     | **Upstream limitation**                                | Do not advertise DSH session ZIP round-trip restore. Exclude it from the first simple BotHarness import contract or add a separately designed adapter later. |
 | Direct continuable parent/child messaging                                            | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam with exact-adjacency limits    | Useful for real DSH continuable subagents only.                                                                                                              |
-| Independent Work root reports through `ctx.subagents.sendMessage()`                  | **FAIL**       | Pinned source/authorization tests          | **BotHarness adapter gap** and false design assumption | Implement a Work-specific report/delivery tool backed by the durable Work directory and Orchestrator inbox.                                                  |
-| Continuable child settlement notice reaches direct parent                            | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam                                | Preserve this behaviour for native subagents; it is an analogy for Work reporting, not the Work transport itself.                                            |
-| Durable descendant enumeration without waking children                               | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam                                | Native subagent UI/status may use `listChildren`/`listDescendants`; Work listing remains a separate domain query.                                            |
+| Independent Assignment Session reports through `ctx.subagents.sendMessage()`         | **FAIL**       | Pinned source/authorization tests          | **BotHarness adapter gap** and false design assumption | Implement an Assignment-specific report/delivery tool backed by the durable Assignment directory and Orchestrator inbox.                                     |
+| Continuable child settlement notice reaches direct parent                            | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam                                | Preserve this behaviour for native subagents; it is an analogy for Assignment reporting, not the Assignment transport itself.                                |
+| Durable descendant enumeration without waking children                               | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam                                | Native subagent UI/status may use `listChildren`/`listDescendants`; Assignment listing remains a separate domain query.                                      |
 | Scoped tool registration/restriction hides schema and rejects execution              | **PASS**       | 282 subagent/tool tests, pinned source     | Supported upstream seam                                | Register tools in the owning Agent scope and assert both schema invisibility and execution refusal.                                                          |
-| DSH automatically knows Orchestrator/Work/Subagent tool roles                        | **FAIL**       | Pinned source                              | **BotHarness adapter gap**                             | Apply explicit restrictions on Work creation and every native in-process subagent start/resume.                                                              |
+| DSH automatically knows Orchestrator/Assignment/Subagent tool roles                  | **FAIL**       | Pinned source                              | **BotHarness adapter gap**                             | Apply explicit restrictions on Assignment creation and every native in-process subagent start/resume.                                                        |
 
 ## 1. Independent root and handle ownership
 
@@ -116,9 +116,9 @@ Tests       196 passed (196)
 
 **Result: PASS.** The BotHarness design must still choose a durable logical owner. The correct split is:
 
-- DSH runtime owner: BotWork host component holding `AgentHandle`.
-- BotHarness business owner: `OrchestratorSession -> Work` relationship in the Work directory.
-- DSH durable identity: the Work Session id stored in that directory.
+- DSH runtime owner: Assignment host component holding `AgentHandle`.
+- BotHarness business owner: `OrchestratorSession -> Assignment` relationship in the Assignment directory.
+- DSH durable identity: the Assignment Session id stored in that directory.
 
 Do not infer any of these from another one.
 
@@ -296,17 +296,17 @@ The upstream service requires the **exact live sender Agent** and exact adjacenc
 - `listChildren` and `listDescendants` read live plus persisted session state without loading children. Descendant enumeration is stable preorder and may traverse non-continuable nodes to find deeper continuable descendants.
 - Runtime settlement sends the direct parent a user-role outcome notice with the child's closing assistant content, or an explicit “no closing message” result.
 
-An independent Work root has no resident continuable Activation and no direct-parent authorization. Giving it `meta.parentSession` does not change this. Calling `ctx.subagents.sendMessage(workAgent, orchestratorId, ...)` therefore rejects as unauthorized rather than acting like a general Agent bus.
+An independent Assignment Session has no resident continuable Activation and no direct-parent authorization. Giving it `meta.parentSession` does not change this. Calling `ctx.subagents.sendMessage(assignmentAgent, orchestratorId, ...)` therefore rejects as unauthorized rather than acting like a general Agent bus.
 
-**Result:** native direct-parent continuable messaging, settlement, and enumeration are **PASS**. Reusing that service for Work-to-Orchestrator reporting is **FAIL — BotHarness adapter gap**.
+**Result:** native direct-parent continuable messaging, settlement, and enumeration are **PASS**. Reusing that service for Assignment-to-Orchestrator reporting is **FAIL — BotHarness adapter gap**.
 
-The Work analogue should preserve the useful semantics without pretending Work is a DSH Subagent:
+The Assignment analogue should preserve the useful semantics without pretending Assignment is a DSH Subagent:
 
-1. A Work-scoped `report_to_orchestrator` tool resolves the authoritative Work row.
+1. An Assignment-scoped `report_to_orchestrator` tool resolves the authoritative Assignment row.
 2. It records the report as an immutable Source Event and lets the ordinary Inbox Trigger create an Orchestrator Inbox Admission.
 3. The Orchestrator wake policy chooses `inject`, `steer`, or `followup` from its current status and event policy.
-4. A final Work settlement is idempotent and distinct from intermediate reports.
-5. Orchestrator-to-Work messaging resolves/resumes the Work Agent through the BotWork registry, not `ctx.subagents`.
+4. A final Assignment settlement is idempotent and distinct from intermediate reports.
+5. Orchestrator-to-Assignment messaging resolves or resumes the Assignment Session through the Assignment Runtime, not `ctx.subagents`.
 
 ## 5. Tool restriction
 
@@ -317,15 +317,15 @@ The pinned scope contract supplies two layers:
 
 Native in-process subagent providers support a persisted `toolFilter` and apply it using the child's scoped restriction. External ACP/Codex/Claude-Code providers advertise `toolFilter: false`; they run in another process and do not inherit the Host Agent's scoped tool registry in the first place.
 
-The inheritance direction matters. If Orchestrator Work-management tools are registered on `orchestratorAgent.ctx`, native subagents created below it inherit them unless the subagent request/config explicitly denies those names. Likewise, a Work-only report tool registered on `workAgent.ctx` is invisible to the Orchestrator sibling/root, but the Work Agent's own native subagents inherit it unless denied.
+The inheritance direction matters. If Orchestrator Assignment-management tools are registered on `orchestratorAgent.ctx`, native subagents created below it inherit them unless the subagent request/config explicitly denies those names. Likewise, an Assignment-only report tool registered on `assignmentAgent.ctx` is invisible to the Orchestrator sibling/root, but the Assignment Agent's own native subagents inherit it unless denied.
 
 **Result:** the restriction mechanism is **PASS**; automatic role gating is **FAIL — BotHarness adapter gap**.
 
 Executable policy for implementation:
 
-- Register `list_work`, `inspect_work`, `create_work`, `send_work_request`, and `stop_work` only on the Orchestrator Agent scope.
-- Register `report_to_orchestrator` only during Work Agent `create`/`resume` setup.
-- Apply a deny filter for all Work-management/report tools to every native subagent provider path beneath both roles.
+- Register `list_assignments`, `inspect_assignment`, `create_assignment`, `send_assignment_request`, and `stop_assignment` only on the Orchestrator Agent scope.
+- Register `report_to_orchestrator` only during Assignment Agent `create`/`resume` setup.
+- Apply a deny filter for all Assignment-management/report tools to every native subagent provider path beneath both roles.
 - Test both `ctx.tools.schemas(agent)` absence and attempted execution rejection. Schema-only assertions are insufficient.
 - Fail creation loudly if a configured deny name is unknown; do not silently weaken the boundary.
 
@@ -335,16 +335,16 @@ The following checks make the downstream implementation issues executable rather
 
 ### Session ownership and directory
 
-- Create Work with omitted `parentAgent` and retain exactly one `AgentHandle` per live Work Session id.
-- Use the DSH Session id as canonical Work identity. Persist explicit PersonaBot/root-role ownership plus Work purpose, Continuity Key, Workspace/dependency requirements, delivery-reconciliation facts, and latest semantic report in BotHarness SQLite.
-- Derive activity/last-run state from DSH Session facts; do not create a competing BotHarness Work lifecycle state machine.
-- Reject duplicate live activation for one Work Session.
-- Bot stop/disposal cancels and drains its Orchestrator Agent, Work Agents, and native subagents before closing storage.
+- Create Assignment with omitted `parentAgent` and retain exactly one `AgentHandle` per live Assignment Session id.
+- Use the DSH Session id as canonical Assignment identity. Persist explicit PersonaBot/root-role ownership plus Assignment purpose, Continuity Key, Workspace/dependency requirements, delivery-reconciliation facts, and latest semantic report in BotHarness SQLite.
+- Derive activity/last-run state from DSH Session facts; do not create a competing BotHarness Assignment lifecycle state machine.
+- Reject duplicate live activation for one Assignment Session.
+- Bot stop/disposal cancels and drains its Orchestrator Agent, Assignment Agents, and native subagents before closing storage.
 - Never derive business ownership from DSH `roots()`, `meta.parentSession`, or the presence of a live handle alone.
 
 ### Messaging and wake
 
-- Idle/cold Work delivery is `resume(workSessionId)` when needed, followed by `followup` for a distinct command.
+- Idle/cold Assignment delivery is `resume(assignmentSessionId)` when needed, followed by `followup` for a distinct command.
 - Orchestrator mid-turn updates use `steer` only when policy requests the nearest step; passive context uses `inject` and must not be expected to wake.
 - Interrupting policy records the decision, calls `cancel(..., { keepInbox: true })`, and handles the already-claimed-work caveat.
 - Concurrency admission fails the tool call with structured reason when the configured limit (default 3) is reached; it does not enqueue.
@@ -352,8 +352,8 @@ The following checks make the downstream implementation issues executable rather
 
 ### Query, persistence, and backup
 
-- `list_work` comes from the durable Work directory, with cursor/filter/sort, not from live `ctx.agents.roots()` alone.
-- Cold status enrichment uses Session Query without resuming the Work Agent.
+- `list_assignments` comes from the durable Assignment directory, with cursor/filter/sort, not from live `ctx.agents.roots()` alone.
+- Cold status enrichment uses Session Query without resuming the Assignment Session.
 - Coordinated manual backup quiesces owned Agents and awaits DSH persistence flush before copying any DSH-owned files.
 - The UI/docs state plainly whether DSH Session history is excluded, copied as an opaque stopped-profile artifact, or unsupported; they must not label the browser export ZIP as restorable.
 - Restart tests rebuild any derived session-query/projection state from canonical logs.
@@ -361,7 +361,7 @@ The following checks make the downstream implementation issues executable rather
 ### Role-scoped tools
 
 - Orchestrator cannot execute `report_to_orchestrator`.
-- Work cannot execute Orchestrator Work-management tools.
+- Assignment cannot execute Orchestrator Assignment-management tools.
 - Native subagents under either role cannot see or execute either tool family by default.
 - A restriction test covers both advertised schema and direct execution.
 
@@ -382,18 +382,18 @@ The following checks make the downstream implementation issues executable rather
 
 ### BotHarness adapter gaps
 
-- Durable Work directory and handle registry.
-- Work-to-Orchestrator report/final-settlement transport and Orchestrator-to-Work delivery.
+- Durable Assignment directory and handle registry.
+- Assignment-to-Orchestrator report/final-settlement transport and Orchestrator-to-Assignment delivery.
 - Status-aware wake-policy selection.
 - Explicit role-scoped tool registration and descendant deny filters.
 - Clear session-history policy for simple manual export/import.
 
 ### Design assumptions retained
 
-- One Orchestrator Session can own multiple durable Work entries.
-- Work Agents are independent DSH runtime roots, not native continuable subagents.
-- The Orchestrator controls Work lifetime and receives structured progress/settlement.
-- No Work queue: reaching the configurable concurrency cap returns a structured tool error.
+- One Orchestrator Session can own multiple durable Assignment entries.
+- Assignment Sessions are independent DSH runtime roots, not native continuable subagents.
+- The Orchestrator controls Assignment lifetime and receives structured progress/settlement.
+- No Assignment queue: reaching the configurable concurrency cap returns a structured tool error.
 - DSH owns canonical Session logs; BotHarness owns its operational SQLite database and repairable references between the two domains.
 
 No additional DSH pitfall was established strongly enough to amend `dsh-dev`: the only bootstrap failure came from deliberately skipping native install scripts, and the reported Web wake bug did not reproduce in the tested environment.

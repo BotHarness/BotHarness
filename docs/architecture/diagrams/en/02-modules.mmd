@@ -6,7 +6,7 @@ flowchart TB
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
     Memory["Memory<br/>files · context delivery · tools"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
-    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
     Views["Read models<br/>RPC · UI projections"]
   end
@@ -15,17 +15,17 @@ flowchart TB
   Root --> Bots
   Root --> Memory
   Root --> Msg
-  Root --> Work
+  Root --> Assignments
   Root --> Portable
   Root --> Views
   DB --> Bots
   DB --> Msg
-  DB --> Work
+  DB --> Assignments
   DB --> Portable
   Bots --> Memory
-  Bots --> Work
-  Msg --> Work
+  Bots --> Assignments
+  Msg --> Assignments
   Bots --> Views
   Msg --> Views
-  Work --> Views
+  Assignments --> Views
   Portable --> Views

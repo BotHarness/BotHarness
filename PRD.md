@@ -4,7 +4,7 @@
 
 | 项        | 内容                                                                                                                                                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v1.7（PoC）                                                                                                                                                                                                                             |
+| 版本      | v1.8（PoC）                                                                                                                                                                                                                             |
 | 日期      | 2026-09-20                                                                                                                                                                                                                              |
 | 状态      | Archived working draft                                                                                                                                                                                                                  |
 | 形态      | **BotHarness 的首个应用**：DSH 插件 bundle                                                                                                                                                                                              |
@@ -15,9 +15,10 @@
 | v1.2 变更 | 对齐平台 v1.7：PersonaBot 最小 profile = displayName / tag（岗位）/ description，AC-1.3 向导同步；模型选择为本地策略、不随 SoulSnapshot 发布（ADR-0027）                                                                                |
 | v1.3 变更 | 对齐平台 v1.9（ADR-0029/0030 + 0026 增补）：BOT 模式改为聊天优先（点击 BOT 即 DM，session 移右侧面板，workspace 弱化）；Channel/Section/Bridge/Bot Inbox 术语；M3 收敛为 IA + 聊天外壳 + 本地消息存储，Bot Inbox 及 Channel 工具落 v1.1 |
 | v1.4 变更 | 对齐平台 v1.10（ADR-0031/0032）：sidebar 区块排序与移动、未分组、默认 blobatar 头像与字形图标、行几何对齐原生实测；自定义头像与头像动效/表情留 v1.1                                                                                     |
-| v1.5 变更 | 对齐平台 v1.12（#71、ADR-0035–0045）：explicit Session ownership、Source Event/Inbox/Outbox、Orchestrator 管理 independent Work roots、全局并发上限、provider capability/grant、单文件手动 profile backup                               |
+| v1.5 变更 | 对齐平台 v1.12（#71、ADR-0035–0045）：explicit Session ownership、Source Event/Inbox/Outbox、Orchestrator 管理 independent Assignment Sessions、全局并发上限、provider capability/grant、单文件手动 profile backup                      |
 | v1.6 变更 | 对齐平台 v1.15（#56、ADR-0031/0034）：section 整块可接收归属投放；拖拽不改变 target layout，源行原位淡出；未分组改为可夹在 section 间的松散 Channel，并由当前 Host roster 的 `topOrder` 持久化                                          |
 | v1.7 变更 | 对齐 ADR-0046：PersonaBot ID 由 Host 生成且不暴露为创建字段；名称是列表和 `@` picker 的可见标签（token 仍绑定 ID，同名允许）；单一 tag 改为 0～多个岗位徽章；最小表单收名称、可选岗位徽章与可选简介                                     |
+| v1.8 变更 | 对齐 ADR-0029/0017/0024/0045 更新：DM 右侧改为 Chat、Memory 与 subordinate `事项` 列表；Orchestrator 不列出；Work/Worker 全面收敛为 Assignment / Assignment Session / Assignment Agent，避免语音与输入歧义                              |
 
 ## 0. 历史变更（v0.2–v0.9）
 
@@ -46,7 +47,7 @@
 - AC-1.1 bot-mode sidebar 平铺列表：头像 + 聚合状态（六态）+ 未读点；头像为 Host-owned PersonaBot ID 确定性生成的默认 blobatar（DM 行显示 Bot 头像，群 Channel 行用字形），行几何对齐原生实测（ADR-0031/0032）；置顶区仅 BOT。
 - AC-1.2 点击 BOT 打开 DM 聊天（IM 样式，本地消息）；BOT 与 Channel（群聊）同列；用户可建可折叠 Channel section 组织 Channel，section 可手排。Channel 可拖到 section 头/体归属该 section，也可拖到 section 边界间隙成为松散 Channel，直接位于两个 section 之间；「未分组」仅表示无 section membership，不再显示固定底部 bucket/header。
 - AC-1.3 创建：首次无 BOT 的空状态按钮和此后「+」菜单都可打开最小表单；Human 填写名称，并可选填写 0～多个岗位/职位徽章与简短简介，Host 自动生成不可见 PersonaBot ID 并写入占位 `PERSONA.md`。名称是未来 `@` picker 的可见标签，token 保留内部 ID，同名允许并用头像/徽章消歧。Builder 对话创建与更完整 profile 编辑后续按需进入。
-- AC-1.4 DM 右侧 session 面板：列出该 BOT 的 sessions（状态 / workspace / 最近活动，含「主会话」），点击切换；只读。
+- AC-1.4 PersonaBot DM 的右侧 navigation 以 Chat、Memory 为主入口，并在其下直接平铺该 Bot 的 `事项` 列表；Orchestrator Session 不显示为事项。点击事项进入只读详情，原始 DSH Session 仅通过显式次级操作打开；group Channel 不显示此导航。sidebar 折叠为 rail 时显示全部可见 PersonaBot 头像与 Channel icon，hover/focus 显示名称，点击只切换目标、不自动展开。
 - AC-1.5 排序：每个 section 的排序方式为 `updated` / `manual` / `inherit`（默认 `inherit`）；全局默认在 Bots 头部 `...` 菜单设置；首次手动拖拽或拖入 section 切 `manual` 并冻结当前顺序，「恢复自动」回 `inherit`。松散 Channel 的顶层位置为显式陈列，在所有排序模式下保持不动。
 - AC-1.6 section 操作：section 头 `+` 在区内新建 Channel；`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位，Modal 红描边确认）；删除 section 不删 Channel，其成员在原 section 位置变为松散 Channel。拖拽期间所有预测线为 overlay、不占布局，源 Channel 行保留原位并以 40% opacity 淡出。
 
@@ -54,12 +55,12 @@
 
 > 作为用户，我在 DM 或群聊里给 PersonaBot 发消息，它像同事一样处理并回复；可以同时推进几件事。
 
-- AC-2.1 DM、Channel、Bridge、webhook 和 Work Report 先成为 immutable Source Event；Trigger 建立 Bot-specific Inbox Admission。@/DM 默认 immediate，普通消息可 digest，均遵守安全 step/turn 边界（ADR-0025/0036）。
-- AC-2.2 Orchestrator 按批次处理 Attention：回复来源、按 exact `sessionId` / unique Continuity Key 询问已有 Work，或在权限与全局 capacity 内创建 independent Work root（ADR-0024/0045）。
-- AC-2.3 Work Directory 按需列出 activity/lastRun、latest report、blocked/waiting/terminal 与 aggregate Subagent activity；默认按 last update 排序，支持 cursor/filter/sort/page size。
-- AC-2.4 Work 在 milestone、blocked/waiting-human、terminal 时通过 `report_to_orchestrator` 回报；Host lifecycle notice 保持不同 provenance；Human Inbox 聚合需要人类动作的 Attention。
-- AC-2.5 默认最多 3 个 active independent Work roots（全局可设 1–32）；达到上限立即返回结构化和 LLM-readable 错误，不排队，不创建 Session。
-- AC-2.6 completed-but-resumable Work 可显式复用；cancelled/archived/`needs-repair` 不自动恢复；v1 无 Work-to-Work direct messaging。
+- AC-2.1 DM、Channel、Bridge、webhook 和 Assignment Report 先成为 immutable Source Event；Trigger 建立 Bot-specific Inbox Admission。@/DM 默认 immediate，普通消息可 digest，均遵守安全 step/turn 边界（ADR-0025/0036）。
+- AC-2.2 Orchestrator 按批次处理 Attention：回复来源、按 exact `sessionId` / unique Continuity Key 询问已有 Assignment，或在权限与全局 capacity 内创建 independent Assignment Session（ADR-0024/0045）。
+- AC-2.3 Assignment Directory 按需列出 activity/lastRun、latest report、blocked/waiting/terminal 与 aggregate Subagent activity；默认按 last update 排序，支持 cursor/filter/sort/page size。
+- AC-2.4 Assignment Session 在 milestone、blocked/waiting-human、terminal 时通过 `report_to_orchestrator` 回报；Host lifecycle notice 保持不同 provenance；Human Inbox 聚合需要人类动作的 Attention。
+- AC-2.5 默认最多 3 个 active independent Assignment Sessions（全局可设 1–32）；达到上限立即返回结构化和 LLM-readable 错误，不排队，不创建 Session。
+- AC-2.6 completed-but-resumable Assignment 可显式复用；cancelled/archived/`needs-repair` 不自动恢复；v1 无 Assignment-to-Assignment direct messaging。
 
 ### US-3 记忆（P0；平台实现，应用负责可见）
 
@@ -100,7 +101,7 @@
 | FR-7  | 诊断                  | P1     | 连接状态、记忆目录检查、权限清单                                                                                             |
 | FR-8  | Messaging / Bot Inbox | P0     | SQLite-authoritative Source Event、Channel placement、Admission/Attention、Trigger/Wake、Reply/Service Action/Outbox（v1.1） |
 | FR-9  | Builder 创建          | P0     | 对话式创建 BOT；`bot_create` 受工具白名单控制                                                                                |
-| FR-10 | Work Directory        | P0     | 五个 Orchestrator Work tools、`report_to_orchestrator`、capacity/read models（#81）                                          |
+| FR-10 | Assignment Directory  | P0     | 五个 Orchestrator Assignment tools、`report_to_orchestrator`、capacity/read models（#81）                                    |
 | FR-11 | Portability           | P1     | PersonaBot Export + 单文件手动 Profile Backup/Restore/Transfer（#17/#76）                                                    |
 
 ## 4. 非功能需求
@@ -120,12 +121,12 @@
 
 平台里程碑见 `docs/botharness.md` §7；应用主导的交付：
 
-| #    | 应用侧交付                                                                   |
-| ---- | ---------------------------------------------------------------------------- |
-| M3   | Bot 模式 IA 与聊天外壳（client 包；本地消息存储）                            |
-| M4   | 文件研究助手闭环；依赖 #77、#79–#81 的 runtime foundation                    |
-| M5   | Bridge 适配器；Feishu/Lark contract 先由 #78 验证                            |
-| v1.1 | Messaging / Bot Inbox / Orchestrator & Work UI / Bridge（#30、#46–#48、#75） |
+| #    | 应用侧交付                                                                         |
+| ---- | ---------------------------------------------------------------------------------- |
+| M3   | Bot 模式 IA、DM Chat 与 files-first Memory 导航（client 包；本地消息存储）         |
+| M4   | 文件研究助手闭环；依赖 #77、#79–#81 的 runtime foundation                          |
+| M5   | Bridge 适配器；Feishu/Lark contract 先由 #78 验证                                  |
+| v1.1 | Messaging / Bot Inbox / Orchestrator & Assignment UI / Bridge（#30、#46–#48、#75） |
 
 ## 6. 风险
 

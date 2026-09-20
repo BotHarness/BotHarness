@@ -64,7 +64,7 @@ When creating or updating a PR, use the `visual-pr` skill to write the descripti
 
 ### Domain docs
 
-Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). Root `CONTEXT.md` is the sole authority for BotHarness product terms such as PersonaBot, Channel, Source Event, Bot Inbox, Orchestrator Session, and Work Session; product runtime relationships live under `docs/architecture/`. See `docs/agents/domain.md`.
+Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). Root `CONTEXT.md` is the sole authority for BotHarness product terms such as PersonaBot, Channel, Source Event, Bot Inbox, Orchestrator Session, and Assignment Session; product runtime relationships live under `docs/architecture/`. See `docs/agents/domain.md`.
 
 ### UI guidelines
 

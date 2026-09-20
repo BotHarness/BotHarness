@@ -18,7 +18,7 @@ flowchart TB
     IM["IM Product Domain<br/>Actors / Channels / Messages / Memberships"]
     BR["Bot Runtime<br/>Bot / Inbox / WakePolicy / Routing"]
     ORCH["Bot Orchestrator<br/>Root Session + Main Agent"]
-    WORK["Work Runtime<br/>Independent Root Work Sessions"]
+    WORK["Assignment Runtime<br/>Independent Root Assignment Sessions"]
     SUB["DSH Subagents<br/>Delegated Child Sessions"]
 
     IM --> BR
@@ -35,17 +35,17 @@ Bot A
 ├── Orchestrator Root Session O
 │   └── Orchestrator Agent
 │
-├── Work Root Session W1
-│   └── Main Work Agent
+├── Assignment Root Session W1
+│   └── Main Assignment Agent
 │       ├── Subagent W1-A
 │       └── Subagent W1-B
 │
-├── Work Root Session W2
-│   └── Main Work Agent
+├── Assignment Root Session W2
+│   └── Main Assignment Agent
 │       └── Subagent W2-A
 │
-└── Work Root Session W3
-    └── Main Work Agent
+└── Assignment Root Session W3
+    └── Main Assignment Agent
 ```
 
 关键边界：
@@ -59,11 +59,11 @@ Channel
 Orchestrator Session
 = Bot 的 control plane
 
-Work Session
+Assignment Session
 = 独立任务 / 项目 / Workspace 的顶层 DSH Session
 
 Subagent Session
-= Work Session 内部 delegated child Session
+= Assignment Session 内部 delegated child Session
 ```
 
 ---
@@ -91,14 +91,14 @@ Product ownership graph:
 
 Bot
 ├── Orchestrator Root Session
-├── Work Root Session
-├── Work Root Session
-└── Work Root Session
+├── Assignment Root Session
+├── Assignment Root Session
+└── Assignment Root Session
 
 
 DSH delegation graph:
 
-Work Root Session
+Assignment Root Session
 └── Subagent
     └── Subagent
 ```
@@ -106,8 +106,8 @@ Work Root Session
 这样：
 
 - Orchestrator Session 保持“薄”；
-- Work Session 承载真正任务上下文；
-- Subagent 只负责 Work Session 内部任务拆解。
+- Assignment Session 承载真正任务上下文；
+- Subagent 只负责 Assignment Session 内部任务拆解。
 
 ---
 
@@ -121,11 +121,11 @@ Bot ↔ Bot
 via Channel / DM / ctx.messaging
 
 NETWORK 2 — Bot Control Plane
-Orchestrator ↔ Independent Work Sessions
-via ctx.botWork
+Orchestrator ↔ Independent Assignment Sessions
+via ctx.assignments
 
 NETWORK 3 — DSH Delegation
-Work Main Agent ↔ its Subagents
+Assignment Main Agent ↔ its Subagents
 via ctx.subagents
 ```
 
@@ -140,7 +140,7 @@ Bot A → Bot B
 而：
 
 ```text
-Work Main Agent → Research Subagent
+Assignment Main Agent → Research Subagent
 ```
 
 才是 delegation。
@@ -380,9 +380,9 @@ Orchestrator 是 Bot 的 **control plane**。
 ```text
 处理 / 搜索 Bot Inbox
 决定是否回复
-决定是否创建或复用 Work Session
-管理 Work Sessions
-接收 Work reports
+决定是否创建或复用 Assignment Session
+管理 Assignment Sessions
+接收 Assignment reports
 Bot-to-Human messaging
 Bot-to-Bot messaging
 高层 Goals
@@ -396,7 +396,7 @@ Channel social behavior
 运行大量 Bash
 承载完整项目上下文
 承载所有 Channel 原始历史
-保存每个 Worker 的详细中间过程
+保存每个 Assignment Agent 的详细中间过程
 ```
 
 生命周期：
@@ -418,18 +418,14 @@ Bot 永久存在
 
 ---
 
-# 8. Independent Work Session
+# 8. Independent Assignment Session
 
 这是本架构新增的关键概念。
 
 ```ts
-interface BotWorkSession {
-  id: WorkSessionId;
-
+interface AssignmentSession {
   botId: BotId;
-
   sessionId: SessionId;
-  orchestratorSessionId: SessionId;
 
   purpose: string;
 
@@ -465,16 +461,16 @@ orchestratorSessionId
 SessionHeader.parentSession
 ```
 
-Work Session 应该是 **独立 top-level DSH Session**。
+Assignment Session 应该是 **独立 top-level DSH Session**。
 
 ---
 
-# 9. 创建 Work Session
+# 9. 创建 Assignment Session
 
 推荐 Tool 名：
 
 ```text
-create_work_session
+create_assignment
 ```
 
 不要叫：
@@ -498,13 +494,13 @@ ctx.agents.create(...)
 ```text
 Orchestrator
     ↓
-ctx.botWork.create()
+ctx.assignments.create()
     ↓
 ctx.agents.create(parentAgent = undefined)
     ↓
-Fresh Root Work Session
+Fresh Root Assignment Session
     ↓
-Fresh Main Work Agent
+Fresh Main Assignment Agent
 ```
 
 官方：
@@ -512,12 +508,12 @@ https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/core
 
 ---
 
-# 10. Work Session + Workspace
+# 10. Assignment Session + Workspace
 
 如果任务属于某 Workspace：
 
 ```text
-create_work_session({
+create_assignment({
   workspaceId: rakazo,
   purpose: "Fix authentication bug",
   agentPreset: "coding"
@@ -531,7 +527,7 @@ Workspace
     ↓ resolve path
 ctx.agents.create(meta.cwd = workspace.path)
     ↓
-Fresh Work Session
+Fresh Assignment Session
     ↓
 workspace.attachSession(sessionId)
 ```
@@ -543,25 +539,25 @@ https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/work
 
 ---
 
-# 11. Work Session + Agent Preset
+# 11. Assignment Session + Agent Preset
 
-不同 Work Session 可以拥有不同能力：
+不同 Assignment Session 可以拥有不同能力：
 
 ```text
 Orchestrator
 preset = bot-orchestrator
 
-Coding Work
+Coding Assignment
 preset = coding
 
-Research Work
+Research Assignment
 preset = research
 
-Monitoring Work
+Monitoring Assignment
 preset = monitoring
 ```
 
-因此每个 Work Session 都可以独立拥有：
+因此每个 Assignment Session 都可以独立拥有：
 
 ```text
 Workspace
@@ -574,7 +570,7 @@ Subagents
 
 ---
 
-# 12. Work Session 内部 Subagents
+# 12. Assignment Session 内部 Subagents
 
 这里直接使用 DSH 原生：
 
@@ -587,7 +583,7 @@ ctx.subagents.listChildren(...)
 例如：
 
 ```text
-Work W1: Coding
+Assignment W1: Coding
 │
 └── Main Coding Agent
     ├── Research Subagent
@@ -598,7 +594,7 @@ Work W1: Coding
 这时 delegation 语义是正确的：
 
 ```text
-Main Work Agent
+Main Assignment Agent
 → delegate
 → child Agent
 ```
@@ -616,7 +612,7 @@ https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/suba
 ctx.messaging
 ctx.botInbox
 ctx.botRuntime
-ctx.botWork
+ctx.assignments
 ```
 
 可选：
@@ -755,41 +751,39 @@ followup / steer / inject
 
 ---
 
-# 17. `ctx.botWork`
+# 17. `ctx.assignments`
 
-负责 Bot 与独立 Work Root Sessions。
+负责 Bot 与独立 Assignment Root Sessions。
 
 ```ts
-interface BotWorkRuntimeService {
+interface AssignmentRuntimeService {
   create(input: {
     botId: BotId;
     purpose: string;
-    kind?: WorkSessionKind;
+    kind?: AssignmentKind;
 
     workspaceId?: WorkspaceId;
     agentPreset?: string;
 
-    source?: WorkSource;
+    source?: AssignmentSource;
     initialMessage?: MessageContent;
-  }): Promise<BotWorkSession>;
+  }): Promise<AssignmentSession>;
 
-  list(input: { botId: BotId; status?: BotWorkStatus[] }): Promise<BotWorkSession[]>;
+  list(input: { botId: BotId; status?: AssignmentStatus[] }): Promise<AssignmentSession[]>;
 
-  get(input: { botId: BotId; workSessionId: WorkSessionId }): Promise<BotWorkSession>;
+  get(input: { botId: BotId; sessionId: SessionId }): Promise<AssignmentSession>;
 
   send(input: {
     botId: BotId;
-    workSessionId: WorkSessionId;
+    sessionId: SessionId;
     message: MessageContent;
 
     delivery?: 'queue' | 'wake' | 'steer';
-  }): Promise<WorkDeliveryReceipt>;
+  }): Promise<AssignmentDeliveryReceipt>;
 
-  report(input: { botId: BotId; workSessionId: WorkSessionId; report: WorkReport }): Promise<void>;
+  report(input: { botId: BotId; sessionId: SessionId; report: AssignmentReport }): Promise<void>;
 
-  interrupt(input: { botId: BotId; workSessionId: WorkSessionId }): Promise<void>;
-
-  archive(input: { botId: BotId; workSessionId: WorkSessionId }): Promise<void>;
+  stop(input: { botId: BotId; sessionId: SessionId }): Promise<void>;
 }
 ```
 
@@ -798,7 +792,7 @@ interface BotWorkRuntimeService {
 ```text
 authorize Bot ownership
     ↓
-resolve WorkSession → DSH SessionId
+resolve owned Assignment Session
     ↓
 Agent live?
     ├── yes
@@ -807,7 +801,7 @@ Agent live?
 Agent.followup / steer
 ```
 
-不要用 `ctx.subagents.sendMessage()`，因为 Work Session 不是 Orchestrator 的 direct child subagent。
+不要用 `ctx.subagents.sendMessage()`，因为 Assignment Session 不是 Orchestrator 的 direct child subagent。
 
 ---
 
@@ -939,22 +933,21 @@ ack_inbox_items
 defer_inbox_items
 ```
 
-## Work Control
+## Assignment Control
 
 ```text
-create_work_session
-list_work_sessions
-get_work_session
-send_message_to_work_session
-interrupt_work_session
-archive_work_session
+create_assignment
+list_assignments
+inspect_assignment
+send_assignment_request
+stop_assignment
 ```
 
 Orchestrator 是 Bot social identity 的 owner。
 
 ---
 
-# 22. Work Session Tool Set
+# 22. Assignment Session Tool Set
 
 典型：
 
@@ -978,7 +971,7 @@ report_to_orchestrator
 ```text
 send_message_to_channel
 search_entire_bot_inbox
-create_work_session
+create_assignment
 arbitrary top-level work control
 ```
 
@@ -986,7 +979,7 @@ arbitrary top-level work control
 
 # 23. Subagent Tool Set
 
-根据 Work Session 自己需要进一步 restrict。
+根据 Assignment Session 自己需要进一步 restrict。
 
 例如：
 
@@ -1013,18 +1006,18 @@ https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/tool
 
 ---
 
-# 24. Work Session → Orchestrator
+# 24. Assignment Session → Orchestrator
 
-Worker / Work Agent 默认不直接发外部 Channel。
+Assignment Agent 默认不直接发外部 Channel。
 
 推荐：
 
 ```text
-Work Agent
+Assignment Agent
     ↓
 report_to_orchestrator
     ↓
-ctx.botWork.report()
+ctx.assignments.report()
     ↓
 Orchestrator Inbox / stimulus
     ↓
@@ -1048,9 +1041,9 @@ audit
 
 ---
 
-# 25. Limited Channel Access for Work Sessions
+# 25. Limited Channel Access for Assignment Sessions
 
-Work Session 可以有有限读取能力，例如：
+Assignment Session 可以有有限读取能力，例如：
 
 ```text
 get_source_channel_messages
@@ -1065,7 +1058,7 @@ search_channel_messages
 但 Service side 强制：
 
 ```text
-allowedChannelIds = WorkSession.source channel(s)
+allowedChannelIds = AssignmentSession.source channel(s)
 ```
 
 不要默认给：
@@ -1150,7 +1143,7 @@ Memberships
 Subscriptions
 Messages
 Bot Inbox
-BotWorkSession metadata
+AssignmentSession metadata
 ```
 
 小规模可 SQLite。
@@ -1215,10 +1208,10 @@ Session 应记录模型实际看过的信息，不是理论可访问全集。
 
 DSH `ctx.agents.create()` / `resume()` 返回 `AgentHandle`，其 holder 拥有 live Agent teardown capability。
 
-因此 Independent Work Sessions 最好由：
+因此 Independent Assignment Sessions 最好由：
 
 ```text
-BotWorkRuntime Plugin / Service
+AssignmentRuntime Plugin / Service
 ```
 
 作为 structural runtime owner。
@@ -1229,7 +1222,7 @@ BotWorkRuntime Plugin / Service
 Orchestrator Agent scoped context
 ```
 
-持有所有 Work Agent handles，否则 Orchestrator live Agent teardown 可能和 Work Agent lifecycle 不合理耦合。
+持有所有 Assignment Agent handles，否则 Orchestrator live Agent teardown 可能和 Assignment Agent lifecycle 不合理耦合。
 
 官方：
 https://deepseek-harness.github.io/deepseek-harness/en/reference/subsystems/core
@@ -1248,10 +1241,10 @@ flowchart TB
     WP["WakePolicy<br/>WAKE_NOW"]
     BR["ctx.botRuntime"]
     O["Orchestrator<br/>new Turn"]
-    CW["create_work_session"]
-    BW["ctx.botWork"]
+    CW["create_assignment"]
+    BW["ctx.assignments"]
     AG["ctx.agents.create()"]
-    WS["Work Session W42<br/>cwd=/rakazo<br/>preset=coding"]
+    WS["Assignment Session W42<br/>cwd=/rakazo<br/>preset=coding"]
     SUB["DSH Subagents"]
     REP["report_to_orchestrator"]
     O2["Orchestrator Turn"]
@@ -1265,9 +1258,9 @@ flowchart TB
 
 ---
 
-# 32. Scenario：Persistent Project Work Session
+# 32. Scenario：Persistent Project Assignment Session
 
-Work Session 不一定一次性。
+Assignment Session 不一定一次性。
 
 例如：
 
@@ -1278,7 +1271,7 @@ Project Alpha
 长期拥有：
 
 ```text
-WorkSession W-project-alpha
+Assignment Session A-project-alpha
 kind = persistent-project
 workspace = /repos/project-alpha
 ```
@@ -1292,7 +1285,7 @@ workspace = /repos/project-alpha
 Orchestrator 选择：
 
 ```text
-send_message_to_work_session(W-project-alpha)
+send_assignment_request(A-project-alpha)
 ```
 
 而不是重新新建。
@@ -1331,8 +1324,8 @@ dsh-bot-router
 dsh-bot-runtime
   ctx.botRuntime
 
-dsh-bot-work
-  ctx.botWork
+dsh-assignment-runtime
+  ctx.assignments
 
 dsh-tool-bot-messaging
   Orchestrator IM tools
@@ -1340,11 +1333,11 @@ dsh-tool-bot-messaging
 dsh-tool-bot-inbox
   Orchestrator Inbox tools
 
-dsh-tool-bot-work
-  Work Session control tools
+dsh-tool-assignments
+  Assignment Session control tools
 
-dsh-tool-work-report
-  Work Agent → Orchestrator report
+dsh-tool-assignment-report
+  Assignment Agent → Orchestrator report
 ```
 
 ---
@@ -1378,16 +1371,18 @@ Human @Bot
 增加：
 
 ```text
-ctx.botWork
-create_work_session
-list_work_sessions
-send_message_to_work_session
+ctx.assignments
+create_assignment
+list_assignments
+inspect_assignment
+send_assignment_request
+stop_assignment
 report_to_orchestrator
 ```
 
 ## MVP 3
 
-Work Session 内接：
+Assignment Session 内接：
 
 ```text
 DSH Subagents
@@ -1419,8 +1414,8 @@ persistent project sessions
 | WakePolicy           | 决定 Inbox 是否 queue / wake / digest / ignore           |
 | Orchestrator Session | Bot 长期 control-plane Session                           |
 | Orchestrator Agent   | 当前驱动 Orchestrator Session 的 live Agent              |
-| Work Session         | 独立任务 / 项目顶层 DSH Session                          |
-| Work Agent           | Work Session 的 Main Agent                               |
+| Assignment Session   | 独立任务 / 项目顶层 DSH Session                          |
+| Assignment Agent     | Assignment Session 的 Main Agent                         |
 | Subagent Session     | DSH 原生 delegated child Session                         |
 | Service              | `ctx.<name>` 稳定 capability API                         |
 | Provider             | Service 的具体 implementation                            |
@@ -1428,7 +1423,7 @@ persistent project sessions
 | Cordis Event         | runtime notification / interception extension point      |
 | Tool                 | 面向模型的 capability adapter / Consumer                 |
 | Agent Scope          | 控制 per-Agent registrations / Tool visibility           |
-| Workspace            | DSH 稳定目录记录，Work Session 可绑定                    |
+| Workspace            | DSH 稳定目录记录，Assignment Session 可绑定              |
 
 ---
 
@@ -1466,7 +1461,7 @@ SessionPersistence
 ctx.messaging
 ctx.botInbox
 ctx.botRuntime
-ctx.botWork
+ctx.assignments
 
 send_message_to_channel
 search_channel_messages
@@ -1474,9 +1469,11 @@ search_channel_messages
 list_inbox
 search_inbox
 
-create_work_session
-list_work_sessions
-send_message_to_work_session
+create_assignment
+list_assignments
+inspect_assignment
+send_assignment_request
+stop_assignment
 report_to_orchestrator
 ```
 
@@ -1506,11 +1503,11 @@ report_to_orchestrator
                        Root Session
                              │
                              ▼
-                       ctx.botWork
+                       ctx.assignments
                              │
            ┌─────────────────┼─────────────────┐
            ▼                 ▼                 ▼
-        Work W1           Work W2           Work W3
+        Assignment W1           Assignment W2           Assignment W3
        Root Session      Root Session      Root Session
            │                 │                 │
            ▼                 ▼                 ▼
@@ -1522,7 +1519,7 @@ report_to_orchestrator
 
 最重要的一句话：
 
-> **Channel 是 Bot 所处的社会世界；Bot Inbox 是社会世界对 Bot 的输入缓冲层；Orchestrator 是 Bot 的控制平面；Work Session 是独立任务 / 项目的顶层上下文；Subagent 是 Work Session 内部的 delegated worker。**
+> **Channel 是 Bot 所处的社会世界；Bot Inbox 是社会世界对 Bot 的输入缓冲层；Orchestrator 是 Bot 的控制平面；Assignment Session 是独立任务 / 项目的顶层上下文；Subagent 是 Assignment Session 内部的 delegated worker。**
 
 ---
 
