@@ -2,263 +2,241 @@
 
 <!-- Maintained source, not generated: this is the English translation of `docs/architecture/botharness-architecture.md`. Edit this file (and its `diagrams/en/*.mmd` sources), not `apps/docs`. -->
 
-BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives agents a persistent identity: **PersonaBot** — a persona with memory that spans sessions and can work concurrently. DeepSeekBot is its first app (sidebar roster + delegation + IM integration). The DSH core is not forked; IM channels come from the dsh-im base.
+BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent identity: a **PersonaBot**. Its persona and Memory continue across Sessions. One Orchestrator Session manages its Inbox and may coordinate multiple independent Work Sessions concurrently. DeepSeekBot is the first app, providing the roster, Bot Inbox, Work Directory, delegation, and IM integration.
 
-Status: M1 implemented (PR #13) · M2 memory MVP implemented · M3 roster & delegation · M5 IM adapter · M6 SoulSnapshot · M7 Soul registry (ADR-0019/0020) · updated 2026-09-18
+This document describes the target architecture agreed in #71. The M1 registry, M2 Memory MVP, and #66 roster storage exist today; #77 has validated the DSH runtime seams, while explicit Session ownership, Messaging, the BotWork Runtime, the unified operational database, and portability ship incrementally through #79–#81. Updated 2026-09-20.
+
+The rollout stays explicit: #66's `botharness_roster` domain is the current roster authority; #79 establishes only the `botharness.db` owner, and #80 performs the one-way roster and Session-ownership migration. The target diagrams show ownership after that migration, not a present-day dual-write path.
+
+#56 extends the current roster global slot to `{ pins, sectionOrder, topOrder? }`: `topOrder` mixes section blocks with loose Channels while membership remains owned only by section records. The unary client bridge now has eight arrangement methods, adding `topReorder`; #80 must migrate this order and its single-membership invariant into the database without dual writes.
+
+The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Work, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
 
 ## 1 · System context
 
 ```mermaid
 flowchart LR
-  User["User (DSH Web / people in a Feishu group)"]
-  Feishu["Feishu / Lark Open Platform"]
+  Human["Human<br/>DSH Web / IM"]
+  External["Feishu / Lark<br/>webhook / future providers"]
 
-  subgraph Host["DSH Host · single process"]
-    IM["dsh-im base<br/>channels · conversation routing · streaming cards · settings page"]
-    Core["@botharness/core<br/>registry · state · IM binding resolution"]
-    Agent["DSH Agent<br/>one executor per Session"]
+  subgraph Browser["DSH Web Client"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
   end
 
-  subgraph Browser["Web Client · browser (separate Cordis app)"]
-    Client["@botharness/client<br/>roster · detail · @delegation (M3)"]
+  subgraph Host["DSH Host · single profile writer"]
+    API["Client Bridge RPC"]
+    Identity["PersonaBot & Memory"]
+    Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
+    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Transfer["Portability<br/>Export · Backup · Restore"]
+    DB[("botharness.db")]
   end
 
-  User -->|"@ / delegate"| Client
-  User -->|"group message"| Feishu
-  Feishu <-->|"long connection (outbound)"| IM
-  IM --> Agent
-  Core -->|"RPC (read model)"| Client
-  Client -.->|"RPC (writes)"| Core
-  Core -.->|"read-only config.json / workspaces.json"| IM
-  Agent -.->|"state events (wired in M3)"| Core
+  subgraph DSH["DSH-owned runtime"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Credentials["Credentials · profile settings"]
+  end
 
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef dsh fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class Core ours;
-  class IM dsh;
-  class Client later;
+  Human --> UI
+  External <--> Messaging
+  UI <--> API
+  API --> Identity
+  API --> Messaging
+  API --> BotWork
+  API --> Transfer
+  Identity --> DB
+  Messaging --> DB
+  BotWork --> DB
+  Transfer --> DB
+  Identity <--> Sessions
+  Messaging --> BotWork
+  BotWork <--> Sessions
+  Messaging -.-> Credentials
+  Transfer -.-> Sessions
 ```
 
-Two entry points (DSH Web roster/delegation, Feishu group IM), one PersonaBot brain. The browser half is not part of the Host process: the only cross-process path is RPC (ADR-0023).
+The browser reaches Host read models and commands only through RPC. A provider adapter verifies and normalizes events and executes declared capabilities; it does not own the Inbox and cannot wake an Agent directly. DSH remains authoritative for Agent execution, SessionPersistence, Subagents, and credentials. BotHarness does not duplicate that runtime authority.
 
-## 2 · Modules & packages
+## 2 · Deep modules and ownership
 
 ```mermaid
 flowchart TB
-  subgraph pkgs["monorepo packages"]
-    Bundle["deepseekbot<br/>bundle + app (M5)"]
-    CorePkg["@botharness/core<br/>host domain services (M1 done)"]
-    ClientPkg["@botharness/client<br/>React client (M3)"]
-    ImPkg["@botharness/im<br/>IM adapter (M5)"]
+  Root["Host composition root<br/>lifecycle · dependency wiring"]
+  DB["Operational Database Owner<br/>writer lease · schema generation · transaction"]
+
+  subgraph Modules["BotHarness deep modules"]
+    Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
+    Memory["Memory<br/>files · context delivery · tools"]
+    Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
+    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Portable["Portability<br/>Soul · export · backup · restore"]
+    Views["Read models<br/>RPC · UI projections"]
   end
 
-  Bundle --> CorePkg
-  Bundle --> ClientPkg
-  Bundle --> ImPkg
-
-  subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply(config) / provide"]
-    Registry["bots/registry.ts<br/>CRUD · atomic writes · memory dir · findByWorkspace"]
-    Slug["bots/slug.ts"]
-    Record["bots/persona-bot.ts"]
-    State["state/bot-state.ts<br/>five states → aggregate · events"]
-    Store["im/config-store.ts<br/>read-only dsh-im JSON"]
-    Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
-    MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>read/write · generated index · one commit per write"]
-    MemoryTree["memory/tree.ts<br/>directory tree · fold / overflow marker"]
-    MemorySearch["memory/search.ts<br/>rg search"]
-    MemoryGit["memory/git.ts<br/>one repo per bot"]
-    FrontMatter["memory/front-matter.ts<br/>summary / degradation"]
-  end
-
-  Plugin --> Registry
-  Plugin --> State
-  Plugin --> Store
-  Plugin --> MemoryService
-  Plugin --> MemoryTools
-  Registry --> Slug
-  Registry --> Record
-  Store --> Identity
-  MemoryService --> MemoryStore
-  MemoryTools --> MemoryStore
-  MemoryStore --> MemoryTree
-  MemoryStore --> MemorySearch
-  MemoryStore --> MemoryGit
-  MemoryStore --> FrontMatter
-  MemoryTree --> FrontMatter
-  ImPkg -.->|"write binding (M5)"| Registry
-
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity,MemoryService,MemoryTools,MemoryStore,MemoryTree,MemorySearch,MemoryGit,FrontMatter ours;
-  class Bundle,ClientPkg,ImPkg later;
+  Root --> DB
+  Root --> Bots
+  Root --> Memory
+  Root --> Msg
+  Root --> Work
+  Root --> Portable
+  Root --> Views
+  DB --> Bots
+  DB --> Msg
+  DB --> Work
+  DB --> Portable
+  Bots --> Memory
+  Bots --> Work
+  Msg --> Work
+  Bots --> Views
+  Msg --> Views
+  Work --> Views
+  Portable --> Views
 ```
 
-| Module                   | Responsibility                                                                                                   | Status            |
-| ------------------------ | ---------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `plugin.ts`              | Plugin entry: `apply(ctx, config)` (`enabled` gate) + `provide('botharness')`; assembled by `createCore()`       | M1 ✅             |
-| `bots/registry.ts`       | PersonaBot lifecycle + atomic persistence; `remove` keeps memory by default, only `purge` clears it              | M1 ✅             |
-| `state/bot-state.ts`     | Five session states reported → PersonaBot aggregation; `aggregate-changed / session-changed / session-removed`   | M1 ✅             |
-| `im/*`                   | Read-only dsh-im store (v1/v2/v3 compatible) + workspace→BotIdentity (IM binding helper)                         | M1 ✅ (M5 wiring) |
-| `memory/front-matter.ts` | Front-matter parse/serialize + graceful degradation (first line + mtime; invalid YAML never throws)              | M2 ✅             |
-| `memory/store.ts`        | Memory read/write: path jail, atomic writes, serial queue, `MEMORY.md` index, one commit per write               | M2 ✅             |
-| `memory/tree.ts`         | Directory tree: front-matter summary + `updated_at`; ≤1000 paths, oversized dirs folded to counts                | M2 ✅             |
-| `memory/search.ts`       | Case-insensitive search (`rg` when available, pure-Node fallback); skips front-matter, returns path/line/excerpt | M2 ✅             |
-| `memory/tools.ts`        | DSH tools `memory_read / memory_search / memory_write / memory_list` (write requires summary)                    | M2 ✅             |
-| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` mapping; one store per memory dir (serial across Sessions)               | M2 ✅             |
-| `memory/git.ts`          | One repo per bot: single `main` branch, `.gitattributes` forcing LF, local identity, `history()`                 | M2 ✅             |
-| roster client            | `main` panel + `sidebar.panellist`; roster tree / detail / create; @delegation                                   | M3                |
+| Module      | Owns                                                                                                      | Does not own                                         |
+| ----------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
+| PersonaBot  | identity, lifecycle, explicit Session ownership                                                           | DSH Session lifecycle, Memory content                |
+| Memory      | `PERSONA.md`, Memory files, the context-assembly contract                                                 | Inbox content, automatic distillation                |
+| Messaging   | Source Events, Channel placement, Inbox Admission, Attention, Trigger/Wake Policy, Service Grants, Outbox | Agent execution, provider credentials                |
+| BotWork     | Work Directory, Work Request/Delivery Intent, capacity admission, report/lifecycle routing                | DSH transcripts, Subagent runtime                    |
+| Portability | coordination for SoulSnapshot, PersonaBot Export, Profile Backup/Restore/Transfer                         | credentials, executable plugins, private DSH formats |
+| Read models | queries, pagination, UI-friendly projections                                                              | business facts and write rules                       |
 
-## 3 · Boot & service exposure
+`botharness.db` is one physical transaction host, not a shared generic repository. Each deep module owns its tables and invariants only through its own interfaces; explicit commands and ports coordinate cross-module flows.
 
-```mermaid
-sequenceDiagram
-  participant D as DSH / Cordis
-  participant P as @botharness/core · plugin.ts
-  participant M as memory/service.ts
-  participant T as memory/tools.ts
-  participant O as Host plugins (im / third-party)
-  participant C as Web Client (browser)
-
-  D->>P: apply(ctx, config)
-  P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory }) (Host-internal)
-  P->>T: createMemoryTools({ resolveStore })
-  T-->>P: memory_* tools
-  P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
-  P->>D: systemPrompt.section(persona · memory-tree)
-  O->>D: inject(['botharness'])
-  D-->>O: ctx.botharness
-  Note over O: read registry (list/get/findByWorkspace)<br/>subscribe states.on(...) (Host-internal)
-  C->>D: connection.rpc.call('/api', 'botharness/<method>') (from M3)
-  D-->>C: { ok, value | error }
-  Note over P: M3: register read-model endpoints via connection.rpc / fetch (ADR-0023)
-  Note over C: read model + refresh/polling<br/>no Host service injection<br/>no direct states.on
-```
-
-Everything Host-internal goes through the Cordis service bus; the browser half reads the model over the client-bridge RPC — no cross-process injection, no file polling.
-
-### 3.1 · BOT-mode preferences (#68)
-
-The Host half (`packages/client/src/index.ts`) registers the `ui-bot-mode` namespace with `ctx.settings` (schemastery: global `sortMode` plus per-section `sortModes`, defaulting to `updated` / `{}`); the browser half reads and writes it through `ctx.settingsScope.bind({ namespace: 'ui-bot-mode' })` (global `set`, per-section `mutate` path operations), and the policy store adopts accepted values when `settings/document-updated` arrives:
-
-```mermaid
-sequenceDiagram
-  participant H as Host · client/src/index.ts
-  participant S as DSH settings (settings.yaml)
-  participant P as Browser · BotModePrefs (shared store)
-  participant U as sidebar `...` menu / General settings row
-
-  H->>S: settings.register('ui-bot-mode', schema)
-  S-->>P: settingsScope.bind(...) → status/value/user
-  U->>P: setSortMode / setSectionSortMode (optimistic write)
-  P->>S: set('sortMode') / mutate(path ['sortModes', id])
-  S-->>P: settings/document-updated → adopt
-  Note over P,U: one store, two entries; legacy roster.json sort fields migrate once
-```
-
-Deviation record: the Host half uses `settings.register(ns, schema)`, not the cookbook-preferred `installSection(ctx, ns, Config, config, { setSource, onChange })` — this plugin has no `cordis.yml` entry config to serve as the base, so schema defaults carry the whole defaulting behavior; switch to `installSection` when an entry config appears.
-
-## 4 · Creating a PersonaBot (data flow)
+## 3 · Host boot, migration, and recovery
 
 ```mermaid
 flowchart TD
-  A["registry.create({ slug, displayName, … })"] --> B{"valid slug?<br/>kebab-case ≤64"}
-  B -- no --> E1["reason: invalid-slug"]
-  B -- yes --> C{"existing valid bot.json?"}
-  C -- yes --> E2["reason: duplicate"]
-  C -- no --> D{"memoryDir is absolute?"}
-  D -- no --> E3["reason: invalid-memory-dir"]
-  D -- yes --> F["assemble record<br/>slug/displayName/avatar/model/preset/workspaces/createdAt"]
-  F --> G["atomic write: bot.json.tmp-<uuid> → rename"]
-  G --> H["mkdir memory/ (default or custom)"]
-  H --> I["return ok: record"]
-  G -.->|"rebuild if corrupt: keep existing memory/"| H
+  Start["Host starts"] --> Lease{"Acquire profile writer lease"}
+  Lease -- "busy" --> ReadOnly["Fail closed<br/>read-only diagnostics"]
+  Lease -- "owned" --> Open["Open botharness.db"]
+  Open --> Gen{"Schema generation supported?"}
+  Gen -- "newer / corrupt" --> Recovery["Recovery mode<br/>no operational writes or wakes"]
+  Gen -- "current" --> Integrity["Integrity checks"]
+  Gen -- "older" --> Copy["Migrate isolated temp copy"]
+  Copy --> Verify["Verify schema + integrity"]
+  Verify -- "fail" --> Recovery
+  Verify -- "pass" --> Activate["Atomic replace"]
+  Activate --> Integrity
+  Integrity -- "fail" --> Recovery
+  Integrity -- "pass" --> Modules["Start deep modules"]
+  Modules --> Rebuild["Rebuild DSH-derived projections<br/>reconcile bounded intents"]
+  Rebuild --> Ready["Enable admissions, wakes and commands"]
 ```
 
-Validate → duplicate check (against valid records, not stuck on tombstone directories) → atomic write → memory directory.
+Only one BotHarness writer may own a DSH profile at a time. Module migrations combine into one monotonically increasing Schema Generation. Migration runs against a temporary copy and atomically replaces the active database only after validation. Open, migration, or integrity failure enters recovery mode; the Host never falls back to NDJSON, a storage domain, or in-memory writes.
 
-## 5 · IM binding resolution (helper today, wired in M5)
+## 4 · Messaging transaction and external side effects
 
 ```mermaid
 sequenceDiagram
-  participant S as DSH Session (cwd = workspace)
-  participant R as im/config-store.ts
-  participant F as dsh-im disk (read-only)
-  participant I as im/identity.ts
-  participant G as registry (M5)
+  participant P as Provider adapter
+  participant M as Messaging command
+  participant DB as botharness.db
+  participant N as Post-commit notifier
+  participant O as Orchestrator
+  participant X as Provider service
 
-  S->>R: read()
-  R->>F: integrations/dsh-feishu/config.json + workspaces.json
-  F-->>R: bots[] · workspaces/aliases/conversationWorkspaces
-  S->>I: resolveBotIdentity(workspace, conversationKey?)
-  I-->>S: ok / ambiguous / not-found → BotIdentity{ id, displayName }
-  S->>G: write binding: BotIdentity → registry slug (M5)
-  Note over R,F: base upgrades need re-verification — never fork or patch
+  P->>M: verified event + account fingerprint + capabilities
+  M->>DB: BEGIN IMMEDIATE
+  M->>DB: append Source Event / Revision
+  M->>DB: Channel placement (optional)
+  M->>DB: evaluate exact Trigger + Wake Policy revision
+  M->>DB: create Inbox Admission / Attention facts
+  M->>DB: COMMIT
+  DB-->>N: committed fact ids
+  N-->>O: wake at policy-selected safe boundary
+  O->>M: Reply or authorized Service Action
+  M->>DB: validate current revision + capability + grant and write Outbox Intent
+  M->>X: execute with stable idempotency identity
+  X-->>M: receipt / failure / unknown outcome
+  M->>DB: append attempt and outcome facts
 ```
 
-## 6 · State machine & events
+A Source Event is the sole authority for content; Channels and Inboxes hold relationships only. A Reply follows the trusted Reply Route so the Host selects the source provider. A proactive post is a Service Action and requires both Provider Capability and a Human Service Grant. A SQLite transaction covers local facts only. External effects use an Outbox Intent, a stable idempotency identity, and bounded reconciliation without claiming exactly-once delivery. An outcome that cannot be proven becomes `unknown-outcome` for Human resolution.
+
+Wake Policy decides when an Orchestrator observes new attention: at the safe boundary after the current step, after the current turn, or by starting a new turn while idle. Ordinary external messages do not interrupt a running model/tool step. Only a DSH-supported and policy-authorized control path may steer execution.
+
+## 5 · Orchestrator and Work control plane
 
 ```mermaid
-stateDiagram-v2
-  [*] --> idle
-  idle --> thinking: delegate / wake
-  thinking --> working: start execution
-  working --> waiting: needs approval / waiting on someone
-  waiting --> working: resume after confirmation
-  working --> blocked: failure / missing precondition
-  blocked --> working: retry after fix
-  thinking --> blocked: stuck
-  working --> done: finished (session event)
-  done --> idle: aggregate back to idle
+flowchart LR
+  Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
+  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
+  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
+  Gate -- "yes" --> Runtime["BotWork Runtime"]
+  O -->|"send_work_request / stop_work"| Runtime
+  Runtime <--> W1["Independent Work Session A"]
+  Runtime <--> W2["Independent Work Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
+  Report --> Inbox
+  Notice --> Inbox
+  W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
-| Event               | Trigger                                            | Consumer               |
-| ------------------- | -------------------------------------------------- | ---------------------- |
-| `aggregate-changed` | aggregate state changed                            | roster / avatars (M3+) |
-| `session-changed`   | any session state change (even if aggregate holds) | session detail         |
-| `session-removed`   | session ended / cleaned up                         | tree refresh           |
+A Work Session is an independent DSH root whose canonical identity is the DSH `sessionId`; a Continuity Key is only a PersonaBot-local alias. The Orchestrator manages Work through five tools: `list_work`, `inspect_work`, `create_work`, `send_work_request`, and `stop_work`. Work can report only through `report_to_orchestrator`. v1 has no direct Work-to-Work messaging, broadcast, or waiting queue.
 
-Events are emitted inside the Host process only. The browser never subscribes directly: the roster gets state through the client-bridge read model with refresh/polling (ADR-0023).
+The Work Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Work Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
 
-## 7 · On-disk data
+## 6 · Persistence, export, and restore boundaries
 
-Ours (written by the registry):
+```mermaid
+flowchart TB
+  subgraph Profile["One DSH profile"]
+    DB[("botharness.db<br/>operational authority")]
+    Files["Persona + Memory files<br/>human-readable authority"]
+    CAS["Attachment / Soul CAS bytes"]
+    DSHS["DSH SessionPersistence<br/>transcripts · execution"]
+    Creds["DSH credentials / settings"]
+  end
 
-```text
-$DSH_HOME/botharness/bots/<slug>/
-├── bot.json   # machine metadata (atomic write)
-└── memory/    # default memory dir; absolute path configurable
-               # M2: PERSONA.md / MEMORY.md / topic files
+  Barrier["Manual Export Profile<br/>backup barrier + consistent snapshots"]
+  Package["one compressed<br/>.botharness-backup"]
+  Stage["Import Profile staging<br/>validate · migrate · dependency check"]
+  Target["Restore As New / Replace Existing<br/>cold + suspended authorities"]
+
+  DB --> Barrier
+  Files --> Barrier
+  CAS --> Barrier
+  DSHS -.->|"adapter-supported facets"| Barrier
+  Creds -.->|"declarations only; never secrets"| Barrier
+  Barrier --> Package
+  Package --> Stage
+  Stage --> Target
 ```
 
-dsh-im's (read-only):
+| Data                           | Authority                            | Portability                                                              |
+| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------ |
+| operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot in a manual profile backup                    |
+| Persona / Memory               | files under PersonaBot ownership     | SoulSnapshot / PersonaBot Export / profile backup                        |
+| attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                         |
+| Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise explicitly omitted |
+| credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                  |
 
-```text
-$DSH_HOME/integrations/dsh-feishu/
-├── config.json      # bots[]
-├── workspaces.json  # v3: workspaces/aliases/overrides
-└── bots/<botId>/state.json  # conversation binding (M5)
-```
+v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 
-## 8 · Communication & boundaries
+## 7 · Critical boundaries
 
-| Channel                                  | Direction                            | Notes                                                                                           |
-| ---------------------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------------------- |
-| Host-internal Cordis `provide/inject`    | core → Host plugins (im/third-party) | the `botharness` service; same process only, no global singleton                                |
-| Host-internal tracker `states.on()`      | core → Host consumers                | in-process events, not polling; the browser never subscribes directly                           |
-| Browser-internal Cordis (slots/triggers) | between client plugins               | the Web Client is a separate Cordis app; the shell injects its module baseline                  |
-| Cross-process Connection RPC             | client ↔ core                        | `botharness/<method>` read model; `{ ok, value \| error }` + cursor; refresh/polling (ADR-0023) |
-| DSH event bus `ctx.on`                   | DSH/dsh-im → core                    | M3 subscribes to `agent/*` to drive state                                                       |
-| Feishu / Lark                            | dsh-im ↔ open platform               | outbound long connection; no public ingress (webhook exception, see [PRD](/dev/spec/app-prd))   |
-| dsh-im disk                              | read-only                            | only through the single `im/` module; no fork / no patch                                        |
-| Secrets                                  | —                                    | only in the DSH credentials service; zero plaintext in the repo                                 |
+- Normal runtime uses explicit Session ownership only. `cwd` may be a migration or repair hint but never decides PersonaBot identity.
+- DSH Session state is authoritative for execution. BotHarness projects activity/last-run facts and keeps a semantic Work Report separate from a Host Lifecycle Notice.
+- Provider capability is not authorization. Discovering a Feishu channel never grants permission to post into it.
+- The UI never reads files or the database directly and does not derive business state. It consumes Host read models and sends commands back to the owning module.
+- Archiving a PersonaBot first closes admissions, wakes, and external actions, then stops its Orchestrator, Work, and owned Subagents. Purge is a separate destructive action.
+- Browser and Host are separate Cordis applications. Host services are never injected across processes; all calls use the `/api` client bridge.
 
-## 9 · How to maintain
+## 8 · Implementation order and parallel work
 
-- This is a **living** architecture document: when modules, data flows, or boundaries change structurally, update this file (mermaid sources are inlined).
-- This page is synced to the docs site (`apps/docs`) by `scripts/sync-docs.mjs`; site address `https://botharness.ai/dev/architecture`.
-- Companions: platform spec [docs/botharness.md](/dev/spec/platform) · app PRD [PRD.md](/dev/spec/app-prd) · glossary [CONTEXT.md](/dev/spec/context) · decisions [docs/adr/](/dev/adr/0015-botharness-is-a-dsh-plugin-layer).
+1. #77 validates the pinned DSH Agent/SessionPersistence/Subagent seams while #79 builds the operational database owner. These can proceed in parallel.
+2. #80 implements explicit Session ownership and the activity projection after #77 and #79.
+3. #81 implements the BotWork Runtime after #77, #79, and #80; Work coordination in #47 depends on it.
+4. #78 can research the Feishu provider contract in parallel, but it gates adapter implementation in #48.
+5. #74, #75, and #76 are focused design/grill tracks. In particular, #75 can run in parallel with sidebar ordering #55.
+
+## 9 · Maintenance
+
+- When module structure, data flow, transaction boundaries, or authority changes, update this file, its Chinese mirror, and `docs/architecture/diagrams/*.mmd`.
+- Run `pnpm diagrams` and commit the light/dark SVGs. `scripts/sync-docs.mjs` publishes this source and those diagrams to `apps/docs`.
+- Companion sources: BotHarness Product Context in `CONTEXT.md`, with trade-offs and rationale in `docs/adr/`. The platform spec and app PRD are archived working drafts rather than parallel design authorities.

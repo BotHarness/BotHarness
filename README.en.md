@@ -9,11 +9,9 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 
 ## Docs
 
-- Platform spec: [docs/botharness.md](docs/botharness.md) _(Chinese)_
-- App PRD: [PRD.md](PRD.md) _(Chinese)_
-- Architecture & data flow (living doc, mermaid): [docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · site https://botharness.ai
-- Glossary: [CONTEXT.md](CONTEXT.md) · Decisions: [docs/adr/](docs/adr/)
-- Milestones & tickets: repo Issues; roadmap in spec §7
+- Architecture & data flow (living doc): [docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · site https://botharness.ai
+- BotHarness Product Context: [CONTEXT.md](CONTEXT.md) · Decisions: [docs/adr/](docs/adr/)
+- Milestones & tickets: repository Issues and Projects
 
 ## Status
 

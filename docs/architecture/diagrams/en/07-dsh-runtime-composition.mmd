@@ -1,0 +1,9 @@
+flowchart TB
+  Bundle["Bundle<br/>published contribution"] --> Profile["Profile<br/>ordered runtime composition"]
+  Patch["Patch<br/>later configuration overlay"] --> Profile
+  Profile --> Tree["Plugin tree<br/>runtime composition"]
+  Tree --> Fiber["Fiber<br/>lifecycle owner"]
+  Fiber --> Services["Services"]
+  Fiber --> Listeners["Event listeners"]
+  Fiber --> Registrations["Registrations"]
+  Registrations --> Registries["Registries<br/>live composition"]

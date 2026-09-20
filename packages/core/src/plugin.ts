@@ -10,6 +10,7 @@ import { createBridgeMethods } from './bridge/methods.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
+import { mountOperationalDatabase, type OperationalDatabaseOwner } from './database/owner.js';
 import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createMemoryTools } from './memory/tools.js';
@@ -39,6 +40,7 @@ export const Config = Schema.object({
 
 export interface BotHarnessCore {
   rootDir: string;
+  operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   states: BotStateTracker;
   memory: MemoryService;
@@ -52,12 +54,17 @@ export function createCore(
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({ rootDir });
+  const states = createBotStateTracker();
+  const memory = createMemoryService({ registry });
+  const channels = createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') });
+  const operationalDatabase = mountOperationalDatabase({ dshHome });
   return {
     rootDir,
+    operationalDatabase,
     registry,
-    states: createBotStateTracker(),
-    memory: createMemoryService({ registry }),
-    channels: createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') }),
+    states,
+    memory,
+    channels,
     roster: createRosterStore({ warn: options.warn }),
   };
 }
@@ -65,6 +72,7 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const core = createCore({ warn: (message) => ctx.logger.warn(message) });
+  ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
   ctx.provide('botharness', core);
 
   for (const tool of createMemoryTools({

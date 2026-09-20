@@ -7,9 +7,9 @@ Project-specific guidance for AI coding agents.
 BotHarness — a [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) plugin layer that gives agents a persistent identity: **PersonaBots** with a persona and file-based memory that spans sessions, chats, and workspaces. **DeepSeekBot** is its first app (sidebar roster, delegation, IM adapters).
 
 - DSH official docs (source of truth when DSH behavior/APIs are in question): <https://deepseek-harness.github.io/deepseek-harness/> — plugin authoring, packaging and install under `/develop/basic/` (`/publish` documents `dsh plugin`, bundle/profile manifests and layer order); CLI behavior reference upstream at `apps/cli/reference/README.md`.
-- Specs: `docs/botharness.md` (platform) and `PRD.md` (DeepSeekBot app); decisions live in `docs/adr/`.
+- Product language: `CONTEXT.md` (English) and `CONTEXT.zh.md` (Chinese); integrated target architecture: `docs/architecture/botharness-architecture.md`; durable choices and rationale: `docs/adr/`. The old platform spec and app PRD are archived working drafts, not parallel authorities.
 - IM adapter base: [dsh-im](https://github.com/xmanrui/dsh-im) (multi-bot + settings UI). Reliability patterns from [dsh-lark-link](https://github.com/amlyczz/dsh-lark-link); group/thread routing from [dsh-lark-bridge](https://github.com/imetn/dsh-lark-bridge).
-- Current phase: v1.9 spec (chat-first bot mode, ADRs 0029/0030, 0026 update); M2 memory MVP merged (PR #22); M3 bot-mode IA + chat shell (#10); M3.5 install gate (#24); M4 demo (#11); Bot Inbox / Orchestrator / Channel tools / Bridges in v1.1 (#30); M6 SoulSnapshot (#17) / M7 registry (#18) planned; docs IA rework deferred (#26).
+- Current architecture baseline: ADR-0035–0045 and the living architecture; delivery status and sequencing live in GitHub Issues and Projects.
 
 ## Commands
 
@@ -26,14 +26,14 @@ Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` 
 ## Conventions
 
 - TypeScript ESM; tests live in `packages/*/test/` (vitest).
-- Never commit secrets: the Feishu App Secret goes to the DSH credentials service, never to config or the repo (platform spec §4, rule M8).
-- Memory rules (layout, front-matter, atomic writes, tree injection, visibility, git): see `docs/botharness.md` §4, rules M1–M11.
-- Record decisions in the specs (bump version + changelog) and, for architecture, as an ADR under `docs/adr/` instead of leaving them in chat.
+- Never commit secrets: the Feishu App Secret goes to the DSH credentials service, never to config or the repo (ADR-0006).
+- Memory terminology lives in `CONTEXT.md`; durable memory choices live in ADR-0002/0003/0004/0012/0014/0021 and are integrated into the living architecture.
+- Record durable architecture choices as ADRs under `docs/adr/`, then integrate their current result into the living architecture instead of leaving decisions in chat or a mutable PRD.
 - Living architecture doc: `docs/architecture/botharness-architecture.md` (inline mermaid) — update it when modules, data flow, or boundaries change; it syncs to the docs site (`apps/docs`, botharness.ai) via `scripts/sync-docs.mjs`.
-- Docs site: Nimbus in `apps/docs` — content is generated from repo sources by `scripts/sync-docs.mjs` (never edit generated files); sections are `/docs` (user guides), `/dsh` (DSH plugin development, generated from the `dsh-plugin-dev` skill) and `/dev` (spec / PRD / ADR / architecture). English is primary at the root; Chinese lives under `/zh/**` (machine-translated, human spot-checked). The landing page uses **coss ui** (`src/components/coss/`, brand tokens in `design/tokens.css`); docs pages use Nimbus UI.
+- Docs site: Nimbus in `apps/docs` — content is generated from repo sources by `scripts/sync-docs.mjs` (never edit generated files); sections are `/docs` (user guides), `/dsh` (stable DSH/Cordis Context + Decision Tree, generated from `dsh-plugin-dev`) and `/dev` (BotHarness Design / verified Guides / code-generated Reference / ADR). Design is normative target state; Reference is current implementation fact. English is primary at the root; maintained Chinese counterparts live under `/zh/**`. Every docs page exposes a clean `.md` sibling; the legacy `/index.md` form remains compatible. The landing page uses **coss ui** (`src/components/coss/`, brand tokens in `design/tokens.css`); docs pages use Nimbus UI.
 - Diagrams: edit `docs/architecture/diagrams/*.mmd`, run `pnpm diagrams`, and commit the rendered light/dark SVGs (`rendered/*.svg`); the architecture page embeds those committed SVGs via the `<Diagram>` component, while the runtime mermaid loader remains for ad-hoc `mermaid` fences in hand-authored content.
 - OG cards: `apps/docs/src/pages/og/**` renders at build time with CanvasKit; Chinese titles use the committed Noto Sans SC subset. After editing Chinese page copy, run `pnpm og:font` (needs network) to regenerate `apps/docs/public/fonts/NotoSansSC-Bold.og-subset.otf`.
-- Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`). First-party skills live in the same tree and are ours to edit — `dsh-plugin-dev` (full-stack DSH plugin authoring), `dsh-dev`, and `dsh-ui` (all symlinked into `.claude/skills/`, not in the lock file).
+- Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`). First-party skills live in the same tree and are ours to edit — `dsh-plugin-dev` (stable DSH/Cordis Context and Decision Tree), `dsh-dev`, and `dsh-ui` (all symlinked into `.claude/skills/`, not in the lock file).
 - Local docs dev: `pnpm dev` (portless from `apps/docs` → https://docs.botharness.localhost; no-sudo variant `PORTLESS_PORT=8788 PORTLESS_HTTPS=0`) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
 
 ## Agent skills
@@ -52,7 +52,7 @@ When creating or updating a PR, use the `visual-pr` skill to write the descripti
 
 ### Domain docs
 
-Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). See `docs/agents/domain.md`.
+Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). Root `CONTEXT.md` is the sole authority for BotHarness product terms such as PersonaBot, Channel, Source Event, Bot Inbox, Orchestrator Session, and Work Session; product runtime relationships live under `docs/architecture/`. See `docs/agents/domain.md`.
 
 ### UI guidelines
 
@@ -61,3 +61,5 @@ Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens, `ui-p
 ### DSH development
 
 Developing, running, or debugging against a local DSH instance follows the `dsh-dev` skill: dev-loop/profile operations, the `/api` transport contract (api-gateway owns the single interceptor — never `connection.rpc.intercept('/api')`), and the headless debugging playbook. Diagnosed DSH traps must be recorded there in the same change (pitfall log).
+
+For every DSH/Cordis plan, PRD, ADR, or implementation, enter through `dsh-plugin-dev`: read its Context, then its Decision Tree. Use its canonical leading words—Plugin/Fiber/Bundle/Profile/Patch; Service Definition/Provider/Consumer/Capability seam; Registry/Registration/Agent Scope/Service Isolation; Cordis Event dispatch; Agent/AgentHandle/Subagent/Agent Inbox; SessionEvent/`session/event`/Projection/Session Persistence/Session Query; Execution World/Sandbox/Shell/Subprocess/Job/PTY/Schedule/Spill/Storage Domain; Slots/Typert/API Gateway/Conversation Assembly—and label downstream concepts as application-defined. The skill deliberately does not cache version-specific Host/Client/Slots APIs or community patterns; after choosing a seam, verify its concrete mechanism against the current official DSH docs/source and running Host. Do not put BotHarness product vocabulary or architecture into the DSH skill or `/dsh/**`; a design that crosses both layers reads root `CONTEXT.md` for product nouns and the DSH Context for platform nouns.

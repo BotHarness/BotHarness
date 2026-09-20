@@ -10,6 +10,9 @@ import {
   getLlmsStaticPaths,
   type LlmsEndpointReference,
 } from "@cloudflare/nimbus-docs/agent-endpoints";
+import { getIndexedEntries, isDiscoverable } from "@cloudflare/nimbus-docs/runtime";
+import { config } from "virtual:nimbus/config";
+import { renderDevLlms } from "../../lib/dev-llms";
 import { agentEndpointResponse } from "../../utils/agent-endpoint-response";
 
 export const prerender = true;
@@ -28,6 +31,28 @@ export const getStaticPaths = async () =>
   (await getLlmsStaticPaths()).filter((path) => path.params.section !== "changelog-zh");
 
 export async function GET({ params, props, request }: SectionContext) {
+  if (params.section === "dev") {
+    const pages = (await getIndexedEntries())
+      .filter(
+        (item) =>
+          item.collection === "docs" &&
+          isDiscoverable(item.entry) &&
+          (item.url === "/dev" || item.url.startsWith("/dev/")),
+      )
+      .map((item) => ({
+        title: item.title,
+        description: item.description,
+        url: item.url,
+      }));
+    return new Response(
+      renderDevLlms({
+        origin: config.site.replace(/\/+$/, ""),
+        language: "en",
+        pages,
+      }),
+      { headers: { "Content-Type": "text/plain; charset=utf-8" } },
+    );
+  }
   const reference =
     props.reference ??
     (params.section

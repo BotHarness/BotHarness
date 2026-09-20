@@ -1,22 +1,16 @@
-sequenceDiagram
-  participant D as DSH / Cordis
-  participant P as @botharness/core · plugin.ts
-  participant M as memory/service.ts
-  participant T as memory/tools.ts
-  participant O as Host 插件（im / 第三方）
-  participant C as Web Client（浏览器）
-
-  D->>P: apply(ctx, config)
-  P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })（仅 Host 内）
-  P->>T: createMemoryTools({ resolveStore })
-  T-->>P: memory_* 工具
-  P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
-  P->>D: systemPrompt.section(persona · memory-tree)
-  O->>D: inject(['botharness'])
-  D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...)（仅 Host 内）
-  C->>D: connection.rpc.call('/api', 'botharness/<method>')（M3 起）
-  D-->>C: { ok, value | error }
-  Note over P: M3：经 connection.rpc / fetch 注册读模型端点（ADR-0023）
-  Note over C: 读模型 + 刷新/轮询；不 inject Host 服务，<br/>不直接订阅 states.on
+flowchart TD
+  Start["Host starts"] --> Lease{"Acquire profile writer lease"}
+  Lease -- "busy" --> ReadOnly["Fail closed<br/>read-only diagnostics"]
+  Lease -- "owned" --> Open["Open botharness.db"]
+  Open --> Gen{"Schema generation supported?"}
+  Gen -- "newer / corrupt" --> Recovery["Recovery mode<br/>no operational writes or wakes"]
+  Gen -- "current" --> Integrity["Integrity checks"]
+  Gen -- "older" --> Copy["Migrate isolated temp copy"]
+  Copy --> Verify["Verify schema + integrity"]
+  Verify -- "fail" --> Recovery
+  Verify -- "pass" --> Activate["Atomic replace"]
+  Activate --> Integrity
+  Integrity -- "fail" --> Recovery
+  Integrity -- "pass" --> Modules["Start deep modules"]
+  Modules --> Rebuild["Rebuild DSH-derived projections<br/>reconcile bounded intents"]
+  Rebuild --> Ready["Enable admissions, wakes and commands"]

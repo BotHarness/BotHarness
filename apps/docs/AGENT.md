@@ -20,7 +20,8 @@ src/
 ├── lib/cn.ts                # Tailwind className merger
 ├── pages/
 │   ├── [...slug].astro
-│   ├── [...slug]/index.md.ts   # per-page markdown alternate
+│   ├── [...slug].md.ts         # canonical per-page markdown sibling
+│   ├── [...slug]/index.md.ts   # compatibility markdown alternate
 │   ├── llms.txt.ts
 │   ├── og.png.ts                # site-level OG card
 │   ├── og/
@@ -62,7 +63,7 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 |---|---|
 | `/docs` | User guides (`overview`, `quickstart`) |
 | `/dsh` | DSH plugin development (generated from `.agents/skills/dsh-plugin-dev/` + `docs/dsh/`) |
-| `/dev` | Architecture / spec / PRD / ADR (generated from repo sources) |
+| `/dev` | BotHarness Design / Guides / generated Reference / ADR (generated from repo sources) |
 | `/changelog` | Bilingual release feed + `/changelog/<slug>` + `/zh/changelog/<slug>` permalinks |
 
 ## Bilingual layout
@@ -72,7 +73,7 @@ collection + Nimbus `versions.others` (`astro.config.ts`). Generated `/dev`
 pages are written into both trees: the English tree (`docs/dev`) carries the
 Chinese source flagged `untranslated: true`, which the root route renders with
 `This page has not been translated yet.`; the Chinese tree (`docs-zh/dev`) is
-clean. The architecture page is the exception — the maintained English source
+clean. Architecture pages are the exception — the maintained English source
 `docs/architecture/botharness-architecture.en.md` goes to the English tree and
 the Chinese source to the `/zh` tree (no banner on either). English-only pages
 with no Chinese counterpart (rare) are flagged in `docs-zh`, and the `/zh`
@@ -103,9 +104,9 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
 
 ## Generated directories — don't edit
 
-- `src/content/docs/dev/**` — English tree: architecture / spec / ADR, from
-  root `docs/`, `PRD.md`, `CONTEXT.md` (Chinese sources flagged
-  `untranslated: true`)
+- `src/content/docs/dev/**` — English tree: living architecture, BotHarness Product Context,
+  Guides, generated Reference, and ADR, from maintained repository sources (`CONTEXT.md` is
+  paired with `CONTEXT.zh.md` for the Chinese tree)
 - `src/content/docs-zh/dev/**` — Chinese tree at `/zh`: the same sources,
   clean, plus the Chinese architecture page
 - `src/content/docs/dsh/**` — DSH Dev Docs: the landing from `docs/dsh/index.md`
@@ -120,6 +121,10 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
 - `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
 
 `scripts/sync-docs.mjs` rebuilds all of them on every `syncDocs()` call.
+`scripts/docs-reference.mjs` parses the current core Config, `defineTool`
+registrations, and literal Cordis event calls for `/dev/reference/**`; it
+fails on dynamic names or unsupported shapes instead of publishing a stale
+catalog.
 
 ## Adding things
 
@@ -178,7 +183,7 @@ End with `Summary: N errors, N warnings.`
 - **Content** — `content.config.ts` registers `docsCollection()` (and `partialsCollection()` if used); every `.mdx` is inside a registered collection; frontmatter validates.
 - **Sidebar** — every sidebar ref resolves to a content entry; no orphans; no slug collisions.
 - **MDX** — every PascalCase component in `*.mdx` is registered; every `<Render file=...>` resolves; code-fence languages are valid.
-- **Routes** — `llms.txt.ts`, `robots.txt.ts`, `[...slug]/index.md.ts`, `og.png.ts`, `og/[...slug].ts` all exist.
+- **Routes** — `llms.txt.ts`, `robots.txt.ts`, `[...slug].md.ts`, the compatibility `[...slug]/index.md.ts`, `og.png.ts`, and `og/[...slug].ts` all exist.
 - **Registry hygiene** — every `src/components/ui/<slug>/` is either MDX-registered or imported in `src/`; transitive deps (`lib/cn.ts`, etc.) exist.
 - **AI surface** — `<AgentDirective />` renders in `BaseLayout.astro`; doc `<head>` has `<link rel="alternate" type="text/markdown" ...>`.
 - **Search** — `data-pagefind-body` is on the docs main wrapper; after `pnpm build`, `dist/pagefind/` exists with ≥1 indexed page.

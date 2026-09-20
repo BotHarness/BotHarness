@@ -1,10 +1,12 @@
 # DeepSeekBot — 产品需求文档（PRD）
 
+> **历史工作草稿，不再是设计权威，也不发布到文档站。** 当前产品术语以 `CONTEXT.md` 为准，整合后的目标架构以 `docs/architecture/botharness-architecture.md` 为准，取舍与理由以 `docs/adr/` 为准。
+
 | 项        | 内容                                                                                                                                                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v1.5（PoC）                                                                                                                                                                                                                             |
+| 版本      | v1.6（PoC）                                                                                                                                                                                                                             |
 | 日期      | 2026-09-20                                                                                                                                                                                                                              |
-| 状态      | Draft                                                                                                                                                                                                                                   |
+| 状态      | Archived working draft                                                                                                                                                                                                                  |
 | 形态      | **BotHarness 的首个应用**：DSH 插件 bundle                                                                                                                                                                                              |
 | 平台规格  | `docs/botharness.md`（PersonaBot / 记忆 / 状态 / 工作方式）                                                                                                                                                                             |
 | 上游依赖  | DSH（开发者预览，**必须 pin**）；dsh-im（通道基座）；blobatar（MVP 形象）                                                                                                                                                               |
@@ -13,7 +15,8 @@
 | v1.2 变更 | 对齐平台 v1.7：PersonaBot 最小 profile = displayName / tag（岗位）/ description，AC-1.3 向导同步；模型选择为本地策略、不随 SoulSnapshot 发布（ADR-0027）                                                                                |
 | v1.3 变更 | 对齐平台 v1.9（ADR-0029/0030 + 0026 增补）：BOT 模式改为聊天优先（点击 BOT 即 DM，session 移右侧面板，workspace 弱化）；Channel/Section/Bridge/Bot Inbox 术语；M3 收敛为 IA + 聊天外壳 + 本地消息存储，Bot Inbox 及 Channel 工具落 v1.1 |
 | v1.4 变更 | 对齐平台 v1.10（ADR-0031/0032）：sidebar 区块排序与移动、未分组、默认 blobatar 头像与字形图标、行几何对齐原生实测；自定义头像与头像动效/表情留 v1.1                                                                                     |
-| v1.5 变更 | 对齐平台 v1.14（ADR-0031/0034）：section 整块可接收归属投放；拖拽不改变 target layout，源行原位淡出；未分组改为可夹在 section 间的松散 Channel，并由 Host `topOrder` 持久化                                                             |
+| v1.5 变更 | 对齐平台 v1.12（#71、ADR-0035–0045）：explicit Session ownership、Source Event/Inbox/Outbox、Orchestrator 管理 independent Work roots、全局并发上限、provider capability/grant、单文件手动 profile backup                               |
+| v1.6 变更 | 对齐平台 v1.15（#56、ADR-0031/0034）：section 整块可接收归属投放；拖拽不改变 target layout，源行原位淡出；未分组改为可夹在 section 间的松散 Channel，并由当前 Host roster 的 `topOrder` 持久化                                          |
 
 ## 0. 历史变更（v0.2–v0.9）
 
@@ -50,11 +53,12 @@
 
 > 作为用户，我在 DM 或群聊里给 PersonaBot 发消息，它像同事一样处理并回复；可以同时推进几件事。
 
-- AC-2.1 DM 与 Channel 消息进入该 BOT 的 Bot Inbox（准入按 Channel membership，默认 `all`）；@ 走 immediate、普通走 digest（ADR-0025）。
-- AC-2.2 Orchestrator Session 按批次处理 Bot Inbox：回复、派发给已有工作 Session、或新开 Session（ADR-0024；v1.1 交付）。
-- AC-2.3 状态实时反映到 sidebar（六态）与右侧 session 面板。
-- AC-2.4 完成后在聊天中回复；Human Inbox 聚合需要人工处理的事件。
-- AC-2.5 并发多 Session 各自进度独立。
+- AC-2.1 DM、Channel、Bridge、webhook 和 Work Report 先成为 immutable Source Event；Trigger 建立 Bot-specific Inbox Admission。@/DM 默认 immediate，普通消息可 digest，均遵守安全 step/turn 边界（ADR-0025/0036）。
+- AC-2.2 Orchestrator 按批次处理 Attention：回复来源、按 exact `sessionId` / unique Continuity Key 询问已有 Work，或在权限与全局 capacity 内创建 independent Work root（ADR-0024/0045）。
+- AC-2.3 Work Directory 按需列出 activity/lastRun、latest report、blocked/waiting/terminal 与 aggregate Subagent activity；默认按 last update 排序，支持 cursor/filter/sort/page size。
+- AC-2.4 Work 在 milestone、blocked/waiting-human、terminal 时通过 `report_to_orchestrator` 回报；Host lifecycle notice 保持不同 provenance；Human Inbox 聚合需要人类动作的 Attention。
+- AC-2.5 默认最多 3 个 active independent Work roots（全局可设 1–32）；达到上限立即返回结构化和 LLM-readable 错误，不排队，不创建 Session。
+- AC-2.6 completed-but-resumable Work 可显式复用；cancelled/archived/`needs-repair` 不自动恢复；v1 无 Work-to-Work direct messaging。
 
 ### US-3 记忆（P0；平台实现，应用负责可见）
 
@@ -68,54 +72,59 @@
 
 > 作为团队，我们把 PersonaBot 接进飞书/Lark，它在群里干活、记住客户。
 
-- AC-4.1 通过 Bridge 绑定外部来源（dsh-im 的 Bot/凭据；**domain=lark 优先验证**）。
-- AC-4.2 Lark 群 / thread → Channel 的映射由 Bridge 负责；DM 一等；记忆与 sidebar 同一份。
-- AC-4.3 入站文件「引用即提升」为稳定路径。
+- AC-4.1 通过 Bridge 绑定外部来源（dsh-im 的 Bot/凭据；**domain=lark 优先验证**）；adapter 必须提供 verified account fingerprint、event provenance 与 capability matrix（#78）。
+- AC-4.2 Lark 群 / thread 可映射到 Channel，也可按显式 Trigger 直接 admission 到 Bot Inbox；两者都引用同一 Source Event，不复制消息内容。
+- AC-4.3 入站附件归档为 content-addressed bytes；只有 Agent/Human 明确保留时才进入 Memory 或 Workspace。
 - AC-4.4 客户跟进北极星：群里聊客户 → 档案持续更新 → 换群/换 thread 引用同一档案。
+- AC-4.5 编辑、撤回、乱序 revision 与 provider echo 按 provider capability 处理；unsupported/unknown 不伪装成功，也不因 own-sender echo 产生新 attention。
 
 ### US-5 审批与安全（P0）
 
-- AC-5.1 外部副作用 → `waiting`，确认后执行；经 Bridge 的聊天出站默认免审批。
+- AC-5.1 回复现有消息通过 trusted Reply Route 自动回到来源；主动选择频道/thread 发布属于 Service Action，必须具备 Provider Capability 与 Human Service Grant。
 - AC-5.2 密钥只在 DSH credentials；仓库与配置零明文。
 - AC-5.3 记忆中疑似密钥告警并脱敏。
+- AC-5.4 外部 side effect 使用 durable Outbox Intent；无法证明结果时显示 `unknown-outcome`，禁止自动重发并要求 Human resolve。
+- AC-5.5 Profile Backup 只由 Human 手动 Export/Import 一个 `.botharness-backup` 文件；不自动备份。credentials 永不进入包，restore 后 authority suspended 并明确 rebind/activate。
 
 ## 3. 功能需求（应用层）
 
-| 编号 | 需求                 | 优先级 | 说明                                                         |
-| ---- | -------------------- | ------ | ------------------------------------------------------------ |
-| FR-1 | bundle 组装          | P0     | core + client + 适配器；一条命令安装                         |
-| FR-2 | Roster / 详情 / 新建 | P0     | DSH client 包（React + blobatar + vendored 字形）            |
-| FR-3 | @委派与命令          | P0     | composer `@` + `/bot`                                        |
-| FR-4 | 记忆编辑器入口       | P0     | 复用平台记忆工具与 git                                       |
-| FR-5 | 审批队列             | P0     | `waiting` 展示与确认；approval 需 open turn                  |
-| FR-6 | IM 适配器            | P1     | dsh-im 绑定、入站文件、Lark 验证                             |
-| FR-7 | 诊断                 | P1     | 连接状态、记忆目录检查、权限清单                             |
-| FR-8 | Channel / Bot Inbox  | P0     | 本地消息存储（NDJSON）、Bot Inbox 触发、Channel 工具（v1.1） |
-| FR-9 | Builder 创建         | P0     | 对话式创建 BOT；`bot_create` 受工具白名单控制                |
+| 编号  | 需求                  | 优先级 | 说明                                                                                                                         |
+| ----- | --------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| FR-1  | bundle 组装           | P0     | core + client + 适配器；一条命令安装                                                                                         |
+| FR-2  | Roster / 详情 / 新建  | P0     | DSH client 包（React + blobatar + vendored 字形）                                                                            |
+| FR-3  | @委派与命令           | P0     | composer `@` + `/bot`                                                                                                        |
+| FR-4  | 记忆编辑器入口        | P0     | 复用平台记忆工具与 git                                                                                                       |
+| FR-5  | 审批队列              | P0     | `waiting` 展示与确认；approval 需 open turn                                                                                  |
+| FR-6  | IM 适配器             | P1     | dsh-im 绑定、入站文件、Lark 验证                                                                                             |
+| FR-7  | 诊断                  | P1     | 连接状态、记忆目录检查、权限清单                                                                                             |
+| FR-8  | Messaging / Bot Inbox | P0     | SQLite-authoritative Source Event、Channel placement、Admission/Attention、Trigger/Wake、Reply/Service Action/Outbox（v1.1） |
+| FR-9  | Builder 创建          | P0     | 对话式创建 BOT；`bot_create` 受工具白名单控制                                                                                |
+| FR-10 | Work Directory        | P0     | 五个 Orchestrator Work tools、`report_to_orchestrator`、capacity/read models（#81）                                          |
+| FR-11 | Portability           | P1     | PersonaBot Export + 单文件手动 Profile Backup/Restore/Transfer（#17/#76）                                                    |
 
 ## 4. 非功能需求
 
-| 类别   | 要求                                                                                                    |
-| ------ | ------------------------------------------------------------------------------------------------------- |
-| 安全   | 最小权限（附录 A）；审批分级；沙箱隔离执行；凭据仅在 credentials 服务；分享边界在导出时选择（ADR-0021） |
-| 密钥   | 仓库与配置零明文；日志/卡片脱敏；UI 不回显密文                                                          |
-| 版本   | pin DSH、dsh-im、飞书 SDK、Node；升级过诊断                                                             |
-| 可观测 | 结构化日志；DSH session log；记忆写入有来源与时间戳；git 历史可查                                       |
-| 性能   | @ 到「已受理」< 2s（复用基座反馈，无则 Reaction）；首字（不含模型）< 5s；目录树注入 < 2k tokens         |
-| 兼容   | Node 22+；Linux 优先；客户端为 web                                                                      |
-| 可靠性 | 长连接自动重连；事件去重（`message_id`）；记忆原子写（M2）                                              |
-| 易用性 | 安装 → UI 向导 → 可用；界面中文优先                                                                     |
+| 类别   | 要求                                                                                                          |
+| ------ | ------------------------------------------------------------------------------------------------------------- |
+| 安全   | 最小权限（附录 A）；审批分级；沙箱隔离执行；凭据仅在 credentials 服务；分享边界在导出时选择（ADR-0021）       |
+| 密钥   | 仓库与配置零明文；日志/卡片脱敏；UI 不回显密文                                                                |
+| 版本   | pin DSH、dsh-im、飞书 SDK、Node；升级过诊断                                                                   |
+| 可观测 | 结构化日志；DSH session log；记忆写入有来源与时间戳；git 历史可查                                             |
+| 性能   | @ 到「已受理」< 2s（复用基座反馈，无则 Reaction）；首字（不含模型）< 5s；目录树注入 < 2k tokens               |
+| 兼容   | Node 22+；Linux 优先；客户端为 web                                                                            |
+| 可靠性 | 长连接重连；event/idempotency identity 去重；SQLite/DSH/provider 边界做 bounded reconciliation；Memory 原子写 |
+| 易用性 | 安装 → UI 向导 → 可用；界面中文优先                                                                           |
 
 ## 5. 里程碑
 
 平台里程碑见 `docs/botharness.md` §7；应用主导的交付：
 
-| #    | 应用侧交付                                              |
-| ---- | ------------------------------------------------------- |
-| M3   | Bot 模式 IA 与聊天外壳（client 包；本地消息存储）       |
-| M4   | 文件研究助手演示闭环                                    |
-| M5   | Bridge 适配器（dsh-im 绑定、Lark 验证、客户跟进）       |
-| v1.1 | Bot Inbox / Orchestrator / Channel 工具 / Bridge（#30） |
+| #    | 应用侧交付                                                                   |
+| ---- | ---------------------------------------------------------------------------- |
+| M3   | Bot 模式 IA 与聊天外壳（client 包；本地消息存储）                            |
+| M4   | 文件研究助手闭环；依赖 #77、#79–#81 的 runtime foundation                    |
+| M5   | Bridge 适配器；Feishu/Lark contract 先由 #78 验证                            |
+| v1.1 | Messaging / Bot Inbox / Orchestrator & Work UI / Bridge（#30、#46–#48、#75） |
 
 ## 6. 风险
 

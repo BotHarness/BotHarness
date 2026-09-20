@@ -13,6 +13,7 @@ import {
   isDiscoverable,
 } from "@cloudflare/nimbus-docs/runtime";
 import { config } from "virtual:nimbus/config";
+import { renderDevLlms } from "../../../lib/dev-llms";
 
 export const prerender = true;
 
@@ -67,7 +68,22 @@ export async function GET({ params }: { params: { section?: string } }) {
     return new Response("Not found", { status: 404 });
   }
   const origin = config.site.replace(/\/+$/, "");
-  const lines = (await sectionPages(section)).map(
+  const pages = await sectionPages(section);
+  if (section === "dev") {
+    return new Response(
+      renderDevLlms({
+        origin,
+        language: "zh",
+        pages: pages.map((page) => ({
+          title: page.title,
+          description: page.description,
+          url: page.markdownUrl.replace(/\/index\.md$/, ""),
+        })),
+      }),
+      { headers: { "Content-Type": "text/plain; charset=utf-8" } },
+    );
+  }
+  const lines = pages.map(
     (page) =>
       `- [${page.title}](${origin}${page.markdownUrl})${page.description ? ` — ${page.description}` : ""}`,
   );

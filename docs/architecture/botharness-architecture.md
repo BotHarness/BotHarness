@@ -1,281 +1,240 @@
 # BotHarness 架构与数据流
 
-BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 agent 持久身份：**PersonaBot**——带人格、跨 session 记忆、可并发工作。DeepSeekBot 是它的首个应用（sidebar 名册 + 委派 + IM 接入）。DSH 内核不 fork；IM 由 dsh-im 基座提供通道。
+BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久身份：**PersonaBot**。PersonaBot 的人格与 Memory 跨 Session 延续；它用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Work Session。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Work Directory、委派和 IM 接入。
 
-状态：M1 已实现（PR #13）· M2 记忆 MVP 已实现 · M3 Roster 与委派（名册陈列迁 Host `botharness_roster`，#66） · M5 IM 适配器 · M6 SoulSnapshot · M7 Soul registry（ADR-0019/0020）· 更新 2026-09-20
+本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、BotWork Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-20。
+
+产品术语以根目录 [`CONTEXT.md`](/zh/dev/design/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/design/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Work 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
+
+迁移阶段保持可验证：#66 的 `botharness_roster` 是当前 roster 权威；#79 只先建立 `botharness.db` owner，#80 才将 roster 与 Session ownership 单向迁入。目标图表示迁移完成后的所有权，不表示运行时现在已经双写两套存储。
+
+#56 extends the current roster global slot to `{ pins, sectionOrder, topOrder? }`: `topOrder` mixes section blocks with loose Channels while membership remains owned only by section records. The unary client bridge now has eight arrangement methods, adding `topReorder`; #80 must migrate this order and its single-membership invariant into the database without dual writes.
 
 ## 1 · 系统上下文
 
 ```mermaid
 flowchart LR
-  User["用户（DSH Web / 飞书群里的人）"]
-  Feishu["飞书 / Lark 开放平台"]
+  Human["Human<br/>DSH Web / IM"]
+  External["Feishu / Lark<br/>webhook / future providers"]
 
-  subgraph Host["DSH Host · 单进程"]
-    IM["dsh-im 基座<br/>通道 · 会话路由 · 流式卡片 · 设置页"]
-    Core["@botharness/core<br/>registry · 状态 · IM 绑定解析"]
-    Agent["DSH Agent<br/>每 Session 一个执行体"]
+  subgraph Browser["DSH Web Client"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
   end
 
-  subgraph Browser["Web Client · 浏览器（独立 Cordis 应用）"]
-    Client["@botharness/client<br/>roster · 详情 · @委派（M3）"]
+  subgraph Host["DSH Host · single profile writer"]
+    API["Client Bridge RPC"]
+    Identity["PersonaBot & Memory"]
+    Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
+    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Transfer["Portability<br/>Export · Backup · Restore"]
+    DB[("botharness.db")]
   end
 
-  User -->|"@ / 委派"| Client
-  User -->|"群消息"| Feishu
-  Feishu <-->|"长连接（出站）"| IM
-  IM --> Agent
-  Core -->|"RPC（读模型）"| Client
-  Client -.->|"RPC（写操作）"| Core
-  Core -.->|"只读 config.json / workspaces.json"| IM
-  Agent -.->|"状态事件（M3 接入）"| Core
+  subgraph DSH["DSH-owned runtime"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Credentials["Credentials · profile settings"]
+  end
 
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef dsh fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class Core ours;
-  class IM dsh;
-  class Client later;
+  Human --> UI
+  External <--> Messaging
+  UI <--> API
+  API --> Identity
+  API --> Messaging
+  API --> BotWork
+  API --> Transfer
+  Identity --> DB
+  Messaging --> DB
+  BotWork --> DB
+  Transfer --> DB
+  Identity <--> Sessions
+  Messaging --> BotWork
+  BotWork <--> Sessions
+  Messaging -.-> Credentials
+  Transfer -.-> Sessions
 ```
 
-两条入口（DSH Web 的 roster/委派、飞书群的 IM），同一颗 PersonaBot 大脑。浏览器半侧不是 Host 进程的一部分：跨进程只有 RPC（ADR-0023）。
+浏览器只通过 RPC 访问 Host read models 和 commands。Provider adapter 只负责验证、规范化和执行能力；它不拥有 Inbox，也不能直接唤醒 Agent。DSH 继续拥有 Agent 执行、SessionPersistence、Subagent 与凭据；BotHarness 不复制这些 runtime 权威。
 
-## 2 · 模块与包
+## 2 · Deep modules 与所有权
 
 ```mermaid
 flowchart TB
-  subgraph pkgs["monorepo packages"]
-    Bundle["deepseekbot<br/>bundle + 应用（M5）"]
-    CorePkg["@botharness/core<br/>host 域服务（M1 已实现）"]
-    ClientPkg["@botharness/client<br/>React 客户端（M3）"]
-    ImPkg["@botharness/im<br/>IM 适配器（M5）"]
+  Root["Host composition root<br/>lifecycle · dependency wiring"]
+  DB["Operational Database Owner<br/>writer lease · schema generation · transaction"]
+
+  subgraph Modules["BotHarness deep modules"]
+    Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
+    Memory["Memory<br/>files · context delivery · tools"]
+    Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
+    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Portable["Portability<br/>Soul · export · backup · restore"]
+    Views["Read models<br/>RPC · UI projections"]
   end
 
-  Bundle --> CorePkg
-  Bundle --> ClientPkg
-  Bundle --> ImPkg
-
-  subgraph core["packages/core/src"]
-    Plugin["plugin.ts<br/>apply(config) / provide"]
-    Registry["bots/registry.ts<br/>CRUD · 原子写 · 记忆目录 · findByWorkspace"]
-    Slug["bots/slug.ts"]
-    Record["bots/persona-bot.ts"]
-    State["state/bot-state.ts<br/>五态 → 聚合 · 事件"]
-    Store["im/config-store.ts<br/>只读 dsh-im JSON"]
-    Identity["im/identity.ts<br/>workspace → BotIdentity"]
-    MemoryService["memory/service.ts<br/>cwd → PersonaBot"]
-    MemoryTools["memory/tools.ts<br/>memory_read/search/write/list"]
-    MemoryStore["memory/store.ts<br/>读写 · 生成索引 · 每次写一个 commit"]
-    MemoryTree["memory/tree.ts<br/>目录树 · 超出折叠/溢出标记"]
-    MemorySearch["memory/search.ts<br/>rg 检索"]
-    MemoryGit["memory/git.ts<br/>每 Bot 一个 repo"]
-    FrontMatter["memory/front-matter.ts<br/>摘要 / 降级"]
-  end
-
-  Plugin --> Registry
-  Plugin --> State
-  Plugin --> Store
-  Plugin --> MemoryService
-  Plugin --> MemoryTools
-  Registry --> Slug
-  Registry --> Record
-  Store --> Identity
-  MemoryService --> MemoryStore
-  MemoryTools --> MemoryStore
-  MemoryStore --> MemoryTree
-  MemoryStore --> MemorySearch
-  MemoryStore --> MemoryGit
-  MemoryStore --> FrontMatter
-  MemoryTree --> FrontMatter
-  ImPkg -.->|"M5 写绑定"| Registry
-
-  classDef ours fill:#ecfdf5,stroke:#16a34a,color:#14532d;
-  classDef later fill:#f1f5f9,stroke:#94a3b8,color:#475569,stroke-dasharray:4 3;
-  class CorePkg,Plugin,Registry,Slug,Record,State,Store,Identity,MemoryService,MemoryTools,MemoryStore,MemoryTree,MemorySearch,MemoryGit,FrontMatter ours;
-  class Bundle,ClientPkg,ImPkg later;
+  Root --> DB
+  Root --> Bots
+  Root --> Memory
+  Root --> Msg
+  Root --> Work
+  Root --> Portable
+  Root --> Views
+  DB --> Bots
+  DB --> Msg
+  DB --> Work
+  DB --> Portable
+  Bots --> Memory
+  Bots --> Work
+  Msg --> Work
+  Bots --> Views
+  Msg --> Views
+  Work --> Views
+  Portable --> Views
 ```
 
-| 模块                     | 职责                                                                                                                                   | 状态             |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| `plugin.ts`              | 插件入口：`apply(ctx, config)`（`enabled` 门控）+ `provide('botharness')`；`createCore()` 组装                                         | M1 ✅            |
-| `bots/registry.ts`       | PersonaBot 生命周期 + 原子持久化；`remove` 默认保记忆，`purge` 才清                                                                    | M1 ✅            |
-| `state/bot-state.ts`     | Session 五态上报 → PersonaBot 聚合；`aggregate-changed / session-changed / session-removed`                                            | M1 ✅            |
-| `im/*`                   | 只读 dsh-im 存储（v1/v2/v3 兼容）+ workspace→BotIdentity（IM 绑定助手）                                                                | M1 ✅（M5 接线） |
-| `memory/front-matter.ts` | front-matter 解析/序列化 + 降级（首行摘要 + mtime；非法 YAML 不抛错）                                                                  | M2 ✅            |
-| `memory/store.ts`        | 记忆读写：路径 jail、原子写、串行队列、`MEMORY.md` 生成、每次写入一个 commit                                                           | M2 ✅            |
-| `memory/tree.ts`         | 目录树：front-matter 摘要 + `updated_at`；≤1000 路径，超出折叠为目录计数                                                               | M2 ✅            |
-| `memory/search.ts`       | 大小写不敏感检索（`rg` 优先，纯 Node 回退）；跳过 front-matter，返回 path/line/excerpt                                                 | M2 ✅            |
-| `memory/tools.ts`        | DSH 工具 `memory_read / memory_search / memory_write / memory_list`（write 必带 summary）                                              | M2 ✅            |
-| `memory/service.ts`      | `agent.session.header.cwd → PersonaBot` 映射；每记忆目录一个 store（跨 Session 串行）                                                  | M2 ✅            |
-| `memory/git.ts`          | 每 Bot 一个 repo：`main` 单分支、`.gitattributes` 强制 LF、本地身份、`history()`                                                       | M2 ✅            |
-| roster 客户端            | `main` 面板 + `sidebar.panellist`；名册树 / 详情 / 新建；@委派                                                                         | M3               |
-| `roster/{spec,store}.ts` | `botharness_roster` 存储域（global `pins/sectionOrder/topOrder?` + `sections` 表）；Host 生成 id；可选 `storageDomain`（缺省只读降级） | M3 ✅ #66        |
+| Module      | Owns                                                                                                    | Does not own                          |
+| ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
+| PersonaBot  | identity、lifecycle、explicit Session ownership                                                         | DSH Session lifecycle、Memory 内容    |
+| Memory      | `PERSONA.md`、Memory files、context assembly contract                                                   | Inbox 内容、自动蒸馏                  |
+| Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
+| BotWork     | Work Directory、Work Request/Delivery Intent、capacity admission、report/lifecycle routing              | DSH transcript、Subagent runtime      |
+| Portability | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式 |
+| Read models | 查询、分页、UI-friendly projection                                                                      | 业务事实与写入规则                    |
 
-## 3 · 装载与服务暴露
+`botharness.db` 是一个物理事务宿主，不是共享的 generic repository。每个 deep module 只通过自己的接口拥有表和不变量；跨模块流程由显式 command/port 协调。
 
-```mermaid
-sequenceDiagram
-  participant D as DSH / Cordis
-  participant P as @botharness/core · plugin.ts
-  participant M as memory/service.ts
-  participant T as memory/tools.ts
-  participant O as Host 插件（im / 第三方）
-  participant C as Web Client（浏览器）
-
-  D->>P: apply(ctx, config)
-  P->>M: createMemoryService({ registry })
-  P->>D: provide('botharness', { rootDir, registry, states, memory })（仅 Host 内）
-  P->>T: createMemoryTools({ resolveStore })
-  T-->>P: memory_* 工具
-  P->>D: tools.register(memory_read / memory_search / memory_write / memory_list)
-  P->>D: systemPrompt.section(persona · memory-tree)
-  O->>D: inject(['botharness'])
-  D-->>O: ctx.botharness
-  Note over O: 读 registry（list/get/findByWorkspace）<br/>订阅 states.on(...)（仅 Host 内）
-  C->>D: connection.rpc.call('/api', 'botharness/<method>')（M3 起）
-  D-->>C: { ok, value | error }
-  Note over P: M3：经 connection.rpc / fetch 注册读模型端点（ADR-0023）
-  Note over C: 读模型 + 刷新/轮询；不 inject Host 服务，<br/>不直接订阅 states.on
-```
-
-Host 内一切走 Cordis 服务总线；浏览器半侧经客户端桥 RPC 读模型，不跨进程 inject、无文件轮询。
-
-### 3.1 · BOT 模式偏好（#68）
-
-Host 半在 `packages/client/src/index.ts` 向 `ctx.settings` 注册命名空间 `ui-bot-mode`（schemastery：全局 `sortMode` + per-section `sortModes`，默认 `updated` / `{}`）；浏览器半经 `ctx.settingsScope.bind({ namespace: 'ui-bot-mode' })` 读写（全局 `set`、per-section `mutate` 路径操作），`settings/document-updated` 到达时由 policy store adopt：
-
-```mermaid
-sequenceDiagram
-  participant H as Host · client/src/index.ts
-  participant S as DSH settings（settings.yaml）
-  participant P as 浏览器 · BotModePrefs（共享 store）
-  participant U as sidebar `...` 菜单 / General 设置行
-
-  H->>S: settings.register('ui-bot-mode', schema)
-  S-->>P: settingsScope.bind(...) → status/value/user
-  U->>P: setSortMode / setSectionSortMode（乐观写）
-  P->>S: set('sortMode') / mutate(path ['sortModes', id])
-  S-->>P: settings/document-updated → adopt
-  Note over P,U: 一份 store、两个入口；旧 roster.json 排序字段一次性迁入
-```
-
-偏差记录：Host 半用 `settings.register(ns, schema)`，不用 cookbook 主推的 `installSection(ctx, ns, Config, config, { setSource, onChange })` —— 本插件没有可作 base 的 `cordis.yml` entry config，默认值与缺省行为完全由 schema 承担；出现 entry 配置需求时再切换到 `installSection`。
-
-### 3.2 · 名册陈列（#66）
-
-陈列（section 名称/成员/相对顺序、pins、混排 section 与松散 Channel 的 `topOrder`）的权威在 Host storage 域 `botharness_roster`（json 后端、`version 1`、`layout: single`；ADR-0034）；浏览器只经八个细粒度桥方法读写（含绝对顶层位置写 `topReorder`），写后重拉 `rosterGet`（无乐观状态）。storage 是可选能力：没有 `storageDomain` 时插件照常加载，roster 的读写都回 `storage-unavailable`（`rosterGet` 不假装空陈列），客户端首屏即只读、后端可用后重载恢复。
-
-```mermaid
-sequenceDiagram
-  participant U as 浏览器 · BotSidebar
-  participant B as botharness/* 桥（BotharnessBridgeService）
-  participant R as core/roster/store.ts
-  participant S as botharness_roster（json 后端）
-
-  U->>B: rosterGet / sectionCreate / sectionRename / sectionRemove /<br/>channelAssign / sectionReorder / topReorder / pinsSet
-  B->>R: zod 校验后的动作
-  R->>S: 域写（global / sections 表，返回即已落盘）
-  B-->>U: { ok, value }（写后客户端重拉 rosterGet）
-  Note over U,S: 旧 roster.json 一次性迁移：空域 + 有旧键时建 section、<br/>按序归属、pins、重映射 sortModes，然后备份清理；pre-flat 域再一次性补 `topOrder`；有域不覆盖
-```
-
-## 4 · 创建 PersonaBot（数据流）
+## 3 · Host 启动、迁移与 recovery
 
 ```mermaid
 flowchart TD
-  A["registry.create({ slug, displayName, … })"] --> B{"slug 合法?<br/>kebab-case ≤64"}
-  B -- 否 --> E1["reason: invalid-slug"]
-  B -- 是 --> C{"已有有效 bot.json?"}
-  C -- 是 --> E2["reason: duplicate"]
-  C -- 否 --> D{"memoryDir 为绝对路径?"}
-  D -- 否 --> E3["reason: invalid-memory-dir"]
-  D -- 是 --> F["组装 record<br/>slug/displayName/avatar/model/preset/workspaces/createdAt"]
-  F --> G["原子写：bot.json.tmp-<uuid> → rename"]
-  G --> H["mkdir memory/（默认或自定义）"]
-  H --> I["返回 ok: record"]
-  G -.->|"损坏可重建：保留既有 memory/"| H
+  Start["Host starts"] --> Lease{"Acquire profile writer lease"}
+  Lease -- "busy" --> ReadOnly["Fail closed<br/>read-only diagnostics"]
+  Lease -- "owned" --> Open["Open botharness.db"]
+  Open --> Gen{"Schema generation supported?"}
+  Gen -- "newer / corrupt" --> Recovery["Recovery mode<br/>no operational writes or wakes"]
+  Gen -- "current" --> Integrity["Integrity checks"]
+  Gen -- "older" --> Copy["Migrate isolated temp copy"]
+  Copy --> Verify["Verify schema + integrity"]
+  Verify -- "fail" --> Recovery
+  Verify -- "pass" --> Activate["Atomic replace"]
+  Activate --> Integrity
+  Integrity -- "fail" --> Recovery
+  Integrity -- "pass" --> Modules["Start deep modules"]
+  Modules --> Rebuild["Rebuild DSH-derived projections<br/>reconcile bounded intents"]
+  Rebuild --> Ready["Enable admissions, wakes and commands"]
 ```
 
-校验 → 判重（以有效记录为准，不因墓碑目录卡死）→ 原子写 → 记忆目录。
+一个 DSH profile 同时只允许一个 BotHarness writer。所有 module migration 合并成单调递增的 Schema Generation；迁移只在临时副本上完成，校验后原子替换。打开、迁移或完整性检查失败时进入 recovery mode，不回退到 NDJSON、storage domain 或内存写入。
 
-## 5 · IM 绑定解析（当前为 helper，M5 接线）
+## 4 · Messaging 事务与外部副作用
 
 ```mermaid
 sequenceDiagram
-  participant S as DSH Session（cwd = 工作区）
-  participant R as im/config-store.ts
-  participant F as dsh-im 磁盘（只读）
-  participant I as im/identity.ts
-  participant G as registry（M5）
+  participant P as Provider adapter
+  participant M as Messaging command
+  participant DB as botharness.db
+  participant N as Post-commit notifier
+  participant O as Orchestrator
+  participant X as Provider service
 
-  S->>R: read()
-  R->>F: integrations/dsh-feishu/config.json + workspaces.json
-  F-->>R: bots[] · workspaces/aliases/conversationWorkspaces
-  S->>I: resolveBotIdentity(workspace, conversationKey?)
-  I-->>S: ok / ambiguous / not-found → BotIdentity{ id, displayName }
-  S->>G: 写绑定：BotIdentity → registry slug（M5）
-  Note over R,F: 基座升级需重验；不 fork、不 patch
+  P->>M: verified event + account fingerprint + capabilities
+  M->>DB: BEGIN IMMEDIATE
+  M->>DB: append Source Event / Revision
+  M->>DB: Channel placement (optional)
+  M->>DB: evaluate exact Trigger + Wake Policy revision
+  M->>DB: create Inbox Admission / Attention facts
+  M->>DB: COMMIT
+  DB-->>N: committed fact ids
+  N-->>O: wake at policy-selected safe boundary
+  O->>M: Reply or authorized Service Action
+  M->>DB: validate current revision + capability + grant and write Outbox Intent
+  M->>X: execute with stable idempotency identity
+  X-->>M: receipt / failure / unknown outcome
+  M->>DB: append attempt and outcome facts
 ```
 
-## 6 · 状态机与事件
+Source Event 是内容唯一权威；Channel 和 Inbox 都只保存关系。Reply 使用可信 Reply Route 自动选择来源 provider；主动发布属于 Service Action，必须同时满足 Provider Capability 与 Human Service Grant。SQLite 事务只覆盖本地事实；外部副作用使用 Outbox Intent、幂等标识和有界 reconciliation，不宣称 exactly-once。不可证明的结果进入 `unknown-outcome`，由 Human 处理。
+
+Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完成后的安全边界、当前 turn 结束后，或 idle 时启动新 turn。普通外部消息不打断正在执行的 model/tool step；只有 DSH 明确支持且策略授权的控制路径才能 steer。
+
+## 5 · Orchestrator 与 Work control plane
 
 ```mermaid
-stateDiagram-v2
-  [*] --> idle
-  idle --> thinking: 委派 / 唤醒
-  thinking --> working: 开始执行
-  working --> waiting: 需要审批 / 等人
-  waiting --> working: 确认后继续
-  working --> blocked: 失败 / 缺条件
-  blocked --> working: 修复后重试
-  thinking --> blocked: 卡住
-  working --> done: 完成（session 事件）
-  done --> idle: 聚合回 idle
+flowchart LR
+  Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
+  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
+  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
+  Gate -- "yes" --> Runtime["BotWork Runtime"]
+  O -->|"send_work_request / stop_work"| Runtime
+  Runtime <--> W1["Independent Work Session A"]
+  Runtime <--> W2["Independent Work Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
+  Report --> Inbox
+  Notice --> Inbox
+  W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
-| 事件                | 触发                                  | 消费者               |
-| ------------------- | ------------------------------------- | -------------------- |
-| `aggregate-changed` | 聚合态变化                            | roster / 头像（M3+） |
-| `session-changed`   | 任一 Session 状态变化（含聚合不动时） | 会话详情             |
-| `session-removed`   | 会话结束 / 清理                       | 树刷新               |
+Work Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过五个工具 `list_work`、`inspect_work`、`create_work`、`send_work_request`、`stop_work` 管理它们。Work 只能用 `report_to_orchestrator` 回报；v1 没有 Work-to-Work 直连、广播或等待队列。
 
-事件只在 Host 进程内发出。浏览器端不直接订阅：roster 经客户端桥读模型 + 刷新/轮询获得状态（ADR-0023）。
+Work Request 的 `context-update`、`next-step`、`next-turn` 分别映射到经过验证的 DSH inject、steer、followup seam；普通请求不 cancel 当前 step。跨 SQLite/DSH 边界只保留最小 Work Delivery Intent，重启时有界 reconciliation；歧义进入 `needs-repair`，不扩张为通用 workflow engine。
 
-## 7 · 磁盘数据
+## 6 · 持久化、导出与恢复边界
 
-我们的（registry 写入）：
+```mermaid
+flowchart TB
+  subgraph Profile["One DSH profile"]
+    DB[("botharness.db<br/>operational authority")]
+    Files["Persona + Memory files<br/>human-readable authority"]
+    CAS["Attachment / Soul CAS bytes"]
+    DSHS["DSH SessionPersistence<br/>transcripts · execution"]
+    Creds["DSH credentials / settings"]
+  end
 
-```text
-$DSH_HOME/botharness/bots/<slug>/
-├── bot.json   # 机器元数据（原子写）
-└── memory/    # 默认记忆目录；可配绝对路径
-               # M2：PERSONA.md / MEMORY.md / 主题文件
+  Barrier["Manual Export Profile<br/>backup barrier + consistent snapshots"]
+  Package["one compressed<br/>.botharness-backup"]
+  Stage["Import Profile staging<br/>validate · migrate · dependency check"]
+  Target["Restore As New / Replace Existing<br/>cold + suspended authorities"]
+
+  DB --> Barrier
+  Files --> Barrier
+  CAS --> Barrier
+  DSHS -.->|"adapter-supported facets"| Barrier
+  Creds -.->|"declarations only; never secrets"| Barrier
+  Barrier --> Package
+  Package --> Stage
+  Stage --> Target
 ```
 
-dsh-im 的（只读）：
+| Data                           | Authority                            | Portability                                                            |
+| ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------- |
+| operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot inside manual profile backup                |
+| Persona / Memory               | files under PersonaBot ownership     | SoulSnapshot / PersonaBot Export / profile backup                      |
+| attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                       |
+| Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise declared omitted |
+| credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                |
 
-```text
-$DSH_HOME/integrations/dsh-feishu/
-├── config.json      # bots[]
-├── workspaces.json  # v3：workspaces/aliases/覆盖
-└── bots/<botId>/state.json  # 会话绑定（M5）
-```
+v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botharness-backup`，Import Profile 选择一个文件。没有自动备份、scheduler、catalog、retention 或 incremental chain。Restore 总是在隔离 staging 中验证；成功后 PersonaBot 仍为 cold，provider authority suspended，Workspace/model/plugin dependencies 必须在目标机重新解析并由 Human 明确激活。
 
-## 8 · 通信与边界
+## 7 · 关键边界
 
-| 通道                                 | 方向                          | 说明                                                                                   |
-| ------------------------------------ | ----------------------------- | -------------------------------------------------------------------------------------- |
-| Host 内 Cordis 服务 `provide/inject` | core → Host 插件（im/第三方） | `botharness` 服务仅同进程可见；无全局单例                                              |
-| Host 内 Tracker 订阅 `states.on()`   | core → Host 消费者            | 进程内事件，非轮询；浏览器不直接订阅                                                   |
-| 浏览器内 Cordis（slots/触发源等）    | client 插件之间               | Web Client 是独立 Cordis 应用，shell 基线由宿主注入                                    |
-| 跨进程 Connection RPC                | client ↔ core                 | `botharness/<method>` 读模型；`{ ok, value \| error }` + cursor；刷新/轮询（ADR-0023） |
-| DSH 事件总线 `ctx.on`                | DSH/dsh-im → core             | M3 接 `agent/*` 驱动状态                                                               |
-| 飞书 / Lark                          | dsh-im ↔ 开放平台             | 长连接出站；无公网入口（webhook 例外见 PRD）                                           |
-| dsh-im 磁盘                          | 只读                          | 只经 `im/` 一个模块；不 fork / 不 patch                                                |
-| Secrets                              | —                             | 只在 DSH credentials 服务；仓库零明文                                                  |
+- 正常运行只认 explicit Session ownership；`cwd` 只可作为迁移/修复提示，不能决定 PersonaBot 身份。
+- DSH Session 状态是执行权威；BotHarness 只投影 activity/last-run，并将 semantic Work Report 与 Host Lifecycle Notice 分开。
+- Provider capability 不等于授权；发现一个飞书频道也不自动授予向它发消息的权限。
+- UI 不直接读文件或数据库，不自己推导业务状态；它消费 Host read models，并把 command 交回 owning module。
+- PersonaBot archive 先关闭 admissions、wakes 和外部 actions，再停止 Orchestrator、Work 与 owned Subagents；purge 是单独的破坏性动作。
+- Browser 与 Host 是两个 Cordis 应用；Host service 不跨进程 inject，统一走 `/api` client bridge。
+
+## 8 · 实现顺序与可并发范围
+
+1. #77 验证 pinned DSH 的 Agent/SessionPersistence/Subagent seams；#79 建立 operational database owner。这两项可并行。
+2. #80 在 #77 与 #79 后实现 explicit Session ownership 和 activity projection。
+3. #81 在 #77、#79、#80 后实现 BotWork Runtime；#47 的 Work coordination 依赖它。
+4. #78 可与上述工作并行研究 Feishu provider contract，但 #48 的 adapter 实现受它约束。
+5. #74、#75、#76 是各自 focused design/grill；其中 #75 与 sidebar 排序 #55 可并行。
 
 ## 9 · 如何维护
 
-- 这是**活的**架构文档：模块、数据流、边界发生结构变化时，更新本文件（mermaid 源码直接内联）。
-- 本页由 `scripts/sync-docs.mjs` 同步到文档站（`apps/docs`）；站点地址 `https://botharness.ai/architecture`。
-- 配套：平台规格 `docs/botharness.md` · 应用 PRD `PRD.md` · 词表 `CONTEXT.md` · 决策 `docs/adr/`。
+- 模块、数据流、事务边界或 authority 发生结构变化时，同步本文件、英文镜像和 `docs/architecture/diagrams/*.mmd`。
+- 运行 `pnpm diagrams` 提交 light/dark SVG；`scripts/sync-docs.mjs` 将本文和图同步到 `apps/docs`。
+- 配套：BotHarness 产品术语 `CONTEXT.zh.md`（英文为 `CONTEXT.md`）；取舍与理由 `docs/adr/`。Platform Spec 与 App PRD 已归档为历史工作草稿，不再作为并列设计权威。

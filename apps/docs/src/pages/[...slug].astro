@@ -60,7 +60,7 @@ const lastUpdated = entry.data.lastUpdated ??
 const tocConfig = entry.data.tableOfContents;
 const toc = tocOn && tocConfig !== false ? getTOC(headings, tocConfig) : false;
 const routeKey = entryRouteKey(entry.id);
-const markdownPath = routeKey ? `/${routeKey}/index.md` : "/index.md";
+const markdownPath = routeKey ? `/${routeKey}.md` : "/index.md";
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/${entry.id}.png`;
 

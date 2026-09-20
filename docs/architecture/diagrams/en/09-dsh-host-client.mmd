@@ -1,0 +1,13 @@
+flowchart TB
+  subgraph Host["DSH Host"]
+    direction LR
+    HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
+    Service --> Remote["TypertRemoteService"]
+    Remote --> Gateway["API Gateway<br/>sole /api interceptor"]
+  end
+  subgraph Browser["DSH Web Client"]
+    direction LR
+    ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Model --> Slots["Slots<br/>UI composition"]
+  end
+  Gateway <--> Model

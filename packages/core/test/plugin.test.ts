@@ -4,11 +4,18 @@ import { join } from 'node:path';
 import { Context } from '@deepseek-ai/cordis';
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol';
 import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { apply, inject, name, type PersonaBotRegistry } from '../src/index.js';
-import { createFakeRosterDomain } from './roster-fixture.js';
+import {
+  apply,
+  inject,
+  mountOperationalDatabase,
+  name,
+  type BotHarnessCore,
+  type PersonaBotRegistry,
+} from '../src/index.js';
 import { createTempRoot } from './helpers.js';
+import { createFakeRosterDomain } from './roster-fixture.js';
 
 interface Stubs {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -16,8 +23,23 @@ interface Stubs {
   sessions: { list: ReturnType<typeof vi.fn> };
 }
 
+const contexts: Context[] = [];
+
+beforeEach(() => {
+  vi.stubEnv('DSH_HOME', createTempRoot('botharness-plugin-home-'));
+});
+
+afterEach(async () => {
+  while (contexts.length > 0) {
+    const ctx = contexts.pop();
+    if (ctx !== undefined) await ctx.fiber.dispose();
+  }
+  vi.unstubAllEnvs();
+});
+
 function createStubContext(): { ctx: Context; stubs: Stubs } {
   const ctx = new Context();
+  contexts.push(ctx);
   const stubs: Stubs = {
     tools: { register: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
@@ -53,6 +75,7 @@ describe('plugin entry', () => {
 
     expect(ctx.get('botharness')).toMatchObject({
       rootDir: expect.stringContaining('botharness'),
+      operationalDatabase: expect.objectContaining({ mode: 'ready' }),
       registry: expect.anything(),
       states: expect.anything(),
       memory: expect.anything(),
@@ -66,6 +89,49 @@ describe('plugin entry', () => {
       'memory_search',
       'memory_write',
     ]);
+  });
+
+  it('closes the operational database last with the plugin fiber', async () => {
+    const home = createTempRoot('botharness-plugin-lifecycle-');
+    vi.stubEnv('DSH_HOME', home);
+    const { ctx } = createStubContext();
+
+    apply(ctx, { enabled: true });
+
+    const core = ctx.get('botharness') as BotHarnessCore | undefined;
+    expect(core?.operationalDatabase.mode).toBe('ready');
+
+    await ctx.fiber.dispose();
+    expect(core?.operationalDatabase.mode).toBe('closed');
+
+    const nextHost = mountOperationalDatabase({ dshHome: home });
+    expect(nextHost.mode).toBe('ready');
+    nextHost.close();
+  });
+
+  it('keeps file-backed surfaces and diagnostics mounted in database recovery mode', async () => {
+    const home = createTempRoot('botharness-plugin-recovery-');
+    vi.stubEnv('DSH_HOME', home);
+    const firstHost = mountOperationalDatabase({ dshHome: home, instanceId: 'first-host' });
+    const { ctx, stubs } = createStubContext();
+
+    try {
+      apply(ctx, { enabled: true });
+
+      const core = ctx.get('botharness') as BotHarnessCore | undefined;
+      expect(core?.operationalDatabase.mode).toBe('recovery');
+      expect(core?.operationalDatabase.recovery?.code).toBe('lease-unavailable');
+      expect(core?.operationalDatabase.diagnostics().leaseHolder?.instanceId).toBe('first-host');
+      expect(core?.registry).toBeDefined();
+      expect(core?.memory).toBeDefined();
+      expect(core?.channels).toBeDefined();
+      expect(stubs.tools.register).toHaveBeenCalledTimes(4);
+      expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
+      expect(ctx.get('botharnessBridge')).toBeDefined();
+    } finally {
+      await ctx.fiber.dispose();
+      firstHost.close();
+    }
   });
 
   it('registers persona and memory-tree prompt sections in order', () => {
