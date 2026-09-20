@@ -12,13 +12,14 @@ MIT licensed — use it, fork it, ship it.
 npx skills add BotHarness/dsh-skill
 ```
 
-Or copy `SKILL.md` and `references/` into your harness's skills directory (e.g. `.agents/skills/dsh-plugin-dev/`).
+Or copy `SKILL.md`, `SKILL.zh.md`, and `references/` into your harness's skills directory (e.g. `.agents/skills/dsh-plugin-dev/`).
 
 ## What's inside
 
 | File | Covers |
 | --- | --- |
 | `SKILL.md` | Foundation-first workflow, invariants, branch router, top pitfalls |
+| `SKILL.zh.md` | The complete Chinese counterpart, preserving canonical English identifiers |
 | `references/context.md` | Canonical Plugin/Fiber, capability, Registry/scope, Event, Session, execution, Host/client, and Bot vocabulary |
 | `references/decision-tree.md` | Requirement-to-seam decisions, Cordis dispatch, persistence, execution, UI, and Bot/IM branches |
 | `references/bot-runtime-architecture.md` | DSH-native vs BotHarness-proposed PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work/Subagent ownership model |
@@ -27,11 +28,13 @@ Or copy `SKILL.md` and `references/` into your harness's skills directory (e.g. 
 | `references/slots.md` | Full slot catalog (kind/scope/use) with source declarations |
 | `references/community-ui-patterns.md` | Field notes from 13 community plugins: build routes, data channels, proven practices, drift hazards and anti-patterns |
 
+Every file under `references/` has a maintained `.zh.md` counterpart for Chinese readers. Code identifiers, event names, and canonical leading words remain unchanged across languages.
+
 ## Provenance
 
 | Field | Value |
 | --- | --- |
-| `skillVersion` | 0.3.0 |
+| `skillVersion` | 0.3.1 |
 | `verifiedAgainst` | DSH 0.1.6-alpha.2 |
 | `upstreamSha` | `ddefc45fbc7f8e46dd73185e68295696d1297887` (2026-09-17) |
 | `verifiedAt` | 2026-09-20 |

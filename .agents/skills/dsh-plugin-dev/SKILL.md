@@ -3,7 +3,7 @@ name: dsh-plugin-dev
 description: Design, build, or review DeepSeek Harness (DSH) and Cordis plugins. Use for Plugin/Fiber/Bundle/Profile/Patch composition; Service/Provider/Consumer capability seams; Registry/Registration/Agent Scope/Service Isolation; Cordis Events; SessionEvent/projections/persistence; execution worlds, jobs, storage; Typert/API Gateway; Slots; or BotHarness PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work Session architecture. Start with the canonical vocabulary and decision tree before reaching host, client, UI, or community implementation details.
 license: MIT
 metadata:
-  skillVersion: "0.3.0"
+  skillVersion: "0.3.1"
   verifiedAgainst: "dsh 0.1.6-alpha.2"
   upstreamSha: "ddefc45fbc7f8e46dd73185e68295696d1297887"
   verifiedAt: "2026-09-20"
@@ -12,7 +12,7 @@ metadata:
 
 # DSH plugin development
 
-Skill v0.3.0 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
+Skill v0.3.1 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
 
 ## Foundation-first workflow
 
