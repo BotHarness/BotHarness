@@ -2,9 +2,9 @@
 
 <!-- Maintained source, not generated: this is the English translation of `docs/architecture/botharness-architecture.md`. Edit this file (and its `diagrams/en/*.mmd` sources), not `apps/docs`. -->
 
-BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent identity: a **PersonaBot**. Its persona and Memory continue across Sessions. One Orchestrator Session manages its Inbox and may coordinate multiple independent Assignment Sessions concurrently. DeepSeekBot is the first app, providing the roster, Bot Inbox, Assignment Directory, delegation, and IM integration.
+BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent product identity: a **PersonaBot**. One Orchestrator Session manages its Inbox and may coordinate multiple independent Assignment Sessions concurrently; Memory is an optional capability and Persona is optional content within it; neither is a prerequisite for chat or execution. DeepSeekBot is the first app, providing the roster, Bot Inbox, Assignment Directory, delegation, and IM integration.
 
-This document describes the target architecture agreed in #71. The M1 registry, M2 Memory MVP, and #66 roster storage exist today; #77 has validated the DSH runtime seams, while explicit Session ownership, Messaging, the Assignment Runtime, the unified operational database, and portability ship incrementally through #79–#81. Updated 2026-09-20.
+This document describes the target architecture agreed in #71. The M1 registry, M2 Memory MVP, and #66 roster storage exist today; #77 has validated the DSH runtime seams, while explicit Session ownership, Messaging, the Assignment Runtime, the unified operational database, and portability ship incrementally through #79–#81. Updated 2026-09-21.
 
 The rollout stays explicit: #66's `botharness_roster` domain is the current roster authority; #79 establishes only the `botharness.db` owner, and #80 performs the one-way roster and Session-ownership migration. The target diagrams show ownership after that migration, not a present-day dual-write path.
 
@@ -20,12 +20,13 @@ flowchart LR
   External["Feishu / Lark<br/>webhook / future providers"]
 
   subgraph Browser["DSH Web Client"]
-    UI["DeepSeekBot UI<br/>Roster · Inbox · Assignments · Settings"]
+    UI["DeepSeekBot UI<br/>Roster · Chat · Assignments · Settings"]
   end
 
   subgraph Host["DSH Host · single profile writer"]
     API["Client Bridge RPC"]
-    Identity["PersonaBot & Memory"]
+    Identity["PersonaBot identity"]
+    Memory["Optional Memory Service<br/>Service Definition · Git Provider"]
     Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
     Assignments["Assignment Runtime<br/>Orchestrator · Assignment Directory"]
     Transfer["Portability<br/>Export · Backup · Restore"]
@@ -41,16 +42,19 @@ flowchart LR
   External <--> Messaging
   UI <--> API
   API --> Identity
+  API -.-> Memory
   API --> Messaging
   API --> Assignments
   API --> Transfer
   Identity --> DB
+  Identity -. attachment .-> Memory
   Messaging --> DB
   Assignments --> DB
   Transfer --> DB
   Identity <--> Sessions
   Messaging --> Assignments
   Assignments <--> Sessions
+  Assignments -. scoped Consumer .-> Memory
   Messaging -.-> Credentials
   Transfer -.-> Sessions
 ```
@@ -66,7 +70,7 @@ flowchart TB
 
   subgraph Modules["BotHarness deep modules"]
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
-    Memory["Memory<br/>files · context delivery · tools"]
+    Memory["Optional Memory Service<br/>repositories · pins · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
@@ -75,7 +79,7 @@ flowchart TB
 
   Root --> DB
   Root --> Bots
-  Root --> Memory
+  Root -. optional Provider .-> Memory
   Root --> Msg
   Root --> Assignments
   Root --> Portable
@@ -84,11 +88,13 @@ flowchart TB
   DB --> Msg
   DB --> Assignments
   DB --> Portable
-  Bots --> Memory
+  Bots -. attachment .-> Memory
   Bots --> Assignments
   Msg --> Assignments
   Bots --> Views
   Msg --> Views
+  Assignments -. scoped Consumer .-> Memory
+  Memory --> Views
   Assignments --> Views
   Portable --> Views
 ```
@@ -96,13 +102,15 @@ flowchart TB
 | Module      | Owns                                                                                                      | Does not own                                         |
 | ----------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | PersonaBot  | identity, lifecycle, explicit Session ownership                                                           | DSH Session lifecycle, Memory content                |
-| Memory      | `PERSONA.md`, Memory files, the context-assembly contract                                                 | Inbox content, automatic distillation                |
+| Memory      | generic Git-backed repositories, pin budget, semantic commits, operation events                           | PersonaBot lifecycle, Inbox, Sessions                |
 | Messaging   | Source Events, Channel placement, Inbox Admission, Attention, Trigger/Wake Policy, Service Grants, Outbox | Agent execution, provider credentials                |
 | Assignments | Assignment Directory, Assignment Request/Delivery Intent, capacity admission, report/lifecycle routing    | DSH transcripts, Subagent runtime                    |
 | Portability | coordination for SoulSnapshot, PersonaBot Export, Profile Backup/Restore/Transfer                         | credentials, executable plugins, private DSH formats |
 | Read models | queries, pagination, UI-friendly projections                                                              | business facts and write rules                       |
 
-`botharness.db` is one physical transaction host, not a shared generic repository. Each deep module owns its tables and invariants only through its own interfaces; explicit commands and ports coordinate cross-module flows.
+`botharness.db` is the physical transaction host for BotHarness core, not a shared generic repository. Optional Git-backed Providers own Memory content and commits. Each deep module owns its tables and invariants only through its own interfaces; explicit commands and ports coordinate cross-module flows.
+
+The application-defined Memory Service uses a `Consumer → Service Definition → Provider` capability seam. When its Provider is absent, a PersonaBot still completes the Chat, Orchestrator, and Assignment path with the system-defined base runtime prompt, and the Client omits the Memory destination. When present, every Markdown file has equal semantics: there is no special `MEMORY.md`; optional `persona.md` is merely an ordinary file pinned by default on creation and remains Agent- and Human-writable. Versioned pin metadata enters future system prompts within a configurable byte budget and a model-aware context preflight. Every operation passes through a `memory/before-operation` waterfall and a `memory/after-operation` notification; the Git commit remains durable authority.
 
 ## 3 · Host boot, migration, and recovery
 
@@ -162,7 +170,7 @@ Wake Policy decides when an Orchestrator observes new attention: at the safe bou
 
 The Human does not create or select execution Conversations. The PersonaBot DM is the sole chat entry: a message becomes a Source Event, enters the Bot Inbox, and reaches the Orchestrator, which either replies directly or creates, reuses, and manages several Assignment Sessions within authorization and capacity. The UI projects those Assignment Sessions by purpose and state in the `Assignments` list; it never presents the Orchestrator Session as an Assignment.
 
-PersonaBot navigation appears only in a DM. `Chat` and `Memory` are primary destinations, followed directly by the Assignments list. Selecting an Assignment opens read-only detail; raw DSH Session content requires an explicit secondary action. A group Channel has no such navigation. The first tracer bullet delivers Chat plus the files-first Memory loop; the Assignment list follows by consuming the Assignment Directory read model.
+PersonaBot navigation appears only in a DM. `Chat` is always present; `Memory` appears only while a Memory Provider is attached, followed directly by the Assignments list. Selecting an Assignment opens read-only detail; raw DSH Session content requires an explicit secondary action. A group Channel has no such navigation. The first tracer bullet does not depend on Persona or Memory: create a name-only Bot, traverse the real DM → Bot Inbox → Orchestrator Session → Assignment Session → Assignment Report path, reply in the same DM, and expose the Assignment through the smallest Human-testable list/detail projection.
 
 ```mermaid
 flowchart LR
@@ -191,7 +199,7 @@ The Assignment Request modes `context-update`, `next-step`, and `next-turn` map 
 flowchart TB
   subgraph Profile["One DSH profile"]
     DB[("botharness.db<br/>operational authority")]
-    Files["Persona + Memory files<br/>human-readable authority"]
+    Files["Optional Memory repositories<br/>Markdown · Git authority"]
     CAS["Attachment / Soul CAS bytes"]
     DSHS["DSH SessionPersistence<br/>transcripts · execution"]
     Creds["DSH credentials / settings"]
@@ -215,7 +223,7 @@ flowchart TB
 | Data                           | Authority                            | Portability                                                              |
 | ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------ |
 | operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot in a manual profile backup                    |
-| Persona / Memory               | files under PersonaBot ownership     | SoulSnapshot / PersonaBot Export / profile backup                        |
+| optional Memory repositories   | Git-backed Memory Provider           | selected SoulSnapshot / PersonaBot Export / profile backup               |
 | attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                         |
 | Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise explicitly omitted |
 | credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                  |
@@ -236,9 +244,9 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 
 1. #77 validates the pinned DSH Agent/SessionPersistence/Subagent seams while #79 builds the operational database owner. These can proceed in parallel.
 2. #80 implements explicit Session ownership and the activity projection after #77 and #79.
-3. #81 implements the Assignment Runtime after #77, #79, and #80; Assignment coordination in #47 depends on it.
+3. After #77, #79, and #80, #81 first delivers the minimal DM → Orchestrator → Assignment → report → DM-reply tracer bullet together with a Human-testable Assignment list/detail; later Assignment coordination in #47 expands only after that slice passes.
 4. #78 can research the Feishu provider contract in parallel, but it gates adapter implementation in #48.
-5. #74, #75, and #76 are focused design/grill tracks. In particular, #75 can run in parallel with sidebar ordering #55.
+5. #74 advances Memory as a separate optional-Provider tracer bullet only after that main path passes; #75 and #76 remain focused design/grill tracks so they do not block the first experiential loop.
 
 ## 9 · Maintenance
 

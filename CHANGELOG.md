@@ -5,7 +5,7 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 ## [Unreleased]
 
-Established a concise, bilingual release history for DeepSeekBot contributors.
+Established a concise bilingual release history and clarified the optional Memory capability boundary.
 
 ### Added
 
@@ -16,6 +16,7 @@ Established a concise, bilingual release history for DeepSeekBot contributors.
 - Added the canonical Release Ledger, bilingual parity checks, and contributor guidance ([#100](https://github.com/BotHarness/BotHarness/issues/100)).
 - Documented the planned PersonaBot DM navigation and renamed the application-defined Work concepts to Assignment, Assignment Session, Assignment Agent, and Assignment Directory; this records design language and does not claim the UI or runtime is implemented ([#109](https://github.com/BotHarness/BotHarness/pull/109)).
 - Published a bilingual Development status page that keeps the DeepSeekBot and DSH Skill release trains separate from the Changelog ([#105](https://github.com/BotHarness/BotHarness/issues/105)).
+- Documented Memory as an optional Git-backed Cordis Service, keeping the DM → Orchestrator → Assignment path independent of Persona and Memory ([ADR-0047](docs/adr/0047-memory-is-an-optional-git-backed-service.md), [#74](https://github.com/BotHarness/BotHarness/issues/74)).
 
 ## [Development] - 2026-09-20
 

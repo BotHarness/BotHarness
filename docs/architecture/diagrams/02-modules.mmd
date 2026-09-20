@@ -4,7 +4,7 @@ flowchart TB
 
   subgraph Modules["BotHarness deep modules"]
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
-    Memory["Memory<br/>files · context delivery · tools"]
+    Memory["Optional Memory Service<br/>repositories · pins · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
@@ -13,7 +13,7 @@ flowchart TB
 
   Root --> DB
   Root --> Bots
-  Root --> Memory
+  Root -. optional Provider .-> Memory
   Root --> Msg
   Root --> Assignments
   Root --> Portable
@@ -22,10 +22,12 @@ flowchart TB
   DB --> Msg
   DB --> Assignments
   DB --> Portable
-  Bots --> Memory
+  Bots -. attachment .-> Memory
   Bots --> Assignments
   Msg --> Assignments
   Bots --> Views
   Msg --> Views
+  Assignments -. scoped Consumer .-> Memory
+  Memory --> Views
   Assignments --> Views
   Portable --> Views
