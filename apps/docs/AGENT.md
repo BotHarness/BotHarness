@@ -64,6 +64,7 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 | `/docs` | User guides (`overview`, `quickstart`) |
 | `/dsh` | DSH plugin development (generated from `.agents/skills/dsh-plugin-dev/` + `docs/dsh/`) |
 | `/dev` | BotHarness Design / Guides / generated Reference / ADR (generated from repo sources) |
+| `/development` | Bilingual four-state Development status for DeepSeekBot and DSH Skill |
 | `/changelog` | Bilingual release feed + `/changelog/<slug>` + `/zh/changelog/<slug>` permalinks |
 
 ## Bilingual layout
@@ -90,6 +91,12 @@ excludes `Unreleased`, and writes each dated SemVer section into its own tree
 (`changelog` → `/changelog/**`, `changelog-zh` → `/zh/changelog/**`). The
 one-time `Development` section becomes an explicitly non-versioned history
 summary. Edit the ledgers, never generated changelog content.
+
+Development status is a separate projection: `In progress` comes from
+`src/data/development-status.json`, while the two canonical Release Ledgers
+supply merged, pre-release, and released facts. Edit those authorities rather
+than page copy; `src/lib/development-status.ts` assembles both human and agent
+routes.
 
 ## Diagrams
 

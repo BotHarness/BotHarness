@@ -13,6 +13,16 @@ export interface ReleaseLedgerRelease {
   date?: string;
   summary: string;
   sections: ReleaseLedgerSection[];
+  provenance?: {
+    skillVersion?: string;
+    verifiedAgainst?: string;
+    upstreamSha?: string;
+    upstreamUrl?: string;
+  };
+  evidence?: {
+    tagUrl?: string;
+    installUrl?: string;
+  };
 }
 
 export interface ReleaseLedgerError {
@@ -22,9 +32,19 @@ export interface ReleaseLedgerError {
 }
 
 export const DEVELOPMENT_SUMMARY_IDENTITY: 'Development';
+export function isPublicPreReleaseIdentity(identity: string): boolean;
 export const RELEASE_LEDGER_SECTIONS: readonly string[];
 export function parseReleaseLedger(markdown: string): {
   releases: ReleaseLedgerRelease[];
 };
 export function validateReleaseLedger(markdown: string, source?: string): ReleaseLedgerError[];
 export function validateReleaseLedgerPair(english: string, chinese: string): ReleaseLedgerError[];
+export function validateDshSkillReleaseLedgerPair(
+  english: string,
+  chinese: string,
+  current?: {
+    skillVersion: string;
+    verifiedAgainst: string;
+    upstreamSha: string;
+  },
+): ReleaseLedgerError[];

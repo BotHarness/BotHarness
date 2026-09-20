@@ -7,6 +7,7 @@ import SearchTrigger from "./ui/search/SearchTrigger.astro";
 import { config } from "virtual:nimbus/config";
 import { stripBase, withBase } from "@cloudflare/nimbus-docs/runtime";
 import { languageLinks, localeFromPath, siteChrome } from "@/lib/language";
+import { DEVELOPMENT_STATUS_ROUTE } from "@/lib/development-status-route";
 
 interface Props {
   /** Astro collection id for the current page, forwarded from DocsLayout. */
@@ -53,6 +54,12 @@ const SITE_LINKS = [
     label: chrome.dev,
     icon: "hugeicons:code",
     prefix: "/dev",
+  },
+  {
+    href: DEVELOPMENT_STATUS_ROUTE.html.en,
+    label: chrome.status,
+    icon: "ph:chart-line-up",
+    prefix: DEVELOPMENT_STATUS_ROUTE.html.en,
   },
   { href: "/changelog", label: chrome.changelog, icon: "hugeicons:megaphone-01", prefix: "/changelog" },
 ];

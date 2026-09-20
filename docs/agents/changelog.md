@@ -74,6 +74,22 @@ Do not add another `Development` section, use it as a project-status state, or i
 tagged prerelease or installable artifact. All future public release entries use dated SemVer
 sections; active and merged work stays in `Unreleased` and the Development status surface.
 
+An alpha, beta, or RC section enters the Development status `Pre-release` state only when the
+canonical bilingual ledgers carry both pieces of release evidence before its change sections:
+
+```markdown
+- **Release tag:** [`v1.0.0-rc.1`](https://github.com/OWNER/REPO/releases/tag/v1.0.0-rc.1)
+- **Installable artifact:** [Download bundle](https://github.com/OWNER/REPO/releases/download/v1.0.0-rc.1/plugin.bundle)
+```
+
+Evidence is artifact-bound: DeepSeekBot uses `BotHarness/BotHarness`, while DSH Skill uses
+`BotHarness/dsh-skill`. The tag URL must be the exact HTTPS GitHub Release tag in that repository
+for `v<version>`. The install URL must use the same repository and tag with the shape
+`/releases/download/v<version>/<nonempty-asset>`; arbitrary pages, another repository or tag, and
+URLs with a query or fragment are rejected. Keep both URLs identical in the English and Chinese
+ledgers. A prerelease heading without this explicit authority fails validation and never appears as
+`Pre-release`.
+
 Describe the result before implementation detail:
 
 ```markdown

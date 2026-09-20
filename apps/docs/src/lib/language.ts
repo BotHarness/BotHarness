@@ -1,3 +1,5 @@
+import { DEVELOPMENT_STATUS_ROUTE } from "./development-status-route";
+
 /**
  * Language-variant URL mapping for the bilingual docs site.
  *
@@ -9,7 +11,13 @@
  * paths fall back to the English landing.
  */
 
-const ZH_SECTIONS = ["/docs", "/dsh", "/dev", "/changelog"] as const;
+const ZH_SECTIONS = [
+  "/docs",
+  "/dsh",
+  "/dev",
+  DEVELOPMENT_STATUS_ROUTE.html.en,
+  "/changelog",
+] as const;
 
 /** Site locales, matching `<html lang>`: English root + Simplified Chinese. */
 export type Locale = "en" | "zh-Hans";
@@ -113,6 +121,7 @@ export interface SiteChromeStrings {
   docs: string;
   dsh: string;
   dev: string;
+  status: string;
   changelog: string;
   /** `aria-label` on the mobile menu button. */
   openNavigation: string;
@@ -148,6 +157,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
       docs: "文档",
       dsh: "DSH 开发",
       dev: "开发与审计",
+      status: "开发状态",
       changelog: "Changelog",
       openNavigation: "打开导航",
       toggleTheme: "切换深色模式",
@@ -169,6 +179,7 @@ export function siteChrome(locale: Locale): SiteChromeStrings {
     docs: "Docs",
     dsh: "DSH Dev",
     dev: "Development & Audit",
+    status: "Status",
     changelog: "Changelog",
     openNavigation: "Open navigation",
     toggleTheme: "Toggle dark mode",

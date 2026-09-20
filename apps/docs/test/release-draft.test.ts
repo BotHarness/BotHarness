@@ -233,8 +233,24 @@ describe("GitHub Release draft preparation", () => {
   });
 
   it("marks a documentation-only RC as runtime unchanged without calling it a patch", () => {
-    const englishLedger = fixture("deepseekbot.md").replaceAll("0.2.1", "0.3.0-rc.1");
-    const chineseLedger = fixture("deepseekbot.zh.md").replaceAll("0.2.1", "0.3.0-rc.1");
+    const englishLedger = fixture("deepseekbot.md")
+      .replaceAll("0.2.1", "0.3.0-rc.1")
+      .replace(
+        "Published a clearer compatibility guide for DeepSeekBot operators.",
+        `Published a clearer compatibility guide for DeepSeekBot operators.
+
+- **Release tag:** [\`v0.3.0-rc.1\`](https://github.com/BotHarness/BotHarness/releases/tag/v0.3.0-rc.1)
+- **Installable artifact:** [Download bundle](https://github.com/BotHarness/BotHarness/releases/download/v0.3.0-rc.1/deepseekbot.bundle)`,
+      );
+    const chineseLedger = fixture("deepseekbot.zh.md")
+      .replaceAll("0.2.1", "0.3.0-rc.1")
+      .replace(
+        "为 DeepSeekBot 管理者发布更清晰的兼容性指南。",
+        `为 DeepSeekBot 管理者发布更清晰的兼容性指南。
+
+- **发布 tag：** [\`v0.3.0-rc.1\`](https://github.com/BotHarness/BotHarness/releases/tag/v0.3.0-rc.1)
+- **可安装 artifact：** [下载 bundle](https://github.com/BotHarness/BotHarness/releases/download/v0.3.0-rc.1/deepseekbot.bundle)`,
+      );
     const draft = prepareReleaseDraft({
       artifact: "deepseekbot",
       version: "0.3.0-rc.1",
