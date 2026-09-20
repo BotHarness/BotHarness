@@ -11,7 +11,8 @@
  *   - Chinese is secondary, mounted at `/zh/**` through Nimbus's
  *     `versions.others` mechanism (`docs-zh` collection). Hand-translated
  *     user docs live in `apps/docs/src/content/docs-zh/docs/`; this script
- *     generates `docs-zh/dev/**` from the repo sources.
+ *     generates `docs-zh/dev/**` and bilingual `docs-zh/dsh/**` pages from
+ *     the repo sources.
  *
  * The repo files are the single source of truth: every generated page is
  * rebuilt from them on each `syncDocs()` call.
@@ -38,7 +39,8 @@
  * link to the counterpart.
  *
  * Never hand-edit anything under `src/content/docs/dev/**`,
- * `src/content/docs-zh/dev/**`, `src/content/changelog/**`, or
+ * `src/content/docs-zh/dev/**`, `src/content/docs/dsh/**`,
+ * `src/content/docs-zh/dsh/**`, `src/content/changelog/**`, or
  * `src/content/changelog-zh/**`.
  */
 import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -422,61 +424,138 @@ const SKILL_PAGES = [
   {
     slug: 'dsh/context',
     order: 1,
-    source: `${SKILL}references/context.md`,
-    title: 'Canonical context',
-    description: 'Precise DSH, Cordis and BotHarness vocabulary and boundaries',
+    en: {
+      source: `${SKILL}references/context.md`,
+      title: 'Canonical context',
+      description: 'Precise DSH, Cordis and BotHarness vocabulary and boundaries',
+    },
+    zh: {
+      source: `${SKILL}references/context.zh.md`,
+      title: '规范 Context',
+      description: '精确的 DSH、Cordis 与 BotHarness 术语及边界',
+    },
   },
   {
     slug: 'dsh/decision-tree',
     order: 2,
-    source: `${SKILL}references/decision-tree.md`,
-    title: 'Decision tree',
-    description: 'Choose the correct DSH seam before implementation',
+    en: {
+      source: `${SKILL}references/decision-tree.md`,
+      title: 'Decision tree',
+      description: 'Choose the correct DSH seam before implementation',
+    },
+    zh: {
+      source: `${SKILL}references/decision-tree.zh.md`,
+      title: 'Decision Tree',
+      description: '在实现前选择正确的 DSH seam',
+    },
   },
   {
     slug: 'dsh/bot-runtime',
     order: 3,
-    source: `${SKILL}references/bot-runtime-architecture.md`,
-    title: 'Bot runtime architecture',
-    description: 'Keep product IM, Work ownership and DSH delegation separate',
+    en: {
+      source: `${SKILL}references/bot-runtime-architecture.md`,
+      title: 'Bot runtime architecture',
+      description: 'Keep product IM, Work ownership and DSH delegation separate',
+    },
+    zh: {
+      source: `${SKILL}references/bot-runtime-architecture.zh.md`,
+      title: 'Bot Runtime 架构',
+      description: '分离产品 IM、Work ownership 与 DSH delegation',
+    },
   },
   {
     slug: 'dsh/guide',
     order: 4,
-    source: `${SKILL}SKILL.md`,
-    title: 'The full guide',
-    description: 'Foundation-first workflow, implementation branches and pitfalls',
+    en: {
+      source: `${SKILL}SKILL.md`,
+      title: 'The full guide',
+      description: 'Foundation-first workflow, implementation branches and pitfalls',
+    },
+    zh: {
+      source: `${SKILL}SKILL.zh.md`,
+      title: '完整指南',
+      description: 'Foundation-first 工作流、实现分支与常见陷阱',
+    },
   },
   {
     slug: 'dsh/host',
     order: 5,
-    source: `${SKILL}references/host.md`,
-    title: 'Host-side reference',
-    description: 'Package manifest, patches, tools, events, lifecycle',
+    en: {
+      source: `${SKILL}references/host.md`,
+      title: 'Host-side reference',
+      description: 'Package manifest, patches, tools, events, lifecycle',
+    },
+    zh: {
+      source: `${SKILL}references/host.zh.md`,
+      title: 'Host 侧参考',
+      description: '包清单、Patch、Tool、Event 与生命周期',
+    },
   },
   {
     slug: 'dsh/client',
     order: 6,
-    source: `${SKILL}references/client.md`,
-    title: 'Client-side reference',
-    description: 'dsh.client, slots, RPC and the lazy-CJS build contract',
+    en: {
+      source: `${SKILL}references/client.md`,
+      title: 'Client-side reference',
+      description: 'dsh.client, slots, RPC and the lazy-CJS build contract',
+    },
+    zh: {
+      source: `${SKILL}references/client.zh.md`,
+      title: 'Client 侧参考',
+      description: 'dsh.client、Slots、RPC 与 lazy-CJS 构建契约',
+    },
   },
   {
     slug: 'dsh/slots',
     order: 7,
-    source: `${SKILL}references/slots.md`,
-    title: 'Slot catalog',
-    description: 'Every UI slot with kind, scope and use',
+    en: {
+      source: `${SKILL}references/slots.md`,
+      title: 'Slot catalog',
+      description: 'Every UI slot with kind, scope and use',
+    },
+    zh: {
+      source: `${SKILL}references/slots.zh.md`,
+      title: 'Slot 目录',
+      description: '全部 UI Slot 的 kind、scope 与用途',
+    },
   },
   {
     slug: 'dsh/patterns',
     order: 8,
-    source: `${SKILL}references/community-ui-patterns.md`,
-    title: 'Community UI patterns',
-    description:
-      'How the ecosystem builds DSH plugin UI — build routes, proven practices, drift hazards',
+    en: {
+      source: `${SKILL}references/community-ui-patterns.md`,
+      title: 'Community UI patterns',
+      description:
+        'How the ecosystem builds DSH plugin UI — build routes, proven practices, drift hazards',
+    },
+    zh: {
+      source: `${SKILL}references/community-ui-patterns.zh.md`,
+      title: '社区 UI 实践',
+      description: 'DSH 插件生态的构建路线、验证实践与版本漂移风险',
+    },
   },
 ];
+
+const SKILL_LINKS = new Map([
+  ['context', 'context'],
+  ['decision-tree', 'decision-tree'],
+  ['bot-runtime-architecture', 'bot-runtime'],
+  ['host', 'host'],
+  ['client', 'client'],
+  ['slots', 'slots'],
+  ['community-ui-patterns', 'patterns'],
+]);
+
+function prepareSkill(body, tree) {
+  const prefix = tree === 'docs-zh' ? '/zh' : '';
+  return prepare(body).replace(
+    /\]\((?:references\/)?([a-z-]+)(?:\.zh)?\.md\)/g,
+    (match, sourceName) => {
+      const slug = SKILL_LINKS.get(sourceName);
+      return slug ? `](${prefix}/dsh/${slug})` : match;
+    },
+  );
+}
 
 /**
  * DSH Dev Docs: render the dsh-plugin-dev skill (`.agents/skills/dsh-plugin-dev/`)
@@ -489,8 +568,19 @@ function syncSkill() {
   const provenance = provenanceFields(skillProvenance());
 
   const landing = [
-    { tree: 'docs', source: 'docs/dsh/index.md', untranslated: false },
-    { tree: 'docs-zh', source: 'docs/dsh/index.zh.md', untranslated: false },
+    {
+      tree: 'docs',
+      source: 'docs/dsh/index.md',
+      description:
+        'Foundation-first DSH and Cordis design guide — install the skill, then follow its decision tree',
+      untranslated: false,
+    },
+    {
+      tree: 'docs-zh',
+      source: 'docs/dsh/index.zh.md',
+      description: 'Foundation-first DSH 与 Cordis 设计指南：安装 skill，再按 Decision Tree 决策',
+      untranslated: false,
+    },
   ];
   for (const variant of landing) {
     const raw = readText(variant.source);
@@ -500,8 +590,7 @@ function syncSkill() {
       `${variant.tree}/dsh/index.mdx`,
       frontmatter({
         title,
-        description:
-          'Foundation-first DSH and Cordis design guide — install the skill, then follow its decision tree',
+        description: variant.description,
         order: 0,
         untranslated: variant.untranslated,
         extra: provenance,
@@ -511,17 +600,28 @@ function syncSkill() {
   }
 
   for (const page of SKILL_PAGES) {
-    const raw = readText(page.source);
-    const { body } = stripFrontmatter(raw);
-    writeText(
-      `docs/${page.slug}.mdx`,
-      frontmatter({ ...page, untranslated: false, extra: provenance }) + prepare(body),
-    );
-    writeText(
-      `docs-zh/${page.slug}.mdx`,
-      frontmatter({ ...page, untranslated: true, extra: provenance }) + prepare(body),
-    );
-    process.stdout.write(`skill: ${page.source} -> ${page.slug} (docs + docs-zh)\n`);
+    for (const [tree, language] of [
+      ['docs', 'en'],
+      ['docs-zh', 'zh'],
+    ]) {
+      const variant = page[language];
+      if (!variant?.source) {
+        throw new Error(`skill: ${page.slug} is missing its ${language} source`);
+      }
+      const raw = readText(variant.source);
+      const { body } = stripFrontmatter(raw);
+      writeText(
+        `${tree}/${page.slug}.mdx`,
+        frontmatter({
+          title: variant.title,
+          description: variant.description,
+          order: page.order,
+          untranslated: false,
+          extra: provenance,
+        }) + prepareSkill(body, tree),
+      );
+      process.stdout.write(`skill: ${variant.source} -> ${tree}/${page.slug}.mdx\n`);
+    }
   }
 }
 
