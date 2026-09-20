@@ -37,16 +37,35 @@ describe('client styles', () => {
   });
 
   it('wires the measured native row geometry and spacing', () => {
-    expect(source).toMatch(/\.bh-section-head \{[^}]*height: 34px/);
+    expect(source).toMatch(/\.bh-section-head \{[^}]*height: 24px/);
     expect(source).toMatch(/\.bh-section-head \{[^}]*gap: 6px/);
     expect(source).toMatch(/\.bh-section-head \{[^}]*padding: 0 8px/);
     expect(source).toMatch(/\.bh-channel-row \{[^}]*height: 32px/);
     expect(source).toMatch(/\.bh-channel-row \{[^}]*padding: 0 8px/);
     expect(source).toMatch(/\.bh-list-area > \* \+ \* \{\s*margin-top: 2px/);
-    expect(source).toMatch(/\.bh-section \+ \.bh-section \{\s*margin-top: 4px/);
+    expect(source).toMatch(/\.bh-section \+ \.bh-section \{\s*margin-top: 12px/);
     expect(source).toMatch(/\.bh-section-head:hover \.bh-row-actions,[^}]*display: inline-flex/);
-    expect(source).toMatch(/\.bh-arrow-open \{\s*transform: rotate\(90deg\)/);
-    expect(source).toMatch(/\.bh-channel-row\.bh-selected \{\s*background: var\(--bh-hover\)/);
+  });
+
+  it('keeps the glyph-free section header muted with a 12px block break', () => {
+    expect(source).not.toContain('bh-arrow');
+    expect(source).not.toContain('bh-row-slot');
+    expect(source).toMatch(/\.bh-section-name \{[^}]*color: var\(--dsw-alias-label-tertiary\)/);
+    expect(source).toMatch(/\.bh-section \+ \.bh-section \{\s*margin-top: 12px/);
+  });
+
+  it('brightens the Discord header on hover instead of filling it', () => {
+    expect(source).not.toMatch(/\.bh-section-head:hover[^}]*background/);
+    expect(source).toMatch(/\.bh-section-head:hover \.bh-section-name/);
+    expect(source).toMatch(
+      /\.bh-section-chevron \{\s*[^}]*color: var\(--dsw-alias-label-tertiary\)/,
+    );
+    expect(source).toMatch(
+      /\.bh-section-chevron\.bh-chevron-collapsed \{\s*transform: rotate\(-90deg\)/,
+    );
+    expect(source).toMatch(
+      /\.bh-section-chevron \{\s*[^}]*transition: transform 150ms var\(--ds-ease-in-out\)/,
+    );
   });
 
   it('carries the native channel drag insert-line recipe', () => {
@@ -54,6 +73,28 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-channel-row\.bh-drop-after::after/);
     expect(source).toMatch(/\.bh-drop-before::before \{\s*top: -7px/);
     expect(source).toMatch(/\.bh-drop-after::after \{\s*bottom: -7px/);
+  });
+
+  it('carries the native section-block drag insert-line recipe', () => {
+    expect(source).toMatch(/\.bh-section\.bh-drop-before::before/);
+    expect(source).toMatch(/\.bh-section\.bh-drop-after::after/);
+    expect(source).toMatch(/\.bh-section\.bh-drop-before::before \{\s*top: -8px/);
+    expect(source).toMatch(/\.bh-section\.bh-drop-after::after \{\s*bottom: -8px/);
+  });
+
+  it('marks row-less section drops with an overlay line and fades the source in place', () => {
+    expect(source).not.toContain('bh-empty-drop');
+    expect(source).toMatch(/\.bh-section\.bh-drop-scope > \.bh-list-area::before/);
+    expect(source).toMatch(
+      /\.bh-section\.bh-drop-scope > \.bh-list-area::before \{[^}]*position: absolute/,
+    );
+    expect(source).toMatch(/\.bh-section\.bh-drop-before::before,[^{]*\{[^}]*position: absolute/);
+    expect(source).toMatch(/\.bh-channel-row\.bh-drag-source \{\s*opacity: 0\.4/);
+  });
+
+  it('anchors the channel move menu at the cursor proxy', () => {
+    expect(source).toMatch(/\.bh-menu-anchor \{\s*position: fixed/);
+    expect(source).toMatch(/\.bh-move-checked \{\s*display: flex/);
   });
 
   it('copies the native rename input box model without portaled overrides', () => {

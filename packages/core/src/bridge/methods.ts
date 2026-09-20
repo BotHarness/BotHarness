@@ -18,6 +18,7 @@ import {
   type RosterSection,
   type RosterSnapshot,
 } from '../roster/store.js';
+import type { TopOrderEntry } from '../roster/spec.js';
 import {
   isInsideWorkspace,
   type BotSessionSource,
@@ -75,6 +76,7 @@ export interface BridgeMethods {
   sectionRemove(payload: unknown): Promise<BridgeResult<{ removed: boolean }>>;
   channelAssign(payload: unknown): Promise<BridgeResult<Record<string, never>>>;
   sectionReorder(payload: unknown): Promise<BridgeResult<{ sectionOrder: string[] }>>;
+  topReorder(payload: unknown): Promise<BridgeResult<{ topOrder: TopOrderEntry[] }>>;
   pinsSet(payload: unknown): Promise<BridgeResult<{ pins: string[] }>>;
 }
 
@@ -154,6 +156,9 @@ const channelAssignPayload = z.object({
   index: z.number().int().min(0).optional(),
 });
 const sectionReorderPayload = z.object({ order: z.array(z.string()) });
+const topReorderPayload = z.object({
+  order: z.array(z.object({ kind: z.enum(['section', 'channel']), id: z.string().min(1) })),
+});
 const pinsSetPayload = z.object({ pins: z.array(z.string()) });
 
 function asNonBlank(source: Record<string, unknown>, key: string): string | undefined {
@@ -467,6 +472,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (!parsed.success) return invalidInput('invalid sectionReorder payload');
       return rosterWrite(async () => ({
         sectionOrder: await deps.roster.sectionReorder(parsed.data.order),
+      }));
+    },
+    async topReorder(payload) {
+      const parsed = topReorderPayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid topReorder payload');
+      return rosterWrite(async () => ({
+        topOrder: await deps.roster.topReorder(parsed.data.order),
       }));
     },
     async pinsSet(payload) {

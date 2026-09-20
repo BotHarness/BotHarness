@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -18,6 +21,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   return {
     Button: stub,
     IconAgentPresetOutline16: icon('IconAgentPresetOutline16'),
+    IconCheckOutline16: icon('IconCheckOutline16'),
+    IconChevronDownOutline14: icon('IconChevronDownOutline14'),
     IconCloseFill14: icon('IconCloseFill14'),
     IconEditOutline16: icon('IconEditOutline16'),
     IconEllipsisOutline16: icon('IconEllipsisOutline16'),
@@ -46,13 +51,19 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { BotSidebar } from '../src/client/bot-sidebar.js';
+import { BotSidebar, ChannelMoveMenu } from '../src/client/bot-sidebar.js';
+import { UNGROUPED_MOVE_TARGET } from '../src/client/section-management.js';
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
 import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
+
+const sidebarSource = readFileSync(
+  fileURLToPath(new URL('../src/client/bot-sidebar.tsx', import.meta.url)),
+  'utf8',
+);
 
 const AT = '2026-09-19T00:00:00.000Z';
 
@@ -97,6 +108,11 @@ function stubActions(): BridgeActions {
     removeSection: vi.fn(async () => true),
     assignChannel: vi.fn(async () => true),
     setSectionChannelOrder: vi.fn(async () => true),
+    moveChannel: vi.fn(async () => true),
+    reorderSections: vi.fn(async () => true),
+    reorderFlat: vi.fn(async () => true),
+    moveToFlat: vi.fn(async () => true),
+    ensureFlatTopOrder: vi.fn(async () => true),
   };
 }
 
@@ -112,6 +128,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
   store.setRosterState({
     pins: [],
     sections: [],
+    topOrder: undefined,
     readOnly: false,
     ...patch,
   });
@@ -188,7 +205,11 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
-  it('renders the native projectRow anatomy for section headers', () => {
+  it('does not reject an accepted drop from the browser-reset dropEffect', () => {
+    expect(sidebarSource).not.toContain("dropEffect === 'none'");
+  });
+
+  it('renders the glyph-free section header anatomy', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
@@ -196,8 +217,13 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('bh-section-head');
     expect(markup).toContain('role="button"');
     expect(markup).toContain('aria-expanded="true"');
-    expect(markup).toContain('data-icon="IconTriangleRightFill14"');
-    expect(markup).toContain('bh-arrow bh-arrow-open');
+    expect(markup).not.toContain('IconTriangleRightFill14');
+    expect(markup).not.toContain('bh-arrow');
+    expect(markup).not.toContain('bh-row-slot');
+    expect(markup).toContain('bh-section-name');
+    expect(markup).toContain('data-icon="IconChevronDownOutline14"');
+    expect(markup).toContain('bh-section-chevron');
+    expect(markup).not.toContain('bh-chevron-collapsed');
     expect(markup).toContain('bh-row-actions');
     expect(markup).toContain('aria-label="「工作流」排序方式"');
     expect(markup).toContain('aria-label="在「工作流」中创建频道"');
@@ -213,6 +239,8 @@ describe('bot sidebar rows', () => {
     expect(markup).not.toContain('bh-channel-mark');
     expect(markup.match(/bh-channel-row/g)).toHaveLength(2);
     expect(markup).toContain('bh-channel-slot');
+    expect(markup).toContain('viewBox="0 0 24 24"');
+    expect(markup).not.toContain('>#</span>');
     expect(markup).toContain('bh-channel-title');
     expect(markup).toContain('一级渠道');
     expect(markup).toContain('1 位成员');
@@ -238,15 +266,14 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('名册存储不可用，陈列只读');
   });
 
-  it('drops the channel run and the open arrow while a section is collapsed', () => {
+  it('drops the channel run while a section is collapsed', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setConfig(config({ collapsed: { s1: true } }));
     store.setRoster([], [SECTION_CHANNEL]);
     const markup = renderSidebar();
 
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain('bh-arrow');
-    expect(markup).not.toContain('bh-arrow-open');
+    expect(markup).toContain('bh-chevron-collapsed');
     expect(markup).not.toContain('一级渠道');
     expect(markup).toContain('bh-row-actions');
   });
@@ -379,7 +406,7 @@ describe('bot sidebar rows', () => {
     expect(inherited.indexOf('旧频道')).toBeLessThan(inherited.indexOf('新频道'));
   });
 
-  it('orders the ungrouped bucket by the global default (never a manual override)', () => {
+  it('renders loose channels in flat order under every sort mode (never auto-sorted)', () => {
     const older = {
       ...FLAT_CHANNEL,
       id: 'c-old',
@@ -396,25 +423,81 @@ describe('bot sidebar rows', () => {
 
     prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
     const auto = renderSidebar();
-    expect(auto.indexOf('未分组')).toBeLessThan(auto.indexOf('新频道'));
-    expect(auto.indexOf('新频道')).toBeLessThan(auto.indexOf('旧频道'));
+    expect(auto).not.toContain('未分组');
+    expect(auto.indexOf('旧频道')).toBeLessThan(auto.indexOf('新频道'));
 
     prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
     const manual = renderSidebar();
     expect(manual.indexOf('旧频道')).toBeLessThan(manual.indexOf('新频道'));
   });
 
-  it('wires drag only on section channels and leaves 未分组 undraggable', () => {
+  it('renders a loose channel between sections at its flat position', () => {
+    setRoster({
+      sections: [section('s1', '工作流', []), section('s2', '研究', [])],
+      topOrder: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: 'c-flat' },
+        { kind: 'section', id: 's2' },
+      ],
+    });
+    store.setRoster([], [FLAT_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup.indexOf('工作流')).toBeLessThan(markup.indexOf('散装渠道'));
+    expect(markup.indexOf('散装渠道')).toBeLessThan(markup.indexOf('研究'));
+    expect(markup).toContain('bh-loose');
+  });
+
+  it('wires drag on section and loose channels plus the section header', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([], [SECTION_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
-    expect(markup.match(/draggable="true"/g)).toHaveLength(1);
+    expect(markup.match(/draggable="true"/g)).toHaveLength(3);
     expect(markup).toContain('一级渠道');
     expect(markup).toContain('散装渠道');
   });
 
-  it('moves a deleted section channel into the bottom ungrouped bucket', () => {
+  it('renders empty sections as bare headers with no layout-taking drop zone', () => {
+    store.setConfig(config());
+    setRoster({
+      sections: [section('s1', '工作流', ['c-section']), section('s-empty', '空分组', [])],
+    });
+    store.setRoster([], [SECTION_CHANNEL, FLAT_CHANNEL]);
+    const markup = renderSidebar();
+    expect(markup).toContain('空分组');
+    expect(markup).not.toContain('bh-empty-drop');
+    expect(markup).not.toContain('bh-drop-scope');
+  });
+
+  it('renders the 移动到 menu from every section plus 未分组 and maps picks to scopes', () => {
+    const onPick = vi.fn();
+    const onClose = vi.fn();
+    renderToStaticMarkup(
+      createElement(ChannelMoveMenu, {
+        menu: { channelId: 'c-section', x: 40, y: 80 },
+        sections: [section('s1', '工作流', []), section('s2', '研究', [])],
+        currentSectionId: 's1',
+        t: ((key: BotHarnessKey) => zh[key]) as never,
+        onPick,
+        onClose,
+      }),
+    );
+
+    const menu = captured.menus.at(-1);
+    if (menu === undefined) throw new Error('move menu not rendered');
+    const items = menu.items as readonly { id: string; submenu?: readonly { id: string }[] }[];
+    expect(items[0]?.id).toBe('move');
+    expect(items[0]?.submenu?.map((item) => item.id)).toEqual(['s1', 's2', UNGROUPED_MOVE_TARGET]);
+
+    const onSelect = menu.onSelect as (id: string) => void;
+    onSelect('s2');
+    expect(onPick).toHaveBeenCalledWith('s2');
+    onSelect(UNGROUPED_MOVE_TARGET);
+    expect(onPick).toHaveBeenCalledWith(undefined);
+  });
+
+  it('renders a deleted section channel as a loose channel with no bucket', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([], [SECTION_CHANNEL]);
     const before = renderSidebar();
@@ -425,7 +508,7 @@ describe('bot sidebar rows', () => {
     setRoster({ sections: [] });
     const after = renderSidebar();
     expect(after).not.toContain('工作流');
-    expect(after).toContain('未分组');
-    expect(after.indexOf('未分组')).toBeLessThan(after.indexOf('一级渠道'));
+    expect(after).not.toContain('未分组');
+    expect(after).toContain('一级渠道');
   });
 });

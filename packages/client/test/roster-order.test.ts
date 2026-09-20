@@ -1,10 +1,15 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import {
+  applyChannelMove,
   commitScopeReorder,
+  completeFlatEntries,
   moveWithinOrder,
   orderScopeChannels,
+  planChannelMove,
+  planFlatInsert,
   resolvedSortMode,
+  resolveBlockDropTarget,
   rowDropHalf,
 } from '../src/client/roster-order.js';
 import { reconcileOrder } from '../src/client/roster.js';
@@ -139,5 +144,461 @@ describe('scope drop commit', () => {
 
   it('reports nothing for a no-op drop', () => {
     expect(commitScopeReorder(['a', 'b'], 'a', 'b', 'before', false)).toBeUndefined();
+  });
+
+  it('reorders section ids with the same insert math as rows', () => {
+    expect(moveWithinOrder(['s1', 's2', 's3'], 's3', 's1', 'before')).toEqual(['s3', 's1', 's2']);
+    expect(moveWithinOrder(['s1', 's2', 's3'], 's1', 's2', 'before')).toBeUndefined();
+    expect(moveWithinOrder(['s1', 's2'], 's2', 's1', 'after')).toBeUndefined();
+  });
+});
+
+describe('cross-scope drop planning', () => {
+  it('inserts before or after a target row and flips the target section to manual', () => {
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'row', channelId: 'b', half: 'before' },
+        targetOrder: ['a', 'b', 'c'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's2',
+      order: ['a', 'x', 'b', 'c'],
+      setManualOverride: true,
+    });
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'row', channelId: 'c', half: 'after' },
+        targetOrder: ['a', 'b', 'c'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's2',
+      order: ['a', 'b', 'c', 'x'],
+      setManualOverride: true,
+    });
+  });
+
+  it('keeps an already-manual target frozen', () => {
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'row', channelId: 'a', half: 'before' },
+        targetOrder: ['a', 'b'],
+        targetManualOverride: true,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's2',
+      order: ['x', 'a', 'b'],
+      setManualOverride: false,
+    });
+  });
+
+  it('moves into 未分组 without an order or a mode change', () => {
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: undefined,
+        target: { kind: 'row', channelId: 'u', half: 'after' },
+        targetOrder: ['u', 'v'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({ kind: 'ungrouped', setManualOverride: false });
+  });
+
+  it('treats drops inside 未分组 and onto the dragged row as no-ops', () => {
+    expect(
+      planChannelMove(undefined, 'u', {
+        targetScopeId: undefined,
+        target: { kind: 'row', channelId: 'v', half: 'before' },
+        targetOrder: ['u', 'v'],
+        targetManualOverride: false,
+      }),
+    ).toBeUndefined();
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's1',
+        target: { kind: 'row', channelId: 'x', half: 'after' },
+        targetOrder: ['x', 'y'],
+        targetManualOverride: true,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('treats an unknown target row as a no-op', () => {
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'row', channelId: 'ghost', half: 'before' },
+        targetOrder: ['a', 'b'],
+        targetManualOverride: false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('appends through a scope target (the context-menu pick)', () => {
+    expect(
+      planChannelMove(undefined, 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'scope' },
+        targetOrder: ['a', 'b'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's2',
+      order: ['a', 'b', 'x'],
+      setManualOverride: true,
+    });
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: undefined,
+        target: { kind: 'scope' },
+        targetOrder: ['u'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({ kind: 'ungrouped', setManualOverride: false });
+  });
+
+  it('treats a context-menu pick of the current scope as a no-op', () => {
+    expect(
+      planChannelMove('s2', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'scope' },
+        targetOrder: ['x', 'y'],
+        targetManualOverride: true,
+      }),
+    ).toBeUndefined();
+    expect(
+      planChannelMove(undefined, 'u', {
+        targetScopeId: undefined,
+        target: { kind: 'scope' },
+        targetOrder: ['u'],
+        targetManualOverride: false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('reorders inside a scope only when the visible order really changes', () => {
+    expect(
+      planChannelMove('s1', 'a', {
+        targetScopeId: 's1',
+        target: { kind: 'row', channelId: 'c', half: 'after' },
+        targetOrder: ['a', 'b', 'c'],
+        targetManualOverride: true,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's1',
+      order: ['b', 'c', 'a'],
+      setManualOverride: false,
+    });
+    expect(
+      planChannelMove('s1', 'a', {
+        targetScopeId: 's1',
+        target: { kind: 'row', channelId: 'b', half: 'before' },
+        targetOrder: ['a', 'b', 'c'],
+        targetManualOverride: false,
+      }),
+    ).toBeUndefined();
+  });
+
+  it('drops against the full unfiltered target order', () => {
+    expect(
+      planChannelMove('s1', 'x', {
+        targetScopeId: 's2',
+        target: { kind: 'row', channelId: 'a', half: 'before' },
+        targetOrder: ['a', 'b', 'c'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's2',
+      order: ['x', 'a', 'b', 'c'],
+      setManualOverride: true,
+    });
+  });
+});
+
+describe('channel move application', () => {
+  it('unlocks the target section before the positioned move', () => {
+    const calls: string[] = [];
+    applyChannelMove(
+      {
+        assignToUngrouped: (channelId) => calls.push(`ungrouped:${channelId}`),
+        moveToSection: (channelId, sectionId, order) =>
+          calls.push(`move:${channelId}:${sectionId}:${order.join(',')}`),
+        setSectionManual: (sectionId) => calls.push(`manual:${sectionId}`),
+      },
+      'x',
+      { kind: 'section', sectionId: 's2', order: ['a', 'x'], setManualOverride: true },
+    );
+
+    expect(calls).toEqual(['manual:s2', 'move:x:s2:a,x']);
+  });
+
+  it('routes 未分组 plans through the single assign without touching any mode', () => {
+    const calls: string[] = [];
+    applyChannelMove(
+      {
+        assignToUngrouped: (channelId) => calls.push(`ungrouped:${channelId}`),
+        moveToSection: (channelId) => calls.push(`move:${channelId}`),
+        setSectionManual: (sectionId) => calls.push(`manual:${sectionId}`),
+      },
+      'x',
+      { kind: 'ungrouped', setManualOverride: false },
+    );
+
+    expect(calls).toEqual(['ungrouped:x']);
+  });
+
+  it('does not rewrite the mode when the target section is already manual', () => {
+    const calls: string[] = [];
+    applyChannelMove(
+      {
+        assignToUngrouped: (channelId) => calls.push(`ungrouped:${channelId}`),
+        moveToSection: (channelId, sectionId) => calls.push(`move:${channelId}:${sectionId}`),
+        setSectionManual: (sectionId) => calls.push(`manual:${sectionId}`),
+      },
+      'x',
+      { kind: 'section', sectionId: 's2', order: ['x'], setManualOverride: false },
+    );
+
+    expect(calls).toEqual(['move:x:s2']);
+  });
+});
+
+describe('empty section drop', () => {
+  it('appends at index 0 and flips an automatic target to manual', () => {
+    expect(
+      planChannelMove(undefined, 'x', {
+        targetScopeId: 's-empty',
+        target: { kind: 'scope' },
+        targetOrder: [],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's-empty',
+      order: ['x'],
+      setManualOverride: true,
+    });
+  });
+
+  it('moves from a section into an empty section and freezes index 0', () => {
+    const plan = planChannelMove('s1', 'x', {
+      targetScopeId: 's-empty',
+      target: { kind: 'scope' },
+      targetOrder: [],
+      targetManualOverride: false,
+    });
+    expect(plan).toEqual({
+      kind: 'section',
+      sectionId: 's-empty',
+      order: ['x'],
+      setManualOverride: true,
+    });
+    const calls: string[] = [];
+    applyChannelMove(
+      {
+        assignToUngrouped: (channelId) => calls.push(`ungrouped:${channelId}`),
+        moveToSection: (channelId, sectionId, order) =>
+          calls.push(`move:${channelId}:${sectionId}:${order.join(',')}`),
+        setSectionManual: (sectionId) => calls.push(`manual:${sectionId}`),
+      },
+      'x',
+      plan ?? { kind: 'ungrouped', setManualOverride: false },
+    );
+    expect(calls).toEqual(['manual:s-empty', 'move:x:s-empty:x']);
+  });
+
+  it('keeps an already-manual empty target frozen without a mode rewrite', () => {
+    expect(
+      planChannelMove(undefined, 'x', {
+        targetScopeId: 's-empty',
+        target: { kind: 'scope' },
+        targetOrder: [],
+        targetManualOverride: true,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's-empty',
+      order: ['x'],
+      setManualOverride: false,
+    });
+  });
+
+  it('treats a row target against an empty order as a no-op (the body is the anchor)', () => {
+    expect(
+      planChannelMove(undefined, 'x', {
+        targetScopeId: 's-empty',
+        target: { kind: 'row', channelId: 'ghost', half: 'before' },
+        targetOrder: [],
+        targetManualOverride: false,
+      }),
+    ).toBeUndefined();
+  });
+});
+
+describe('flat order completion', () => {
+  it('keeps stored entries and appends unknown channels at the end', () => {
+    expect(
+      completeFlatEntries(
+        [
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'loose' },
+          { kind: 'section', id: 'ghost' },
+          { kind: 'channel', id: 'c-in-section' },
+        ],
+        ['s1', 's2'],
+        ['c-in-section', 'loose', 'fresh'],
+        new Set(['c-in-section']),
+      ),
+    ).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'loose' },
+      { kind: 'channel', id: 'fresh' },
+    ]);
+  });
+
+  it('projects legacy state as sections then unsectioned channels', () => {
+    expect(completeFlatEntries(undefined, ['s1', 's2'], ['a', 'b'], new Set(['a']))).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'section', id: 's2' },
+      { kind: 'channel', id: 'b' },
+    ]);
+    expect(completeFlatEntries(undefined, [], [], new Set())).toEqual([]);
+  });
+});
+
+describe('block-level drop resolution', () => {
+  const rows = [
+    { id: 'a', top: 100, height: 32 },
+    { id: 'b', top: 134, height: 32 },
+  ];
+
+  it('resolves an empty body to the scope itself', () => {
+    expect(resolveBlockDropTarget([], 80, 200)).toEqual({ kind: 'scope' });
+  });
+
+  it('resolves the header area to an insert before the first row', () => {
+    expect(resolveBlockDropTarget(rows, 90, 80)).toEqual({
+      kind: 'row',
+      channelId: 'a',
+      half: 'before',
+    });
+    expect(resolveBlockDropTarget(rows, 90, 90)).toEqual({
+      kind: 'row',
+      channelId: 'a',
+      half: 'before',
+    });
+  });
+
+  it('resolves body positions to the nearest row half', () => {
+    expect(resolveBlockDropTarget(rows, 90, 100)).toEqual({
+      kind: 'row',
+      channelId: 'a',
+      half: 'before',
+    });
+    expect(resolveBlockDropTarget(rows, 90, 130)).toEqual({
+      kind: 'row',
+      channelId: 'b',
+      half: 'before',
+    });
+    expect(resolveBlockDropTarget(rows, 90, 200)).toEqual({
+      kind: 'row',
+      channelId: 'b',
+      half: 'after',
+    });
+  });
+
+  it('turns a loose-channel drop on a populated section header into membership', () => {
+    const target = resolveBlockDropTarget(rows, 90, 80);
+    const plan = planChannelMove(undefined, 'loose', {
+      targetScopeId: 's1',
+      target,
+      targetOrder: rows.map((row) => row.id),
+      targetManualOverride: false,
+    });
+    const sink = {
+      assignToUngrouped: vi.fn(),
+      moveToSection: vi.fn(),
+      setSectionManual: vi.fn(),
+    };
+
+    expect(plan).toEqual({
+      kind: 'section',
+      sectionId: 's1',
+      order: ['loose', 'a', 'b'],
+      setManualOverride: true,
+    });
+    if (plan === undefined) throw new Error('expected a section move');
+    applyChannelMove(sink, 'loose', plan);
+    expect(sink.setSectionManual).toHaveBeenCalledWith('s1');
+    expect(sink.moveToSection).toHaveBeenCalledWith('loose', 's1', ['loose', 'a', 'b']);
+    expect(sink.assignToUngrouped).not.toHaveBeenCalled();
+  });
+});
+
+describe('loose flat inserts', () => {
+  const flat = [
+    { kind: 'section', id: 's1' },
+    { kind: 'channel', id: 'loose' },
+    { kind: 'section', id: 's2' },
+  ] as const;
+  const entries = flat.map((entry) => ({ ...entry }));
+
+  it('inserts a sectioned channel beside a section anchor and unassigns it', () => {
+    expect(
+      planFlatInsert(entries, 'x', true, { kind: 'section', id: 's2', side: 'before' }),
+    ).toEqual({
+      order: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: 'loose' },
+        { kind: 'channel', id: 'x' },
+        { kind: 'section', id: 's2' },
+      ],
+      unassign: true,
+    });
+    expect(
+      planFlatInsert(entries, 'x', true, { kind: 'section', id: 's2', side: 'after' }),
+    ).toEqual({
+      order: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: 'loose' },
+        { kind: 'section', id: 's2' },
+        { kind: 'channel', id: 'x' },
+      ],
+      unassign: true,
+    });
+  });
+
+  it('moves a loose channel beside a channel anchor without a membership step', () => {
+    expect(
+      planFlatInsert(entries, 'loose', false, { kind: 'channel', id: 'loose', side: 'after' }),
+    ).toBeUndefined();
+    expect(
+      planFlatInsert(entries, 'loose', false, { kind: 'section', id: 's1', side: 'before' }),
+    ).toEqual({
+      order: [
+        { kind: 'channel', id: 'loose' },
+        { kind: 'section', id: 's1' },
+        { kind: 'section', id: 's2' },
+      ],
+      unassign: false,
+    });
+  });
+
+  it('treats unknown anchors and inconsistent sources as no-ops', () => {
+    expect(
+      planFlatInsert(entries, 'x', true, { kind: 'section', id: 'ghost', side: 'before' }),
+    ).toBeUndefined();
+    expect(
+      planFlatInsert(entries, 'ghost', false, { kind: 'section', id: 's1', side: 'before' }),
+    ).toBeUndefined();
   });
 });

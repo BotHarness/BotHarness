@@ -12,15 +12,26 @@ export interface RosterSection {
   channelIds: string[];
 }
 
+/** One flat top-level entry: a section block or a loose (section-less) channel. */
+export interface TopOrderEntry {
+  kind: 'section' | 'channel';
+  id: string;
+}
+
 /** The arrangement projected by `rosterGet`; sections arrive in display order. */
 export interface RosterSnapshot {
   pins: string[];
   sections: RosterSection[];
+  /**
+   * Flat top-level order, or `undefined` when the host domain predates the
+   * flat remodel (legacy fallback); the client converts it once on load.
+   */
+  topOrder: TopOrderEntry[] | undefined;
 }
 
 /** The arrangement a host without a storage backend projects. */
 export function emptyRosterSnapshot(): RosterSnapshot {
-  return { pins: [], sections: [] };
+  return { pins: [], sections: [], topOrder: undefined };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -99,8 +110,10 @@ export function parseRosterSection(value: unknown): RosterSection | undefined {
 
 /**
  * Parse a full `rosterGet` value. The host already projects sections in
- * `sectionOrder`, so the parser keeps that array order (deduplicated) instead
- * of re-running order reconciliation on the client.
+ * display order (flat `topOrder` position when it carries one, else
+ * `sectionOrder`), so the parser keeps that array order (deduplicated) instead
+ * of re-running order reconciliation on the client. A missing `topOrder`
+ * means a pre-flat host domain (legacy fallback, converted once on load).
  */
 export function parseRosterSnapshot(value: unknown): RosterSnapshot {
   const record = asRecord(value);
@@ -115,5 +128,33 @@ export function parseRosterSnapshot(value: unknown): RosterSnapshot {
       sections.push(section);
     }
   }
-  return { pins: uniqueStrings(record['pins']), sections };
+  return { pins: uniqueStrings(record['pins']), sections, topOrder: parseTopOrder(record) };
+}
+
+/** Parse one flat entry; malformed entries (bad kind, blank id) are dropped. */
+export function parseTopOrderEntry(value: unknown): TopOrderEntry | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const kind = record['kind'];
+  const id = record['id'];
+  if (kind !== 'section' && kind !== 'channel') return undefined;
+  if (typeof id !== 'string' || id.length === 0) return undefined;
+  return { kind, id };
+}
+
+function parseTopOrder(record: Record<string, unknown>): TopOrderEntry[] | undefined {
+  const value = record['topOrder'];
+  if (value === undefined) return undefined;
+  if (!Array.isArray(value)) return undefined;
+  const entries: TopOrderEntry[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const entry = parseTopOrderEntry(item);
+    if (entry === undefined) continue;
+    const key = `${entry.kind}:${entry.id}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    entries.push(entry);
+  }
+  return entries;
 }

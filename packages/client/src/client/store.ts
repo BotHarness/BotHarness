@@ -1,5 +1,5 @@
 import type { RosterConfig } from './roster-config.js';
-import type { RosterSection } from './roster.js';
+import type { RosterSection, TopOrderEntry } from './roster.js';
 
 export type ClientMode = 'dsh' | 'bot';
 
@@ -67,6 +67,11 @@ export interface SessionsState {
 export interface RosterState {
   pins: readonly string[];
   sections: readonly RosterSection[];
+  /**
+   * Flat top-level order, or `undefined` when the host domain predates the
+   * flat remodel (legacy fallback, converted once on load).
+   */
+  topOrder: readonly TopOrderEntry[] | undefined;
   /** True while the host reports `storage-unavailable`; the UI stays read-only. */
   readOnly: boolean;
 }
@@ -118,6 +123,7 @@ function initialRoster(): RosterState {
   return {
     pins: [],
     sections: [],
+    topOrder: undefined,
     readOnly: false,
   };
 }

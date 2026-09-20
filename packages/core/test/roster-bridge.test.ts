@@ -139,6 +139,36 @@ describe('roster bridge methods with storage', () => {
     ]);
   });
 
+  it('writes absolute flat orders through the envelope', async () => {
+    const { methods } = await attached();
+    const created = await methods.sectionCreate({ name: 'A' });
+    const sectionId = created.ok ? created.value.section.id : '';
+    await methods.channelAssign({ channelId: 'c1', sectionId, index: 0 });
+
+    expect(
+      await methods.topReorder({
+        order: [
+          { kind: 'channel', id: 'loose' },
+          { kind: 'section', id: sectionId },
+        ],
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        topOrder: [
+          { kind: 'channel', id: 'loose' },
+          { kind: 'section', id: sectionId },
+        ],
+      },
+    });
+
+    const snapshot = methods.rosterGet({});
+    expect(snapshot.ok && snapshot.value.topOrder).toEqual([
+      { kind: 'channel', id: 'loose' },
+      { kind: 'section', id: sectionId },
+    ]);
+  });
+
   it('rejects malformed payloads with invalid-input', async () => {
     const { methods } = await attached();
 
@@ -173,6 +203,10 @@ describe('roster bridge methods with storage', () => {
     expect(await methods.sectionReorder({ order: 'nope' })).toEqual({
       ok: false,
       error: { code: 'invalid-input', message: 'invalid sectionReorder payload' },
+    });
+    expect(await methods.topReorder({ order: [{ kind: 'channel' }] })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'invalid topReorder payload' },
     });
     expect(await methods.pinsSet({ pins: 'ada' })).toEqual({
       ok: false,

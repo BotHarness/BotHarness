@@ -2,12 +2,15 @@ import { useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
+  IconCheckOutline16,
   IconEditOutline16,
   IconTrashOutline16,
   type MenuEntry,
+  type MenuItem,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { errorMessage } from './bridge.js';
+import { UNGROUPED_LABEL } from './labels.js';
 import type { BotHarnessKey } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
@@ -38,6 +41,54 @@ export function sectionMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
     { type: 'separator', id: 'section-separator' },
     { id: 'rename', label: t('section.rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('section.delete'), icon: <IconTrashOutline16 />, danger: true },
+  ];
+}
+
+/**
+ * Menu id for the 未分组 move target. Section ids are host-generated UUIDs,
+ * so this sentinel can never collide with one.
+ */
+export const UNGROUPED_MOVE_TARGET = 'ungrouped';
+
+/** Submenu label with the trailing check the current location carries. */
+function checkedTargetLabel(text: string): ReactElement {
+  return (
+    <span className="bh-move-checked">
+      <span className="bh-move-checked-text">{text}</span>
+      <IconCheckOutline16 />
+    </span>
+  );
+}
+
+/**
+ * A channel row's context menu: one `移动到` submenu listing every section
+ * plus 未分组. The primitives' submenu rows have no selection slot of their
+ * own, so the trailing check for the channel's current scope rides the label.
+ * @param t - Locale seat for the menu heading.
+ * @param sections - Sections in display order.
+ * @param currentSectionId - Scope the channel lives in; `undefined` = 未分组.
+ * @returns The single submenu-parent entry.
+ */
+export function channelMoveMenuItems(
+  t: BotMenuTranslate,
+  sections: readonly RosterSection[],
+  currentSectionId: string | undefined,
+): readonly MenuEntry[] {
+  const target = (id: string, name: string, current: boolean): MenuItem => ({
+    id,
+    label: current ? checkedTargetLabel(name) : name,
+  });
+  return [
+    {
+      id: 'move',
+      label: t('move.menu.label'),
+      submenu: [
+        ...sections.map((section) =>
+          target(section.id, section.name, section.id === currentSectionId),
+        ),
+        target(UNGROUPED_MOVE_TARGET, UNGROUPED_LABEL, currentSectionId === undefined),
+      ],
+    },
   ];
 }
 
@@ -155,7 +206,7 @@ export function SectionDeleteModal({
       onClose={onCancel}
       closeLabel="关闭"
       title="删除频道分组"
-      description={`将把“${section.name}”从名册中移除。其中的频道会回到未分组，不会被删除。`}
+      description={`将把“${section.name}”从名册中移除。其中的频道会移出分组、变为未分组频道，不会被删除。`}
       footer={
         <>
           <Button variant="outline" autoFocus onClick={onCancel}>

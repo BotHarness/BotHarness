@@ -12,6 +12,7 @@ import { randomUUID } from 'node:crypto';
 import type { Domain, DomainGlobal, DomainSpec, KvTable } from '@deepseek-ai/dsh-storage-domain';
 
 import { rosterDomainSpec, type RosterDomainState, type RosterSectionRecord } from './spec.js';
+import type { TopOrderEntry } from './spec.js';
 
 /** Public projection of one section, in display order. */
 export interface RosterSection {
@@ -25,6 +26,13 @@ export interface RosterSnapshot {
   pins: string[];
   sectionOrder: string[];
   sections: RosterSection[];
+  /**
+   * Flat top-level order mixing section blocks and loose channels. `undefined`
+   * means the domain predates the flat remodel (legacy fallback: sections in
+   * `sectionOrder`, unsectioned channels loose at the end); the client
+   * converts it once on first load.
+   */
+  topOrder: TopOrderEntry[] | undefined;
 }
 
 /** The optional `storageDomain` capability the roster store opens through. */
@@ -61,6 +69,75 @@ function uniqueStrings(values: readonly string[]): string[] {
 
 function sameIds(left: readonly string[], right: readonly string[]): boolean {
   return left.length === right.length && left.every((id, index) => id === right[index]);
+}
+
+function entryKey(entry: TopOrderEntry): string {
+  return `${entry.kind}:${entry.id}`;
+}
+
+function sameEntries(left: readonly TopOrderEntry[], right: readonly TopOrderEntry[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every((entry, index) => {
+      const other = right[index] as TopOrderEntry;
+      return entry.kind === other.kind && entry.id === other.id;
+    })
+  );
+}
+
+/**
+ * Clean one flat order against the sections table: drop section entries with
+ * no record, drop loose entries for channels that currently live in a
+ * section (single ownership — contained channels never hold a loose entry),
+ * and drop repeats (first occurrence wins). The host cannot validate channel
+ * ids (channels live outside this domain), so unknown channel entries pass
+ * through and the client reconciles them with its known channels.
+ */
+function sanitizeTopOrder(
+  entries: readonly TopOrderEntry[],
+  table: KvTable<string, RosterSectionRecord>,
+): TopOrderEntry[] {
+  const sectioned = new Set<string>();
+  for (const [, record] of table.entries()) {
+    for (const channelId of record.channelIds) sectioned.add(channelId);
+  }
+  const seen = new Set<string>();
+  const next: TopOrderEntry[] = [];
+  for (const entry of entries) {
+    if (entry.kind === 'section') {
+      if (table.get(entry.id) === undefined) continue;
+    } else if (sectioned.has(entry.id)) {
+      continue;
+    }
+    const key = entryKey(entry);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    next.push({ kind: entry.kind, id: entry.id });
+  }
+  return next;
+}
+
+/**
+ * Merge one global write without dropping the optional flat order: every
+ * writer threads `topOrder` through, so a legacy-shape write can never wipe a
+ * flat domain (and absent stays absent for pre-flat domains).
+ */
+function nextGlobalState(
+  state: RosterDomainState,
+  patch: {
+    pins?: readonly string[];
+    sectionOrder?: readonly string[];
+    topOrder?: readonly TopOrderEntry[] | undefined;
+  },
+): RosterDomainState {
+  const next: RosterDomainState = {
+    pins: patch.pins === undefined ? [...state.pins] : [...patch.pins],
+    sectionOrder:
+      patch.sectionOrder === undefined ? [...state.sectionOrder] : [...patch.sectionOrder],
+  };
+  const topOrder = patch.topOrder ?? state.topOrder;
+  if (topOrder !== undefined) next.topOrder = [...topOrder];
+  return next;
 }
 
 /**
@@ -123,16 +200,34 @@ export class RosterStore {
   /**
    * The full arrangement. Throws {@link RosterUnavailableError} when no domain
    * is attached, so every bridge method can report `storage-unavailable`
-   * instead of pretending the arrangement is empty.
+   * instead of pretending the arrangement is empty. Sections project in flat
+   * `topOrder` position once the domain carries one, else in `sectionOrder`.
    */
   snapshot(): RosterSnapshot {
+    const table = this.requireTable();
     const state = this.requireGlobal().get();
-    const sections = this.orderedSections(state.sectionOrder);
-    return { pins: [...state.pins], sectionOrder: sections.map((section) => section.id), sections };
+    const topOrder =
+      state.topOrder === undefined ? undefined : sanitizeTopOrder(state.topOrder, table);
+    const order =
+      topOrder === undefined
+        ? state.sectionOrder
+        : [
+            ...topOrder.flatMap((entry) => (entry.kind === 'section' ? [entry.id] : [])),
+            ...state.sectionOrder,
+          ];
+    const sections = this.orderedSections(order);
+    return {
+      pins: [...state.pins],
+      sectionOrder: sections.map((section) => section.id),
+      sections,
+      topOrder,
+    };
   }
 
   /**
-   * Create one section with a host-generated id and append it to the order.
+   * Create one section with a host-generated id and append it to the order —
+   * both the legacy section order and, when the domain already carries one,
+   * the flat order (new sections land at the end).
    * @param name - Trimmed display name.
    * @returns the created section record.
    */
@@ -144,7 +239,15 @@ export class RosterStore {
       await table.put(id, { name, channelIds: [] });
       const state = global.get();
       try {
-        await global.set({ pins: state.pins, sectionOrder: [...state.sectionOrder, id] });
+        await global.set(
+          nextGlobalState(state, {
+            sectionOrder: [...state.sectionOrder, id],
+            topOrder:
+              state.topOrder === undefined
+                ? undefined
+                : [...state.topOrder, { kind: 'section', id }],
+          }),
+        );
       } catch (error) {
         await table.delete(id).catch(() => {});
         throw error;
@@ -173,7 +276,8 @@ export class RosterStore {
 
   /**
    * Remove one section. Membership lives only in its `channelIds`, so the
-   * Channels fall back to ungrouped.
+   * former members become loose channels spliced in at the removed block's
+   * flat position (they appear where their section was, in member order).
    * @param sectionId - Section to remove.
    * @returns `true` when a record was deleted, `false` when it was unknown.
    */
@@ -181,13 +285,27 @@ export class RosterStore {
     return this.enqueue(async () => {
       const table = this.requireTable();
       const global = this.requireGlobal();
+      const removed = table.get(sectionId);
       const deleted = await table.delete(sectionId);
       if (!deleted) return false;
       const state = global.get();
-      await global.set({
-        pins: state.pins,
-        sectionOrder: state.sectionOrder.filter((id) => id !== sectionId),
-      });
+      const members = removed === undefined ? [] : [...removed.channelIds];
+      await global.set(
+        nextGlobalState(state, {
+          sectionOrder: state.sectionOrder.filter((id) => id !== sectionId),
+          topOrder:
+            state.topOrder === undefined
+              ? undefined
+              : sanitizeTopOrder(
+                  state.topOrder.flatMap((entry) =>
+                    entry.kind === 'section' && entry.id === sectionId
+                      ? members.map((id) => ({ kind: 'channel' as const, id }))
+                      : [entry],
+                  ),
+                  table,
+                ),
+        }),
+      );
       return true;
     });
   }
@@ -195,14 +313,18 @@ export class RosterStore {
   /**
    * Assign one Channel to a section at a position, removing any previous
    * ownership first so membership stays single. `undefined` moves the Channel
-   * back to ungrouped; repeating the same assignment writes nothing.
+   * back to loose (it gains a flat entry at the end); repeating the same
+   * assignment writes nothing. Assigning into a section drops the channel's
+   * loose flat entry. The flat order itself is only touched when present —
+   * pre-flat domains keep no `topOrder` until the client converts them.
    * @param channelId - Channel to place.
-   * @param sectionId - Target section, or `undefined` for ungrouped.
+   * @param sectionId - Target section, or `undefined` for loose.
    * @param index - Target position after removal; omitted appends.
    */
   channelAssign(channelId: string, sectionId: string | undefined, index?: number): Promise<void> {
     return this.enqueue(async () => {
       const table = this.requireTable();
+      const global = this.requireGlobal();
       if (sectionId !== undefined && table.get(sectionId) === undefined) {
         throw new RosterUnknownSectionError(sectionId);
       }
@@ -225,17 +347,32 @@ export class RosterStore {
       }
       for (const [id, record] of removals) await table.put(id, record);
       if (target !== undefined) await table.put(target[0], target[1]);
+      const state = global.get();
+      if (state.topOrder === undefined) return;
+      const topOrder =
+        sectionId === undefined
+          ? [...state.topOrder, { kind: 'channel' as const, id: channelId }]
+          : state.topOrder.filter((entry) => entry.kind !== 'channel' || entry.id !== channelId);
+      // Compare against the raw stored order (not the sanitized projection)
+      // so a write also converges stale entries instead of masking them.
+      const next = sanitizeTopOrder(topOrder, table);
+      if (!sameEntries(next, state.topOrder)) {
+        await global.set(nextGlobalState(state, { topOrder: next }));
+      }
     });
   }
 
   /**
    * Replace the section display order. Ids the caller omits keep their prior
-   * position after the listed ones; unknown ids are dropped.
+   * position after the listed ones; unknown ids are dropped. Section entries
+   * in a flat order follow the same relative order while loose channels stay
+   * exactly where they are.
    * @param order - Section ids in their intended order.
    * @returns the committed order.
    */
   sectionReorder(order: readonly string[]): Promise<string[]> {
     return this.enqueue(async () => {
+      const table = this.requireTable();
       const global = this.requireGlobal();
       const current = this.orderedSections(global.get().sectionOrder).map((section) => section.id);
       const known = new Set(current);
@@ -247,9 +384,57 @@ export class RosterStore {
         if (!next.includes(id)) next.push(id);
       }
       const state = global.get();
-      if (!sameIds(next, state.sectionOrder)) {
-        await global.set({ pins: state.pins, sectionOrder: next });
+      let topOrder: TopOrderEntry[] | undefined;
+      if (state.topOrder !== undefined) {
+        // Sections take the new relative order; loose channels keep their
+        // exact slots; sections missing from the flat list append at the end.
+        const placed = new Set(
+          state.topOrder.flatMap((entry) => (entry.kind === 'section' ? [entry.id] : [])),
+        );
+        const queue = next.filter((id) => placed.has(id));
+        const rest = next.filter((id) => !placed.has(id));
+        const merged: TopOrderEntry[] = [];
+        for (const entry of state.topOrder) {
+          if (entry.kind === 'section') {
+            merged.push({ kind: 'section', id: queue.shift() as string });
+          } else {
+            merged.push({ kind: entry.kind, id: entry.id });
+          }
+        }
+        for (const id of rest) merged.push({ kind: 'section', id });
+        topOrder = sanitizeTopOrder(merged, table);
       }
+      const storedTop = state.topOrder;
+      if (
+        sameIds(next, state.sectionOrder) &&
+        (topOrder === undefined || (storedTop !== undefined && sameEntries(topOrder, storedTop)))
+      ) {
+        return next;
+      }
+      await global.set(nextGlobalState(state, { sectionOrder: next, topOrder }));
+      return next;
+    });
+  }
+
+  /**
+   * Replace the flat top-level order outright: the absolute placement write
+   * for loose channels (gap drops, migration). Unknown section entries,
+   * contained-channel loose entries, and repeats are dropped; the legacy
+   * section order is left alone (section drags own it through
+   * {@link sectionReorder}).
+   * @param order - Flat entries in their intended order.
+   * @returns the committed order.
+   */
+  topReorder(order: readonly TopOrderEntry[]): Promise<TopOrderEntry[]> {
+    return this.enqueue(async () => {
+      const table = this.requireTable();
+      const global = this.requireGlobal();
+      const state = global.get();
+      const next = sanitizeTopOrder(order, table);
+      const current =
+        state.topOrder === undefined ? undefined : sanitizeTopOrder(state.topOrder, table);
+      if (current !== undefined && sameEntries(next, current)) return next;
+      await global.set(nextGlobalState(state, { topOrder: next }));
       return next;
     });
   }
@@ -265,7 +450,7 @@ export class RosterStore {
       const next = uniqueStrings(pins);
       const state = global.get();
       if (!sameIds(next, state.pins)) {
-        await global.set({ pins: next, sectionOrder: state.sectionOrder });
+        await global.set(nextGlobalState(state, { pins: next }));
       }
       return next;
     });

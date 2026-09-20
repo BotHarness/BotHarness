@@ -1,4 +1,5 @@
-export const CSS = `
+export const CSS =
+  `
 .bh-root {
   /* @bh-brand-aliases:start — thin BotHarness brand map onto DSH semantic
      tokens (ADR-0028): at most three entries, no second design system. */
@@ -283,10 +284,14 @@ button:has(.bh-panel-glyph) {
 .bh-list-area > * + * {
   margin-top: 2px;
 }
-/* 原生 .groupSection 区块距：section 之间、平铺列表与首个 section 之间 4px。 */
+/* 区块距（PM 定稿）：section 之间、平铺列表与首个 section 之间 12px ——
+   外壳自身的块节奏（logoRow / panelList 的 margin-bottom 8px，收起态 12px）
+   里最小且仍是明确视觉断点的取整；` +
+  ` 选择器保证首个 section 不吃这个
+   间距，末尾也不留悬空（bottom-margin 反而要在 :last-child 上打补丁）。 */
 .bh-list-area + .bh-section,
 .bh-section + .bh-section {
-  margin-top: 4px;
+  margin-top: 12px;
 }
 
 /* 原生 .projectRow/.sessionRow 共同几何：8px 圆角、0 8px 内衬、悬停 alias
@@ -309,7 +314,6 @@ button:has(.bh-panel-glyph) {
   line-height: 20px;
   user-select: none;
 }
-.bh-section-head:hover,
 .bh-channel-row:hover,
 .bh-channel-row.bh-selected {
   background: var(--bh-hover);
@@ -394,8 +398,13 @@ button:has(.bh-panel-glyph) {
   height: 32px;
   gap: 0;
   padding: 0 8px;
+  transition: opacity 120ms var(--ds-ease-in-out);
 }
-.bh-row-slot,
+/* 拖拽源行原位淡出：标示来处，不占位、不推动任何布局（native 无此态，
+   系刻意偏离：overlay 插入线之外唯一的拖拽中视觉）。 */
+.bh-channel-row.bh-drag-source {
+  opacity: 0.4;
+}
 .bh-channel-slot {
   flex: none;
   display: inline-flex;
@@ -404,9 +413,6 @@ button:has(.bh-panel-glyph) {
   width: 16px;
   height: 20px;
   color: var(--dsw-alias-label-tertiary);
-}
-.bh-row-slot {
-  color: var(--dsw-alias-label-caption);
 }
 .bh-channel-title {
   flex: 1;
@@ -465,29 +471,115 @@ button:has(.bh-panel-glyph) {
   bottom: -7px;
 }
 
-/* 原生 .projectRow：34px、gap 6、padding 0 8px；折叠三角 150ms 旋转 90°。 */
+/* 原生 .groupSection 的 workspace 拖动插入线：section 头的重排和 flat
+   gap 的松散落点把同一条渐变画在区块上下边界（-8px 落在 12px 间距带内）。
+   伪元素绝对定位，不占布局，拖拽中没有任何区块改变高度。 */
+.bh-section.bh-drop-before,
+.bh-section.bh-drop-after {
+  position: relative;
+}
+.bh-section.bh-drop-before::before,
+.bh-section.bh-drop-after::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background:
+    linear-gradient(
+      55deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 0 / 5px 7px no-repeat,
+    linear-gradient(
+      125deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 5px / 5px 7px no-repeat,
+    linear-gradient(
+      var(--dsw-alias-state-business-primary) 0 0
+    ) 4px 5px / calc(100% - 4px) 2px no-repeat;
+  pointer-events: none;
+}
+.bh-section.bh-drop-before::before {
+  top: -8px;
+}
+.bh-section.bh-drop-after::after {
+  bottom: -8px;
+}
+
+/* Row-less section body 的投放线（空 / 折叠 / 过滤无行）：画在 body 顶部
+   下方——空 body 下即紧贴 header 的位置。伪元素绝对定位，不占布局；
+   取布局的旧空区方案已退役（它在 dragstart 内同步改变高度会掐断手势）。 */
+.bh-section.bh-drop-scope > .bh-list-area {
+  position: relative;
+}
+.bh-section.bh-drop-scope > .bh-list-area::before {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  left: 0;
+  right: 4px;
+  top: 100%;
+  height: 12px;
+  background:
+    linear-gradient(
+      55deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 0 / 5px 7px no-repeat,
+    linear-gradient(
+      125deg,
+      transparent calc(50% - 1px),
+      var(--dsw-alias-state-business-primary) calc(50% - 1px) calc(50% + 1px),
+      transparent calc(50% + 1px)
+    ) 0 5px / 5px 7px no-repeat,
+    linear-gradient(
+      var(--dsw-alias-state-business-primary) 0 0
+    ) 4px 5px / calc(100% - 4px) 2px no-repeat;
+  pointer-events: none;
+}
+
+/* Section 头（Discord 式 PM 定稿）：24px 紧凑条、gap 6、padding 0 8px；
+   无背景 fill（与 channel 行悬停区分）；标签默认 tertiary、悬停提亮到
+   primary（原生 projectRow 悬停不提亮，此处按 PM 走 Discord 语言）；
+   右侧 chevron 随标签同色、150ms 旋转指示折叠；整行可点击折叠
+   （aria-expanded 留在行上）。未分组沿用同一标签色（无折叠态，不带
+   chevron、不跟随提亮）。 */
 .bh-section-head {
-  height: 34px;
+  height: 24px;
   gap: 6px;
   padding: 0 8px;
 }
-.bh-arrow {
-  transition: transform 150ms var(--ds-ease-in-out);
-}
-.bh-arrow-open {
-  transform: rotate(90deg);
-}
 .bh-section-name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   font-size: 14px;
   line-height: 20px;
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-section-head:hover .bh-section-name,
+.bh-section-head:hover .bh-section-chevron {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-section-chevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
+  transition: transform 150ms var(--ds-ease-in-out);
+}
+.bh-section-chevron.bh-chevron-collapsed {
+  transform: rotate(-90deg);
 }
 .bh-section-count {
   flex: none;
+  margin-left: auto;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   line-height: 20px;
@@ -529,19 +621,34 @@ button:has(.bh-panel-glyph) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .bh-arrow {
+  .bh-section-chevron {
     transition: none;
   }
 }
 
-/* 原生 .projectRow 的固定末位桶（ADR-0031「未分组」）：只读标签，无折叠与操作。 */
-.bh-ungrouped-head {
+/* 右键「移动到」菜单的锚点：JsonTree 的 proxy-rect 方案 —— fixed 定位的
+   0 尺寸代理，Menu 用 getAnchorRect 读它的 rect 并把列表 portal 到 body，
+   从而跟随光标且不被侧栏的 overflow 裁切（Menu 自身再钳制到视口边距）。 */
+.bh-menu-anchor {
+  position: fixed;
+  z-index: 3;
+  display: inline-flex;
+}
+
+/* 子菜单当前 scope 的尾部对勾：primitives 的 Menu 只为主行渲染 check，
+   子菜单的选中标记因此放在 label 内（菜单 portal 到 body，类不依赖 .bh-root）。 */
+.bh-move-checked {
   display: flex;
   align-items: center;
-  box-sizing: border-box;
-  height: 34px;
-  gap: 6px;
-  padding: 0 8px;
+  gap: 8px;
+  width: 100%;
+}
+.bh-move-checked-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* 原生 WorkspaceBrowser .deleteAction：Modal 确认按钮走 error 色描边文本。

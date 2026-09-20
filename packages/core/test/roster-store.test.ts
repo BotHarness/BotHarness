@@ -203,3 +203,133 @@ describe('roster store', () => {
     expect(store.available).toBe(false);
   });
 });
+
+describe('roster flat topOrder', () => {
+  it('projects absent topOrder as undefined and keeps legacy writes flat-free', async () => {
+    const fake = createFakeRosterDomain();
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    const section = await store.sectionCreate('A');
+    await store.channelAssign('c1', section.id, 0);
+    await store.channelAssign('c2', undefined);
+
+    expect(store.snapshot().topOrder).toBeUndefined();
+    expect(fake.state()).toEqual({
+      pins: [],
+      sectionOrder: [section.id],
+    });
+    expect(fake.records.get(section.id)).toEqual({ name: 'A', channelIds: ['c1'] });
+  });
+
+  it('maintains the flat list across section and membership writes', async () => {
+    const fake = createFakeRosterDomain({
+      records: {
+        s1: { name: 'A', channelIds: ['c1'] },
+        s2: { name: 'B', channelIds: [] },
+      },
+      state: {
+        pins: [],
+        sectionOrder: ['s1', 's2'],
+        topOrder: [
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'loose' },
+          { kind: 'section', id: 's2' },
+        ],
+      },
+    });
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    // Assigning into a section drops the channel's loose entry.
+    await store.channelAssign('loose', 's2', 0);
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'section', id: 's2' },
+    ]);
+
+    // Unassigning appends the loose entry at the end.
+    await store.channelAssign('c1', undefined);
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'section', id: 's2' },
+      { kind: 'channel', id: 'c1' },
+    ]);
+
+    // Removing a section splices its members in at the removed position.
+    await store.sectionRemove('s2');
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'loose' },
+      { kind: 'channel', id: 'c1' },
+    ]);
+    expect(store.snapshot().topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'loose' },
+      { kind: 'channel', id: 'c1' },
+    ]);
+  });
+
+  it('reorders sections within the flat list while loose channels stay fixed', async () => {
+    const fake = createFakeRosterDomain({
+      records: {
+        s1: { name: 'A', channelIds: [] },
+        s2: { name: 'B', channelIds: [] },
+      },
+      state: {
+        pins: [],
+        sectionOrder: ['s1', 's2'],
+        topOrder: [
+          { kind: 'channel', id: 'top' },
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'mid' },
+          { kind: 'section', id: 's2' },
+        ],
+      },
+    });
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    await expect(store.sectionReorder(['s2', 's1'])).resolves.toEqual(['s2', 's1']);
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'channel', id: 'top' },
+      { kind: 'section', id: 's2' },
+      { kind: 'channel', id: 'mid' },
+      { kind: 'section', id: 's1' },
+    ]);
+    expect(store.snapshot().sectionOrder).toEqual(['s2', 's1']);
+  });
+
+  it('writes absolute flat orders and sanitizes them', async () => {
+    const fake = createFakeRosterDomain({
+      records: { s1: { name: 'A', channelIds: ['c1'] } },
+      state: { pins: [], sectionOrder: ['s1'], topOrder: [{ kind: 'section', id: 's1' }] },
+    });
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    await expect(
+      store.topReorder([
+        { kind: 'channel', id: 'c9' },
+        { kind: 'section', id: 's1' },
+        { kind: 'section', id: 'ghost' },
+        { kind: 'channel', id: 'c1' },
+        { kind: 'channel', id: 'c9' },
+      ]),
+    ).resolves.toEqual([
+      { kind: 'channel', id: 'c9' },
+      { kind: 'section', id: 's1' },
+    ]);
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'channel', id: 'c9' },
+      { kind: 'section', id: 's1' },
+    ]);
+
+    const sets = fake.setCount();
+    await store.topReorder([
+      { kind: 'channel', id: 'c9' },
+      { kind: 'section', id: 's1' },
+    ]);
+    expect(fake.setCount()).toBe(sets);
+  });
+});
