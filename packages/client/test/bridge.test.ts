@@ -32,7 +32,7 @@ const BOT = {
 
 const GROUP = {
   id: 'group-team',
-  type: 'group',
+  type: 'group' as const,
   name: 'Team',
   members: ['ada'],
   createdAt: '2026-09-19T00:00:00.000Z',
@@ -41,7 +41,7 @@ const GROUP = {
 
 const DM = {
   id: 'dm-ada',
-  type: 'dm',
+  type: 'dm' as const,
   name: 'Ada',
   members: ['ada'],
   botSlug: 'ada',
@@ -310,6 +310,198 @@ describe('bridge actions', () => {
       { channelId: 'c2', sectionId: 's1', index: 2 },
     ]);
     expect(clientStore.getSnapshot().roster.sections[0]?.channelIds).toEqual(['c3', 'c1', 'c2']);
+  });
+
+  it('moves a channel into a section through positioned channelAssign writes', async () => {
+    const assignments: Array<Record<string, unknown>> = [];
+    let channelIds = ['c1', 'c2'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's1', name: 'A', channelIds }],
+      }),
+      channelAssign: (payload) => {
+        assignments.push(payload);
+        const channelId = String(payload['channelId']);
+        const index = Number(payload['index']);
+        const without = channelIds.filter((id) => id !== channelId);
+        channelIds = [...without.slice(0, index), channelId, ...without.slice(index)];
+      },
+    });
+    await actions.load();
+
+    const applied = await actions.moveChannel('c3', 's1', ['c1', 'c3', 'c2']);
+
+    expect(applied).toBe(true);
+    expect(assignments).toEqual([
+      { channelId: 'c1', sectionId: 's1', index: 0 },
+      { channelId: 'c3', sectionId: 's1', index: 1 },
+      { channelId: 'c2', sectionId: 's1', index: 2 },
+    ]);
+    expect(clientStore.getSnapshot().roster.sections[0]?.channelIds).toEqual(['c1', 'c3', 'c2']);
+  });
+
+  it('moves a channel into an empty section with a single index-0 write', async () => {
+    const assignments: Array<Record<string, unknown>> = [];
+    let channelIds: string[] = [];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's-empty', name: 'Empty', channelIds }],
+      }),
+      channelAssign: (payload) => {
+        assignments.push(payload);
+        const channelId = String(payload['channelId']);
+        const index = Number(payload['index']);
+        const without = channelIds.filter((id) => id !== channelId);
+        channelIds = [...without.slice(0, index), channelId, ...without.slice(index)];
+      },
+    });
+    await actions.load();
+
+    const applied = await actions.moveChannel('c1', 's-empty', ['c1']);
+
+    expect(applied).toBe(true);
+    expect(assignments).toEqual([{ channelId: 'c1', sectionId: 's-empty', index: 0 }]);
+    expect(clientStore.getSnapshot().roster.sections[0]?.channelIds).toEqual(['c1']);
+  });
+
+  it('persists the section display order through the bridge', async () => {
+    const writes: unknown[] = [];
+    let sectionOrder = ['s1', 's2'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: sectionOrder.map((id) => ({ id, name: id, channelIds: [] })),
+      }),
+      sectionReorder: (payload) => {
+        writes.push(payload);
+        sectionOrder = payload['order'] as string[];
+        return { sectionOrder };
+      },
+    });
+    await actions.load();
+
+    const applied = await actions.reorderSections(['s2', 's1']);
+
+    expect(applied).toBe(true);
+    expect(writes).toEqual([{ order: ['s2', 's1'] }]);
+    expect(clientStore.getSnapshot().roster.sections.map((section) => section.id)).toEqual([
+      's2',
+      's1',
+    ]);
+  });
+
+  it('persists absolute flat orders and moves channels into flat slots', async () => {
+    const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
+    let topOrder: unknown[] = [{ kind: 'section', id: 's1' }];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's1', name: 'A', channelIds: ['c1'] }],
+        topOrder,
+      }),
+      channelAssign: (payload) => {
+        calls.push({ endpoint: 'channelAssign', payload });
+        return {};
+      },
+      topReorder: (payload) => {
+        calls.push({ endpoint: 'topReorder', payload });
+        topOrder = payload['order'] as unknown[];
+        return { topOrder };
+      },
+    });
+    await actions.load();
+
+    await actions.reorderFlat([
+      { kind: 'channel', id: 'c9' },
+      { kind: 'section', id: 's1' },
+    ]);
+    await actions.moveToFlat('c1', [
+      { kind: 'channel', id: 'c1' },
+      { kind: 'section', id: 's1' },
+    ]);
+
+    expect(calls.map((call) => call.endpoint)).toEqual([
+      'topReorder',
+      'channelAssign',
+      'topReorder',
+    ]);
+    expect(calls[1]).toEqual({
+      endpoint: 'channelAssign',
+      payload: { channelId: 'c1', sectionId: undefined },
+    });
+    expect(clientStore.getSnapshot().roster.topOrder).toEqual([
+      { kind: 'channel', id: 'c1' },
+      { kind: 'section', id: 's1' },
+    ]);
+  });
+
+  it('converts a pre-flat host arrangement once and then stays quiet', async () => {
+    let topOrder: unknown[] | undefined;
+    let writes = 0;
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's1', name: 'A', channelIds: ['c1'] }],
+        ...(topOrder === undefined ? {} : { topOrder }),
+      }),
+      topReorder: (payload) => {
+        writes += 1;
+        topOrder = payload['order'] as unknown[];
+        return { topOrder };
+      },
+    });
+    await actions.load();
+    clientStore.setRoster(
+      [],
+      [
+        { ...GROUP, id: 'c1' },
+        { ...GROUP, id: 'loose' },
+      ],
+    );
+
+    expect(await actions.ensureFlatTopOrder()).toBe(true);
+    expect(writes).toBe(1);
+    expect(topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'loose' },
+    ]);
+
+    expect(await actions.ensureFlatTopOrder()).toBe(true);
+    expect(writes).toBe(1);
+  });
+
+  it('projects the flat order and drops malformed entries while parsing', async () => {
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins: [],
+        sections: [{ id: 's1', name: 'A', channelIds: [] }],
+        topOrder: [
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'c1' },
+          { kind: 'channel', id: '' },
+          { kind: 'nope', id: 'x' },
+          null,
+          { kind: 'channel', id: 'c1' },
+        ],
+      }),
+    });
+    await actions.load();
+
+    expect(clientStore.getSnapshot().roster.topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'c1' },
+    ]);
+  });
+
+  it('leaves legacy hosts without a flat order for the migration', async () => {
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({ pins: [], sections: [] }),
+    });
+    await actions.load();
+
+    expect(clientStore.getSnapshot().roster.topOrder).toBeUndefined();
   });
 
   it('marks the roster read-only when a write reports storage-unavailable', async () => {

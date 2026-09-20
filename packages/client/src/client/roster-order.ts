@@ -1,11 +1,12 @@
 import type { BotModeSortMode } from '../bot-mode-settings.js';
-import { reconcileOrder } from './roster.js';
+import { reconcileOrder, sameIds } from './roster.js';
+import type { TopOrderEntry } from './roster.js';
 import type { ChannelSummary } from './store.js';
 
 /**
  * Pure ordering and drag math for the BOT-mode sidebar (ADR-0031): resolve a
- * scope's mode, order its rows, and apply one drop inside a scope. Kept free
- * of React so #56 can extend the same core to cross-scope moves.
+ * scope's mode, order its rows, and plan one channel drop — inside a scope,
+ * across scopes, or from the context menu. Kept free of React.
  */
 
 /** Resolve a scope's stored override over the global default into the applied mode. */
@@ -122,4 +123,261 @@ export function commitScopeReorder(
   const order = moveWithinOrder(displayedOrder, sourceId, targetId, half);
   if (order === undefined) return undefined;
   return { order, setManualOverride: !manualOverride };
+}
+
+/** Where a drop landed: a row half, or a scope itself (context-menu pick). */
+export type ScopeDropTarget =
+  | { kind: 'row'; channelId: string; half: 'before' | 'after' }
+  | { kind: 'scope' };
+
+/** One drop resolved against its target scope. */
+export interface ChannelMoveDrop {
+  /** Target scope; `undefined` is 未分组. */
+  targetScopeId: string | undefined;
+  target: ScopeDropTarget;
+  /** Target scope's full displayed row ids (unfiltered), in visual order. */
+  targetOrder: readonly string[];
+  /** Whether the target section already carries an explicit `manual` override. */
+  targetManualOverride: boolean;
+}
+
+/** Planned channel move: a section target carries the frozen order, 未分组 none. */
+export type ChannelMovePlan =
+  | { kind: 'ungrouped'; setManualOverride: false }
+  | { kind: 'section'; sectionId: string; order: string[]; setManualOverride: boolean };
+
+/**
+ * Plan one channel move: an in-scope reorder, a cross-scope drop, or a
+ * context-menu pick. A section target freezes the displayed order with the
+ * moved channel at the drop position and unlocks to `manual` unless it already
+ * overrides; the source scope's mode is never touched. 未分组 has no stored
+ * order, so a drop there only changes membership.
+ * @param sourceScopeId - Scope the channel currently lives in; `undefined` = 未分组.
+ * @param channelId - Channel being moved.
+ * @param drop - Resolved target scope, drop target, displayed order, and mode.
+ * @returns The planned move, or `undefined` for a no-op.
+ */
+export function planChannelMove(
+  sourceScopeId: string | undefined,
+  channelId: string,
+  drop: ChannelMoveDrop,
+): ChannelMovePlan | undefined {
+  if (drop.target.kind === 'row' && drop.target.channelId === channelId) return undefined;
+  const sameScope = sourceScopeId === drop.targetScopeId;
+  if (drop.target.kind === 'scope' && sameScope) return undefined;
+  const without = drop.targetOrder.filter((id) => id !== channelId);
+  let order: string[];
+  if (drop.target.kind === 'scope') {
+    order = [...without, channelId];
+  } else {
+    const targetIndex = without.indexOf(drop.target.channelId);
+    if (targetIndex === -1) return undefined;
+    const insertAt = drop.target.half === 'before' ? targetIndex : targetIndex + 1;
+    order = [...without.slice(0, insertAt), channelId, ...without.slice(insertAt)];
+  }
+  if (sameScope && sameIds(drop.targetOrder, order)) return undefined;
+  if (drop.targetScopeId === undefined) {
+    return { kind: 'ungrouped', setManualOverride: false };
+  }
+  return {
+    kind: 'section',
+    sectionId: drop.targetScopeId,
+    order,
+    setManualOverride: !drop.targetManualOverride,
+  };
+}
+
+/** Callbacks applying one planned channel move to the settings store and the bridge. */
+export interface ChannelMoveSink {
+  /** Move the channel out of every section (`channelAssign(channelId, undefined)`). */
+  assignToUngrouped: (channelId: string) => void;
+  /** Frozen target order through positioned `channelAssign` writes. */
+  moveToSection: (channelId: string, sectionId: string, order: readonly string[]) => void;
+  /** Pin the target section to `manual` so the frozen order applies. */
+  setSectionManual: (sectionId: string) => void;
+}
+
+/**
+ * Apply one planned move: unlock the target section first, then write the
+ * membership and order through the bridge. A 未分组 plan only moves the
+ * channel; no scope's mode changes.
+ * @param sink - The sidebar's settings-store and bridge callbacks.
+ * @param channelId - Channel being moved.
+ * @param plan - Result of {@link planChannelMove}.
+ */
+export function applyChannelMove(
+  sink: ChannelMoveSink,
+  channelId: string,
+  plan: ChannelMovePlan,
+): void {
+  if (plan.kind === 'ungrouped') {
+    sink.assignToUngrouped(channelId);
+    return;
+  }
+  if (plan.setManualOverride) sink.setSectionManual(plan.sectionId);
+  sink.moveToSection(channelId, plan.sectionId, plan.order);
+}
+
+/**
+ * Complete one flat top-level order from a host projection: keep the stored
+ * entries that still resolve (known sections; channel entries pass through
+ * for the caller to reconcile), then append every known group channel that
+ * has neither an entry nor a section home, in channel-list order — so newly
+ * created channels always render (at the end) even before any flat write.
+ * @param topOrder - Stored entries, or `undefined` for a pre-flat host.
+ * @param sectionIds - Known section ids in snapshot order.
+ * @param groupChannelIds - Known group channel ids in channel-list order.
+ * @param sectionedIds - Channel ids contained in any section.
+ * @returns The complete flat order; inputs are not mutated.
+ */
+export function completeFlatEntries(
+  topOrder: readonly TopOrderEntry[] | undefined,
+  sectionIds: readonly string[],
+  groupChannelIds: readonly string[],
+  sectionedIds: ReadonlySet<string>,
+): TopOrderEntry[] {
+  const knownSections = new Set(sectionIds);
+  const entries: TopOrderEntry[] = [];
+  const placed = new Set<string>();
+  if (topOrder !== undefined) {
+    for (const entry of topOrder) {
+      if (entry.kind === 'section') {
+        if (!knownSections.has(entry.id) || placed.has(`section:${entry.id}`)) continue;
+        placed.add(`section:${entry.id}`);
+        entries.push({ kind: 'section', id: entry.id });
+      } else {
+        if (sectionedIds.has(entry.id) || placed.has(`channel:${entry.id}`)) continue;
+        placed.add(`channel:${entry.id}`);
+        entries.push({ kind: 'channel', id: entry.id });
+      }
+    }
+  } else {
+    for (const id of sectionIds) {
+      placed.add(`section:${id}`);
+      entries.push({ kind: 'section', id });
+    }
+  }
+  for (const id of groupChannelIds) {
+    if (sectionedIds.has(id) || placed.has(`channel:${id}`)) continue;
+    placed.add(`channel:${id}`);
+    entries.push({ kind: 'channel', id });
+  }
+  return entries;
+}
+
+function flatEntryKey(entry: TopOrderEntry): string {
+  return `${entry.kind}:${entry.id}`;
+}
+
+function sameFlatEntries(left: readonly TopOrderEntry[], right: readonly TopOrderEntry[]): boolean {
+  return (
+    left.length === right.length &&
+    left.every(
+      (entry, index) => flatEntryKey(entry) === flatEntryKey(right[index] as TopOrderEntry),
+    )
+  );
+}
+
+/** One visible row's vertical geometry for block-level drop resolution. */
+export interface BlockRowGeometry {
+  id: string;
+  top: number;
+  height: number;
+}
+
+/** Where a drop inside a section block (but not on a row) resolves. */
+export type BlockDropResolution =
+  /** Append position of an empty (or row-less) body: index 0 of the scope. */
+  | { kind: 'scope' }
+  /** A row anchor plus side: the insert line shows at that resolved index. */
+  | { kind: 'row'; channelId: string; half: 'before' | 'after' };
+
+/**
+ * Resolve a drop anywhere inside a section block that is not on a row —
+ * header area, body padding, inter-row gaps — to a row anchor. The header
+ * area inserts at the first index (the insert line lands before the first row);
+ * every other position takes the nearest row half. An empty (or row-less)
+ * body resolves to the scope itself (append at index 0).
+ * @param rows - Visible rows in order.
+ * @param headerBottom - Bottom edge of the section header.
+ * @param clientY - Pointer height.
+ */
+export function resolveBlockDropTarget(
+  rows: readonly BlockRowGeometry[],
+  headerBottom: number,
+  clientY: number,
+): BlockDropResolution {
+  if (rows.length === 0) return { kind: 'scope' };
+  if (clientY <= headerBottom) {
+    const first = rows[0] as BlockRowGeometry;
+    return { kind: 'row', channelId: first.id, half: 'before' };
+  }
+  for (const row of rows) {
+    if (clientY < row.top + row.height / 2) {
+      return { kind: 'row', channelId: row.id, half: 'before' };
+    }
+  }
+  const last = rows[rows.length - 1] as BlockRowGeometry;
+  return { kind: 'row', channelId: last.id, half: 'after' };
+}
+
+/** Anchor a loose flat placement beside one flat entry. */
+export interface FlatAnchor {
+  kind: 'section' | 'channel';
+  id: string;
+  side: 'before' | 'after';
+}
+
+/** Planned loose move: the absolute flat order plus whether membership must leave a section. */
+export interface FlatInsertPlan {
+  order: TopOrderEntry[];
+  /** True when the channel currently lives in a section and must be unassigned first. */
+  unassign: boolean;
+}
+
+/**
+ * Plan one loose flat placement: a gap drop beside a section block, or a drop
+ * onto a loose row. A sectioned source is unassigned first (single ownership;
+ * no scope mode is ever touched) and lands beside the anchor; a loose source
+ * only reorders. Loose channels keep their flat positions in every sort mode.
+ * @param flat - Full flat entries (unfiltered), in display order.
+ * @param channelId - Channel being moved.
+ * @param fromSection - Whether the channel currently lives in a section.
+ * @param anchor - Flat entry beside which the channel lands.
+ * @returns The absolute flat order and the membership step, or `undefined`
+ *   for an unknown anchor, an inconsistent source, or a no-op drop.
+ */
+export function planFlatInsert(
+  flat: readonly TopOrderEntry[],
+  channelId: string,
+  fromSection: boolean,
+  anchor: FlatAnchor,
+): FlatInsertPlan | undefined {
+  const keys = flat.map(flatEntryKey);
+  const anchorIndex = keys.indexOf(`${anchor.kind}:${anchor.id}`);
+  if (anchorIndex === -1) return undefined;
+  if (fromSection) {
+    const at = anchor.side === 'before' ? anchorIndex : anchorIndex + 1;
+    return {
+      order: [
+        ...flat.slice(0, at).map((entry) => ({ ...entry })),
+        { kind: 'channel' as const, id: channelId },
+        ...flat.slice(at).map((entry) => ({ ...entry })),
+      ],
+      unassign: true,
+    };
+  }
+  const selfIndex = keys.indexOf(`channel:${channelId}`);
+  if (selfIndex === -1) return undefined;
+  const without = flat.filter((_, index) => index !== selfIndex);
+  const at =
+    anchor.side === 'before'
+      ? anchorIndex - (selfIndex < anchorIndex ? 1 : 0)
+      : anchorIndex + (selfIndex > anchorIndex ? 1 : 0);
+  const next = [
+    ...without.slice(0, at).map((entry) => ({ ...entry })),
+    { kind: 'channel' as const, id: channelId },
+    ...without.slice(at).map((entry) => ({ ...entry })),
+  ];
+  return sameFlatEntries(flat, next) ? undefined : { order: next, unassign: false };
 }

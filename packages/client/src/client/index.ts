@@ -57,6 +57,8 @@ export function apply(ctx: ClientContext): void {
         remapSortModes: (mapping) => prefs.remapSectionSortModes(mapping),
       });
       if (outcome === 'migrated') await actions.refreshRoster(controller.signal);
+      if (controller.signal.aborted) return;
+      await actions.ensureFlatTopOrder();
     });
     return () => {
       controller.abort();

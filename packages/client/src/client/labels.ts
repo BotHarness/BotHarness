@@ -2,6 +2,9 @@ import { relativeTime, type StateDotState } from '@deepseek-ai/dsh-client-ui-pri
 
 export type BotState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'idle';
 
+/** Fixed bottom bucket for Channels with no section (ADR-0031); a product term, not a folder. */
+export const UNGROUPED_LABEL = '未分组';
+
 export const STATE_LABELS: Record<BotState, string> = {
   thinking: '思考中',
   working: '进行中',

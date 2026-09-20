@@ -251,7 +251,7 @@ A user-created, collapsible grouping of Channels in the bot-mode sidebar. Local 
 _Avoid_: folder, category, group
 
 **Section order (区块顺序)**:
-The order of Channel sections in the bot-mode sidebar: creation order by default, user-arranged afterwards.
+The relative order of Channel sections in the bot-mode sidebar: creation order by default, user-arranged afterwards. Ungrouped Channels may occupy top-level positions between sections without becoming sections.
 _Avoid_: priority, layout order
 
 **Sort mode (排序模式)**:
@@ -259,8 +259,8 @@ How a sidebar scope orders its rows: `auto` (newest message first), `manual` (th
 _Avoid_: ordering, sort preference, sorter
 
 **未分组 (Ungrouped)**:
-The fixed bottom bucket of the bot-mode sidebar for Channels that belong to no Channel section; flat, not collapsible, and always sorted by the global default.
-_Avoid_: default folder, inbox, loose channels
+The membership state of a Channel that belongs to no Channel section. Ungrouped Channels render as loose top-level rows, may sit between sections, and have no bucket header or collapse state.
+_Avoid_: default folder, inbox, fixed bottom bucket
 
 **Bridge**:
 A configured connection from an external source to an explicit Channel or PersonaBot Inbox target; it carries inbound delivery and exposes outbound capabilities without becoming the Actor.

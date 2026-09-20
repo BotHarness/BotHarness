@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } 
 
 import {
   IconAgentPresetOutline16,
+  IconChevronDownOutline14,
   IconCloseFill14,
   IconEllipsisOutline16,
   IconFolderOpenOutline16,
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
-  IconTriangleRightFill14,
   Menu,
   StateDot,
   Tag,
@@ -22,6 +22,15 @@ import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js
 import type { BridgeActions } from './actions.js';
 import { Blobatar } from './avatar.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
+import { HashIcon } from './hash-icon.js';
+import {
+  useChannelDrag,
+  useSectionDrag,
+  type ChannelDragProps,
+  type ChannelDropTarget,
+  type ScopeId,
+  type SectionDropTarget,
+} from './channel-drag.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import {
@@ -31,20 +40,28 @@ import {
   type RosterConfig,
 } from './roster-config.js';
 import type { RosterSection } from './roster.js';
-import { useChannelDrag, type ChannelDragProps, type ChannelDropTarget } from './channel-drag.js';
 import {
-  commitScopeReorder,
+  applyChannelMove,
+  completeFlatEntries,
+  moveWithinOrder,
   orderScopeChannels,
+  planChannelMove,
+  planFlatInsert,
   resolvedSortMode,
+  resolveBlockDropTarget,
   rowDropHalf,
+  type ChannelMoveSink,
+  type FlatAnchor,
 } from './roster-order.js';
 import {
+  channelMoveMenuItems,
   CreateChannelModal,
   CreateSectionModal,
   globalSortMenuItems,
   SectionDeleteModal,
   SectionRenameModal,
   sectionMenuItems,
+  UNGROUPED_MOVE_TARGET,
 } from './section-management.js';
 import { store, type BotSummary, type ChannelSummary, type ClientState } from './store.js';
 
@@ -107,13 +124,12 @@ interface SidebarProps {
   t: BotHarnessTranslate;
 }
 
-interface SectionView {
-  section: RosterSection;
-  channels: ChannelSummary[];
+/** One row's request to open its `移动到` context menu at a viewport point. */
+interface ChannelMenuRequest {
+  channelId: string;
+  x: number;
+  y: number;
 }
-
-/** Fixed bottom bucket for Channels with no section (ADR-0031). */
-const UNGROUPED_LABEL = '未分组';
 
 function matchesQuery(query: string, ...values: (string | undefined)[]): boolean {
   if (query.length === 0) return true;
@@ -155,19 +171,22 @@ function ChannelRow({
   selected,
   actions,
   drag,
+  onMenu,
 }: {
   channel: ChannelSummary;
   selected: boolean;
   actions: BridgeActions;
   drag?: ChannelDragProps | undefined;
+  onMenu: (request: ChannelMenuRequest) => void;
 }): ReactElement {
   const marker = drag?.marker ?? null;
   const markerClass =
     marker === 'before' ? ' bh-drop-before' : marker === 'after' ? ' bh-drop-after' : '';
+  const sourceClass = drag?.source === true ? ' bh-drag-source' : '';
   return (
     <button
       type="button"
-      className={`bh-channel-row${selected ? ' bh-selected' : ''}${markerClass}`}
+      className={`bh-channel-row${selected ? ' bh-selected' : ''}${markerClass}${sourceClass}`}
       onClick={() => void actions.openChannel(channel.id)}
       draggable={drag !== undefined}
       onDragStart={
@@ -196,13 +215,23 @@ function ChannelRow({
           : (event) => {
               if (!drag.active) return;
               event.preventDefault();
-              if (event.dataTransfer.dropEffect === 'none') return;
               drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
             }
       }
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onMenu({ channelId: channel.id, x: event.clientX, y: event.clientY });
+      }}
+      onKeyDown={(event) => {
+        const keyboardMenu = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+        if (!keyboardMenu) return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
+      }}
     >
       <span className="bh-channel-slot" aria-hidden="true">
-        #
+        <HashIcon size={16} />
       </span>
       <span className="bh-channel-title">{channel.name}</span>
       <span className="bh-channel-meta">
@@ -214,6 +243,11 @@ function ChannelRow({
 
 /** Open creation dialog: a new Channel (optionally inside a section) or a new section. */
 type CreateRequest = { kind: 'section' } | { kind: 'channel'; sectionId?: string };
+
+/** One rendered flat block: a section with its visible rows, or a loose channel run. */
+type FlatBlockView =
+  | { kind: 'section'; section: RosterSection; channels: ChannelSummary[] }
+  | { kind: 'loose'; channels: ChannelSummary[] };
 
 export function BotSidebar({
   wide,
@@ -229,6 +263,7 @@ export function BotSidebar({
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
@@ -268,9 +303,19 @@ export function BotSidebar({
   });
   const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
   const flatBots = bots.filter((bot) => !pinned.has(bot.slug));
-  const ungroupedChannels = orderScopeChannels(
-    channels.filter((channel) => !sectionedIds.has(channel.id)),
-    prefs.sortMode,
+  const groupChannelIds = groupChannels.map((channel) => channel.id);
+  /**
+   * Flat top-level entries in display order: the host `topOrder` completed
+   * with channels the flat list does not know yet (appended at the end), or —
+   * for a pre-flat host — the legacy projection (sections, then every
+   * unsectioned channel loose at the end). The bottom-fixed 未分组 bucket is
+   * retired: unsectioned channels render as loose runs between the blocks.
+   */
+  const flatEntries = completeFlatEntries(
+    state.roster.topOrder,
+    state.roster.sections.map((section) => section.id),
+    groupChannelIds,
+    sectionedIds,
   );
   /**
    * Resolve one section's order from a channel source. Rendering passes the
@@ -285,14 +330,66 @@ export function BotSidebar({
     const mode = resolvedSortMode(prefs.sortModes[section.id], prefs.sortMode);
     return orderScopeChannels(visible, mode, section.channelIds);
   };
-  const sections: SectionView[] = state.roster.sections
-    .map((section) => ({ section, channels: sectionOrder(section, channels) }))
-    .filter((entry) => query.length === 0 || entry.channels.length > 0);
+  /**
+   * One scope's full displayed order from the unfiltered roster and the live
+   * host snapshot, so a search filter can never change membership or drop
+   * position. `undefined` resolves the 未分组 bucket.
+   */
+  const scopeChannelsOf = (scopeId: ScopeId): ChannelSummary[] => {
+    if (scopeId === undefined) {
+      const snapshot = store.getSnapshot();
+      const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+      return orderScopeChannels(
+        groupChannels.filter((channel) => !sectioned.has(channel.id)),
+        prefs.sortMode,
+      );
+    }
+    const section = store
+      .getSnapshot()
+      .roster.sections.find((candidate) => candidate.id === scopeId);
+    return section === undefined ? [] : sectionOrder(section, groupChannels);
+  };
+  const sectionOfChannel = (channelId: string): string | undefined =>
+    store.getSnapshot().roster.sections.find((section) => section.channelIds.includes(channelId))
+      ?.id;
+  const channelById = new Map(channels.map((channel) => [channel.id, channel]));
+  /**
+   * Partition the flat entries into render blocks, resolving loose entries to
+   * their channels and grouping consecutive loose channels into one run.
+   * Loose runs keep their flat positions in every sort mode (explicit
+   * placements — auto never yanks them); only section members auto-sort.
+   */
+  const flatBlocks: FlatBlockView[] = (() => {
+    const blocks: FlatBlockView[] = [];
+    let run: ChannelSummary[] = [];
+    const flushRun = (): void => {
+      if (run.length > 0) {
+        blocks.push({ kind: 'loose', channels: run });
+        run = [];
+      }
+    };
+    for (const entry of flatEntries) {
+      if (entry.kind === 'section') {
+        flushRun();
+        const section = state.roster.sections.find((candidate) => candidate.id === entry.id);
+        if (section === undefined) continue;
+        const visible = sectionOrder(section, channels);
+        if (query.length > 0 && visible.length === 0) continue;
+        blocks.push({ kind: 'section', section, channels: visible });
+      } else {
+        const channel = channelById.get(entry.id);
+        if (channel === undefined) continue;
+        run.push(channel);
+      }
+    }
+    flushRun();
+    if (query.length > 0) return blocks.filter((block) => block.channels.length > 0);
+    return blocks;
+  })();
   const visibleCount =
     pinnedBots.length +
     flatBots.length +
-    ungroupedChannels.length +
-    sections.reduce((total, entry) => total + entry.channels.length, 0);
+    flatBlocks.reduce((total, block) => total + block.channels.length, 0);
   const selectedBot = state.selection?.kind === 'bot' ? state.selection.slug : undefined;
   const selectedChannel =
     state.selection?.kind === 'channel' ? state.selection.channelId : undefined;
@@ -337,34 +434,141 @@ export function BotSidebar({
   };
 
   /**
-   * Commit one in-section drop: freeze the unfiltered displayed order through
-   * positioned `channelAssign` writes and flip the scope to an explicit manual
-   * override when it was still automatic. Deriving from the full section order
-   * keeps members hidden by an active search exactly where they were. The
-   * source scope is the only scope touched; #56 extends this to cross-scope
-   * drops.
+   * Callbacks that apply one planned move: the settings-store unlock, the
+   * positioned section writes, and the single ungrouped assign.
    */
-  const commitChannelDrag = (
-    drag: { sectionId: string; channelId: string },
-    target: ChannelDropTarget,
-  ): void => {
-    const section = store
-      .getSnapshot()
-      .roster.sections.find((candidate) => candidate.id === drag.sectionId);
-    if (section === undefined) return;
-    const reorder = commitScopeReorder(
-      sectionOrder(section, groupChannels).map((channel) => channel.id),
-      drag.channelId,
-      target.channelId,
-      target.half,
-      prefs.sortModes[section.id] === 'manual',
-    );
-    if (reorder === undefined) return;
-    if (reorder.setManualOverride) setSectionSortMode(section.id, 'manual');
-    void actions.setSectionChannelOrder(section.id, reorder.order);
+  const moveSink: ChannelMoveSink = {
+    assignToUngrouped: (channelId) => {
+      void actions.assignChannel(channelId, undefined);
+    },
+    moveToSection: (channelId, sectionId, order) => {
+      void actions.moveChannel(channelId, sectionId, order);
+    },
+    setSectionManual: (sectionId) => {
+      setSectionSortMode(sectionId, 'manual');
+    },
   };
 
-  const { propsFor: channelDragProps } = useChannelDrag(commitChannelDrag);
+  /**
+   * Resolve and commit one move: the target's full displayed order drives the
+   * plan, so a search filter can never change membership or drop position and
+   * members hidden by the filter keep their place. The source scope is never
+   * touched.
+   */
+  const runChannelMove = (
+    channelId: string,
+    sourceScopeId: ScopeId,
+    targetScopeId: ScopeId,
+    target: { kind: 'row'; channelId: string; half: 'before' | 'after' } | { kind: 'scope' },
+  ): void => {
+    const plan = planChannelMove(sourceScopeId, channelId, {
+      targetScopeId,
+      target,
+      targetOrder: scopeChannelsOf(targetScopeId).map((channel) => channel.id),
+      targetManualOverride:
+        targetScopeId !== undefined && prefs.sortModes[targetScopeId] === 'manual',
+    });
+    if (plan === undefined) return;
+    applyChannelMove(moveSink, channelId, plan);
+  };
+
+  const commitChannelDrag = (
+    drag: { scopeId: ScopeId; channelId: string },
+    target: ChannelDropTarget,
+  ): void => {
+    if (target.channelId === drag.channelId) return;
+    if (sectionOfChannel(target.channelId) === undefined) {
+      // Loose row anchor: same flat position as a gap beside its entry.
+      runFlatInsert(drag.channelId, drag.scopeId, {
+        kind: 'channel',
+        id: target.channelId,
+        side: target.half,
+      });
+      return;
+    }
+    runChannelMove(drag.channelId, drag.scopeId, target.scopeId, {
+      kind: 'row',
+      channelId: target.channelId,
+      half: target.half,
+    });
+  };
+
+  /** A row-less section body targets the whole scope; the move appends. */
+  const commitChannelScopeDrop = (
+    drag: { scopeId: ScopeId; channelId: string },
+    scopeId: ScopeId,
+  ): void => {
+    runChannelMove(drag.channelId, drag.scopeId, scopeId, { kind: 'scope' });
+  };
+
+  /**
+   * Resolve and commit one loose flat placement: the unfiltered flat entries
+   * drive the plan, so a search filter can never move hidden channels. A
+   * sectioned source is unassigned first (single ownership); no scope mode
+   * changes anywhere — loose positions are explicit in every sort mode.
+   */
+  const runFlatInsert = (channelId: string, sourceScopeId: ScopeId, anchor: FlatAnchor): void => {
+    const snapshot = store.getSnapshot();
+    const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+    const flat = completeFlatEntries(
+      snapshot.roster.topOrder,
+      snapshot.roster.sections.map((section) => section.id),
+      snapshot.channels.filter((channel) => channel.type === 'group').map((channel) => channel.id),
+      sectioned,
+    );
+    const plan = planFlatInsert(flat, channelId, sourceScopeId !== undefined, anchor);
+    if (plan === undefined) return;
+    if (plan.unassign) {
+      void actions.moveToFlat(channelId, plan.order);
+    } else {
+      void actions.reorderFlat(plan.order);
+    }
+  };
+
+  /** A flat gap beside a section block: loose placement, no mode changes. */
+  const commitChannelGapDrop = (
+    drag: { scopeId: ScopeId; channelId: string },
+    target: { sectionId: string; half: 'before' | 'after' },
+  ): void => {
+    runFlatInsert(drag.channelId, drag.scopeId, {
+      kind: 'section',
+      id: target.sectionId,
+      side: target.half,
+    });
+  };
+
+  /** A context-menu pick targets a whole scope; the move appends to a section. */
+  const commitChannelMenuMove = (channelId: string, targetSectionId: string | undefined): void => {
+    runChannelMove(channelId, sectionOfChannel(channelId), targetSectionId, { kind: 'scope' });
+  };
+
+  /** Reorder the section headers with the same in-scope insert math as rows. */
+  const commitSectionDrag = (sectionId: string, target: SectionDropTarget): void => {
+    const order = moveWithinOrder(
+      store.getSnapshot().roster.sections.map((section) => section.id),
+      sectionId,
+      target.sectionId,
+      target.half,
+    );
+    if (order === undefined) return;
+    void actions.reorderSections(order);
+  };
+
+  const openChannelMenu = (request: ChannelMenuRequest): void => {
+    setMenuOpen(false);
+    setSortMenuOpen(false);
+    setSectionMenuId(undefined);
+    setChannelMenu(request);
+  };
+
+  const {
+    active: channelDragActive,
+    propsFor: channelDragProps,
+    scopePropsFor: channelScopeDropProps,
+    gapPropsFor: channelGapDropProps,
+    clearGapHover,
+  } = useChannelDrag(commitChannelDrag, commitChannelScopeDrop, commitChannelGapDrop);
+  const { propsFor: sectionDragProps } = useSectionDrag(commitSectionDrag);
 
   if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
 
@@ -374,8 +578,61 @@ export function BotSidebar({
       ? undefined
       : state.roster.sections.find((section) => section.id === createSectionId);
 
+  /**
+   * Resolve a channel drag over the sidebar root (outside every section
+   * block and row) to a flat gap beside a section: the 12px margin bands
+   * above/below each block. Anything else (bots, header, search) clears a
+   * stale gap hover instead of committing.
+   */
+  const resolveGapTarget = (
+    root: HTMLElement,
+    clientY: number,
+  ): { sectionId: string; half: 'before' | 'after' } | null => {
+    const band = 12;
+    const blocks = [...root.querySelectorAll('.bh-section[data-section-id]')]
+      .map((element) => ({
+        id: element.getAttribute('data-section-id') ?? '',
+        top: element.getBoundingClientRect().top,
+        bottom: element.getBoundingClientRect().bottom,
+      }))
+      .filter((block) => block.id !== '');
+    for (const block of blocks) {
+      if (clientY >= block.top - band && clientY < block.top) {
+        return { sectionId: block.id, half: 'before' };
+      }
+      if (clientY >= block.bottom && clientY < block.bottom + band) {
+        return { sectionId: block.id, half: 'after' };
+      }
+    }
+    return null;
+  };
+
   return (
-    <div className="bh-root bh-region">
+    <div
+      className="bh-root bh-region"
+      onDragOver={(event) => {
+        if (!channelDragActive) return;
+        const target = event.target as HTMLElement | null;
+        if (target !== null && target.closest('.bh-section, .bh-channel-row') !== null) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        const resolved = resolveGapTarget(event.currentTarget, event.clientY);
+        if (resolved === null) {
+          clearGapHover();
+          return;
+        }
+        channelGapDropProps(resolved.sectionId).hover(resolved.half);
+      }}
+      onDrop={(event) => {
+        if (!channelDragActive) return;
+        const target = event.target as HTMLElement | null;
+        if (target !== null && target.closest('.bh-section, .bh-channel-row') !== null) return;
+        event.preventDefault();
+        const resolved = resolveGapTarget(event.currentTarget, event.clientY);
+        if (resolved === null) return;
+        channelGapDropProps(resolved.sectionId).drop(resolved.half);
+      }}
+    >
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           消息
@@ -538,17 +795,158 @@ export function BotSidebar({
         </div>
       ) : null}
 
-      {sections.map(({ section, channels: sectionChannels }) => {
+      {flatBlocks.map((block) => {
+        if (block.kind === 'loose') {
+          const key = `loose:${block.channels.map((channel) => channel.id).join(',')}`;
+          return (
+            <div key={key} className="bh-section bh-loose">
+              <div
+                className="bh-list-area"
+                onDragOver={(event) => {
+                  if (!channelDragActive) return;
+                  const target = event.target as HTMLElement | null;
+                  if (target !== null && target.closest('.bh-channel-row') !== null) return;
+                  event.preventDefault();
+                  event.dataTransfer.dropEffect = 'move';
+                  const rows = [...event.currentTarget.querySelectorAll('.bh-channel-row')].map(
+                    (element, index) => {
+                      const rect = element.getBoundingClientRect();
+                      return {
+                        id: block.channels[index]?.id ?? '',
+                        top: rect.top,
+                        height: rect.height,
+                      };
+                    },
+                  );
+                  const resolution = resolveBlockDropTarget(
+                    rows.filter((row) => row.id !== ''),
+                    Number.NEGATIVE_INFINITY,
+                    event.clientY,
+                  );
+                  if (resolution.kind === 'row') {
+                    channelDragProps(undefined, resolution.channelId).hover(resolution.half);
+                  }
+                }}
+                onDrop={(event) => {
+                  if (!channelDragActive) return;
+                  const target = event.target as HTMLElement | null;
+                  if (target !== null && target.closest('.bh-channel-row') !== null) return;
+                  event.preventDefault();
+                  const rows = [...event.currentTarget.querySelectorAll('.bh-channel-row')].map(
+                    (element, index) => {
+                      const rect = element.getBoundingClientRect();
+                      return {
+                        id: block.channels[index]?.id ?? '',
+                        top: rect.top,
+                        height: rect.height,
+                      };
+                    },
+                  );
+                  const resolution = resolveBlockDropTarget(
+                    rows.filter((row) => row.id !== ''),
+                    Number.NEGATIVE_INFINITY,
+                    event.clientY,
+                  );
+                  if (resolution.kind === 'row') {
+                    channelDragProps(undefined, resolution.channelId).drop(resolution.half);
+                  }
+                }}
+              >
+                {block.channels.map((channel) => (
+                  <ChannelRow
+                    key={channel.id}
+                    channel={channel}
+                    selected={selectedChannel === channel.id}
+                    actions={actions}
+                    drag={channelDragProps(undefined, channel.id)}
+                    onMenu={openChannelMenu}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        }
+        const { section, channels: sectionChannels } = block;
         const collapsed = state.config.collapsed[section.id] === true;
         const menuOpenForSection = sectionMenuId === section.id;
+        const sectionDrag = sectionDragProps(section.id);
+        const channelGap = channelGapDropProps(section.id);
+        const channelScope = channelScopeDropProps(section.id);
+        const before = sectionDrag.marker === 'before' || channelGap.marker === 'before';
+        const after = sectionDrag.marker === 'after' || channelGap.marker === 'after';
+        const blockMarkerClass = `${before ? ' bh-drop-before' : ''}${after ? ' bh-drop-after' : ''}${channelScope.hovered ? ' bh-drop-scope' : ''}`;
+        /**
+         * Resolve a channel drag anywhere inside this block that is not on a
+         * row — header area, body padding, inter-row gaps — to a row anchor
+         * (header inserts at the first index). Row-less bodies (empty,
+         * collapsed, filtered out) resolve to the scope itself at index 0.
+         */
+        const resolveBlockTarget = (element: HTMLElement, clientY: number) => {
+          const rows = [...element.querySelectorAll('.bh-channel-row')].map((row, index) => {
+            const rect = row.getBoundingClientRect();
+            return { id: sectionChannels[index]?.id ?? '', top: rect.top, height: rect.height };
+          });
+          const headBottom =
+            element.querySelector('.bh-section-head')?.getBoundingClientRect().bottom ?? clientY;
+          return resolveBlockDropTarget(
+            rows.filter((row) => row.id !== ''),
+            headBottom,
+            clientY,
+          );
+        };
         return (
-          <div key={section.id} className="bh-section">
+          <div
+            key={section.id}
+            data-section-id={section.id}
+            className={`bh-section${blockMarkerClass}`}
+            onDragOver={(event) => {
+              if (sectionDrag.active) {
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                sectionDrag.hover(
+                  rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
+                );
+                return;
+              }
+              if (!channelDragActive) return;
+              const target = event.target as HTMLElement | null;
+              if (target !== null && target.closest('.bh-channel-row') !== null) return;
+              event.preventDefault();
+              event.dataTransfer.dropEffect = 'move';
+              const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
+              if (resolution.kind === 'scope') channelScope.hover();
+              else channelDragProps(section.id, resolution.channelId).hover(resolution.half);
+            }}
+            onDrop={(event) => {
+              if (sectionDrag.active) {
+                event.preventDefault();
+                sectionDrag.drop(
+                  rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
+                );
+                return;
+              }
+              if (!channelDragActive) return;
+              const target = event.target as HTMLElement | null;
+              if (target !== null && target.closest('.bh-channel-row') !== null) return;
+              event.preventDefault();
+              const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
+              if (resolution.kind === 'scope') channelScope.drop();
+              else channelDragProps(section.id, resolution.channelId).drop(resolution.half);
+            }}
+          >
             <div className="bh-list-area">
               <div
                 className={`bh-section-head${menuOpenForSection ? ' bh-menu-open' : ''}`}
                 role="button"
                 tabIndex={0}
                 aria-expanded={!collapsed}
+                draggable
+                onDragStart={(event) => {
+                  event.dataTransfer.effectAllowed = 'move';
+                  event.dataTransfer.setData('text/plain', section.id);
+                  sectionDrag.start();
+                }}
+                onDragEnd={sectionDrag.end}
                 onClick={() => toggleSection(section.id)}
                 onKeyDown={(event) => {
                   if (event.key !== 'Enter' && event.key !== ' ') return;
@@ -556,12 +954,13 @@ export function BotSidebar({
                   toggleSection(section.id);
                 }}
               >
-                <span className="bh-row-slot" aria-hidden="true">
-                  <IconTriangleRightFill14
-                    className={collapsed ? 'bh-arrow' : 'bh-arrow bh-arrow-open'}
-                  />
-                </span>
                 <span className="bh-section-name">{section.name}</span>
+                <IconChevronDownOutline14
+                  size={14}
+                  className={
+                    collapsed ? 'bh-section-chevron bh-chevron-collapsed' : 'bh-section-chevron'
+                  }
+                />
                 <span className="bh-section-count">{sectionChannels.length}</span>
                 <span className="bh-row-actions">
                   <Menu
@@ -614,31 +1013,13 @@ export function BotSidebar({
                       selected={selectedChannel === channel.id}
                       actions={actions}
                       drag={channelDragProps(section.id, channel.id)}
+                      onMenu={openChannelMenu}
                     />
                   ))}
             </div>
           </div>
         );
       })}
-
-      {ungroupedChannels.length > 0 ? (
-        <div className="bh-section">
-          <div className="bh-list-area">
-            <div className="bh-ungrouped-head">
-              <span className="bh-section-name">{UNGROUPED_LABEL}</span>
-              <span className="bh-section-count">{ungroupedChannels.length}</span>
-            </div>
-            {ungroupedChannels.map((channel) => (
-              <ChannelRow
-                key={channel.id}
-                channel={channel}
-                selected={selectedChannel === channel.id}
-                actions={actions}
-              />
-            ))}
-          </div>
-        </div>
-      ) : null}
 
       {createRequest?.kind === 'section' ? (
         <CreateSectionModal
@@ -696,7 +1077,81 @@ export function BotSidebar({
           }}
         />
       ) : null}
+
+      {channelMenu !== undefined ? (
+        <ChannelMoveMenu
+          menu={channelMenu}
+          sections={state.roster.sections}
+          currentSectionId={sectionOfChannel(channelMenu.channelId)}
+          t={t}
+          onPick={(targetSectionId) => {
+            commitChannelMenuMove(channelMenu.channelId, targetSectionId);
+            setChannelMenu(undefined);
+          }}
+          onClose={() => {
+            setChannelMenu(undefined);
+          }}
+        />
+      ) : null}
     </div>
+  );
+}
+
+/**
+ * A channel row's `移动到 ▸ [sections + 未分组]` menu. A zero-size fixed proxy
+ * carries the cursor point; `Menu` reads it through `getAnchorRect` and portals
+ * the list there (the JsonTree proxy-rect recipe), clamping it to the viewport.
+ * `autoFocus` keeps the submenu reachable from the keyboard, which is the
+ * move path ADR-0031 requires.
+ */
+export function ChannelMoveMenu({
+  menu,
+  sections,
+  currentSectionId,
+  t,
+  onPick,
+  onClose,
+}: {
+  menu: ChannelMenuRequest;
+  sections: readonly RosterSection[];
+  currentSectionId: string | undefined;
+  t: BotHarnessTranslate;
+  onPick: (sectionId: string | undefined) => void;
+  onClose: () => void;
+}): ReactElement {
+  const proxy = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    // `Menu`'s own autoFocus focuses the first row while the portaled list is
+    // still `visibility: hidden` (its placement re-render lands after passive
+    // effects), so the focus is dropped. Focus the placed list once more to
+    // keep the keyboard path: focus opens the submenu, arrows navigate it.
+    const timer = window.setTimeout(() => {
+      const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
+      lists
+        .item(lists.length - 1)
+        ?.querySelector<HTMLButtonElement>('button:not(:disabled)')
+        ?.focus();
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
+  return (
+    <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
+      <Menu
+        open
+        portal
+        dense
+        autoFocus
+        anchor={<span ref={proxy} aria-hidden="true" />}
+        getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
+        items={channelMoveMenuItems(t, sections, currentSectionId)}
+        onSelect={(id) => {
+          onPick(id === UNGROUPED_MOVE_TARGET ? undefined : id);
+        }}
+        onClose={onClose}
+      />
+    </span>
   );
 }
 

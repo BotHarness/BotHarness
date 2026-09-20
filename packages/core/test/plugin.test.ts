@@ -183,6 +183,7 @@ describe('plugin entry', () => {
       'sectionRemove',
       'channelAssign',
       'sectionReorder',
+      'topReorder',
       'pinsSet',
     ]);
   });

@@ -11,6 +11,7 @@ import type {
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { RosterSection, RosterSnapshot } from '../roster/store.js';
+import type { TopOrderEntry } from '../roster/spec.js';
 import type { SessionSummary } from '../sessions/source.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
@@ -189,6 +190,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.sectionReorder({ order }));
   }
 
+  topReorder(order: TopOrderEntry[]): Promise<{ topOrder: TopOrderEntry[] }> {
+    return unwrapAsync(this.methods.topReorder({ order }));
+  }
+
   pinsSet(pins: string[]): Promise<{ pins: string[] }> {
     return unwrapAsync(this.methods.pinsSet({ pins }));
   }
@@ -213,6 +218,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'sectionRemove',
   'channelAssign',
   'sectionReorder',
+  'topReorder',
   'pinsSet',
 ]);
 

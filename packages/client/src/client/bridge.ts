@@ -13,6 +13,7 @@ import {
   parseRosterSnapshot,
   type RosterSection,
   type RosterSnapshot,
+  type TopOrderEntry,
 } from './roster.js';
 
 /** Failure carrying the Host's stable bridge error code. */
@@ -337,6 +338,14 @@ export async function reorderRosterSections(
   signal?: AbortSignal,
 ): Promise<void> {
   await unwrap(call, 'sectionReorder', { order }, signal);
+}
+
+export async function reorderTopOrder(
+  call: BridgeCall,
+  order: readonly TopOrderEntry[],
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'topReorder', { order }, signal);
 }
 
 export async function setRosterPins(

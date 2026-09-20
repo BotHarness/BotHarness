@@ -38,6 +38,7 @@ SOFTWARE.
 - Package: `lucide` icons (vendored glyph paths; see ADR-0032)
 - License: ISC
 - Source: <https://github.com/lucide-icons/lucide>
+- Used for: the `hash` channel glyph (`HashIcon` in `src/client/hash-icon.tsx`, from `lucide-react@1.46.0`)
 
 ```
 ISC License

@@ -10,11 +10,13 @@ const captured = vi.hoisted(() => ({
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
+  const icon = (name: string) => () => createElement('span', { 'data-icon': name });
   return {
     Button: (props: Record<string, unknown>) => {
       captured.buttons.push(props);
       return null;
     },
+    IconCheckOutline16: icon('IconCheckOutline16'),
     IconEditOutline16: stub,
     IconTrashOutline16: stub,
     Modal: (props: Record<string, unknown>) => {
@@ -33,8 +35,11 @@ vi.mock('../src/client/name-input.js', () => ({
   },
 }));
 
+import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives';
+
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
 import {
+  channelMoveMenuItems,
   CreateChannelModal,
   CreateSectionModal,
   DANGER_ACTION_CLASS,
@@ -42,6 +47,7 @@ import {
   SectionDeleteModal,
   SectionRenameModal,
   sectionMenuItems,
+  UNGROUPED_MOVE_TARGET,
 } from '../src/client/section-management.js';
 
 const SECTION = { id: 's1', name: '工作流', channelIds: [] };
@@ -98,6 +104,40 @@ describe('section menus', () => {
     ]);
     const last = items.at(-1);
     expect(last !== undefined && 'danger' in last && last.danger === true).toBe(true);
+  });
+});
+
+describe('channel move menu', () => {
+  const sections = [
+    { id: 's1', name: '工作流', channelIds: [] },
+    { id: 's2', name: '研究', channelIds: [] },
+  ];
+
+  function moveItem(currentSectionId: string | undefined): MenuItem {
+    const [move] = channelMoveMenuItems(t, sections, currentSectionId);
+    if (move === undefined || !('id' in move) || move.id !== 'move' || !('label' in move)) {
+      throw new Error('move menu not built');
+    }
+    return move;
+  }
+
+  it('lists every section plus 未分组 under one 移动到 submenu', () => {
+    const move = moveItem('s2');
+
+    expect(move.label).toBe('移动到');
+    expect(move.submenu?.map((item) => item.id)).toEqual(['s1', 's2', UNGROUPED_MOVE_TARGET]);
+  });
+
+  it('marks the current scope with the trailing check and only that row', () => {
+    const label = (item: MenuItem): string => renderToStaticMarkup(item.label as never);
+    const inSection = (moveItem('s2').submenu ?? []).map(label);
+    expect(inSection[1]).toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[0]).not.toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[2]).not.toContain('data-icon="IconCheckOutline16"');
+
+    const ungrouped = (moveItem(undefined).submenu ?? []).map(label);
+    expect(ungrouped[2]).toContain('data-icon="IconCheckOutline16"');
+    expect(ungrouped[0]).not.toContain('data-icon="IconCheckOutline16"');
   });
 });
 
@@ -200,7 +240,7 @@ describe('section delete modal', () => {
 
     expect(lastModal()['title']).toBe('删除频道分组');
     expect(lastModal()['description']).toContain('工作流');
-    expect(lastModal()['description']).toContain('其中的频道会回到未分组');
+    expect(lastModal()['description']).toContain('其中的频道会移出分组、变为未分组频道');
     expect(lastButton('取消')['autoFocus']).toBe(true);
     expect(lastButton('删除')['variant']).toBe('outline');
     expect(lastButton('删除')['className']).toBe(DANGER_ACTION_CLASS);

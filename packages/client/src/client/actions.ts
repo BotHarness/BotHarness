@@ -12,10 +12,13 @@ import {
   openDmChannel,
   removeRosterSection,
   renameRosterSection,
+  reorderRosterSections,
+  reorderTopOrder,
   sendChannelMessage,
   type BridgeCall,
 } from './bridge.js';
-import { planSectionChannelOrder, type RosterSection } from './roster.js';
+import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
+import { completeFlatEntries } from './roster-order.js';
 import type {
   ChannelSummary,
   ClientStore,
@@ -36,6 +39,28 @@ export interface BridgeActions {
   assignChannel(channelId: string, sectionId: string | undefined, index?: number): Promise<boolean>;
   /** Freeze a section's channel order through positioned channelAssign writes. */
   setSectionChannelOrder(sectionId: string, order: readonly string[]): Promise<boolean>;
+  /**
+   * Move a Channel into a section, writing the full target order positionally
+   * so the frozen order matches the drop. The moved Channel is one of those
+   * writes, which is also the single ownership transfer.
+   */
+  moveChannel(channelId: string, sectionId: string, order: readonly string[]): Promise<boolean>;
+  /** Replace the section display order. */
+  reorderSections(order: readonly string[]): Promise<boolean>;
+  /** Replace the flat top-level order outright (loose placements, migration). */
+  reorderFlat(order: readonly TopOrderEntry[]): Promise<boolean>;
+  /**
+   * Move a Channel out of its section into a loose flat slot: unassign first
+   * (single ownership; the host appends the loose entry), then position the
+   * absolute flat order. No scope mode changes.
+   */
+  moveToFlat(channelId: string, order: readonly TopOrderEntry[]): Promise<boolean>;
+  /**
+   * Convert a pre-flat host arrangement once: sections in snapshot order,
+   * then every unsectioned channel loose at the end. Skips when the host
+   * already carries a flat order, is read-only, or holds nothing to convert.
+   */
+  ensureFlatTopOrder(): Promise<boolean>;
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
@@ -49,6 +74,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       clientStore.setRosterState({
         pins: snapshot.pins,
         sections: snapshot.sections,
+        topOrder: snapshot.topOrder,
         readOnly: false,
       });
     } catch (error) {
@@ -244,6 +270,46 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         for (let index = 0; index < target.length; index += 1) {
           await assignRosterChannel(call, target[index] as string, sectionId, index);
         }
+      });
+    },
+    async moveChannel(channelId, sectionId, order) {
+      return rosterMutate(async () => {
+        for (let index = 0; index < order.length; index += 1) {
+          await assignRosterChannel(call, order[index] as string, sectionId, index);
+        }
+      });
+    },
+    async reorderSections(order) {
+      return rosterMutate(async () => {
+        await reorderRosterSections(call, order);
+      });
+    },
+    async reorderFlat(order) {
+      return rosterMutate(async () => {
+        await reorderTopOrder(call, order);
+      });
+    },
+    async moveToFlat(channelId, order) {
+      return rosterMutate(async () => {
+        await assignRosterChannel(call, channelId, undefined);
+        await reorderTopOrder(call, order);
+      });
+    },
+    async ensureFlatTopOrder() {
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.roster.readOnly || snapshot.roster.topOrder !== undefined) return true;
+      const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+      const order = completeFlatEntries(
+        undefined,
+        snapshot.roster.sections.map((section) => section.id),
+        snapshot.channels
+          .filter((channel) => channel.type === 'group')
+          .map((channel) => channel.id),
+        sectioned,
+      );
+      if (order.length === 0) return true;
+      return rosterMutate(async () => {
+        await reorderTopOrder(call, order);
       });
     },
   };

@@ -30,3 +30,15 @@ All of this is display configuration and lives browser-local in `roster.json` (p
 ## Update (2026-09-19) — arrangement moves host-side
 
 The second paragraph's "all of this is display configuration and lives browser-local in `roster.json`" no longer holds for the arrangement. Sections (name, membership, order) and pins move into the Host-side BotHarness operational database, exposed to the client through fine-grained `botharness/*` bridge methods; the rejected "store the arrangement on the Host" option is superseded. The sort mode moves into the DSH settings namespace `ui-bot-mode` (per-profile, cross-browser) so it can also appear as a General settings row, with the sidebar `...` menu reading and writing the same scope; only `collapsed` remains browser-local view state. The SoulSnapshot avoidance still holds. The legacy browser `roster.json` is imported once into an empty database and kept as a backup. Details and the current physical map: ADR-0041.
+
+## Update (2026-09-20) — Discord-pattern section headers and channel glyph
+
+The section header no longer copies the native `projectRow` look: there is no left disclosure icon, only the label; the label is muted (`--dsw-alias-label-tertiary`) by default and goes solid on hover with **no background fill** (channel rows keep the hover fill, so the two stay distinguishable); a chevron (`IconChevronDownOutline14`), rotated -90° when collapsed, sits immediately right of the label; the band is compact (24px) instead of 34px. Channel rows use a vendored Lucide `hash` glyph (ISC, registered in `THIRD_PARTY_NOTICES.md`) sized to a 16px box instead of the text `#`.
+
+## Update (2026-09-20) — block drops, stable drag layout, and loose top-level Channels
+
+The whole Channel section block is a drop target, not merely its visible Channel rows: dropping an ungrouped Channel on the header or body assigns it to that section. A header drop inserts before the first Channel, matching the pointer's proximity to the section's top edge; empty, collapsed, and search-filtered row-less sections accept the Channel at index 0. The prediction line and every section-edge marker are absolutely positioned overlays. No target reserves space during a drag; the source row stays in its original slot at 40% opacity, so neither source nor target changes layout while the native gesture is active.
+
+The bottom-fixed 未分组 bucket is retired. "未分组" remains the membership state and context-menu destination, but those Channels render as loose top-level rows in the same flat sequence as section blocks. Dropping a Channel into the gap before or after a section places it loose at that position. The current roster authority carries mixed `topOrder` and exposes `topReorder`; ADR-0041's planned database migration must preserve the same logical order and single-membership invariant. Explicit loose placement is stable in every sort mode; only Channels inside a section participate in that section's auto/manual policy.
+
+This update supersedes the original fixed-bottom bucket and its muted 未分组 header: there is no bucket header after the flat remodel.

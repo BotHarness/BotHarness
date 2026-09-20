@@ -2,14 +2,14 @@
 
 > **历史工作草稿，不再是设计权威，也不发布到文档站。** 当前产品术语以 `CONTEXT.md` 为准，整合后的目标架构以 `docs/architecture/botharness-architecture.md` 为准，取舍与理由以 `docs/adr/` 为准。
 
-| 项       | 内容                                                                                                                                                                                                                                |
-| -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本     | v1.14                                                                                                                                                                                                                               |
-| 日期     | 2026-09-20                                                                                                                                                                                                                          |
-| 状态     | Archived working draft                                                                                                                                                                                                              |
-| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                                                            |
-| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                                                                      |
-| 决策记录 | `docs/adr/`（v1.14：0035–0045 确立 Session ownership、Messaging、统一 operational database、可移植性与 BotWork control plane；v1.13：#66 已将 roster 陈列迁入 `botharness_roster`，作为 #80 单向迁入 `botharness.db` 前的过渡权威） |
+| 项       | 内容                                                                                                                                                                                                       |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 版本     | v1.15                                                                                                                                                                                                      |
+| 日期     | 2026-09-20                                                                                                                                                                                                 |
+| 状态     | Archived working draft                                                                                                                                                                                     |
+| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                                   |
+| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                                             |
+| 决策记录 | `docs/adr/`（v1.15：#56 / ADR-0031/0034 落地混合 `topOrder`、稳定拖拽布局与松散 Channel；v1.14：0035–0045 确立 Session ownership、Messaging、统一 operational database、可移植性与 BotWork control plane） |
 
 ## 1. 定位与缺口
 
@@ -46,6 +46,8 @@
 一个 profile 使用一个 `$DSH_HOME/botharness/botharness.db` 承载 BotHarness operational facts。它提供共享本地事务，但不是 generic repository：PersonaBot、Messaging、BotWork、Portability 各自拥有表、commands 和 invariants。Host-lifetime owner 获取 OS writer lease；单调 Schema Generation 在 isolated temporary copy 中迁移并校验，再 atomic replace。失败时进入 recovery mode，不回退其他写路径。
 
 这是终态权威图，不掩盖迁移阶段：#66 已实现的 roster 当前仍由 `botharness_roster` storage domain 承载；#79 先建立 database owner，#80 再把 roster 与 Session ownership 单向迁入数据库。迁移提交前不双写，也不把尚未迁移的表描述成已经存在。
+
+当前 roster global 槽为 `{ pins, sectionOrder, topOrder? }`；`topOrder` 混排 section block 与松散 Channel，缺省表示 pre-flat 域并由客户端一次性迁移。绝对顶层位置通过第八个桥方法 `topReorder` 写入，Host 在 assign/create/remove/reorder 时维持“section 成员不能同时有 loose entry”的单一归属不变量（ADR-0034）。
 
 | 类别                                                                                                                      | 权威位置                                                  | 说明                                                                                      |
 | ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
@@ -114,9 +116,9 @@
 - **导出与备份**：PersonaBot Export 默认 Persona + selected Memory，可勾选 dependency-closed operational facets，但 credentials 永不导出。Profile Backup 只有手动 Export/Import 两个动作，生成一个 self-contained compressed `.botharness-backup`；没有自动备份、catalog、retention 或 incremental chain（ADR-0040–0044）。
 - **工具面**：per-PersonaBot allowlist + role-specific restriction；未知工具名过滤并告警。Orchestrator、Work、Subagent 的工具面不同，具体 DSH seam 由 #77 验证。
 - **模型选择**：全局默认 + per-PersonaBot desired model；restore 时不 silent fallback。目标机无法解析时对应 capability `blocked`，由 Human 显式 remap（ADR-0027/0044）。
-- **Bot 模式 UI**：sidebar = 置顶 BOT 网格（始终手动）→ Channel section（可折叠、用户自建、手排，默认创建顺序）→ 未分组（固定底部，平铺、不可折叠）；点击 BOT 打开 DM 聊天；Session 在右侧面板（只读列表 + 切换，含「主会话」）；Workspace 不在 sidebar 呈现。入口在「新会话」下方（ADR-0029）。
-- **sidebar 操作（ADR-0031）**：头部 = `Bots` 标签 + 右侧 **search → `...`（排序菜单）→ `+`（创建菜单：创建 BOT（#41 前禁用）/ 创建 Channel / 创建 Channel section）**；section 头 `+` 在区内建 Channel，`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位；Modal 红描边确认，Channel 回落未分组、绝不删除）。移动 = 原生 HTML5 DnD（复刻 ui-workspace 插入线 / 半行投放）＋右键「移动到 ▸ [sections + 未分组]」（`Menu` 一级子菜单，光标锚定）；Channel 重命名/删除暂缓。陈列（section 成员/名称/顺序、pins）存 Host `botharness_roster` 域，经细粒度 `botharness/*` 桥方法读写、section id 由 Host 生成；排序偏好存 Host settings 命名空间 `ui-bot-mode`（#68），折叠状态在浏览器本地。不随 SoulSnapshot 导出（§2.1、ADR-0034）。
-- **排序模式（ADR-0031）**：每个 scope（section / 未分组）三态 `auto`（最新消息在前，按 Channel `updatedAt`）/ `manual`（冻结用户顺序）/ `inherit`（跟随全局默认；section 默认、未分组恒定）；全局默认在头部 `...` 菜单设置；首次手动拖拽或拖入切 `manual` 并冻结当前顺序，源 scope 模式不变，「恢复自动」回 `inherit`。排序偏好（全局 + 每 section）存 Host settings 命名空间 `ui-bot-mode`（`settingsScope` 读写、`settings/document-updated` 刷新），折叠状态留浏览器本地（§2.1、ADR-0034）。行几何对齐原生实测：section 头 34px（`projectRow`）、Channel/session 行 32px、`padding: 0 8px`、行距 2px、区块距 4px、悬停/选中 `--dsw-alias-interactive-bg-hover`、折叠三角 `IconTriangleRightFill14` 旋转 90°、操作字形悬停才显示、Channel 无额外缩进。
+- **Bot 模式 UI**：sidebar = 置顶 BOT 网格（始终手动）＋一个混合顶层序列（可折叠 Channel section 与未归属的松散 Channel 可交错）；未分组是 membership 状态，不再有固定底部 bucket/header。点击 BOT 打开 DM 聊天；Session 在右侧面板（只读列表 + 切换，含「主会话」）；Workspace 不在 sidebar 呈现。入口在「新会话」下方（ADR-0029/0031）。
+- **sidebar 操作（ADR-0031）**：头部 = `Bots` 标签 + 右侧 **search → `...`（排序菜单）→ `+`（创建菜单）**；section 头 `+` 在区内建 Channel，`...` = 排序方式 → 重命名 → 删除。移动 = 原生 HTML5 DnD＋右键「移动到」；Channel 行、section 头/体、section 边界间隙都是真实 drop target：投到 section 归属该 section，投到边界间隙则保持未分组并写入该顶层位置。section header 投放插入第一项；预测线绝对定位、不占布局，源行留在原位以 40% opacity 淡出。陈列当前存 Host `botharness_roster`，经八个细粒度桥方法读写（新增 `topReorder`），并按 #80 计划单向迁入 `botharness.db`；排序偏好在 `ui-bot-mode`，折叠状态在浏览器本地。
+- **排序模式（ADR-0031）**：每个 section 三态 `updated` / `manual` / `inherit`；全局默认在头部 `...` 菜单设置。首次手动拖拽或拖入 section 切 `manual` 并冻结当前顺序，源 section 模式不变，「恢复自动」回 `inherit`。松散 Channel 的顶层位置是显式陈列，在所有排序模式下保持不动；section 内发送消息仍按新 `updatedAt` 即时重排。section 头为 Discord 式 24px muted→solid、无 hover 背景、右侧 `IconChevronDownOutline14`；Channel 行 32px，区块间距 12px。
 - **头像与图标（ADR-0032）**：默认头像 = 由 slug 确定性生成的静态 blobatar（本轮只用字符串生成器）；DM Channel 行显示 Bot 头像，群 Channel 行用字形；DSH 字形缺口以 vendored Lucide（ISC）首方组件补齐（hash / 群聊先行），随包附 `THIRD_PARTY_NOTICES.md`；自定义头像与动效/表情留 v1.1。
 - **实时同步（v1.1，ADR-0034）**：`botharness` 命名空间加 `mode: 'stream'` remote 方法（Host AsyncIterable、客户端 `connection.rpc.open`），先推 roster 变更、后推 channel 消息，IM 式；`domain/changed` 是进程内事件且不可转发（api-remotes 白名单静态），客户端不得依赖；现有 unary 方法面不变。
 - **排序偏好设置行（#68，ADR-0034）**：Settings → General 加一行 `settings.general.item`（与对话显示/忙碌发送/主题同模式），暴露与 sidebar `...` 菜单相同的 `ui-bot-mode` 排序偏好——一个 policy store、两个入口；该设置行**不迁移任何既有 sidebar UI**，只是新增入口。General 行槽位在 dev 中不可靠时退到 cookbook 标准的 `settings.plugin.item` 卡片（记录为 fallback）。
