@@ -226,6 +226,7 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 - The UI never reads files or the database directly and does not derive business state. It consumes Host read models and sends commands back to the owning module.
 - Archiving a PersonaBot first closes admissions, wakes, and external actions, then stops its Orchestrator, Work, and owned Subagents. Purge is a separate destructive action.
 - Browser and Host are separate Cordis applications. Host services are never injected across processes; all calls use the `/api` client bridge.
+- Roadmap Project #1 stays private. Docs sync reads only explicit `In Progress` and Artifact values with `read:project`, then commits public JSON only after a fail-closed allowlist projection. Project notes, private items, assignees, backlog, and ETA never cross this publication boundary.
 
 ## 8 · Implementation order and parallel work
 
