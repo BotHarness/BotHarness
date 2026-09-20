@@ -1,18 +1,14 @@
 ---
 /**
- * ChangelogEntry — one entry in the feed. Renders the date marker, a
- * permalink title, tag pills, and the entry's full MDX body inline (rendered
- * with the site's MDX globals). `data-tags` feeds the filter; entries past
+ * ChangelogEntry — one release or the migration-only Development summary.
+ * Renders the date marker, permalink title, one-sentence summary, and category pills.
+ * Full release details stay on the permalink. `data-tags` feeds the filter; entries past
  * the initial page are `data-overflow` + hidden until "load older" reveals
  * them (older entries also reachable via /changelog/page/<n> with no JS).
  */
-import { render } from "astro:content";
 import type { CollectionEntry } from "astro:content";
 import DateRail from "./DateRail.astro";
 import { Badge } from "@/components/ui/badge";
-import { Banner } from "@/components/ui/banner";
-import { components } from "@/components";
-import { untranslatedNotice, type Locale } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 interface Props {
@@ -23,8 +19,6 @@ interface Props {
   railEnd?: boolean;
   /** URL prefix for the entry permalink; `/zh/changelog` on Chinese pages. */
   hrefBase?: string;
-  /** Tree locale — picks the fallback notice and its counterpart URL. */
-  locale?: Locale;
 }
 
 const {
@@ -32,21 +26,10 @@ const {
   overflow = false,
   railEnd = false,
   hrefBase = "/changelog",
-  locale = "en",
 } = Astro.props;
-const { title, date, tags } = entry.data;
+const { title, description, date, tags } = entry.data;
 const href = withBase(`${hrefBase}/${entry.id}`, import.meta.env.BASE_URL);
-const { Content } = await render(entry);
 
-// An entry whose own language side is missing falls back to the other
-// language; flag it inline and link to the counterpart permalink.
-const counterpartBase = locale === "zh-Hans" ? "/changelog" : "/zh/changelog";
-const fallbackNotice = entry.data.untranslated
-  ? untranslatedNotice(
-      locale,
-      withBase(`${counterpartBase}/${entry.id}`, import.meta.env.BASE_URL),
-    )
-  : undefined;
 ---
 
 <article
@@ -77,10 +60,10 @@ const fallbackNotice = entry.data.untranslated
       )
     }
 
-    {fallbackNotice && <Banner variant="note" content={fallbackNotice} />}
-
-    <div class="docs-content nb-cl-prose mt-[1.125rem] max-w-none">
-      <Content components={components} />
-    </div>
+    {description && (
+      <p class="mt-[1.125rem] max-w-2xl text-pretty leading-relaxed text-muted-foreground">
+        {description}
+      </p>
+    )}
   </div>
 </article>

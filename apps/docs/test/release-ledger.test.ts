@@ -159,6 +159,29 @@ Published a testable prerelease.
     ]);
   });
 
+  it("accepts one dated Development summary without treating it as a release version", () => {
+    const ledger = `# DeepSeekBot Changelog
+
+## [Unreleased]
+
+Preparing the first public release.
+
+## [Development] - 2026-09-20
+
+Consolidated the implemented work before the first release.
+
+### Documentation
+
+- Published the contributor docs ([#26](https://github.com/BotHarness/BotHarness/issues/26)).
+`;
+
+    expect(validateReleaseLedger(ledger)).toEqual([]);
+    expect(parseReleaseLedger(ledger).releases.at(-1)).toMatchObject({
+      identity: "Development",
+      date: "2026-09-20",
+    });
+  });
+
   it("allows natural translation while enforcing bilingual release, section, and link parity", () => {
     const english = `# DeepSeekBot Changelog
 

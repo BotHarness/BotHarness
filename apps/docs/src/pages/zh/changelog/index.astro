@@ -1,8 +1,7 @@
 ---
 /**
- * `/zh/changelog` — Chinese changelog feed, from the `changelog-zh` tree
- * (`docs/changelog/*.zh.md`). Per-entry fallback banners mark entries that
- * fell back to the English source; links stay inside `/zh`.
+ * `/zh/changelog` — Chinese release feed generated from `CHANGELOG.zh.md`.
+ * Links stay inside `/zh`.
  */
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { getCollection } from "astro:content";
@@ -64,6 +63,5 @@ const description = "新功能、改进与修复。";
     pageSize={PAGE_SIZE}
     loadMoreHref="/zh/changelog/page/2"
     entryHrefBase="/zh/changelog"
-    locale="zh-Hans"
   />
 </ChangelogLayout>

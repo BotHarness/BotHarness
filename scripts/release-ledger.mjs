@@ -5,6 +5,8 @@ const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PROVENANCE_LINK = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:[?#].*)?$/;
 
+export const DEVELOPMENT_SUMMARY_IDENTITY = 'Development';
+
 export const RELEASE_LEDGER_SECTIONS = [
   'Added',
   'Changed',
@@ -141,6 +143,20 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
           source,
           code: 'unreleased-date',
           message: 'Unreleased must not have a release date.',
+        });
+      }
+    } else if (release.identity === DEVELOPMENT_SUMMARY_IDENTITY) {
+      if (!release.date) {
+        errors.push({
+          source,
+          code: 'missing-date',
+          message: 'Development summary needs an ISO cutoff date.',
+        });
+      } else if (!isCalendarDate(release.date)) {
+        errors.push({
+          source,
+          code: 'invalid-date',
+          message: `${release.date} is not a valid ISO calendar date.`,
         });
       }
     } else {
