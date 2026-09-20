@@ -1,0 +1,7 @@
+flowchart LR
+  Write["Session write"] --> Fact[("SessionEvent<br/>durable fact")]
+  Fact --> Notify["session/event<br/>live Cordis notification"]
+  Fact --> Projection["Projection<br/>可重建 read model"]
+  Fact --> Query["Session Query<br/>派生搜索索引"]
+  Window["Event window"] --> Assembly["Conversation Assembly"]
+  Transient["Transient live chunks"] --> Assembly

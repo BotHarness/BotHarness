@@ -72,6 +72,18 @@ const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '06-state', caption: 'Persistence, export, and restore boundaries' },
 ];
 
+const DSH_GUIDE_DIAGRAMS_ZH = [
+  { name: '07-dsh-runtime-composition', caption: 'Runtime composition 与 lifecycle ownership' },
+  { name: '08-dsh-session-facts', caption: 'Durable fact、live notification 与 derived view' },
+  { name: '09-dsh-host-client', caption: 'Host/client boundary' },
+];
+
+const DSH_GUIDE_DIAGRAMS_EN = [
+  { name: '07-dsh-runtime-composition', caption: 'Runtime composition and lifecycle ownership' },
+  { name: '08-dsh-session-facts', caption: 'Durable facts, live notifications, and derived views' },
+  { name: '09-dsh-host-client', caption: 'Host/client boundary' },
+];
+
 /**
  * Repo sources per docs page. Each variant carries its source file, the
  * frontmatter fallback copy, and (for the architecture page) the diagram
@@ -473,11 +485,14 @@ const SKILL_PAGES = [
       source: `${SKILL}SKILL.md`,
       title: 'The full guide',
       description: 'Foundation-first workflow, implementation branches and pitfalls',
+      lang: 'en',
+      diagrams: DSH_GUIDE_DIAGRAMS_EN,
     },
     zh: {
       source: `${SKILL}SKILL.zh.md`,
       title: '完整指南',
       description: 'Foundation-first 工作流、实现分支与常见陷阱',
+      diagrams: DSH_GUIDE_DIAGRAMS_ZH,
     },
   },
   {
@@ -548,9 +563,9 @@ const SKILL_LINKS = new Map([
   ['community-ui-patterns', 'patterns'],
 ]);
 
-function prepareSkill(body, tree) {
+function prepareSkill(body, tree, diagrams, lang) {
   const prefix = tree === 'docs-zh' ? '/zh' : '';
-  return prepare(body).replace(
+  return prepare(body, diagrams, lang).replace(
     /\]\((?:references\/)?([a-z-]+)(?:\.zh)?\.md\)/g,
     (match, sourceName) => {
       const slug = SKILL_LINKS.get(sourceName);
@@ -620,7 +635,7 @@ function syncSkill() {
           order: page.order,
           untranslated: false,
           extra: provenance,
-        }) + prepareSkill(body, tree),
+        }) + prepareSkill(body, tree, variant.diagrams, variant.lang),
       );
       process.stdout.write(`skill: ${variant.source} -> ${tree}/${page.slug}.mdx\n`);
     }

@@ -1,6 +1,6 @@
 # DSH 插件开发
 
-Skill v0.3.2 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`）验证。DSH 仍处于开发者预览阶段：涉及关键机制时，仍应以固定版本的上游源码和实际运行的 Host 为准。
+Skill v0.3.3 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`）验证。DSH 仍处于开发者预览阶段：涉及关键机制时，仍应以固定版本的上游源码和实际运行的 Host 为准。
 
 ## Foundation-first 工作流
 
@@ -17,13 +17,63 @@ Skill v0.3.2 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73
 
 ## 心智模型
 
-- **Plugin/Fiber ownership：**Plugin 是生命周期容器；它的 Fiber 拥有 Service、listener、Registration、effect 与 child Plugin。Fiber dispose 时，其 Registration 一并撤销。
-- **三层 composition：**Bundle/Profile/Patch 选择并配置 Plugin；Plugin tree 管理运行时生命周期；Registry 组合当前 live contribution。Profile 是 runtime composition，不是用户身份或 Session 隔离边界。
-- **Capability seam：**`Consumer → Service Definition → Provider`。Tool 是面向模型的 Consumer，不是 Service 的同义词。
-- **Visibility 与 resolution：**Agent Scope 决定哪些 Registration 可见；Service Isolation 决定一个 context subtree 解析到哪个 Service instance。两者相互独立。
-- **Fact 与 notification：**SessionEvent 是 durable、可重放的事实。`session/event` 是 SessionEvent commit 后的 process-local Cordis notification。其他 Cordis Event 用于协调 live work。
-- **Derived state：**Projection 把历史折叠为 read model。Session Query 是派生搜索索引。Conversation Assembly 把 event window 与 transient state 组合成 presentation node。
-- **应用的两个部分：**一个包可以同时包含 Host Cordis Plugin 与独立的浏览器 Cordis Plugin。运行时值通过 Service、Event、Typert 与 Slot 跨包传递，而不是通过 value import。
+- **Plugin/Fiber ownership：** Plugin 是生命周期容器；它的 Fiber 拥有 Service、listener、Registration、effect 与 child Plugin。Fiber dispose 时，其 Registration 一并撤销。
+- **三层 composition：** Bundle/Profile/Patch 选择并配置 Plugin；Plugin tree 管理运行时生命周期；Registry 组合当前 live contribution。Profile 是 runtime composition，不是用户身份或 Session 隔离边界。
+- **Capability seam：** `Consumer → Service Definition → Provider`。Tool 是面向模型的 Consumer，不是 Service 的同义词。
+- **Visibility 与 resolution：** Agent Scope 决定哪些 Registration 可见；Service Isolation 决定一个 context subtree 解析到哪个 Service instance。两者相互独立。
+- **Fact 与 notification：** SessionEvent 是 durable、可重放的事实。`session/event` 是 SessionEvent commit 后的 process-local Cordis notification。其他 Cordis Event 用于协调 live work。
+- **Derived state：** Projection 把历史折叠为 read model。Session Query 是派生搜索索引。Conversation Assembly 把 event window 与 transient state 组合成 presentation node。
+- **应用的两个部分：** 一个包可以同时包含 Host Cordis Plugin 与独立的浏览器 Cordis Plugin。运行时值通过 Service、Event、Typert 与 Slot 跨包传递，而不是通过 value import。
+
+### Runtime composition 与 lifecycle ownership
+
+```mermaid
+flowchart TB
+  Bundle["Bundle<br/>发布的 contribution"] --> Profile["Profile<br/>有序 runtime composition"]
+  Patch["Patch<br/>后续 configuration overlay"] --> Profile
+  Profile --> Tree["Plugin tree<br/>runtime composition"]
+  Tree --> Fiber["Fiber<br/>lifecycle owner"]
+  Fiber --> Services["Services"]
+  Fiber --> Listeners["Event listeners"]
+  Fiber --> Registrations["Registrations"]
+  Registrations --> Registries["Registries<br/>live composition"]
+```
+
+Profile 决定加载什么，Fiber 拥有什么 live contribution，Registry 决定当前可以使用哪些 contribution。
+
+### Durable fact 与 derived view
+
+```mermaid
+flowchart LR
+  Write["Session write"] --> Fact[("SessionEvent<br/>durable fact")]
+  Fact --> Notify["session/event<br/>live Cordis notification"]
+  Fact --> Projection["Projection<br/>可重建 read model"]
+  Fact --> Query["Session Query<br/>派生搜索索引"]
+  Window["Event window"] --> Assembly["Conversation Assembly"]
+  Transient["Transient live chunks"] --> Assembly
+```
+
+SessionEvent log 是 authority；notification、projection、index 与 presentation 都是 consumer 或 derived view。
+
+### Host/client boundary
+
+```mermaid
+flowchart TB
+  subgraph Host["DSH Host"]
+    direction LR
+    HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
+    Service --> Remote["TypertRemoteService"]
+    Remote --> Gateway["API Gateway<br/>唯一 /api interceptor"]
+  end
+  subgraph Browser["DSH Web Client"]
+    direction LR
+    ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Model --> Slots["Slots<br/>UI composition"]
+  end
+  Gateway <--> Model
+```
+
+浏览器是独立的 Cordis application：通过 Typert/API Gateway 跨越边界，再通过 Slots 组合 UI。
 
 ## 快速 seam 检查
 

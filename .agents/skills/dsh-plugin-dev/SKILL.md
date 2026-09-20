@@ -3,7 +3,7 @@ name: dsh-plugin-dev
 description: Design, build, or review DeepSeek Harness (DSH) and Cordis plugins. Use for Plugin/Fiber/Bundle/Profile/Patch composition; Service/Provider/Consumer capability seams; Registry/Registration/Agent Scope/Service Isolation; Cordis Events; SessionEvent/projections/persistence; execution worlds, jobs, storage; Typert/API Gateway; or Slots. Start with the canonical DSH/Cordis vocabulary and decision tree before reaching host, client, UI, or community implementation details.
 license: MIT
 metadata:
-  skillVersion: "0.3.2"
+  skillVersion: "0.3.3"
   verifiedAgainst: "dsh 0.1.6-alpha.2"
   upstreamSha: "ddefc45fbc7f8e46dd73185e68295696d1297887"
   verifiedAt: "2026-09-20"
@@ -12,7 +12,7 @@ metadata:
 
 # DSH plugin development
 
-Skill v0.3.2 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
+Skill v0.3.3 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
 
 ## Foundation-first workflow
 
@@ -36,6 +36,56 @@ Deep source reports live under `docs/research/`; the DSH/Cordis portions of the 
 - **Facts vs notification:** SessionEvent is durable, replayable truth. `session/event` is the process-local Cordis notification after commit. Other Cordis Events coordinate live work.
 - **Derived state:** Projection folds history into a read model. Session Query is a derived search index. Conversation Assembly combines an event window and transient state into presentation nodes.
 - **Two application halves:** a package may have a Host Cordis Plugin and a separate browser Cordis Plugin. Runtime values cross package boundaries through Services, Events, Typert, and Slots—not value imports.
+
+### Runtime composition and lifecycle ownership
+
+```mermaid
+flowchart TB
+  Bundle["Bundle<br/>published contribution"] --> Profile["Profile<br/>ordered runtime composition"]
+  Patch["Patch<br/>later configuration overlay"] --> Profile
+  Profile --> Tree["Plugin tree<br/>runtime composition"]
+  Tree --> Fiber["Fiber<br/>lifecycle owner"]
+  Fiber --> Services["Services"]
+  Fiber --> Listeners["Event listeners"]
+  Fiber --> Registrations["Registrations"]
+  Registrations --> Registries["Registries<br/>live composition"]
+```
+
+Profile decides what loads; Fiber owns what is live; Registry decides which contributions are currently available.
+
+### Durable facts and derived views
+
+```mermaid
+flowchart LR
+  Write["Session write"] --> Fact[("SessionEvent<br/>durable fact")]
+  Fact --> Notify["session/event<br/>live Cordis notification"]
+  Fact --> Projection["Projection<br/>rebuildable read model"]
+  Fact --> Query["Session Query<br/>derived search index"]
+  Window["Event window"] --> Assembly["Conversation Assembly"]
+  Transient["Transient live chunks"] --> Assembly
+```
+
+The SessionEvent log is authoritative; notifications, projections, indexes, and presentation are consumers or derived views.
+
+### Host/client boundary
+
+```mermaid
+flowchart TB
+  subgraph Host["DSH Host"]
+    direction LR
+    HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
+    Service --> Remote["TypertRemoteService"]
+    Remote --> Gateway["API Gateway<br/>sole /api interceptor"]
+  end
+  subgraph Browser["DSH Web Client"]
+    direction LR
+    ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Model --> Slots["Slots<br/>UI composition"]
+  end
+  Gateway <--> Model
+```
+
+The browser is a separate Cordis application: cross the boundary through Typert/API Gateway, then compose UI through Slots.
 
 ## Fast seam check
 
