@@ -36,6 +36,18 @@ Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` 
 - Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`). First-party skills live in the same tree and are ours to edit — `dsh-plugin-dev` (stable DSH/Cordis Context and Decision Tree), `dsh-dev`, and `dsh-ui` (all symlinked into `.claude/skills/`, not in the lock file).
 - Local docs dev: `pnpm dev` (portless from `apps/docs` → https://docs.botharness.localhost; no-sudo variant `PORTLESS_PORT=8788 PORTLESS_HTTPS=0`) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
 
+## Delivery workflow — tracer bullets
+
+For a feature that crosses layers, deliver a sequence of **tracer bullets**: the smallest production-shaped end-to-end slice that reaches the owning Host module, durable authority, adapter/RPC, Client surface, and a Human-testable runtime path. Validate that slice before expanding the next one. This follows the [tracer-bullet practice](https://www.aihero.dev/tracer-bullets): build one narrow vertical path, test it immediately, get feedback, then extend it.
+
+- Start from one observable user behavior, not a complete horizontal layer. Implement only the contracts and data needed to exercise that behavior through the real architecture.
+- Keep authority boundaries real in the first slice. A demo path still uses the owning deep module, canonical persistence, trusted adapter context, and existing Host↔Client seam; it does not introduce a temporary second store or lifecycle.
+- Include the smallest useful Host behavior and Client interaction together whenever the feature has both. A backend-only foundation or disconnected UI mock is preparatory work, not a completed tracer bullet.
+- End each slice with focused automated coverage plus a runnable verification path. For in-harness UI, provide a state the Human can open, operate, and judge; capture evidence when the issue or PR requires it.
+- Seek Human feedback after the first working slice before broadening sibling views, providers, variants, policies, or edge cases.
+- Order issues and sub-issues by runnable vertical slices. Open research or grilling only when an unresolved decision blocks the next slice; defer speculative branches that would only create more unvalidated tickets.
+- A slice is complete when one coherent behavior works end-to-end through production seams and its regression is observable automatically. Then start the next slice with a fresh, narrow scope.
+
 ## Agent skills
 
 ### Issue tracker
