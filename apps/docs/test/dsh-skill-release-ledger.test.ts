@@ -120,6 +120,7 @@ describe("DSH Skill release ledger", () => {
     expect(instructions).toContain(
       ".agents/skills/dsh-plugin-dev/CHANGELOG.md",
     );
-    expect(instructions).toContain("independent Skill SemVer");
+    expect(instructions).toMatch(/independent Skill\s+SemVer/);
+    expect(instructions).toContain("pnpm skill:changelog:check");
   });
 });
