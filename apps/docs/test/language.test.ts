@@ -178,11 +178,11 @@ describe('siteChrome', () => {
 
 describe('untranslatedNotice', () => {
   it('appends the counterpart link in the right language', () => {
-    expect(untranslatedNotice('en', '/zh/dev/spec/platform')).toBe(
-      'This page has not been translated yet. <a href="/zh/dev/spec/platform">View the Chinese version →</a>',
+    expect(untranslatedNotice('en', '/zh/dev/design/platform')).toBe(
+      'This page has not been translated yet. <a href="/zh/dev/design/platform">View the Chinese version →</a>',
     );
-    expect(untranslatedNotice('zh-Hans', '/dev/spec/platform')).toBe(
-      '本页暂未提供中文。 <a href="/dev/spec/platform">查看英文版 →</a>',
+    expect(untranslatedNotice('zh-Hans', '/dev/design/platform')).toBe(
+      '本页暂未提供中文。 <a href="/dev/design/platform">查看英文版 →</a>',
     );
   });
 });
@@ -218,7 +218,7 @@ describe('localizeSidebar', () => {
     {
       type: 'group',
       label: 'Dev',
-      children: [{ type: 'link', label: 'Architecture', href: '/dev/architecture' }],
+      children: [{ type: 'link', label: 'Architecture', href: '/dev/design/architecture' }],
     },
     {
       type: 'group',
@@ -248,7 +248,7 @@ describe('localizeSidebar', () => {
       {
         type: 'group',
         label: 'Dev',
-        children: [{ type: 'link', label: 'Architecture', href: '/zh/dev/architecture' }],
+        children: [{ type: 'link', label: 'Architecture', href: '/zh/dev/design/architecture' }],
       },
     ];
     expect(localizeSidebar(zhTree, 'zh-Hans')[0].label).toBe('开发与审计');

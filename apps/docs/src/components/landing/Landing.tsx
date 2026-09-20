@@ -43,7 +43,7 @@ const COPY = {
         description: "What BotHarness is and how to get started — overview and quickstart.",
       },
       {
-        href: "/dev/architecture",
+        href: "/dev",
         icon: "hugeicons:code",
         eyebrow: "For developers",
         title: "Development & Audit",
@@ -84,7 +84,7 @@ const COPY = {
         description: "BotHarness 是什么、怎么上手 —— 从总览与快速开始进入。",
       },
       {
-        href: "/dev/architecture",
+        href: "/dev",
         icon: "hugeicons:code",
         eyebrow: "作为开发者",
         title: "开发与审计",
@@ -166,7 +166,7 @@ export default function Landing({ recent, lang = "en" }: Props) {
           <GroupSeparator />
           <Button
             variant="outline"
-            render={<a href={`${prefix}/dev/architecture`} />}
+            render={<a href={`${prefix}/dev`} />}
           >
             {t.architecture}
           </Button>

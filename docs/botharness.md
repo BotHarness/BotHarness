@@ -64,7 +64,7 @@
 - **Session 级**（真实进度）：`thinking` / `working` / `waiting` / `blocked` / `done`（无活动即 `idle`）。
 - **PersonaBot 级**（聚合）：precedence `blocked > waiting > working > thinking > idle`；`done` 是 Session 事件，聚合态随即回 `idle`。
 - 语义：`waiting` = 等审批/等人；`blocked` = 失败或缺条件。
-- 事件：状态变化 + activity（工具/步骤摘要）以 PersonaBot id 发出，供 **Host 内**消费者（IM 适配器、其他插件）订阅；浏览器 roster 不直接订阅 `states.on`，经客户端桥读模型 + 刷新/轮询取状态（ADR-0023，`docs/client-bridge.md`）。Live2D 后置，消费更原始的模型/工具/响应信号（见 §8 开放项）。
+- 状态事实以 DSH Session lifecycle 为权威；BotHarness 只按 explicit ownership 聚合 PersonaBot 状态，并保存 DSH-derived activity / last-run projection。当前 `BotStateTracker` / `states.on(...)` 只是 core 进程内的过渡 callback seam，不是 Cordis Event、Client wire contract 或 durable authority；浏览器 roster 经客户端桥读模型 + 刷新/轮询取状态（ADR-0023，`docs/client-bridge.md`）。终态若向 IM adapter、插件或 UI 通知变化，也只能在 owning module 的事务提交后发布；当前尚未定义公开 Cordis event 契约。Live2D 后置，消费更原始的模型/工具/响应信号（见 §8 开放项）。
 
 ## 4. 记忆（文件优先）
 
