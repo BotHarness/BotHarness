@@ -18,21 +18,21 @@ _Avoid_: deleted bot, paused UI, purged bot
 The principle that a PersonaBot's continuity comes from its memory files, not from any session history.
 _Avoid_: session-scoped identity
 
-**Bot slug**:
-A PersonaBot's filesystem-safe identifier — kebab-case, unique per Host.
-_Avoid_: display name, title, handle
+**PersonaBot ID**:
+The stable, Host-generated identity of a PersonaBot. It is filesystem-safe and never entered, chosen, or used as the visible mention label by a Human.
+_Avoid_: Bot slug, display name, handle, username
 
 **Display name**:
-The human-facing name of a PersonaBot (`displayName`), distinct from its slug.
-_Avoid_: alias, nickname, username
+The Human-facing name of a PersonaBot and the primary label shown by an `@` picker. Names may repeat; the selected mention token retains the PersonaBot ID.
+_Avoid_: identifier, slug, username
 
-**Bot tag**:
-A single human-facing role label for a PersonaBot — its "job title" in lists and chat headers.
-_Avoid_: category, label, badge
+**Role badge**:
+One of zero or more Human-facing job or position labels shown beside a PersonaBot's display name. Role badges are descriptive only and never grant authority or identify the PersonaBot.
+_Avoid_: Bot tag, permission role, category
 
 **Bot description**:
-A one-line human-facing summary of what a PersonaBot is for.
-_Avoid_: bio, intro, slogan
+An optional, brief Human-authored self-introduction that explains who a PersonaBot is, what it does, or what it is good at.
+_Avoid_: Persona, role badge, system prompt
 
 **Persona**:
 The role definition — character, voice, and standing instructions — that shapes how a PersonaBot replies. Human-owned: the Agent may not rewrite it.
@@ -43,7 +43,7 @@ The activity model in two levels: a session carries the detail (`thinking`, `wor
 _Avoid_: status, mood, presence
 
 **Avatar**:
-A PersonaBot's visual representation; the default is a deterministic blobatar generated from the bot slug (DM Channel rows show the bot's avatar, group Channels show a glyph), and Live2D is a later renderer.
+A PersonaBot's visual representation; the default is a deterministic blobatar generated from its PersonaBot ID (DM Channel rows show the bot's avatar, group Channels show a glyph), and Live2D is a later renderer.
 _Avoid_: profile picture, skin
 
 ### Support and execution

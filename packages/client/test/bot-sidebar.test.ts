@@ -44,7 +44,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     },
     Modal: stub,
     StateDot: stub,
-    Tag: stub,
+    Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
     Tooltip: (props: { children?: unknown }) => (props.children ?? null) as never,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
@@ -70,7 +70,7 @@ const AT = '2026-09-19T00:00:00.000Z';
 const BOT: BotSummary = {
   slug: 'atlas',
   displayName: 'Atlas',
-  tag: '研究',
+  roles: ['研究', '写作'],
   description: '文件研究助手',
   aggregateState: 'working',
   workspaces: [],
@@ -256,6 +256,8 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('bh-contact');
     expect(markup).toContain('bh-body');
     expect(markup).toContain('Atlas');
+    expect(markup).toContain('研究');
+    expect(markup).toContain('写作');
     expect(markup).toContain('文件研究助手');
   });
 

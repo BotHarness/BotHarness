@@ -138,6 +138,19 @@ function matchesQuery(query: string, ...values: (string | undefined)[]): boolean
   return values.some((value) => (value ?? '').toLowerCase().includes(query));
 }
 
+function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | null {
+  if (roles.length === 0) return null;
+  return (
+    <span className="bh-role-badges">
+      {roles.map((role) => (
+        <Tag key={role} tone="neutral">
+          {role}
+        </Tag>
+      ))}
+    </span>
+  );
+}
+
 function BotRow({
   bot,
   selected,
@@ -158,7 +171,7 @@ function BotRow({
       <span className="bh-body">
         <span className="bh-top">
           <span className="bh-name">{bot.displayName}</span>
-          {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+          <RoleBadges roles={bot.roles} />
           {needsYou(botState) ? <span className="bh-unread" title="需要你" /> : null}
         </span>
         <span className="bh-msg">{bot.description ?? STATE_LABELS[botState]}</span>
@@ -167,7 +180,6 @@ function BotRow({
     </button>
   );
 }
-
 function ChannelRow({
   channel,
   selected,
@@ -296,9 +308,7 @@ export function BotSidebar({
   }, [searchOpen, state.query]);
 
   const query = state.query.trim().toLowerCase();
-  const bots = state.bots.filter(
-    (bot) => matchesQuery(query, bot.displayName, bot.tag) || bot.slug.includes(query),
-  );
+  const bots = state.bots.filter((bot) => matchesQuery(query, bot.displayName, ...bot.roles));
   const groupChannels = state.channels.filter((channel) => channel.type === 'group');
   const channels = groupChannels.filter((channel) => matchesQuery(query, channel.name));
   const pinned = new Set(state.roster.pins);
@@ -786,7 +796,7 @@ export function BotSidebar({
               >
                 <Blobatar seed={bot.slug} size={54} />
                 <span className="bh-name">{bot.displayName}</span>
-                {bot.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+                <RoleBadges roles={bot.roles} />
               </button>
             );
           })}

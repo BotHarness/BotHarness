@@ -350,10 +350,29 @@ button:has(.bh-panel-glyph) {
   min-width: 0;
 }
 .bh-contact .bh-name {
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bh-role-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.bh-role-badges > * {
+  flex: 0 0 auto;
+}
+.bh-pinned .bh-role-badges {
+  max-width: 100%;
+  justify-content: center;
+}
+.bh-topbar .bh-role-badges {
+  flex-wrap: wrap;
+  overflow: visible;
 }
 .bh-contact .bh-msg {
   color: var(--dsw-alias-label-tertiary);
@@ -707,23 +726,42 @@ button:has(.bh-panel-glyph) {
   font-size: 12px;
   line-height: 18px;
 }
-.bh-personabot-textarea {
-  box-sizing: border-box;
-  width: 100%;
-  min-height: 120px;
-  padding: 10px 14px;
-  border: 0.5px solid var(--dsw-alias-border-l4);
-  border-radius: 12px;
-  outline: none;
-  resize: vertical;
-  background: transparent;
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  font-size: 14px;
-  line-height: 22px;
+.bh-role-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
 }
-.bh-personabot-textarea::placeholder,
-.bh-personabot-textarea:disabled {
+.bh-role-editor-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.bh-role-edit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.bh-role-edit-badge button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+.bh-role-edit-badge button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-role-edit-badge button:disabled {
+  cursor: default;
   color: var(--dsw-alias-label-dimmed);
 }
 

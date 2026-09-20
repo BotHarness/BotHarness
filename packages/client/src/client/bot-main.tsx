@@ -240,7 +240,15 @@ function ConversationView({
               </span>
             )}
             <span className="bh-title">{title}</span>
-            {bot?.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+            {bot === undefined || bot.roles.length === 0 ? null : (
+              <span className="bh-role-badges">
+                {bot.roles.map((role) => (
+                  <Tag key={role} tone="neutral">
+                    {role}
+                  </Tag>
+                ))}
+              </span>
+            )}
             <Tag tone="quiet" className="bh-pill">
               {channel?.type === 'group' ? '群聊' : '私聊'}
             </Tag>

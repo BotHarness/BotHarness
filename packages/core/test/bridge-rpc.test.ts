@@ -35,6 +35,7 @@ function setup() {
     channels,
     sessions,
     roster: createRosterStore(),
+    createBotId: () => 'ada',
   });
   const ctx = new Context();
   const service = registerBridge(ctx, methods);
@@ -92,10 +93,9 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.list)).toEqual(['query']);
     expect(parameterNames(service.get)).toEqual(['slug']);
     expect(parameterNames(service.create)).toEqual([
-      'slug',
       'displayName',
+      'roles',
       'persona',
-      'tag',
       'description',
       'model',
       'preset',
@@ -124,8 +124,8 @@ describe('bridge typert service', () => {
   it('dispatches named arguments into the read model', async () => {
     const { service, registry } = setup();
 
-    const created = service.create('ada', 'Ada', '# Ada\n', '研究');
-    expect(created.bot).toMatchObject({ slug: 'ada', displayName: 'Ada', tag: '研究' });
+    const created = service.create('Ada', ['研究'], '# Ada\n');
+    expect(created.bot).toMatchObject({ slug: 'ada', displayName: 'Ada', roles: ['研究'] });
     expect(registry.get('ada')).toBeDefined();
     expect(service.get('ada').bot.slug).toBe('ada');
     expect(service.list('ada').bots.map((bot) => bot.slug)).toEqual(['ada']);

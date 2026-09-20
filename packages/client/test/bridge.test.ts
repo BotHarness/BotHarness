@@ -25,7 +25,7 @@ function bridgeCall(handlers: Record<string, Handler>): BridgeCall {
 const BOT = {
   slug: 'ada',
   displayName: 'Ada',
-  tag: '研究',
+  roles: ['研究'],
   aggregateState: 'working',
   workspaces: ['/srv/ada'],
   createdAt: '2026-09-19T00:00:00.000Z',
@@ -87,8 +87,12 @@ describe('bridge parsers', () => {
       displayName: 'New Bot',
       aggregateState: 'idle',
       workspaces: [],
+      roles: [],
       createdAt: '',
     });
+    expect(
+      parseBotSummary({ slug: 'legacy', displayName: 'Legacy', tag: '旧岗位' })?.roles,
+    ).toEqual(['旧岗位']);
     expect(parseBotSummary({ slug: '', displayName: 'Broken' })).toBeUndefined();
   });
 
@@ -242,8 +246,10 @@ describe('bridge actions', () => {
         creates.push(payload);
         return {
           bot: {
-            slug: payload['slug'],
+            slug: 'bot-generated',
             displayName: payload['displayName'],
+            roles: payload['roles'],
+            description: payload['description'],
             aggregateState: 'idle',
             workspaces: [],
             createdAt: '2026-09-20T00:00:00.000Z',
@@ -254,23 +260,28 @@ describe('bridge actions', () => {
     await actions.load();
 
     const created = await actions.createBot({
-      displayName: 'Research Assistant',
-      slug: 'research-assistant',
-      persona: 'Be rigorous.',
+      displayName: '小研',
+      roles: ['研究员', '写作'],
+      description: '负责资料研究与写作。',
     });
 
     expect(creates).toEqual([
       {
-        displayName: 'Research Assistant',
-        slug: 'research-assistant',
-        persona: 'Be rigorous.',
+        displayName: '小研',
+        roles: ['研究员', '写作'],
+        description: '负责资料研究与写作。',
       },
     ]);
-    expect(created.slug).toBe('research-assistant');
-    expect(clientStore.getSnapshot().bots[0]).toMatchObject({ slug: 'research-assistant' });
+    expect(created.slug).toBe('bot-generated');
+    expect(clientStore.getSnapshot().bots[0]).toMatchObject({
+      slug: 'bot-generated',
+      displayName: '小研',
+      roles: ['研究员', '写作'],
+      description: '负责资料研究与写作。',
+    });
     expect(clientStore.getSnapshot().selection).toEqual({
       kind: 'bot',
-      slug: 'research-assistant',
+      slug: 'bot-generated',
     });
     expect(clientStore.getSnapshot().conversation.status).toBe('idle');
   });

@@ -44,8 +44,8 @@ export type BridgeCall = (
 
 export interface CreatePersonaBotInput {
   displayName: string;
-  slug: string;
-  persona: string;
+  roles: string[];
+  description?: string;
 }
 
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
@@ -118,7 +118,8 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
   }
   const aggregateState = record['aggregateState'];
   const createdAt = record['createdAt'];
-  const tag = record['tag'];
+  const roles = stringArray(record['roles']);
+  const legacyTag = record['tag'];
   const description = record['description'];
   const avatar = record['avatar'];
   return {
@@ -127,7 +128,7 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
     aggregateState: typeof aggregateState === 'string' ? aggregateState : 'idle',
     workspaces: stringArray(record['workspaces']),
     createdAt: typeof createdAt === 'string' ? createdAt : '',
-    ...(typeof tag === 'string' ? { tag } : {}),
+    roles: roles.length > 0 ? roles : typeof legacyTag === 'string' ? [legacyTag] : [],
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof avatar === 'string' ? { avatar } : {}),
   };

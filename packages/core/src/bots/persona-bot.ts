@@ -1,6 +1,8 @@
 export interface PersonaBotRecord {
   slug: string;
   displayName: string;
+  roles?: string[];
+  /** Legacy v1.6 field; read for migration but never written by new code. */
   tag?: string;
   description?: string;
   avatar?: string;
@@ -16,7 +18,7 @@ export interface CreatePersonaBotInput {
   slug: string;
   displayName: string;
   persona?: string;
-  tag?: string;
+  roles?: string[];
   description?: string;
   avatar?: string;
   model?: string;
@@ -31,7 +33,7 @@ export type CreatePersonaBotResult =
 
 export interface PersonaBotPatch {
   displayName?: string;
-  tag?: string;
+  roles?: string[];
   description?: string;
   avatar?: string;
   model?: string;
@@ -56,6 +58,10 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   if (record['paused'] !== undefined && typeof record['paused'] !== 'boolean') return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;
+  if (record['roles'] !== undefined) {
+    if (!Array.isArray(record['roles'])) return false;
+    if (!record['roles'].every((entry) => typeof entry === 'string')) return false;
+  }
   for (const key of ['tag', 'description', 'avatar', 'model', 'preset', 'memoryDir'] as const) {
     const optional = record[key];
     if (optional !== undefined && typeof optional !== 'string') return false;

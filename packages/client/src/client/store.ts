@@ -8,7 +8,7 @@ export type ClientStatus = 'idle' | 'loading' | 'ready' | 'error';
 export interface BotSummary {
   slug: string;
   displayName: string;
-  tag?: string;
+  roles: string[];
   description?: string;
   avatar?: string;
   aggregateState: string;

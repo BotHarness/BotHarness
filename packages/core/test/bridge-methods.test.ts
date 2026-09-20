@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -21,13 +21,14 @@ function tickingNow(): () => Date {
   };
 }
 
-function setup(sessionSummaries: SessionSummary[] = []) {
+function setup(sessionSummaries: SessionSummary[] = [], botIds: string[] = ['ada']) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
   const states = createBotStateTracker();
   const channels = createChannelStore({ rootDir: join(root, 'channels'), now: tickingNow() });
   const sessions: BotSessionSource = { list: () => sessionSummaries };
+  let botIdIndex = 0;
   return {
     root,
     registry,
@@ -39,6 +40,7 @@ function setup(sessionSummaries: SessionSummary[] = []) {
       channels,
       sessions,
       roster: createRosterStore(),
+      createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
     }),
   };
 }
@@ -53,7 +55,7 @@ describe('bridge methods', () => {
     registry.create({
       slug: 'ada',
       displayName: 'Ada',
-      tag: '研究',
+      roles: ['研究'],
       description: '数学与计算',
       workspaces: ['/tmp/ada'],
     });
@@ -68,7 +70,7 @@ describe('bridge methods', () => {
           {
             slug: 'ada',
             displayName: 'Ada',
-            tag: '研究',
+            roles: ['研究'],
             description: '数学与计算',
             aggregateState: 'working',
             workspaces: ['/tmp/ada'],
@@ -79,7 +81,7 @@ describe('bridge methods', () => {
     });
   });
 
-  it('omits tag and description when the record has none', () => {
+  it('returns empty roles and omits description when the record has none', () => {
     const { registry, methods } = setup();
     registry.create({ slug: 'plain', displayName: 'Plain' });
 
@@ -92,6 +94,7 @@ describe('bridge methods', () => {
           {
             slug: 'plain',
             displayName: 'Plain',
+            roles: [],
             aggregateState: 'idle',
             workspaces: [],
             createdAt: expect.any(String),
@@ -101,28 +104,35 @@ describe('bridge methods', () => {
     });
   });
 
-  it('carries tag and description into the detail read model', () => {
+  it('carries role badges and description into the detail read model', () => {
     const { registry, methods } = setup();
-    registry.create({ slug: 'ada', displayName: 'Ada', tag: '研究', description: '数学与计算' });
+    registry.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: ['研究'],
+      description: '数学与计算',
+    });
 
     const result = methods.get({ slug: 'ada' });
 
     expect(result.ok && result.value.bot).toMatchObject({
-      tag: '研究',
+      roles: ['研究'],
       description: '数学与计算',
     });
   });
 
-  it('filters by slug or display name', () => {
+  it('filters by display name or role badge, never by internal ID', () => {
     const { registry, methods } = setup();
-    registry.create({ slug: 'ada', displayName: 'Ada Lovelace' });
-    registry.create({ slug: 'bob', displayName: 'Bob' });
+    registry.create({ slug: 'hidden-ada', displayName: 'Ada Lovelace', roles: ['研究员'] });
+    registry.create({ slug: 'hidden-bob', displayName: 'Bob' });
 
     const byName = methods.list({ query: 'love' });
-    const bySlug = methods.list({ query: 'BOB' });
+    const byRole = methods.list({ query: '研究' });
+    const byInternalId = methods.list({ query: 'hidden-bob' });
 
-    expect(byName.ok && byName.value.bots.map((bot) => bot.slug)).toEqual(['ada']);
-    expect(bySlug.ok && bySlug.value.bots.map((bot) => bot.slug)).toEqual(['bob']);
+    expect(byName.ok && byName.value.bots.map((bot) => bot.slug)).toEqual(['hidden-ada']);
+    expect(byRole.ok && byRole.value.bots.map((bot) => bot.slug)).toEqual(['hidden-ada']);
+    expect(byInternalId.ok && byInternalId.value.bots).toEqual([]);
   });
 
   it('returns a structured not-found failure for unknown slugs', () => {
@@ -141,7 +151,7 @@ describe('bridge methods', () => {
       slug: 'ada',
       displayName: 'Ada',
       persona: '# Ada\n\nBe kind.\n',
-      tag: '研究',
+      roles: ['研究'],
       description: '数学与计算',
       model: 'deepseek-chat',
       preset: 'standard',
@@ -155,7 +165,7 @@ describe('bridge methods', () => {
         bot: {
           slug: 'ada',
           displayName: 'Ada',
-          tag: '研究',
+          roles: ['研究'],
           description: '数学与计算',
           avatar: 'blue',
           aggregateState: 'idle',
@@ -172,7 +182,7 @@ describe('bridge methods', () => {
     ).toMatchObject({
       slug: 'ada',
       avatar: 'blue',
-      tag: '研究',
+      roles: ['研究'],
       description: '数学与计算',
     });
     expect(readFileSync(join(root, 'ada', 'memory', 'PERSONA.md'), 'utf8')).toBe(
@@ -181,40 +191,46 @@ describe('bridge methods', () => {
   });
 
   it('writes a placeholder PERSONA.md when create has no persona', () => {
-    const { root, methods } = setup();
+    const { root, methods } = setup([], ['plain']);
 
-    expect(methods.create({ slug: 'plain', displayName: 'Plain' }).ok).toBe(true);
+    expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
     expect(readFileSync(join(root, 'plain', 'memory', 'PERSONA.md'), 'utf8')).toBe('# Plain\n');
   });
 
-  it('reports create failures with stable error codes', () => {
-    const { methods } = setup();
+  it('owns ID generation and reports malformed Human-facing fields', () => {
+    const { root, methods } = setup([], ['bot-generated', 'bot-generated']);
 
     expect(methods.create({})).toEqual({
       ok: false,
-      error: { code: 'invalid-input', message: 'slug is required' },
+      error: { code: 'invalid-input', message: 'displayName is required' },
     });
-    expect(methods.create({ slug: 'ada' })).toEqual({
+    expect(methods.create({ displayName: 42 })).toEqual({
       ok: false,
       error: { code: 'invalid-input', message: 'displayName is required' },
     });
-    expect(methods.create({ slug: 'Ada', displayName: 'Ada' })).toEqual({
-      ok: false,
-      error: { code: 'invalid-slug', message: 'invalid slug: Ada' },
-    });
-    expect(methods.create({ slug: 'ada', displayName: 42 })).toEqual({
-      ok: false,
-      error: { code: 'invalid-input', message: 'displayName is required' },
-    });
-    expect(methods.create({ slug: 'ada', displayName: 'Ada', tag: 7 })).toEqual({
+    expect(methods.create({ displayName: 'Ada', roles: '研究员' })).toEqual({
       ok: false,
       error: { code: 'invalid-input', message: 'invalid create payload' },
     });
-    expect(methods.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
-    expect(methods.create({ slug: 'ada', displayName: 'Ada again' })).toEqual({
+
+    const created = methods.create({ slug: 'caller-choice', displayName: 'Ada' });
+    expect(created.ok && created.value.bot.slug).toBe('bot-generated');
+    expect(existsSync(join(root, 'bot-generated', 'bot.json'))).toBe(true);
+    expect(existsSync(join(root, 'caller-choice', 'bot.json'))).toBe(false);
+    expect(methods.create({ displayName: '同名 Ada' })).toEqual({
       ok: false,
-      error: { code: 'duplicate', message: 'PersonaBot already exists: ada' },
+      error: { code: 'duplicate', message: 'PersonaBot already exists: bot-generated' },
     });
+  });
+
+  it('allows duplicate display names because mention identity stays on the generated ID', () => {
+    const { methods } = setup([], ['bot-one', 'bot-two']);
+
+    const first = methods.create({ displayName: '小研' });
+    const second = methods.create({ displayName: '小研' });
+
+    expect(first.ok && first.value.bot.slug).toBe('bot-one');
+    expect(second.ok && second.value.bot.slug).toBe('bot-two');
   });
 
   it('updates editable fields and leaves persona untouched', () => {
@@ -223,14 +239,14 @@ describe('bridge methods', () => {
       slug: 'ada',
       displayName: 'Ada',
       persona: '# Ada\n\nOriginal.\n',
-      tag: 'old',
+      roles: ['old'],
     });
 
     const result = methods.update({
       slug: 'ada',
       patch: {
         displayName: 'Ada Lovelace',
-        tag: '   ',
+        roles: ['   '],
         description: '数学与计算',
         model: 'deepseek-chat',
         preset: 'standard',
@@ -246,6 +262,7 @@ describe('bridge methods', () => {
         bot: {
           slug: 'ada',
           displayName: 'Ada Lovelace',
+          roles: [],
           description: '数学与计算',
           avatar: 'green',
           aggregateState: 'idle',
@@ -266,7 +283,7 @@ describe('bridge methods', () => {
     const { methods } = setup();
     methods.create({ slug: 'ada', displayName: 'Ada' });
 
-    expect(methods.update({ slug: 'missing', patch: { tag: 'x' } })).toEqual({
+    expect(methods.update({ slug: 'missing', patch: { roles: ['x'] } })).toEqual({
       ok: false,
       error: { code: 'not-found', message: 'unknown PersonaBot: missing' },
     });
@@ -362,7 +379,7 @@ describe('bridge methods', () => {
     });
     expect(methods.channelCreate({ name: 'Team', members: 'ada' })).toEqual({
       ok: false,
-      error: { code: 'invalid-input', message: 'members must be an array of bot slugs' },
+      error: { code: 'invalid-input', message: 'members must be an array of PersonaBot IDs' },
     });
     expect(methods.channelMessages({})).toEqual({
       ok: false,

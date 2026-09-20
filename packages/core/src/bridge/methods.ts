@@ -34,7 +34,7 @@ import type {
 export interface PersonaBotSummary {
   slug: string;
   displayName: string;
-  tag?: string;
+  roles: string[];
   description?: string;
   avatar?: string;
   paused?: boolean;
@@ -86,6 +86,7 @@ export interface BridgeMethodsDeps {
   channels: ChannelStore;
   sessions: BotSessionSource;
   roster: RosterStore;
+  createBotId?: () => string;
 }
 
 type ParsedField<T> = { ok: true; value: T | undefined } | { ok: false };
@@ -112,14 +113,19 @@ function parseOptional(source: Record<string, unknown>, key: string): ParsedFiel
   return typeof value === 'string' ? { ok: true, value } : { ok: false };
 }
 
-function parseWorkspaces(source: Record<string, unknown>): ParsedField<string[]> {
-  const value = source['workspaces'];
+function parseStringArray(source: Record<string, unknown>, key: string): ParsedField<string[]> {
+  const value = source[key];
   if (value === undefined) return { ok: true, value: undefined };
   if (!Array.isArray(value) || !value.every((entry) => typeof entry === 'string')) {
     return { ok: false };
   }
   return { ok: true, value: [...value] };
 }
+
+const parseRoles = (source: Record<string, unknown>): ParsedField<string[]> =>
+  parseStringArray(source, 'roles');
+const parseWorkspaces = (source: Record<string, unknown>): ParsedField<string[]> =>
+  parseStringArray(source, 'workspaces');
 
 function invalidInput(message: string): BridgeResult<never> {
   return { ok: false, error: { code: 'invalid-input', message } };
@@ -190,7 +196,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     aggregateState: snapshot.state,
     workspaces: [...record.workspaces],
     createdAt: record.createdAt,
-    ...(record.tag === undefined ? {} : { tag: record.tag }),
+    roles: record.roles ?? (record.tag === undefined ? [] : [record.tag]),
     ...(record.description === undefined ? {} : { description: record.description }),
     ...(record.avatar === undefined ? {} : { avatar: record.avatar }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
@@ -208,6 +214,7 @@ function detail(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBo
 }
 
 export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
+  const createBotId = deps.createBotId ?? (() => 'bot-' + randomUUID().replaceAll('-', ''));
   const detailOf = (record: PersonaBotRecord): { bot: PersonaBotDetail } => ({
     bot: detail(record, deps.states.snapshot(record.slug)),
   });
@@ -240,9 +247,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .list()
         .filter((record) => {
           if (query === undefined || query.length === 0) return true;
+          const roles = record.roles ?? (record.tag === undefined ? [] : [record.tag]);
           return (
-            record.slug.toLowerCase().includes(query) ||
-            record.displayName.toLowerCase().includes(query)
+            record.displayName.toLowerCase().includes(query) ||
+            roles.some((role) => role.toLowerCase().includes(query))
           );
         })
         .map((record) => summarize(record, deps.states.snapshot(record.slug)));
@@ -259,12 +267,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     create(payload) {
       const source = asObject(payload);
-      const slug = asSlug(payload);
-      if (slug === undefined) return invalidInput('slug is required');
       const displayName = source['displayName'];
-      if (typeof displayName !== 'string') return invalidInput('displayName is required');
+      if (typeof displayName !== 'string' || displayName.trim().length === 0) {
+        return invalidInput('displayName is required');
+      }
       const persona = parseOptional(source, 'persona');
-      const tag = parseOptional(source, 'tag');
+      const roles = parseRoles(source);
       const description = parseOptional(source, 'description');
       const model = parseOptional(source, 'model');
       const preset = parseOptional(source, 'preset');
@@ -272,7 +280,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const avatarSeed = parseOptional(source, 'avatarSeed');
       if (
         !persona.ok ||
-        !tag.ok ||
+        !roles.ok ||
         !description.ok ||
         !model.ok ||
         !preset.ok ||
@@ -281,11 +289,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       ) {
         return invalidInput('invalid create payload');
       }
+      const slug = createBotId();
       const result = deps.registry.create({
         slug,
         displayName,
         ...(persona.value === undefined ? {} : { persona: persona.value }),
-        ...(tag.value === undefined ? {} : { tag: tag.value }),
+        ...(roles.value === undefined ? {} : { roles: roles.value }),
         ...(description.value === undefined ? {} : { description: description.value }),
         ...(model.value === undefined ? {} : { model: model.value }),
         ...(preset.value === undefined ? {} : { preset: preset.value }),
@@ -304,7 +313,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const source = patchOrUndefined as Record<string, unknown>;
       const displayName = parseOptional(source, 'displayName');
-      const tag = parseOptional(source, 'tag');
+      const roles = parseRoles(source);
       const description = parseOptional(source, 'description');
       const model = parseOptional(source, 'model');
       const preset = parseOptional(source, 'preset');
@@ -312,7 +321,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const avatarSeed = parseOptional(source, 'avatarSeed');
       if (
         !displayName.ok ||
-        !tag.ok ||
+        !roles.ok ||
         !description.ok ||
         !model.ok ||
         !preset.ok ||
@@ -323,7 +332,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const patch: PersonaBotPatch = {
         ...(displayName.value === undefined ? {} : { displayName: displayName.value }),
-        ...(tag.value === undefined ? {} : { tag: tag.value }),
+        ...(roles.value === undefined ? {} : { roles: roles.value }),
         ...(description.value === undefined ? {} : { description: description.value }),
         ...(model.value === undefined ? {} : { model: model.value }),
         ...(preset.value === undefined ? {} : { preset: preset.value }),
@@ -367,7 +376,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         !Array.isArray(members) ||
         !members.every((entry) => typeof entry === 'string' && entry.trim().length > 0)
       ) {
-        return invalidInput('members must be an array of bot slugs');
+        return invalidInput('members must be an array of PersonaBot IDs');
       }
       const channel = deps.channels.createGroup({ name, members: [...members] });
       return { ok: true, value: { channel } };

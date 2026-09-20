@@ -97,10 +97,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
 
   create(
-    slug: string,
     displayName: string,
+    roles?: string[],
     persona?: string,
-    tag?: string,
     description?: string,
     model?: string,
     preset?: string,
@@ -109,10 +108,9 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): { bot: PersonaBotDetail } {
     return unwrap(
       this.methods.create({
-        slug,
         displayName,
+        roles,
         persona,
-        tag,
         description,
         model,
         preset,

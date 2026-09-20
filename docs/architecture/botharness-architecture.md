@@ -93,7 +93,7 @@ flowchart TB
 
 | Module      | Owns                                                                                                    | Does not own                          |
 | ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| PersonaBot  | identity、lifecycle、explicit Session ownership                                                         | DSH Session lifecycle、Memory 内容    |
+| PersonaBot  | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容    |
 | Memory      | `PERSONA.md`、Memory files、context assembly contract                                                   | Inbox 内容、自动蒸馏                  |
 | Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
 | BotWork     | Work Directory、Work Request/Delivery Intent、capacity admission、report/lifecycle routing              | DSH transcript、Subagent runtime      |

@@ -2,14 +2,14 @@
 
 > **历史工作草稿，不再是设计权威，也不发布到文档站。** 当前产品术语以 `CONTEXT.md` 为准，整合后的目标架构以 `docs/architecture/botharness-architecture.md` 为准，取舍与理由以 `docs/adr/` 为准。
 
-| 项       | 内容                                                                                                                                                                                                       |
-| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本     | v1.15                                                                                                                                                                                                      |
-| 日期     | 2026-09-20                                                                                                                                                                                                 |
-| 状态     | Archived working draft                                                                                                                                                                                     |
-| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                                   |
-| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                                             |
-| 决策记录 | `docs/adr/`（v1.15：#56 / ADR-0031/0034 落地混合 `topOrder`、稳定拖拽布局与松散 Channel；v1.14：0035–0045 确立 Session ownership、Messaging、统一 operational database、可移植性与 BotWork control plane） |
+| 项       | 内容                                                                                                                                                                                                                                                                                   |
+| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 版本     | v1.16                                                                                                                                                                                                                                                                                  |
+| 日期     | 2026-09-20                                                                                                                                                                                                                                                                             |
+| 状态     | Archived working draft                                                                                                                                                                                                                                                                 |
+| 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                                                                                                               |
+| 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                                                                                                                         |
+| 决策记录 | `docs/adr/`（v1.16：ADR-0046 确立 Host-owned PersonaBot ID、名称式 mention 与多岗位徽章；v1.15：#56 / ADR-0031/0034 落地混合 `topOrder`、稳定拖拽布局与松散 Channel；v1.14：0035–0045 确立 Session ownership、Messaging、统一 operational database、可移植性与 BotWork control plane） |
 
 ## 1. 定位与缺口
 
@@ -38,8 +38,8 @@
 
 目录约定：
 
-- `$DSH_HOME/botharness/bots/<slug>/bot.json`：机器元数据（slug、displayName、tag、description、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
-- `PERSONA.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<slug>/memory/`）。
+- `$DSH_HOME/botharness/bots/<personabot-id>/bot.json`：机器元数据（Host-owned PersonaBot ID；当前 JSON 键为 `slug`、`displayName`、`roles[]`、description、avatar、模型/preset、workspaces、bindings、`capabilities.tools.allow`）。
+- `PERSONA.md` / `MEMORY.md` / 主题文件随**用户配置的记忆目录**走（默认在 `bots/<personabot-id>/memory/`）。
 
 ### 2.1 持久化地图（ADR-0034/0041/0042）
 
@@ -49,15 +49,15 @@
 
 当前 roster global 槽为 `{ pins, sectionOrder, topOrder? }`；`topOrder` 混排 section block 与松散 Channel，缺省表示 pre-flat 域并由客户端一次性迁移。绝对顶层位置通过第八个桥方法 `topReorder` 写入，Host 在 assign/create/remove/reorder 时维持“section 成员不能同时有 loose entry”的单一归属不变量（ADR-0034）。
 
-| 类别                                                                                                                      | 权威位置                                                  | 说明                                                                                      |
-| ------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| PersonaBot operational identity、Session ownership、roster、Messaging、Attention、Outbox、Work Directory、export metadata | `botharness.db`                                           | local ACID 权威；post-commit 才通知 Agent/UI；浏览器不能直连                              |
-| Persona / Memory                                                                                                          | `$DSH_HOME/botharness/bots/<slug>/memory/` 或用户配置目录 | 人类可读文件权威；git history 可选实现，不把内容复制进 DB                                 |
-| Attachment / Soul bytes                                                                                                   | BotHarness content-addressed files                        | DB 只存 identity、metadata 与 refs；共享内容只保存一次                                    |
-| DSH Session transcript / execution                                                                                        | DSH SessionPersistence                                    | BotHarness 只保存 ownership、DSH-derived activity/last-run projection 和 semantic reports |
-| Credentials / DSH settings                                                                                                | DSH credentials/settings services                         | 不复制进 DB、export 或 backup；仅保留非秘密 dependency/account refs                       |
-| UI sort preferences                                                                                                       | `ui-bot-mode` DSH settings                                | sidebar 与 General 设置共用；属于 DSH-native preference                                   |
-| 纯瞬态 UI                                                                                                                 | browser state / localStorage                              | 折叠、选中、临时输入等；不成为领域事实                                                    |
+| 类别                                                                                                                      | 权威位置                                                           | 说明                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ | ----------------------------------------------------------------------------------------- |
+| PersonaBot operational identity、Session ownership、roster、Messaging、Attention、Outbox、Work Directory、export metadata | `botharness.db`                                                    | local ACID 权威；post-commit 才通知 Agent/UI；浏览器不能直连                              |
+| Persona / Memory                                                                                                          | `$DSH_HOME/botharness/bots/<personabot-id>/memory/` 或用户配置目录 | 人类可读文件权威；git history 可选实现，不把内容复制进 DB                                 |
+| Attachment / Soul bytes                                                                                                   | BotHarness content-addressed files                                 | DB 只存 identity、metadata 与 refs；共享内容只保存一次                                    |
+| DSH Session transcript / execution                                                                                        | DSH SessionPersistence                                             | BotHarness 只保存 ownership、DSH-derived activity/last-run projection 和 semantic reports |
+| Credentials / DSH settings                                                                                                | DSH credentials/settings services                                  | 不复制进 DB、export 或 backup；仅保留非秘密 dependency/account refs                       |
+| UI sort preferences                                                                                                       | `ui-bot-mode` DSH settings                                         | sidebar 与 General 设置共用；属于 DSH-native preference                                   |
+| 纯瞬态 UI                                                                                                                 | browser state / localStorage                                       | 折叠、选中、临时输入等；不成为领域事实                                                    |
 
 - 旧 `bot.json`、Channel NDJSON、storage-domain operational records 只作为 forward migration 输入；#80 成功迁移对应数据后不再形成双写或第二权威。
 - 跨模块原子流程只能调用 owning module 提供的 transaction participant；不得让 UI、provider adapter 或插件直接操作 tables。
@@ -73,7 +73,7 @@
 ## 4. 记忆（文件优先）
 
 ```text
-<memory-dir>/                  # 用户可配；默认 $DSH_HOME/botharness/bots/<slug>/memory/
+<memory-dir>/                  # 用户可配；默认 $DSH_HOME/botharness/bots/<personabot-id>/memory/
 ├── PERSONA.md                 # 人格（人属；Agent 禁写，ADR-0014）
 ├── MEMORY.md                  # 生成的索引（树 + 摘要），不手改
 ├── customers/                 # 客户档案（北极星场景）
@@ -119,10 +119,10 @@
 - **Bot 模式 UI**：sidebar = 置顶 BOT 网格（始终手动）＋一个混合顶层序列（可折叠 Channel section 与未归属的松散 Channel 可交错）；未分组是 membership 状态，不再有固定底部 bucket/header。点击 BOT 打开 DM 聊天；Session 在右侧面板（只读列表 + 切换，含「主会话」）；Workspace 不在 sidebar 呈现。入口在「新会话」下方（ADR-0029/0031）。
 - **sidebar 操作（ADR-0031）**：头部 = `Bots` 标签 + 右侧 **search → `...`（排序菜单）→ `+`（创建菜单）**；section 头 `+` 在区内建 Channel，`...` = 排序方式 → 重命名 → 删除。移动 = 原生 HTML5 DnD＋右键「移动到」；Channel 行、section 头/体、section 边界间隙都是真实 drop target：投到 section 归属该 section，投到边界间隙则保持未分组并写入该顶层位置。section header 投放插入第一项；预测线绝对定位、不占布局，源行留在原位以 40% opacity 淡出。陈列当前存 Host `botharness_roster`，经八个细粒度桥方法读写（新增 `topReorder`），并按 #80 计划单向迁入 `botharness.db`；排序偏好在 `ui-bot-mode`，折叠状态在浏览器本地。
 - **排序模式（ADR-0031）**：每个 section 三态 `updated` / `manual` / `inherit`；全局默认在头部 `...` 菜单设置。首次手动拖拽或拖入 section 切 `manual` 并冻结当前顺序，源 section 模式不变，「恢复自动」回 `inherit`。松散 Channel 的顶层位置是显式陈列，在所有排序模式下保持不动；section 内发送消息仍按新 `updatedAt` 即时重排。section 头为 Discord 式 24px muted→solid、无 hover 背景、右侧 `IconChevronDownOutline14`；Channel 行 32px，区块间距 12px。
-- **头像与图标（ADR-0032）**：默认头像 = 由 slug 确定性生成的静态 blobatar（本轮只用字符串生成器）；DM Channel 行显示 Bot 头像，群 Channel 行用字形；DSH 字形缺口以 vendored Lucide（ISC）首方组件补齐（hash / 群聊先行），随包附 `THIRD_PARTY_NOTICES.md`；自定义头像与动效/表情留 v1.1。
+- **头像与图标（ADR-0032/0046）**：默认头像 = 由 Host-owned PersonaBot ID 确定性生成的静态 blobatar（本轮只用字符串生成器）；DM Channel 行显示 Bot 头像，群 Channel 行用字形；DSH 字形缺口以 vendored Lucide（ISC）首方组件补齐（hash / 群聊先行），随包附 `THIRD_PARTY_NOTICES.md`；自定义头像与动效/表情留 v1.1。
 - **实时同步（v1.1，ADR-0034）**：`botharness` 命名空间加 `mode: 'stream'` remote 方法（Host AsyncIterable、客户端 `connection.rpc.open`），先推 roster 变更、后推 channel 消息，IM 式；`domain/changed` 是进程内事件且不可转发（api-remotes 白名单静态），客户端不得依赖；现有 unary 方法面不变。
 - **排序偏好设置行（#68，ADR-0034）**：Settings → General 加一行 `settings.general.item`（与对话显示/忙碌发送/主题同模式），暴露与 sidebar `...` 菜单相同的 `ui-bot-mode` 排序偏好——一个 policy store、两个入口；该设置行**不迁移任何既有 sidebar UI**，只是新增入口。General 行槽位在 dev 中不可靠时退到 cookbook 标准的 `settings.plugin.item` 卡片（记录为 fallback）。
-- **创建与 onboarding**：首次无 BOT 时显示创建按钮 → 按需创建 Builder（普通 BOT，可删）；之后从「+」菜单选择 Builder 对话或表单向导；`bot_create` 由工具白名单控制（ADR-0029）。
+- **创建与 onboarding**：最小表单收名称、0～多个可选岗位徽章与可选简介；Host 自动生成 PersonaBot ID，默认写入占位 `PERSONA.md`。名称是列表与 `@` picker 的可见标签，mention token 保留内部 ID，同名由头像与徽章消歧。Builder 对话创建后续按需进入；`bot_create` 由工具白名单控制（ADR-0029/0046）。
 - **落地节奏**：#77 与 #79 可并行；#80 依赖两者；#81 再实现 BotWork。#75 的 Inbox/Work UI design 可与 sidebar #55 并行；#78 的 Feishu contract research 可并行，但阻塞 #48 adapter implementation。
 - **已知约束**：DSH AgentHandle、cold/idle wake、inject/steer/followup、SessionPersistence export 和 continuable Subagent 都是 developer-preview seam；在 #77 完成真实版本验证前不得把文档假设当 production guarantee。
 - **Task 不存在**（ADR-0017）。
