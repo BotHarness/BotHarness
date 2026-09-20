@@ -33,7 +33,7 @@ Every file under `references/` has a maintained `.zh.md` counterpart for Chinese
 
 | Field | Value |
 | --- | --- |
-| `skillVersion` | 0.3.2 |
+| `skillVersion` | 0.3.3 |
 | `verifiedAgainst` | DSH 0.1.6-alpha.2 |
 | `upstreamSha` | `ddefc45fbc7f8e46dd73185e68295696d1297887` (2026-09-17) |
 | `verifiedAt` | 2026-09-20 |
