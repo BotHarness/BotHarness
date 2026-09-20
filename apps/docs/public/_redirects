@@ -2,6 +2,12 @@
 /en/* /:splat 301
 /en / 301
 
+# BotHarness product runtime docs moved out of the DSH/Cordis development tree.
+/dsh/bot-runtime /dev/architecture/bot-runtime 301
+/dsh/bot-runtime/ /dev/architecture/bot-runtime 301
+/zh/dsh/bot-runtime /zh/dev/architecture/bot-runtime 301
+/zh/dsh/bot-runtime/ /zh/dev/architecture/bot-runtime 301
+
 # `/zh` is a language tree, not a host root: site-wide endpoints and generated
 # assets have one canonical home at the root (robots/sitemaps are
 # language-independent; the OG site card is brand-level and the card font has

@@ -6,7 +6,7 @@ Read [`context.md`](context.md) first. For every requirement, walk this tree and
 
 1. Must this fact survive process exit and replay as part of Agent execution?
    - Yes: append a **SessionEvent**.
-   - If it is BotHarness operational data outside Agent execution—Source Events, Inbox Admissions, ownership, grants—use the owning deep module over the profile's **BotHarness operational database** instead.
+   - If it is application data outside Agent execution, select an application-owned persistence boundary instead; do not force it into Session history.
 2. Is a caller asking for a concrete operation/result with errors or cancellation?
    - Yes: define a **Service Definition**, select a **Provider**, and call it from a **Consumer**.
 3. Is this a process-local notification or interception point?
@@ -67,16 +67,14 @@ Record the model-visible representation in Session history. Do not copy an entir
 6. Deliver work at a future time? → **Schedule**.
 7. Tool output is too large for model context? → **Spill**, with a useful preview and locator.
 
-## 6. Product data branch
+## 6. Choose the persistence authority
 
-- Agent execution facts → SessionEvent through Session Persistence.
-- DSH-owned small typed records → Storage Domain when that subsystem's contract fits.
-- BotHarness operational records → their deep module over the single profile-scoped `botharness.db` transactional owner.
-- Source Event is the sole local content/provenance fact; Channel placement and Inbox Admission may independently reference it.
-- Bot Inbox is a view over Inbox Admissions and Attention Decisions, not a content mailbox or queue.
+- Agent execution fact that must replay with a Session → **SessionEvent** through Session Persistence.
+- Small typed non-Session record owned by a compatible DSH subsystem → that subsystem's **Storage Domain**.
+- Application-owned domain fact → an application-owned persistence boundary and contract.
 - Search/index/projection → derived data that can rebuild from its canonical source.
 
-When one command changes several product records atomically, keep them in the same transactional owner. Emit process-local notifications only after commit.
+Do not use Cordis Event as durable authority. Emit process-local notifications only after the canonical write commits.
 
 ## 7. Host/client/UI branch
 
@@ -91,42 +89,11 @@ When one command changes several product records atomically, keep them in the sa
 
 The API Gateway owns `/api`. Registering another `connection.rpc.intercept('/api', …)` is not an extension path.
 
-## 8. Bot/IM branch
-
-Read [`bot-runtime-architecture.md`](bot-runtime-architecture.md) before choosing APIs.
-
-1. Is this Human/PersonaBot social communication? → Channel + Messaging capability seam (**BotHarness-proposed**).
-2. Did something arrive from a Channel, Bridge, webhook, Session, or system source? → immutable Source Event.
-3. Is it eligible for one PersonaBot's attention? → Inbox Trigger creates an Inbox Admission; Bot Inbox presents the resulting view without copying content.
-4. Must deterministic policy decide whether/when an Orchestrator runs? → Wake Policy outside the Orchestrator, then Delivery Policy selects a safe DSH boundary.
-5. Is it PersonaBot-wide social/routing/control work? → Orchestrator Session.
-6. Is it an independent task/project/workspace context? → Work Session, an independent root DSH Session.
-7. Is it delegated work inside one Work Session? → DSH-native Subagent Session.
-
-```text
-peer PersonaBot communication -> product IM
-Orchestrator <-> Work -> BotWork Runtime, Work Request/Report/Lifecycle Notice
-Work main Agent <-> child -> DSH subagent APIs
-```
-
-## 9. Wake timing
-
-After Wake Policy and Delivery Policy select delivery, Bot Runtime maps the admitted Source Event to DSH-native Orchestrator behavior based on current runtime state:
-
-- idle/cold and should run now → resume as needed, then `followup`.
-- running, but the admitted Source Event belongs to the next Turn → queue next-turn delivery.
-- running and the next Step should see it → `steer` at the supported boundary.
-- context should be durable/model-visible without waking → `inject`.
-
-BotWork separately maps an addressed Work Request's `context-update`, `next-step`, or `next-turn` mode to `inject`, `steer`, or `followup` after rechecking ownership, liveness, and concurrency.
-
-Do not assume every provider can interrupt an arbitrary in-flight Tool or external operation. Define interruption/cancellation separately from “deliver before the next Step.”
-
-## 10. Completion checklist
+## 8. Completion checklist
 
 Before implementation, every responsibility must answer:
 
-- canonical term and DSH-native/BotHarness-proposed label;
+- canonical term and DSH-native/Cordis-native/application-defined label;
 - durable source of truth, if any;
 - owning Plugin/Fiber and cleanup behavior;
 - Service Definition and Provider, if it is a capability;

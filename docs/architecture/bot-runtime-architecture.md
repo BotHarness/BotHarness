@@ -1,6 +1,6 @@
-# DSH 上的 Bot Runtime 架构
+# DSH 上的 BotHarness Runtime 架构
 
-这份参考描述构建在 DSH-native Agent、Session、Workspace、Tool 与 Subagent 之上的 **BotHarness-proposed** 产品层。它不是上游 API 清单。
+这份由 BotHarness 产品文档拥有的参考，描述构建在 DSH-native Agent、Session、Workspace、Tool 与 Subagent 之上的 **BotHarness-proposed** 产品层。它不是上游 API 清单。产品术语的定义只存在于根目录 [`CONTEXT.md`](/zh/dev/spec/context)，DSH/Cordis 术语则归 [DSH 规范 Context](/zh/dsh/context)；本页只解释两层对象在运行时的关系。
 
 ## 不变量
 
@@ -46,21 +46,6 @@ Work root Session
 ```
 
 Subagent Session 表达 Work Session 内的 parent-child delegation。独立 Work Session 是全新的 top-level DSH Session。
-
-## 规范产品对象
-
-- **Actor** — 参与 Channel 并 author message 的 Human 或 PersonaBot。
-- **PersonaBot** — 长期存在的产品 identity、persona、Memory、runtime configuration 与 Orchestrator Session identity。
-- **Channel** — 平台原生 group-chat 或 DM social space。
-- **Channel membership** — Actor 的参与关系以及 read/send authority。
-- **Bot Channel subscription** — 一个 PersonaBot 的 `all`/`mentions`/`muted` attention preference；它与 membership 分开。
-- **Source Event** — 来自 Channel、Bridge、webhook、Session 或 system source 的 immutable fact；是本地内容/provenance 的唯一副本。
-- **Source Revision** — 新的 Source Event，用于记录 edit 或 retraction，同时保留原始 causal fact。
-- **Inbox Admission** — content-free reference，让一个 Source Event 有资格进入一个 PersonaBot 的 attention。
-- **Attention Decision** — observed/deferred/ignored/handled fact；pending 由事实推导，而不是持久化 delivery status。
-- **Attention Unit** — 一个 PersonaBot 当前对 Source Event revision chain 的考虑单元；未 Observation 的 revision 可以合并。
-
-Channel placement 与 Inbox Admission 可以分别引用同一个 Source Event。当某个 actionable representation 进入 DSH Session 后，该 Session 回答“模型看到了什么”；Source Event 仍是本地产品内容的唯一事实。
 
 ## Bot Inbox 与 Agent Inbox
 

@@ -6,11 +6,11 @@
 
 - **DSH-native** — 存在于固定版本 DeepSeek Harness 源码/API 中。
 - **Cordis-native** — 存在于 DSH 所使用的 Cordis framework 中。
-- **BotHarness-proposed** — 本仓的产品层设计；除非以后被上游采纳，否则不是 DSH API。
+- **application-defined** — 下游产品或 Plugin 自己定义的概念，不属于固定版本的 DSH/Cordis contract。
 - **durable** — 进程退出后仍能从持久化记录恢复。
 - **live/process-local** — 只存在于当前 runtime。
 
-写设计时必须显式标记 proposed API。否则 `ctx.botWork` 会被误读成上游已经保证的能力。
+写设计时必须显式标记 application-defined API。否则下游的 `ctx.<name>` 会被误读成上游已经保证的能力。
 
 ## Runtime composition
 
@@ -98,6 +98,10 @@ Service Isolation = 这个 context 会解析到哪个 Service instance
 
 ## Session：事实与派生视图
 
+- **Agent** — 关联到一个 Session 的 live DSH executor；它是 runtime object，不是 durable product identity。
+- **AgentHandle** — Agent create/resume 返回的 lifecycle capability；其 owner 可以 stop、drain、dispose 该 live Agent。
+- **Subagent** — 通过 DSH Subagent capability 在 parent Agent 工作内部创建的 delegated child Agent 与 child Session。
+- **Agent Inbox** — live delivery queue，控制选定 input 在哪个 Agent Turn 或 Step boundary 进入执行。
 - **SessionEvent** — DSH Session 中 typed、append-only、durable 的事实。Session log 是 Agent execution history 的 canonical source。
 - **`session/event`** — SessionEvent commit 后发出的 live Cordis Event。
 - **Projection** — 从 SessionEvent history 可重建地 fold 出当前 read model。
@@ -134,58 +138,7 @@ bash Tool -> Shell Service -> Shell Provider -> Subprocess Service -> Provider -
 - **Typert** — Host/client call 使用的 typed remote Service protocol 与 registry。
 - **API Gateway** — `/api` interceptor 的唯一 owner；它负责 claim Typert endpoint。
 
-浏览器是独立的 Cordis application。Client Plugin 不能注入 Host Service。在 BotHarness 中，remote method 由 `TypertRemoteService` 暴露；再次注册 `connection.rpc.intercept('/api', …)` 会遮蔽原生 API。
-
-## BotHarness 产品词汇
-
-以下术语除非另有说明，均为 **BotHarness-proposed**：
-
-- **Actor** — 能参与 Channel 并 author message 的 Human 或 PersonaBot。
-- **PersonaBot** — 长期存在的产品 actor identity；绝不是 Session 或 live Agent object。
-- **Channel** — 平台原生的 group-chat 或 DM social space。
-- **Bridge** — 面向 Channel 或 PersonaBot Inbox 的已配置外部连接；它传输 Actor 的事实，但自身不是 Actor。
-- **Source Event** — 来自 Channel、Bridge、webhook、Session 或 system source 的 immutable local fact；是内容与可信 provenance 在本地的唯一副本。
-- **Source Revision** — 新的 Source Event，用于记录已观察到的编辑或撤回，同时保留原始 causal fact。
-- **Inbox Admission** — durable reference，说明为什么某个 Source Event 有资格进入某个 PersonaBot 的 attention；它不复制内容。
-- **Bot Inbox** — PersonaBot 级别、基于 admitted Source Event 的视图；不是 queue、mailbox 或第二份 content store。
-- **Attention Unit** — 一个 PersonaBot 当前对一条 Source Event revision chain 的考虑单元；尚未 Observation 的 revision 可以合并。
-- **Attention Decision** — 可审计的 observed/deferred/ignored/handled fact；pending 由事实推导。
-- **Reply Route** — Host 用来回复 Source Event origin 的非 secret capability reference。
-- **Reply** — 通过 Host 选定的可信 Reply Route 发出的响应。
-- **Service Action** — 有意选择的 provider-specific 操作，例如主动发布；与 Reply 分开。
-- **Provider Capability** — 某个已配置 provider account 能支持的 operation/event；表示 availability，不表示 authorization。
-- **Service Grant** — Human 对特定 provider target 上具名 Service Action 的显式授权。
-- **Agent Inbox** — DSH-native execution queue，控制选定工作何时进入 Turn/Step。
-- **Wake Policy** — deterministic Host policy，为 Admission 选择 immediate wake、digest 或 no automatic wake。
-- **Delivery Policy** — Host 根据 Wake Policy decision 与 Orchestrator liveness，把交付映射到 next-step、next-turn 或显式 whole-turn abort。
-- **Orchestrator Session** — PersonaBot 长期存在的 control-plane root Session。
-- **Work Session** — 一条独立 work line 对应的 top-level DSH Session；其 DSH Session id 是 canonical identity。
-- **Work Session Directory** — PersonaBot-scoped durable read model，基于 Session Ownership 与 DSH fact 构建并按需查询。
-- **Work Request** — durable、定向给 Orchestrator 的消息，semantic mode 为 `context-update`、`next-step` 或 `next-turn`。
-- **Work Report** — immutable、Session-origin Source Event，包含有意义的 progress/result 与 artifact reference。
-- **Work Lifecycle Notice** — 独立的 Host-origin Source Event，表示有意义的 settlement、error 或 cancellation。
-- **Subagent Session** — Work Session delegation tree 内的 DSH-native delegated child Session。
-- **BotHarness operational database** — profile-scoped 的单一 `botharness.db` transactional owner；各 deep module 保持独立 interface 与 table ownership。
-
-```text
-Channel != PersonaBot != Session != Agent
-Bot Inbox != Agent Inbox
-Work Session != Subagent Session
-```
-
-规范角色：
-
-```text
-Channel              = social world
-Source Event         = immutable content/provenance fact
-Inbox Admission      = PersonaBot eligibility relationship
-Bot Inbox            = Admissions 与 Attention Decisions 的视图
-Orchestrator Session = PersonaBot control plane
-Work Session         = 独立 work line context
-Subagent Session     = Work 内部的 delegated child context
-```
-
-Proposed deep-module capability 包括 Messaging、Attention/Inbox、Bot Runtime 与 BotWork Runtime。`ctx.messaging`、`ctx.botWork` 之类名称是 proposed capability seam，不是已经稳定的 CRUD contract。DSH-native execution 使用 `ctx.agents`、Agent delivery method、`ctx.subagents`、SessionEvent、Workspace 与 scoped Tool。
+浏览器是独立的 Cordis application。Client Plugin 不能注入 Host Service。Remote method 应通过由 API Gateway claim 的 `TypertRemoteService` 暴露；再次注册 `connection.rpc.intercept('/api', …)` 会遮蔽原生 API。
 
 ## 一句话模型
 

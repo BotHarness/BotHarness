@@ -1,6 +1,6 @@
-# Bot runtime architecture on DSH
+# BotHarness runtime architecture on DSH
 
-This reference describes the **BotHarness-proposed** product layer built on DSH-native Agents, Sessions, Workspaces, Tools, and Subagents. It is not an inventory of upstream APIs.
+This product-owned reference describes the **BotHarness-proposed** layer built on DSH-native Agents, Sessions, Workspaces, Tools, and Subagents. It is not an inventory of upstream APIs. Product term definitions live only in the root [`CONTEXT.md`](/dev/spec/context); DSH/Cordis terms live in the [DSH canonical context](/dsh/context). This page explains how the two layers relate at runtime.
 
 ## Invariant
 
@@ -46,21 +46,6 @@ Work root Session
 ```
 
 Subagent Sessions express parent-child delegation inside a Work Session. An independent Work Session is a fresh top-level DSH Session.
-
-## Canonical product objects
-
-- **Actor** — Human or PersonaBot that participates in Channels and authors messages.
-- **PersonaBot** — long-lived product identity, persona, Memory, runtime configuration, and Orchestrator Session identity.
-- **Channel** — platform-native group-chat or DM social space.
-- **Channel membership** — Actor participation and read/send authority.
-- **Bot Channel subscription** — one PersonaBot's `all`/`mentions`/`muted` attention preference, independent of membership.
-- **Source Event** — immutable fact from a Channel, Bridge, webhook, Session, or system source; sole local content/provenance copy.
-- **Source Revision** — new Source Event recording an edit or retraction while retaining the original causal fact.
-- **Inbox Admission** — content-free reference making one Source Event eligible for one PersonaBot's attention.
-- **Attention Decision** — observed/deferred/ignored/handled fact; pending is derived rather than stored as a delivery status.
-- **Attention Unit** — one PersonaBot's current consideration of a Source Event revision chain; unobserved revisions may coalesce.
-
-Channel placement and Inbox Admission can independently reference the same Source Event. When an actionable representation later enters a DSH Session, that Session answers “what the model saw”; the Source Event remains the sole local product-content fact.
 
 ## Bot Inbox vs Agent Inbox
 

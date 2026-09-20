@@ -87,7 +87,7 @@ Full catalog: `references/slots.md`.
 
 The browser calls `POST /api/<namespace>/<method>` through `@deepseek-ai/dsh-api-gateway`. The gateway owns the route's **single interceptor** and claims methods from the Typert Registry.
 
-In BotHarness, the Host Plugin provides a `TypertRemoteService` with a `typertRemote` namespace binding and remote-method descriptors. Standard decorators do not survive this repository's oxc/tsdown pipeline, so `packages/core/src/bridge/rpc.ts` writes the protocol descriptor directly (SRC markers, no code generation). The client uses the Typert `ctx.remote` face or the gateway wire contract generated/defined for that namespace.
+A Host Plugin provides a `TypertRemoteService` with a `typertRemote` namespace binding and remote-method descriptors. Use generated `@Remote` metadata when the build supports it; otherwise define equivalent SRC remote-method descriptors explicitly and verify them after bundling. The client uses the Typert `ctx.remote` face or the gateway wire contract generated or defined for that namespace.
 
 Hard guardrail: do not register `connection.rpc.intercept('/api', …)` in a third-party Plugin. A second interceptor shadows native controllers (`settings`, model providers, plugin settings, directory picker) while the custom endpoint may appear to work.
 

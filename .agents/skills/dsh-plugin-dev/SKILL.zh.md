@@ -1,20 +1,19 @@
 # DSH 插件开发
 
-Skill v0.3.1 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`）验证。DSH 仍处于开发者预览阶段：涉及关键机制时，仍应以固定版本的上游源码和实际运行的 Host 为准。
+Skill v0.3.2 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`）验证。DSH 仍处于开发者预览阶段：涉及关键机制时，仍应以固定版本的上游源码和实际运行的 Host 为准。
 
 ## Foundation-first 工作流
 
-1. 完整阅读 [`references/context.zh.md`](references/context.zh.md)。使用其中的规范词汇命名对象和边界。只有当每个重要名词都对应一个明确定义，并且 DSH-native API 与产品层 proposed 设计已经分开时，这一步才算完成。
-2. 按 [`references/decision-tree.zh.md`](references/decision-tree.zh.md) 做决策。把每个需求归类为 durable fact、command/query、runtime notification/interception、registration、projection/presentation、product data 或 execution concern。只有当每项职责都有唯一的 primary seam，以及明确的 ownership/lifecycle 时，这一步才算完成。
-3. 如果涉及 PersonaBot、Channel、Source Event、Bot Inbox、Wake Policy、Orchestrator Session、Work Session 或 Subagent Session，请阅读 [`references/bot-runtime-architecture.zh.md`](references/bot-runtime-architecture.zh.md)。确认产品 IM 图、产品 ownership 图与 DSH delegation 图没有被混为一谈。
-4. 只加载当前需要的实现分支：
+1. 完整阅读 [`references/context.zh.md`](references/context.zh.md)。使用其中的规范 DSH/Cordis 词汇命名对象和边界。只有当每个重要平台名词都对应一个明确定义，并且 application-defined 概念没有被写成 native API 时，这一步才算完成。
+2. 按 [`references/decision-tree.zh.md`](references/decision-tree.zh.md) 做决策。把每个需求归类为 durable fact、command/query、runtime notification/interception、registration、projection/presentation、persistence 或 execution concern。只有当每项职责都有唯一的 primary seam，以及明确的 ownership/lifecycle 时，这一步才算完成。
+3. 只加载当前需要的实现分支：
    - [`references/host.zh.md`](references/host.zh.md) — Bundle/Profile/Patch、Plugin/Fiber、Service、Tool、Event、Session、生命周期与发布。
    - [`references/client.zh.md`](references/client.zh.md) — 浏览器 Cordis 应用、Typert/API Gateway、客户端 model、构建与验证。
    - [`references/slots.zh.md`](references/slots.zh.md) — 仅在新增或修改 UI contribution 时读取。
    - [`references/community-ui-patterns.zh.md`](references/community-ui-patterns.zh.md) — 仅在选择已验证的 UI/构建方案，或检查生态版本漂移时读取。
-5. 通过选定的 seam 实现，然后按需验证 install → boot → registration → exercise → unload/restart。包能够编译，不代表 Plugin 已经激活。
+4. 通过选定的 seam 实现，然后按需验证 install → boot → registration → exercise → unload/restart。包能够编译，不代表 Plugin 已经激活。
 
-深层来源报告位于 `docs/research/`；`dsh_research/` 下的三份文档是基础参考的输入。BotHarness 产品语义以根目录 `CONTEXT.md` 与已接受 ADR 为准，高于原始研究稿。
+深层来源报告位于 `docs/research/`；`dsh_research/` 三份文档中的 DSH/Cordis 内容是基础参考的输入。下游产品自己的 Context、architecture 与 ADR 位于本 skill 之外，并拥有自己的产品词汇。
 
 ## 心智模型
 
@@ -51,15 +50,7 @@ Skill v0.3.1 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73
 
 ### `/api` transport 规则
 
-`@deepseek-ai/dsh-api-gateway` 是 `/api` 唯一 interceptor 的 owner，并从 Typert Registry claim endpoint。第三方 Plugin 不得再次注册 `connection.rpc.intercept('/api', …)`，否则会遮蔽原生 API。本仓通过带 `typertRemote` binding 与 remote-method marker 的 `TypertRemoteService` 暴露插件 endpoint；实现见 `packages/core/src/bridge/rpc.ts`。
-
-## BotHarness 特定约束
-
-- Host capability 位于 `packages/core`；浏览器部分位于 `packages/client`；`packages/deepseekbot` 负责组合 Bundle。
-- 支持的 remote boundary 是 `packages/core/src/bridge/rpc.ts` 实现的 API Gateway/Typert claim path。
-- Secret 使用 credentials Service；配置只保存 credential reference，不保存 secret material。
-- Persona Memory 是 BotHarness capability：file truth + system-prompt section + Tools。它不是 DSH-native persistence seam。
-- PersonaBot、Channel、Source Event、Inbox Admission、Attention Decision、Wake Policy、Orchestrator Session、Work Session，以及 proposed Messaging/Attention/Bot Runtime/BotWork Runtime capability seam 都定义在 [`references/bot-runtime-architecture.zh.md`](references/bot-runtime-architecture.zh.md)。与 DSH-native API 对比时必须标注 **BotHarness-proposed**。
+`@deepseek-ai/dsh-api-gateway` 是 `/api` 唯一 interceptor 的 owner，并从 Typert Registry claim endpoint。第三方 Plugin 不得再次注册 `connection.rpc.intercept('/api', …)`，否则会遮蔽原生 API。Plugin endpoint 应通过带 `typertRemote` binding 与 remote-method marker 的 `TypertRemoteService` 暴露。
 
 ## 十个高频陷阱
 
@@ -76,9 +67,8 @@ Skill v0.3.1 · 已针对 DSH `0.1.6-alpha.2`（上游 SHA `ddefc45fbc7f8e46dd73
 
 ## 参考文件
 
-- `references/context.zh.md` — DSH/Cordis/BotHarness 规范词汇与 native/proposed 边界。
+- `references/context.zh.md` — DSH/Cordis 规范词汇与 native/application-defined 边界。
 - `references/decision-tree.zh.md` — requirement-to-seam 决策，包括 Cordis dispatch 与 persistence 选择。
-- `references/bot-runtime-architecture.zh.md` — PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work/Subagent ownership 与通信网络。
 - `references/host.zh.md` — Host API surface：Plugin shape、Tools DSL、Event/waterfall、settings、credentials、system prompt、Sessions/Agents、lifecycle、publish/validate。
 - `references/client.zh.md` — `dsh.client` 字段、client service/hook、Typert/API Gateway、构建契约、故障表与验证清单。
 - `references/slots.zh.md` — 完整 Slot 目录、kind/scope 与源码声明。

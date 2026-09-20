@@ -2,7 +2,7 @@
 
 A foundation-first design and authoring guide for [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) and Cordis plugins — written for coding agents, readable by the people who work with them.
 
-It first establishes the canonical DSH/Cordis vocabulary and a requirement-to-seam decision tree. Implementation details follow only when needed: Host Plugin/Fiber composition, Service/Provider/Consumer capability seams, Session facts and projections, execution/storage boundaries, Typert/API Gateway, and finally browser Slots/build mechanics. It also distinguishes DSH-native APIs from BotHarness's proposed PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work runtime.
+It first establishes the canonical DSH/Cordis vocabulary and a requirement-to-seam decision tree. Implementation details follow only when needed: Host Plugin/Fiber composition, Service/Provider/Consumer capability seams, Session facts and projections, execution/storage boundaries, Typert/API Gateway, and finally browser Slots/build mechanics. Downstream products keep their own domain vocabulary and architecture outside this skill.
 
 MIT licensed — use it, fork it, ship it.
 
@@ -20,9 +20,8 @@ Or copy `SKILL.md`, `SKILL.zh.md`, and `references/` into your harness's skills 
 | --- | --- |
 | `SKILL.md` | Foundation-first workflow, invariants, branch router, top pitfalls |
 | `SKILL.zh.md` | The complete Chinese counterpart, preserving canonical English identifiers |
-| `references/context.md` | Canonical Plugin/Fiber, capability, Registry/scope, Event, Session, execution, Host/client, and Bot vocabulary |
-| `references/decision-tree.md` | Requirement-to-seam decisions, Cordis dispatch, persistence, execution, UI, and Bot/IM branches |
-| `references/bot-runtime-architecture.md` | DSH-native vs BotHarness-proposed PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work/Subagent ownership model |
+| `references/context.md` | Canonical Plugin/Fiber, capability, Registry/scope, Event, Session, execution, and Host/client vocabulary |
+| `references/decision-tree.md` | Requirement-to-seam decisions for Cordis dispatch, persistence, execution, and UI |
 | `references/host.md` | Package manifest, `cordis.patch.yml` semantics, `defineTool` DSL, events/waterfall, settings, credentials, system prompt, sessions/agents, lifecycle, publish & validate |
 | `references/client.md` | `dsh.client` fields, client services/hooks, Typert/API Gateway, Slots mechanics, lazy-CJS build contract, failure table, verification checklist |
 | `references/slots.md` | Full slot catalog (kind/scope/use) with source declarations |
@@ -34,13 +33,13 @@ Every file under `references/` has a maintained `.zh.md` counterpart for Chinese
 
 | Field | Value |
 | --- | --- |
-| `skillVersion` | 0.3.1 |
+| `skillVersion` | 0.3.2 |
 | `verifiedAgainst` | DSH 0.1.6-alpha.2 |
 | `upstreamSha` | `ddefc45fbc7f8e46dd73185e68295696d1297887` (2026-09-17) |
 | `verifiedAt` | 2026-09-20 |
-| Sources | Pinned DSH authoring evidence under `docs/research/`; `dsh_research/` foundations; final BotHarness terms and product decisions in root `CONTEXT.md` and accepted ADRs 0035–0045 in [BotHarness/BotHarness](https://github.com/BotHarness/BotHarness) |
+| Sources | Pinned DSH authoring evidence under `docs/research/`; DSH/Cordis foundations under `dsh_research/` in [BotHarness/BotHarness](https://github.com/BotHarness/BotHarness) |
 
-DSH-native claims are pinned to the upstream revision above; BotHarness-proposed product terms are pinned to this repository's accepted ADRs and root `CONTEXT.md`. DSH is in developer preview: breaking changes are expected, and upstream fixes can invalidate specific claims — check the upstream release notes before trusting a mechanism, and re-verification happens here on each DSH release.
+DSH-native claims are pinned to the upstream revision above. DSH is in developer preview: breaking changes are expected, and upstream fixes can invalidate specific claims — check the upstream release notes before trusting a mechanism, and re-verification happens here on each DSH release.
 
 ## Maintenance
 

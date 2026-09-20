@@ -12,16 +12,19 @@ npx skills add BotHarness/dsh-skill
 
 ## What's inside
 
-| Page                                         | Covers                                                                                              |
-| -------------------------------------------- | --------------------------------------------------------------------------------------------------- |
-| [Canonical context](/dsh/context)            | DSH, Cordis and BotHarness leading words; native and proposed boundaries                            |
-| [Decision tree](/dsh/decision-tree)          | Choose Service, Event, Registry, SessionEvent, Projection, storage, execution or UI seams           |
-| [Bot runtime architecture](/dsh/bot-runtime) | Keep product IM, PersonaBot/Work ownership and native Subagent delegation as three different graphs |
-| [The full guide](/dsh/guide)                 | Foundation-first workflow, implementation branches and top pitfalls                                 |
-| [Host-side reference](/dsh/host)             | Package manifest, `cordis.patch.yml`, tools, events, settings, credentials, lifecycle               |
-| [Client-side reference](/dsh/client)         | `dsh.client`, client services and hooks, Typert/API Gateway, the lazy-CJS build contract            |
-| [Slot catalog](/dsh/slots)                   | Every UI slot with its kind, scope and use                                                          |
-| [Community UI patterns](/dsh/patterns)       | How 13 community plugins build UI—build routes, proven practices, drift hazards                     |
+| Page                                   | Covers                                                                                    |
+| -------------------------------------- | ----------------------------------------------------------------------------------------- |
+| [Canonical context](/dsh/context)      | DSH and Cordis leading words; native and application-defined boundaries                   |
+| [Decision tree](/dsh/decision-tree)    | Choose Service, Event, Registry, SessionEvent, Projection, storage, execution or UI seams |
+| [The full guide](/dsh/guide)           | Foundation-first workflow, implementation branches and top pitfalls                       |
+| [Host-side reference](/dsh/host)       | Package manifest, `cordis.patch.yml`, tools, events, settings, credentials, lifecycle     |
+| [Client-side reference](/dsh/client)   | `dsh.client`, client services and hooks, Typert/API Gateway, lazy-CJS build contract      |
+| [Slot catalog](/dsh/slots)             | Every UI slot with its kind, scope and use                                                |
+| [Community UI patterns](/dsh/patterns) | How 13 community plugins build UI—build routes, proven practices, drift hazards           |
+
+## Product documentation is separate
+
+This section names and explains DSH/Cordis development concepts only. BotHarness owns its product language and architecture under `/dev`: use the [BotHarness domain glossary](/dev/spec/context) for definitions, then the [focused runtime architecture](/dev/architecture/bot-runtime) for product relationships on DSH.
 
 ## Honest boundaries
 

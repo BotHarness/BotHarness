@@ -6,7 +6,7 @@
 
 1. 这个事实是否必须在进程退出后保留，并作为 Agent execution 的一部分重放？
    - 是：追加一个 **SessionEvent**。
-   - 如果它是 Agent execution 之外的 BotHarness operational data——例如 Source Event、Inbox Admission、ownership、grant——使用拥有该数据的 deep module，并写入 profile 的 **BotHarness operational database**。
+   - 如果它是 Agent execution 之外的 application data，选择应用自己拥有的 persistence boundary；不要强行写入 Session history。
 2. 调用方是否要求执行一个具体 operation，并获得 result、error 或 cancellation？
    - 是：定义 **Service Definition**，选择 **Provider**，再由 **Consumer** 调用。
 3. 这是 process-local notification 或 interception point 吗？
@@ -67,16 +67,14 @@ Chat/Trajectory node -> Conversation Assembly
 6. 需要在未来某个时间 delivery？→ **Schedule**。
 7. Tool output 过大，不能直接进入 model context？→ **Spill**，并提供有用的 preview 与 locator。
 
-## 6. Product data 分支
+## 6. 选择 persistence authority
 
-- Agent execution fact → 通过 Session Persistence 写入 SessionEvent。
-- DSH-owned 小型 typed record → 仅当 subsystem contract 合适时使用 Storage Domain。
-- BotHarness operational record → 由各自 deep module 写入 profile-scoped 单一 `botharness.db` transactional owner。
-- Source Event 是内容与 provenance 的本地唯一事实；Channel placement 与 Inbox Admission 可以分别引用它。
-- Bot Inbox 是 Inbox Admission 与 Attention Decision 上的视图，不是 content mailbox 或 queue。
+- 必须随 Session 重放的 Agent execution fact → 通过 Session Persistence 写入 **SessionEvent**。
+- 由兼容 DSH subsystem 拥有的小型 typed non-Session record → 该 subsystem 的 **Storage Domain**。
+- Application-owned domain fact → 应用自己拥有的 persistence boundary 与 contract。
 - Search/index/projection → 可从 canonical source 重建的 derived data。
 
-当一个 command 要原子修改多个 product record 时，把它们放在同一个 transactional owner 中。只有 commit 后才能发 process-local notification。
+不要把 Cordis Event 当作 durable authority。Process-local notification 只能在 canonical write commit 后发出。
 
 ## 7. Host/client/UI 分支
 
@@ -91,42 +89,11 @@ Chat/Trajectory node -> Conversation Assembly
 
 API Gateway 拥有 `/api`。再次注册 `connection.rpc.intercept('/api', …)` 不是扩展方式。
 
-## 8. Bot/IM 分支
-
-选择 API 前先阅读 [`bot-runtime-architecture.zh.md`](bot-runtime-architecture.zh.md)。
-
-1. 这是 Human/PersonaBot social communication？→ Channel + Messaging capability seam（**BotHarness-proposed**）。
-2. 有内容来自 Channel、Bridge、webhook、Session 或 system source？→ immutable Source Event。
-3. 它是否有资格进入一个 PersonaBot 的 attention？→ Inbox Trigger 创建 Inbox Admission；Bot Inbox 展示视图，不复制内容。
-4. 必须由 deterministic policy 决定是否/何时运行 Orchestrator？→ Orchestrator 之外的 Wake Policy，再由 Delivery Policy 选择安全的 DSH boundary。
-5. 属于 PersonaBot-wide social/routing/control 工作？→ Orchestrator Session。
-6. 属于独立 task/project/workspace context？→ Work Session，即独立 root DSH Session。
-7. 属于一个 Work Session 内部的 delegated work？→ DSH-native Subagent Session。
-
-```text
-peer PersonaBot communication -> product IM
-Orchestrator <-> Work -> BotWork Runtime、Work Request/Report/Lifecycle Notice
-Work main Agent <-> child -> DSH subagent APIs
-```
-
-## 9. Wake timing
-
-Wake Policy 与 Delivery Policy 选定交付后，Bot Runtime 根据当前 runtime state，把 admitted Source Event 映射为 DSH-native Orchestrator behavior：
-
-- idle/cold 且应该立即运行 → 按需 resume，再调用 `followup`。
-- 正在运行，但 Source Event 属于下一 Turn → queue next-turn delivery。
-- 正在运行，下一 Step 应该看到 → 在支持的 boundary 调用 `steer`。
-- context 应 durable/model-visible，但不唤醒 → `inject`。
-
-BotWork 会分别把 addressed Work Request 的 `context-update`、`next-step`、`next-turn` mode 映射到 `inject`、`steer`、`followup`；映射前必须重新检查 ownership、liveness 与 concurrency。
-
-不要假定每个 Provider 都能中断任意 in-flight Tool 或外部 operation。interruption/cancellation 必须和“在下一 Step 前交付”分开定义。
-
-## 10. 完成检查
+## 8. 完成检查
 
 实现前，每项职责都必须回答：
 
-- canonical term 以及 DSH-native/BotHarness-proposed 标签；
+- canonical term 以及 DSH-native/Cordis-native/application-defined 标签；
 - durable source of truth（如有）；
 - owning Plugin/Fiber 与 cleanup behavior；
 - capability 对应的 Service Definition 与 Provider；

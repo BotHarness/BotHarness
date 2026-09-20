@@ -12,16 +12,19 @@ npx skills add BotHarness/dsh-skill
 
 ## 内容
 
-| 页面                                    | 内容                                                                                  |
-| --------------------------------------- | ------------------------------------------------------------------------------------- |
-| [规范 Context](/zh/dsh/context)         | DSH、Cordis 与 BotHarness leading words；原生与 proposed 边界                         |
-| [Decision Tree](/zh/dsh/decision-tree)  | 在实现前选择 Service、Event、Registry、SessionEvent、Projection、存储、执行或 UI seam |
-| [Bot Runtime 架构](/zh/dsh/bot-runtime) | 把产品 IM、PersonaBot/Work ownership、原生 Subagent delegation 分成三张图             |
-| [完整指南](/zh/dsh/guide)               | Foundation-first 工作流、实现分支与十大坑位                                           |
-| [Host 侧参考](/zh/dsh/host)             | 包清单、`cordis.patch.yml`、工具、事件、设置、凭据、生命周期                          |
-| [Client 侧参考](/zh/dsh/client)         | `dsh.client`、客户端服务与 hooks、Typert/API Gateway、lazy-CJS 构建契约               |
-| [槽位目录](/zh/dsh/slots)               | 全部 UI 槽位及其 kind、scope 与用途                                                   |
-| [社区 UI 实践](/zh/dsh/patterns)        | 13 个社区插件怎么搭 UI——构建路线、验证过的实践、版本漂移风险                          |
+| 页面                                   | 内容                                                                                  |
+| -------------------------------------- | ------------------------------------------------------------------------------------- |
+| [规范 Context](/zh/dsh/context)        | DSH 与 Cordis leading words；native 与 application-defined 边界                       |
+| [Decision Tree](/zh/dsh/decision-tree) | 在实现前选择 Service、Event、Registry、SessionEvent、Projection、存储、执行或 UI seam |
+| [完整指南](/zh/dsh/guide)              | Foundation-first 工作流、实现分支与十大坑位                                           |
+| [Host 侧参考](/zh/dsh/host)            | 包清单、`cordis.patch.yml`、工具、事件、设置、凭据、生命周期                          |
+| [Client 侧参考](/zh/dsh/client)        | `dsh.client`、客户端服务与 hooks、Typert/API Gateway、lazy-CJS 构建契约               |
+| [槽位目录](/zh/dsh/slots)              | 全部 UI 槽位及其 kind、scope 与用途                                                   |
+| [社区 UI 实践](/zh/dsh/patterns)       | 13 个社区插件怎么搭 UI——构建路线、验证过的实践、版本漂移风险                          |
+
+## 产品文档独立归属
+
+本节只命名和解释 DSH/Cordis 的开发概念。BotHarness 的产品语言与架构归 `/dev`：[BotHarness 领域词表](/zh/dev/spec/context) 负责产品定义，[运行时架构](/zh/dev/architecture/bot-runtime) 负责产品对象与 DSH 的关系。
 
 ## 诚实的边界
 
