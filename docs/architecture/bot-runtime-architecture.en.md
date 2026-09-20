@@ -30,7 +30,7 @@ PersonaBot-to-PersonaBot communication is peer social communication, not Subagen
 ```text
 PersonaBot
 |- one Orchestrator root Session
-|- zero or more independent Work root Sessions
+|- zero or more independent Assignment Sessions
 `- durable ownership/directory metadata
 ```
 
@@ -39,13 +39,13 @@ Session Ownership relates each root Session to one PersonaBot and its root role.
 ### DSH delegation graph
 
 ```text
-Work root Session
-`- main Work Agent
+Assignment Session
+`- main Assignment Agent
    `- Subagent Session
       `- nested Subagent Session
 ```
 
-Subagent Sessions express parent-child delegation inside a Work Session. An independent Work Session is a fresh top-level DSH Session.
+Subagent Sessions express parent-child delegation inside an Assignment Session. An independent Assignment Session is a fresh top-level DSH Session.
 
 ## Bot Inbox vs Agent Inbox
 
@@ -56,7 +56,7 @@ Bot Inbox       = PersonaBot-level view over Admissions and Attention Decisions
 Agent Inbox     = DSH execution queue for a selected delivery boundary
 ```
 
-Internal Channels, external IM, webhooks, Work Reports, Work Lifecycle Notices, and system sources all first produce immutable Source Events. An Inbox Trigger may create one or more PersonaBot-specific Admissions without copying content. Reading content or a faithful actionable summary into an Orchestrator turn is an Observation; metadata listing and Human UI viewing are not.
+Internal Channels, external IM, webhooks, Assignment Reports, Assignment Lifecycle Notices, and system sources all first produce immutable Source Events. An Inbox Trigger may create one or more PersonaBot-specific Admissions without copying content. Reading content or a faithful actionable summary into an Orchestrator turn is an Observation; metadata listing and Human UI viewing are not.
 
 Provider edit or recall becomes a Source Revision. A Reply uses the trusted non-secret Reply Route captured from provenance; a proactive provider-specific Service Action is separately selected and authorized. Raw external payloads never go directly to the Agent Inbox.
 
@@ -88,40 +88,40 @@ The Orchestrator Session is the PersonaBot control plane. It owns high-level soc
 
 - list/read admitted Source Events and record Attention Decisions;
 - decide whether and where to reply;
-- list, inspect, create/reuse, address, and stop Work Sessions;
-- receive Work Reports and Work Lifecycle Notices;
+- list, inspect, create/reuse, address, and stop Assignment Sessions;
+- receive Assignment Reports and Assignment Lifecycle Notices;
 - coordinate PersonaBot-to-Human and PersonaBot-to-PersonaBot messaging;
 - maintain high-level goals and Channel behavior.
 
-Keep it thin. Repository edits, large Tool output, deep project context, and detailed Worker traces belong in Work Sessions.
+Keep it thin. Repository edits, large Tool output, deep project context, and detailed Assignment traces belong in Assignment Sessions.
 
 The PersonaBot and Orchestrator Session are durable identities; the live Orchestrator Agent object may be resumed on demand.
 
-## Work Session
+## Assignment Session
 
-A Work Session is an independent root DSH Session for one line of work. Its DSH Session id is the canonical identity; BotHarness does not create a second Work id. It may have a PersonaBot-local Continuity Key, bind a Workspace, and use specialized model/dependency configuration.
+An Assignment Session is an independent root DSH Session for one line of work. Its DSH Session id is the canonical identity; BotHarness does not create a second Assignment id. It may have a PersonaBot-local Continuity Key, bind a Workspace, and use specialized model/dependency configuration.
 
-The **Work Session Directory** is a durable read model over Session Ownership plus DSH events, projections, and cold-query facts. It exposes:
+The **Assignment Directory** is a durable read model over Session Ownership plus DSH events, projections, and cold-query facts. It exposes:
 
 ```text
 canonical Session id, purpose, Continuity Key, Workspace
 requested model/dependencies
 DSH-derived activity and lastRun
-latest semantic Work Report
+latest semantic Assignment Report
 aggregate descendant activity
 ```
 
-DSH-derived activity and semantic reported outcome stay separate; there is no duplicate BotHarness Work status lifecycle. Listings are filtered, ordered, opaque-cursor paginated, default to `updatedAt DESC` with Session id as tie-breaker, and require an explicit history filter for inactive rows. DSH Subagents never become top-level Work rows.
+DSH-derived activity and semantic reported outcome stay separate; there is no duplicate BotHarness Assignment status lifecycle. Listings are filtered, ordered, opaque-cursor paginated, default to `updatedAt DESC` with Session id as tie-breaker, and require an explicit history filter for inactive rows. DSH Subagents never become top-level Assignment rows.
 
-The Host-lifetime **BotWork Runtime** owns live Work AgentHandles. Orchestrator-scoped code does not own them because Orchestrator Agent teardown must not implicitly tear down independent Work lifetimes. Communication uses durable **Work Requests**, Session-origin **Work Reports**, and Host-origin **Work Lifecycle Notices**, not `ctx.subagents.sendMessage()`. A Work Session may use DSH-native Subagents internally.
+The Host-lifetime **Assignment Runtime** owns live AgentHandles for Assignment Sessions. Orchestrator-scoped code does not own them because Orchestrator Agent teardown must not implicitly tear down independent Assignment Session lifetimes. Communication uses durable **Assignment Requests**, Session-origin **Assignment Reports**, and Host-origin **Assignment Lifecycle Notices**, not `ctx.subagents.sendMessage()`. An Assignment Session may use DSH-native Subagents internally.
 
-Work Request modes are semantic: `context-update` contributes durable context without waking, `next-step` waits for the next safe Step, and `next-turn` queues a continuation after the current Turn. The runtime maps these to DSH `inject`, `steer`, or `followup`; ordinary requests never cancel an in-flight Tool or model step.
+Assignment Request modes are semantic: `context-update` contributes durable context without waking, `next-step` waits for the next safe Step, and `next-turn` queues a continuation after the current Turn. The runtime maps these to DSH `inject`, `steer`, or `followup`; ordinary requests never cancel an in-flight Tool or model step.
 
-SQLite and DSH Session Persistence cannot commit atomically. Work creation and delivery therefore use a minimal **Work Delivery Intent** with a stable id, idempotent acceptance, and bounded restart reconciliation. This is not a general queue, workflow engine, or exactly-once claim.
+SQLite and DSH Session Persistence cannot commit atomically. Assignment creation and delivery therefore use a minimal **Assignment Delivery Intent** with a stable id, idempotent acceptance, and bounded restart reconciliation. This is not a general queue, workflow engine, or exactly-once claim.
 
-Work Reports carry meaningful progress, blocked/waiting state, results, and artifact references; full execution history stays in DSH. Work Lifecycle Notices carry Host-derived settlement/error/cancellation facts with distinct provenance. Both are immutable Source Events and use the ordinary Inbox Trigger/Wake Policy path; attention coalescing may avoid duplicate wake without deleting either fact.
+Assignment Reports carry meaningful progress, blocked/waiting state, results, and artifact references; full execution history stays in DSH. Assignment Lifecycle Notices carry Host-derived settlement/error/cancellation facts with distinct provenance. Both are immutable Source Events and use the ordinary Inbox Trigger/Wake Policy path; attention coalescing may avoid duplicate wake without deleting either fact.
 
-The profile-wide **Work Concurrency Limit** defaults to `3` and counts only independent Work roots actively executing. Excess create or idle-wake attempts fail immediately with structured machine fields plus an LLM-readable explanation. BotWork creates no queue, intent, or dormant DSH Session for a rejected attempt.
+The profile-wide **Assignment Concurrency Limit** defaults to `3` and counts only independent Assignment Sessions actively executing. Excess create or idle-wake attempts fail immediately with structured machine fields plus an LLM-readable explanation. Assignment creates no queue, intent, or dormant DSH Session for a rejected attempt.
 
 ## Deep module capability seams
 
@@ -130,7 +130,7 @@ Use small command/query interfaces without freezing speculative CRUD:
 - **Messaging** owns Source Event ingestion, Channel placement, Reply/Service Action intent, provider routing, provenance, Outbox, and post-commit facts.
 - **Attention/Inbox** owns Inbox Trigger evaluation, Inbox Admission, Attention Unit, Attention Decision, Observation, and Wake Policy selection.
 - **Bot Runtime** resolves PersonaBot → Orchestrator Session → live/cold Agent and applies Delivery Policy.
-- **BotWork Runtime** owns Work Session Directory queries, Work AgentHandles, Work Requests, Work Delivery Intents, reports/notices, stop convergence, and concurrency admission.
+- **Assignment Runtime** owns Assignment Directory queries, AgentHandles for Assignment Sessions, Assignment Requests, Assignment Delivery Intents, reports/notices, stop convergence, and concurrency admission.
 
 Provider boundaries remain capability seams. A Feishu Provider declares Provider Capabilities and resolves non-secret account/Chat/Thread references; Reply is Host-routed from trusted provenance, while proactive Service Action requires a matching Service Grant.
 
@@ -146,25 +146,25 @@ Messaging command
 -> emit live post-commit notification
 ```
 
-Cordis notifications are not durable authority. Source Events, Admissions, Attention Decisions, Work Delivery Intents, reports/notices, Outbox, and audit facts remain in the operational database.
+Cordis notifications are not durable authority. Source Events, Admissions, Attention Decisions, Assignment Delivery Intents, reports/notices, Outbox, and audit facts remain in the operational database.
 
 External edit and recall events become Source Revisions. They may update an existing unobserved Attention Unit or produce new attention after Observation. Reading current provider state does not replace recording a received fact when audit/order matters.
 
 ## Tool boundaries
 
-Orchestrator-facing Tools adapt messaging, Inbox, and Work-control capabilities for the model. Work control is exactly `list_work`, `inspect_work`, `create_work`, `send_work_request`, and `stop_work`; waking compatible idle Work is a Work Request, so there is no separate resume tool. Work-facing Tools adapt filesystem, Shell, LSP, web, code runtime, and DSH Subagents. A Work Session receives `report_to_orchestrator`; its Subagents do not receive that Tool by default.
+Orchestrator-facing Tools adapt messaging, Inbox, and Assignment-control capabilities for the model. Assignment control is exactly `list_assignments`, `inspect_assignment`, `create_assignment`, `send_assignment_request`, and `stop_assignment`; waking a compatible idle Assignment Session is an Assignment Request, so there is no separate resume tool. Assignment-facing Tools adapt filesystem, Shell, LSP, web, code runtime, and DSH Subagents. An Assignment Session receives `report_to_orchestrator`; its Subagents do not receive that Tool by default.
 
 Default posture:
 
 - Orchestrator owns external social identity and outbound Channel actions.
-- Work Sessions get only source-scoped Channel reads when needed.
-- Work Sessions do not receive arbitrary Bot Inbox or top-level Work-control authority; Work-to-Work coordination is mediated by the Orchestrator in v1.
+- Assignment Sessions get only source-scoped Channel reads when needed.
+- Assignment Sessions do not receive arbitrary Bot Inbox or top-level Assignment-control authority; Assignment-to-Assignment coordination is mediated by the Orchestrator in v1.
 - Tool visibility is Agent Scope; authorization is still enforced by the Service Provider.
 
 ## Persistence boundaries
 
 - DSH Session Persistence owns Agent execution SessionEvents.
-- One profile-scoped `$DSH_HOME/botharness/botharness.db` physically owns every BotHarness operational record: PersonaBot registry/Session Ownership, Channels, Source Events/Revisions, Admissions/Attention, policies, grants, Outbox, Work metadata, and audit.
+- One profile-scoped `$DSH_HOME/botharness/botharness.db` physically owns every BotHarness operational record: PersonaBot registry/Session Ownership, Channels, Source Events/Revisions, Admissions/Attention, policies, grants, Outbox, Assignment metadata, and audit.
 - Deep modules remain separate through small interfaces and explicit table ownership; callers never receive generic SQL or compose transactions themselves.
 - Soul/Memory files, Attachment CAS bytes, DSH Session logs, credentials, and DSH-native Settings remain outside this database under their own authorities.
 - Projections and search indexes are derived and rebuildable.
@@ -191,11 +191,11 @@ Session, SessionEvent, Session Persistence, Projection
 BotHarness-proposed layer:
 
 ```text
-Messaging, Attention/Inbox, Bot Runtime, BotWork Runtime capability seams
+Messaging, Attention/Inbox, Bot Runtime, Assignment Runtime capability seams
 PersonaBot/Channel/Source Event/Inbox Admission/Attention Decision
 Inbox Trigger/Wake Policy/Delivery Policy
-Orchestrator Session and Work Session product roles
-Work Session Directory/Continuity Key/Work Request/Work Report/Work Lifecycle Notice
+Orchestrator Session and Assignment Session product roles
+Assignment Directory/Continuity Key/Assignment Request/Assignment Report/Assignment Lifecycle Notice
 botharness.db operational authority and model-facing Tools
 ```
 

@@ -29,14 +29,14 @@ A Reply is deliberately narrower than a provider Service Action. The Orchestrato
 
 Each configured provider adapter declares Provider Capabilities for its account. The Host exposes triggers, reconciliation, replies, attachments, threads, and proactive Service Actions only when the required capability is present; unsupported and permission-dependent states are explicit. Capability does not grant use. Proactive actions additionally require the Service Grant defined by ADR-0038.
 
-The Orchestrator is the PersonaBot's single social voice: it alone receives the full Bot Inbox and sends to Channels. A Work Session may read only explicitly granted source Channel context and reports through the Orchestrator; it cannot speak as the PersonaBot by default.
+The Orchestrator is the PersonaBot's single social voice: it alone receives the full Bot Inbox and sends to Channels. An Assignment Session may read only explicitly granted source Channel context and reports through the Orchestrator; it cannot speak as the PersonaBot by default.
 
 ## Considered Options
 
 - **Let each adapter write its own source store** — rejected: authorization, identity, de-duplication, provenance, Inbox admission, and reply routing would diverge by ingress path, as the current browser bridge already demonstrates by writing every message as an anonymous Human.
 - **Treat tool visibility as authorization** — rejected: visibility controls model affordances, not whether the current Actor belongs to a Channel or may act there.
 - **Combine membership with notification/wake settings** — rejected: participation authority and attention policy change for different reasons and have different consumers.
-- **Let Work Sessions send directly** — rejected: multiple concurrent social voices would fragment persona consistency, audit, rate limiting, and Bot-loop control.
+- **Let Assignment Sessions send directly** — rejected: multiple concurrent social voices would fragment persona consistency, audit, rate limiting, and Bot-loop control.
 - **Expose provider-specific reply tools** — rejected: normal replies already have a trusted route, and asking the model to repeat provider/destination/credential selection adds spoofing and misrouting risk. Provider-specific proactive actions remain allowed as separate capabilities.
 - **Poll pending messages for edits** — rejected: polling is costly, rate-limited, and still not an event guarantee; reconciliation happens only at bounded use/recovery points.
 - **Silently retarget a stale reply to the newest revision** — rejected: the generated response may no longer answer the edited instruction, mention, or scope.
@@ -55,6 +55,6 @@ The Orchestrator is the PersonaBot's single social voice: it alone receives the 
 - Browser, Orchestrator tools, and Bridge adapters must carry trusted context rather than author identity supplied by their request bodies.
 - Channels and Bot Inboxes expose committed Source Event references and can recover missed runtime delivery from the transactional outbox.
 - Bridge configuration selects an explicit Channel or PersonaBot Inbox target. Inbox Triggers own admission and Wake Policy selection; a Bridge never auto-creates a Channel or bypasses attention policy.
-- Tests cover unauthorized read/send, forged actor fields, duplicate external ingress, local-plus-echo merging, causal-field derivation, and Work Session capability limits.
+- Tests cover unauthorized read/send, forged actor fields, duplicate external ingress, local-plus-echo merging, causal-field derivation, and Assignment Session capability limits.
 - Bot causation de-duplication and the default eight-hop limit suppress automatic continuation without deleting the over-limit history.
 - Correlated provider echoes update existing outbound facts; unresolved own-sender echoes remain durable but cannot create attention or wake.

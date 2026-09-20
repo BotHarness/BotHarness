@@ -11,7 +11,7 @@
 _避免使用_：bot（单独使用）、agent、assistant、robot
 
 **Archived PersonaBot**：
-一种 PersonaBot 状态：禁止新的 admission、wake、Session execution 和 external action，同时保留其身份、所有权、历史记录与审计归属。归档时先关闭这些入口，再停止其 Orchestrator、Work Session 以及所拥有的 Subagent；只有整个执行树都进入静止状态，归档才算完成。重新激活绝不会自动恢复旧执行。
+一种 PersonaBot 状态：禁止新的 admission、wake、Session execution 和 external action，同时保留其身份、所有权、历史记录与审计归属。归档时先关闭这些入口，再停止其 Orchestrator、Assignment Session 以及所拥有的 Subagent；只有整个执行树都进入静止状态，归档才算完成。重新激活绝不会自动恢复旧执行。
 _避免使用_：deleted bot、paused UI、purged bot
 
 **Bot as a Person**：
@@ -61,7 +61,7 @@ _避免使用_：server、instance、node、worker
 _避免使用_：用这个词指代 PersonaBot
 
 **Subagent**：
-由某个 Session 为有界工作启动的 DSH child agent 和 child Session；它继承父 Session 的 PersonaBot ownership，但属于该父级工作，绝不会成为独立 Work Session。
+由某个 Session 为有界工作启动的 DSH child agent 和 child Session；它继承父 Session 的 PersonaBot ownership，但属于该父级工作，绝不会成为独立 Assignment Session。
 _避免使用_：sub-bot、worker、helper
 
 **Session**：
@@ -72,36 +72,44 @@ _避免使用_：conversation、context window、thread
 Bot-mode Session 与至多一个 PersonaBot 之间排他、持久的关系；非 Bot 模式的 DSH Session 可以保持无 owner，ownership 仅能通过显式修复变更。
 _避免使用_：binding、workspace mapping、cwd inference、session membership
 
-**Work Session**：
-PersonaBot 某一条工作线的独立 root Session。它的 DSH Session id 是其 canonical identity；一个 PersonaBot 可以同时拥有多个 Work Session，而 DSH Subagent 永远不算 Work Session。
-_避免使用_：task、job、child session、worker、separate work id
+**Assignment**：
+一条对 Human 有意义、由 PersonaBot 的 Orchestrator 选择独立推进的持续事项。它没有单独的持久 identity 或 lifecycle；其 canonical runtime identity 是承载它的 Assignment Session 的 DSH Session id。
+_避免使用_：Work、work item、task entity、job entity、worker
 
-**Work Session Directory**：
-一种以 PersonaBot 为作用域的持久 read model，当前 Orchestrator 通过它显式列出并寻址自己拥有的 Work Session，包括 purpose、Continuity Key、Workspace、源自 DSH 的活动状态与 last-run facts、依赖关系、最新语义报告以及后代活动聚合。它将 execution facts 与 reported outcomes 分开，由 Session Ownership 和 DSH facts 重建，并在需要时查询，而不是完整注入每个 turn。列表支持筛选、排序与 opaque-cursor pagination，且绝不会把 DSH Subagent 扁平化为顶层 Work。
+**Assignment Session**：
+执行且只执行一个 Assignment、由 PersonaBot 拥有的独立 root Session；它由 Orchestrator 创建和管理，不要求 Human 另开 Conversation。一个 PersonaBot 可以同时拥有多个 Assignment Session，而 DSH Subagent 永远不算 Assignment Session。
+_避免使用_：Work Session、Worker Session、Executor Session、task Session、child Session
+
+**Assignment Agent**：
+在一个 Assignment Session 中执行的 DSH Agent。它通过该 Session 回报，但既不是持久 identity，也不是 PersonaBot。
+_避免使用_：worker、PersonaBot、Orchestrator、Assignment Session
+
+**Assignment Directory**：
+一种以 PersonaBot 为作用域的持久 read model，当前 Orchestrator 通过它显式列出并寻址自己拥有的 Assignment Session，包括 purpose、Continuity Key、Workspace、源自 DSH 的活动状态与 last-run facts、依赖关系、最新语义报告以及后代活动聚合。它将 execution facts 与 reported outcomes 分开，由 Session Ownership 和 DSH facts 重建，并在需要时查询，而不是完整注入每个 turn。列表支持筛选、排序与 opaque-cursor pagination，且绝不会把 DSH Subagent 扁平化为顶层 Assignment。
 _避免使用_：task list、AgentHandle map、cwd scan、Orchestrator memory
 
 **Continuity Key**：
-显式分配给一条持续工作线、在 PersonaBot 内稳定的 key。它最多命名一个可恢复的 Work Session，并且仅当 ownership、Workspace mapping、model 与 dependency requirement 仍然匹配时才可选中该 Session。当前持有者必须先变为 idle/completed，或被显式停止并 supersede，key 才能转移。
+显式分配给一条持续工作线、在 PersonaBot 内稳定的 key。它最多命名一个可恢复的 Assignment Session，并且仅当 ownership、Workspace mapping、model 与 dependency requirement 仍然匹配时才可选中该 Session。当前持有者必须先变为 idle/completed，或被显式停止并 supersede，key 才能转移。
 _避免使用_：title similarity、cwd、most-recent Session、global id
 
-**Work Request**：
-Orchestrator 向其拥有的某个 Work Session 发送的持久、定向、可审计消息，可选择关联到一个 Inbox Admission 或先前报告。其语义模式为 `context-update`、`next-step` 或 `next-turn`；BotWork Runtime 将它映射为 DSH injection、steer 或 follow-up，且不打断当前 step。
+**Assignment Request**：
+Orchestrator 向其拥有的某个 Assignment Session 发送的持久、定向、可审计消息，可选择关联到一个 Inbox Admission 或先前报告。其语义模式为 `context-update`、`next-step` 或 `next-turn`；Assignment Runtime 将它映射为 DSH injection、steer 或 follow-up，且不打断当前 step。
 _避免使用_：Channel message、Subagent prompt、broadcast、inferred Session
 
-**Work Delivery Intent**：
-在跨越 SQLite/DSH 事务边界创建 DSH Work Session 或交付 Work Request 时使用的、由 BotHarness 拥有的最小持久 bridge。它携带稳定 id，用于幂等接收与有界的重启 reconciliation；它不是通用 workflow 或 retry engine。
+**Assignment Delivery Intent**：
+在跨越 SQLite/DSH 事务边界创建 DSH Assignment Session 或交付 Assignment Request 时使用的、由 BotHarness 拥有的最小持久 bridge。它携带稳定 id，用于幂等接收与有界的重启 reconciliation；它不是通用 workflow 或 retry engine。
 _避免使用_：exactly-once delivery、task queue、workflow、AgentHandle state
 
-**Work Report**：
-一种持久的、源自 Session 的 Source Event，Work Session 通过它主动或响应式地向其 PersonaBot 的 Orchestrator 返回有意义的进度、blocked 或 waiting 状态、结果和 artifact reference。完整执行历史仍保留在 DSH SessionPersistence 中；每份 report 保持不可变，而尚未 Observation 的重复报告可共享一个 Attention Unit。
+**Assignment Report**：
+一种持久的、源自 Session 的 Source Event，Assignment Session 通过它主动或响应式地向其 PersonaBot 的 Orchestrator 返回有意义的进度、blocked 或 waiting 状态、结果和 artifact reference。完整执行历史仍保留在 DSH SessionPersistence 中；每份 report 保持不可变，而尚未 Observation 的重复报告可共享一个 Attention Unit。
 _避免使用_：direct Channel reply、copied Session log、ephemeral callback
 
-**Work Lifecycle Notice**：
-一种持久的、源自 Host 的 Source Event，只在 settled、error 或 cancellation 等有意义的执行边界发出。它携带源自 DSH 的 last-run facts、简洁安全的摘要，并在可用时包含 report/artifact reference；但它始终不同于 Work Agent 自己撰写的内容。
-_避免使用_：Work Report、fabricated agent message、per-turn directory snapshot
+**Assignment Lifecycle Notice**：
+一种持久的、源自 Host 的 Source Event，只在 settled、error 或 cancellation 等有意义的执行边界发出。它携带源自 DSH 的 last-run facts、简洁安全的摘要，并在可用时包含 report/artifact reference；但它始终不同于 Assignment Agent 自己撰写的内容。
+_避免使用_：Assignment Report、fabricated agent message、per-turn directory snapshot
 
-**Work Concurrency Limit**：
-整个 Profile 中可并发执行的独立 Work root 数量上限。v1 中它是由 Human 配置的一项 BotHarness 全局设置；超过上限的 create 或 wake 尝试会立即失败，返回 machine-readable fields 与 LLM-readable explanation，同时不会创建 queue、intent 或 DSH Session。
+**Assignment Concurrency Limit**：
+整个 Profile 中可并发执行的独立 Assignment Session 数量上限。v1 中它是由 Human 配置的一项 BotHarness 全局设置；超过上限的 create 或 wake 尝试会立即失败，返回 machine-readable fields 与 LLM-readable explanation，同时不会创建 queue、intent 或 DSH Session。
 _避免使用_：dispatch queue、per-Bot quota、hidden model budget、total Session count
 
 **Workspace**：
@@ -109,15 +117,15 @@ Session 工作所在的单一 Host 目录；它与一个 DSH workspace 一一映
 _避免使用_：project、multi-root folder、group
 
 **Delegation**：
-从 Chat 或 Roster 将工作交给 PersonaBot；该工作在一个 Session 中运行。
-_避免使用_：assignment、task、job
+从 Chat 或 Roster 把责任交给 PersonaBot。其 Orchestrator 可以直接回答，也可以创建或复用一个或多个 Assignment Session。
+_避免使用_：direct Session creation、task entity、job entity
 
 **Binding**：
 PersonaBot 与其参与的某个 surface 之间的连接——例如 Channel、Chat、sidebar 或 renderer。
 _避免使用_：integration、connector、channel binding
 
 **Orchestrator Session**：
-PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Work Session。
+PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Assignment Session。它是 PersonaBot 的对外发声者，不是由 Human 管理的 Conversation，也不是 Assignment 列表中的一行。
 _避免使用_：main agent、brain、supervisor
 
 ### Memory（记忆）
@@ -439,7 +447,7 @@ _避免使用_：Host shutdown、PersonaBot archive、fuzzy copy
 _避免使用_：deleted Session、empty Session、unowned Session
 
 **Unavailable Workspace Reference**：
-已 restore 的 Workspace locator，但其 target directory 尚未在当前 Host 上完成显式 mapping 与 verification。它的 source path 与 identity hint 仍作为 evidence 保留，但相关 Work Session 无法恢复。
+已 restore 的 Workspace locator，但其 target directory 尚未在当前 Host 上完成显式 mapping 与 verification。它的 source path 与 identity hint 仍作为 evidence 保留，但相关 Assignment Session 无法恢复。
 _避免使用_：missing directory to auto-create、broken Session、trusted absolute path
 
 **Redaction Tombstone**：
@@ -470,12 +478,16 @@ _避免使用_：Profile Transfer、clone、ordinary restore
 bot-mode sidebar 中展示 PersonaBot 与 Channel 及其 state 的列表。
 _避免使用_：dashboard、bot list
 
+**PersonaBot navigation**：
+只在一个 PersonaBot 的 DM 中出现的上下文导航：Chat 与 Memory 是主要 destination，所拥有的 Assignment 作为从属列表展示。它不出现在 group Channel 中，也绝不会把 Orchestrator Session 当作 Assignment 展示。
+_避免使用_：session panel、bot workspace、inspector
+
 **Client bridge**：
 Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RPC surface，不与 Client 共享 Host service。
 _避免使用_：remote、IPC、gateway
 
 **Settings UI**：
-harness 内部的 DSH settings surface，用于 setup wizard、plugin setting、PersonaBot management、memory editing 与 diagnostics。
+harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 PersonaBot Memory 的链接。日常 Memory 使用属于 PersonaBot navigation。
 _避免使用_：admin panel、dashboard、web console
 
 **Access policy**：

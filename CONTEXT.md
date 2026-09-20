@@ -11,7 +11,7 @@ A first-class bot entity owned by the Host: a persona plus memory that spans ses
 _Avoid_: bot (bare), agent, assistant, robot
 
 **Archived PersonaBot**:
-A PersonaBot whose new admissions, wakes, Session execution, and external actions are disabled while its identity, ownership, history, and audit attribution remain intact. Archiving first closes those gates, then stops its Orchestrator, Work Sessions, and owned Subagents; it completes only when that execution tree is quiescent. Reactivation never resumes old execution automatically.
+A PersonaBot whose new admissions, wakes, Session execution, and external actions are disabled while its identity, ownership, history, and audit attribution remain intact. Archiving first closes those gates, then stops its Orchestrator, Assignment Sessions, and owned Subagents; it completes only when that execution tree is quiescent. Reactivation never resumes old execution automatically.
 _Avoid_: deleted bot, paused UI, purged bot
 
 **Bot as a Person**:
@@ -61,7 +61,7 @@ The DSH executor inside one Session. Never a PersonaBot.
 _Avoid_: using this word for PersonaBot
 
 **Subagent**:
-A DSH child agent and child Session that a Session starts for bounded work; it inherits the parent Session's PersonaBot ownership but belongs to that parent work, never becoming an independent Work Session.
+A DSH child agent and child Session that a Session starts for bounded work; it inherits the parent Session's PersonaBot ownership but belongs to that parent work, never becoming an independent Assignment Session.
 _Avoid_: sub-bot, worker, helper
 
 **Session**:
@@ -72,36 +72,44 @@ _Avoid_: conversation, context window, thread
 The exclusive, durable relationship between a Bot-mode Session and at most one PersonaBot; a non-Bot DSH Session may remain unowned, and ownership changes only through explicit repair.
 _Avoid_: binding, workspace mapping, cwd inference, session membership
 
-**Work Session**:
-An independent root Session for one line of a PersonaBot's work. Its DSH Session id is its canonical identity; a PersonaBot may have several at once, and a DSH Subagent never counts as one.
-_Avoid_: task, job, child session, worker, separate work id
+**Assignment**:
+A Human-meaningful continuing line of activity that a PersonaBot's Orchestrator chooses to advance independently. It has no separate durable identity or lifecycle; its canonical runtime identity is the DSH Session id of its Assignment Session.
+_Avoid_: Work, work item, task entity, job entity, worker
 
-**Work Session Directory**:
-The PersonaBot-scoped durable read model through which its current Orchestrator explicitly lists and addresses owned Work Sessions, including purpose, Continuity Key, Workspace, DSH-derived activity/last-run facts, dependencies, latest semantic report, and aggregate descendant activity. It keeps execution facts separate from reported outcomes, is rebuilt from Session Ownership and DSH facts, and is queried when needed rather than injected wholesale into every turn. Listings use filtered, ordered, opaque-cursor pagination and never flatten DSH Subagents into top-level Work.
+**Assignment Session**:
+A PersonaBot-owned independent root Session that executes exactly one Assignment, created and managed by its Orchestrator without requiring the Human to open another Conversation. A PersonaBot may have several at once, and a DSH Subagent never counts as one.
+_Avoid_: Work Session, Worker Session, Executor Session, task Session, child Session
+
+**Assignment Agent**:
+The DSH Agent executing inside one Assignment Session. It reports through that Session but is neither a durable identity nor a PersonaBot.
+_Avoid_: worker, PersonaBot, Orchestrator, Assignment Session
+
+**Assignment Directory**:
+The PersonaBot-scoped durable read model through which its current Orchestrator explicitly lists and addresses owned Assignment Sessions, including purpose, Continuity Key, Workspace, DSH-derived activity/last-run facts, dependencies, latest semantic report, and aggregate descendant activity. It keeps execution facts separate from reported outcomes, is rebuilt from Session Ownership and DSH facts, and is queried when needed rather than injected wholesale into every turn. Listings use filtered, ordered, opaque-cursor pagination and never flatten DSH Subagents into top-level Assignment rows.
 _Avoid_: task list, AgentHandle map, cwd scan, Orchestrator memory
 
 **Continuity Key**:
-A stable PersonaBot-local key explicitly assigned to one continuing line of work. It names at most one resumable Work Session and may select it only when ownership, Workspace mapping, model, and dependency requirements still match. An active holder must first become idle/completed or be explicitly stopped and superseded before the key moves.
+A stable PersonaBot-local key explicitly assigned to one continuing line of work. It names at most one resumable Assignment Session and may select it only when ownership, Workspace mapping, model, and dependency requirements still match. An active holder must first become idle/completed or be explicitly stopped and superseded before the key moves.
 _Avoid_: title similarity, cwd, most-recent Session, global id
 
-**Work Request**:
-A durable, addressed, auditable Orchestrator message to one owned Work Session, optionally correlated to an Inbox Admission or earlier report. Its semantic mode is `context-update`, `next-step`, or `next-turn`; BotWork Runtime maps that to DSH injection, steer, or follow-up without interrupting the current step.
+**Assignment Request**:
+A durable, addressed, auditable Orchestrator message to one owned Assignment Session, optionally correlated to an Inbox Admission or earlier report. Its semantic mode is `context-update`, `next-step`, or `next-turn`; Assignment Runtime maps that to DSH injection, steer, or follow-up without interrupting the current step.
 _Avoid_: Channel message, Subagent prompt, broadcast, inferred Session
 
-**Work Delivery Intent**:
-The minimal BotHarness-owned durable bridge used while creating a DSH Work Session or delivering a Work Request across the SQLite/DSH transaction boundary. It carries a stable id for idempotent acceptance and bounded restart reconciliation; it is not a general workflow or retry engine.
+**Assignment Delivery Intent**:
+The minimal BotHarness-owned durable bridge used while creating a DSH Assignment Session or delivering an Assignment Request across the SQLite/DSH transaction boundary. It carries a stable id for idempotent acceptance and bounded restart reconciliation; it is not a general workflow or retry engine.
 _Avoid_: exactly-once delivery, task queue, workflow, AgentHandle state
 
-**Work Report**:
-A durable Session-origin Source Event by which a Work Session proactively or responsively returns meaningful progress, blocked or waiting state, results, and artifact references to its PersonaBot's Orchestrator. Full execution history remains in DSH SessionPersistence; each report stays immutable while unobserved repeats may share one Attention Unit.
+**Assignment Report**:
+A durable Session-origin Source Event by which an Assignment Session proactively or responsively returns meaningful progress, blocked or waiting state, results, and artifact references to its PersonaBot's Orchestrator. Full execution history remains in DSH SessionPersistence; each report stays immutable while unobserved repeats may share one Attention Unit.
 _Avoid_: direct Channel reply, copied Session log, ephemeral callback
 
-**Work Lifecycle Notice**:
-A durable Host-origin Source Event emitted only for a meaningful execution boundary such as settled, error, or cancellation. It carries DSH-derived last-run facts, a concise safe summary, and report/artifact references when available, but remains distinct from content the Work Agent authored.
-_Avoid_: Work Report, fabricated agent message, per-turn directory snapshot
+**Assignment Lifecycle Notice**:
+A durable Host-origin Source Event emitted only for a meaningful execution boundary such as settled, error, or cancellation. It carries DSH-derived last-run facts, a concise safe summary, and report/artifact references when available, but remains distinct from content the Assignment Agent authored.
+_Avoid_: Assignment Report, fabricated agent message, per-turn directory snapshot
 
-**Work Concurrency Limit**:
-The profile-wide maximum number of independent Work roots allowed to execute concurrently. It is a single Human-configured BotHarness setting in v1; a create or wake attempt beyond the limit fails immediately with machine-readable fields and an LLM-readable explanation, without creating a queue, intent, or DSH Session.
+**Assignment Concurrency Limit**:
+The profile-wide maximum number of independent Assignment Sessions allowed to execute concurrently. It is a single Human-configured BotHarness setting in v1; a create or wake attempt beyond the limit fails immediately with machine-readable fields and an LLM-readable explanation, without creating a queue, intent, or DSH Session.
 _Avoid_: dispatch queue, per-Bot quota, hidden model budget, total Session count
 
 **Workspace**:
@@ -109,15 +117,15 @@ A single host directory a Session works in; it maps one-to-one to a DSH workspac
 _Avoid_: project, multi-root folder, group
 
 **Delegation**:
-Handing a PersonaBot work from a chat or the roster; the work runs in a Session.
-_Avoid_: assignment, task, job
+Handing responsibility to a PersonaBot from a Chat or the Roster. Its Orchestrator may answer directly or create or reuse one or more Assignment Sessions.
+_Avoid_: direct Session creation, task entity, job entity
 
 **Binding**:
 A PersonaBot's connection to a surface it takes part in — a Channel, a Chat, the sidebar, or a renderer.
 _Avoid_: integration, connector, channel binding
 
 **Orchestrator Session**:
-The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Work Sessions.
+The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. It is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row.
 _Avoid_: main agent, brain, supervisor
 
 ### Memory
@@ -439,7 +447,7 @@ A preserved Session ownership/audit record whose DSH Session content was omitted
 _Avoid_: deleted Session, empty Session, unowned Session
 
 **Unavailable Workspace Reference**:
-A restored Workspace locator whose target directory has not been explicitly mapped and verified on the current Host. Its source path and identity hints remain evidence, but its Work Sessions cannot resume.
+A restored Workspace locator whose target directory has not been explicitly mapped and verified on the current Host. Its source path and identity hints remain evidence, but its Assignment Sessions cannot resume.
 _Avoid_: missing directory to auto-create, broken Session, trusted absolute path
 
 **Redaction Tombstone**:
@@ -470,12 +478,16 @@ _Avoid_: Profile Transfer, clone, ordinary restore
 The bot-mode sidebar list of PersonaBots and Channels, with their state.
 _Avoid_: dashboard, bot list
 
+**PersonaBot navigation**:
+The DM-only contextual navigation for one PersonaBot: Chat and Memory are primary destinations, with owned Assignments shown as a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
+_Avoid_: session panel, bot workspace, inspector
+
 **Client bridge**:
 The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:
-The in-harness DSH settings surface for the setup wizard, plugin settings, PersonaBot management, memory editing, and diagnostics.
+The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into PersonaBot Memory. Ordinary Memory use belongs to PersonaBot navigation.
 _Avoid_: admin panel, dashboard, web console
 
 **Access policy**:

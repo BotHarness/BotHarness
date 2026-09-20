@@ -2,15 +2,15 @@
 
 <!-- Maintained source, not generated: this is the English translation of `docs/architecture/botharness-architecture.md`. Edit this file (and its `diagrams/en/*.mmd` sources), not `apps/docs`. -->
 
-BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent identity: a **PersonaBot**. Its persona and Memory continue across Sessions. One Orchestrator Session manages its Inbox and may coordinate multiple independent Work Sessions concurrently. DeepSeekBot is the first app, providing the roster, Bot Inbox, Work Directory, delegation, and IM integration.
+BotHarness is a plugin layer on top of DSH (DeepSeek Harness) that gives an Agent a persistent identity: a **PersonaBot**. Its persona and Memory continue across Sessions. One Orchestrator Session manages its Inbox and may coordinate multiple independent Assignment Sessions concurrently. DeepSeekBot is the first app, providing the roster, Bot Inbox, Assignment Directory, delegation, and IM integration.
 
-This document describes the target architecture agreed in #71. The M1 registry, M2 Memory MVP, and #66 roster storage exist today; #77 has validated the DSH runtime seams, while explicit Session ownership, Messaging, the BotWork Runtime, the unified operational database, and portability ship incrementally through #79–#81. Updated 2026-09-20.
+This document describes the target architecture agreed in #71. The M1 registry, M2 Memory MVP, and #66 roster storage exist today; #77 has validated the DSH runtime seams, while explicit Session ownership, Messaging, the Assignment Runtime, the unified operational database, and portability ship incrementally through #79–#81. Updated 2026-09-20.
 
 The rollout stays explicit: #66's `botharness_roster` domain is the current roster authority; #79 establishes only the `botharness.db` owner, and #80 performs the one-way roster and Session-ownership migration. The target diagrams show ownership after that migration, not a present-day dual-write path.
 
 #56 extends the current roster global slot to `{ pins, sectionOrder, topOrder? }`: `topOrder` mixes section blocks with loose Channels while membership remains owned only by section records. The unary client bridge now has eight arrangement methods, adding `topReorder`; #80 must migrate this order and its single-membership invariant into the database without dual writes.
 
-The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Work, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
+The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Assignment, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
 
 ## 1 · System context
 
@@ -20,20 +20,20 @@ flowchart LR
   External["Feishu / Lark<br/>webhook / future providers"]
 
   subgraph Browser["DSH Web Client"]
-    UI["DeepSeekBot UI<br/>Roster · Inbox · Work · Settings"]
+    UI["DeepSeekBot UI<br/>Roster · Inbox · Assignments · Settings"]
   end
 
   subgraph Host["DSH Host · single profile writer"]
     API["Client Bridge RPC"]
     Identity["PersonaBot & Memory"]
     Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
-    BotWork["BotWork Runtime<br/>Orchestrator · Work Directory"]
+    Assignments["Assignment Runtime<br/>Orchestrator · Assignment Directory"]
     Transfer["Portability<br/>Export · Backup · Restore"]
     DB[("botharness.db")]
   end
 
   subgraph DSH["DSH-owned runtime"]
-    Sessions["Agent / SessionPersistence<br/>Orchestrator · Work · Subagent"]
+    Sessions["Agent / SessionPersistence<br/>Orchestrator · Assignment Sessions · Subagent"]
     Credentials["Credentials · profile settings"]
   end
 
@@ -42,15 +42,15 @@ flowchart LR
   UI <--> API
   API --> Identity
   API --> Messaging
-  API --> BotWork
+  API --> Assignments
   API --> Transfer
   Identity --> DB
   Messaging --> DB
-  BotWork --> DB
+  Assignments --> DB
   Transfer --> DB
   Identity <--> Sessions
-  Messaging --> BotWork
-  BotWork <--> Sessions
+  Messaging --> Assignments
+  Assignments <--> Sessions
   Messaging -.-> Credentials
   Transfer -.-> Sessions
 ```
@@ -68,7 +68,7 @@ flowchart TB
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
     Memory["Memory<br/>files · context delivery · tools"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
-    Work["BotWork<br/>directory · capacity · requests · reports"]
+    Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
     Views["Read models<br/>RPC · UI projections"]
   end
@@ -77,19 +77,19 @@ flowchart TB
   Root --> Bots
   Root --> Memory
   Root --> Msg
-  Root --> Work
+  Root --> Assignments
   Root --> Portable
   Root --> Views
   DB --> Bots
   DB --> Msg
-  DB --> Work
+  DB --> Assignments
   DB --> Portable
   Bots --> Memory
-  Bots --> Work
-  Msg --> Work
+  Bots --> Assignments
+  Msg --> Assignments
   Bots --> Views
   Msg --> Views
-  Work --> Views
+  Assignments --> Views
   Portable --> Views
 ```
 
@@ -98,7 +98,7 @@ flowchart TB
 | PersonaBot  | identity, lifecycle, explicit Session ownership                                                           | DSH Session lifecycle, Memory content                |
 | Memory      | `PERSONA.md`, Memory files, the context-assembly contract                                                 | Inbox content, automatic distillation                |
 | Messaging   | Source Events, Channel placement, Inbox Admission, Attention, Trigger/Wake Policy, Service Grants, Outbox | Agent execution, provider credentials                |
-| BotWork     | Work Directory, Work Request/Delivery Intent, capacity admission, report/lifecycle routing                | DSH transcripts, Subagent runtime                    |
+| Assignments | Assignment Directory, Assignment Request/Delivery Intent, capacity admission, report/lifecycle routing    | DSH transcripts, Subagent runtime                    |
 | Portability | coordination for SoulSnapshot, PersonaBot Export, Profile Backup/Restore/Transfer                         | credentials, executable plugins, private DSH formats |
 | Read models | queries, pagination, UI-friendly projections                                                              | business facts and write rules                       |
 
@@ -158,28 +158,32 @@ A Source Event is the sole authority for content; Channels and Inboxes hold rela
 
 Wake Policy decides when an Orchestrator observes new attention: at the safe boundary after the current step, after the current turn, or by starting a new turn while idle. Ordinary external messages do not interrupt a running model/tool step. Only a DSH-supported and policy-authorized control path may steer execution.
 
-## 5 · Orchestrator and Work control plane
+## 5 · Orchestrator and Assignment control plane
+
+The Human does not create or select execution Conversations. The PersonaBot DM is the sole chat entry: a message becomes a Source Event, enters the Bot Inbox, and reaches the Orchestrator, which either replies directly or creates, reuses, and manages several Assignment Sessions within authorization and capacity. The UI projects those Assignment Sessions by purpose and state in the `Assignments` list; it never presents the Orchestrator Session as an Assignment.
+
+PersonaBot navigation appears only in a DM. `Chat` and `Memory` are primary destinations, followed directly by the Assignments list. Selecting an Assignment opens read-only detail; raw DSH Session content requires an explicit secondary action. A group Channel has no such navigation. The first tracer bullet delivers Chat plus the files-first Memory loop; the Assignment list follows by consuming the Assignment Directory read model.
 
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
-  O -->|"list / inspect"| Dir["Durable Work Session Directory"]
-  O -->|"create_work"| Gate{"Global active Work < limit?<br/>default 3"}
+  O -->|"list / inspect"| Dir["Durable Assignment Directory"]
+  O -->|"create_assignment"| Gate{"Global active Assignments < limit?<br/>default 3"}
   Gate -- "no" --> Error["Structured + LLM-readable failure<br/>no queue, no intent"]
-  Gate -- "yes" --> Runtime["BotWork Runtime"]
-  O -->|"send_work_request / stop_work"| Runtime
-  Runtime <--> W1["Independent Work Session A"]
-  Runtime <--> W2["Independent Work Session B"]
-  W1 -->|"report_to_orchestrator"| Report["Work Report Source Event"]
+  Gate -- "yes" --> Runtime["Assignment Runtime"]
+  O -->|"send_assignment_request / stop_assignment"| Runtime
+  Runtime <--> W1["Independent Assignment Session A"]
+  Runtime <--> W2["Independent Assignment Session B"]
+  W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
   W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
   Report --> Inbox
   Notice --> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
-A Work Session is an independent DSH root whose canonical identity is the DSH `sessionId`; a Continuity Key is only a PersonaBot-local alias. The Orchestrator manages Work through five tools: `list_work`, `inspect_work`, `create_work`, `send_work_request`, and `stop_work`. Work can report only through `report_to_orchestrator`. v1 has no direct Work-to-Work messaging, broadcast, or waiting queue.
+An Assignment Session is an independent DSH root whose canonical identity is the DSH `sessionId`; a Continuity Key is only a PersonaBot-local alias. The Orchestrator manages Assignments through five tools: `list_assignments`, `inspect_assignment`, `create_assignment`, `send_assignment_request`, and `stop_assignment`. An Assignment Agent can report only through `report_to_orchestrator`. v1 has no direct Assignment-to-Assignment messaging, broadcast, or waiting queue.
 
-The Work Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Work Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
+The Assignment Request modes `context-update`, `next-step`, and `next-turn` map to verified DSH inject, steer, and followup seams. An ordinary request never cancels the current step. Across the SQLite/DSH boundary BotHarness retains only a minimal Assignment Delivery Intent and performs bounded restart reconciliation. Ambiguity becomes `needs-repair`; it does not grow into a general workflow engine.
 
 ## 6 · Persistence, export, and restore boundaries
 
@@ -221,10 +225,10 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 ## 7 · Critical boundaries
 
 - Normal runtime uses explicit Session ownership only. `cwd` may be a migration or repair hint but never decides PersonaBot identity.
-- DSH Session state is authoritative for execution. BotHarness projects activity/last-run facts and keeps a semantic Work Report separate from a Host Lifecycle Notice.
+- DSH Session state is authoritative for execution. BotHarness projects activity/last-run facts and keeps a semantic Assignment Report separate from a Host Lifecycle Notice.
 - Provider capability is not authorization. Discovering a Feishu channel never grants permission to post into it.
 - The UI never reads files or the database directly and does not derive business state. It consumes Host read models and sends commands back to the owning module.
-- Archiving a PersonaBot first closes admissions, wakes, and external actions, then stops its Orchestrator, Work, and owned Subagents. Purge is a separate destructive action.
+- Archiving a PersonaBot first closes admissions, wakes, and external actions, then stops its Orchestrator, Assignment Sessions, and owned Subagents. Purge is a separate destructive action.
 - Browser and Host are separate Cordis applications. Host services are never injected across processes; all calls use the `/api` client bridge.
 - Roadmap Project #1 stays private. Docs sync reads only explicit `In Progress` and Artifact values with `read:project`, then commits public JSON only after a fail-closed allowlist projection. Project notes, private items, assignees, backlog, and ETA never cross this publication boundary.
 
@@ -232,7 +236,7 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 
 1. #77 validates the pinned DSH Agent/SessionPersistence/Subagent seams while #79 builds the operational database owner. These can proceed in parallel.
 2. #80 implements explicit Session ownership and the activity projection after #77 and #79.
-3. #81 implements the BotWork Runtime after #77, #79, and #80; Work coordination in #47 depends on it.
+3. #81 implements the Assignment Runtime after #77, #79, and #80; Assignment coordination in #47 depends on it.
 4. #78 can research the Feishu provider contract in parallel, but it gates adapter implementation in #48.
 5. #74, #75, and #76 are focused design/grill tracks. In particular, #75 can run in parallel with sidebar ordering #55.
 
