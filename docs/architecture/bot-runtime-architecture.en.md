@@ -8,6 +8,7 @@ This product-owned reference describes the **BotHarness-proposed** layer built o
 
 ```text
 Channel != PersonaBot != Session != Agent
+Chat UI != Session
 ```
 
 ## Three graphs
@@ -31,7 +32,8 @@ PersonaBot-to-PersonaBot communication is peer social communication, not Subagen
 PersonaBot
 |- one Orchestrator root Session
 |- zero or more independent Assignment Sessions
-`- durable ownership/directory metadata
+|- durable ownership/directory metadata
+`- zero or one attached Memory Repository in v1 (optional capability)
 ```
 
 Session Ownership relates each root Session to one PersonaBot and its root role. It is not a DSH `parentSession` delegation edge.
@@ -123,6 +125,16 @@ Assignment Reports carry meaningful progress, blocked/waiting state, results, an
 
 The profile-wide **Assignment Concurrency Limit** defaults to `3` and counts only independent Assignment Sessions actively executing. Excess create or idle-wake attempts fail immediately with structured machine fields plus an LLM-readable explanation. Assignment creates no queue, intent, or dormant DSH Session for a rejected attempt.
 
+## Optional Memory capability
+
+The minimal Chat, Orchestrator, and Assignment execution path depends only on the system-defined base runtime prompt; neither Persona nor Memory is a Session role or startup prerequisite. The application-defined Memory Service is an independent `Consumer → Service Definition → Provider` capability seam. Its Git-backed Provider may be absent in v1. When absent, no Memory Tools or context are registered and the Client omits the Memory destination, while DM and Assignment behavior remains complete.
+
+A Memory Repository has an independent identity and lifecycle and attaches to a PersonaBot. Every file is ordinary Markdown; there is no generated or special `MEMORY.md`. When Persona input is supplied, the Provider creates an ordinary `persona.md` pinned by default. An Agent or Human with write access may later modify, unpin, rename, or delete it like any other file.
+
+Pin state lives in versioned frontmatter. Pinned bodies enter only future turns and must fit both a Human-adjustable repository UTF-8 byte budget and an active-model token preflight. An over-limit operation fails closed with machine-readable usage, limit, and largest-file fields plus an LLM-readable remedy; content is never silently truncated. `memory_pin` and `memory_unpin` are explicit commands so ordinary file writes cannot bypass the budget.
+
+Application-defined Cordis Events surround every Memory Service command/query. `memory/before-operation` is a waterfall that may enrich, rewrite, or reject. `memory/after-operation` emits after success or failure and reports a commit id for mutations only after the durable Git commit succeeds. Event payloads carry metadata such as repository, operation, actor, cause, path, commit, and outcome rather than file bodies. Git history is durable authority, so a listener that misses a live Event can rebuild by querying history.
+
 ## Deep module capability seams
 
 Use small command/query interfaces without freezing speculative CRUD:
@@ -131,6 +143,7 @@ Use small command/query interfaces without freezing speculative CRUD:
 - **Attention/Inbox** owns Inbox Trigger evaluation, Inbox Admission, Attention Unit, Attention Decision, Observation, and Wake Policy selection.
 - **Bot Runtime** resolves PersonaBot → Orchestrator Session → live/cold Agent and applies Delivery Policy.
 - **Assignment Runtime** owns Assignment Directory queries, AgentHandles for Assignment Sessions, Assignment Requests, Assignment Delivery Intents, reports/notices, stop convergence, and concurrency admission.
+- **Memory Service** is an optional application-defined capability that owns generic repository commands/queries, pin budgets, semantic Git commits, and operation Events; PersonaBot, Assignment, Tool, UI, and other trusted Plugins are Consumers.
 
 Provider boundaries remain capability seams. A Feishu Provider declares Provider Capabilities and resolves non-secret account/Chat/Thread references; Reply is Host-routed from trusted provenance, while proactive Service Action requires a matching Service Grant.
 
@@ -146,7 +159,7 @@ Messaging command
 -> emit live post-commit notification
 ```
 
-Cordis notifications are not durable authority. Source Events, Admissions, Attention Decisions, Assignment Delivery Intents, reports/notices, Outbox, and audit facts remain in the operational database.
+Cordis notifications are not durable authority. Source Events, Admissions, Attention Decisions, Assignment Delivery Intents, reports/notices, Outbox, and audit facts remain in the operational database; a successful Git commit is the durable authority for a Memory operation. Memory before/after Events do not replace history, and an after-listener failure cannot roll back a committed mutation.
 
 External edit and recall events become Source Revisions. They may update an existing unobserved Attention Unit or produce new attention after Observation. Reading current provider state does not replace recording a received fact when audit/order matters.
 
@@ -156,9 +169,9 @@ Orchestrator-facing Tools adapt messaging, Inbox, and Assignment-control capabil
 
 Default posture:
 
-- Orchestrator owns external social identity and outbound Channel actions.
-- Assignment Sessions get only source-scoped Channel reads when needed.
-- Assignment Sessions do not receive arbitrary Bot Inbox or top-level Assignment-control authority; Assignment-to-Assignment coordination is mediated by the Orchestrator in v1.
+- Orchestrator owns external social identity and outbound Channel actions; when a Memory Repository is attached it receives read-write Memory Tools by default.
+- Assignment Sessions get only source-scoped Channel reads when needed and no Memory by default. The Orchestrator may explicitly grant `read` or full `read-write` during creation; the latter includes Persona mutations and pin/unpin.
+- Assignment Sessions do not receive arbitrary Bot Inbox or top-level Assignment-control authority; Assignment-to-Assignment coordination is mediated by the Orchestrator in v1, and their Subagents do not inherit Memory grants automatically.
 - Tool visibility is Agent Scope; authorization is still enforced by the Service Provider.
 
 ## Persistence boundaries
@@ -166,7 +179,7 @@ Default posture:
 - DSH Session Persistence owns Agent execution SessionEvents.
 - One profile-scoped `$DSH_HOME/botharness/botharness.db` physically owns every BotHarness operational record: PersonaBot registry/Session Ownership, Channels, Source Events/Revisions, Admissions/Attention, policies, grants, Outbox, Assignment metadata, and audit.
 - Deep modules remain separate through small interfaces and explicit table ownership; callers never receive generic SQL or compose transactions themselves.
-- Soul/Memory files, Attachment CAS bytes, DSH Session logs, credentials, and DSH-native Settings remain outside this database under their own authorities.
+- Optional Memory Repository Markdown and Git commits, Attachment CAS bytes, DSH Session logs, credentials, and DSH-native Settings remain outside this database under their own authorities; repository attachment and deletion are separate lifecycle operations.
 - Projections and search indexes are derived and rebuildable.
 - External side effects use idempotency and an outbox/reconciliation contract; a local transaction cannot make an external provider call exactly once.
 
@@ -192,6 +205,7 @@ BotHarness-proposed layer:
 
 ```text
 Messaging, Attention/Inbox, Bot Runtime, Assignment Runtime capability seams
+optional application-defined Memory Service Definition/Provider/Event
 PersonaBot/Channel/Source Event/Inbox Admission/Attention Decision
 Inbox Trigger/Wake Policy/Delivery Policy
 Orchestrator Session and Assignment Session product roles

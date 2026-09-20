@@ -3,12 +3,13 @@ flowchart LR
   External["Feishu / Lark<br/>webhook / future providers"]
 
   subgraph Browser["DSH Web Client"]
-    UI["DeepSeekBot UI<br/>Roster · Inbox · Assignments · Settings"]
+    UI["DeepSeekBot UI<br/>Roster · Chat · Assignments · Settings"]
   end
 
   subgraph Host["DSH Host · single profile writer"]
     API["Client Bridge RPC"]
-    Identity["PersonaBot & Memory"]
+    Identity["PersonaBot identity"]
+    Memory["Optional Memory Service<br/>Service Definition · Git Provider"]
     Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
     Assignments["Assignment Runtime<br/>Orchestrator · Assignment Directory"]
     Transfer["Portability<br/>Export · Backup · Restore"]
@@ -24,15 +25,18 @@ flowchart LR
   External <--> Messaging
   UI <--> API
   API --> Identity
+  API -.-> Memory
   API --> Messaging
   API --> Assignments
   API --> Transfer
   Identity --> DB
+  Identity -. attachment .-> Memory
   Messaging --> DB
   Assignments --> DB
   Transfer --> DB
   Identity <--> Sessions
   Messaging --> Assignments
   Assignments <--> Sessions
+  Assignments -. scoped Consumer .-> Memory
   Messaging -.-> Credentials
   Transfer -.-> Sessions

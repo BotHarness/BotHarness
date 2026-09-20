@@ -8,6 +8,7 @@
 
 ```text
 Channel != PersonaBot != Session != Agent
+Chat UI != Session
 ```
 
 ## 三张图
@@ -31,7 +32,8 @@ PersonaBot-to-PersonaBot communication 是 peer social communication，不是 Su
 PersonaBot
 |- one Orchestrator root Session
 |- zero or more independent Assignment Sessions
-`- durable ownership/directory metadata
+|- durable ownership/directory metadata
+`- zero or one attached Memory Repository in v1 (optional capability)
 ```
 
 Session Ownership 把每个 root Session 关联到一个 PersonaBot 及其 root role。它不是 DSH `parentSession` delegation edge。
@@ -123,6 +125,16 @@ Assignment Report 携带有意义的 progress、blocked/waiting state、result �
 
 Profile-wide **Assignment Concurrency Limit** 默认是 `3`，只计算正在执行的独立 Assignment Session。超过上限的 create 或 idle-wake attempt 立即失败，并返回结构化 machine field 和 LLM 可读说明。被拒绝的 attempt 不创建 queue、intent 或 dormant DSH Session。
 
+## Optional Memory capability
+
+Chat、Orchestrator 与 Assignment 的最小执行链只依赖 system-defined base runtime prompt；Persona 与 Memory 都不是 Session role 或启动前置条件。application-defined Memory Service 是独立的 `Consumer → Service Definition → Provider` capability seam。V1 的 Git-backed Provider 可以缺席；缺席时不注册 Memory Tool、不注入 Memory context、也不显示 Client Memory destination，但 DM 与 Assignment 行为保持成立。
+
+Memory Repository 具有独立 identity 与 lifecycle，并通过 attachment 关联 PersonaBot。所有文件都是普通 Markdown：没有 generated/special `MEMORY.md`。如果创建时提供 Persona，Provider 创建普通 `persona.md` 并默认 pin；获得写权限的 Agent 或 Human 之后可以像处理其他文件一样修改、unpin、改名或删除它。
+
+pin state 存在 versioned frontmatter。Pinned body 只进入后续 turn 的 system prompt，并受 Human-adjustable repository UTF-8 byte budget 与 active-model token preflight 两层约束；超限 operation fail closed，返回 machine-readable usage/limit/largest-files field 与 LLM-readable remedy，不静默截断。`memory_pin` 与 `memory_unpin` 是显式 command，因此一般文件写入不能绕过 budget。
+
+每个 Memory Service command/query 都由 application-defined Cordis Events 包围：`memory/before-operation` 使用 waterfall，可 enrich、rewrite 或 reject；`memory/after-operation` 在 success/failure 后 emit，mutation 只在 durable Git commit 成功后报告 commit id。Event 只携带 repository、operation、actor、cause、path、commit、outcome 等 metadata；Git history 是 durable authority，listener 错过 live Event 后可以查询重建。
+
 ## Deep module capability seam
 
 使用小型 command/query interface，不要过早冻结 speculative CRUD：
@@ -131,6 +143,7 @@ Profile-wide **Assignment Concurrency Limit** 默认是 `3`，只计算正在执
 - **Attention/Inbox** 拥有 Inbox Trigger evaluation、Inbox Admission、Attention Unit、Attention Decision、Observation 与 Wake Policy selection。
 - **Bot Runtime** 解析 PersonaBot → Orchestrator Session → live/cold Agent，并应用 Delivery Policy。
 - **Assignment Runtime** 拥有 Assignment Directory query、Assignment AgentHandle、Assignment Request、Assignment Delivery Intent、report/notice、stop convergence 与 concurrency admission。
+- **Memory Service** 是 optional application-defined capability，拥有 generic repository command/query、pin budget、semantic Git commit 与 operation Event；PersonaBot、Assignment、Tool、UI 和其他 trusted Plugin 都只是 Consumer。
 
 Provider boundary 仍是 capability seam。Feishu Provider 声明 Provider Capability，并解析非 secret account/Chat/Thread reference；Reply 由 Host 根据可信 provenance route，主动 Service Action 则要求匹配的 Service Grant。
 
@@ -146,7 +159,7 @@ Messaging command
 -> 发出 live post-commit notification
 ```
 
-Cordis notification 不是 durable authority。Source Event、Admission、Attention Decision、Assignment Delivery Intent、report/notice、Outbox 与 audit fact 都保留在 operational database 中。
+Cordis notification 不是 durable authority。Source Event、Admission、Attention Decision、Assignment Delivery Intent、report/notice、Outbox 与 audit fact 都保留在 operational database 中；Memory operation 的 durable authority 则是成功提交的 Git commit。Memory 的 before/after Event 不能替代 history，也不能让失败的 after-listener 回滚已提交 mutation。
 
 外部 edit/recall event 产生 Source Revision。它们可以更新尚未 Observation 的 Attention Unit，或在 Observation 后产生新的 attention。若 audit/order 很重要，从 provider 读取当前状态不能替代记录已收到的事实。
 
@@ -156,9 +169,9 @@ Cordis notification 不是 durable authority。Source Event、Admission、Attent
 
 默认姿态：
 
-- Orchestrator 拥有外部 social identity 与 outbound Channel action。
-- Assignment Session 只在需要时获得 source-scoped Channel read。
-- Assignment Session 不获得任意 Bot Inbox 或 top-level Assignment-control authority；v1 的 Assignment-to-Assignment coordination 由 Orchestrator 居中协调。
+- Orchestrator 拥有外部 social identity 与 outbound Channel action；Memory Repository 已接入时默认获得 read-write Memory Tool。
+- Assignment Session 只在需要时获得 source-scoped Channel read；默认没有 Memory，Orchestrator 创建它时可以显式授予 `read` 或完整 `read-write`，后者包含 Persona mutation 与 pin/unpin。
+- Assignment Session 不获得任意 Bot Inbox 或 top-level Assignment-control authority；v1 的 Assignment-to-Assignment coordination 由 Orchestrator 居中协调，其 Subagent 不自动继承 Memory grant。
 - Tool visibility 由 Agent Scope 决定；authorization 仍由 Service Provider 强制执行。
 
 ## Persistence 边界
@@ -166,7 +179,7 @@ Cordis notification 不是 durable authority。Source Event、Admission、Attent
 - DSH Session Persistence 拥有 Agent execution SessionEvent。
 - 一个 profile-scoped `$DSH_HOME/botharness/botharness.db` 实体拥有全部 BotHarness operational record：PersonaBot registry/Session Ownership、Channel、Source Event/Revision、Admission/Attention、policy、grant、Outbox、Assignment metadata 与 audit。
 - Deep module 通过小型 interface 与明确 table ownership 保持分离；caller 永远不拿 generic SQL，也不自行组合 transaction。
-- Soul/Memory file、Attachment CAS byte、DSH Session log、credential 与 DSH-native Setting 位于数据库之外，由各自 authority 管理。
+- Optional Memory Repository 的 Markdown 与 Git commit、Attachment CAS byte、DSH Session log、credential 与 DSH-native Setting 位于数据库之外，由各自 authority 管理；repository attachment 与 deletion 是不同 lifecycle operation。
 - Projection 与 search index 是 derived、可重建数据。
 - 外部 side effect 使用 idempotency 与 outbox/reconciliation contract；本地 transaction 无法让外部 provider call exactly once。
 
@@ -192,6 +205,7 @@ BotHarness-proposed layer：
 
 ```text
 Messaging、Attention/Inbox、Bot Runtime、Assignment Runtime capability seam
+optional application-defined Memory Service Definition/Provider/Event
 PersonaBot/Channel/Source Event/Inbox Admission/Attention Decision
 Inbox Trigger/Wake Policy/Delivery Policy
 Orchestrator Session 与 Assignment Session 产品角色

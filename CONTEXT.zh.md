@@ -1,13 +1,13 @@
 # BotHarness 产品术语
 
-一个 DeepSeek Harness 插件层，为 LLM Agent 提供持久身份：PersonaBot——拥有 persona 和 memory，生命周期超越任何 Session、Chat 或 Workspace 的 bot。
+一个 DeepSeek Harness 插件层，为 LLM Agent 提供持久产品身份：PersonaBot——身份与执行归属跨越任何 Session、Chat 或 Workspace，并可选择接入 Memory capability 及其中 Persona 内容的 bot。
 
 ## 语言
 
 ### PersonaBot（持久机器人身份）
 
 **PersonaBot**：
-由 Host 拥有的一等 bot 实体：由 persona 与 memory 组成，跨越 Session、Chat 和 Workspace，并且可以同时持有多个 Session。
+由 Host 拥有的一等 bot 实体：一种跨越 Session、Chat 与 Workspace、并可同时持有多个 Session 的持久身份。Memory 是 optional attachment，Persona 是其中的 optional 内容；两者都不是聊天或执行成立的前提。
 _避免使用_：bot（单独使用）、agent、assistant、robot
 
 **Archived PersonaBot**：
@@ -15,7 +15,7 @@ _避免使用_：bot（单独使用）、agent、assistant、robot
 _避免使用_：deleted bot、paused UI、purged bot
 
 **Bot as a Person**：
-一项原则：PersonaBot 的连续性来自其 memory 文件，而不是任何 Session 历史。
+一项原则：PersonaBot 跨 Session 仍是同一个产品身份；当 Memory 已接入时，其学习所得的持久连续性来自 Memory Repository，而不是 Session 历史。
 _避免使用_：session-scoped identity
 
 **PersonaBot ID**：
@@ -35,7 +35,7 @@ _避免使用_：Bot tag、permission role、category
 _避免使用_：Persona、role badge、system prompt
 
 **Persona**：
-塑造 PersonaBot 回复方式的角色定义——包括人物特征、表达风格和长期指令。Persona 归 Human 所有：Agent 不得改写它。
+用于描述人物特征、表达风格或长期指令的 optional Memory 内容，通常会被 pin 到 system prompt。它不是特殊文件类型，也没有专属写保护；获得授权的 Agent 与 Human 都可以创建、修改、取消 pin、改名或删除它。
 _避免使用_：system prompt、character sheet、profile
 
 **Bot state**：
@@ -49,7 +49,7 @@ _避免使用_：profile picture、skin
 ### 支撑与执行
 
 **Harness**：
-平台层——即 BotHarness——负责拥有 PersonaBot 及其 memory、state 与 Workspace，并将它们提供给其他 Plugin。
+平台层——即 BotHarness——负责拥有 PersonaBot identity、execution state 与 Workspace，并消费 Memory 等 optional capability，同时向其他 Plugin 暴露自身的产品 capability。
 _避免使用_：framework、runtime、kernel
 
 **Host**：
@@ -131,32 +131,32 @@ _避免使用_：main agent、brain、supervisor
 ### Memory（记忆）
 
 **Memory**：
-PersonaBot 的持久知识：位于用户可配置 memory directory 中、便于人类阅读的 Markdown 文件，在所有 Session、Chat 与 Workspace 之间共享。
+保存在 Memory Repository 中、由普通且便于 Human 阅读的 Markdown 文件组成的 optional 持久知识。PersonaBot 即使没有 Memory 也能聊天与执行 Assignment；接入后，同一个 repository 可在其所有 Session、Chat 与 Workspace 中使用，并受显式 runtime grant 约束。
 _避免使用_：knowledge base、vector store、RAG、database、context
 
-**MEMORY.md**：
-PersonaBot memory 的入口文件：包括 persona summary、usage notes，以及带有单行摘要的 topic file 索引。
-_避免使用_：index、README、manifest
+**Memory Repository**：
+一种具有独立 identity 与 lifecycle、以 Git 为版本权威的 Memory 文件集合。它可以绑定到 PersonaBot 或其他 owner；解绑、archive 与 delete 是彼此独立的操作。
+_避免使用_：PersonaBot directory、Session memory、generated index
+
+**Pinned Memory**：
+一种通过带版本 metadata 请求将完整正文注入 system prompt 的 Memory 文件；注入受 Human 可调的 repository budget 与当前 model 最终 context preflight 约束。Persona 在创建时默认 pinned，但仍只是普通 Memory 文件。
+_避免使用_：special Persona file、always-loaded MEMORY.md、silent truncation
 
 **Topic file**：
-PersonaBot memory directory 中专门记录一个主题——例如某个 customer、process 或 decision——的 memory 文件。
+Memory Repository 中专门记录一个主题——例如某个 customer、process 或 decision——的 Memory 文件。
 _避免使用_：note、document、page、record
 
 **Customer profile**：
 作为 north star 的 Topic file：每位 customer 一份，记录 timeline、key facts、commitments，并链接到相关 Attachment。
 _避免使用_：CRM record、account、contact sheet
 
-**Memory tree injection**：
-在 turn 开始时注入 memory directory tree——包括 path、单行摘要与 updated-at time——文件正文仅按需获取。
-_避免使用_：memory dump、prefetch、embedding
-
 **Memory tool**：
-用于读取、搜索或写入 Memory、可由 model 调用的 tool；每次 Memory 变更都必须通过 Memory tool 完成。
-_避免使用_：memory plugin、hook、background job
+Memory Service 的 model-callable Consumer，用于在调用 Agent 获得 grant 的 repository 中读取、搜索、修改、pin 或 unpin Memory。
+_避免使用_：Memory Service、background distillation、direct filesystem access
 
-**Tool-write**：
-一项规则：仅当 model 显式调用 Memory tool 时才会变更 Memory；不存在后台 distillation。
-_避免使用_：auto-summary、auto-extract、distillation
+**Memory operation**：
+由 Tool、Human UI 或其他 trusted Plugin 通过 Memory Service 执行的 command 或 query。每次 mutation 都进行 optimistic-concurrency check，作为一次带 actor 与 cause 的 semantic Git commit 记录，并由 before/after Cordis Event 包围。
+_避免使用_：direct file write、background distillation、unversioned edit
 
 **Attachment**：
 随 Source Event 接收的 content-addressed 文件；所有引用它的 Channel 或 PersonaBot 共同保留唯一一份。只有 PersonaBot 主动将该文件保存在自己的 Memory 或 Workspace 中时，它才拥有单独副本。
@@ -165,11 +165,11 @@ _避免使用_：upload、provider URL、per-Bot inbox copy、database blob
 ### Soul（身份内容）与分享
 
 **Soul**：
-PersonaBot 的 persona 与 memory——跨越 Session 的身份内容，并可固化为 SoulSnapshot。
+PersonaBot 所接入、可选择固化为 SoulSnapshot 的 optional Memory 内容；存在 Persona 内容时也包含在内。
 _避免使用_：character、profile、data
 
 **SoulSnapshot**：
-Soul 的不可变 content-addressed package：包含 `bot.md` manifest、setup instructions、`PERSONA.md` 和选定的 memory；它是 registry 存储、列出与导入的单元。
+Soul 的不可变 content-addressed package：包含 `bot.md` manifest、setup instructions 与选定的 Memory 文件；它是 registry 存储、列出与导入的单元，不要求存在 Persona 文件。
 _避免使用_：export、backup、bot zip、image
 
 **PersonaBot Export**：
@@ -479,7 +479,7 @@ bot-mode sidebar 中展示 PersonaBot 与 Channel 及其 state 的列表。
 _避免使用_：dashboard、bot list
 
 **PersonaBot navigation**：
-只在一个 PersonaBot 的 DM 中出现的上下文导航：Chat 与 Memory 是主要 destination，所拥有的 Assignment 作为从属列表展示。它不出现在 group Channel 中，也绝不会把 Orchestrator Session 当作 Assignment 展示。
+只在一个 PersonaBot 的 DM 中出现的上下文导航：Chat 始终存在，Memory 只在 Memory Provider 已接入时出现，所拥有的 Assignment 作为从属列表展示。它不出现在 group Channel 中，也绝不会把 Orchestrator Session 当作 Assignment 展示。
 _避免使用_：session panel、bot workspace、inspector
 
 **Client bridge**：
@@ -487,7 +487,7 @@ Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RP
 _避免使用_：remote、IPC、gateway
 
 **Settings UI**：
-harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 PersonaBot Memory 的链接。日常 Memory 使用属于 PersonaBot navigation。
+harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory Provider availability 与 diagnostics，以及进入已接入 Memory 的链接。capability 存在时，日常 Memory 使用属于 PersonaBot navigation。
 _避免使用_：admin panel、dashboard、web console
 
 **Access policy**：

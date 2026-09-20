@@ -1,8 +1,8 @@
 # BotHarness 架构与数据流
 
-BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久身份：**PersonaBot**。PersonaBot 的人格与 Memory 跨 Session 延续；它用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Assignment Session。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Assignment Directory、委派和 IM 接入。
+BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久产品身份：**PersonaBot**。PersonaBot 用一个 Orchestrator Session 管理 Inbox，并可同时管理多个独立 Assignment Session；Memory 是 optional capability，Persona 是其中的 optional 内容；两者都不是聊天或执行的前置依赖。DeepSeekBot 是首个应用，提供 roster、Bot Inbox、Assignment Directory、委派和 IM 接入。
 
-本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、Assignment Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-20。
+本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、Assignment Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-21。
 
 产品术语以根目录 [`CONTEXT.md`](/zh/dev/design/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/design/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Assignment 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
 
@@ -18,12 +18,13 @@ flowchart LR
   External["Feishu / Lark<br/>webhook / future providers"]
 
   subgraph Browser["DSH Web Client"]
-    UI["DeepSeekBot UI<br/>Roster · Inbox · Assignments · Settings"]
+    UI["DeepSeekBot UI<br/>Roster · Chat · Assignments · Settings"]
   end
 
   subgraph Host["DSH Host · single profile writer"]
     API["Client Bridge RPC"]
-    Identity["PersonaBot & Memory"]
+    Identity["PersonaBot identity"]
+    Memory["Optional Memory Service<br/>Service Definition · Git Provider"]
     Messaging["Messaging<br/>Source Events · Inbox · Outbox"]
     Assignments["Assignment Runtime<br/>Orchestrator · Assignment Directory"]
     Transfer["Portability<br/>Export · Backup · Restore"]
@@ -39,16 +40,19 @@ flowchart LR
   External <--> Messaging
   UI <--> API
   API --> Identity
+  API -.-> Memory
   API --> Messaging
   API --> Assignments
   API --> Transfer
   Identity --> DB
+  Identity -. attachment .-> Memory
   Messaging --> DB
   Assignments --> DB
   Transfer --> DB
   Identity <--> Sessions
   Messaging --> Assignments
   Assignments <--> Sessions
+  Assignments -. scoped Consumer .-> Memory
   Messaging -.-> Credentials
   Transfer -.-> Sessions
 ```
@@ -64,7 +68,7 @@ flowchart TB
 
   subgraph Modules["BotHarness deep modules"]
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
-    Memory["Memory<br/>files · context delivery · tools"]
+    Memory["Optional Memory Service<br/>repositories · pins · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
@@ -73,7 +77,7 @@ flowchart TB
 
   Root --> DB
   Root --> Bots
-  Root --> Memory
+  Root -. optional Provider .-> Memory
   Root --> Msg
   Root --> Assignments
   Root --> Portable
@@ -82,11 +86,13 @@ flowchart TB
   DB --> Msg
   DB --> Assignments
   DB --> Portable
-  Bots --> Memory
+  Bots -. attachment .-> Memory
   Bots --> Assignments
   Msg --> Assignments
   Bots --> Views
   Msg --> Views
+  Assignments -. scoped Consumer .-> Memory
+  Memory --> Views
   Assignments --> Views
   Portable --> Views
 ```
@@ -94,13 +100,15 @@ flowchart TB
 | Module      | Owns                                                                                                    | Does not own                          |
 | ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | PersonaBot  | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容    |
-| Memory      | `PERSONA.md`、Memory files、context assembly contract                                                   | Inbox 内容、自动蒸馏                  |
+| Memory      | generic Git-backed repositories、pin budget、semantic commits、operation events                         | PersonaBot lifecycle、Inbox、Session  |
 | Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
 | Assignments | Assignment Directory、Assignment Request/Delivery Intent、capacity admission、report/lifecycle routing  | DSH transcript、Subagent runtime      |
 | Portability | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式 |
 | Read models | 查询、分页、UI-friendly projection                                                                      | 业务事实与写入规则                    |
 
-`botharness.db` 是一个物理事务宿主，不是共享的 generic repository。每个 deep module 只通过自己的接口拥有表和不变量；跨模块流程由显式 command/port 协调。
+`botharness.db` 是 BotHarness core 的物理事务宿主，不是共享的 generic repository。Memory 内容与 commit 由 optional Git-backed Provider 掌管；每个 deep module 只通过自己的接口拥有表和不变量，跨模块流程由显式 command/port 协调。
+
+application-defined Memory Service 使用 `Consumer → Service Definition → Provider` capability seam。Provider 缺席时，PersonaBot 仍以系统定义的 base runtime prompt 完成 Chat、Orchestrator 与 Assignment 主链，Client 也不显示 Memory destination。Provider 存在时，所有 Markdown 文件语义平等：没有特殊 `MEMORY.md`；可选 `persona.md` 只是创建时默认 pinned 的普通文件，Agent 与 Human 都可修改。pin metadata 随 Git versioning，在可调 byte budget 和 model-aware context preflight 内进入后续 system prompt。每次 operation 经过 `memory/before-operation` waterfall 与 `memory/after-operation` notification；Git commit 才是 durable authority。
 
 ## 3 · Host 启动、迁移与 recovery
 
@@ -160,7 +168,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 Human 不负责创建或选择执行 Conversation。PersonaBot DM 是唯一聊天入口：消息先成为 Source Event，经 Bot Inbox 交给 Orchestrator；Orchestrator 再决定直接回复，或在授权与 capacity 内创建、复用和管理多个 Assignment Session。UI 只把后者按 purpose 和 state 投影到 `事项` 列表中，不会把 Orchestrator Session 显示成事项。
 
-PersonaBot navigation 只出现在 DM：`Chat` 与 `Memory` 是主要 destination，其下直接平铺事项列表。选择某个事项会打开只读详情；原始 DSH Session 仅通过显式次级操作进入。group Channel 不显示该导航。首个 tracer bullet 先交付 Chat 与 files-first Memory 闭环，Assignment 列表随后消费 Assignment Directory read model。
+PersonaBot navigation 只出现在 DM：`Chat` 始终存在，`Memory` 仅在 Memory Provider 已接入时出现，其下直接平铺事项列表。选择某个事项会打开只读详情；原始 DSH Session 仅通过显式次级操作进入。group Channel 不显示该导航。首个 tracer bullet 不依赖 Persona 或 Memory：创建仅有名称的 Bot，经真实 DM → Bot Inbox → Orchestrator Session → Assignment Session → Assignment Report 回流，在同一 DM 回复，并以最小列表/详情投影让 Human 验收。
 
 ```mermaid
 flowchart LR
@@ -189,7 +197,7 @@ Assignment Request 的 `context-update`、`next-step`、`next-turn` 分别映射
 flowchart TB
   subgraph Profile["One DSH profile"]
     DB[("botharness.db<br/>operational authority")]
-    Files["Persona + Memory files<br/>human-readable authority"]
+    Files["Optional Memory repositories<br/>Markdown · Git authority"]
     CAS["Attachment / Soul CAS bytes"]
     DSHS["DSH SessionPersistence<br/>transcripts · execution"]
     Creds["DSH credentials / settings"]
@@ -213,7 +221,7 @@ flowchart TB
 | Data                           | Authority                            | Portability                                                            |
 | ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------- |
 | operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot inside manual profile backup                |
-| Persona / Memory               | files under PersonaBot ownership     | SoulSnapshot / PersonaBot Export / profile backup                      |
+| optional Memory repositories   | Git-backed Memory Provider           | selected SoulSnapshot / PersonaBot Export / profile backup             |
 | attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                       |
 | Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise declared omitted |
 | credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                |
@@ -234,9 +242,9 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 1. #77 验证 pinned DSH 的 Agent/SessionPersistence/Subagent seams；#79 建立 operational database owner。这两项可并行。
 2. #80 在 #77 与 #79 后实现 explicit Session ownership 和 activity projection。
-3. #81 在 #77、#79、#80 后实现 Assignment Runtime；#47 的 Assignment coordination 依赖它。
+3. #81 在 #77、#79、#80 后先交付最小 DM → Orchestrator → Assignment → report → DM reply tracer bullet，并同时提供可验收的事项列表/详情；#47 的后续 Assignment coordination 在该切片通过后扩展。
 4. #78 可与上述工作并行研究 Feishu provider contract，但 #48 的 adapter 实现受它约束。
-5. #74、#75、#76 是各自 focused design/grill；其中 #75 与 sidebar 排序 #55 可并行。
+5. #74 的 Memory 工作在上述主链通过后，以独立 optional Provider tracer bullet 推进；#75、#76 保持 focused design/grill，避免阻塞首个可体验闭环。
 
 ## 9 · 如何维护
 

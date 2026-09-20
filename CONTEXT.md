@@ -1,13 +1,13 @@
 # BotHarness Product Context
 
-A DeepSeek Harness plugin layer that gives LLM agents a persistent identity: PersonaBots — bots with a persona and memory that outlive any session, chat, or workspace.
+A DeepSeek Harness plugin layer that gives LLM agents a persistent product identity: PersonaBots — bots whose identity and execution ownership outlive any session, chat, or workspace, with optional Persona content supplied by an optional Memory capability.
 
 ## Language
 
 ### PersonaBots
 
 **PersonaBot**:
-A first-class bot entity owned by the Host: a persona plus memory that spans sessions, chats, and workspaces, able to hold several sessions at once.
+A first-class bot entity owned by the Host: a durable identity that spans sessions, chats, and workspaces and can hold several sessions at once. Memory is an optional attachment and Persona is optional content within it; neither is a prerequisite for chat or execution.
 _Avoid_: bot (bare), agent, assistant, robot
 
 **Archived PersonaBot**:
@@ -15,7 +15,7 @@ A PersonaBot whose new admissions, wakes, Session execution, and external action
 _Avoid_: deleted bot, paused UI, purged bot
 
 **Bot as a Person**:
-The principle that a PersonaBot's continuity comes from its memory files, not from any session history.
+The principle that a PersonaBot remains one product identity across Sessions; when Memory is attached, durable learned continuity comes from its Memory Repository rather than Session history.
 _Avoid_: session-scoped identity
 
 **PersonaBot ID**:
@@ -35,7 +35,7 @@ An optional, brief Human-authored self-introduction that explains who a PersonaB
 _Avoid_: Persona, role badge, system prompt
 
 **Persona**:
-The role definition — character, voice, and standing instructions — that shapes how a PersonaBot replies. Human-owned: the Agent may not rewrite it.
+Optional Memory content that describes character, voice, or standing instructions and is usually pinned into the system prompt. It has no special file type or write protection: an authorized Agent or Human may create, revise, unpin, rename, or remove it.
 _Avoid_: system prompt, character sheet, profile
 
 **Bot state**:
@@ -49,7 +49,7 @@ _Avoid_: profile picture, skin
 ### Support and execution
 
 **Harness**:
-The platform layer — BotHarness — that owns PersonaBots, their memory, state, and workspaces, and exposes them to other plugins.
+The platform layer — BotHarness — that owns PersonaBot identity, execution state, and workspaces and consumes optional capabilities such as Memory, exposing its own product capabilities to other plugins.
 _Avoid_: framework, runtime, kernel
 
 **Host**:
@@ -131,32 +131,32 @@ _Avoid_: main agent, brain, supervisor
 ### Memory
 
 **Memory**:
-A PersonaBot's persistent knowledge: human-readable Markdown files in a user-configurable memory directory, shared across every session, chat, and workspace.
+Optional persistent knowledge held as ordinary human-readable Markdown files in a Memory Repository. A PersonaBot can chat and run Assignments without it; when attached, the same repository is available across its Sessions, Chats, and Workspaces subject to explicit runtime grants.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
-**MEMORY.md**:
-The entry-point file of a PersonaBot's memory: persona summary, usage notes, and an index of topic files with one-line summaries.
-_Avoid_: index, README, manifest
+**Memory Repository**:
+An independently durable, Git-backed collection of Memory files with its own identity and lifecycle. It may attach to a PersonaBot or another owner, and detach, archive, or delete remain distinct operations.
+_Avoid_: PersonaBot directory, Session memory, generated index
+
+**Pinned Memory**:
+A Memory file whose versioned metadata requests full-body injection into the system prompt, within a Human-configurable repository budget and the active model's final context preflight. Persona is an ordinary Memory file that is pinned by default when created.
+_Avoid_: special Persona file, always-loaded MEMORY.md, silent truncation
 
 **Topic file**:
-A memory file devoted to one subject — a customer, a process, a decision — under the PersonaBot's memory directory.
+A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository.
 _Avoid_: note, document, page, record
 
 **Customer profile**:
 The north-star topic file: one per customer, holding timeline, key facts, commitments, and links to related Attachments.
 _Avoid_: CRM record, account, contact sheet
 
-**Memory tree injection**:
-The turn-start injection of the memory directory tree — paths, one-line summaries, and updated-at times — with file bodies fetched only on demand.
-_Avoid_: memory dump, prefetch, embedding
-
 **Memory tool**:
-A model-callable tool that reads, searches, or writes Memory; every Memory change goes through one.
-_Avoid_: memory plugin, hook, background job
+A model-callable Consumer of the Memory Service that reads, searches, mutates, pins, or unpins Memory for the calling Agent's granted repository.
+_Avoid_: Memory Service, background distillation, direct filesystem access
 
-**Tool-write**:
-The rule that Memory changes only when the model explicitly calls a Memory tool; there is no background distillation.
-_Avoid_: auto-summary, auto-extract, distillation
+**Memory operation**:
+A command or query performed through the Memory Service by a Tool, Human UI, or another trusted Plugin. Every mutation is optimistic-concurrency checked, recorded as one semantic Git commit with actor and cause, and surrounded by before/after Cordis Events.
+_Avoid_: direct file write, background distillation, unversioned edit
 
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.
@@ -165,11 +165,11 @@ _Avoid_: upload, provider URL, per-Bot inbox copy, database blob
 ### Soul and sharing
 
 **Soul**:
-A PersonaBot's persona plus its memory — the identity content that spans sessions and freezes into a SoulSnapshot.
+The optional selected Memory content attached to a PersonaBot that may freeze into a SoulSnapshot, including Persona content when present.
 _Avoid_: character, profile, data
 
 **SoulSnapshot**:
-An immutable, content-addressed package of a Soul: the `bot.md` manifest, setup instructions, `PERSONA.md`, and selected memory; the unit the registry stores, lists, and imports.
+An immutable, content-addressed package of a Soul: the `bot.md` manifest, setup instructions, and selected Memory files; the unit the registry stores, lists, and imports. No Persona file is required.
 _Avoid_: export, backup, bot zip, image
 
 **PersonaBot Export**:
@@ -479,7 +479,7 @@ The bot-mode sidebar list of PersonaBots and Channels, with their state.
 _Avoid_: dashboard, bot list
 
 **PersonaBot navigation**:
-The DM-only contextual navigation for one PersonaBot: Chat and Memory are primary destinations, with owned Assignments shown as a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
+The DM-only contextual navigation for one PersonaBot: Chat is always present, Memory appears only when a Memory Provider is attached, and owned Assignments form a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
 _Avoid_: session panel, bot workspace, inspector
 
 **Client bridge**:
@@ -487,7 +487,7 @@ The RPC surface through which the Web Client reads PersonaBots and invokes separ
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:
-The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into PersonaBot Memory. Ordinary Memory use belongs to PersonaBot navigation.
+The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory-provider availability and diagnostics, and links into attached Memory. Ordinary Memory use belongs to PersonaBot navigation when that capability exists.
 _Avoid_: admin panel, dashboard, web console
 
 **Access policy**:

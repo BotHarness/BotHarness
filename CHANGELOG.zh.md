@@ -5,8 +5,9 @@
 
 ## [Unreleased]
 
-为 DeepSeekBot 贡献者建立了简洁的双语发布历史。
+建立简洁的双语发布历史，并明确 optional Memory capability 的边界。
 
 ### Documentation
 
 - 新增 canonical Release Ledger、双语一致性检查与贡献指南（[#100](https://github.com/BotHarness/BotHarness/issues/100)）。
+- 将 Memory 明确为 optional Git-backed Cordis Service，使 DM → Orchestrator → Assignment 主链不依赖 Persona 或 Memory（[ADR-0047](docs/adr/0047-memory-is-an-optional-git-backed-service.md)、[#74](https://github.com/BotHarness/BotHarness/issues/74)）。

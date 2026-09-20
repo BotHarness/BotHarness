@@ -1,5 +1,7 @@
 # Build Bot memory in-house, file-first
 
+> Refined by ADR-0047: file-first Memory is now an optional, independently attachable Git-backed Service rather than an intrinsic per-Bot directory.
+
 DSH's existing memory plugins scope memory to a project or session, so none provides the Bot-level, cross-chat continuity this project is about. We build memory ourselves as plain Markdown files in a per-Bot directory: files are human-readable and editable, need no schema migrations, and match the customer-profile north-star scenario.
 
 ## Considered Options

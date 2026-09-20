@@ -1,5 +1,7 @@
 # Persona is a human-owned memory file
 
+> Superseded by ADR-0047: Persona is optional ordinary Memory content and may be changed by authorized Agents or Humans.
+
 A Bot's persona lives in its memory as `PERSONA.md`, free Markdown with a display name, so persona editing reuses the memory editor, git history, and export path. The memory tools refuse to write it: the Agent may revise its memories but never its own character; persona edits are human-only.
 
 ## Considered Options
