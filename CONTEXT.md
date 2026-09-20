@@ -81,7 +81,7 @@ A PersonaBot-owned independent root Session that executes exactly one Assignment
 _Avoid_: Work Session, Worker Session, Executor Session, task Session, child Session
 
 **Assignment Agent**:
-The DSH Agent executing inside one Assignment Session. It reports through that Session but is neither a durable identity nor a PersonaBot.
+The DSH Agent executing inside one Assignment Session. It reports only to its PersonaBot's Orchestrator through that Session, has no Channel messaging capability, and is neither a durable identity nor a PersonaBot.
 _Avoid_: worker, PersonaBot, Orchestrator, Assignment Session
 
 **Assignment Directory**:
@@ -125,7 +125,7 @@ A PersonaBot's connection to a surface it takes part in — a Channel, a Chat, t
 _Avoid_: integration, connector, channel binding
 
 **Orchestrator Session**:
-The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. It is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row.
+The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. It is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row. Ordinary Session output remains execution history; only an explicit Channel messaging command authorized from trusted Session ownership and Channel membership speaks to a Human-facing Channel.
 _Avoid_: main agent, brain, supervisor
 
 ### Memory

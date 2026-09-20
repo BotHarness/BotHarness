@@ -101,6 +101,7 @@ function stubActions(): BridgeActions {
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
+    openAssignment: vi.fn(async () => undefined),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),

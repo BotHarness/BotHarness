@@ -45,6 +45,29 @@ export interface SessionSummary {
   updatedAt: string;
 }
 
+export type AssignmentActivity = 'working' | 'idle' | 'error';
+export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
+
+export interface AssignmentReport {
+  state: AssignmentReportState;
+  summary: string;
+  at: string;
+}
+
+export interface AssignmentSummary {
+  sessionId: string;
+  purpose: string;
+  activity: AssignmentActivity;
+  latestReport?: AssignmentReport;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AssignmentDetail extends AssignmentSummary {
+  botSlug: string;
+  sourceEventId: string;
+}
+
 export type ConversationSelection =
   | { kind: 'bot'; slug: string }
   | { kind: 'channel'; channelId: string };
@@ -57,9 +80,10 @@ export interface ConversationState {
   sending: boolean;
 }
 
-export interface SessionsState {
+export interface AssignmentsState {
   status: ClientStatus;
-  items: readonly SessionSummary[];
+  items: readonly AssignmentSummary[];
+  selected: AssignmentDetail | undefined;
   error: string | undefined;
 }
 
@@ -87,7 +111,7 @@ export interface ClientState {
   roster: RosterState;
   selection: ConversationSelection | undefined;
   conversation: ConversationState;
-  sessions: SessionsState;
+  assignments: AssignmentsState;
 }
 
 export interface ClientStore {
@@ -103,7 +127,7 @@ export interface ClientStore {
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
-  setSessions(patch: Partial<SessionsState>): void;
+  setAssignments(patch: Partial<AssignmentsState>): void;
 }
 
 function initialConversation(): ConversationState {
@@ -116,8 +140,8 @@ function initialConversation(): ConversationState {
   };
 }
 
-function initialSessions(): SessionsState {
-  return { status: 'idle', items: [], error: undefined };
+function initialAssignments(): AssignmentsState {
+  return { status: 'idle', items: [], selected: undefined, error: undefined };
 }
 
 function initialRoster(): RosterState {
@@ -153,7 +177,7 @@ export function createStore(): ClientStore {
     roster: initialRoster(),
     selection: undefined,
     conversation: initialConversation(),
-    sessions: initialSessions(),
+    assignments: initialAssignments(),
   };
   const listeners = new Set<() => void>();
 
@@ -198,13 +222,17 @@ export function createStore(): ClientStore {
     },
     select(selection) {
       if (sameSelection(state.selection, selection)) return;
-      update({ selection, conversation: initialConversation(), sessions: initialSessions() });
+      update({
+        selection,
+        conversation: initialConversation(),
+        assignments: initialAssignments(),
+      });
     },
     setConversation(patch) {
       update({ conversation: { ...state.conversation, ...patch } });
     },
-    setSessions(patch) {
-      update({ sessions: { ...state.sessions, ...patch } });
+    setAssignments(patch) {
+      update({ assignments: { ...state.assignments, ...patch } });
     },
   };
 }

@@ -60,7 +60,12 @@ export default defineConfig([
     platform: 'node',
     dts: true,
     clean: true,
-    external: ['@deepseek-ai/dsh-tools'],
+    external: [
+      '@deepseek-ai/dsh-agent',
+      '@deepseek-ai/dsh-llm',
+      '@deepseek-ai/dsh-session',
+      '@deepseek-ai/dsh-tools',
+    ],
   },
   {
     entry: ['packages/client/src/index.ts'],

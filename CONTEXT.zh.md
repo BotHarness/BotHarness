@@ -81,7 +81,7 @@ _避免使用_：Work、work item、task entity、job entity、worker
 _避免使用_：Work Session、Worker Session、Executor Session、task Session、child Session
 
 **Assignment Agent**：
-在一个 Assignment Session 中执行的 DSH Agent。它通过该 Session 回报，但既不是持久 identity，也不是 PersonaBot。
+在一个 Assignment Session 中执行的 DSH Agent。它只能通过该 Session 向其 PersonaBot 的 Orchestrator 回报，没有 Channel messaging capability，且既不是持久 identity，也不是 PersonaBot。
 _避免使用_：worker、PersonaBot、Orchestrator、Assignment Session
 
 **Assignment Directory**：
@@ -125,7 +125,7 @@ PersonaBot 与其参与的某个 surface 之间的连接——例如 Channel、C
 _避免使用_：integration、connector、channel binding
 
 **Orchestrator Session**：
-PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Assignment Session。它是 PersonaBot 的对外发声者，不是由 Human 管理的 Conversation，也不是 Assignment 列表中的一行。
+PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Assignment Session。它是 PersonaBot 的对外发声者，不是由 Human 管理的 Conversation，也不是 Assignment 列表中的一行。普通 Session output 只保留为 execution history；只有从可信 Session ownership 推导身份、并经过 Channel membership 授权的显式 Channel messaging command，才会向 Human-facing Channel 发声。
 _避免使用_：main agent、brain、supervisor
 
 ### Memory（记忆）

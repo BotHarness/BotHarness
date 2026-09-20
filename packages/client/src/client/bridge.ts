@@ -2,6 +2,10 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
 import type {
+  AssignmentDetail,
+  AssignmentReport,
+  AssignmentReportState,
+  AssignmentSummary,
   BotSummary,
   ChannelAuthor,
   ChannelMessage,
@@ -217,6 +221,69 @@ export function parseChannelMessages(value: unknown): ChannelMessage[] {
   });
 }
 
+function parseAssignmentReport(value: unknown): AssignmentReport | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const state = record['state'];
+  const summary = record['summary'];
+  const at = record['at'];
+  if (
+    state !== 'completed' &&
+    state !== 'blocked' &&
+    state !== 'waiting-human' &&
+    state !== 'failed'
+  ) {
+    return undefined;
+  }
+  if (typeof summary !== 'string' || summary.length === 0 || typeof at !== 'string') {
+    return undefined;
+  }
+  return { state: state as AssignmentReportState, summary, at };
+}
+
+function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const sessionId = record['sessionId'];
+  const purpose = record['purpose'];
+  const activity = record['activity'];
+  const createdAt = record['createdAt'];
+  const updatedAt = record['updatedAt'];
+  if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined;
+  if (typeof purpose !== 'string' || purpose.length === 0) return undefined;
+  if (activity !== 'working' && activity !== 'idle' && activity !== 'error') return undefined;
+  if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
+  const latestReport = parseAssignmentReport(record['latestReport']);
+  return {
+    sessionId,
+    purpose,
+    activity,
+    createdAt,
+    updatedAt,
+    ...(latestReport === undefined ? {} : { latestReport }),
+  };
+}
+
+export function parseAssignmentSummaries(value: unknown): AssignmentSummary[] {
+  const assignments = asRecord(value)?.['assignments'];
+  if (!Array.isArray(assignments)) return [];
+  return assignments.flatMap((entry) => {
+    const assignment = parseAssignmentSummary(entry);
+    return assignment === undefined ? [] : [assignment];
+  });
+}
+
+export function parseAssignmentDetail(value: unknown): AssignmentDetail | undefined {
+  const record = asRecord(value);
+  const summary = parseAssignmentSummary(record);
+  if (record === undefined || summary === undefined) return undefined;
+  const botSlug = record['botSlug'];
+  const sourceEventId = record['sourceEventId'];
+  if (typeof botSlug !== 'string' || botSlug.length === 0) return undefined;
+  if (typeof sourceEventId !== 'string' || sourceEventId.length === 0) return undefined;
+  return { ...summary, botSlug, sourceEventId };
+}
+
 export function parseSessionSummaries(value: unknown): SessionSummary[] {
   const sessions = asRecord(value)?.['sessions'];
   if (!Array.isArray(sessions)) return [];
@@ -304,6 +371,26 @@ export async function sendChannelMessage(
   const message = parseChannelMessage(asRecord(value)?.['message']);
   if (message === undefined) throw new Error('invalid channelSend response');
   return message;
+}
+
+export async function loadAssignments(
+  call: BridgeCall,
+  slug: string,
+  signal?: AbortSignal,
+): Promise<AssignmentSummary[]> {
+  return parseAssignmentSummaries(await unwrap(call, 'assignments', { slug }, signal));
+}
+
+export async function loadAssignment(
+  call: BridgeCall,
+  slug: string,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<AssignmentDetail> {
+  const value = await unwrap(call, 'assignment', { slug, sessionId }, signal);
+  const assignment = parseAssignmentDetail(asRecord(value)?.['assignment']);
+  if (assignment === undefined) throw new Error('invalid assignment response');
+  return assignment;
 }
 
 export async function loadSessions(

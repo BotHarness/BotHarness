@@ -29,7 +29,9 @@ A Reply is deliberately narrower than a provider Service Action. The Orchestrato
 
 Each configured provider adapter declares Provider Capabilities for its account. The Host exposes triggers, reconciliation, replies, attachments, threads, and proactive Service Actions only when the required capability is present; unsupported and permission-dependent states are explicit. Capability does not grant use. Proactive actions additionally require the Service Grant defined by ADR-0038.
 
-The Orchestrator is the PersonaBot's single social voice: it alone receives the full Bot Inbox and sends to Channels. An Assignment Session may read only explicitly granted source Channel context and reports through the Orchestrator; it cannot speak as the PersonaBot by default.
+The Orchestrator is the PersonaBot's single social voice: it alone receives the full Bot Inbox and sends to Channels. Channel-bound model tools exist only in the Orchestrator Agent Scope. Their Host adapter derives the PersonaBot Actor from explicit Session ownership, validates the selected Channel against that trusted PersonaBot's membership, and never accepts an author or PersonaBot id from tool arguments. Ordinary Orchestrator assistant output remains DSH Session history and does not implicitly become a Channel message; a Human-facing message requires an explicit Channel messaging command.
+
+An Assignment Session may read only explicitly granted source Channel context and reports through the Orchestrator; it cannot speak as the PersonaBot by default. Its Agent Scope exposes `report_to_orchestrator`, not Channel send tools, so an Assignment final message is likewise execution history rather than Human-facing content.
 
 ## Considered Options
 
@@ -55,6 +57,6 @@ The Orchestrator is the PersonaBot's single social voice: it alone receives the 
 - Browser, Orchestrator tools, and Bridge adapters must carry trusted context rather than author identity supplied by their request bodies.
 - Channels and Bot Inboxes expose committed Source Event references and can recover missed runtime delivery from the transactional outbox.
 - Bridge configuration selects an explicit Channel or PersonaBot Inbox target. Inbox Triggers own admission and Wake Policy selection; a Bridge never auto-creates a Channel or bypasses attention policy.
-- Tests cover unauthorized read/send, forged actor fields, duplicate external ingress, local-plus-echo merging, causal-field derivation, and Assignment Session capability limits.
+- Tests cover an Orchestrator turn that does not send, exactly one explicit Channel send, unauthorized read/send, forged actor fields, duplicate external ingress, local-plus-echo merging, causal-field derivation, and Assignment Session capability limits.
 - Bot causation de-duplication and the default eight-hop limit suppress automatic continuation without deleting the over-limit history.
 - Correlated provider echoes update existing outbound facts; unresolved own-sender echoes remain durable but cannot create attention or wake.

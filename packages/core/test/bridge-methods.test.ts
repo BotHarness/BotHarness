@@ -6,8 +6,9 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
-import { createChannelStore } from '../src/channels/store.js';
+import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
+import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 
@@ -21,7 +22,11 @@ function tickingNow(): () => Date {
   };
 }
 
-function setup(sessionSummaries: SessionSummary[] = [], botIds: string[] = ['ada']) {
+function setup(
+  sessionSummaries: SessionSummary[] = [],
+  botIds: string[] = ['ada'],
+  runtimeFactory?: (channels: ChannelStore) => BotRuntime,
+) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
@@ -40,6 +45,7 @@ function setup(sessionSummaries: SessionSummary[] = [], botIds: string[] = ['ada
       channels,
       sessions,
       roster: createRosterStore(),
+      ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
     }),
   };
@@ -439,6 +445,94 @@ describe('bridge methods', () => {
       'again',
       'hello',
     ]);
+  });
+
+  it('sends a DM through the Bot runtime and exposes only Assignment read models', async () => {
+    const handled: Array<{ channelId: string; messageId: string; body: string }> = [];
+    const { methods } = setup([], ['ada'], (channels) => ({
+      async handleDmMessage(input) {
+        handled.push(input);
+        const reply = {
+          id: 'bot-reply-1',
+          at: '2026-09-19T00:00:02.000Z',
+          author: { kind: 'bot' as const, slug: 'ada' },
+          body: '已经完成发布状态核对。',
+        };
+        await channels.appendMessage(input.channelId, reply);
+        return undefined;
+      },
+      listAssignments: () => [
+        {
+          sessionId: 'assignment-1',
+          purpose: '核对发布状态',
+          activity: 'idle' as const,
+          latestReport: {
+            state: 'completed' as const,
+            summary: '发布状态正常',
+            at: '2026-09-19T00:00:01.000Z',
+          },
+          createdAt: '2026-09-19T00:00:00.000Z',
+          updatedAt: '2026-09-19T00:00:01.000Z',
+        },
+      ],
+      getAssignment: (_slug, sessionId) =>
+        sessionId === 'assignment-1'
+          ? {
+              sessionId,
+              botSlug: 'ada',
+              sourceEventId: 'source-1',
+              purpose: '核对发布状态',
+              activity: 'idle' as const,
+              latestReport: {
+                state: 'completed' as const,
+                summary: '发布状态正常',
+                at: '2026-09-19T00:00:01.000Z',
+              },
+              createdAt: '2026-09-19T00:00:00.000Z',
+              updatedAt: '2026-09-19T00:00:01.000Z',
+            }
+          : undefined,
+      close: async () => undefined,
+    }));
+    methods.create({ displayName: 'Ada' });
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+
+    const sent = await methods.channelSend({ channelId: 'dm-ada', body: '请核对发布状态' });
+
+    expect(sent.ok).toBe(true);
+    expect(handled).toEqual([
+      {
+        channelId: 'dm-ada',
+        messageId: expect.any(String),
+        body: '请核对发布状态',
+      },
+    ]);
+    const messages = methods.channelMessages({ channelId: 'dm-ada' });
+    expect(messages.ok && messages.value.messages.map((message) => message.body)).toEqual([
+      '已经完成发布状态核对。',
+      '请核对发布状态',
+    ]);
+    expect(methods.assignments({ slug: 'ada' })).toEqual({
+      ok: true,
+      value: {
+        assignments: [
+          expect.objectContaining({
+            sessionId: 'assignment-1',
+            purpose: '核对发布状态',
+            activity: 'idle',
+          }),
+        ],
+      },
+    });
+    expect(methods.assignment({ slug: 'ada', sessionId: 'assignment-1' })).toEqual({
+      ok: true,
+      value: {
+        assignment: expect.objectContaining({
+          sessionId: 'assignment-1',
+          sourceEventId: 'source-1',
+        }),
+      },
+    });
   });
 
   it('lists sessions whose cwd sits inside the bot workspaces, newest first', () => {

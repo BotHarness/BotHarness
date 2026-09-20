@@ -153,7 +153,7 @@ sequenceDiagram
   M->>DB: COMMIT
   DB-->>N: committed fact ids
   N-->>O: wake at policy-selected safe boundary
-  O->>M: Reply or authorized Service Action
+  O->>M: explicit Channel reply or authorized Service Action
   M->>DB: validate current revision + capability + grant and write Outbox Intent
   M->>X: execute with stable idempotency identity
   X-->>M: receipt / failure / unknown outcome
@@ -166,7 +166,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 ## 5 · Orchestrator 与 Assignment control plane
 
-Human 不负责创建或选择执行 Conversation。PersonaBot DM 是唯一聊天入口：消息先成为 Source Event，经 Bot Inbox 交给 Orchestrator；Orchestrator 再决定直接回复，或在授权与 capacity 内创建、复用和管理多个 Assignment Session。UI 只把后者按 purpose 和 state 投影到 `事项` 列表中，不会把 Orchestrator Session 显示成事项。
+Human 不负责创建或选择执行 Conversation。PersonaBot DM 是唯一聊天入口：消息先成为 Source Event，经 Bot Inbox 交给 Orchestrator；Orchestrator 再决定直接回复，或在授权与 capacity 内创建、复用和管理多个 Assignment Session。普通 Orchestrator assistant final 只留在 DSH SessionPersistence；只有显式 Channel messaging command 才产生 Human-facing Channel message。该 command 从可信 Session ownership 推导 PersonaBot Actor，并验证目标 Channel membership，不接受模型自报 bot id 或 author。UI 只把 Assignment Session 按 purpose 和 state 投影到 `事项` 列表中，不会把 Orchestrator Session 显示成事项。
 
 PersonaBot navigation 只出现在 DM：`Chat` 始终存在，`Memory` 仅在 Memory Provider 已接入时出现，其下直接平铺事项列表。选择某个事项会打开只读详情；原始 DSH Session 仅通过显式次级操作进入。group Channel 不显示该导航。首个 tracer bullet 不依赖 Persona 或 Memory：创建仅有名称的 Bot，经真实 DM → Bot Inbox → Orchestrator Session → Assignment Session → Assignment Report 回流，在同一 DM 回复，并以最小列表/详情投影让 Human 验收。
 
@@ -187,7 +187,7 @@ flowchart LR
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
-Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过五个工具 `list_assignments`、`inspect_assignment`、`create_assignment`、`send_assignment_request`、`stop_assignment` 管理它们。Assignment Agent 只能用 `report_to_orchestrator` 回报；v1 没有 Assignment-to-Assignment 直连、广播或等待队列。
+Assignment Session 是 DSH independent root，以 DSH `sessionId` 为 canonical identity；Continuity Key 只是 PersonaBot-local alias。Orchestrator 通过五个工具 `list_assignments`、`inspect_assignment`、`create_assignment`、`send_assignment_request`、`stop_assignment` 管理它们。Assignment Agent 只能用 `report_to_orchestrator` 向 Orchestrator 回报；其 Agent Scope 没有 Channel send capability，普通 final 也不会写入 Channel。v1 没有 Assignment-to-Assignment 直连、广播或等待队列。
 
 Assignment Request 的 `context-update`、`next-step`、`next-turn` 分别映射到经过验证的 DSH inject、steer、followup seam；普通请求不 cancel 当前 step。跨 SQLite/DSH 边界只保留最小 Assignment Delivery Intent，重启时有界 reconciliation；歧义进入 `needs-repair`，不扩张为通用 workflow engine。
 

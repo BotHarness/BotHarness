@@ -11,17 +11,23 @@ import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
 import { mountOperationalDatabase, type OperationalDatabaseOwner } from './database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
+import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import {
+  createDshBotAgentAdapter,
+  type DshDefaultModelHost,
+} from './runtime/dsh-bot-agent-adapter.js';
 import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 
 export const name = 'botharness-core';
 
-export const inject = ['tools', 'systemPrompt', 'sessions'];
+export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel'];
 
 export const PERSONA_SECTION_ORDER = 10400;
 export const MEMORY_TREE_SECTION_ORDER = 10500;
@@ -46,10 +52,25 @@ export interface BotHarnessCore {
   memory: MemoryService;
   channels: ChannelStore;
   roster: RosterStore;
+  runtime: BotRuntime;
+}
+
+function unavailableAgentAdapter(): BotAgentAdapter {
+  const unavailable = () =>
+    Promise.reject(new Error('BotHarness Agent runtime is unavailable outside a DSH Host'));
+  return {
+    runOrchestrator: unavailable,
+    runAssignment: unavailable,
+    close: async () => undefined,
+  };
 }
 
 export function createCore(
-  options: { dshHome?: string; warn?: (message: string) => void } = {},
+  options: {
+    dshHome?: string;
+    warn?: (message: string) => void;
+    agents?: BotAgentAdapter;
+  } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
@@ -57,7 +78,10 @@ export function createCore(
   const states = createBotStateTracker();
   const memory = createMemoryService({ registry });
   const channels = createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') });
-  const operationalDatabase = mountOperationalDatabase({ dshHome });
+  const operationalDatabase = mountOperationalDatabase({
+    dshHome,
+    schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+  });
   return {
     rootDir,
     operationalDatabase,
@@ -66,13 +90,30 @@ export function createCore(
     memory,
     channels,
     roster: createRosterStore({ warn: options.warn }),
+    runtime: createBotRuntime({
+      database: operationalDatabase,
+      registry,
+      channels,
+      agents: options.agents ?? unavailableAgentAdapter(),
+    }),
   };
 }
 
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
-  const core = createCore({ warn: (message) => ctx.logger.warn(message) });
+  const dshHome = resolveDshHome();
+  const core = createCore({
+    dshHome,
+    warn: (message) => ctx.logger.warn(message),
+    agents: createDshBotAgentAdapter({
+      agents: ctx.agents,
+      defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost })
+        .agentDefaultModel,
+      defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+    }),
+  });
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
+  ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.provide('botharness', core);
 
   for (const tool of createMemoryTools({
@@ -89,6 +130,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       channels: core.channels,
       sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
       roster: core.roster,
+      runtime: core.runtime,
     }),
   );
 

@@ -12,6 +12,7 @@ import type {
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
+import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { SessionSummary } from '../sessions/source.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
@@ -156,6 +157,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(await this.methods.channelSend({ channelId, body }));
   }
 
+  assignments(slug: string): { assignments: AssignmentSummary[] } {
+    return unwrap(this.methods.assignments({ slug }));
+  }
+
+  assignment(slug: string, sessionId: string): { assignment: AssignmentDetail } {
+    return unwrap(this.methods.assignment({ slug, sessionId }));
+  }
+
   sessions(slug: string): { sessions: SessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
   }
@@ -209,6 +218,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelCreate',
   'channelMessages',
   'channelSend',
+  'assignments',
+  'assignment',
   'sessions',
   'rosterGet',
   'sectionCreate',

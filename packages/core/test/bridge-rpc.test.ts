@@ -60,7 +60,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twenty bridge endpoints for typert claims', () => {
+  it('marks exactly the twenty-two bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -75,6 +75,8 @@ describe('bridge typert service', () => {
       'channelCreate',
       'channelMessages',
       'channelSend',
+      'assignments',
+      'assignment',
       'sessions',
       'rosterGet',
       'sectionCreate',
@@ -110,6 +112,8 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
     expect(parameterNames(service.channelMessages)).toEqual(['channelId', 'before', 'limit']);
     expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
+    expect(parameterNames(service.assignments)).toEqual(['slug']);
+    expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);
     expect(parameterNames(service.rosterGet)).toEqual([]);
     expect(parameterNames(service.sectionCreate)).toEqual(['name']);
@@ -138,6 +142,7 @@ describe('bridge typert service', () => {
     const sent = await service.channelSend('dm-ada', 'hello');
     expect(sent.message.body).toBe('hello');
     expect(service.channelMessages('dm-ada').messages[0]?.body).toBe('hello');
+    expect(service.assignments('ada').assignments).toEqual([]);
     expect(service.sessions('ada').sessions).toEqual([]);
   });
 

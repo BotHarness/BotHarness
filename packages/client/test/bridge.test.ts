@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createActions } from '../src/client/actions.js';
 import {
   createBridgeCall,
+  parseAssignmentSummaries,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
@@ -127,6 +128,35 @@ describe('bridge parsers', () => {
     expect(messages[0]?.author).toEqual({ kind: 'bot', slug: 'ada' });
   });
 
+  it('parses Assignment summaries and drops malformed rows', () => {
+    expect(
+      parseAssignmentSummaries({
+        assignments: [
+          {
+            sessionId: 'assignment-1',
+            purpose: '核对发布状态',
+            activity: 'idle',
+            latestReport: {
+              state: 'completed',
+              summary: '发布状态正常',
+              at: '2026-09-19T00:03:00.000Z',
+            },
+            createdAt: '2026-09-19T00:02:00.000Z',
+            updatedAt: '2026-09-19T00:03:00.000Z',
+          },
+          { sessionId: '', purpose: 'bad', activity: 'idle' },
+        ],
+      }),
+    ).toEqual([
+      expect.objectContaining({
+        sessionId: 'assignment-1',
+        purpose: '核对发布状态',
+        activity: 'idle',
+        latestReport: expect.objectContaining({ state: 'completed', summary: '发布状态正常' }),
+      }),
+    ]);
+  });
+
   it('keeps session rows with a cwd and defaults a missing title', () => {
     const sessions = parseSessionSummaries({
       sessions: [
@@ -168,10 +198,37 @@ describe('bridge actions', () => {
       channelCreate: (payload) => ({
         channel: { ...GROUP, name: payload['name'], members: [] },
       }),
-      sessions: () => ({
-        sessions: [
-          { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
+      assignments: () => ({
+        assignments: [
+          {
+            sessionId: 'assignment-1',
+            purpose: '研究发布状态',
+            activity: 'idle',
+            latestReport: {
+              state: 'completed',
+              summary: '发布状态正常',
+              at: '2026-09-19T00:04:00.000Z',
+            },
+            createdAt: '2026-09-19T00:03:00.000Z',
+            updatedAt: '2026-09-19T00:04:00.000Z',
+          },
         ],
+      }),
+      assignment: () => ({
+        assignment: {
+          sessionId: 'assignment-1',
+          botSlug: 'ada',
+          sourceEventId: 'source-1',
+          purpose: '研究发布状态',
+          activity: 'idle',
+          latestReport: {
+            state: 'completed',
+            summary: '发布状态正常',
+            at: '2026-09-19T00:04:00.000Z',
+          },
+          createdAt: '2026-09-19T00:03:00.000Z',
+          updatedAt: '2026-09-19T00:04:00.000Z',
+        },
       }),
       rosterGet: () => ({ pins: [], sections: [] }),
       ...extra,
@@ -195,11 +252,60 @@ describe('bridge actions', () => {
     expect(state.conversation.status).toBe('ready');
     expect(state.conversation.channel?.id).toBe('dm-ada');
     expect(state.conversation.messages.map((message) => message.body)).toEqual(['older', 'newer']);
-    expect(state.sessions.items.map((session) => session.id)).toEqual(['s1']);
+    expect(state.assignments.items.map((assignment) => assignment.sessionId)).toEqual([
+      'assignment-1',
+    ]);
+    await actions.openAssignment('assignment-1');
+    expect(clientStore.getSnapshot().assignments.selected).toMatchObject({
+      sessionId: 'assignment-1',
+      sourceEventId: 'source-1',
+    });
   });
 
-  it('sends a message, appends it locally, and mirrors the channel updatedAt', async () => {
-    const { clientStore, actions } = setup();
+  it('sends a message, reloads the Bot reply, and refreshes Assignments', async () => {
+    let messageReads = 0;
+    let assignmentReads = 0;
+    const { clientStore, actions } = setup({
+      channelMessages: () => {
+        messageReads += 1;
+        return {
+          messages:
+            messageReads === 1
+              ? [
+                  {
+                    id: 'm2',
+                    at: '2026-09-19T00:02:00.000Z',
+                    author: { kind: 'human' },
+                    body: 'newer',
+                  },
+                  {
+                    id: 'm1',
+                    at: '2026-09-19T00:01:00.000Z',
+                    author: { kind: 'human' },
+                    body: 'older',
+                  },
+                ]
+              : [
+                  {
+                    id: 'm4',
+                    at: '2026-09-19T00:04:00.000Z',
+                    author: { kind: 'bot', slug: 'ada' },
+                    body: '已经核对完成。',
+                  },
+                  {
+                    id: 'm3',
+                    at: '2026-09-19T00:03:00.000Z',
+                    author: { kind: 'human' },
+                    body: 'hello',
+                  },
+                ],
+        };
+      },
+      assignments: () => {
+        assignmentReads += 1;
+        return { assignments: [] };
+      },
+    });
     await actions.load();
     await actions.openBot('ada');
 
@@ -208,9 +314,14 @@ describe('bridge actions', () => {
 
     expect(sent).toBe(true);
     expect(state.conversation.sending).toBe(false);
-    expect(state.conversation.messages.at(-1)).toMatchObject({ body: 'hello' });
+    expect(state.conversation.messages.map((message) => message.body)).toEqual([
+      'hello',
+      '已经核对完成。',
+    ]);
+    expect(messageReads).toBe(2);
+    expect(assignmentReads).toBe(2);
     expect(state.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
-      '2026-09-19T00:03:00.000Z',
+      '2026-09-19T00:04:00.000Z',
     );
   });
 

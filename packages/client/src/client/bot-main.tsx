@@ -20,12 +20,6 @@ import {
   type ClientState,
 } from './store.js';
 
-function baseName(path: string): string {
-  const trimmed = path.replace(/[\\/]+$/u, '');
-  const parts = trimmed.split(/[\\/]/u);
-  return parts[parts.length - 1] ?? trimmed;
-}
-
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
@@ -108,41 +102,89 @@ function EmptyConversation({
       <div className="bh-big">
         {bot === undefined ? '本地对话' : `这是与 ${bot.displayName} 的本地对话`}
       </div>
-      <div>你的消息保存在本地；BOT 回复与 Builder 对话式创建随 v1.1 到来。</div>
+      <div>直接发消息即可；BOT 会自行安排事项，并在这里回复结果。</div>
     </div>
   );
 }
 
-function SessionsPane({ state }: { state: ClientState }): ReactElement {
-  const sessions = state.sessions;
+function assignmentStatus(activity: 'working' | 'idle' | 'error'): string {
+  switch (activity) {
+    case 'working':
+      return '进行中';
+    case 'idle':
+      return '已报告';
+    case 'error':
+      return '出错';
+  }
+}
+
+function AssignmentsPane({
+  state,
+  actions,
+}: {
+  state: ClientState;
+  actions: BridgeActions;
+}): ReactElement {
+  const assignments = state.assignments;
+  const selected = assignments.selected;
   return (
     <div className="bh-side-pane-inner">
       <div className="bh-side-pane-head">
-        <span>会话</span>
-        <Tag tone="neutral">{sessions.items.length}</Tag>
+        <span>事项</span>
+        <Tag tone="neutral">{assignments.items.length}</Tag>
       </div>
       <div className="bh-side-pane-body">
-        {sessions.status === 'loading' ? <div className="bh-note">正在加载会话…</div> : null}
-        {sessions.status === 'error' && sessions.error !== undefined ? (
-          <div className="bh-error">会话加载失败：{sessions.error}</div>
+        {assignments.status === 'loading' ? <div className="bh-note">正在加载事项…</div> : null}
+        {assignments.status === 'error' && assignments.error !== undefined ? (
+          <div className="bh-error">事项加载失败：{assignments.error}</div>
         ) : null}
-        {sessions.status === 'ready' && sessions.items.length === 0 ? (
-          <div className="bh-note">还没有会话。BOT 开始工作后，它的 Session 会列在这里。</div>
+        {assignments.status === 'ready' && assignments.items.length === 0 ? (
+          <div className="bh-note">还没有事项。直接在左侧聊天，BOT 会按需自行安排。</div>
         ) : null}
-        {sessions.items.map((session) => (
-          <div className="bh-session-row" key={session.id}>
-            <div className="bh-session-title">
-              {session.title.length > 0 ? session.title : '新会话'}
+        {assignments.items.map((assignment) => (
+          <button
+            type="button"
+            className={
+              assignment.sessionId === selected?.sessionId
+                ? 'bh-assignment-row bh-assignment-row-selected'
+                : 'bh-assignment-row'
+            }
+            key={assignment.sessionId}
+            aria-pressed={assignment.sessionId === selected?.sessionId}
+            onClick={() => void actions.openAssignment(assignment.sessionId)}
+          >
+            <div className="bh-assignment-title">{assignment.purpose}</div>
+            <div className="bh-assignment-meta">
+              <span>{assignmentStatus(assignment.activity)}</span>
+              <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now())}</span>
             </div>
-            <div className="bh-session-meta">
-              <span className="bh-session-cwd" title={session.cwd}>
-                {baseName(session.cwd)}
-              </span>
-              <span>{formatRelativeTime(Date.parse(session.updatedAt), Date.now())}</span>
-            </div>
-          </div>
+            {assignment.latestReport === undefined ? null : (
+              <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
+            )}
+          </button>
         ))}
-        <div className="bh-note">只读列表；打开与切换会话随 v1.1 接入。</div>
+        {selected === undefined ? null : (
+          <section className="bh-assignment-detail" aria-label="事项详情">
+            <div className="bh-assignment-detail-label">事项详情</div>
+            <div className="bh-assignment-detail-purpose">{selected.purpose}</div>
+            <dl>
+              <div>
+                <dt>状态</dt>
+                <dd>{assignmentStatus(selected.activity)}</dd>
+              </div>
+              <div>
+                <dt>最近报告</dt>
+                <dd>{selected.latestReport?.summary ?? '尚未报告'}</dd>
+              </div>
+              <div>
+                <dt>Assignment Session</dt>
+                <dd className="bh-assignment-id" title={selected.sessionId}>
+                  {selected.sessionId}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -294,7 +336,7 @@ function ConversationView({
         </section>
         <aside className="bh-side-pane">
           {state.selection?.kind === 'bot' ? (
-            <SessionsPane state={state} />
+            <AssignmentsPane state={state} actions={actions} />
           ) : (
             <MembersPane state={state} channel={channel} />
           )}
