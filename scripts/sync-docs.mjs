@@ -27,16 +27,10 @@
  *     with the Chinese-tree copy flagged `untranslated: true` so the `/zh`
  *     route renders the Chinese notice instead.
  *
- * Changelog entries are language pairs keyed by base filename:
- *
- *   - `docs/changelog/<date>-<slug>.md`    → English (primary)
- *   - `docs/changelog/<date>-<slug>.zh.md` → Chinese
- *
- * Each tree is generated from its own side (`changelog` for the English
- * tree at `/changelog/**`, `changelog-zh` for the Chinese tree at
- * `/zh/changelog/**`). A missing side falls back to the other language and
- * is flagged `untranslated` so its route renders the notice banner plus a
- * link to the counterpart.
+ * Changelog entries are generated from the bilingual canonical Release
+ * Ledger (`CHANGELOG.md` + `CHANGELOG.zh.md`). `Unreleased` never enters the
+ * public trees. Dated SemVer sections become release pages; the one-time
+ * `Development` consolidation remains visibly non-versioned.
  *
  * Never hand-edit anything under `src/content/docs/dev/**`,
  * `src/content/docs-zh/dev/**`, `src/content/docs/dsh/**`,
@@ -57,6 +51,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { collectDevReference } from './docs-reference.mjs';
+import {
+  DEVELOPMENT_SUMMARY_IDENTITY,
+  parseReleaseLedger,
+  validateReleaseLedgerPair,
+} from './release-ledger.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const isWithin = (parent, candidate) => {
@@ -656,73 +655,66 @@ function syncAdr() {
   }
 }
 
-function parseChangelogFrontmatter(raw) {
-  const { frontmatter: text, body } = stripFrontmatter(raw);
-  const title = text
-    .match(/^title:\s*(.+)$/m)?.[1]
-    ?.trim()
-    .replace(/^["']|["']$/g, '');
-  const date = text
-    .match(/^date:\s*(.+)$/m)?.[1]
-    ?.trim()
-    .replace(/^["']|["']$/g, '');
-  const tags = text
-    .match(/^tags:\s*\[(.*)\]$/m)?.[1]
-    ?.split(',')
-    .map((tag) => tag.trim())
-    .filter(Boolean);
-  return { body, title, date, tags };
-}
-
-/**
- * Group the repo's changelog files into language pairs keyed by base name.
- * `foo.md` is the English side, `foo.zh.md` the Chinese side; either may be
- * absent.
- */
-function changelogPairs() {
-  const directory = join(ROOT, 'docs', 'changelog');
-  const pairs = new Map();
-  const files = readdirSync(directory)
-    .filter((name) => name.endsWith('.md'))
-    .sort();
-  for (const file of files) {
-    const zh = file.endsWith('.zh.md');
-    const key = zh ? file.slice(0, -'.zh.md'.length) : file.slice(0, -'.md'.length);
-    const pair = pairs.get(key) ?? {};
-    pair[zh ? 'zh' : 'en'] = file;
-    pairs.set(key, pair);
+function renderReleaseLedgerEntry(release, language) {
+  const development = release.identity === DEVELOPMENT_SUMMARY_IDENTITY;
+  const title = development
+    ? language === 'zh'
+      ? '首个版本前的开发进展'
+      : 'Pre-release development'
+    : `DeepSeekBot ${release.identity}`;
+  const tags = release.sections.map((section) => section.name);
+  const lines = [
+    '---',
+    `title: ${JSON.stringify(title)}`,
+    `description: ${JSON.stringify(release.summary)}`,
+    `date: ${release.date}`,
+  ];
+  if (tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
+  if (development) lines.push('developmentSummary: true');
+  else lines.push(`releaseVersion: ${release.identity}`);
+  lines.push('---', '', '', release.summary, '');
+  for (const section of release.sections) {
+    lines.push(`## ${section.name}`, '');
+    for (const entry of section.entries) lines.push(`- ${entry.text}`);
+    lines.push('');
   }
-  return [...pairs.entries()].sort(([a], [b]) => a.localeCompare(b));
+  return lines.join('\n');
 }
 
-/** One tree's copy of a changelog entry (frontmatter + prepared body). */
-function renderChangelogEntry(variant, key, untranslated) {
-  const { body, title, date, tags } = variant;
-  const lines = ['---', `title: ${JSON.stringify(title ?? key)}`];
-  lines.push(`date: ${date ?? key.slice(0, 10)}`);
-  if (tags && tags.length > 0) lines.push(`tags: [${tags.join(', ')}]`);
-  if (untranslated) lines.push('untranslated: true');
-  lines.push('---', '', '');
-  return lines.join('\n') + prepare(body);
+/** Convert one bilingual canonical ledger into public, version-level pages. */
+export function releaseLedgerSiteEntries(english, chinese) {
+  const errors = validateReleaseLedgerPair(english, chinese);
+  if (errors.length > 0) {
+    throw new Error(
+      `Release Ledger cannot be synchronized:\n${errors
+        .map((error) => `${error.source} [${error.code}] ${error.message}`)
+        .join('\n')}`,
+    );
+  }
+
+  const en = parseReleaseLedger(english).releases;
+  const zh = parseReleaseLedger(chinese).releases;
+  return en
+    .map((release, index) => ({ release, counterpart: zh[index] }))
+    .filter(({ release }) => release.identity !== 'Unreleased')
+    .map(({ release, counterpart }) => ({
+      slug:
+        release.identity === DEVELOPMENT_SUMMARY_IDENTITY ? 'development' : `v${release.identity}`,
+      english: renderReleaseLedgerEntry(release, 'en'),
+      chinese: renderReleaseLedgerEntry(counterpart, 'zh'),
+    }));
 }
 
-/**
- * Generate both changelog trees from the repo pairs: the English tree
- * (`changelog`) from the `.md` side and the Chinese tree (`changelog-zh`)
- * from the `.zh.md` side. A missing side falls back to the other language
- * and is flagged `untranslated`.
- */
+/** Generate both public Changelog trees from the canonical bilingual ledger. */
 function syncChangelog() {
   rmSync(join(CONTENT, 'changelog'), { recursive: true, force: true });
   rmSync(join(CONTENT, 'changelog-zh'), { recursive: true, force: true });
 
-  for (const [key, pair] of changelogPairs()) {
-    const en = pair.en ? parseChangelogFrontmatter(readText(`docs/changelog/${pair.en}`)) : null;
-    const zh = pair.zh ? parseChangelogFrontmatter(readText(`docs/changelog/${pair.zh}`)) : null;
-    writeText(`changelog/${key}.mdx`, renderChangelogEntry(en ?? zh, key, !pair.en));
-    writeText(`changelog-zh/${key}.mdx`, renderChangelogEntry(zh ?? en, key, !pair.zh));
-    const flags = [pair.en ? 'en' : 'en←zh', pair.zh ? 'zh' : 'zh←en'].join(', ');
-    process.stdout.write(`changelog: ${key} (${flags})\n`);
+  const entries = releaseLedgerSiteEntries(readText('CHANGELOG.md'), readText('CHANGELOG.zh.md'));
+  for (const entry of entries) {
+    writeText(`changelog/${entry.slug}.mdx`, entry.english);
+    writeText(`changelog-zh/${entry.slug}.mdx`, entry.chinese);
+    process.stdout.write(`changelog: ${entry.slug} (ledger en + zh)\n`);
   }
 }
 
@@ -819,6 +811,20 @@ const SKILL_PAGES = [
       source: `${SKILL}references/decision-tree.zh.md`,
       title: 'Decision Tree',
       description: '在实现前选择正确的 DSH seam',
+    },
+  },
+  {
+    slug: 'dsh/releases',
+    order: 3,
+    en: {
+      source: `${SKILL}CHANGELOG.md`,
+      title: 'DSH Skill release history',
+      description: 'Independent Skill SemVer and verified DSH provenance',
+    },
+    zh: {
+      source: `${SKILL}CHANGELOG.zh.md`,
+      title: 'DSH Skill 更新日志',
+      description: '独立的 Skill SemVer 与核验过的 DSH provenance',
     },
   },
 ];

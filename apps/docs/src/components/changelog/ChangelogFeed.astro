@@ -8,7 +8,6 @@
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import type { CollectionEntry } from "astro:content";
 import ChangelogEntry from "./ChangelogEntry.astro";
-import type { Locale } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
 interface Props {
@@ -17,8 +16,6 @@ interface Props {
   loadMoreHref?: string;
   /** URL prefix for entry permalinks; `/zh/changelog` on Chinese pages. */
   entryHrefBase?: string;
-  /** Tree locale — passed to entries for fallback-notice copy. */
-  locale?: Locale;
 }
 
 const {
@@ -26,7 +23,6 @@ const {
   pageSize,
   loadMoreHref = "/changelog/page/2",
   entryHrefBase = "/changelog",
-  locale = "en",
 } = Astro.props;
 const resolvedLoadMoreHref = withBase(loadMoreHref, import.meta.env.BASE_URL);
 
@@ -49,7 +45,6 @@ const lastVisibleIndex = Math.min(cap, sorted.length) - 1;
         overflow={i >= cap}
         railEnd={i === lastVisibleIndex}
         hrefBase={entryHrefBase}
-        locale={locale}
       />
     ))
   }

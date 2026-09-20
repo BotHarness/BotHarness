@@ -4,18 +4,21 @@
 `CHANGELOG.zh.md` is its maintained Chinese counterpart. Together they answer one question:
 what observable difference will a user or DSH plugin developer find in a DeepSeekBot release?
 
+The independently installable DSH Skill follows the same ledger shape under
+`.agents/skills/dsh-plugin-dev/`; its additional provenance rules are below.
+
 Use `pnpm changelog:check` before review. The check validates objective structure and bilingual
 parity; Human review owns notability, accuracy, and prose quality.
 
 ## Artifact boundaries
 
-| Artifact                                  | Owns                                                                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Release Ledger                            | The observable differences delivered by each DeepSeekBot release.                                            |
-| GitHub Release                            | The release announcement derived from the ledger, plus optional Highlights, contributors, and the full diff. |
-| ADR                                       | Why a durable architecture choice was made and which alternatives were rejected.                             |
-| Context, architecture, and specifications | The current product language, relationships, and normative design.                                           |
-| Issue and PR                              | The implementation plan, discussion, verification, and contributor provenance.                               |
+| Artifact                                  | Owns                                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Release Ledger                            | The observable differences delivered by each DeepSeekBot release.                                                           |
+| GitHub Release                            | The release announcement derived from the ledger, plus Highlights and contributors when useful, and a full comparison link. |
+| ADR                                       | Why a durable architecture choice was made and which alternatives were rejected.                                            |
+| Context, architecture, and specifications | The current product language, relationships, and normative design.                                                          |
+| Issue and PR                              | The implementation plan, discussion, verification, and contributor provenance.                                              |
 
 Link to those artifacts instead of copying their detail into the Release Ledger.
 
@@ -65,6 +68,28 @@ the relevant guide and architecture rationale to its ADR. A change is normally o
 may use a second sentence only for a migration, limitation, or required action. There is no fixed
 word-count gate.
 
+The ledger contains one migration-only `Development` section. It consolidates the implemented
+work that predates the first release and is published as development history without a version.
+Do not add another `Development` section, use it as a project-status state, or interpret it as a
+tagged prerelease or installable artifact. All future public release entries use dated SemVer
+sections; active and merged work stays in `Unreleased` and the Development status surface.
+
+An alpha, beta, or RC section enters the Development status `Pre-release` state only when the
+canonical bilingual ledgers carry both pieces of release evidence before its change sections:
+
+```markdown
+- **Release tag:** [`v1.0.0-rc.1`](https://github.com/OWNER/REPO/releases/tag/v1.0.0-rc.1)
+- **Installable artifact:** [Download bundle](https://github.com/OWNER/REPO/releases/download/v1.0.0-rc.1/plugin.bundle)
+```
+
+Evidence is artifact-bound: DeepSeekBot uses `BotHarness/BotHarness`, while DSH Skill uses
+`BotHarness/dsh-skill`. The tag URL must be the exact HTTPS GitHub Release tag in that repository
+for `v<version>`. The install URL must use the same repository and tag with the shape
+`/releases/download/v<version>/<nonempty-asset>`; arbitrary pages, another repository or tag, and
+URLs with a query or fragment are rejected. Keep both URLs identical in the English and Chinese
+ledgers. A prerelease heading without this explicit authority fails validation and never appears as
+`Pre-release`.
+
 Describe the result before implementation detail:
 
 ```markdown
@@ -100,6 +125,22 @@ is not. Keep these facts identical and in the same order:
 The validator deliberately does not compare translated prose. Keep section names in English in both
 files so categories remain mechanically identical.
 
+## DSH Skill release train
+
+The DSH Skill uses `.agents/skills/dsh-plugin-dev/CHANGELOG.md` as its English canonical ledger and
+`CHANGELOG.zh.md` as the maintained Chinese release history. Update them for the same change
+branches described above and run `pnpm skill:changelog:check`.
+
+Skill SemVer is independent from DeepSeekBot SemVer. Every dated Skill release records these facts
+before its change sections:
+
+- `Skill version` — identical to the release heading;
+- `Verified against DSH` — the DSH version whose behavior was checked;
+- `Upstream revision` — the full SHA linked to the corresponding DSH commit.
+
+The current dated release must match `SKILL.md` metadata. `SKILL.md` remains the sole Agent
+instruction authority; Chinese belongs in the human-facing references and release history.
+
 ## Contribution and release flow
 
 1. Add one result-focused bilingual entry to the matching `Unreleased` section and run
@@ -107,10 +148,47 @@ files so categories remain mechanically identical.
 2. During the release PR, merge entries that describe one observable result, even when several PRs
    produced it. Preserve the necessary Issue and PR links.
 3. Give the ledger release one summary sentence.
-4. Derive the GitHub Release draft from that version, then add one to three Highlights when they
-   genuinely help, followed by contributors and the full diff.
+4. Derive the GitHub Release draft from that version, then add up to three optional Highlights and
+   contributors when they genuinely help, followed by the full comparison link.
 5. Obtain explicit Human publishing approval before creating a tag, publishing an artifact, or
    creating the GitHub Release.
 
 Before release, remove an `Unreleased` entry whose change was fully reverted. After release, keep
 history immutable and describe a restoration, withdrawal, or fix in the next version.
+
+## Preparing a GitHub Release draft
+
+After archiving `Unreleased` under a dated version, generate a review-only payload from that exact
+canonical release section:
+
+```bash
+pnpm release:draft -- \
+  --artifact deepseekbot \
+  --version 0.2.0 \
+  --tag v0.2.0 \
+  --github-release-version 0.2.0 \
+  --installable-version 0.2.0 \
+  --comparison-url https://github.com/BotHarness/BotHarness/compare/v0.1.0...v0.2.0
+```
+
+Use `--artifact dsh-skill` for the independent Skill release train. The command reads that
+artifact's English and Chinese ledgers, verifies their release structure, and writes a
+deterministic JSON payload to stdout. Its explicit release-plan evidence requires the canonical
+version, `v<version>` tag (including an alpha, beta, or RC suffix when present), intended GitHub
+Release version, and installable artifact version to agree. This is an offline consistency gate: it
+does not claim that a remote tag, registry artifact, or GitHub Release exists. Skill drafts also
+require current `SKILL.md` metadata to match the target Skill release and carry its verified DSH
+version and linked upstream revision.
+
+The optional repeatable flags are `--highlight` (at most three), `--contributor`, and
+`--new-contributor`. The full comparison must be an HTTPS GitHub comparison for the selected
+artifact, end at the target tag, and start at the directly preceding dated release when one exists.
+A DeepSeekBot release whose only category is `Documentation` is labelled `runtime behavior is
+unchanged`; it is called a patch only after a release in the same major/minor line, while a first
+public version remains a Human release-scope decision. A prerelease payload is emitted only for an
+alpha, beta, or RC version with the matching identities and explicit `--tagged --installable`
+positive evidence.
+
+This command is deliberately dry-run only. It does not create or push a tag, publish a package or
+Bundle, or create a draft/published GitHub Release. Each external action still requires an explicit
+Human release instruction.

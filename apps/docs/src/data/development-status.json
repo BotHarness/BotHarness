@@ -1,20 +1,5 @@
 {
   "schemaVersion": 1,
-  "syncedAt": "2026-09-20T14:56:14.469Z",
-  "items": [
-    {
-      "artifact": "dsh-skill",
-      "title": "DSH Skill：独立 Release Ledger 与 provenance",
-      "url": "https://github.com/BotHarness/BotHarness/issues/102",
-      "milestone": "v1.0",
-      "updatedAt": "2026-09-20T14:54:50Z"
-    },
-    {
-      "artifact": "deepseekbot",
-      "title": "Changelog：由 Release Ledger 生成 DeepSeekBot 发布页面",
-      "url": "https://github.com/BotHarness/BotHarness/issues/101",
-      "milestone": "v1.0",
-      "updatedAt": "2026-09-20T14:54:47Z"
-    }
-  ]
+  "syncedAt": "2026-09-20T15:48:44.710Z",
+  "items": []
 }

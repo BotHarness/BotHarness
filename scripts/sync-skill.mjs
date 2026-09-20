@@ -8,7 +8,7 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const SKILL = join(ROOT, '.agents', 'skills', 'dsh-plugin-dev');
 const DEFAULT_TARGET = process.env.DSH_SKILL_REPO ?? resolve(ROOT, '..', 'dsh-skill');
 
-function readProvenance() {
+export function readSkillProvenance() {
   const text = readFileSync(join(SKILL, 'SKILL.md'), 'utf8');
   const frontmatter = text.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n/)?.[1] ?? '';
   const lines = frontmatter.split(/\r?\n/);
@@ -74,7 +74,7 @@ function sync(target, { check }) {
 }
 
 export function syncSkill({ target = DEFAULT_TARGET, check = false, release = false } = {}) {
-  const provenance = readProvenance();
+  const provenance = readSkillProvenance();
   if (!provenance.skillVersion) throw new Error('skill: SKILL.md metadata.skillVersion is missing');
   checkReadme(provenance);
 

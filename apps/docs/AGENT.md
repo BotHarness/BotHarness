@@ -64,6 +64,7 @@ One build serves both domains (`botharness.ai` and `botharness.dev`):
 | `/docs` | User guides (`overview`, `quickstart`) |
 | `/dsh` | DSH plugin development (generated from `.agents/skills/dsh-plugin-dev/` + `docs/dsh/`) |
 | `/dev` | BotHarness Design / Guides / generated Reference / ADR (generated from repo sources) |
+| `/development` | Bilingual four-state Development status for DeepSeekBot and DSH Skill |
 | `/changelog` | Bilingual release feed + `/changelog/<slug>` + `/zh/changelog/<slug>` permalinks |
 
 ## Bilingual layout
@@ -83,14 +84,19 @@ route shows `本页暂未提供中文。` Site-owned translations live in
 fallback `/zh/docs/overview`) and `Header.astro` renders it. Edit the repo
 sources — never generated files.
 
-Changelog entries are language pairs keyed by base filename:
-`docs/changelog/<date>-<slug>.md` is English (primary) and
-`<date>-<slug>.zh.md` is Chinese. `scripts/sync-docs.mjs` writes each side
-into its own tree (`changelog` → `/changelog/**`, `changelog-zh` →
-`/zh/changelog/**`); when one side is missing the other language fills the
-gap flagged `untranslated`, and the page and feed entry show the notice
-banner linking to the counterpart. Keep `title` + `date` + `tags` in both
-files' frontmatter.
+Changelog entries come from the canonical bilingual Release Ledger:
+`CHANGELOG.md` is the English authority and `CHANGELOG.zh.md` its maintained
+counterpart. `scripts/sync-docs.mjs` validates their structural parity,
+excludes `Unreleased`, and writes each dated SemVer section into its own tree
+(`changelog` → `/changelog/**`, `changelog-zh` → `/zh/changelog/**`). The
+one-time `Development` section becomes an explicitly non-versioned history
+summary. Edit the ledgers, never generated changelog content.
+
+Development status is a separate projection: `In progress` comes from
+`src/data/development-status.json`, while the two canonical Release Ledgers
+supply merged, pre-release, and released facts. Edit those authorities rather
+than page copy; `src/lib/development-status.ts` assembles both human and agent
+routes.
 
 ## Diagrams
 
@@ -114,10 +120,8 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
   skill's provenance fields
 - `src/content/docs-zh/dsh/**` — Chinese tree: the hand-written landing
   (`docs/dsh/index.zh.md`); skill pages are English flagged `untranslated`
-- `src/content/changelog/**` — English changelog tree, from root
-  `docs/changelog/<date>-<slug>.md`
-- `src/content/changelog-zh/**` — Chinese changelog tree at `/zh`, from root
-  `docs/changelog/<date>-<slug>.zh.md`
+- `src/content/changelog/**` — English release tree generated from root `CHANGELOG.md`
+- `src/content/changelog-zh/**` — Chinese release tree generated from root `CHANGELOG.zh.md`
 - `public/diagrams/**` — from `docs/architecture/diagrams/rendered/`
 
 `scripts/sync-docs.mjs` rebuilds all of them on every `syncDocs()` call.

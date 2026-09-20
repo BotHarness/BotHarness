@@ -143,11 +143,89 @@ Preparing the next stable release.
 
 Published a testable prerelease.
 
+- **Release tag:** [\`v0.2.0-rc.1+build.5\`](https://github.com/BotHarness/BotHarness/releases/tag/v0.2.0-rc.1+build.5)
+- **Installable artifact:** [Download bundle](https://github.com/BotHarness/BotHarness/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle)
+
 ### Added
 
 - Added a preview capability ([#100](https://github.com/BotHarness/BotHarness/issues/100)).
 `;
     expect(validateReleaseLedger(valid)).toEqual([]);
+
+    const nonGitHubTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://example.com/releases/tag",
+    );
+    expect(validateReleaseLedger(nonGitHubTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const missingRepositoryTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://github.com/releases/tag",
+    );
+    expect(validateReleaseLedger(missingRepositoryTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const wrongRepositoryTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://github.com/BotHarness/dsh-skill/releases/tag",
+    );
+    expect(validateReleaseLedger(wrongRepositoryTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    for (const invalidTagUrl of [
+      valid.replace(
+        "/releases/tag/v0.2.0-rc.1+build.5)",
+        "/releases/tag/v0.2.0-rc.1+build.5?)",
+      ),
+      valid.replace(
+        "/releases/tag/v0.2.0-rc.1+build.5)",
+        "/releases/tag/v0.2.0-rc.1+build.5#)",
+      ),
+    ]) {
+      expect(validateReleaseLedger(invalidTagUrl).map((error) => error.code)).toEqual([
+        "missing-prerelease-evidence",
+      ]);
+    }
+
+    const arbitraryInstallUrl = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle",
+      "https://example.com/deepseekbot.bundle",
+    );
+    expect(validateReleaseLedger(arbitraryInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const crossTagInstallUrl = valid.replace(
+      "/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle",
+      "/releases/download/v0.2.0-rc.2/deepseekbot.bundle",
+    );
+    expect(validateReleaseLedger(crossTagInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const crossRepositoryInstallUrl = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/download",
+      "https://github.com/BotHarness/dsh-skill/releases/download",
+    );
+    expect(validateReleaseLedger(crossRepositoryInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    for (const invalidInstallUrl of [
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle?download=1)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle#download)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle?)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle#)"),
+      valid.replace("/deepseekbot.bundle)", "/)"),
+    ]) {
+      expect(validateReleaseLedger(invalidInstallUrl).map((error) => error.code)).toEqual([
+        "missing-prerelease-evidence",
+      ]);
+    }
 
     const invalid = valid.replace("0.2.0-rc.1+build.5", "01.2.0").replace(
       "2026-09-30",
@@ -157,6 +235,29 @@ Published a testable prerelease.
       "invalid-version",
       "invalid-date",
     ]);
+  });
+
+  it("accepts one dated Development summary without treating it as a release version", () => {
+    const ledger = `# DeepSeekBot Changelog
+
+## [Unreleased]
+
+Preparing the first public release.
+
+## [Development] - 2026-09-20
+
+Consolidated the implemented work before the first release.
+
+### Documentation
+
+- Published the contributor docs ([#26](https://github.com/BotHarness/BotHarness/issues/26)).
+`;
+
+    expect(validateReleaseLedger(ledger)).toEqual([]);
+    expect(parseReleaseLedger(ledger).releases.at(-1)).toMatchObject({
+      identity: "Development",
+      date: "2026-09-20",
+    });
   });
 
   it("allows natural translation while enforcing bilingual release, section, and link parity", () => {

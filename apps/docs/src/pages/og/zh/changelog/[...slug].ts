@@ -4,7 +4,7 @@ import { ogCardConfigFor } from "../../_og-card-config";
 
 /**
  * Chinese changelog OG cards — `/og/zh/changelog/<id>.png`, from the
- * `changelog-zh` tree (`docs/changelog/*.zh.md`). Mirrors the English
+ * Chinese Release Ledger projection. Mirrors the English
  * route at `og/changelog/[...slug].ts`; `ogCardConfigFor` picks up the
  * CJK font automatically when the drawn title contains Han characters.
  */

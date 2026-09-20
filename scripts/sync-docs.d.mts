@@ -21,4 +21,13 @@ export const DEV_SECTION_ORDER: Readonly<{
   reference: number;
   adr: number;
 }>;
+export interface ReleaseLedgerSiteEntry {
+  slug: string;
+  english: string;
+  chinese: string;
+}
+export function releaseLedgerSiteEntries(
+  english: string,
+  chinese: string,
+): ReleaseLedgerSiteEntry[];
 export function syncDocs(): void;

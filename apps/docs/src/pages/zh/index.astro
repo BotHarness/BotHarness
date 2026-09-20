@@ -11,7 +11,7 @@ export const prerender = true;
 
 // The landing shows the three newest published changelog entries straight
 // from the collection, so it can never drift from the feed.
-const recent = (await getCollection("changelog", (entry) => !entry.data.draft))
+const recent = (await getCollection("changelog-zh", (entry) => !entry.data.draft))
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3)
   .map((entry) => ({

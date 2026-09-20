@@ -1,8 +1,6 @@
 /**
- * `/zh/changelog/rss.xml` — Chinese changelog RSS feed, from the
- * `changelog-zh` tree (`docs/changelog/*.zh.md`); entries that fell back to
- * the English source still appear (with their English title) under the `/zh`
- * URLs.
+ * `/zh/changelog/rss.xml` — Chinese release feed generated from the
+ * canonical Chinese Release Ledger.
  */
 import { getCollection } from "astro:content";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";

@@ -25,6 +25,11 @@ describe('languageLinks', () => {
       en: '/dev/x',
       zh: '/zh/dev/x',
     });
+    expect(languageLinks('/development')).toEqual({
+      isZh: false,
+      en: '/development',
+      zh: '/zh/development',
+    });
     expect(languageLinks('/changelog')).toEqual({
       isZh: false,
       en: '/changelog',
@@ -47,6 +52,11 @@ describe('languageLinks', () => {
       isZh: true,
       en: '/dev/x',
       zh: '/zh/dev/x',
+    });
+    expect(languageLinks('/zh/development')).toEqual({
+      isZh: true,
+      en: '/development',
+      zh: '/zh/development',
     });
     expect(languageLinks('/zh/changelog/x')).toEqual({
       isZh: true,
