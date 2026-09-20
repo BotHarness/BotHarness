@@ -48,6 +48,20 @@ Registries           -> which contributions are live now
 
 Agent Scope acts principally on Registrations, not on Profile composition.
 
+```mermaid
+flowchart TB
+  Bundle["Bundle<br/>published contribution"] --> Profile["Profile<br/>ordered runtime composition"]
+  Patch["Patch<br/>later configuration overlay"] --> Profile
+  Profile --> Tree["Plugin tree<br/>runtime composition"]
+  Tree --> Fiber["Fiber<br/>lifecycle owner"]
+  Fiber --> Services["Services"]
+  Fiber --> Listeners["Event listeners"]
+  Fiber --> Registrations["Registrations"]
+  Registrations --> Registries["Registries<br/>live composition"]
+```
+
+Profile decides what loads; Fiber owns what is live; Registry decides which contributions are currently available.
+
 ## Capability seam
 
 ### Service Definition, Provider, Consumer
@@ -116,6 +130,18 @@ event window + transient -> Conversation Assembly
 
 SessionEvent is not a per-frame UI bus. Projection and Session Query are not additional truths.
 
+```mermaid
+flowchart LR
+  Write["Session write"] --> Fact[("SessionEvent<br/>durable fact")]
+  Fact --> Notify["session/event<br/>live Cordis notification"]
+  Fact --> Projection["Projection<br/>rebuildable read model"]
+  Fact --> Query["Session Query<br/>derived search index"]
+  Window["Event window"] --> Assembly["Conversation Assembly"]
+  Transient["Transient live chunks"] --> Assembly
+```
+
+The SessionEvent log is authoritative; notifications, projections, indexes, and presentation are consumers or derived views.
+
 ## Execution and storage
 
 - **Execution World** — where a program runs: local OS, container, remote host, microVM, or cloud sandbox.
@@ -139,6 +165,24 @@ bash Tool -> Shell Service -> Shell Provider -> Subprocess Service -> Provider -
 - **API Gateway** — sole owner of the `/api` interceptor; it claims Typert endpoints.
 
 The browser is a separate Cordis application. A client Plugin cannot inject Host Services. Expose remote methods through a `TypertRemoteService` claimed by the API Gateway; another `connection.rpc.intercept('/api', …)` would shadow native APIs.
+
+```mermaid
+flowchart TB
+  subgraph Host["DSH Host"]
+    direction LR
+    HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
+    Service --> Remote["TypertRemoteService"]
+    Remote --> Gateway["API Gateway<br/>sole /api interceptor"]
+  end
+  subgraph Browser["DSH Web Client"]
+    direction LR
+    ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Model --> Slots["Slots<br/>UI composition"]
+  end
+  Gateway <--> Model
+```
+
+Cross the Host/client boundary through Typert/API Gateway, then compose browser UI through Slots.
 
 ## One-line model
 

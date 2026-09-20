@@ -48,6 +48,20 @@ Registries           -> 当前有哪些 live contribution
 
 Agent Scope 主要作用于 Registration，而不是 Profile composition。
 
+```mermaid
+flowchart TB
+  Bundle["Bundle<br/>发布的 contribution"] --> Profile["Profile<br/>有序 runtime composition"]
+  Patch["Patch<br/>后续 configuration overlay"] --> Profile
+  Profile --> Tree["Plugin tree<br/>runtime composition"]
+  Tree --> Fiber["Fiber<br/>lifecycle owner"]
+  Fiber --> Services["Services"]
+  Fiber --> Listeners["Event listeners"]
+  Fiber --> Registrations["Registrations"]
+  Registrations --> Registries["Registries<br/>live composition"]
+```
+
+Profile 决定加载什么，Fiber 拥有什么 live contribution，Registry 决定当前可以使用哪些 contribution。
+
 ## Capability seam
 
 ### Service Definition、Provider、Consumer
@@ -116,6 +130,18 @@ event window + transient -> Conversation Assembly
 
 SessionEvent 不是逐帧 UI bus。Projection 与 Session Query 也不是新的事实来源。
 
+```mermaid
+flowchart LR
+  Write["Session write"] --> Fact[("SessionEvent<br/>durable fact")]
+  Fact --> Notify["session/event<br/>live Cordis notification"]
+  Fact --> Projection["Projection<br/>可重建 read model"]
+  Fact --> Query["Session Query<br/>派生搜索索引"]
+  Window["Event window"] --> Assembly["Conversation Assembly"]
+  Transient["Transient live chunks"] --> Assembly
+```
+
+SessionEvent log 是 authority；notification、projection、index 与 presentation 都是 consumer 或 derived view。
+
 ## Execution 与 storage
 
 - **Execution World** — 程序运行的位置：local OS、container、remote host、microVM 或 cloud sandbox。
@@ -139,6 +165,24 @@ bash Tool -> Shell Service -> Shell Provider -> Subprocess Service -> Provider -
 - **API Gateway** — `/api` interceptor 的唯一 owner；它负责 claim Typert endpoint。
 
 浏览器是独立的 Cordis application。Client Plugin 不能注入 Host Service。Remote method 应通过由 API Gateway claim 的 `TypertRemoteService` 暴露；再次注册 `connection.rpc.intercept('/api', …)` 会遮蔽原生 API。
+
+```mermaid
+flowchart TB
+  subgraph Host["DSH Host"]
+    direction LR
+    HostPlugin["Host Cordis Plugin"] --> Service["Host Service"]
+    Service --> Remote["TypertRemoteService"]
+    Remote --> Gateway["API Gateway<br/>唯一 /api interceptor"]
+  end
+  subgraph Browser["DSH Web Client"]
+    direction LR
+    ClientPlugin["Browser Cordis Plugin"] --> Model["Client model"]
+    Model --> Slots["Slots<br/>UI composition"]
+  end
+  Gateway <--> Model
+```
+
+通过 Typert/API Gateway 跨越 Host/client 边界，再通过 Slots 组合浏览器 UI。
 
 ## 一句话模型
 

@@ -72,13 +72,13 @@ const ARCHITECTURE_DIAGRAMS_EN = [
   { name: '06-state', caption: 'Persistence, export, and restore boundaries' },
 ];
 
-const DSH_GUIDE_DIAGRAMS_ZH = [
+const DSH_CONTEXT_DIAGRAMS_ZH = [
   { name: '07-dsh-runtime-composition', caption: 'Runtime composition 与 lifecycle ownership' },
   { name: '08-dsh-session-facts', caption: 'Durable fact、live notification 与 derived view' },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
-const DSH_GUIDE_DIAGRAMS_EN = [
+const DSH_CONTEXT_DIAGRAMS_EN = [
   { name: '07-dsh-runtime-composition', caption: 'Runtime composition and lifecycle ownership' },
   { name: '08-dsh-session-facts', caption: 'Durable facts, live notifications, and derived views' },
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
@@ -456,12 +456,15 @@ const SKILL_PAGES = [
     en: {
       source: `${SKILL}references/context.md`,
       title: 'Canonical context',
-      description: 'Precise DSH and Cordis vocabulary and boundaries',
+      description: 'Precise DSH and Cordis vocabulary, boundaries, and concept maps',
+      lang: 'en',
+      diagrams: DSH_CONTEXT_DIAGRAMS_EN,
     },
     zh: {
       source: `${SKILL}references/context.zh.md`,
       title: '规范 Context',
-      description: '精确的 DSH 与 Cordis 术语及边界',
+      description: '精确的 DSH 与 Cordis 术语、边界与概念图',
+      diagrams: DSH_CONTEXT_DIAGRAMS_ZH,
     },
   },
   {
@@ -478,89 +481,11 @@ const SKILL_PAGES = [
       description: '在实现前选择正确的 DSH seam',
     },
   },
-  {
-    slug: 'dsh/guide',
-    order: 3,
-    en: {
-      source: `${SKILL}SKILL.md`,
-      title: 'The full guide',
-      description: 'Foundation-first workflow, implementation branches and pitfalls',
-      lang: 'en',
-      diagrams: DSH_GUIDE_DIAGRAMS_EN,
-    },
-    zh: {
-      source: `${SKILL}SKILL.zh.md`,
-      title: '完整指南',
-      description: 'Foundation-first 工作流、实现分支与常见陷阱',
-      diagrams: DSH_GUIDE_DIAGRAMS_ZH,
-    },
-  },
-  {
-    slug: 'dsh/host',
-    order: 4,
-    en: {
-      source: `${SKILL}references/host.md`,
-      title: 'Host-side reference',
-      description: 'Package manifest, patches, tools, events, lifecycle',
-    },
-    zh: {
-      source: `${SKILL}references/host.zh.md`,
-      title: 'Host 侧参考',
-      description: '包清单、Patch、Tool、Event 与生命周期',
-    },
-  },
-  {
-    slug: 'dsh/client',
-    order: 5,
-    en: {
-      source: `${SKILL}references/client.md`,
-      title: 'Client-side reference',
-      description: 'dsh.client, slots, RPC and the lazy-CJS build contract',
-    },
-    zh: {
-      source: `${SKILL}references/client.zh.md`,
-      title: 'Client 侧参考',
-      description: 'dsh.client、Slots、RPC 与 lazy-CJS 构建契约',
-    },
-  },
-  {
-    slug: 'dsh/slots',
-    order: 6,
-    en: {
-      source: `${SKILL}references/slots.md`,
-      title: 'Slot catalog',
-      description: 'Every UI slot with kind, scope and use',
-    },
-    zh: {
-      source: `${SKILL}references/slots.zh.md`,
-      title: 'Slot 目录',
-      description: '全部 UI Slot 的 kind、scope 与用途',
-    },
-  },
-  {
-    slug: 'dsh/patterns',
-    order: 7,
-    en: {
-      source: `${SKILL}references/community-ui-patterns.md`,
-      title: 'Community UI patterns',
-      description:
-        'How the ecosystem builds DSH plugin UI — build routes, proven practices, drift hazards',
-    },
-    zh: {
-      source: `${SKILL}references/community-ui-patterns.zh.md`,
-      title: '社区 UI 实践',
-      description: 'DSH 插件生态的构建路线、验证实践与版本漂移风险',
-    },
-  },
 ];
 
 const SKILL_LINKS = new Map([
   ['context', 'context'],
   ['decision-tree', 'decision-tree'],
-  ['host', 'host'],
-  ['client', 'client'],
-  ['slots', 'slots'],
-  ['community-ui-patterns', 'patterns'],
 ]);
 
 function prepareSkill(body, tree, diagrams, lang) {
@@ -589,13 +514,13 @@ function syncSkill() {
       tree: 'docs',
       source: 'docs/dsh/index.md',
       description:
-        'Foundation-first DSH and Cordis design guide — install the skill, then follow its decision tree',
+        'Stable DSH and Cordis vocabulary, concept maps, and architectural decision tree',
       untranslated: false,
     },
     {
       tree: 'docs-zh',
       source: 'docs/dsh/index.zh.md',
-      description: 'Foundation-first DSH 与 Cordis 设计指南：安装 skill，再按 Decision Tree 决策',
+      description: '稳定的 DSH 与 Cordis 术语、概念图与架构 Decision Tree',
       untranslated: false,
     },
   ];
