@@ -12,18 +12,22 @@ MIT licensed — use it, fork it, ship it.
 npx skills add BotHarness/dsh-skill
 ```
 
-Or copy `SKILL.md`, `SKILL.zh.md`, and `references/` into `.agents/skills/dsh-plugin-dev/`.
+Or copy `SKILL.md`, `CHANGELOG.md`, `CHANGELOG.zh.md`, and `references/` into
+`.agents/skills/dsh-plugin-dev/`.
 
 ## What's inside
 
 | File | Covers |
 | --- | --- |
 | `SKILL.md` | Foundation-first workflow and the skill's deliberate scope boundary |
-| `SKILL.zh.md` | Chinese counterpart with canonical English identifiers preserved |
 | `references/context.md` | Canonical vocabulary, native/application-defined boundaries, and concept maps |
 | `references/decision-tree.md` | Requirement-to-seam decisions for dispatch, persistence, execution, and presentation |
+| `CHANGELOG.md` / `CHANGELOG.zh.md` | Independent bilingual DSH Skill release history |
 
-Each reference has a maintained `.zh.md` counterpart. Historical implementation research remains only in the canonical BotHarness repository under `docs/research/`; it is not mirrored into the installed skill.
+`SKILL.md` is the only Agent instruction authority. Each human-readable reference and the release
+history have maintained Chinese counterparts. Historical implementation research remains only in
+the canonical BotHarness repository under `docs/research/`; it is not mirrored into the installed
+skill.
 
 ## Provenance
 
@@ -36,6 +40,9 @@ Each reference has a maintained `.zh.md` counterpart. Historical implementation 
 | Sources | Pinned DSH evidence under `docs/research/`; DSH/Cordis foundations under `dsh_research/` in [BotHarness/BotHarness](https://github.com/BotHarness/BotHarness) |
 
 DSH is in developer preview. Treat the Context and Decision Tree as stable design guidance, then check the current upstream release before relying on a concrete mechanism.
+
+See the [English](CHANGELOG.md) or [Chinese](CHANGELOG.zh.md) release history. Skill SemVer and the
+DSH revision used for verification are separate facts in every published release record.
 
 ## Maintenance
 

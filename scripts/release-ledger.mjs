@@ -1,9 +1,21 @@
 const RELEASE_HEADING = /^## \[([^\]]+)](?: - (\d{4}-\d{2}-\d{2}))?$/;
 const SECTION_HEADING = /^### (.+)$/;
 const MARKDOWN_LINK = /\[[^\]]*]\(([^)]+)\)/g;
+const RELEASE_PROVENANCE =
+  /^- \*\*(Skill version|Verified against DSH|Upstream revision|Skill 版本|核验的 DSH 版本|上游 revision)(?::|：)\*\*\s+(.+)$/;
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PROVENANCE_LINK = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:[?#].*)?$/;
+const UPSTREAM_SHA = /^[0-9a-f]{40}$/;
+
+const PROVENANCE_KEYS = new Map([
+  ['Skill version', 'skillVersion'],
+  ['Skill 版本', 'skillVersion'],
+  ['Verified against DSH', 'verifiedAgainst'],
+  ['核验的 DSH 版本', 'verifiedAgainst'],
+  ['Upstream revision', 'upstreamSha'],
+  ['上游 revision', 'upstreamSha'],
+]);
 
 export const DEVELOPMENT_SUMMARY_IDENTITY = 'Development';
 
@@ -26,6 +38,11 @@ function isCalendarDate(value) {
   if (!value) return false;
   const instant = new Date(`${value}T00:00:00Z`);
   return !Number.isNaN(instant.valueOf()) && instant.toISOString().slice(0, 10) === value;
+}
+
+function provenanceValue(text) {
+  const code = text.match(/`([^`]+)`/)?.[1];
+  return code ?? text.trim();
 }
 
 function parseReleaseLedgerDocument(markdown) {
@@ -55,6 +72,17 @@ function parseReleaseLedgerDocument(markdown) {
     if (sectionMatch) {
       section = { name: sectionMatch[1], entries: [] };
       release.sections.push(section);
+      continue;
+    }
+
+    const provenanceMatch = line.match(RELEASE_PROVENANCE);
+    if (provenanceMatch && !section) {
+      release.provenance ??= {};
+      const key = PROVENANCE_KEYS.get(provenanceMatch[1]);
+      release.provenance[key] = provenanceValue(provenanceMatch[2]);
+      if (key === 'upstreamSha') {
+        release.provenance.upstreamUrl = linksIn(provenanceMatch[2])[0];
+      }
       continue;
     }
 
@@ -290,6 +318,87 @@ export function validateReleaseLedgerPair(english, chinese) {
         source: 'bilingual',
         code: 'link-parity',
         message: `${enRelease.identity} has different English and Chinese link targets in corresponding entries.`,
+      });
+    }
+  }
+
+  return errors;
+}
+
+function sameProvenance(left, right) {
+  return sameValues(
+    left ? [left.skillVersion, left.verifiedAgainst, left.upstreamSha, left.upstreamUrl] : null,
+    right
+      ? [right.skillVersion, right.verifiedAgainst, right.upstreamSha, right.upstreamUrl]
+      : null,
+  );
+}
+
+/** Validate DSH Skill release provenance on top of the shared bilingual ledger contract. */
+export function validateDshSkillReleaseLedgerPair(english, chinese, current) {
+  const errors = validateReleaseLedgerPair(english, chinese);
+  const en = parseReleaseLedger(english).releases;
+  const zh = parseReleaseLedger(chinese).releases;
+
+  for (const release of en.filter(({ identity }) => identity !== 'Unreleased')) {
+    const provenance = release.provenance;
+    if (!provenance?.skillVersion || !provenance.verifiedAgainst || !provenance.upstreamSha) {
+      errors.push({
+        source: 'DSH Skill',
+        code: 'missing-release-provenance',
+        message: `${release.identity} needs Skill version, verified DSH version, and upstream revision.`,
+      });
+      continue;
+    }
+    if (provenance.skillVersion !== release.identity) {
+      errors.push({
+        source: 'DSH Skill',
+        code: 'skill-version-mismatch',
+        message: `${release.identity} declares Skill version ${provenance.skillVersion}.`,
+      });
+    }
+    const expectedUrl = `https://github.com/deepseek-ai/deepseek-harness/commit/${provenance.upstreamSha}`;
+    if (!UPSTREAM_SHA.test(provenance.upstreamSha) || provenance.upstreamUrl !== expectedUrl) {
+      errors.push({
+        source: 'DSH Skill',
+        code: 'invalid-upstream-revision',
+        message: `${release.identity} needs a full upstream SHA linked to its DSH commit.`,
+      });
+    }
+  }
+
+  for (let index = 0; index < Math.min(en.length, zh.length); index += 1) {
+    if (!sameProvenance(en[index].provenance, zh[index].provenance)) {
+      errors.push({
+        source: 'bilingual',
+        code: 'provenance-parity',
+        message: `${en[index].identity} has different English and Chinese Skill provenance.`,
+      });
+    }
+  }
+
+  if (current) {
+    const release = en.find(({ identity }) => identity === current.skillVersion);
+    if (!release) {
+      errors.push({
+        source: 'DSH Skill',
+        code: 'current-release-missing',
+        message: `Current Skill version ${current.skillVersion} is missing from release history.`,
+      });
+    } else if (
+      !sameValues(
+        [
+          release.provenance?.skillVersion,
+          release.provenance?.verifiedAgainst,
+          release.provenance?.upstreamSha,
+        ],
+        [current.skillVersion, current.verifiedAgainst, current.upstreamSha],
+      )
+    ) {
+      errors.push({
+        source: 'DSH Skill',
+        code: 'current-provenance-mismatch',
+        message: `Release ${current.skillVersion} does not match SKILL.md provenance.`,
       });
     }
   }

@@ -8,7 +8,7 @@ Reliable DSH plugin design starts with precise language and stable architectural
 npx skills add BotHarness/dsh-skill
 ```
 
-[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) mirrors the canonical skill folder in [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness). You can also copy `SKILL.md`, `SKILL.zh.md`, and `references/` into `.agents/skills/dsh-plugin-dev/`.
+[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) mirrors the canonical skill folder in [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness). You can also copy the English Agent authority `SKILL.md` and its `references/` into `.agents/skills/dsh-plugin-dev/`.
 
 ## Stable foundation
 
@@ -16,6 +16,7 @@ npx skills add BotHarness/dsh-skill
 | ----------------------------------- | -------------------------------------------------------------------------------------------- |
 | [Canonical context](/dsh/context)   | DSH/Cordis leading words, native boundaries, and concept maps                                |
 | [Decision tree](/dsh/decision-tree) | Choosing Service, Event, Registry, SessionEvent, Projection, persistence, or execution seams |
+| [Release history](/dsh/releases)    | Independent Skill SemVer and the DSH revision verified by each release                       |
 
 The skill intentionally excludes Host and Client API catalogs, Slot inventories, and community implementation patterns. Those details change quickly: after the Decision Tree selects a seam, verify its concrete mechanism against the current [DSH official documentation](https://deepseek-harness.github.io/deepseek-harness/), pinned source, and running Host.
 

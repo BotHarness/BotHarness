@@ -813,6 +813,20 @@ const SKILL_PAGES = [
       description: '在实现前选择正确的 DSH seam',
     },
   },
+  {
+    slug: 'dsh/releases',
+    order: 3,
+    en: {
+      source: `${SKILL}CHANGELOG.md`,
+      title: 'DSH Skill release history',
+      description: 'Independent Skill SemVer and verified DSH provenance',
+    },
+    zh: {
+      source: `${SKILL}CHANGELOG.zh.md`,
+      title: 'DSH Skill 更新日志',
+      description: '独立的 Skill SemVer 与核验过的 DSH provenance',
+    },
+  },
 ];
 
 const SKILL_LINKS = new Map([
