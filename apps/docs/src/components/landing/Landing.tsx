@@ -88,7 +88,7 @@ const COPY = {
         icon: "hugeicons:code",
         eyebrow: "作为开发者",
         title: "开发与审计",
-        description: "架构、数据流、ADR 与平台规格，面向贡献者与审计者。",
+        description: "架构、数据流、BotHarness 产品术语与 ADR，面向贡献者与审计者。",
       },
       {
         href: "/changelog",

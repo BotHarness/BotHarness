@@ -1,4 +1,4 @@
-# BotHarness
+# BotHarness Product Context
 
 A DeepSeek Harness plugin layer that gives LLM agents a persistent identity: PersonaBots — bots with a persona and memory that outlive any session, chat, or workspace.
 

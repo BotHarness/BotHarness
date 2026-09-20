@@ -42,12 +42,12 @@
 /dev/spec/client-bridge /dev/guides/client-bridge 301
 /dev/spec/client-bridge/ /dev/guides/client-bridge 301
 /dev/spec/client-bridge/* /dev/guides/client-bridge/:splat 301
-/dev/spec/platform /dev/design/platform 301
-/dev/spec/platform/ /dev/design/platform 301
-/dev/spec/platform/* /dev/design/platform/:splat 301
-/dev/spec/app-prd /dev/design/app-prd 301
-/dev/spec/app-prd/ /dev/design/app-prd 301
-/dev/spec/app-prd/* /dev/design/app-prd/:splat 301
+/dev/spec/platform /dev/design/architecture 301
+/dev/spec/platform/ /dev/design/architecture 301
+/dev/spec/platform/* /dev/design/architecture/:splat 301
+/dev/spec/app-prd /dev/design/architecture 301
+/dev/spec/app-prd/ /dev/design/architecture 301
+/dev/spec/app-prd/* /dev/design/architecture/:splat 301
 /dev/spec/context /dev/design/context 301
 /dev/spec/context/ /dev/design/context 301
 /dev/spec/context/* /dev/design/context/:splat 301
@@ -60,15 +60,34 @@
 /zh/dev/spec/client-bridge /zh/dev/guides/client-bridge 301
 /zh/dev/spec/client-bridge/ /zh/dev/guides/client-bridge 301
 /zh/dev/spec/client-bridge/* /zh/dev/guides/client-bridge/:splat 301
-/zh/dev/spec/platform /zh/dev/design/platform 301
-/zh/dev/spec/platform/ /zh/dev/design/platform 301
-/zh/dev/spec/platform/* /zh/dev/design/platform/:splat 301
-/zh/dev/spec/app-prd /zh/dev/design/app-prd 301
-/zh/dev/spec/app-prd/ /zh/dev/design/app-prd 301
-/zh/dev/spec/app-prd/* /zh/dev/design/app-prd/:splat 301
+/zh/dev/spec/platform /zh/dev/design/architecture 301
+/zh/dev/spec/platform/ /zh/dev/design/architecture 301
+/zh/dev/spec/platform/* /zh/dev/design/architecture/:splat 301
+/zh/dev/spec/app-prd /zh/dev/design/architecture 301
+/zh/dev/spec/app-prd/ /zh/dev/design/architecture 301
+/zh/dev/spec/app-prd/* /zh/dev/design/architecture/:splat 301
 /zh/dev/spec/context /zh/dev/design/context 301
 /zh/dev/spec/context/ /zh/dev/design/context 301
 /zh/dev/spec/context/* /zh/dev/design/context/:splat 301
+
+# Mutable platform/app planning snapshots are no longer public design
+# authorities. Preserve their URLs at the integrated living architecture.
+/dev/design/platform /dev/design/architecture 301
+/dev/design/platform/ /dev/design/architecture 301
+/dev/design/platform/* /dev/design/architecture/:splat 301
+/dev/design/platform.md /dev/design/architecture.md 301
+/dev/design/app-prd /dev/design/architecture 301
+/dev/design/app-prd/ /dev/design/architecture 301
+/dev/design/app-prd/* /dev/design/architecture/:splat 301
+/dev/design/app-prd.md /dev/design/architecture.md 301
+/zh/dev/design/platform /zh/dev/design/architecture 301
+/zh/dev/design/platform/ /zh/dev/design/architecture 301
+/zh/dev/design/platform/* /zh/dev/design/architecture/:splat 301
+/zh/dev/design/platform.md /zh/dev/design/architecture.md 301
+/zh/dev/design/app-prd /zh/dev/design/architecture 301
+/zh/dev/design/app-prd/ /zh/dev/design/architecture 301
+/zh/dev/design/app-prd/* /zh/dev/design/architecture/:splat 301
+/zh/dev/design/app-prd.md /zh/dev/design/architecture.md 301
 
 # `/zh` is a language tree, not a host root: site-wide endpoints and generated
 # assets have one canonical home at the root (robots/sitemaps are

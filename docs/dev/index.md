@@ -4,7 +4,7 @@ BotHarness developer documentation separates four kinds of authority. Start with
 
 ## Design
 
-[Design](/dev/design) contains the canonical product vocabulary, specifications, PRD, and living architecture. It defines intended boundaries and invariants. A design may describe work that is not implemented yet; each source document carries its own status.
+[Design](/dev/design) contains the canonical BotHarness Product Context and living architecture. It defines intended boundaries and invariants without publishing mutable platform-spec or app-PRD snapshots as parallel authorities.
 
 ## Guides
 

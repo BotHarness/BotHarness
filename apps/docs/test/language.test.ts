@@ -178,11 +178,11 @@ describe('siteChrome', () => {
 
 describe('untranslatedNotice', () => {
   it('appends the counterpart link in the right language', () => {
-    expect(untranslatedNotice('en', '/zh/dev/design/platform')).toBe(
-      'This page has not been translated yet. <a href="/zh/dev/design/platform">View the Chinese version →</a>',
+    expect(untranslatedNotice('en', '/zh/dev/guides/client-bridge')).toBe(
+      'This page has not been translated yet. <a href="/zh/dev/guides/client-bridge">View the Chinese version →</a>',
     );
-    expect(untranslatedNotice('zh-Hans', '/dev/design/platform')).toBe(
-      '本页暂未提供中文。 <a href="/dev/design/platform">查看英文版 →</a>',
+    expect(untranslatedNotice('zh-Hans', '/dev/guides/client-bridge')).toBe(
+      '本页暂未提供中文。 <a href="/dev/guides/client-bridge">查看英文版 →</a>',
     );
   });
 });

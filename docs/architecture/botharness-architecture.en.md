@@ -237,4 +237,4 @@ v1 has only two backup actions: Export Profile produces one self-contained `.bot
 
 - When module structure, data flow, transaction boundaries, or authority changes, update this file, its Chinese mirror, and `docs/architecture/diagrams/*.mmd`.
 - Run `pnpm diagrams` and commit the light/dark SVGs. `scripts/sync-docs.mjs` publishes this source and those diagrams to `apps/docs`.
-- Companion sources: platform spec `docs/botharness.md`, app PRD `PRD.md`, glossary `CONTEXT.md`, and decisions in `docs/adr/`.
+- Companion sources: BotHarness Product Context in `CONTEXT.md`, with trade-offs and rationale in `docs/adr/`. The platform spec and app PRD are archived working drafts rather than parallel design authorities.

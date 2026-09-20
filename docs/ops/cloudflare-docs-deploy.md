@@ -3,7 +3,7 @@
 `apps/docs` 是 Nimbus（Astro 7）静态站点，产出 `dist/`，由 Cloudflare Workers Static Assets 托管。
 
 - 域名：**`botharness.ai` 与 `botharness.dev` 都绑定同一个 Worker**，服务同一份站点（同一构建、同一内容）
-- 区块：`/docs` 用户文档 · `/dev` 开发者与审计（规格 / PRD / ADR / 架构） · `/changelog`
+- 区块：`/docs` 用户文档 · `/dev` 开发者与审计（架构 / 产品术语 / Guides / Reference / ADR） · `/changelog`
 - Account：`332e72d480d7cb3e60ee671d3ca0cad0`（yangmufeng233@gmail.com）
 - Worker 名：`botharness-docs`（见 `apps/docs/wrangler.jsonc`）
 - 旧地址：`/en/**` 已迁到根路径，由 `apps/docs/public/_redirects` 做 301
@@ -19,7 +19,7 @@ pnpm docs:deploy           # 等于 pnpm --filter docs run deploy
 ```
 
 - 需要 `pnpm exec wrangler login`（或 `CLOUDFLARE_API_TOKEN`）一次。
-- 构建会先跑 `scripts/sync-docs.mjs`，把仓库根 `docs/`、`PRD.md`、`CONTEXT.md`、changelog 同步进 `src/content/`。
+- 构建会先跑 `scripts/sync-docs.mjs`，把 living architecture、`CONTEXT.md`、Guides、生成 Reference、ADR 与 changelog 同步进 `src/content/`。
 - 首次部署后，在 Dashboard → Worker → Settings → Domains & Routes 确认 **`botharness.ai` 和 `botharness.dev` 都是自定义域名**（同一 Worker、同一份内容，无需重定向）。
 
 ## 可选：Workers Builds（Git 集成，后续再做）

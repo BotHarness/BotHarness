@@ -73,7 +73,7 @@ collection + Nimbus `versions.others` (`astro.config.ts`). Generated `/dev`
 pages are written into both trees: the English tree (`docs/dev`) carries the
 Chinese source flagged `untranslated: true`, which the root route renders with
 `This page has not been translated yet.`; the Chinese tree (`docs-zh/dev`) is
-clean. The architecture page is the exception — the maintained English source
+clean. Architecture pages are the exception — the maintained English source
 `docs/architecture/botharness-architecture.en.md` goes to the English tree and
 the Chinese source to the `/zh` tree (no banner on either). English-only pages
 with no Chinese counterpart (rare) are flagged in `docs-zh`, and the `/zh`
@@ -104,9 +104,9 @@ only for ad-hoc `mermaid` fences in hand-authored pages.
 
 ## Generated directories — don't edit
 
-- `src/content/docs/dev/**` — English tree: Design / Guides / generated Reference / ADR, from
-  root `docs/`, `PRD.md`, `CONTEXT.md` (Chinese sources flagged
-  `untranslated: true`)
+- `src/content/docs/dev/**` — English tree: living architecture, BotHarness Product Context,
+  Guides, generated Reference, and ADR, from maintained repository sources (`CONTEXT.md` is
+  paired with `CONTEXT.zh.md` for the Chinese tree)
 - `src/content/docs-zh/dev/**` — Chinese tree at `/zh`: the same sources,
   clean, plus the Chinese architecture page
 - `src/content/docs/dsh/**` — DSH Dev Docs: the landing from `docs/dsh/index.md`

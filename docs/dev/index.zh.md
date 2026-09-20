@@ -4,7 +4,7 @@ BotHarness 开发文档把四种不同的权威信息分开。先判断需要哪
 
 ## Design
 
-[Design](/zh/dev/design) 包含规范产品词汇、规格、PRD 与 living architecture，用于定义目标边界和不变量。Design 可以描述尚未实现的目标；具体状态以各源文档为准。
+[Design](/zh/dev/design) 包含规范的 BotHarness 产品术语与 living architecture，用于定义目标边界和不变量；不再把易变的 Platform Spec 或 App PRD 快照作为并列权威发布。
 
 ## Guides
 

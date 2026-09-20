@@ -235,4 +235,4 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 
 - 模块、数据流、事务边界或 authority 发生结构变化时，同步本文件、英文镜像和 `docs/architecture/diagrams/*.mmd`。
 - 运行 `pnpm diagrams` 提交 light/dark SVG；`scripts/sync-docs.mjs` 将本文和图同步到 `apps/docs`。
-- 配套：平台规格 `docs/botharness.md`、应用 PRD `PRD.md`、词表 `CONTEXT.md`、决策 `docs/adr/`。
+- 配套：BotHarness 产品术语 `CONTEXT.zh.md`（英文为 `CONTEXT.md`）；取舍与理由 `docs/adr/`。Platform Spec 与 App PRD 已归档为历史工作草稿，不再作为并列设计权威。

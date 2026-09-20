@@ -1,10 +1,12 @@
 # BotHarness 规格（PoC）
 
+> **历史工作草稿，不再是设计权威，也不发布到文档站。** 当前产品术语以 `CONTEXT.md` 为准，整合后的目标架构以 `docs/architecture/botharness-architecture.md` 为准，取舍与理由以 `docs/adr/` 为准。
+
 | 项       | 内容                                                                                                                                                                                                                                |
 | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 版本     | v1.14                                                                                                                                                                                                                               |
 | 日期     | 2026-09-20                                                                                                                                                                                                                          |
-| 状态     | Draft                                                                                                                                                                                                                               |
+| 状态     | Archived working draft                                                                                                                                                                                                              |
 | 形态     | DSH 插件层：SDK 包 + bundle（**不 fork DSH**，ADR-0015）                                                                                                                                                                            |
 | 首个应用 | **DeepSeekBot**（见 `PRD.md`）                                                                                                                                                                                                      |
 | 决策记录 | `docs/adr/`（v1.14：0035–0045 确立 Session ownership、Messaging、统一 operational database、可移植性与 BotWork control plane；v1.13：#66 已将 roster 陈列迁入 `botharness_roster`，作为 #80 单向迁入 `botharness.db` 前的过渡权威） |
