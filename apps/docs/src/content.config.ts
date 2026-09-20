@@ -43,8 +43,8 @@ export const collections = {
       },
     }),
   ),
-  // English changelog tree, generated from `docs/changelog/<date>-<slug>.md`
-  // by `scripts/sync-docs.mjs` and served at `/changelog/**`.
+  // English changelog tree, generated from the canonical Release Ledger by
+  // `scripts/sync-docs.mjs` and served at `/changelog/**`.
   changelog: defineCollection(
     docsCollection({
       base: "changelog",
@@ -58,15 +58,16 @@ export const collections = {
         }),
         // Opaque strings — the feed's filter derives its options from them.
         tags: z.array(z.string()).default([]),
+        releaseVersion: z.string().optional(),
+        developmentSummary: z.boolean().optional(),
         // Set when the English side of a pair is missing: the entry body is
         // the Chinese fallback and the route links to its `/zh` counterpart.
         untranslated: z.boolean().optional(),
       },
     }),
   ),
-  // Chinese changelog tree, generated from `docs/changelog/<date>-<slug>.zh.md`
-  // by `scripts/sync-docs.mjs` and served at `/zh/changelog/**`. Same schema
-  // as `changelog`; the fallback flag points the other way.
+  // Chinese counterpart generated from `CHANGELOG.zh.md` and served at
+  // `/zh/changelog/**`.
   "changelog-zh": defineCollection(
     docsCollection({
       base: "changelog-zh",
@@ -78,6 +79,8 @@ export const collections = {
               : '"date" must be a valid date (e.g. 2026-06-16).',
         }),
         tags: z.array(z.string()).default([]),
+        releaseVersion: z.string().optional(),
+        developmentSummary: z.boolean().optional(),
         untranslated: z.boolean().optional(),
       },
     }),

@@ -65,6 +65,12 @@ the relevant guide and architecture rationale to its ADR. A change is normally o
 may use a second sentence only for a migration, limitation, or required action. There is no fixed
 word-count gate.
 
+The ledger contains one migration-only `Development` section. It consolidates the implemented
+work that predates the first release and is published as development history without a version.
+Do not add another `Development` section, use it as a project-status state, or interpret it as a
+tagged prerelease or installable artifact. All future public release entries use dated SemVer
+sections; active and merged work stays in `Unreleased` and the Development status surface.
+
 Describe the result before implementation detail:
 
 ```markdown
