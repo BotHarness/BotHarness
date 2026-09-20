@@ -485,21 +485,3 @@ _避免使用_：whitelist、permissions、ACL
 **Credential reference**：
 指向由 DSH credentials service 保存的 Feishu App Secret 的引用；secret 本身永远不会进入 config、repo 或 log。
 _避免使用_：secret、API key、token
-
-### 开发者文档与分发
-
-**DSH Dev Docs**：
-BotHarness 文档站的 `/dsh` 部分，用于教外部开发者如何构建 DSH Plugin。
-_避免使用_：tutorials、handbook、dev portal、wiki
-
-**dsh-plugin-dev**：
-面向 Agent 的 skill，包含我们的全栈 DSH Plugin authoring guide（Host + Client）；它是 DSH Dev Docs 渲染、外部开发者下载的唯一 artifact。
-_避免使用_：prompt、guide、doc
-
-**dsh-skill**：
-独立 GitHub repo（`BotHarness/dsh-skill`），其根目录就是 dsh-plugin-dev 本身——作为单行安装来源，由此 monorepo 镜像而来，绝不手动编辑。
-_避免使用_：package、plugin、marketplace
-
-**Provenance**：
-每个 published skill artifact 与 DSH Dev Docs page 都携带的 source、version 与 timestamp，用来说明其中的 claim 针对哪个 DSH version（以及 upstream revision）完成验证，以及验证时间。
-_避免使用_：disclaimer、changelog、metadata（单独使用）

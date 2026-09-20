@@ -43,18 +43,64 @@
  * `src/content/docs-zh/dsh/**`, `src/content/changelog/**`, or
  * `src/content/changelog-zh/**`.
  */
-import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
-import { dirname, join, resolve } from 'node:path';
+import {
+  copyFileSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { collectDevReference } from './docs-reference.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const CONTENT = join(ROOT, 'apps', 'docs', 'src', 'content');
+const isWithin = (parent, candidate) => {
+  const path = relative(parent, candidate);
+  return path === '' || (!isAbsolute(path) && path !== '..' && !path.startsWith(`..${sep}`));
+};
+const configuredTestRoot = process.env.BOTHARNESS_DOCS_TEST_OUTPUT_ROOT?.trim();
+let testOutputRoot = null;
+if (configuredTestRoot) {
+  if (!isAbsolute(configuredTestRoot)) {
+    throw new Error('BOTHARNESS_DOCS_TEST_OUTPUT_ROOT must be an absolute path');
+  }
+  const realTempRoot = realpathSync(tmpdir());
+  const realRepoRoot = realpathSync(ROOT);
+  const realConfiguredRoot = realpathSync(configuredTestRoot);
+  const overlapsRepo =
+    isWithin(realRepoRoot, realConfiguredRoot) || isWithin(realConfiguredRoot, realRepoRoot);
+  if (overlapsRepo) {
+    throw new Error('BOTHARNESS_DOCS_TEST_OUTPUT_ROOT must not overlap the repository');
+  }
+  const relativeToTemp = relative(realTempRoot, realConfiguredRoot);
+  if (!relativeToTemp || !isWithin(realTempRoot, realConfiguredRoot)) {
+    throw new Error(
+      'BOTHARNESS_DOCS_TEST_OUTPUT_ROOT must be below the system temporary directory',
+    );
+  }
+  testOutputRoot = realConfiguredRoot;
+}
+const CONTENT = testOutputRoot
+  ? join(testOutputRoot, 'content')
+  : join(ROOT, 'apps', 'docs', 'src', 'content');
 const DIAGRAMS_RENDERED = join(ROOT, 'docs', 'architecture', 'diagrams', 'rendered');
-const DIAGRAMS_PUBLIC = join(ROOT, 'apps', 'docs', 'public', 'diagrams');
+const DIAGRAMS_PUBLIC = testOutputRoot
+  ? join(testOutputRoot, 'diagrams')
+  : join(ROOT, 'apps', 'docs', 'public', 'diagrams');
 const GITHUB_BLOB = 'https://github.com/BotHarness/BotHarness/blob/main/';
 const SKILL = '.agents/skills/dsh-plugin-dev/';
+
+export const DEV_SECTION_ORDER = Object.freeze({
+  design: 1,
+  guides: 2,
+  reference: 3,
+  adr: 4,
+});
 
 const ARCHITECTURE_DIAGRAMS_ZH = [
   { name: '01-system-context', caption: '系统上下文' },
@@ -111,7 +157,7 @@ export const PAGES = [
   },
   {
     slug: 'dev/design/index',
-    order: 0,
+    order: DEV_SECTION_ORDER.design,
     en: {
       source: 'docs/dev/design/index.md',
       title: 'Design',
@@ -176,7 +222,7 @@ export const PAGES = [
   },
   {
     slug: 'dev/guides/index',
-    order: 0,
+    order: DEV_SECTION_ORDER.guides,
     en: {
       source: 'docs/dev/guides/index.md',
       title: 'Guides',
@@ -472,7 +518,7 @@ function syncReference() {
   const pages = [
     {
       slug: 'index',
-      order: 0,
+      order: DEV_SECTION_ORDER.reference,
       en: {
         title: 'Reference',
         description: 'Generated current-code contracts for config, tools, and public events',
@@ -574,7 +620,7 @@ function syncAdr() {
     frontmatter({
       title: 'Architecture decisions',
       description: 'Decision history, status, and rationale for BotHarness architecture',
-      order: 0,
+      order: DEV_SECTION_ORDER.adr,
     }) +
       'ADRs explain why an architectural choice was made. Read the status before treating a decision as current; the [living architecture](/dev/design/architecture) is the integrated current view.\n\n' +
       `<details>\n<summary>All decisions (${entries.length})</summary>\n\n${indexList}\n\n</details>\n`,
@@ -584,7 +630,7 @@ function syncAdr() {
     frontmatter({
       title: 'Architecture decisions',
       description: 'BotHarness 架构决策的历史、状态与理由',
-      order: 0,
+      order: DEV_SECTION_ORDER.adr,
     }) +
       'ADR 解释一项架构取舍为什么成立。把决策当作当前约束前，应先查看状态；[living architecture](/zh/dev/design/architecture) 是整合后的当前视图。\n\n' +
       `<details>\n<summary>全部决策（${entries.length}）</summary>\n\n${indexListZh}\n\n</details>\n`,
