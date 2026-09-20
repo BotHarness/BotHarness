@@ -62,6 +62,12 @@ Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `
 
 DeepSeekBot release notes use the bilingual canonical Release Ledger in `CHANGELOG.md` and `CHANGELOG.zh.md`. For a user-visible change, public documentation change, release PR, revert, or prerelease, follow `docs/agents/changelog.md`; keep both ledgers structurally aligned and run `pnpm changelog:check`.
 
+For a DSH Skill behavior or public-documentation change, release PR, revert, or prerelease, follow
+`docs/agents/changelog.md`, update `.agents/skills/dsh-plugin-dev/CHANGELOG.md` and
+`CHANGELOG.zh.md`, and run `pnpm skill:changelog:check`. This release train uses independent Skill
+SemVer; every published Skill release separately records the DSH version and upstream revision it
+verified.
+
 ### Pull requests
 
 When creating or updating a PR, use the `visual-pr` skill to write the description: one-sentence "why", `/show-me`-style change outline, saved under `.humanlayer/tasks/` and applied with `gh pr edit --body-file`.

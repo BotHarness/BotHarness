@@ -4,6 +4,9 @@
 `CHANGELOG.zh.md` is its maintained Chinese counterpart. Together they answer one question:
 what observable difference will a user or DSH plugin developer find in a DeepSeekBot release?
 
+The independently installable DSH Skill follows the same ledger shape under
+`.agents/skills/dsh-plugin-dev/`; its additional provenance rules are below.
+
 Use `pnpm changelog:check` before review. The check validates objective structure and bilingual
 parity; Human review owns notability, accuracy, and prose quality.
 
@@ -105,6 +108,22 @@ is not. Keep these facts identical and in the same order:
 
 The validator deliberately does not compare translated prose. Keep section names in English in both
 files so categories remain mechanically identical.
+
+## DSH Skill release train
+
+The DSH Skill uses `.agents/skills/dsh-plugin-dev/CHANGELOG.md` as its English canonical ledger and
+`CHANGELOG.zh.md` as the maintained Chinese release history. Update them for the same change
+branches described above and run `pnpm skill:changelog:check`.
+
+Skill SemVer is independent from DeepSeekBot SemVer. Every dated Skill release records these facts
+before its change sections:
+
+- `Skill version` — identical to the release heading;
+- `Verified against DSH` — the DSH version whose behavior was checked;
+- `Upstream revision` — the full SHA linked to the corresponding DSH commit.
+
+The current dated release must match `SKILL.md` metadata. `SKILL.md` remains the sole Agent
+instruction authority; Chinese belongs in the human-facing references and release history.
 
 ## Contribution and release flow
 

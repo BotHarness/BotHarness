@@ -8,7 +8,7 @@
 npx skills add BotHarness/dsh-skill
 ```
 
-[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) 镜像 [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness) 中的 canonical skill 目录。也可以把 `SKILL.md`、`SKILL.zh.md` 与 `references/` 拷进 `.agents/skills/dsh-plugin-dev/`。
+[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) 镜像 [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness) 中的 canonical skill 目录。也可以把唯一的英文 Agent authority `SKILL.md` 与 `references/` 拷进 `.agents/skills/dsh-plugin-dev/`。
 
 ## 稳定基础
 
@@ -16,6 +16,7 @@ npx skills add BotHarness/dsh-skill
 | -------------------------------------- | -------------------------------------------------------------------------------------- |
 | [规范 Context](/zh/dsh/context)        | DSH/Cordis leading words、native 边界与概念图                                          |
 | [Decision Tree](/zh/dsh/decision-tree) | 选择 Service、Event、Registry、SessionEvent、Projection、persistence 或 execution seam |
+| [Release history](/zh/dsh/releases)    | 独立的 Skill SemVer，以及每个 release 所核验的 DSH revision                            |
 
 本 Skill 有意不包含 Host 与 Client API 目录、Slot 清单或社区实现模式。这些细节变化很快：Decision Tree 选定 seam 后，应以当前 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)、固定版本源码与实际运行的 Host 核验具体机制。
 
