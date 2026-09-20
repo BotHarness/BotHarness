@@ -1,0 +1,182 @@
+---
+import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
+import {
+  developmentStatus,
+  linkLabel,
+  localized,
+  statusCopy,
+  type StatusLocale,
+} from "@/lib/development-status";
+import { withBase } from "@cloudflare/nimbus-docs/runtime";
+import { DEVELOPMENT_STATUS_ROUTE } from "@/lib/development-status-route";
+
+interface Props {
+  locale: StatusLocale;
+}
+
+const { locale } = Astro.props;
+const copy = statusCopy[locale];
+const markdownPath = DEVELOPMENT_STATUS_ROUTE.markdown[locale];
+const dateLocale = locale === "zh" ? "zh-CN" : "en";
+const formatDate = (value: string): string =>
+  new Intl.DateTimeFormat(dateLocale, {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(value));
+const formatTimestamp = (value: string): string =>
+  new Intl.DateTimeFormat(dateLocale, {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "UTC",
+  }).format(new Date(value));
+const authorityHref = (artifact: "deepseekbot" | "dsh-skill"): string => {
+  const authority = artifact === "deepseekbot" ? "/changelog" : "/dsh/releases";
+  return locale === "zh" ? `/zh${authority}` : authority;
+};
+---
+
+<ChangelogLayout
+  title={copy.title}
+  description={copy.description}
+  head={[
+    {
+      tag: "link",
+      attrs: {
+        rel: "alternate",
+        type: "text/markdown",
+        href: withBase(markdownPath, import.meta.env.BASE_URL),
+      },
+    },
+  ]}
+>
+  <header class="mb-10">
+    <h1
+      class="m-0 text-balance leading-[1.1] text-foreground"
+      style="font-size:var(--nb-h1-size);font-weight:var(--nb-h1-weight);letter-spacing:var(--nb-h1-tracking)"
+    >
+      {copy.title}
+    </h1>
+    <p class="mt-2.5 text-pretty text-[1.0625rem] leading-normal text-muted-foreground">
+      {copy.description}
+    </p>
+    <p class="mt-4 max-w-2xl text-pretty text-sm leading-6 text-muted-foreground">
+      {copy.intro}
+    </p>
+    <p class="mt-3 text-xs text-muted-foreground">
+      {copy.synced}: <time datetime={developmentStatus.syncedAt}>{formatTimestamp(developmentStatus.syncedAt)}</time>
+    </p>
+  </header>
+
+  <nav aria-label={copy.artifacts} class="mb-10 flex flex-wrap gap-2">
+    {developmentStatus.artifacts.map((artifact) => (
+      <a
+        href={`#${artifact.id}`}
+        class="rounded-full border border-border px-3 py-1.5 text-sm font-medium text-foreground no-underline transition-colors hover:border-border-strong hover:bg-accent"
+      >
+        {artifact.label}
+      </a>
+    ))}
+  </nav>
+
+  <div class="space-y-16">
+    {developmentStatus.artifacts.map((artifact) => (
+      <section id={artifact.id} data-artifact={artifact.id} class="scroll-mt-20">
+        <h2 class="m-0 border-b border-border pb-3 text-2xl font-semibold tracking-tight text-foreground">
+          {artifact.label}
+        </h2>
+        <a
+          href={withBase(authorityHref(artifact.id), import.meta.env.BASE_URL)}
+          class="mt-2 inline-block text-xs text-muted-foreground underline underline-offset-4 hover:text-foreground"
+        >
+          {copy.releaseLedger}
+        </a>
+
+        <div class="mt-6 grid gap-5">
+          {developmentStatus.states.map((state) => {
+            const stateCopy = copy.states[state];
+            const items = artifact.states[state];
+            return (
+              <section data-status={state} class="rounded-xl border border-border bg-card p-5">
+                <h3 class="m-0 text-base font-semibold text-foreground">{stateCopy.title}</h3>
+                <p class="mt-1.5 text-sm leading-6 text-muted-foreground">{stateCopy.description}</p>
+
+                {items.length === 0 ? (
+                  <p class="mt-4 text-sm text-muted-foreground">{stateCopy.empty}</p>
+                ) : (
+                  <ul class="mt-4 grid list-none gap-4 p-0">
+                    {items.map((item) => (
+                      <li class="border-t border-border pt-4 first:border-t-0 first:pt-0">
+                        {item.kind === "in-progress" ? (
+                          <>
+                            <a
+                              href={item.url}
+                              class="font-medium text-foreground underline decoration-border-strong underline-offset-4 hover:decoration-foreground"
+                            >
+                              {localized(item.title, locale)}
+                            </a>
+                            <dl class="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                              <div class="flex gap-1.5">
+                                <dt class="font-medium text-foreground">{copy.milestone}</dt>
+                                <dd>{item.milestone}</dd>
+                              </div>
+                              <div class="flex gap-1.5">
+                                <dt class="font-medium text-foreground">{copy.updated}</dt>
+                                <dd><time datetime={item.updatedAt}>{formatTimestamp(item.updatedAt)}</time></dd>
+                              </div>
+                            </dl>
+                          </>
+                        ) : item.kind === "merged-awaiting-release" ? (
+                          <>
+                            <p class="m-0 text-sm leading-6 text-foreground">
+                              <span class="font-medium">{item.category}:</span>{" "}
+                              {localized(item.title, locale)}
+                            </p>
+                            {item.links.length > 0 && (
+                              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                {item.links.map((url) => (
+                                  <a href={url} class="text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                                    {linkLabel(url)}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <div class="flex flex-wrap items-baseline justify-between gap-2">
+                              <strong class="font-mono text-sm text-foreground">{item.version}</strong>
+                              <time datetime={item.date} class="text-xs text-muted-foreground">
+                                {formatDate(item.date)}
+                              </time>
+                            </div>
+                            <p class="mt-2 text-sm leading-6 text-foreground">
+                              {localized(item.title, locale)}
+                            </p>
+                            {item.provenance?.verifiedAgainst && (
+                              <p class="mt-2 text-xs text-muted-foreground">
+                                {copy.verifiedAgainst}: <code>{item.provenance.verifiedAgainst}</code>
+                              </p>
+                            )}
+                            {item.links.length > 0 && (
+                              <div class="mt-2 flex flex-wrap gap-2 text-xs">
+                                {item.links.map((url) => (
+                                  <a href={url} class="text-muted-foreground underline underline-offset-4 hover:text-foreground">
+                                    {linkLabel(url)}
+                                  </a>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            );
+          })}
+        </div>
+      </section>
+    ))}
+  </div>
+</ChangelogLayout>

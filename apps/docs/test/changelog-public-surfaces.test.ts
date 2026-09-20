@@ -13,7 +13,7 @@ function built(path: string): string {
   return readFileSync(resolve(DIST, path), "utf8");
 }
 
-describe("built release-level changelog surfaces", () => {
+describe("built release and Development status surfaces", () => {
   it(
     "exposes one concise bilingual history unit across human and agent routes",
     { timeout: 30_000 },
@@ -64,6 +64,43 @@ describe("built release-level changelog surfaces", () => {
       expect(statSync(resolve(DIST, "og/changelog/development.png")).size).toBeGreaterThan(0);
       expect(statSync(resolve(DIST, "og/zh/changelog/development.png")).size).toBeGreaterThan(0);
       expect(existsSync(resolve(DIST, "changelog/2026-09-20-roster-storage"))).toBe(false);
+
+      const statusEnglish = built("development/index.html");
+      const statusChinese = built("zh/development/index.html");
+      const statusEnglishMarkdown = built("development.md");
+      const statusChineseMarkdown = built("zh/development.md");
+      for (const state of [
+        "In progress",
+        "Merged, awaiting release",
+        "Pre-release",
+        "Released",
+      ]) {
+        expect(statusEnglish).toContain(state);
+        expect(statusChinese).toContain(state);
+        expect(statusEnglishMarkdown).toContain(`### ${state}`);
+        expect(statusChineseMarkdown).toContain(`### ${state}`);
+      }
+      for (const artifact of ["DeepSeekBot", "DSH Skill"]) {
+        expect(statusEnglish).toContain(artifact);
+        expect(statusChinese).toContain(artifact);
+        expect(statusEnglishMarkdown).toContain(artifact);
+        expect(statusChineseMarkdown).toContain(artifact);
+      }
+      expect(statusEnglish).toContain("not included in the latest stable artifact");
+      expect(statusChinese).toContain("尚未包含在最新的稳定 artifact 中");
+      expect(statusEnglish).toContain("0.3.4");
+      expect(statusChinese).toContain("0.3.4");
+      expect(statusEnglish).not.toMatch(/Pre-release[\s\S]{0,600}0\.1\.6-alpha\.2/);
+      expect(statusChinese).not.toMatch(/Pre-release[\s\S]{0,600}0\.1\.6-alpha\.2/);
+      expect(statusEnglish).toContain('href="/zh/development"');
+      expect(statusChinese).toContain('href="/development"');
+
+      expect(built("llms.txt")).toContain("https://botharness.ai/development.md");
+      expect(built("zh/llms.txt")).toContain("https://botharness.ai/zh/development.md");
+      expect(built("development/index.md")).toBe(statusEnglishMarkdown);
+      expect(built("zh/development/index.md")).toBe(statusChineseMarkdown);
+      expect(englishFeed).not.toContain("Merged, awaiting release");
+      expect(englishFeed).not.toContain("Unreleased");
     },
   );
 });

@@ -3,6 +3,8 @@ const SECTION_HEADING = /^### (.+)$/;
 const MARKDOWN_LINK = /\[[^\]]*]\(([^)]+)\)/g;
 const RELEASE_PROVENANCE =
   /^- \*\*(Skill version|Verified against DSH|Upstream revision|Skill 版本|核验的 DSH 版本|上游 revision)(?::|：)\*\*\s+(.+)$/;
+const RELEASE_ARTIFACT_EVIDENCE =
+  /^- \*\*(Release tag|Installable artifact|发布 tag|可安装 artifact)(?::|：)\*\*\s+\[[^\]]+]\((https:\/\/[^)]+)\)$/;
 const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PROVENANCE_LINK = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:[?#].*)?$/;
@@ -15,6 +17,13 @@ const PROVENANCE_KEYS = new Map([
   ['核验的 DSH 版本', 'verifiedAgainst'],
   ['Upstream revision', 'upstreamSha'],
   ['上游 revision', 'upstreamSha'],
+]);
+
+const EVIDENCE_KEYS = new Map([
+  ['Release tag', 'tagUrl'],
+  ['发布 tag', 'tagUrl'],
+  ['Installable artifact', 'installUrl'],
+  ['可安装 artifact', 'installUrl'],
 ]);
 
 export const DEVELOPMENT_SUMMARY_IDENTITY = 'Development';
@@ -83,6 +92,13 @@ function parseReleaseLedgerDocument(markdown) {
       if (key === 'upstreamSha') {
         release.provenance.upstreamUrl = linksIn(provenanceMatch[2])[0];
       }
+      continue;
+    }
+
+    const evidenceMatch = line.match(RELEASE_ARTIFACT_EVIDENCE);
+    if (evidenceMatch && !section) {
+      release.evidence ??= {};
+      release.evidence[EVIDENCE_KEYS.get(evidenceMatch[1])] = evidenceMatch[2];
       continue;
     }
 
@@ -218,6 +234,18 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
       });
     }
 
+    if (
+      isPublicPreReleaseIdentity(release.identity) &&
+      (!validReleaseTagUrl(release.evidence?.tagUrl, release.identity) ||
+        !validInstallUrl(release.evidence?.installUrl, release.evidence?.tagUrl))
+    ) {
+      errors.push({
+        source,
+        code: 'missing-prerelease-evidence',
+        message: `Release ${release.identity} needs tagged and installable evidence: an HTTPS Release tag ending in /releases/tag/v${release.identity} and a distinct HTTPS Installable artifact URL.`,
+      });
+    }
+
     const sectionNames = new Set();
     for (const section of release.sections) {
       if (!RELEASE_LEDGER_SECTIONS.includes(section.name)) {
@@ -260,6 +288,39 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
 
 function sameValues(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
+}
+
+export function isPublicPreReleaseIdentity(identity) {
+  const prerelease = identity.split('-', 2)[1];
+  return prerelease ? /^(?:alpha|beta|rc)(?:[.-]|$)/i.test(prerelease) : false;
+}
+
+function validReleaseTagUrl(url, identity) {
+  try {
+    const parsed = new URL(url);
+    const segments = parsed.pathname.split('/').filter(Boolean);
+    return (
+      parsed.protocol === 'https:' &&
+      parsed.hostname === 'github.com' &&
+      segments.length === 5 &&
+      segments[2] === 'releases' &&
+      segments[3] === 'tag' &&
+      segments[4] === `v${identity}` &&
+      parsed.search === '' &&
+      parsed.hash === ''
+    );
+  } catch {
+    return false;
+  }
+}
+
+function validInstallUrl(url, tagUrl) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && url !== tagUrl;
+  } catch {
+    return false;
+  }
 }
 
 /** Validate the English authority and Chinese counterpart as one release ledger. */
@@ -318,6 +379,19 @@ export function validateReleaseLedgerPair(english, chinese) {
         source: 'bilingual',
         code: 'link-parity',
         message: `${enRelease.identity} has different English and Chinese link targets in corresponding entries.`,
+      });
+    }
+
+    if (
+      !sameValues(
+        [enRelease.evidence?.tagUrl, enRelease.evidence?.installUrl],
+        [zhRelease.evidence?.tagUrl, zhRelease.evidence?.installUrl],
+      )
+    ) {
+      errors.push({
+        source: 'bilingual',
+        code: 'prerelease-evidence-parity',
+        message: `${enRelease.identity} has different English and Chinese tag or install evidence.`,
       });
     }
   }

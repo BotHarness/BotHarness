@@ -143,11 +143,30 @@ Preparing the next stable release.
 
 Published a testable prerelease.
 
+- **Release tag:** [\`v0.2.0-rc.1+build.5\`](https://github.com/BotHarness/BotHarness/releases/tag/v0.2.0-rc.1+build.5)
+- **Installable artifact:** [Download bundle](https://github.com/BotHarness/BotHarness/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle)
+
 ### Added
 
 - Added a preview capability ([#100](https://github.com/BotHarness/BotHarness/issues/100)).
 `;
     expect(validateReleaseLedger(valid)).toEqual([]);
+
+    const nonGitHubTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://example.com/releases/tag",
+    );
+    expect(validateReleaseLedger(nonGitHubTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const missingRepositoryTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://github.com/releases/tag",
+    );
+    expect(validateReleaseLedger(missingRepositoryTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
 
     const invalid = valid.replace("0.2.0-rc.1+build.5", "01.2.0").replace(
       "2026-09-30",

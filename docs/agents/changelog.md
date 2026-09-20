@@ -74,6 +74,19 @@ Do not add another `Development` section, use it as a project-status state, or i
 tagged prerelease or installable artifact. All future public release entries use dated SemVer
 sections; active and merged work stays in `Unreleased` and the Development status surface.
 
+An alpha, beta, or RC section enters the Development status `Pre-release` state only when the
+canonical bilingual ledgers carry both pieces of release evidence before its change sections:
+
+```markdown
+- **Release tag:** [`v1.0.0-rc.1`](https://github.com/OWNER/REPO/releases/tag/v1.0.0-rc.1)
+- **Installable artifact:** [Download bundle](https://github.com/OWNER/REPO/releases/download/v1.0.0-rc.1/plugin.bundle)
+```
+
+The tag URL must be an HTTPS GitHub Release tag for that exact `v<version>`; the install URL must
+be a distinct HTTPS link to the installable artifact or package. Keep both URLs identical in the
+English and Chinese ledgers. A prerelease heading without this explicit authority fails validation
+and never appears as `Pre-release`.
+
 Describe the result before implementation detail:
 
 ```markdown
