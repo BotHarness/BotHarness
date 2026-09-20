@@ -7,6 +7,10 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 Established a concise, bilingual release history for DeepSeekBot contributors.
 
+### Added
+
+- Added deterministic, read-only GitHub Release draft preparation for the independent DeepSeekBot and DSH Skill release trains ([guide](docs/agents/changelog.md#preparing-a-github-release-draft), [#103](https://github.com/BotHarness/BotHarness/issues/103)).
+
 ### Documentation
 
 - Added the canonical Release Ledger, bilingual parity checks, and contributor guidance ([#100](https://github.com/BotHarness/BotHarness/issues/100)).

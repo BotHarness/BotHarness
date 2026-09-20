@@ -12,13 +12,13 @@ parity; Human review owns notability, accuracy, and prose quality.
 
 ## Artifact boundaries
 
-| Artifact                                  | Owns                                                                                                         |
-| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| Release Ledger                            | The observable differences delivered by each DeepSeekBot release.                                            |
-| GitHub Release                            | The release announcement derived from the ledger, plus optional Highlights, contributors, and the full diff. |
-| ADR                                       | Why a durable architecture choice was made and which alternatives were rejected.                             |
-| Context, architecture, and specifications | The current product language, relationships, and normative design.                                           |
-| Issue and PR                              | The implementation plan, discussion, verification, and contributor provenance.                               |
+| Artifact                                  | Owns                                                                                                                        |
+| ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| Release Ledger                            | The observable differences delivered by each DeepSeekBot release.                                                           |
+| GitHub Release                            | The release announcement derived from the ledger, plus Highlights and contributors when useful, and a full comparison link. |
+| ADR                                       | Why a durable architecture choice was made and which alternatives were rejected.                                            |
+| Context, architecture, and specifications | The current product language, relationships, and normative design.                                                          |
+| Issue and PR                              | The implementation plan, discussion, verification, and contributor provenance.                                              |
 
 Link to those artifacts instead of copying their detail into the Release Ledger.
 
@@ -132,10 +132,46 @@ instruction authority; Chinese belongs in the human-facing references and releas
 2. During the release PR, merge entries that describe one observable result, even when several PRs
    produced it. Preserve the necessary Issue and PR links.
 3. Give the ledger release one summary sentence.
-4. Derive the GitHub Release draft from that version, then add one to three Highlights when they
-   genuinely help, followed by contributors and the full diff.
+4. Derive the GitHub Release draft from that version, then add one to three Highlights and
+   contributors when they genuinely help, followed by the full comparison link.
 5. Obtain explicit Human publishing approval before creating a tag, publishing an artifact, or
    creating the GitHub Release.
 
 Before release, remove an `Unreleased` entry whose change was fully reverted. After release, keep
 history immutable and describe a restoration, withdrawal, or fix in the next version.
+
+## Preparing a GitHub Release draft
+
+After archiving `Unreleased` under a dated version, generate a review-only payload from that exact
+canonical release section:
+
+```bash
+pnpm release:draft -- \
+  --artifact deepseekbot \
+  --version 0.2.0 \
+  --tag v0.2.0 \
+  --github-release-version 0.2.0 \
+  --installable-version 0.2.0 \
+  --comparison-url https://github.com/BotHarness/BotHarness/compare/v0.1.0...v0.2.0
+```
+
+Use `--artifact dsh-skill` for the independent Skill release train. The command reads that
+artifact's English and Chinese ledgers, verifies their release structure, and writes a
+deterministic JSON payload to stdout. Its explicit release-plan evidence requires the canonical
+version, simple `vX.Y.Z` tag, intended GitHub Release version, and installable artifact version to
+agree. This is an offline consistency gate: it does not claim that a remote tag, registry artifact,
+or GitHub Release exists. Skill drafts also require current `SKILL.md` metadata to match the target
+Skill release and carry its verified DSH version and linked upstream revision.
+
+The optional repeatable flags are `--highlight` (at most three), `--contributor`, and
+`--new-contributor`. The full comparison must be an HTTPS GitHub comparison for the selected
+artifact, end at the target tag, and start at the directly preceding dated release when one exists.
+A DeepSeekBot release whose only category is `Documentation` is labelled `runtime behavior is
+unchanged`; it is called a patch only after a release in the same major/minor line, while a first
+public version remains a Human release-scope decision. A prerelease payload is emitted only for an
+alpha, beta, or RC version with the matching identities and explicit `--tagged --installable`
+positive evidence.
+
+This command is deliberately dry-run only. It does not create or push a tag, publish a package or
+Bundle, or create a draft/published GitHub Release. Each external action still requires an explicit
+Human release instruction.
