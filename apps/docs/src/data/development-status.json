@@ -1,0 +1,13 @@
+{
+  "schemaVersion": 1,
+  "syncedAt": "2026-09-20T14:46:24.780Z",
+  "items": [
+    {
+      "artifact": "deepseekbot",
+      "title": "Changelog：canonical 双语 Release Ledger 与贡献规范",
+      "url": "https://github.com/BotHarness/BotHarness/issues/100",
+      "milestone": "v1.0",
+      "updatedAt": "2026-09-20T14:23:40Z"
+    }
+  ]
+}

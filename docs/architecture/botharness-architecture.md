@@ -224,6 +224,7 @@ v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botha
 - UI 不直接读文件或数据库，不自己推导业务状态；它消费 Host read models，并把 command 交回 owning module。
 - PersonaBot archive 先关闭 admissions、wakes 和外部 actions，再停止 Orchestrator、Work 与 owned Subagents；purge 是单独的破坏性动作。
 - Browser 与 Host 是两个 Cordis 应用；Host service 不跨进程 inject，统一走 `/api` client bridge。
+- Roadmap Project #1 保持 private；文档同步只用 `read:project` 读取显式 `In Progress` 和 Artifact，经过 fail-closed 白名单投影后才提交公开 JSON。Project notes、private items、assignee、backlog 与 ETA 不跨越这条发布边界。
 
 ## 8 · 实现顺序与可并发范围
 

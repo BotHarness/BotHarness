@@ -16,6 +16,7 @@
     "diagrams": "node scripts/render-diagrams.mjs",
     "sync:skill": "node scripts/sync-skill.mjs",
     "og:font": "node scripts/subset-og-font.mjs",
+    "sync:development-status": "node scripts/development-status.mjs",
     "dev": "pnpm --filter docs exec portless",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
