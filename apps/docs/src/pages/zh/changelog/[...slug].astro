@@ -7,8 +7,6 @@ import type { GetStaticPaths } from "astro";
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import ChangelogLayout from "@/layouts/ChangelogLayout.astro";
 import { Badge } from "@/components/ui/badge";
-import { Banner } from "@/components/ui/banner";
-import { untranslatedNotice } from "@/lib/language";
 import { entryRouteKey, getCollectionStaticPaths, getCollectionPage, withBase } from "@cloudflare/nimbus-docs";
 import { components } from "@/components";
 
@@ -33,14 +31,6 @@ const markdownPath = routeKey
 const markdownUrl = markdownPath;
 const socialImage = entry.data.socialImage ?? `/og/zh/changelog/${entry.id}.png`;
 
-// English-only entries fall back to the English source in the Chinese tree;
-// the banner links to the English counterpart.
-const fallbackNotice = entry.data.untranslated
-  ? untranslatedNotice(
-      "zh-Hans",
-      withBase(`/changelog/${routeKey}`, import.meta.env.BASE_URL),
-    )
-  : undefined;
 ---
 
 <ChangelogLayout
@@ -53,8 +43,6 @@ const fallbackNotice = entry.data.untranslated
   collection={entry.collection}
   entryId={entry.id}
 >
-  {fallbackNotice && <Banner variant="note" content={fallbackNotice} />}
-
   <a
     href={withBase("/zh/changelog", import.meta.env.BASE_URL)}
     class="group mb-9 -ml-0.5 inline-flex items-center gap-1.5 text-[0.8125rem] font-medium text-muted-foreground no-underline transition-[color,transform] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] hover:text-foreground active:scale-[0.98] motion-reduce:active:scale-100"

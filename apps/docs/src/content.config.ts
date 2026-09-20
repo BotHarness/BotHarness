@@ -60,9 +60,6 @@ export const collections = {
         tags: z.array(z.string()).default([]),
         releaseVersion: z.string().optional(),
         developmentSummary: z.boolean().optional(),
-        // Set when the English side of a pair is missing: the entry body is
-        // the Chinese fallback and the route links to its `/zh` counterpart.
-        untranslated: z.boolean().optional(),
       },
     }),
   ),
@@ -81,7 +78,6 @@ export const collections = {
         tags: z.array(z.string()).default([]),
         releaseVersion: z.string().optional(),
         developmentSummary: z.boolean().optional(),
-        untranslated: z.boolean().optional(),
       },
     }),
   ),
