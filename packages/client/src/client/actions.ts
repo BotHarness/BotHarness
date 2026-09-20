@@ -2,6 +2,7 @@ import {
   assignRosterChannel,
   BridgeCallError,
   createGroupChannel,
+  createPersonaBot,
   createRosterSection,
   errorMessage,
   loadBots,
@@ -16,10 +17,12 @@ import {
   reorderTopOrder,
   sendChannelMessage,
   type BridgeCall,
+  type CreatePersonaBotInput,
 } from './bridge.js';
 import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
 import { completeFlatEntries } from './roster-order.js';
 import type {
+  BotSummary,
   ChannelSummary,
   ClientStore,
   ConversationSelection,
@@ -32,6 +35,7 @@ export interface BridgeActions {
   openBot(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   send(body: string): Promise<boolean>;
+  createBot(input: CreatePersonaBotInput): Promise<BotSummary>;
   createGroup(name: string): Promise<ChannelSummary | undefined>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
@@ -227,6 +231,12 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         }
         return false;
       }
+    },
+    async createBot(input) {
+      const bot = await createPersonaBot(call, input);
+      clientStore.upsertBot(bot);
+      clientStore.select({ kind: 'bot', slug: bot.slug });
+      return bot;
     },
     async createGroup(name) {
       const channel = await createGroupChannel(call, name);

@@ -682,6 +682,51 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-dimmed);
 }
 
+/* PersonaBot creation is portaled with the native Modal, so these form styles
+   intentionally do not depend on the .bh-root surface. */
+.bh-personabot-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-personabot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.bh-personabot-label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.bh-personabot-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-personabot-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 120px;
+  padding: 10px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 12px;
+  outline: none;
+  resize: vertical;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+}
+.bh-personabot-textarea::placeholder,
+.bh-personabot-textarea:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
 /* 创建失败提示留在 Modal 体内；Modal 在 body 下，不能依赖 .bh-root 前缀。 */
 .bh-modal-error {
   margin-top: 8px;
@@ -697,6 +742,15 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   padding: 6px 4px;
+}
+.bh-empty-create {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
 }
 .bh-error {
   margin: 4px 4px 10px;

@@ -18,14 +18,17 @@ The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). 
 ## Dev loop (WSL, fnm node)
 
 ```bash
-DSH_HOME=$HOME/.dsh-m35 dsh plugin --profile web-dev add ./packages/{core,client,deepseekbot}  # once / on bundle member change
+export DSH_HOME="$HOME/.dsh-m35"
+corepack pnpm --dir "$DSH_HOME/profiles/web-dev" add "link:$PWD/packages/core" "link:$PWD/packages/client"
+dsh plugin --profile web-dev add ./packages/deepseekbot
 pnpm build                                    # client: dsh-client-hmr pushes the new revision; host: rides Cordis HMR
-DSH_HOME=$HOME/.dsh-m35 setsid nohup dsh --profile web-dev --no-open > /tmp/dsh-web.log 2>&1 &
+setsid nohup dsh --profile web-dev --no-open > /tmp/dsh-web.log 2>&1 &
 ```
 
 - The boot prints a **one-shot token URL** — it rotates on every restart; reopen the URL after restarting.
 - Start with `setsid nohup … &`; a plain `&` dies with the wrapper shell.
 - After a restart, **verify the boot before trusting it**: `references/debugging-playbook.md` §1 (cookie + API probe). A half-booted instance serves the UI but 404s every API.
+- Link `@botharness/core` and `@botharness/client` as ordinary profile dependencies, then add only the `deepseekbot` umbrella through `dsh plugin`. Before boot, verify `dsh.profile.bundles` contains `deepseekbot` but not either member package.
 - Bundle **member** changes need a restart; host code is HMR-live; client code needs `pnpm build`.
 
 ## Profile model
@@ -50,6 +53,7 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 | 7 | `sidebar.panellist` row has no toggle or geometry seam | Clicking the active entry re-runs `selectPanel(id)` (a no-op), so the mode never exits; the shell row spans the full content box, 2px wider per side than the 新会话 row | Own the row from inside the glyph: render a wrapper span, target the shell button with `button:has(.bh-panel-glyph)` (`width: auto; margin-inline: 2px` = native `.newSession` insets), and while active render an `inset: 0` hit layer whose `onClickCapture` stops React propagation and calls `ctx.layout.selectPanel(null)` (`layout` must be declared in the plugin's `inject`) |
 | 8 | `Menu` `autoFocus` + `portal` drops the initial focus | The menu renders but no row is focused (arrow keys dead, submenu closed) | The primitive's autoFocus effect runs before its placement re-render clears the list's `visibility: hidden`, so `.focus()` on the hidden row is ignored. Re-focus the placed list in a `setTimeout(0)` after mount (see `ChannelMoveMenu`) |
 | 9 | Layout shift inside `dragstart` kills the native drag | `dragstart` fires, then a bare `dragend` with no drop; puppeteer's `mouse.drag()` hangs waiting for `dragIntercepted` | Chromium aborts the gesture when the `dragstart` dispatch synchronously moves the source row (e.g. revealing a `display: none` drop zone via React's discrete-event flush). Arm layout-taking drop surfaces one task later (`setTimeout(0)`); absolutely-positioned markers are safe synchronously. Diagnosed on the empty-section drop zone (#56 follow-up) |
+| 10 | Bundle member promoted to a top-level bundle | Boot fails with `duplicate loader entry id: botharness-core` | The `deepseekbot` umbrella patch already inserts core and client. Link all three packages into the profile, but keep only `deepseekbot` under `dsh.profile.bundles`; do not pass core/client through `dsh plugin add`. |
 
 ## Reference
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
+  Button,
   IconAgentPresetOutline16,
   IconChevronDownOutline14,
   IconCloseFill14,
@@ -33,6 +34,7 @@ import {
 } from './channel-drag.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { CreatePersonaBotModal } from './persona-bot-create.js';
 import {
   defaultStorage,
   saveRosterConfig,
@@ -241,8 +243,11 @@ function ChannelRow({
   );
 }
 
-/** Open creation dialog: a new Channel (optionally inside a section) or a new section. */
-type CreateRequest = { kind: 'section' } | { kind: 'channel'; sectionId?: string };
+/** Open creation dialog for one production-backed Bot, Channel, or section. */
+type CreateRequest =
+  | { kind: 'bot' }
+  | { kind: 'section' }
+  | { kind: 'channel'; sectionId?: string };
 
 /** One rendered flat block: a section with its visible rows, or a loose channel run. */
 type FlatBlockView =
@@ -401,6 +406,7 @@ export function BotSidebar({
 
   const selectMenu = (id: string): void => {
     setMenuOpen(false);
+    if (id === 'bot') setCreateRequest({ kind: 'bot' });
     if (id === 'channel') setCreateRequest({ kind: 'channel' });
     if (id === 'section') setCreateRequest({ kind: 'section' });
   };
@@ -755,8 +761,13 @@ export function BotSidebar({
         <div className="bh-error">名册加载失败：{state.error}</div>
       ) : null}
       {state.roster.readOnly ? <div className="bh-note">{t('roster.readOnly')}</div> : null}
-      {state.status === 'ready' && state.bots.length === 0 && groupChannels.length === 0 ? (
-        <div className="bh-note">还没有 BOT。创建向导与 Builder 随 v1.1 到来。</div>
+      {state.status === 'ready' && state.bots.length === 0 ? (
+        <div className="bh-empty-create">
+          <span>还没有 PersonaBot。</span>
+          <Button variant="outline" size="sm" onClick={() => setCreateRequest({ kind: 'bot' })}>
+            创建第一个 PersonaBot
+          </Button>
+        </div>
       ) : null}
       {visibleCount === 0 && (state.bots.length > 0 || groupChannels.length > 0) ? (
         <div className="bh-note">没有匹配的 BOT 或频道</div>
@@ -1021,6 +1032,17 @@ export function BotSidebar({
         );
       })}
 
+      {createRequest?.kind === 'bot' ? (
+        <CreatePersonaBotModal
+          actions={actions}
+          onCancel={() => {
+            setCreateRequest(undefined);
+          }}
+          onCreated={() => {
+            setCreateRequest(undefined);
+          }}
+        />
+      ) : null}
       {createRequest?.kind === 'section' ? (
         <CreateSectionModal
           onCancel={() => {
@@ -1159,9 +1181,8 @@ function menuItems(): MenuEntry[] {
   return [
     {
       id: 'bot',
-      label: '创建 BOT',
+      label: '创建 PersonaBot',
       icon: <IconAgentPresetOutline16 size={16} />,
-      disabled: true,
     },
     {
       id: 'channel',

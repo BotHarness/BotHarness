@@ -95,7 +95,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实验收。
 
-- **准备（一次）**：pin `@deepseek-ai/dsh@0.1.5-rc.2`，用隔离 `DSH_HOME`，把本地 bundle 装进专用 `web-dev` profile（`dsh plugin --profile web-dev add <path>`）；bundle 成员变化需要重启。先决条件：`deepseekbot` 最小 bundle 尚未建立，core/client 还没有 Loader entry 挂载。
+- **准备（一次）**：pin `@deepseek-ai/dsh@0.1.5-rc.2`，用隔离 `DSH_HOME`。先把 `@botharness/core` 与 `@botharness/client` 作为普通 profile dependency 链接，再只用 `dsh plugin --profile web-dev add ./packages/deepseekbot` 挂载 umbrella bundle。`dsh.profile.bundles` 必须包含 `deepseekbot`、不得包含两个成员包；否则 umbrella patch 与顶层 bundle 会重复注册 Loader。bundle 成员变化需要重启。
 - **运行**：`dsh web --profile web-dev`。
 - **迭代客户端**：改 `packages/client` 后跑根 `pnpm build`，产出新的 `lib/client.js`；`dsh-client-hmr` 检测 bundle 字节变化（`ClientModuleRegistry.rebuilt` 重哈希 → revision 变化 → 推送新入口图），浏览器自动换新。仅 sourcemap 变化不触发重载。
 - **迭代 Host**：Cordis 插件注册都走 `ctx.effect`，vendored HMR 直接生效，无需重启。

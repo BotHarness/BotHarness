@@ -98,6 +98,7 @@ export interface ClientStore {
   setConfig(config: RosterConfig): void;
   setRosterStatus(status: ClientStatus, error: string | undefined): void;
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
+  upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
@@ -183,6 +184,10 @@ export function createStore(): ClientStore {
     },
     setRoster(bots, channels) {
       update({ bots, channels, status: 'ready', error: undefined });
+    },
+    upsertBot(bot) {
+      const existing = state.bots.filter((candidate) => candidate.slug !== bot.slug);
+      update({ bots: [bot, ...existing], status: 'ready', error: undefined });
     },
     setRosterState(patch) {
       update({ roster: { ...state.roster, ...patch } });
