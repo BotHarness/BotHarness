@@ -106,14 +106,11 @@ files so categories remain mechanically identical.
    `pnpm changelog:check`.
 2. During the release PR, merge entries that describe one observable result, even when several PRs
    produced it. Preserve the necessary Issue and PR links.
-3. Give the release one summary sentence. Add Highlights only when one to three changes genuinely
-   deserve them.
-4. Derive the GitHub Release draft from that version, then add contributors and the full diff.
+3. Give the ledger release one summary sentence.
+4. Derive the GitHub Release draft from that version, then add one to three Highlights when they
+   genuinely help, followed by contributors and the full diff.
 5. Obtain explicit Human publishing approval before creating a tag, publishing an artifact, or
    creating the GitHub Release.
 
 Before release, remove an `Unreleased` entry whose change was fully reverted. After release, keep
 history immutable and describe a restoration, withdrawal, or fix in the next version.
-
-The public website shows released versions. Work in progress, merged changes awaiting release, and
-real prerelease artifacts belong to the separate Development status surface.

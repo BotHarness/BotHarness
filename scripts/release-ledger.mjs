@@ -62,6 +62,13 @@ export function parseReleaseLedger(markdown) {
       continue;
     }
 
+    if (/^\s{2,}\S/.test(line) && section && section.entries.length > 0) {
+      const entry = section.entries.at(-1);
+      entry.text = `${entry.text} ${line.trim()}`;
+      entry.links = linksIn(entry.text);
+      continue;
+    }
+
     if (!release.summary && !section && line.trim()) {
       release.summary = line.trim();
     }
@@ -85,6 +92,44 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
       code: 'invalid-release-heading',
       message: 'Release headings must use ## [Unreleased] or ## [X.Y.Z] - YYYY-MM-DD.',
     });
+  }
+  if (releases[0]?.identity !== 'Unreleased') {
+    errors.push({
+      source,
+      code: 'unreleased-order',
+      message: 'Unreleased must be the first release section.',
+    });
+  }
+
+  let releaseIdentity;
+  let sectionName;
+  let sectionHasEntry = false;
+  for (const [index, line] of markdown.replaceAll('\r\n', '\n').split('\n').entries()) {
+    const releaseMatch = line.match(RELEASE_HEADING);
+    if (releaseMatch) {
+      releaseIdentity = releaseMatch[1];
+      sectionName = undefined;
+      sectionHasEntry = false;
+      continue;
+    }
+    const sectionMatch = line.match(SECTION_HEADING);
+    if (sectionMatch && releaseIdentity) {
+      sectionName = sectionMatch[1];
+      sectionHasEntry = false;
+      continue;
+    }
+    if (releaseIdentity && sectionName && line.startsWith('- ')) {
+      sectionHasEntry = true;
+      continue;
+    }
+    const isEntryContinuation = sectionHasEntry && /^\s{2,}\S/.test(line);
+    if (releaseIdentity && sectionName && line.trim() && !isEntryContinuation) {
+      errors.push({
+        source,
+        code: 'unexpected-section-content',
+        message: `${releaseIdentity} / ${sectionName} line ${index + 1} must be a change entry starting with "- ".`,
+      });
+    }
   }
 
   const identities = new Set();
@@ -224,17 +269,19 @@ export function validateReleaseLedgerPair(english, chinese) {
       });
     }
 
-    const enLinks = enRelease.sections.flatMap((section) =>
-      section.entries.flatMap((entry) => entry.links),
-    );
-    const zhLinks = zhRelease.sections.flatMap((section) =>
-      section.entries.flatMap((entry) => entry.links),
-    );
-    if (!sameValues(enLinks, zhLinks)) {
+    const correspondingLinksDiffer = enRelease.sections.some((enSection, sectionIndex) => {
+      const zhSection = zhRelease.sections[sectionIndex];
+      if (!zhSection) return false;
+      return enSection.entries.some((enEntry, entryIndex) => {
+        const zhEntry = zhSection.entries[entryIndex];
+        return zhEntry ? !sameValues(enEntry.links, zhEntry.links) : false;
+      });
+    });
+    if (correspondingLinksDiffer) {
       errors.push({
         source: 'bilingual',
         code: 'link-parity',
-        message: `${enRelease.identity} has different English and Chinese link targets.`,
+        message: `${enRelease.identity} has different English and Chinese link targets in corresponding entries.`,
       });
     }
   }

@@ -88,8 +88,56 @@ Introduced the first installable DeepSeekBot preview.
     ]);
   });
 
+  it("requires Unreleased first and rejects content that bypasses change validation", () => {
+    const errors = validateReleaseLedger(`# DeepSeekBot Changelog
+
+## [0.1.0] - 2026-09-20
+
+Published the first preview.
+
+### Added
+
+This paragraph bypasses the change-entry contract.
+
+- Added the PersonaBot roster ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
+
+## [Unreleased]
+
+Preparing the next release.
+`);
+
+    expect(errors.map((error) => error.code)).toEqual([
+      "unreleased-order",
+      "unexpected-section-content",
+    ]);
+  });
+
+  it("treats an indented Markdown continuation as part of its change entry", () => {
+    const markdown = `# DeepSeekBot Changelog
+
+## [Unreleased]
+
+Preparing the next release.
+
+### Fixed
+
+- Fixed release validation
+  for translated entries ([#100](https://github.com/BotHarness/BotHarness/issues/100)).
+`;
+
+    expect(validateReleaseLedger(markdown)).toEqual([]);
+    expect(parseReleaseLedger(markdown).releases[0]?.sections[0]?.entries[0]).toEqual({
+      text: "Fixed release validation for translated entries ([#100](https://github.com/BotHarness/BotHarness/issues/100)).",
+      links: ["https://github.com/BotHarness/BotHarness/issues/100"],
+    });
+  });
+
   it("accepts SemVer prereleases and rejects invalid version or calendar date identities", () => {
     const valid = `# DeepSeekBot Changelog
+
+## [Unreleased]
+
+Preparing the next stable release.
 
 ## [0.2.0-rc.1+build.5] - 2026-09-30
 
@@ -146,8 +194,21 @@ Make release history easier to scan.
     const extraEntry = `${chinese.trim()}\n- 再写一条指向同一票的内容（[#100](https://github.com/BotHarness/BotHarness/issues/100)）。\n`;
     expect(validateReleaseLedgerPair(english, extraEntry).map((error) => error.code)).toEqual([
       "entry-parity",
-      "link-parity",
     ]);
+
+    const twoEnglishEntries = english.replace(
+      "([#100](https://github.com/BotHarness/BotHarness/issues/100)).",
+      "([#100](https://github.com/BotHarness/BotHarness/issues/100), [#99](https://github.com/BotHarness/BotHarness/issues/99)).\n- Added validation fixtures ([#98](https://github.com/BotHarness/BotHarness/issues/98)).",
+    );
+    const redistributedChineseLinks = chinese.replace(
+      "（[#100](https://github.com/BotHarness/BotHarness/issues/100)）。",
+      "（[#100](https://github.com/BotHarness/BotHarness/issues/100)）。\n- 新增验证样例（[#99](https://github.com/BotHarness/BotHarness/issues/99)、[#98](https://github.com/BotHarness/BotHarness/issues/98)）。",
+    );
+    expect(
+      validateReleaseLedgerPair(twoEnglishEntries, redistributedChineseLinks).map(
+        (error) => error.code,
+      ),
+    ).toEqual(["link-parity"]);
   });
 
   it("exposes actionable validation failures through the repository check command", () => {
