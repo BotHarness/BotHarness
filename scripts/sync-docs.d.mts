@@ -15,4 +15,10 @@ export interface DocsPage {
 }
 
 export const PAGES: DocsPage[];
+export const DEV_SECTION_ORDER: Readonly<{
+  design: number;
+  guides: number;
+  reference: number;
+  adr: number;
+}>;
 export function syncDocs(): void;
