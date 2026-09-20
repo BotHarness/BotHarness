@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createActions } from '../src/client/actions.js';
 import {
   createBridgeCall,
+  parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
   parseChannelRecords,
@@ -24,7 +25,7 @@ function bridgeCall(handlers: Record<string, Handler>): BridgeCall {
 const BOT = {
   slug: 'ada',
   displayName: 'Ada',
-  tag: '研究',
+  roles: ['研究'],
   aggregateState: 'working',
   workspaces: ['/srv/ada'],
   createdAt: '2026-09-19T00:00:00.000Z',
@@ -80,6 +81,21 @@ describe('bridge transport', () => {
 });
 
 describe('bridge parsers', () => {
+  it('parses one created PersonaBot detail with list-compatible defaults', () => {
+    expect(parseBotSummary({ slug: 'new-bot', displayName: 'New Bot', workspaces: [] })).toEqual({
+      slug: 'new-bot',
+      displayName: 'New Bot',
+      aggregateState: 'idle',
+      workspaces: [],
+      roles: [],
+      createdAt: '',
+    });
+    expect(
+      parseBotSummary({ slug: 'legacy', displayName: 'Legacy', tag: '旧岗位' })?.roles,
+    ).toEqual(['旧岗位']);
+    expect(parseBotSummary({ slug: '', displayName: 'Broken' })).toBeUndefined();
+  });
+
   it('drops malformed channels and keeps botSlug only when present', () => {
     const channels = parseChannelRecords({
       channels: [GROUP, DM, { id: 'bad', type: 'nope', name: 'x' }, null],
@@ -221,6 +237,53 @@ describe('bridge actions', () => {
       clientStore,
     );
     await expect(failing.createGroup('Nope')).rejects.toThrow('bridge down');
+  });
+
+  it('creates a PersonaBot through the Host, adds it to the roster, and selects it', async () => {
+    const creates: Array<Record<string, unknown>> = [];
+    const { clientStore, actions } = setup({
+      create: (payload) => {
+        creates.push(payload);
+        return {
+          bot: {
+            slug: 'bot-generated',
+            displayName: payload['displayName'],
+            roles: payload['roles'],
+            description: payload['description'],
+            aggregateState: 'idle',
+            workspaces: [],
+            createdAt: '2026-09-20T00:00:00.000Z',
+          },
+        };
+      },
+    });
+    await actions.load();
+
+    const created = await actions.createBot({
+      displayName: '小研',
+      roles: ['研究员', '写作'],
+      description: '负责资料研究与写作。',
+    });
+
+    expect(creates).toEqual([
+      {
+        displayName: '小研',
+        roles: ['研究员', '写作'],
+        description: '负责资料研究与写作。',
+      },
+    ]);
+    expect(created.slug).toBe('bot-generated');
+    expect(clientStore.getSnapshot().bots[0]).toMatchObject({
+      slug: 'bot-generated',
+      displayName: '小研',
+      roles: ['研究员', '写作'],
+      description: '负责资料研究与写作。',
+    });
+    expect(clientStore.getSnapshot().selection).toEqual({
+      kind: 'bot',
+      slug: 'bot-generated',
+    });
+    expect(clientStore.getSnapshot().conversation.status).toBe('idle');
   });
 
   it('reports roster failures without throwing', async () => {

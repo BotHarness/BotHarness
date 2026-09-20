@@ -350,10 +350,29 @@ button:has(.bh-panel-glyph) {
   min-width: 0;
 }
 .bh-contact .bh-name {
+  min-width: 0;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bh-role-badges {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+.bh-role-badges > * {
+  flex: 0 0 auto;
+}
+.bh-pinned .bh-role-badges {
+  max-width: 100%;
+  justify-content: center;
+}
+.bh-topbar .bh-role-badges {
+  flex-wrap: wrap;
+  overflow: visible;
 }
 .bh-contact .bh-msg {
   color: var(--dsw-alias-label-tertiary);
@@ -682,6 +701,70 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-dimmed);
 }
 
+/* PersonaBot creation is portaled with the native Modal, so these form styles
+   intentionally do not depend on the .bh-root surface. */
+.bh-personabot-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+.bh-personabot-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.bh-personabot-label {
+  color: var(--dsw-alias-label-primary);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 18px;
+}
+.bh-personabot-hint {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-role-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.bh-role-editor-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.bh-role-edit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+.bh-role-edit-badge button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
+}
+.bh-role-edit-badge button:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-role-edit-badge button:disabled {
+  cursor: default;
+  color: var(--dsw-alias-label-dimmed);
+}
+
 /* 创建失败提示留在 Modal 体内；Modal 在 body 下，不能依赖 .bh-root 前缀。 */
 .bh-modal-error {
   margin-top: 8px;
@@ -697,6 +780,15 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
   padding: 6px 4px;
+}
+.bh-empty-create {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
 }
 .bh-error {
   margin: 4px 4px 10px;

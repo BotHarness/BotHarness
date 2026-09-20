@@ -56,9 +56,7 @@ function Welcome({ state }: { state: ClientState }): ReactElement {
           <div className="bh-big">与 PersonaBot 对话</div>
           <div>从左侧选择一个 BOT 或频道开始</div>
           {state.bots.length === 0 ? (
-            <div className="bh-dim">
-              还没有 BOT；「+」菜单可以新建频道，BOT 创建随创建向导（#41）到来。
-            </div>
+            <div className="bh-dim">还没有 PersonaBot；可从左侧「+」或空态按钮创建。</div>
           ) : null}
         </div>
       </div>
@@ -242,7 +240,15 @@ function ConversationView({
               </span>
             )}
             <span className="bh-title">{title}</span>
-            {bot?.tag !== undefined ? <Tag tone="neutral">{bot.tag}</Tag> : null}
+            {bot === undefined || bot.roles.length === 0 ? null : (
+              <span className="bh-role-badges">
+                {bot.roles.map((role) => (
+                  <Tag key={role} tone="neutral">
+                    {role}
+                  </Tag>
+                ))}
+              </span>
+            )}
             <Tag tone="quiet" className="bh-pill">
               {channel?.type === 'group' ? '群聊' : '私聊'}
             </Tag>

@@ -5,7 +5,7 @@ Date: 2026-09-19
 
 # Default avatars are deterministic blobatars; missing glyphs are vendored, not cloned
 
-A PersonaBot's default avatar is a static **blobatar** generated deterministically from the bot slug — the string generator only this round, no motion or expressions. Channel rows follow the same identity: a DM Channel shows the bot's avatar; a group Channel shows a glyph. Custom avatars (presets, upload, crop) wait for a design pass in v1.1.
+A PersonaBot's default avatar is a static **blobatar** generated deterministically from the Host-owned PersonaBot ID — the string generator only this round, no motion or expressions. Channel rows follow the same identity: a DM Channel shows the bot's avatar; a group Channel shows a glyph. Custom avatars (presets, upload, crop) wait for a design pass in v1.1.
 
 Where DSH's `ui-primitives` glyph catalog has no analogue — hash and group chat first, then users/move/sort/bot/image as needed — we vendor the needed **Lucide (ISC)** glyphs as first-party components: `{size, className}` props, `currentColor`, and an ISC attribution header. The hash glyph may be hand-drawn (four bars at the measured DSH geometry, ≈1.3px stroke at 16) if Lucide's stroke look is off. `packages/client/THIRD_PARTY_NOTICES.md` records blobatar (MIT), Lucide (ISC), and any later assets, and ships in the package `files`. This is the icon-gap exception to ADR-0028: our UI still uses DSH tokens and primitives only — no component library, no runtime icon dependency.
 

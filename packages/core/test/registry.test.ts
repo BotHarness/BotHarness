@@ -172,7 +172,7 @@ describe('createPersonaBotRegistry', () => {
     const result = registry.create({
       slug: 'research',
       displayName: '研究助手',
-      tag: '研究',
+      roles: ['研究'],
       description: '检索与写作',
       avatar: 'blue',
       model: 'deepseek-chat',
@@ -181,7 +181,7 @@ describe('createPersonaBotRegistry', () => {
     });
 
     expect(result.ok && result.record).toMatchObject({
-      tag: '研究',
+      roles: ['研究'],
       description: '检索与写作',
       avatar: 'blue',
       model: 'deepseek-chat',
@@ -190,23 +190,23 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
-  it('trims tag and description and omits blank ones', () => {
+  it('normalizes role badges and description and omits blank ones', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
     const padded = registry.create({
       slug: 'padded',
       displayName: 'Padded',
-      tag: '  研究  ',
+      roles: ['  研究  '],
       description: '  一行简介  ',
     });
     const blank = registry.create({
       slug: 'blank',
       displayName: 'Blank',
-      tag: '   ',
+      roles: ['   '],
       description: '',
     });
 
-    expect(padded.ok && padded.record).toMatchObject({ tag: '研究', description: '一行简介' });
-    expect(blank.ok && 'tag' in blank.record).toBe(false);
+    expect(padded.ok && padded.record).toMatchObject({ roles: ['研究'], description: '一行简介' });
+    expect(blank.ok && 'roles' in blank.record).toBe(false);
     expect(blank.ok && 'description' in blank.record).toBe(false);
   });
 
@@ -216,7 +216,7 @@ describe('createPersonaBotRegistry', () => {
     registry.create({
       slug: 'ada',
       displayName: 'Ada',
-      tag: '旧',
+      roles: ['旧'],
       description: '旧简介',
       avatar: 'red',
       model: 'old-model',
@@ -226,7 +226,7 @@ describe('createPersonaBotRegistry', () => {
 
     const result = registry.update('ada', {
       displayName: '  Ada Lovelace  ',
-      tag: '研究',
+      roles: ['研究'],
       description: '',
       avatar: 'blue',
       workspaces: ['/srv/a', '/srv/b'],
@@ -235,7 +235,7 @@ describe('createPersonaBotRegistry', () => {
     expect(result.ok && result.record).toMatchObject({
       slug: 'ada',
       displayName: 'Ada Lovelace',
-      tag: '研究',
+      roles: ['研究'],
       avatar: 'blue',
       workspaces: ['/srv/a', '/srv/b'],
     });
@@ -252,8 +252,14 @@ describe('createPersonaBotRegistry', () => {
     const registry = createPersonaBotRegistry({ rootDir: createRoot() });
     registry.create({ slug: 'ada', displayName: 'Ada' });
 
-    expect(registry.update('missing', { tag: 'x' })).toEqual({ ok: false, reason: 'not-found' });
-    expect(registry.update('../evil', { tag: 'x' })).toEqual({ ok: false, reason: 'not-found' });
+    expect(registry.update('missing', { roles: ['x'] })).toEqual({
+      ok: false,
+      reason: 'not-found',
+    });
+    expect(registry.update('../evil', { roles: ['x'] })).toEqual({
+      ok: false,
+      reason: 'not-found',
+    });
     expect(registry.update('ada', { displayName: '   ' })).toEqual({
       ok: false,
       reason: 'invalid-input',
@@ -262,7 +268,7 @@ describe('createPersonaBotRegistry', () => {
       ok: false,
       reason: 'invalid-input',
     });
-    expect(registry.update('ada', { tag: '研究' }).ok).toBe(true);
+    expect(registry.update('ada', { roles: ['研究'] }).ok).toBe(true);
   });
 
   it('pauses and resumes through setPaused', () => {

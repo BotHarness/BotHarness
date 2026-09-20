@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { createElement } from 'react';
+import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -19,7 +19,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const icon = (name: string) => (props: { className?: string }) =>
     createElement('span', { 'data-icon': name, className: props.className });
   return {
-    Button: stub,
+    Button: (props: { children?: ReactNode }) => createElement('button', null, props.children),
     IconAgentPresetOutline16: icon('IconAgentPresetOutline16'),
     IconCheckOutline16: icon('IconCheckOutline16'),
     IconChevronDownOutline14: icon('IconChevronDownOutline14'),
@@ -44,7 +44,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     },
     Modal: stub,
     StateDot: stub,
-    Tag: stub,
+    Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
     Tooltip: (props: { children?: unknown }) => (props.children ?? null) as never,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
@@ -70,7 +70,7 @@ const AT = '2026-09-19T00:00:00.000Z';
 const BOT: BotSummary = {
   slug: 'atlas',
   displayName: 'Atlas',
-  tag: '研究',
+  roles: ['研究', '写作'],
   description: '文件研究助手',
   aggregateState: 'working',
   workspaces: [],
@@ -102,6 +102,7 @@ function stubActions(): BridgeActions {
     openBot: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     send: vi.fn(async () => false),
+    createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
     createSection: vi.fn(async () => undefined),
     renameSection: vi.fn(async () => true),
@@ -255,6 +256,8 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('bh-contact');
     expect(markup).toContain('bh-body');
     expect(markup).toContain('Atlas');
+    expect(markup).toContain('研究');
+    expect(markup).toContain('写作');
     expect(markup).toContain('文件研究助手');
   });
 
@@ -289,16 +292,20 @@ describe('bot sidebar rows', () => {
     expect(plus).toBeGreaterThan(ellipsis);
   });
 
-  it('renders the create menu with 频道 terminology and the disabled BOT placeholder', () => {
+  it('offers PersonaBot creation when channels already exist and from the create menu', () => {
+    store.setRoster([], [FLAT_CHANNEL]);
     const markup = renderSidebar();
     const menu = menuWithItem('bot');
 
     expect(menu.items.map((item) => item['label'])).toEqual([
-      '创建 BOT',
+      '创建 PersonaBot',
       '创建频道',
       '创建频道分组',
     ]);
-    expect(menu.items[0]?.['disabled']).toBe(true);
+    expect(menu.items[0]?.['disabled']).toBeUndefined();
+    expect(markup).toContain('还没有 PersonaBot');
+    expect(markup).toContain('创建第一个 PersonaBot');
+    expect(markup).toContain('散装渠道');
     expect(markup).toContain('placeholder="搜索 BOT 或频道"');
   });
 

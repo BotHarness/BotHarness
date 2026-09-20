@@ -127,6 +127,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     record[key] = trimmed;
   };
 
+  const normalizeRoles = (roles: readonly string[] | undefined): string[] => {
+    if (roles === undefined) return [];
+    return [...new Set(roles.map((role) => role.trim()).filter((role) => role.length > 0))];
+  };
+
   return {
     rootDir,
     create(input) {
@@ -139,7 +144,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       }
 
       const displayName = input.displayName.trim();
-      const tag = input.tag?.trim();
+      const roles = normalizeRoles(input.roles);
       const description = input.description?.trim();
       const avatar = input.avatar?.trim();
       const model = input.model?.trim();
@@ -149,7 +154,7 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         displayName: displayName.length > 0 ? displayName : input.slug,
         workspaces: input.workspaces ?? [],
         createdAt: now().toISOString(),
-        ...(tag ? { tag } : {}),
+        ...(roles.length > 0 ? { roles } : {}),
         ...(description ? { description } : {}),
         ...(avatar ? { avatar } : {}),
         ...(model ? { model } : {}),
@@ -197,7 +202,15 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         if (displayName.length === 0) return { ok: false, reason: 'invalid-input' };
         record.displayName = displayName;
       }
-      applyOptionalText(record, 'tag', patch.tag);
+      if (patch.roles !== undefined) {
+        if (!Array.isArray(patch.roles) || !patch.roles.every((role) => typeof role === 'string')) {
+          return { ok: false, reason: 'invalid-input' };
+        }
+        const roles = normalizeRoles(patch.roles);
+        if (roles.length === 0) delete record.roles;
+        else record.roles = roles;
+        delete record.tag;
+      }
       applyOptionalText(record, 'description', patch.description);
       applyOptionalText(record, 'avatar', patch.avatar);
       applyOptionalText(record, 'model', patch.model);

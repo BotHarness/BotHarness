@@ -42,6 +42,12 @@ export type BridgeCall = (
   signal?: AbortSignal,
 ) => Promise<ConnectionRpcResult<unknown>>;
 
+export interface CreatePersonaBotInput {
+  displayName: string;
+  roles: string[];
+  description?: string;
+}
+
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
   const candidate = (ctx as unknown as { connection?: { rpc?: BridgeRpc } }).connection;
   return candidate?.rpc;
@@ -102,31 +108,38 @@ async function unwrap(
   return result.value;
 }
 
+export function parseBotSummary(value: unknown): BotSummary | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const slug = record['slug'];
+  const displayName = record['displayName'];
+  if (typeof slug !== 'string' || slug.length === 0 || typeof displayName !== 'string') {
+    return undefined;
+  }
+  const aggregateState = record['aggregateState'];
+  const createdAt = record['createdAt'];
+  const roles = stringArray(record['roles']);
+  const legacyTag = record['tag'];
+  const description = record['description'];
+  const avatar = record['avatar'];
+  return {
+    slug,
+    displayName,
+    aggregateState: typeof aggregateState === 'string' ? aggregateState : 'idle',
+    workspaces: stringArray(record['workspaces']),
+    createdAt: typeof createdAt === 'string' ? createdAt : '',
+    roles: roles.length > 0 ? roles : typeof legacyTag === 'string' ? [legacyTag] : [],
+    ...(typeof description === 'string' ? { description } : {}),
+    ...(typeof avatar === 'string' ? { avatar } : {}),
+  };
+}
+
 export function parseBotSummaries(value: unknown): BotSummary[] {
   const bots = asRecord(value)?.['bots'];
   if (!Array.isArray(bots)) return [];
   return bots.flatMap((entry) => {
-    const record = asRecord(entry);
-    if (record === undefined) return [];
-    const slug = record['slug'];
-    const displayName = record['displayName'];
-    if (typeof slug !== 'string' || slug.length === 0 || typeof displayName !== 'string') return [];
-    const aggregateState = record['aggregateState'];
-    const createdAt = record['createdAt'];
-    const tag = record['tag'];
-    const description = record['description'];
-    const avatar = record['avatar'];
-    const bot: BotSummary = {
-      slug,
-      displayName,
-      aggregateState: typeof aggregateState === 'string' ? aggregateState : 'idle',
-      workspaces: stringArray(record['workspaces']),
-      createdAt: typeof createdAt === 'string' ? createdAt : '',
-      ...(typeof tag === 'string' ? { tag } : {}),
-      ...(typeof description === 'string' ? { description } : {}),
-      ...(typeof avatar === 'string' ? { avatar } : {}),
-    };
-    return [bot];
+    const bot = parseBotSummary(entry);
+    return bot === undefined ? [] : [bot];
   });
 }
 
@@ -229,6 +242,17 @@ export function parseSessionSummaries(value: unknown): SessionSummary[] {
 
 export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<BotSummary[]> {
   return parseBotSummaries(await unwrap(call, 'list', {}, signal));
+}
+
+export async function createPersonaBot(
+  call: BridgeCall,
+  input: CreatePersonaBotInput,
+  signal?: AbortSignal,
+): Promise<BotSummary> {
+  const value = await unwrap(call, 'create', { ...input }, signal);
+  const bot = parseBotSummary(asRecord(value)?.['bot']);
+  if (bot === undefined) throw new Error('invalid create response');
+  return bot;
 }
 
 export async function loadChannels(

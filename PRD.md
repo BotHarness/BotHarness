@@ -4,7 +4,7 @@
 
 | 项        | 内容                                                                                                                                                                                                                                    |
 | --------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本      | v1.6（PoC）                                                                                                                                                                                                                             |
+| 版本      | v1.7（PoC）                                                                                                                                                                                                                             |
 | 日期      | 2026-09-20                                                                                                                                                                                                                              |
 | 状态      | Archived working draft                                                                                                                                                                                                                  |
 | 形态      | **BotHarness 的首个应用**：DSH 插件 bundle                                                                                                                                                                                              |
@@ -17,6 +17,7 @@
 | v1.4 变更 | 对齐平台 v1.10（ADR-0031/0032）：sidebar 区块排序与移动、未分组、默认 blobatar 头像与字形图标、行几何对齐原生实测；自定义头像与头像动效/表情留 v1.1                                                                                     |
 | v1.5 变更 | 对齐平台 v1.12（#71、ADR-0035–0045）：explicit Session ownership、Source Event/Inbox/Outbox、Orchestrator 管理 independent Work roots、全局并发上限、provider capability/grant、单文件手动 profile backup                               |
 | v1.6 变更 | 对齐平台 v1.15（#56、ADR-0031/0034）：section 整块可接收归属投放；拖拽不改变 target layout，源行原位淡出；未分组改为可夹在 section 间的松散 Channel，并由当前 Host roster 的 `topOrder` 持久化                                          |
+| v1.7 变更 | 对齐 ADR-0046：PersonaBot ID 由 Host 生成且不暴露为创建字段；名称是列表和 `@` picker 的可见标签（token 仍绑定 ID，同名允许）；单一 tag 改为 0～多个岗位徽章；最小表单收名称、可选岗位徽章与可选简介                                     |
 
 ## 0. 历史变更（v0.2–v0.9）
 
@@ -42,9 +43,9 @@
 
 > 作为用户，我在 DSH 里看到所有 PersonaBot——形象（blobatar）、状态、工作树；能创建/删除/编辑。
 
-- AC-1.1 bot-mode sidebar 平铺列表：头像 + 聚合状态（六态）+ 未读点；头像为 slug 确定性生成的默认 blobatar（DM 行显示 Bot 头像，群 Channel 行用字形），行几何对齐原生实测（ADR-0031/0032）；置顶区仅 BOT。
+- AC-1.1 bot-mode sidebar 平铺列表：头像 + 聚合状态（六态）+ 未读点；头像为 Host-owned PersonaBot ID 确定性生成的默认 blobatar（DM 行显示 Bot 头像，群 Channel 行用字形），行几何对齐原生实测（ADR-0031/0032）；置顶区仅 BOT。
 - AC-1.2 点击 BOT 打开 DM 聊天（IM 样式，本地消息）；BOT 与 Channel（群聊）同列；用户可建可折叠 Channel section 组织 Channel，section 可手排。Channel 可拖到 section 头/体归属该 section，也可拖到 section 边界间隙成为松散 Channel，直接位于两个 section 之间；「未分组」仅表示无 section membership，不再显示固定底部 bucket/header。
-- AC-1.3 创建：首次无 BOT 的空状态按钮 → 按需创建 Builder；此后「+」菜单选择「Builder 对话创建」或「表单向导」；表单字段：名字、标签、描述、persona、模型/preset、workspace、头像种子。
+- AC-1.3 创建：首次无 BOT 的空状态按钮和此后「+」菜单都可打开最小表单；Human 填写名称，并可选填写 0～多个岗位/职位徽章与简短简介，Host 自动生成不可见 PersonaBot ID 并写入占位 `PERSONA.md`。名称是未来 `@` picker 的可见标签，token 保留内部 ID，同名允许并用头像/徽章消歧。Builder 对话创建与更完整 profile 编辑后续按需进入。
 - AC-1.4 DM 右侧 session 面板：列出该 BOT 的 sessions（状态 / workspace / 最近活动，含「主会话」），点击切换；只读。
 - AC-1.5 排序：每个 section 的排序方式为 `updated` / `manual` / `inherit`（默认 `inherit`）；全局默认在 Bots 头部 `...` 菜单设置；首次手动拖拽或拖入 section 切 `manual` 并冻结当前顺序，「恢复自动」回 `inherit`。松散 Channel 的顶层位置为显式陈列，在所有排序模式下保持不动。
 - AC-1.6 section 操作：section 头 `+` 在区内新建 Channel；`...` = 排序方式 → 重命名（Modal 输入）→ 删除（danger 末位，Modal 红描边确认）；删除 section 不删 Channel，其成员在原 section 位置变为松散 Channel。拖拽期间所有预测线为 overlay、不占布局，源 Channel 行保留原位并以 40% opacity 淡出。

@@ -18,21 +18,21 @@ _避免使用_：deleted bot、paused UI、purged bot
 一项原则：PersonaBot 的连续性来自其 memory 文件，而不是任何 Session 历史。
 _避免使用_：session-scoped identity
 
-**Bot slug**：
-PersonaBot 的文件系统安全标识符——使用 kebab-case，并且在每个 Host 内唯一。
-_避免使用_：display name、title、handle
+**PersonaBot ID**：
+由 Host 自动生成的稳定 PersonaBot 身份。它适合用于文件系统，但 Human 不需要输入、选择它，也不会把它当作可见的 @ 标签。
+_避免使用_：Bot slug、display name、handle、username
 
 **Display name**：
-PersonaBot 面向人的名称（`displayName`），与其 slug 不同。
-_避免使用_：alias、nickname、username
+PersonaBot 面向人的名称，也是 `@` 选择器显示的主要标签。名称可以重复；被选中的 mention token 会保留 PersonaBot ID。
+_避免使用_：identifier、slug、username
 
-**Bot tag**：
-PersonaBot 面向人的单一角色标签——它在列表与聊天标题中的“职位名称”。
-_避免使用_：category、label、badge
+**Role badge**：
+显示在 PersonaBot 名称旁的零个或多个岗位或职位标签。Role badge 只描述身份，不授予权限，也不用于识别 PersonaBot。
+_避免使用_：Bot tag、permission role、category
 
 **Bot description**：
-面向人的单行说明，用来概括 PersonaBot 的用途。
-_避免使用_：bio、intro、slogan
+由 Human 可选填写的简短自我介绍，用来说明 PersonaBot 是谁、负责什么或擅长什么。
+_避免使用_：Persona、role badge、system prompt
 
 **Persona**：
 塑造 PersonaBot 回复方式的角色定义——包括人物特征、表达风格和长期指令。Persona 归 Human 所有：Agent 不得改写它。
