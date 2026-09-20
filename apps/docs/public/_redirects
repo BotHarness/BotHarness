@@ -8,6 +8,29 @@
 /zh/dsh/bot-runtime /zh/dev/architecture/bot-runtime 301
 /zh/dsh/bot-runtime/ /zh/dev/architecture/bot-runtime 301
 
+# The installable DSH skill now keeps only stable Context and Decision Tree
+# material. Retired implementation catalogs migrate to those foundations.
+/dsh/guide /dsh/decision-tree 301
+/dsh/guide/ /dsh/decision-tree 301
+/dsh/host /dsh/context 301
+/dsh/host/ /dsh/context 301
+/dsh/client /dsh/context 301
+/dsh/client/ /dsh/context 301
+/dsh/slots /dsh/context 301
+/dsh/slots/ /dsh/context 301
+/dsh/patterns /dsh/context 301
+/dsh/patterns/ /dsh/context 301
+/zh/dsh/guide /zh/dsh/decision-tree 301
+/zh/dsh/guide/ /zh/dsh/decision-tree 301
+/zh/dsh/host /zh/dsh/context 301
+/zh/dsh/host/ /zh/dsh/context 301
+/zh/dsh/client /zh/dsh/context 301
+/zh/dsh/client/ /zh/dsh/context 301
+/zh/dsh/slots /zh/dsh/context 301
+/zh/dsh/slots/ /zh/dsh/context 301
+/zh/dsh/patterns /zh/dsh/context 301
+/zh/dsh/patterns/ /zh/dsh/context 301
+
 # `/zh` is a language tree, not a host root: site-wide endpoints and generated
 # assets have one canonical home at the root (robots/sitemaps are
 # language-independent; the OG site card is brand-level and the card font has

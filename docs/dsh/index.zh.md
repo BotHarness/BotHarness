@@ -1,31 +1,30 @@
-# DSH 与 Cordis 插件开发
+# DSH 与 Cordis Context
 
-可靠的 DSH 插件设计不是从 Host 或 Client 代码开始，而是先精确命名运行时对象，再为需求选择正确的 seam。这里是一份 foundation-first 指南——它本体是一份可安装的 agent skill，此处渲染给人类阅读。统一 Context 与 Decision Tree 之后，才按需进入 Host、Client 与 Slots 实现分支。
+可靠的 DSH 插件设计从精确术语与稳定架构边界开始。本节是可安装 `dsh-plugin-dev` skill 的 human-readable 版本：先用 Context 正确命名平台概念，再用 Decision Tree 为每项职责选择唯一的 primary seam。
 
-## 安装 skill
+## 安装 Skill
 
 ```sh
 npx skills add BotHarness/dsh-skill
 ```
 
-[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) 是安装源：镜像 [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness) 中的 skill 目录（本仓为 canonical），随 DSH 发版刷新。想手动接线？把 `SKILL.md` 与 `references/` 拷进 `.agents/skills/dsh-plugin-dev/` 即可。
+[`BotHarness/dsh-skill`](https://github.com/BotHarness/dsh-skill) 镜像 [`BotHarness/BotHarness`](https://github.com/BotHarness/BotHarness) 中的 canonical skill 目录。也可以把 `SKILL.md`、`SKILL.zh.md` 与 `references/` 拷进 `.agents/skills/dsh-plugin-dev/`。
 
-## 内容
+## 稳定基础
 
-| 页面                                   | 内容                                                                                  |
-| -------------------------------------- | ------------------------------------------------------------------------------------- |
-| [规范 Context](/zh/dsh/context)        | DSH 与 Cordis leading words；native 与 application-defined 边界                       |
-| [Decision Tree](/zh/dsh/decision-tree) | 在实现前选择 Service、Event、Registry、SessionEvent、Projection、存储、执行或 UI seam |
-| [完整指南](/zh/dsh/guide)              | Foundation-first 工作流、实现分支与十大坑位                                           |
-| [Host 侧参考](/zh/dsh/host)            | 包清单、`cordis.patch.yml`、工具、事件、设置、凭据、生命周期                          |
-| [Client 侧参考](/zh/dsh/client)        | `dsh.client`、客户端服务与 hooks、Typert/API Gateway、lazy-CJS 构建契约               |
-| [槽位目录](/zh/dsh/slots)              | 全部 UI 槽位及其 kind、scope 与用途                                                   |
-| [社区 UI 实践](/zh/dsh/patterns)       | 13 个社区插件怎么搭 UI——构建路线、验证过的实践、版本漂移风险                          |
+| 页面                                   | 内容                                                                                   |
+| -------------------------------------- | -------------------------------------------------------------------------------------- |
+| [规范 Context](/zh/dsh/context)        | DSH/Cordis leading words、native 边界与概念图                                          |
+| [Decision Tree](/zh/dsh/decision-tree) | 选择 Service、Event、Registry、SessionEvent、Projection、persistence 或 execution seam |
+
+本 Skill 有意不包含 Host 与 Client API 目录、Slot 清单或社区实现模式。这些细节变化很快：Decision Tree 选定 seam 后，应以当前 [DSH 官方文档](https://deepseek-harness.github.io/deepseek-harness/)、固定版本源码与实际运行的 Host 核验具体机制。
+
+历史调查继续保留在 canonical 仓库的 `docs/research/` 下。它们是供维护者查证的证据，不是对外发布的 Skill 指南。
 
 ## 产品文档独立归属
 
-本节只命名和解释 DSH/Cordis 的开发概念。BotHarness 的产品语言与架构归 `/dev`：[BotHarness 领域词表](/zh/dev/spec/context) 负责产品定义，[运行时架构](/zh/dev/architecture/bot-runtime) 负责产品对象与 DSH 的关系。
+本节只命名 DSH/Cordis 概念。BotHarness 的产品语言与架构归 `/dev`：[BotHarness 领域词表](/zh/dev/spec/context) 负责产品定义，[运行时架构](/zh/dev/architecture/bot-runtime) 负责产品对象与 DSH 的关系。
 
-## 诚实的边界
+## 出处
 
-这里的内容来自某个固定版本的上游 DSH 源码与文档，外加经过验证的社区报告。DSH 处于开发者预览期：机制会变，上游的修复也可能让具体结论失效。因此每页都带出处栏——skill 版本、验证时的 DSH 版本与 commit、日期——同样的信息也随下载的 skill 一起走。完整调研笔记在仓库的 `docs/research/` 下。
+每个页面都会显示 Skill 版本、核验时的 DSH revision 与日期。DSH 仍处于开发者预览期；出处让证据可检查，但不会把某个具体 API 细节变成永久 contract。
