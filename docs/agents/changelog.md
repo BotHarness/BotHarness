@@ -132,7 +132,7 @@ instruction authority; Chinese belongs in the human-facing references and releas
 2. During the release PR, merge entries that describe one observable result, even when several PRs
    produced it. Preserve the necessary Issue and PR links.
 3. Give the ledger release one summary sentence.
-4. Derive the GitHub Release draft from that version, then add one to three Highlights and
+4. Derive the GitHub Release draft from that version, then add up to three optional Highlights and
    contributors when they genuinely help, followed by the full comparison link.
 5. Obtain explicit Human publishing approval before creating a tag, publishing an artifact, or
    creating the GitHub Release.
@@ -158,10 +158,11 @@ pnpm release:draft -- \
 Use `--artifact dsh-skill` for the independent Skill release train. The command reads that
 artifact's English and Chinese ledgers, verifies their release structure, and writes a
 deterministic JSON payload to stdout. Its explicit release-plan evidence requires the canonical
-version, simple `vX.Y.Z` tag, intended GitHub Release version, and installable artifact version to
-agree. This is an offline consistency gate: it does not claim that a remote tag, registry artifact,
-or GitHub Release exists. Skill drafts also require current `SKILL.md` metadata to match the target
-Skill release and carry its verified DSH version and linked upstream revision.
+version, `v<version>` tag (including an alpha, beta, or RC suffix when present), intended GitHub
+Release version, and installable artifact version to agree. This is an offline consistency gate: it
+does not claim that a remote tag, registry artifact, or GitHub Release exists. Skill drafts also
+require current `SKILL.md` metadata to match the target Skill release and carry its verified DSH
+version and linked upstream revision.
 
 The optional repeatable flags are `--highlight` (at most three), `--contributor`, and
 `--new-contributor`. The full comparison must be an HTTPS GitHub comparison for the selected
