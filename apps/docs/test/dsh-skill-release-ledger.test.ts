@@ -18,6 +18,7 @@ import { syncSkill } from "../../../scripts/sync-skill.mjs";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
 const SKILL = resolve(ROOT, ".agents/skills/dsh-plugin-dev");
+const RELEASE_DRAFT_FIXTURES = resolve(ROOT, "apps/docs/test/fixtures/release-draft");
 const englishPath = resolve(SKILL, "CHANGELOG.md");
 const chinesePath = resolve(SKILL, "CHANGELOG.zh.md");
 const english = () => readFileSync(englishPath, "utf8");
@@ -62,6 +63,30 @@ describe("DSH Skill release ledger", () => {
         upstreamSha: "ddefc45fbc7f8e46dd73185e68295696d1297887",
       }).map(({ code }) => code),
     ).toContain("provenance-parity");
+  });
+
+  it("binds prerelease evidence to the DSH Skill release repository", () => {
+    const fixtureEnglish = readFileSync(resolve(RELEASE_DRAFT_FIXTURES, "dsh-skill.md"), "utf8");
+    const fixtureChinese = readFileSync(
+      resolve(RELEASE_DRAFT_FIXTURES, "dsh-skill.zh.md"),
+      "utf8",
+    );
+    expect(validateDshSkillReleaseLedgerPair(fixtureEnglish, fixtureChinese)).toEqual([]);
+
+    const wrongRepositoryEnglish = fixtureEnglish.replaceAll(
+      "github.com/BotHarness/dsh-skill/releases",
+      "github.com/BotHarness/BotHarness/releases",
+    );
+    const wrongRepositoryChinese = fixtureChinese.replaceAll(
+      "github.com/BotHarness/dsh-skill/releases",
+      "github.com/BotHarness/BotHarness/releases",
+    );
+    expect(
+      validateDshSkillReleaseLedgerPair(
+        wrongRepositoryEnglish,
+        wrongRepositoryChinese,
+      ).map(({ code }) => code),
+    ).toEqual(["missing-prerelease-evidence", "missing-prerelease-evidence"]);
   });
 
   it("publishes bilingual release history with visible provenance", () => {

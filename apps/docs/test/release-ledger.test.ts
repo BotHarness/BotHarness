@@ -168,6 +168,65 @@ Published a testable prerelease.
       "missing-prerelease-evidence",
     ]);
 
+    const wrongRepositoryTag = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/tag",
+      "https://github.com/BotHarness/dsh-skill/releases/tag",
+    );
+    expect(validateReleaseLedger(wrongRepositoryTag).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    for (const invalidTagUrl of [
+      valid.replace(
+        "/releases/tag/v0.2.0-rc.1+build.5)",
+        "/releases/tag/v0.2.0-rc.1+build.5?)",
+      ),
+      valid.replace(
+        "/releases/tag/v0.2.0-rc.1+build.5)",
+        "/releases/tag/v0.2.0-rc.1+build.5#)",
+      ),
+    ]) {
+      expect(validateReleaseLedger(invalidTagUrl).map((error) => error.code)).toEqual([
+        "missing-prerelease-evidence",
+      ]);
+    }
+
+    const arbitraryInstallUrl = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle",
+      "https://example.com/deepseekbot.bundle",
+    );
+    expect(validateReleaseLedger(arbitraryInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const crossTagInstallUrl = valid.replace(
+      "/releases/download/v0.2.0-rc.1+build.5/deepseekbot.bundle",
+      "/releases/download/v0.2.0-rc.2/deepseekbot.bundle",
+    );
+    expect(validateReleaseLedger(crossTagInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    const crossRepositoryInstallUrl = valid.replace(
+      "https://github.com/BotHarness/BotHarness/releases/download",
+      "https://github.com/BotHarness/dsh-skill/releases/download",
+    );
+    expect(validateReleaseLedger(crossRepositoryInstallUrl).map((error) => error.code)).toEqual([
+      "missing-prerelease-evidence",
+    ]);
+
+    for (const invalidInstallUrl of [
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle?download=1)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle#download)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle?)"),
+      valid.replace("deepseekbot.bundle)", "deepseekbot.bundle#)"),
+      valid.replace("/deepseekbot.bundle)", "/)"),
+    ]) {
+      expect(validateReleaseLedger(invalidInstallUrl).map((error) => error.code)).toEqual([
+        "missing-prerelease-evidence",
+      ]);
+    }
+
     const invalid = valid.replace("0.2.0-rc.1+build.5", "01.2.0").replace(
       "2026-09-30",
       "2026-02-30",

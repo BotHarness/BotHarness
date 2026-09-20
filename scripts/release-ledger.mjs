@@ -9,6 +9,8 @@ const SEMVER =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-(?:(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|\d*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+(?:[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 const PROVENANCE_LINK = /^https:\/\/github\.com\/[^/]+\/[^/]+\/(?:issues|pull)\/\d+(?:[?#].*)?$/;
 const UPSTREAM_SHA = /^[0-9a-f]{40}$/;
+const DEEPSEEKBOT_RELEASE_REPOSITORY = 'BotHarness/BotHarness';
+const DSH_SKILL_RELEASE_REPOSITORY = 'BotHarness/dsh-skill';
 
 const PROVENANCE_KEYS = new Map([
   ['Skill version', 'skillVersion'],
@@ -138,8 +140,7 @@ export function parseReleaseLedger(markdown) {
   return { releases };
 }
 
-/** Validate the objective structure of one canonical Release Ledger. */
-export function validateReleaseLedger(markdown, source = 'ledger') {
+function validateReleaseLedgerForRepository(markdown, source, repository) {
   const errors = [];
   const { releases, unexpectedContent } = parseReleaseLedgerDocument(markdown);
   const headings = markdown.match(/^## .+$/gm) ?? [];
@@ -236,13 +237,13 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
 
     if (
       isPublicPreReleaseIdentity(release.identity) &&
-      (!validReleaseTagUrl(release.evidence?.tagUrl, release.identity) ||
-        !validInstallUrl(release.evidence?.installUrl, release.evidence?.tagUrl))
+      (!validReleaseTagUrl(release.evidence?.tagUrl, release.identity, repository) ||
+        !validInstallUrl(release.evidence?.installUrl, release.identity, repository))
     ) {
       errors.push({
         source,
         code: 'missing-prerelease-evidence',
-        message: `Release ${release.identity} needs tagged and installable evidence: an HTTPS Release tag ending in /releases/tag/v${release.identity} and a distinct HTTPS Installable artifact URL.`,
+        message: `Release ${release.identity} needs tagged and installable evidence in ${repository}: the exact GitHub Release tag and a same-tag /releases/download/ asset URL.`,
       });
     }
 
@@ -286,6 +287,11 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
   return errors;
 }
 
+/** Validate the objective structure of one canonical DeepSeekBot Release Ledger. */
+export function validateReleaseLedger(markdown, source = 'ledger') {
+  return validateReleaseLedgerForRepository(markdown, source, DEEPSEEKBOT_RELEASE_REPOSITORY);
+}
+
 function sameValues(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -295,39 +301,51 @@ export function isPublicPreReleaseIdentity(identity) {
   return prerelease ? /^(?:alpha|beta|rc)(?:[.-]|$)/i.test(prerelease) : false;
 }
 
-function validReleaseTagUrl(url, identity) {
+function isExactGitHubUrl(url, parsed) {
+  return (
+    url === `${parsed.origin}${parsed.pathname}` &&
+    parsed.protocol === 'https:' &&
+    parsed.hostname === 'github.com' &&
+    parsed.port === '' &&
+    parsed.username === '' &&
+    parsed.password === '' &&
+    parsed.search === '' &&
+    parsed.hash === ''
+  );
+}
+
+function validReleaseTagUrl(url, identity, repository) {
   try {
     const parsed = new URL(url);
-    const segments = parsed.pathname.split('/').filter(Boolean);
     return (
-      parsed.protocol === 'https:' &&
-      parsed.hostname === 'github.com' &&
-      segments.length === 5 &&
-      segments[2] === 'releases' &&
-      segments[3] === 'tag' &&
-      segments[4] === `v${identity}` &&
-      parsed.search === '' &&
-      parsed.hash === ''
+      isExactGitHubUrl(url, parsed) &&
+      parsed.pathname === `/${repository}/releases/tag/v${identity}`
     );
   } catch {
     return false;
   }
 }
 
-function validInstallUrl(url, tagUrl) {
+function validInstallUrl(url, identity, repository) {
   try {
     const parsed = new URL(url);
-    return parsed.protocol === 'https:' && url !== tagUrl;
+    const prefix = `/${repository}/releases/download/v${identity}/`;
+    const asset = parsed.pathname.slice(prefix.length);
+    return (
+      isExactGitHubUrl(url, parsed) &&
+      parsed.pathname.startsWith(prefix) &&
+      asset.length > 0 &&
+      !asset.includes('/')
+    );
   } catch {
     return false;
   }
 }
 
-/** Validate the English authority and Chinese counterpart as one release ledger. */
-export function validateReleaseLedgerPair(english, chinese) {
+function validateReleaseLedgerPairForRepository(english, chinese, repository) {
   const errors = [
-    ...validateReleaseLedger(english, 'CHANGELOG.md'),
-    ...validateReleaseLedger(chinese, 'CHANGELOG.zh.md'),
+    ...validateReleaseLedgerForRepository(english, 'CHANGELOG.md', repository),
+    ...validateReleaseLedgerForRepository(chinese, 'CHANGELOG.zh.md', repository),
   ];
   const en = parseReleaseLedger(english).releases;
   const zh = parseReleaseLedger(chinese).releases;
@@ -399,6 +417,11 @@ export function validateReleaseLedgerPair(english, chinese) {
   return errors;
 }
 
+/** Validate the English authority and Chinese counterpart as one DeepSeekBot release ledger. */
+export function validateReleaseLedgerPair(english, chinese) {
+  return validateReleaseLedgerPairForRepository(english, chinese, DEEPSEEKBOT_RELEASE_REPOSITORY);
+}
+
 function sameProvenance(left, right) {
   return sameValues(
     left ? [left.skillVersion, left.verifiedAgainst, left.upstreamSha, left.upstreamUrl] : null,
@@ -410,7 +433,11 @@ function sameProvenance(left, right) {
 
 /** Validate DSH Skill release provenance on top of the shared bilingual ledger contract. */
 export function validateDshSkillReleaseLedgerPair(english, chinese, current) {
-  const errors = validateReleaseLedgerPair(english, chinese);
+  const errors = validateReleaseLedgerPairForRepository(
+    english,
+    chinese,
+    DSH_SKILL_RELEASE_REPOSITORY,
+  );
   const en = parseReleaseLedger(english).releases;
   const zh = parseReleaseLedger(chinese).releases;
 

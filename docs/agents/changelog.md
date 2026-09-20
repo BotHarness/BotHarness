@@ -82,10 +82,13 @@ canonical bilingual ledgers carry both pieces of release evidence before its cha
 - **Installable artifact:** [Download bundle](https://github.com/OWNER/REPO/releases/download/v1.0.0-rc.1/plugin.bundle)
 ```
 
-The tag URL must be an HTTPS GitHub Release tag for that exact `v<version>`; the install URL must
-be a distinct HTTPS link to the installable artifact or package. Keep both URLs identical in the
-English and Chinese ledgers. A prerelease heading without this explicit authority fails validation
-and never appears as `Pre-release`.
+Evidence is artifact-bound: DeepSeekBot uses `BotHarness/BotHarness`, while DSH Skill uses
+`BotHarness/dsh-skill`. The tag URL must be the exact HTTPS GitHub Release tag in that repository
+for `v<version>`. The install URL must use the same repository and tag with the shape
+`/releases/download/v<version>/<nonempty-asset>`; arbitrary pages, another repository or tag, and
+URLs with a query or fragment are rejected. Keep both URLs identical in the English and Chinese
+ledgers. A prerelease heading without this explicit authority fails validation and never appears as
+`Pre-release`.
 
 Describe the result before implementation detail:
 
