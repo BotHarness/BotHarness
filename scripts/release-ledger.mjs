@@ -26,14 +26,14 @@ function isCalendarDate(value) {
   return !Number.isNaN(instant.valueOf()) && instant.toISOString().slice(0, 10) === value;
 }
 
-/** Parse a canonical DeepSeekBot Release Ledger into its public release shape. */
-export function parseReleaseLedger(markdown) {
+function parseReleaseLedgerDocument(markdown) {
   const lines = markdown.replaceAll('\r\n', '\n').split('\n');
   const releases = [];
+  const unexpectedContent = [];
   let release;
   let section;
 
-  for (const line of lines) {
+  for (const [index, line] of lines.entries()) {
     const releaseMatch = line.match(RELEASE_HEADING);
     if (releaseMatch) {
       release = {
@@ -71,16 +71,31 @@ export function parseReleaseLedger(markdown) {
 
     if (!release.summary && !section && line.trim()) {
       release.summary = line.trim();
+      continue;
+    }
+
+    if (section && line.trim()) {
+      unexpectedContent.push({
+        releaseIdentity: release.identity,
+        sectionName: section.name,
+        line: index + 1,
+      });
     }
   }
 
+  return { releases, unexpectedContent };
+}
+
+/** Parse a canonical DeepSeekBot Release Ledger into its public release shape. */
+export function parseReleaseLedger(markdown) {
+  const { releases } = parseReleaseLedgerDocument(markdown);
   return { releases };
 }
 
 /** Validate the objective structure of one canonical Release Ledger. */
 export function validateReleaseLedger(markdown, source = 'ledger') {
   const errors = [];
-  const { releases } = parseReleaseLedger(markdown);
+  const { releases, unexpectedContent } = parseReleaseLedgerDocument(markdown);
   const headings = markdown.match(/^## .+$/gm) ?? [];
 
   if (releases.length === 0) {
@@ -101,35 +116,12 @@ export function validateReleaseLedger(markdown, source = 'ledger') {
     });
   }
 
-  let releaseIdentity;
-  let sectionName;
-  let sectionHasEntry = false;
-  for (const [index, line] of markdown.replaceAll('\r\n', '\n').split('\n').entries()) {
-    const releaseMatch = line.match(RELEASE_HEADING);
-    if (releaseMatch) {
-      releaseIdentity = releaseMatch[1];
-      sectionName = undefined;
-      sectionHasEntry = false;
-      continue;
-    }
-    const sectionMatch = line.match(SECTION_HEADING);
-    if (sectionMatch && releaseIdentity) {
-      sectionName = sectionMatch[1];
-      sectionHasEntry = false;
-      continue;
-    }
-    if (releaseIdentity && sectionName && line.startsWith('- ')) {
-      sectionHasEntry = true;
-      continue;
-    }
-    const isEntryContinuation = sectionHasEntry && /^\s{2,}\S/.test(line);
-    if (releaseIdentity && sectionName && line.trim() && !isEntryContinuation) {
-      errors.push({
-        source,
-        code: 'unexpected-section-content',
-        message: `${releaseIdentity} / ${sectionName} line ${index + 1} must be a change entry starting with "- ".`,
-      });
-    }
+  for (const unexpected of unexpectedContent) {
+    errors.push({
+      source,
+      code: 'unexpected-section-content',
+      message: `${unexpected.releaseIdentity} / ${unexpected.sectionName} line ${unexpected.line} must be a change entry starting with "- ".`,
+    });
   }
 
   const identities = new Set();
