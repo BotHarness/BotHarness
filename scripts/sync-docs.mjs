@@ -89,10 +89,11 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 /**
  * Repo sources per docs page. Each variant carries its source file, the
  * frontmatter fallback copy, and (for the architecture page) the diagram
- * captions/`lang`. Pages without a variant source are rendered from the
- * other language's source and flagged `untranslated`.
+ * captions/`lang`. `configuredTitle` keeps a locale-specific product title
+ * when both trees share one source. Pages without a variant source are
+ * rendered from the other language's source and flagged `untranslated`.
  */
-const PAGES = [
+export const PAGES = [
   {
     slug: 'dev/index',
     order: 0,
@@ -114,7 +115,7 @@ const PAGES = [
     en: {
       source: 'docs/dev/design/index.md',
       title: 'Design',
-      description: 'Canonical product meaning, specifications, and intended architecture',
+      description: 'Canonical BotHarness product language and integrated architecture',
       lang: 'en',
     },
     zh: {
@@ -142,7 +143,7 @@ const PAGES = [
   },
   {
     slug: 'dev/design/bot-runtime',
-    order: 2,
+    order: 3,
     zh: {
       source: 'docs/architecture/bot-runtime-architecture.md',
       title: 'BotHarness Runtime 架构',
@@ -157,30 +158,20 @@ const PAGES = [
     },
   },
   {
-    slug: 'dev/design/platform',
-    order: 3,
-    zh: {
-      source: 'docs/botharness.md',
-      title: '平台规格',
-      description: 'PersonaBot、记忆、状态与工作方式',
-    },
-  },
-  {
-    slug: 'dev/design/app-prd',
-    order: 4,
-    zh: {
-      source: 'PRD.md',
-      title: 'DeepSeekBot 应用 PRD',
-      description: '首个应用：sidebar 名册、委派与 IM 接入',
-    },
-  },
-  {
     slug: 'dev/design/context',
-    order: 5,
-    zh: {
+    order: 2,
+    en: {
       source: 'CONTEXT.md',
-      title: '领域词表',
-      description: 'PersonaBot 术语的规范用法',
+      title: 'BotHarness Product Context',
+      description: 'Canonical BotHarness product terms, distinct from DSH and Cordis vocabulary',
+      lang: 'en',
+      configuredTitle: true,
+    },
+    zh: {
+      source: 'CONTEXT.zh.md',
+      title: 'BotHarness 产品术语',
+      description: 'BotHarness 产品专有词汇；与 DSH、Cordis 术语分开',
+      configuredTitle: true,
     },
   },
   {
@@ -214,8 +205,8 @@ const LINK_REWRITES = [
     /\]\(\.?\/?docs\/architecture\/botharness-architecture\.(?:md|html)\)/g,
     '](/dev/design/architecture)',
   ],
-  [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/dev/design/platform)'],
-  [/\]\(\.?\/?PRD\.md\)/g, '](/dev/design/app-prd)'],
+  [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/dev/design/architecture)'],
+  [/\]\(\.?\/?PRD\.md\)/g, '](/dev/design/architecture)'],
   [/\]\(\.?\/?CONTEXT\.md\)/g, '](/dev/design/context)'],
   [/\]\((?:\.\.\/){1,2}CONTEXT\.md\)/g, '](/dev/design/context)'],
   [/\]\(\.?\/?docs\/client-bridge\.md\)/g, '](/dev/guides/client-bridge)'],
@@ -311,7 +302,7 @@ function prepare(body, diagrams, lang) {
 function renderPage(variant, order, untranslated) {
   const raw = readText(variant.source);
   const { body } = stripFrontmatter(raw);
-  const title = titleFrom(body, variant.title);
+  const title = variant.configuredTitle ? variant.title : titleFrom(body, variant.title);
   return (
     frontmatter({ title, description: variant.description, order, untranslated }) +
     prepare(body, variant.diagrams, variant.lang)
