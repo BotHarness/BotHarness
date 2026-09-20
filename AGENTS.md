@@ -52,7 +52,7 @@ When creating or updating a PR, use the `visual-pr` skill to write the descripti
 
 ### Domain docs
 
-Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). See `docs/agents/domain.md`.
+Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). Root `CONTEXT.md` is the sole authority for BotHarness product terms such as PersonaBot, Channel, Source Event, Bot Inbox, Orchestrator Session, and Work Session; product runtime relationships live under `docs/architecture/`. See `docs/agents/domain.md`.
 
 ### UI guidelines
 
@@ -62,4 +62,4 @@ Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens, `ui-p
 
 Developing, running, or debugging against a local DSH instance follows the `dsh-dev` skill: dev-loop/profile operations, the `/api` transport contract (api-gateway owns the single interceptor — never `connection.rpc.intercept('/api')`), and the headless debugging playbook. Diagnosed DSH traps must be recorded there in the same change (pitfall log).
 
-For every DSH/Cordis plan, PRD, ADR, or implementation, enter through `dsh-plugin-dev`: read its Context, then its Decision Tree, before Host/Client/Slots details. Use its canonical leading words—Plugin/Fiber/Bundle/Profile/Patch; Service Definition/Provider/Consumer/Capability seam; Registry/Registration/Agent Scope/Service Isolation; Cordis Event dispatch; SessionEvent/`session/event`/Projection/Session Persistence/Session Query; Execution World/Sandbox/Shell/Subprocess/Job/PTY/Schedule/Spill/Storage Domain; Slots/Typert/API Gateway/Conversation Assembly—and label DSH-native vs BotHarness-proposed PersonaBot/Channel/Source Event/Inbox Admission/Attention Decision/Bot Inbox/Agent Inbox/Wake Policy/Delivery Policy/Orchestrator Session/Work Session/Work Request/Work Report/Work Lifecycle Notice/Subagent Session concepts explicitly.
+For every DSH/Cordis plan, PRD, ADR, or implementation, enter through `dsh-plugin-dev`: read its Context, then its Decision Tree, before Host/Client/Slots details. Use its canonical leading words—Plugin/Fiber/Bundle/Profile/Patch; Service Definition/Provider/Consumer/Capability seam; Registry/Registration/Agent Scope/Service Isolation; Cordis Event dispatch; Agent/AgentHandle/Subagent/Agent Inbox; SessionEvent/`session/event`/Projection/Session Persistence/Session Query; Execution World/Sandbox/Shell/Subprocess/Job/PTY/Schedule/Spill/Storage Domain; Slots/Typert/API Gateway/Conversation Assembly—and label downstream concepts as application-defined. Do not put BotHarness product vocabulary or architecture into the DSH skill or `/dsh/**`; a design that crosses both layers reads root `CONTEXT.md` for product nouns and the DSH Context for platform nouns.

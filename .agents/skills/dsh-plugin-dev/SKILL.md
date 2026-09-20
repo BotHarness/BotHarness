@@ -1,32 +1,31 @@
 ---
 name: dsh-plugin-dev
-description: Design, build, or review DeepSeek Harness (DSH) and Cordis plugins. Use for Plugin/Fiber/Bundle/Profile/Patch composition; Service/Provider/Consumer capability seams; Registry/Registration/Agent Scope/Service Isolation; Cordis Events; SessionEvent/projections/persistence; execution worlds, jobs, storage; Typert/API Gateway; Slots; or BotHarness PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work Session architecture. Start with the canonical vocabulary and decision tree before reaching host, client, UI, or community implementation details.
+description: Design, build, or review DeepSeek Harness (DSH) and Cordis plugins. Use for Plugin/Fiber/Bundle/Profile/Patch composition; Service/Provider/Consumer capability seams; Registry/Registration/Agent Scope/Service Isolation; Cordis Events; SessionEvent/projections/persistence; execution worlds, jobs, storage; Typert/API Gateway; or Slots. Start with the canonical DSH/Cordis vocabulary and decision tree before reaching host, client, UI, or community implementation details.
 license: MIT
 metadata:
-  skillVersion: "0.3.1"
+  skillVersion: "0.3.2"
   verifiedAgainst: "dsh 0.1.6-alpha.2"
   upstreamSha: "ddefc45fbc7f8e46dd73185e68295696d1297887"
   verifiedAt: "2026-09-20"
-  sources: "pinned DSH upstream and docs/research authoring reports; dsh_research foundations; BotHarness CONTEXT.md and accepted ADRs 0035-0045"
+  sources: "pinned DSH upstream and docs/research authoring reports; dsh_research DSH/Cordis foundations"
 ---
 
 # DSH plugin development
 
-Skill v0.3.1 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
+Skill v0.3.2 · verified against DSH `0.1.6-alpha.2` (upstream SHA `ddefc45fbc7f8e46dd73185e68295696d1297887`). DSH is in developer preview: verify a material mechanism against the pinned upstream and the running host.
 
 ## Foundation-first workflow
 
-1. Read [`references/context.md`](references/context.md) completely. Name the objects and boundaries with its canonical vocabulary. This step is complete when every important noun maps to one defined term and DSH-native APIs are separated from product-layer proposals.
-2. Follow [`references/decision-tree.md`](references/decision-tree.md). Classify each requirement as durable fact, command/query, runtime notification/interception, registration, projection/presentation, product data, or execution concern. This step is complete when each responsibility has one primary seam and explicit ownership/lifecycle.
-3. For PersonaBot, Channel, Source Event, Bot Inbox, Wake Policy, Orchestrator Session, Work Session, or Subagent Session work, read [`references/bot-runtime-architecture.md`](references/bot-runtime-architecture.md). This step is complete when the IM graph, product ownership graph, and DSH delegation graph are not conflated.
-4. Load only the implementation branch needed:
+1. Read [`references/context.md`](references/context.md) completely. Name the objects and boundaries with its canonical DSH/Cordis vocabulary. This step is complete when every important platform noun maps to one defined term and application-defined concepts are not presented as native APIs.
+2. Follow [`references/decision-tree.md`](references/decision-tree.md). Classify each requirement as durable fact, command/query, runtime notification/interception, registration, projection/presentation, persistence, or execution concern. This step is complete when each responsibility has one primary seam and explicit ownership/lifecycle.
+3. Load only the implementation branch needed:
    - [`references/host.md`](references/host.md) — Bundle/Profile/Patch, Plugin/Fiber, Service, Tool, Event, Session, lifecycle, publish.
    - [`references/client.md`](references/client.md) — browser Cordis application, Typert/API Gateway, client models, build and verification.
    - [`references/slots.md`](references/slots.md) — only when adding or changing a UI contribution.
    - [`references/community-ui-patterns.md`](references/community-ui-patterns.md) — only when selecting a proven UI/build pattern or checking ecosystem drift.
-5. Implement through the selected seams, then validate install → boot → registration → exercise → unload/restart as applicable. A compiling package is not an activated Plugin.
+4. Implement through the selected seams, then validate install → boot → registration → exercise → unload/restart as applicable. A compiling package is not an activated Plugin.
 
-Deep source reports live under `docs/research/`; the three `dsh_research/` documents are inputs to the foundational references. For BotHarness product semantics, root `CONTEXT.md` and accepted ADRs supersede raw research drafts.
+Deep source reports live under `docs/research/`; the DSH/Cordis portions of the three `dsh_research/` documents are inputs to the foundational references. A downstream product's own Context, architecture, and ADRs remain outside this skill and own its product vocabulary.
 
 ## Mental model
 
@@ -63,15 +62,7 @@ Read [`references/client.md`](references/client.md) for the browser Cordis appli
 
 ### `/api` transport rule
 
-`@deepseek-ai/dsh-api-gateway` owns the single `/api` interceptor and claims endpoints from the Typert Registry. A third-party Plugin must not register another `connection.rpc.intercept('/api', …)`: it shadows native APIs. In this repository, expose plugin endpoints through a `TypertRemoteService` with a `typertRemote` binding and remote-method markers; see `packages/core/src/bridge/rpc.ts`.
-
-## BotHarness specifics
-
-- Host capability lives in `packages/core`; the browser half lives in `packages/client`; `packages/deepseekbot` composes the Bundle.
-- The supported remote boundary is the API Gateway/Typert claim path implemented in `packages/core/src/bridge/rpc.ts`.
-- Secrets use the credentials Service; config stores a credential reference, never secret material.
-- Persona memory is a BotHarness capability: file truth + system-prompt section + Tools. It is not a native DSH persistence seam.
-- PersonaBot, Channel, Source Event, Inbox Admission, Attention Decision, Wake Policy, Orchestrator Session, Work Session, and the proposed Messaging/Attention/Bot Runtime/BotWork Runtime capability seams are defined in [`references/bot-runtime-architecture.md`](references/bot-runtime-architecture.md). Label them **BotHarness-proposed** when contrasting them with DSH-native APIs.
+`@deepseek-ai/dsh-api-gateway` owns the single `/api` interceptor and claims endpoints from the Typert Registry. A third-party Plugin must not register another `connection.rpc.intercept('/api', …)`: it shadows native APIs. Expose plugin endpoints through a `TypertRemoteService` with a `typertRemote` binding and remote-method markers.
 
 ## Top pitfalls
 
@@ -88,9 +79,8 @@ Read [`references/client.md`](references/client.md) for the browser Cordis appli
 
 ## References
 
-- `references/context.md` — canonical DSH/Cordis/BotHarness vocabulary and native-vs-proposed boundary.
+- `references/context.md` — canonical DSH/Cordis vocabulary and native-vs-application-defined boundary.
 - `references/decision-tree.md` — requirement-to-seam decisions, including Cordis dispatch and persistence choices.
-- `references/bot-runtime-architecture.md` — PersonaBot/Channel/Source Event/Inbox/Orchestrator/Work/Subagent ownership and communication networks.
 - `references/host.md` — host API surface: plugin shapes, tools DSL, events/waterfall, settings, credentials, system prompt, sessions/agents, lifecycle, publish/validate.
 - `references/client.md` — `dsh.client` fields, client services/hooks, Typert/API Gateway, build contract, failure table, verification checklist.
 - `references/slots.md` — full slot catalog with kinds/scopes and source declarations.

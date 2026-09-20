@@ -97,8 +97,24 @@ const PAGES = [
     },
   },
   {
-    slug: 'dev/spec/platform',
+    slug: 'dev/architecture/bot-runtime',
     order: 1,
+    zh: {
+      source: 'docs/architecture/bot-runtime-architecture.md',
+      title: 'BotHarness Runtime 架构',
+      description: 'PersonaBot、Inbox、Orchestrator、Work 与 DSH execution 的产品边界',
+    },
+    en: {
+      source: 'docs/architecture/bot-runtime-architecture.en.md',
+      title: 'BotHarness Runtime Architecture',
+      description:
+        'Product boundaries across PersonaBot, Inbox, Orchestrator, Work, and DSH execution',
+      lang: 'en',
+    },
+  },
+  {
+    slug: 'dev/spec/platform',
+    order: 2,
     zh: {
       source: 'docs/botharness.md',
       title: '平台规格',
@@ -107,7 +123,7 @@ const PAGES = [
   },
   {
     slug: 'dev/spec/app-prd',
-    order: 2,
+    order: 3,
     zh: {
       source: 'PRD.md',
       title: 'DeepSeekBot 应用 PRD',
@@ -116,7 +132,7 @@ const PAGES = [
   },
   {
     slug: 'dev/spec/context',
-    order: 3,
+    order: 4,
     zh: {
       source: 'CONTEXT.md',
       title: '领域词表',
@@ -125,7 +141,7 @@ const PAGES = [
   },
   {
     slug: 'dev/spec/client-bridge',
-    order: 4,
+    order: 5,
     zh: {
       source: 'docs/client-bridge.md',
       title: '客户端桥',
@@ -139,6 +155,7 @@ const LINK_REWRITES = [
   [/\]\(\.?\/?docs\/botharness\.md\)/g, '](/dev/spec/platform)'],
   [/\]\(\.?\/?PRD\.md\)/g, '](/dev/spec/app-prd)'],
   [/\]\(\.?\/?CONTEXT\.md\)/g, '](/dev/spec/context)'],
+  [/\]\((?:\.\.\/){1,2}CONTEXT\.md\)/g, '](/dev/spec/context)'],
   [/\]\(\.?\/?docs\/client-bridge\.md\)/g, '](/dev/spec/client-bridge)'],
   [/\]\(\.?\/?docs\/adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
   [/\]\(\.?\/?README\.en?\.md\)/g, `](${GITHUB_BLOB}README.md)`],
@@ -427,12 +444,12 @@ const SKILL_PAGES = [
     en: {
       source: `${SKILL}references/context.md`,
       title: 'Canonical context',
-      description: 'Precise DSH, Cordis and BotHarness vocabulary and boundaries',
+      description: 'Precise DSH and Cordis vocabulary and boundaries',
     },
     zh: {
       source: `${SKILL}references/context.zh.md`,
       title: '规范 Context',
-      description: '精确的 DSH、Cordis 与 BotHarness 术语及边界',
+      description: '精确的 DSH 与 Cordis 术语及边界',
     },
   },
   {
@@ -450,22 +467,8 @@ const SKILL_PAGES = [
     },
   },
   {
-    slug: 'dsh/bot-runtime',
-    order: 3,
-    en: {
-      source: `${SKILL}references/bot-runtime-architecture.md`,
-      title: 'Bot runtime architecture',
-      description: 'Keep product IM, Work ownership and DSH delegation separate',
-    },
-    zh: {
-      source: `${SKILL}references/bot-runtime-architecture.zh.md`,
-      title: 'Bot Runtime 架构',
-      description: '分离产品 IM、Work ownership 与 DSH delegation',
-    },
-  },
-  {
     slug: 'dsh/guide',
-    order: 4,
+    order: 3,
     en: {
       source: `${SKILL}SKILL.md`,
       title: 'The full guide',
@@ -479,7 +482,7 @@ const SKILL_PAGES = [
   },
   {
     slug: 'dsh/host',
-    order: 5,
+    order: 4,
     en: {
       source: `${SKILL}references/host.md`,
       title: 'Host-side reference',
@@ -493,7 +496,7 @@ const SKILL_PAGES = [
   },
   {
     slug: 'dsh/client',
-    order: 6,
+    order: 5,
     en: {
       source: `${SKILL}references/client.md`,
       title: 'Client-side reference',
@@ -507,7 +510,7 @@ const SKILL_PAGES = [
   },
   {
     slug: 'dsh/slots',
-    order: 7,
+    order: 6,
     en: {
       source: `${SKILL}references/slots.md`,
       title: 'Slot catalog',
@@ -521,7 +524,7 @@ const SKILL_PAGES = [
   },
   {
     slug: 'dsh/patterns',
-    order: 8,
+    order: 7,
     en: {
       source: `${SKILL}references/community-ui-patterns.md`,
       title: 'Community UI patterns',
@@ -539,7 +542,6 @@ const SKILL_PAGES = [
 const SKILL_LINKS = new Map([
   ['context', 'context'],
   ['decision-tree', 'decision-tree'],
-  ['bot-runtime-architecture', 'bot-runtime'],
   ['host', 'host'],
   ['client', 'client'],
   ['slots', 'slots'],

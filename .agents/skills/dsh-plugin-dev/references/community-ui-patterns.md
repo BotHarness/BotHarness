@@ -15,10 +15,10 @@ There is **no published client build preset**, so every out-of-tree plugin repli
 The UI surface has converged. What varies is the **data channel**. The list records field usage, not an endorsement:
 
 - official faces/hooks (`ctx.sessions`, `ctx.workspaces`, `uiConversation`) — the default for reads;
-- API Gateway/Typert remote Services — the supported `/api` route; BotHarness uses SRC remote-method descriptors;
+- API Gateway/Typert remote Services — the supported `/api` route; plugins may use generated or explicit SRC remote-method descriptors;
 - generic Connection RPC on a plugin-owned channel — separate physical route; verify auth/reconnect/cancellation and never intercept `/api`;
 - plugin-private HTTP routes (`fetch('/my-plugin/...')`) — needs your own auth story (one live plugin has an open security complaint for this);
-- Typert `@Remote` code generation — common upstream; out-of-tree generation may need adaptation, while descriptor-based registration is proven in BotHarness;
+- Typert `@Remote` code generation — common upstream; out-of-tree generation may need adaptation, while explicit descriptor registration remains a compatible fallback;
 - direct DOM/FS reads — brittle; seen in the wild, avoid.
 
 ## 2. Commonalities worth copying

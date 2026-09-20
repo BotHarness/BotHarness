@@ -6,11 +6,11 @@ Use these leading words in plans, PRDs, ADRs, code, and review. A term names one
 
 - **DSH-native** — exists in the pinned DeepSeek Harness source/API.
 - **Cordis-native** — exists in the Cordis framework used by DSH.
-- **BotHarness-proposed** — product-layer design in this repository; it is not an upstream DSH API unless later adopted there.
+- **application-defined** — a downstream product or Plugin concept that does not exist in the pinned DSH/Cordis contract.
 - **durable** — recoverable from persisted records after process exit.
 - **live/process-local** — exists only in the current runtime.
 
-When writing a design, label proposed APIs explicitly. `ctx.botWork` without **BotHarness-proposed** otherwise reads like an upstream guarantee.
+When writing a design, label application-defined APIs explicitly. A downstream `ctx.<name>` without that label otherwise reads like an upstream guarantee.
 
 ## Runtime composition
 
@@ -98,6 +98,10 @@ In **bail**, the dispatcher advances. In **waterfall**, the current listener adv
 
 ## Sessions: facts and derived views
 
+- **Agent** — live DSH executor attached to one Session; it is a runtime object, not a durable product identity.
+- **AgentHandle** — lifecycle capability returned by Agent create/resume; its owner can stop, drain, and dispose that live Agent.
+- **Subagent** — delegated child Agent and child Session created through the DSH Subagent capability inside a parent Agent's work.
+- **Agent Inbox** — live delivery queue that controls when selected input reaches an Agent Turn or Step boundary.
 - **SessionEvent** — typed, append-only, durable fact in a DSH Session. The Session log is the canonical Agent-execution history.
 - **`session/event`** — live Cordis Event emitted after a SessionEvent commits.
 - **Projection** — rebuildable fold from SessionEvent history to a current read model.
@@ -134,58 +138,7 @@ bash Tool -> Shell Service -> Shell Provider -> Subprocess Service -> Provider -
 - **Typert** — typed remote Service protocol and registry used for Host/client calls.
 - **API Gateway** — sole owner of the `/api` interceptor; it claims Typert endpoints.
 
-The browser is a separate Cordis application. A client Plugin cannot inject Host Services. In BotHarness, remote methods are exposed by a `TypertRemoteService`; another `connection.rpc.intercept('/api', …)` would shadow native APIs.
-
-## BotHarness product vocabulary
-
-The following are **BotHarness-proposed** unless stated otherwise:
-
-- **Actor** — Human or PersonaBot that can participate in Channels and author messages.
-- **PersonaBot** — long-lived product actor identity; never a Session or live Agent object.
-- **Channel** — platform-native group-chat or DM social space.
-- **Bridge** — configured external connection targeting a Channel or PersonaBot Inbox; it transports an Actor's fact but is not an Actor.
-- **Source Event** — immutable local fact from a Channel, Bridge, webhook, Session, or system source; sole local copy of its content and trusted provenance.
-- **Source Revision** — new Source Event recording an observed edit/retraction while preserving the original causal fact.
-- **Inbox Admission** — durable reference saying why one Source Event is eligible for one PersonaBot's attention; it never copies content.
-- **Bot Inbox** — PersonaBot-level view of admitted Source Events; not a queue, mailbox, or second content store.
-- **Attention Unit** — one PersonaBot's current consideration of a Source Event revision chain; unobserved revisions may coalesce.
-- **Attention Decision** — auditable observed/deferred/ignored/handled fact; pending is derived.
-- **Reply Route** — non-secret capability reference by which the Host can answer a Source Event's origin.
-- **Reply** — response through the trusted Reply Route selected by the Host.
-- **Service Action** — deliberate provider-specific action such as a proactive post; separate from Reply.
-- **Provider Capability** — operation/event a configured provider account can support; availability, not authorization.
-- **Service Grant** — explicit Human authorization for named Service Actions on scoped provider targets.
-- **Agent Inbox** — DSH-native execution queue controlling when selected work enters a Turn/Step.
-- **Wake Policy** — deterministic Host policy choosing immediate wake, digest, or no automatic wake for an Admission.
-- **Delivery Policy** — Host mapping from a Wake Policy decision and Orchestrator liveness to next-step, next-turn, or explicit whole-turn abort.
-- **Orchestrator Session** — PersonaBot's long-lived control-plane root Session.
-- **Work Session** — independent top-level DSH Session for one line of work; its DSH Session id is canonical identity.
-- **Work Session Directory** — durable PersonaBot-scoped read model over Session Ownership plus DSH facts, queried on demand.
-- **Work Request** — durable addressed Orchestrator message with semantic mode `context-update`, `next-step`, or `next-turn`.
-- **Work Report** — immutable Session-origin Source Event containing meaningful progress/results and artifact references.
-- **Work Lifecycle Notice** — distinct Host-origin Source Event for meaningful settlement, error, or cancellation.
-- **Subagent Session** — DSH-native delegated child Session inside a Work Session's delegation tree.
-- **BotHarness operational database** — the one profile-scoped `botharness.db` transactional owner for operational records; deep modules keep separate interfaces and table ownership.
-
-```text
-Channel != PersonaBot != Session != Agent
-Bot Inbox != Agent Inbox
-Work Session != Subagent Session
-```
-
-Canonical roles:
-
-```text
-Channel              = social world
-Source Event         = immutable content/provenance fact
-Inbox Admission      = PersonaBot eligibility relationship
-Bot Inbox            = view over Admissions and Attention Decisions
-Orchestrator Session = PersonaBot control plane
-Work Session         = independent line-of-work context
-Subagent Session     = delegated child context within Work
-```
-
-The proposed deep-module capabilities include Messaging, Attention/Inbox, Bot Runtime, and BotWork Runtime. Treat names such as `ctx.messaging` and `ctx.botWork` as proposed capability seams, not as an already-stable CRUD contract. DSH-native execution uses `ctx.agents`, Agent delivery methods, `ctx.subagents`, SessionEvent, Workspace, and scoped Tools.
+The browser is a separate Cordis application. A client Plugin cannot inject Host Services. Expose remote methods through a `TypertRemoteService` claimed by the API Gateway; another `connection.rpc.intercept('/api', …)` would shadow native APIs.
 
 ## One-line model
 

@@ -87,7 +87,7 @@ export function apply(ctx: Context): void {
 
 Browser 通过 `@deepseek-ai/dsh-api-gateway` 调用 `POST /api/<namespace>/<method>`。Gateway 拥有该 route 的**唯一 interceptor**，并从 Typert Registry claim method。
 
-在 BotHarness 中，Host Plugin 提供带 `typertRemote` namespace binding 与 remote-method descriptor 的 `TypertRemoteService`。标准 decorator 无法穿过本仓 oxc/tsdown pipeline，因此 `packages/core/src/bridge/rpc.ts` 直接写 protocol descriptor（使用 SRC marker，不做 code generation）。Client 使用 Typert `ctx.remote` face，或为该 namespace 定义/生成的 Gateway wire contract。
+Host Plugin 提供带 `typertRemote` namespace binding 与 remote-method descriptor 的 `TypertRemoteService`。构建支持时使用生成的 `@Remote` metadata；否则显式定义等价的 SRC remote-method descriptor，并在 bundle 后验证。Client 使用 Typert `ctx.remote` face，或为该 namespace 生成或定义的 Gateway wire contract。
 
 硬性 guardrail：第三方 Plugin 不得注册 `connection.rpc.intercept('/api', …)`。第二个 interceptor 会遮蔽原生 controller（settings、model provider、plugin settings、directory picker），即使自定义 endpoint 看起来可用。
 

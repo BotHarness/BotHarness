@@ -15,10 +15,10 @@
 UI surface 已经收敛，差别主要在**数据通道**。以下记录的是 field usage，不代表推荐：
 
 - 官方 face/hook（`ctx.sessions`、`ctx.workspaces`、`uiConversation`）——read 的默认选择；
-- API Gateway/Typert remote Service——受支持的 `/api` 路线；BotHarness 使用 SRC remote-method descriptor；
+- API Gateway/Typert remote Service——受支持的 `/api` 路线；Plugin 可以使用生成或显式定义的 SRC remote-method descriptor；
 - Plugin-owned channel 上的 generic Connection RPC——独立 physical route；必须验证 auth/reconnect/cancellation，且不能 intercept `/api`；
 - Plugin-private HTTP route（`fetch('/my-plugin/...')`）——必须自行负责 auth；已有 live Plugin 因此收到 security complaint；
-- Typert `@Remote` code generation——上游常见；out-of-tree generation 可能需要适配，而 descriptor-based registration 已在 BotHarness 验证；
+- Typert `@Remote` code generation——上游常见；out-of-tree generation 可能需要适配，显式 descriptor registration 可作为兼容 fallback；
 - 直接读 DOM/FS——脆弱；生态中存在，但应避免。
 
 ## 2. 值得复制的共性

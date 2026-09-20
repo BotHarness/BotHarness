@@ -4,6 +4,8 @@ BotHarness 是 DSH（DeepSeek Harness）之上的插件层，给 Agent 持久身
 
 本文描述 #71 确认后的目标架构。M1 registry、M2 Memory 与 #66 roster storage 已实现；#77 已验证 DSH runtime seams，显式 Session ownership、Messaging、BotWork Runtime、统一 operational database 和可移植性按 #79–#81 分阶段落地。更新：2026-09-20。
 
+产品术语以根目录 [`CONTEXT.md`](/zh/dev/spec/context) 为唯一词表；[BotHarness Runtime 架构](/zh/dev/architecture/bot-runtime) 单独展开 PersonaBot、Bot Inbox、Orchestrator、Work 与 DSH execution 的关系。DSH/Cordis 本身的术语和 Plugin 开发决策位于 `/zh/dsh`，不在这里重复定义。
+
 迁移阶段保持可验证：#66 的 `botharness_roster` 是当前 roster 权威；#79 只先建立 `botharness.db` owner，#80 才将 roster 与 Session ownership 单向迁入。目标图表示迁移完成后的所有权，不表示运行时现在已经双写两套存储。
 
 ## 1 · 系统上下文
