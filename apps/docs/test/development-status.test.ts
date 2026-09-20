@@ -18,6 +18,38 @@ const fields = [
   },
 ];
 
+function emptyProjectPage({
+  errors,
+  hasNextPage = false,
+  endCursor = null,
+}: {
+  errors?: unknown[];
+  hasNextPage?: boolean;
+  endCursor?: string | null;
+} = {}) {
+  return {
+    ...(errors ? { errors } : {}),
+    data: {
+      organization: {
+        projectV2: {
+          fields: {
+            pageInfo: { hasNextPage: false },
+            nodes: fields.map((field) => ({
+              __typename: field.type,
+              name: field.name,
+              options: field.options.map((name) => ({ name })),
+            })),
+          },
+          items: {
+            pageInfo: { hasNextPage, endCursor },
+            nodes: [],
+          },
+        },
+      },
+    },
+  };
+}
+
 describe("Project-backed Development status projection", () => {
   it("publishes only explicitly in-progress public artifacts", () => {
     const projection = projectDevelopmentStatus(
@@ -506,6 +538,122 @@ describe("Project-backed Development status projection", () => {
 
     await expect(result).rejects.toThrow(
       "Development status Project schema mismatch: GitHub response is missing an item's Project field values",
+    );
+  });
+
+  it("rejects partial Project data with sanitized GraphQL authority errors", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () =>
+        emptyProjectPage({
+          errors: [
+            {
+              message: "Resource not accessible by token private-detail",
+              extensions: { type: "FORBIDDEN" },
+            },
+          ],
+        }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status sync could not read Roadmap Project #1. Authenticate GitHub CLI with the read:project scope and retry.",
+    );
+    await expect(result).rejects.not.toThrow(/private-detail/);
+  });
+
+  it("recognizes GitHub's top-level GraphQL authority error type", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () =>
+        emptyProjectPage({
+          errors: [
+            {
+              type: "INSUFFICIENT_SCOPES",
+              message: "Your token has not been granted the required scopes private-detail",
+            },
+          ],
+        }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status sync could not read Roadmap Project #1. Authenticate GitHub CLI with the read:project scope and retry.",
+    );
+    await expect(result).rejects.not.toThrow(/private-detail/);
+  });
+
+  it("rejects partial Project data with sanitized GraphQL schema errors", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () =>
+        emptyProjectPage({
+          errors: [{ message: "Cannot query field secretField on type ProjectV2" }],
+        }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status Project schema mismatch: GitHub GraphQL response contains errors",
+    );
+    await expect(result).rejects.not.toThrow(/secretField/);
+  });
+
+  it("does not mistake an authority keyword inside a schema error for an authority failure", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () =>
+        emptyProjectPage({
+          errors: [{ message: "Cannot query field authentication on type ProjectV2" }],
+        }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status Project schema mismatch: GitHub GraphQL response contains errors",
+    );
+  });
+
+  it("treats mixed authority and schema GraphQL errors as a schema/API failure", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () =>
+        emptyProjectPage({
+          errors: [
+            { message: "Forbidden", extensions: { type: "FORBIDDEN" } },
+            {
+              message: "Cannot query field secretField on type ProjectV2",
+              extensions: { code: "GRAPHQL_VALIDATION_FAILED" },
+            },
+          ],
+        }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status Project schema mismatch: GitHub GraphQL response contains errors",
+    );
+  });
+
+  it("rejects an empty pagination cursor when another Project page exists", async () => {
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () => emptyProjectPage({ hasNextPage: true, endCursor: "" }),
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status Project schema mismatch: GitHub response has invalid Project pagination",
+    );
+  });
+
+  it("rejects a repeated Project cursor instead of looping or truncating", async () => {
+    let calls = 0;
+    const result = githubProjectDevelopmentStatus({
+      syncedAt: "2026-09-20T12:00:00Z",
+      queryProjectPage: async () => {
+        calls += 1;
+        if (calls > 2) throw new Error("test loop guard");
+        return emptyProjectPage({ hasNextPage: true, endCursor: "same-cursor" });
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      "Development status Project schema mismatch: GitHub response repeated a Project pagination cursor",
     );
   });
 });

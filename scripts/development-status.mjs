@@ -233,6 +233,26 @@ function queryRoadmapProjectPage({ cursor }) {
 }
 
 function normalizeProjectPage(response) {
+  if (response?.errors !== undefined && !Array.isArray(response.errors)) {
+    failSchema('GitHub GraphQL errors must be an array');
+  }
+  if (response?.errors?.length > 0) {
+    const authorityFailure = response.errors.every((error) => {
+      const code = String(
+        error?.extensions?.code ?? error?.extensions?.type ?? error?.type ?? '',
+      ).toUpperCase();
+      const message = typeof error?.message === 'string' ? error.message : '';
+      return (
+        ['FORBIDDEN', 'UNAUTHENTICATED', 'INSUFFICIENT_SCOPES'].includes(code) ||
+        /^(resource not accessible|not authorized|requires authentication|insufficient scope|forbidden|unauthenticated)(\b|:)/i.test(
+          message.trim(),
+        )
+      );
+    });
+    if (authorityFailure) throw new Error(AUTHORITY_ERROR);
+    failSchema('GitHub GraphQL response contains errors');
+  }
+
   const project = response?.data?.organization?.projectV2;
   if (!project) failSchema('GitHub response is missing organization.projectV2');
   if (project.fields?.pageInfo?.hasNextPage === true) {
@@ -246,7 +266,9 @@ function normalizeProjectPage(response) {
   if (!Array.isArray(project.items?.nodes)) failSchema('GitHub response is missing Project items');
   if (
     typeof project.items.pageInfo?.hasNextPage !== 'boolean' ||
-    (project.items.pageInfo.hasNextPage && typeof project.items.pageInfo.endCursor !== 'string')
+    (project.items.pageInfo.hasNextPage &&
+      (typeof project.items.pageInfo.endCursor !== 'string' ||
+        project.items.pageInfo.endCursor.trim().length === 0))
   ) {
     failSchema('GitHub response has invalid Project pagination');
   }
@@ -315,6 +337,7 @@ function normalizeProjectPage(response) {
 export async function githubProjectDevelopmentStatus({ syncedAt, queryProjectPage }) {
   const fields = [];
   const items = [];
+  const seenCursors = new Set();
   let cursor = null;
   do {
     let response;
@@ -327,7 +350,14 @@ export async function githubProjectDevelopmentStatus({ syncedAt, queryProjectPag
     const page = normalizeProjectPage(response);
     if (fields.length === 0) fields.push(...page.fields);
     items.push(...page.items);
-    cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    const nextCursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+    if (nextCursor !== null) {
+      if (seenCursors.has(nextCursor)) {
+        failSchema('GitHub response repeated a Project pagination cursor');
+      }
+      seenCursors.add(nextCursor);
+    }
+    cursor = nextCursor;
   } while (cursor);
 
   return projectDevelopmentStatus({ fields, items }, syncedAt);
