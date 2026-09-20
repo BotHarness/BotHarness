@@ -63,7 +63,7 @@ const lastUpdated = entry.data.lastUpdated ??
 const tocConfig = entry.data.tableOfContents;
 const toc = tocOn && tocConfig !== false ? getTOC(headings, tocConfig) : false;
 const routeKey = entryRouteKey(entry.id);
-const markdownPath = routeKey ? `/zh/${routeKey}/index.md` : "/zh/index.md";
+const markdownPath = routeKey ? `/zh/${routeKey}.md` : "/zh/index.md";
 const markdownUrl = markdownPath;
 // The OG route prefixes version collections with their mount (`/og/zh/...`).
 const socialImage = entry.data.socialImage ?? `/og/zh/${entry.id}.png`;

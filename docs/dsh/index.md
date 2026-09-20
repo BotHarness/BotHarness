@@ -23,7 +23,7 @@ Historical investigations remain in the canonical repository under `docs/researc
 
 ## Product documentation is separate
 
-This section names DSH/Cordis concepts only. BotHarness owns its product language and architecture under `/dev`: use the [BotHarness domain glossary](/dev/spec/context) for product definitions and the [runtime architecture](/dev/architecture/bot-runtime) for product relationships on DSH.
+This section names DSH/Cordis concepts only. BotHarness owns its product language and architecture under `/dev`: use the [BotHarness domain glossary](/dev/design/context) for product definitions and the [runtime architecture](/dev/design/bot-runtime) for product relationships on DSH.
 
 ## Provenance
 

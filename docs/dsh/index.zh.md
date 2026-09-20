@@ -23,7 +23,7 @@ npx skills add BotHarness/dsh-skill
 
 ## 产品文档独立归属
 
-本节只命名 DSH/Cordis 概念。BotHarness 的产品语言与架构归 `/dev`：[BotHarness 领域词表](/zh/dev/spec/context) 负责产品定义，[运行时架构](/zh/dev/architecture/bot-runtime) 负责产品对象与 DSH 的关系。
+本节只命名 DSH/Cordis 概念。BotHarness 的产品语言与架构归 `/dev`：[BotHarness 领域词表](/zh/dev/design/context) 负责产品定义，[运行时架构](/zh/dev/design/bot-runtime) 负责产品对象与 DSH 的关系。
 
 ## 出处
 

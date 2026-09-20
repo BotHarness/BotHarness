@@ -3,10 +3,10 @@
 /en / 301
 
 # BotHarness product runtime docs moved out of the DSH/Cordis development tree.
-/dsh/bot-runtime /dev/architecture/bot-runtime 301
-/dsh/bot-runtime/ /dev/architecture/bot-runtime 301
-/zh/dsh/bot-runtime /zh/dev/architecture/bot-runtime 301
-/zh/dsh/bot-runtime/ /zh/dev/architecture/bot-runtime 301
+/dsh/bot-runtime /dev/design/bot-runtime 301
+/dsh/bot-runtime/ /dev/design/bot-runtime 301
+/zh/dsh/bot-runtime /zh/dev/design/bot-runtime 301
+/zh/dsh/bot-runtime/ /zh/dev/design/bot-runtime 301
 
 # The installable DSH skill now keeps only stable Context and Decision Tree
 # material. Retired implementation catalogs migrate to those foundations.
@@ -30,6 +30,45 @@
 /zh/dsh/slots/ /zh/dsh/context 301
 /zh/dsh/patterns /zh/dsh/context 301
 /zh/dsh/patterns/ /zh/dsh/context 301
+
+# The BotHarness developer tree now separates Design, Guides, generated
+# Reference, and Decisions. Keep every former architecture/spec URL working.
+/dev/architecture/bot-runtime /dev/design/bot-runtime 301
+/dev/architecture/bot-runtime/ /dev/design/bot-runtime 301
+/dev/architecture/bot-runtime/* /dev/design/bot-runtime/:splat 301
+/dev/architecture /dev/design/architecture 301
+/dev/architecture/ /dev/design/architecture 301
+/dev/architecture/* /dev/design/architecture/:splat 301
+/dev/spec/client-bridge /dev/guides/client-bridge 301
+/dev/spec/client-bridge/ /dev/guides/client-bridge 301
+/dev/spec/client-bridge/* /dev/guides/client-bridge/:splat 301
+/dev/spec/platform /dev/design/platform 301
+/dev/spec/platform/ /dev/design/platform 301
+/dev/spec/platform/* /dev/design/platform/:splat 301
+/dev/spec/app-prd /dev/design/app-prd 301
+/dev/spec/app-prd/ /dev/design/app-prd 301
+/dev/spec/app-prd/* /dev/design/app-prd/:splat 301
+/dev/spec/context /dev/design/context 301
+/dev/spec/context/ /dev/design/context 301
+/dev/spec/context/* /dev/design/context/:splat 301
+/zh/dev/architecture/bot-runtime /zh/dev/design/bot-runtime 301
+/zh/dev/architecture/bot-runtime/ /zh/dev/design/bot-runtime 301
+/zh/dev/architecture/bot-runtime/* /zh/dev/design/bot-runtime/:splat 301
+/zh/dev/architecture /zh/dev/design/architecture 301
+/zh/dev/architecture/ /zh/dev/design/architecture 301
+/zh/dev/architecture/* /zh/dev/design/architecture/:splat 301
+/zh/dev/spec/client-bridge /zh/dev/guides/client-bridge 301
+/zh/dev/spec/client-bridge/ /zh/dev/guides/client-bridge 301
+/zh/dev/spec/client-bridge/* /zh/dev/guides/client-bridge/:splat 301
+/zh/dev/spec/platform /zh/dev/design/platform 301
+/zh/dev/spec/platform/ /zh/dev/design/platform 301
+/zh/dev/spec/platform/* /zh/dev/design/platform/:splat 301
+/zh/dev/spec/app-prd /zh/dev/design/app-prd 301
+/zh/dev/spec/app-prd/ /zh/dev/design/app-prd 301
+/zh/dev/spec/app-prd/* /zh/dev/design/app-prd/:splat 301
+/zh/dev/spec/context /zh/dev/design/context 301
+/zh/dev/spec/context/ /zh/dev/design/context 301
+/zh/dev/spec/context/* /zh/dev/design/context/:splat 301
 
 # `/zh` is a language tree, not a host root: site-wide endpoints and generated
 # assets have one canonical home at the root (robots/sitemaps are

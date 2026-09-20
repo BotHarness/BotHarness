@@ -40,6 +40,10 @@ const nimbusConfig = defineNimbusConfig({
   // (works for both the English root and the `/zh` tree).
   sidebar: {
     scope: "section",
+    // `/dev/adr` contains a long decision history. Keep every generated group
+    // compact by default; Nimbus still opens the group containing the current
+    // page, so local navigation remains visible.
+    defaultCollapsed: true,
   },
   socialImageAlt: "BotHarness documentation preview",
 });
