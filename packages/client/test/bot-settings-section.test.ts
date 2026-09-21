@@ -86,8 +86,8 @@ describe('BotHarness settings section', () => {
   it('renders the row copy and the selected mode from the shared store', () => {
     const markup = renderSection(snapshot({ sortMode: 'manual' }));
 
-    expect(markup).toContain('BOT 列表排序');
-    expect(markup).toContain('设置 BOT 模式列表的默认排序方式');
+    expect(markup).toContain('Bot 列表排序');
+    expect(markup).toContain('设置 Bot 模式列表的默认排序方式');
     expect(markup).toContain('手动排序');
     expect(markup).toContain('bh-settings-selector');
     expect(lastMenu()['selectedId']).toBe('manual');
@@ -138,7 +138,7 @@ describe('BotHarness settings section', () => {
     const markup = renderSection(snapshot({ status: 'unavailable', mode: 'memory' }));
 
     expect(markup).toContain('仅当前会话生效，不会保存');
-    expect(markup).not.toContain('设置 BOT 模式列表的默认排序方式');
+    expect(markup).not.toContain('设置 Bot 模式列表的默认排序方式');
   });
   it('renders the Bot icon choice and writes the picked mark', () => {
     const setBotIcon = vi.fn();

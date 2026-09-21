@@ -1,3 +1,5 @@
+import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
+
 export const CSS =
   `
 .bh-root {
@@ -335,7 +337,25 @@ button:has(.bh-panel-glyph) {
   margin-inline: 2px;
 }
 .bh-panel-glyph {
+  position: relative;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The Bot mode switch wears the mascot as a 10%-opacity backdrop. */
+.bh-panel-glyph::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI}) center / contain no-repeat;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
+.bh-panel-glyph > .bh-bot-icon {
+  position: relative;
+  z-index: 1;
 }
 .bh-panel-glyph-hit {
   position: absolute;

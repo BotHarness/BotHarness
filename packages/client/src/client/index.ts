@@ -46,6 +46,7 @@ function installStyles(): () => void {
 
 export function apply(ctx: ClientContext): void {
   const storage = defaultStorage();
+  const t = ctx.locale.bind(LOCALE_NS);
   const call = createBridgeCall(ctx);
   const actions: BridgeActions = createActions(call, store);
   const prefs = new BotModePrefs(storage);
@@ -94,7 +95,6 @@ export function apply(ctx: ClientContext): void {
       namespace: BOT_MODE_NAMESPACE,
     });
     prefs.attach(scope);
-    const t = settingsCtx.locale.bind(LOCALE_NS);
     // The shell owns the Settings nav glyph; tag our cell and wear the chosen
     // mark instead of its gear fallback (see bot-icon-nav).
     const releaseNavIcon = installBotNavIcon({
@@ -134,7 +134,8 @@ export function apply(ctx: ClientContext): void {
         name: 'sidebar.panellist',
         id: PANEL_ID,
         order: 10,
-        label: 'BOT 模式',
+        label: () => t('panel.label'),
+        locale: LOCALE_NS,
         inject: () => ({ ...botModePrefsFace(prefs) }),
       },
       createBotPanelEntry(() => {

@@ -17,7 +17,7 @@ export function personaBotCreateError(error: unknown): string {
       case 'duplicate':
         return '系统未能分配唯一身份，请重试。';
       case 'invalid-input':
-        return '请检查 BOT 名称、岗位或简介。';
+        return '请检查 Bot 名称、岗位或简介。';
       case 'unavailable':
         return '无法连接 Host，请稍后重试。';
     }
@@ -185,7 +185,7 @@ export function CreatePersonaBotModal({
         <Field
           id={descriptionId}
           label="简介（可选）"
-          hint="简短介绍这个 BOT 的信息、擅长领域或主要职责。"
+          hint="简短介绍这个 Bot 的信息、擅长领域或主要职责。"
         >
           <NameInput
             id={descriptionId}

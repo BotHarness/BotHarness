@@ -34,7 +34,7 @@ function AssignmentsEntry({ actions }: ChannelSidebarEntryProps): ReactElement {
         <div className="bh-error">事项加载失败：{assignments.error}</div>
       ) : null}
       {assignments.status === 'ready' && assignments.items.length === 0 ? (
-        <div className="bh-note">还没有事项。直接在左侧聊天，BOT 会按需自行安排。</div>
+        <div className="bh-note">还没有事项。直接在左侧聊天，Bot 会按需自行安排。</div>
       ) : null}
       {assignments.items.map((assignment) => (
         <button
@@ -92,7 +92,7 @@ function MembersEntry(): ReactElement {
   const state = useClientState();
   const members = state.conversation.channel?.members ?? [];
   if (members.length === 0) {
-    return <div className="bh-note">还没有成员。BOT 参与群聊随 v1.1 到来。</div>;
+    return <div className="bh-note">还没有成员。Bot 参与群聊随 v1.1 到来。</div>;
   }
   return (
     <>

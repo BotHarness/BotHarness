@@ -181,7 +181,8 @@ describe('@botharness/client browser bundle', () => {
         name: 'sidebar.panellist',
         id: 'botharness',
         order: 10,
-        label: 'BOT 模式',
+        label: expect.any(Function),
+        locale: 'botharness',
         inject: expect.any(Function),
       },
       {

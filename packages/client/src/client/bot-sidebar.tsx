@@ -1124,7 +1124,7 @@ export function BotSidebar({
               ref={searchInput}
               className="bh-search-input"
               type="text"
-              placeholder="搜索 BOT 或频道"
+              placeholder="搜索 Bot 或频道"
               value={state.query}
               tabIndex={searchOpen ? 0 : -1}
               onChange={(event) => store.setQuery(event.target.value)}
@@ -1206,7 +1206,7 @@ export function BotSidebar({
       </div>
 
       {state.status === 'loading' && state.bots.length === 0 ? (
-        <div className="bh-note">正在加载 BOT…</div>
+        <div className="bh-note">正在加载 Bot…</div>
       ) : null}
       {state.status === 'error' && state.error !== undefined ? (
         <div className="bh-error">名册加载失败：{state.error}</div>
@@ -1222,7 +1222,7 @@ export function BotSidebar({
       ) : null}
       {visibleCount === 0 && (state.bots.length > 0 || state.channels.length > 0) ? (
         <div className="bh-note">
-          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 BOT 或频道'}
+          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 Bot 或频道'}
         </div>
       ) : null}
 

@@ -375,7 +375,7 @@ export function CreateChannelModal({
       onClose={onCancel}
       closeLabel="关闭"
       title={sectionName === undefined ? '创建频道' : `在「${sectionName}」中创建频道`}
-      description="先建一个本地频道；BOT 参与和消息投递随 v1.1 到来。"
+      description="先建一个本地频道；Bot 参与和消息投递随 v1.1 到来。"
       footer={
         <>
           <Button variant="outline" disabled={creating} onClick={onCancel}>

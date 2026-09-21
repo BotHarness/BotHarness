@@ -123,7 +123,12 @@ describe('client apply', () => {
     apply(createScoped(specs, disposed) as never);
 
     expect(specs.map((spec) => spec.name)).toEqual(['sidebar.panellist', 'main']);
-    expect(specs[0]).toMatchObject({ id: PANEL_ID, order: 10, label: 'BOT 模式' });
+    expect(specs[0]).toMatchObject({
+      id: PANEL_ID,
+      order: 10,
+      label: expect.any(Function),
+      locale: 'botharness',
+    });
     expect(specs[1]).toMatchObject({ key: PANEL_ID });
 
     store.setMode('bot');

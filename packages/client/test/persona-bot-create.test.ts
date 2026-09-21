@@ -74,7 +74,7 @@ describe('PersonaBot creation form', () => {
 
   it('turns stable Host errors into actionable inline copy without exposing IDs', () => {
     expect(personaBotCreateError(new BridgeCallError('invalid-input', 'bad'))).toBe(
-      '请检查 BOT 名称、岗位或简介。',
+      '请检查 Bot 名称、岗位或简介。',
     );
     expect(personaBotCreateError(new BridgeCallError('duplicate', 'exists'))).toBe(
       '系统未能分配唯一身份，请重试。',

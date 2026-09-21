@@ -18,6 +18,7 @@ const target = join(root, 'packages/client/src/client/bot-icon-assets.ts');
 const sources = [
   ['DEEPSEEKBOT_LIGHT_DATA_URI', 'deepseekbot-light.png'],
   ['DEEPSEEKBOT_DARK_DATA_URI', 'deepseekbot-dark.png'],
+  ['DEEPSEEKBOT_TRANSPARENT_DATA_URI', 'deepseekbot-transparent.png'],
 ];
 
 const lines = [

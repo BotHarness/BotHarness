@@ -473,7 +473,7 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('还没有 PersonaBot');
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');
-    expect(markup).toContain('placeholder="搜索 BOT 或频道"');
+    expect(markup).toContain('placeholder="搜索 Bot 或频道"');
   });
 
   it('renders the global sort menu from the shared policy store', () => {
