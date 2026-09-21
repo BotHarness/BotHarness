@@ -71,6 +71,9 @@ function unavailableAgentAdapter(): BotAgentAdapter {
   return {
     runOrchestrator: unavailable,
     runAssignment: unavailable,
+    requestAssignment: () => {
+      throw new Error('BotHarness Agent runtime is unavailable outside a DSH Host');
+    },
     close: async () => undefined,
   };
 }

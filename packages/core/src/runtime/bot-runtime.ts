@@ -13,14 +13,28 @@ import {
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 
 export type AssignmentActivity = 'working' | 'idle' | 'error';
-export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
+export type AssignmentReportState =
+  | 'progress'
+  | 'completed'
+  | 'blocked'
+  | 'waiting-human'
+  | 'failed';
+export type AssignmentRequestMode = 'next-step' | 'next-turn';
 
 export interface AssignmentReportInput {
   state: AssignmentReportState;
   summary: string;
+  /** The Assignment declares it needs an Orchestrator reply before continuing. */
+  expectsReply?: boolean;
 }
 
 export interface AssignmentReport extends AssignmentReportInput {
+  at: string;
+}
+
+export interface AssignmentOpenAsk {
+  sourceEventId: string;
+  summary: string;
   at: string;
 }
 
@@ -29,6 +43,8 @@ export interface AssignmentSummary {
   purpose: string;
   activity: AssignmentActivity;
   latestReport?: AssignmentReport;
+  continuityKey?: string;
+  openAsk?: AssignmentOpenAsk;
   createdAt: string;
   updatedAt: string;
 }
@@ -38,22 +54,53 @@ export interface AssignmentDetail extends AssignmentSummary {
   sourceEventId: string;
 }
 
+export type AssignmentCreateOutcome =
+  | { outcome: 'created'; assignment: AssignmentSummary }
+  | { outcome: 'reused'; assignment: AssignmentSummary }
+  | { outcome: 'key-busy' | 'capacity'; message: string };
+
+export interface AssignmentRequestOutcome {
+  assignment: AssignmentSummary;
+  delivery: 'steer' | 'followup';
+}
+
+export interface OrchestratorAssignmentAccess {
+  create(input: { purpose: string; key?: string }): AssignmentCreateOutcome;
+  list(): AssignmentSummary[];
+  inspect(sessionId: string): AssignmentDetail | undefined;
+  request(input: {
+    sessionId: string;
+    mode: AssignmentRequestMode;
+    text: string;
+    answerTo?: string;
+  }): AssignmentRequestOutcome;
+}
+
 export interface OrchestratorAgentRun {
   sessionId: string;
   resume: boolean;
   bot: PersonaBotRecord;
   message: string;
+  /** Bounded Bot Inbox block rendered by the runtime; empty when nothing is pending. */
+  inbox: string;
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
-  createAssignment(purpose: string): Promise<AssignmentReport>;
+  assignments: OrchestratorAssignmentAccess;
 }
 
 export interface AssignmentAgentRun {
   sessionId: string;
   bot: PersonaBotRecord;
   purpose: string;
+  /** An addressed request into an existing Session rather than an initial turn. */
+  resume?: boolean;
   report(input: AssignmentReportInput): Promise<AssignmentReport>;
 }
+
+/** An addressed request is steered into a live run or accepted as a follow-up turn. */
+export type AssignmentRequestDelivery =
+  | { delivery: 'steer' }
+  | { delivery: 'followup'; done: Promise<void> };
 
 export interface ChannelMessageView {
   channelId: string;
@@ -71,6 +118,7 @@ export interface OrchestratorChannelAccess {
 export interface BotAgentAdapter {
   runOrchestrator(run: OrchestratorAgentRun): Promise<void>;
   runAssignment(run: AssignmentAgentRun): Promise<void>;
+  requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery;
   close(): Promise<void>;
 }
 
@@ -103,6 +151,8 @@ export interface BotRuntime {
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
+  /** Resolves when queued turns and detached Assignment runs have drained. */
+  whenIdle(): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -121,6 +171,8 @@ export interface BotRuntimeOptions {
    * Workspace Grants land.
    */
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
+  /** Profile-wide Assignment Concurrency Limit; defaults to 3. */
+  assignmentConcurrencyLimit?: number;
   now?: () => Date;
   createSessionId?: () => string;
   createEventId?: () => string;
@@ -136,8 +188,32 @@ interface AssignmentRow {
   latest_report_state: AssignmentReportState | null;
   latest_report_summary: string | null;
   latest_report_at: string | null;
+  continuity_key: string | null;
+  open_ask_source_event_id: string | null;
+  open_ask_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+interface InboxReportRow {
+  source_event_id: string;
+  assignment_session_id: string | null;
+  body: string;
+  created_at: string;
+  expects_reply: number;
+  continuity_key: string | null;
+  activity: AssignmentActivity | null;
+}
+
+interface InboxUnit {
+  sourceEventId: string;
+  assignmentSessionId: string | null;
+  summary: string;
+  createdAt: string;
+  expectsReply: boolean;
+  continuityKey: string | null;
+  activity: AssignmentActivity | null;
+  repeats: number;
 }
 
 type SourceEventAttemptState = 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
@@ -167,6 +243,14 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
           summary: row.latest_report_summary,
           at: row.latest_report_at,
         };
+  const openAsk =
+    row.open_ask_source_event_id === null || row.open_ask_at === null
+      ? undefined
+      : {
+          sourceEventId: row.open_ask_source_event_id,
+          summary: row.latest_report_summary ?? '',
+          at: row.open_ask_at,
+        };
   return {
     sessionId: row.session_id,
     sourceEventId: row.source_event_id,
@@ -176,7 +260,59 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(latestReport === undefined ? {} : { latestReport }),
+    ...(row.continuity_key === null ? {} : { continuityKey: row.continuity_key }),
+    ...(openAsk === undefined ? {} : { openAsk }),
   };
+}
+
+/** The inbox block coalesces unobserved reports of one Assignment into one unit. */
+function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
+  const units = new Map<string, InboxUnit>();
+  for (const row of rows) {
+    const key = row.assignment_session_id ?? row.source_event_id;
+    const existing = units.get(key);
+    if (existing === undefined) {
+      units.set(key, {
+        sourceEventId: row.source_event_id,
+        assignmentSessionId: row.assignment_session_id,
+        summary: row.body,
+        createdAt: row.created_at,
+        expectsReply: row.expects_reply === 1,
+        continuityKey: row.continuity_key,
+        activity: row.activity,
+        repeats: 1,
+      });
+      continue;
+    }
+    existing.sourceEventId = row.source_event_id;
+    existing.summary = row.body;
+    existing.createdAt = row.created_at;
+    existing.expectsReply = row.expects_reply === 1;
+    existing.activity = row.activity;
+    existing.repeats += 1;
+  }
+  return [...units.values()];
+}
+
+function renderInbox(units: InboxUnit[]): string {
+  const lines = units.map((unit) => {
+    const target = unit.assignmentSessionId ?? 'unknown Assignment';
+    const facts = [
+      `key ${unit.continuityKey}`,
+      `activity ${unit.activity ?? 'unknown'}`,
+      `repeats ${unit.repeats}`,
+    ].join(', ');
+    if (unit.expectsReply) {
+      return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.sourceEventId}): ${unit.summary}`;
+    }
+    return `- ${target} (${facts}) reported: ${unit.summary}`;
+  });
+  return [
+    '[Bot Inbox] New Assignment reports since your last turn. Answer an item that waits for',
+    'your answer with send_assignment_request using its answer_to value; otherwise use them as',
+    'context. Do not repeat these summaries back verbatim.',
+    ...lines,
+  ].join('\n');
 }
 
 function requireNonBlank(value: string, name: string): string {
@@ -197,7 +333,9 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
+  readonly #assignmentConcurrencyLimit: number;
   readonly #tails = new Map<string, Promise<unknown>>();
+  readonly #assignmentRuns = new Map<string, Promise<void>>();
   #closed = false;
 
   constructor(options: BotRuntimeOptions) {
@@ -214,6 +352,10 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
+    this.#assignmentConcurrencyLimit = Math.min(
+      Math.max(options.assignmentConcurrencyLimit ?? 3, 1),
+      32,
+    );
     // Recovery mode still mounts the plugin for files and diagnostics; every
     // Messaging operation there already fails closed, so skip the sweep.
     if (options.database.mode === 'ready') this.#recoverInterruptedAttempts();
@@ -236,20 +378,21 @@ class BotRuntimeImplementation implements BotRuntime {
     const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
     return {
       admitted: true,
-      settled: this.#enqueue(channel.id, () => this.#runDmTurn(bot, channel.id, body, claim)),
+      settled: this.#enqueue(bot.slug, () => this.#runDmTurn(bot, channel.id, body, claim)),
     };
   }
 
-  #enqueue(channelId: string, task: () => Promise<void>): Promise<void> {
-    const previous = this.#tails.get(channelId) ?? Promise.resolve();
+  #enqueue(turnKey: string, task: () => Promise<void>): Promise<void> {
+    const previous = this.#tails.get(turnKey) ?? Promise.resolve();
     const run = previous.then(task, task);
-    this.#tails.set(
-      channelId,
-      run.then(
-        () => undefined,
-        () => undefined,
-      ),
+    const tail = run.then(
+      () => undefined,
+      () => undefined,
     );
+    this.#tails.set(turnKey, tail);
+    void tail.then(() => {
+      if (this.#tails.get(turnKey) === tail) this.#tails.delete(turnKey);
+    });
     return run;
   }
 
@@ -259,6 +402,7 @@ class BotRuntimeImplementation implements BotRuntime {
         .prepare(
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
+                  continuity_key, open_ask_source_event_id, open_ask_at,
                   created_at, updated_at
              FROM assignments
             WHERE bot_slug = ?
@@ -282,6 +426,7 @@ class BotRuntimeImplementation implements BotRuntime {
         .prepare(
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
+                  continuity_key, open_ask_source_event_id, open_ask_at,
                   created_at, updated_at
              FROM assignments
             WHERE bot_slug = ? AND session_id = ?`,
@@ -291,11 +436,20 @@ class BotRuntimeImplementation implements BotRuntime {
     return row === undefined ? undefined : assignmentFromRow(row);
   }
 
+  async whenIdle(): Promise<void> {
+    for (;;) {
+      const pending = [...this.#tails.values(), ...this.#assignmentRuns.values()];
+      if (pending.length === 0) return;
+      await Promise.allSettled(pending);
+    }
+  }
+
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
-    await Promise.allSettled(this.#tails.values());
+    await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
     this.#tails.clear();
+    this.#assignmentRuns.clear();
     await this.#agents.close();
   }
 
@@ -312,22 +466,21 @@ class BotRuntimeImplementation implements BotRuntime {
 
     const timestamp = this.#now().toISOString();
     const orchestrator = this.#ensureOrchestrator(bot, timestamp);
-    const markSideEffect = () => this.#markSideEffectStarted(claim.sourceEventId);
+    // Pending reports ride the Human turn too; Observation is recorded the
+    // moment the block enters the turn input and rolled back if the turn fails.
+    const collected = this.#collectInbox(bot.slug);
+    this.#setObserved(collected.eventIds, timestamp);
     try {
-      await this.#agents.runOrchestrator({
-        sessionId: orchestrator.sessionId,
-        resume: orchestrator.resume,
+      await this.#runOrchestratorTurn(
         bot,
-        message: body,
-        inboundChannelId: channelId,
-        channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
-        createAssignment: (purpose) => {
-          const normalized = requireNonBlank(purpose, 'Assignment purpose');
-          markSideEffect();
-          return this.#createAssignment(bot, claim.sourceEventId, normalized);
-        },
-      });
+        orchestrator,
+        claim.sourceEventId,
+        channelId,
+        body,
+        collected.inbox,
+      );
     } catch (error) {
+      this.#setObserved(collected.eventIds, null);
       this.#markSourceEventFailed(claim.sourceEventId);
       throw error;
     }
@@ -344,6 +497,47 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['source-event', 'bot-inbox'],
     );
+  }
+
+  async #runOrchestratorTurn(
+    bot: PersonaBotRecord,
+    orchestrator: { sessionId: string; resume: boolean },
+    sourceEventId: string,
+    channelId: string,
+    body: string,
+    inbox: string,
+  ): Promise<void> {
+    const markSideEffect = () => this.#markSideEffectStarted(sourceEventId);
+    await this.#agents.runOrchestrator({
+      sessionId: orchestrator.sessionId,
+      resume: orchestrator.resume,
+      bot,
+      message: body,
+      inbox,
+      inboundChannelId: channelId,
+      channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
+      assignments: this.#assignmentAccess(bot, sourceEventId),
+    });
+  }
+
+  #assignmentAccess(bot: PersonaBotRecord, sourceEventId: string): OrchestratorAssignmentAccess {
+    // Creating or waking an Assignment Session crosses into DSH, so the current
+    // attempt is no longer safely replayable once either starts.
+    const markSideEffect = (): void => this.#markSideEffectStarted(sourceEventId);
+    return {
+      create: (input) => {
+        const outcome = this.#createOrReuseAssignment(bot, sourceEventId, input);
+        if (outcome.outcome === 'created' || outcome.outcome === 'reused') markSideEffect();
+        return outcome;
+      },
+      list: () => this.listAssignments(bot.slug),
+      inspect: (sessionId) => this.getAssignment(bot.slug, sessionId),
+      request: (input) => {
+        const outcome = this.#requestAssignment(bot, input);
+        markSideEffect();
+        return outcome;
+      },
+    };
   }
 
   #claimSourceEvent(
@@ -567,12 +761,39 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#workspaceRoot === undefined ? undefined : join(this.#workspaceRoot, bot.slug);
   }
 
-  async #createAssignment(
+  #createOrReuseAssignment(
     bot: PersonaBotRecord,
     sourceEventId: string,
-    requestedPurpose: string,
-  ): Promise<AssignmentReport> {
-    const purpose = requireNonBlank(requestedPurpose, 'Assignment purpose');
+    input: { purpose: string; key?: string },
+  ): AssignmentCreateOutcome {
+    const purpose = requireNonBlank(input.purpose, 'Assignment purpose');
+    const key = input.key === undefined ? undefined : requireNonBlank(input.key, 'Continuity Key');
+    if (key !== undefined) {
+      const holder = this.#assignmentByKey(bot.slug, key);
+      if (holder !== undefined && holder.activity === 'idle') {
+        this.#requestAssignment(bot, {
+          sessionId: holder.session_id,
+          mode: 'next-turn',
+          text: purpose,
+        });
+        return {
+          outcome: 'reused',
+          assignment: this.#requireAssignmentSummary(bot.slug, holder.session_id),
+        };
+      }
+      if (holder !== undefined) {
+        return {
+          outcome: 'key-busy',
+          message: `Continuity Key ${key} is held by running Assignment ${holder.session_id}; send it a request, wait, or create a new Assignment without the key.`,
+        };
+      }
+    }
+    if (this.#activeAssignmentCount() >= this.#assignmentConcurrencyLimit) {
+      return {
+        outcome: 'capacity',
+        message: `Assignment Concurrency Limit ${this.#assignmentConcurrencyLimit} reached; retryable: true. Nothing was created.`,
+      };
+    }
     const sessionId = this.#createSessionId();
     const createdAt = this.#now().toISOString();
     this.#database.transaction(
@@ -588,31 +809,131 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(
             `INSERT INTO assignments (
-               session_id, source_event_id, bot_slug, purpose, activity, created_at, updated_at
-             ) VALUES (?, ?, ?, ?, 'working', ?, ?)`,
+               session_id, source_event_id, bot_slug, purpose, activity, continuity_key,
+               created_at, updated_at
+             ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?)`,
           )
-          .run(sessionId, sourceEventId, bot.slug, purpose, createdAt, createdAt);
+          .run(sessionId, sourceEventId, bot.slug, purpose, key ?? null, createdAt, createdAt);
       },
       ['session-ownership', 'assignments'],
     );
-
-    try {
-      await this.#agents.runAssignment({
+    this.#trackAssignmentRun(sessionId, () =>
+      this.#agents.runAssignment({
         sessionId,
         bot,
         purpose,
-        report: async (input) => this.#recordReport(bot.slug, sessionId, input),
-      });
-      const assignment = this.getAssignment(bot.slug, sessionId);
-      if (assignment?.latestReport === undefined) {
-        throw new Error('Assignment finished without report_to_orchestrator');
-      }
-      this.#setActivity(sessionId, 'idle');
-      return assignment.latestReport;
-    } catch (error) {
-      this.#setActivity(sessionId, 'error');
-      throw error;
+        report: async (report) => this.#recordReport(bot.slug, sessionId, report),
+      }),
+    );
+    return { outcome: 'created', assignment: this.#requireAssignmentSummary(bot.slug, sessionId) };
+  }
+
+  #requestAssignment(
+    bot: PersonaBotRecord,
+    input: { sessionId: string; mode: AssignmentRequestMode; text: string; answerTo?: string },
+  ): AssignmentRequestOutcome {
+    const row = this.#assignmentRow(bot.slug, input.sessionId);
+    if (row === undefined) throw new Error(`Unknown Assignment Session: ${input.sessionId}`);
+    const text = requireNonBlank(input.text, 'Assignment Request text');
+    if (row.activity === 'error') {
+      throw new Error(
+        `Assignment Session ${input.sessionId} failed; start a new Assignment instead`,
+      );
     }
+    const at = this.#now().toISOString();
+    if (input.answerTo !== undefined && input.answerTo !== row.open_ask_source_event_id) {
+      throw new Error(
+        `Assignment Session ${input.sessionId} has no open ask ${input.answerTo}; inspect it before answering`,
+      );
+    }
+    if (row.open_ask_source_event_id !== null) {
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(
+              `UPDATE assignments
+                  SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
+                WHERE session_id = ? AND bot_slug = ?`,
+            )
+            .run(at, input.sessionId, bot.slug);
+        },
+        ['assignments'],
+      );
+    }
+    const run: AssignmentAgentRun = {
+      sessionId: input.sessionId,
+      bot,
+      purpose: text,
+      resume: true,
+      report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
+    };
+    const delivery = this.#agents.requestAssignment(run);
+    if (delivery.delivery === 'followup') {
+      this.#trackAssignmentRun(input.sessionId, () => delivery.done);
+    } else {
+      this.#setActivity(input.sessionId, 'working');
+    }
+    return {
+      assignment: this.#requireAssignmentSummary(bot.slug, input.sessionId),
+      delivery: delivery.delivery,
+    };
+  }
+
+  #trackAssignmentRun(sessionId: string, task: () => Promise<void>): void {
+    const run = (async () => {
+      if (this.#assignmentRow(undefined, sessionId) === undefined) return;
+      this.#setActivity(sessionId, 'working');
+      try {
+        await task();
+        this.#setActivity(sessionId, 'idle');
+      } catch {
+        this.#setActivity(sessionId, 'error');
+      }
+    })();
+    const tracked = run.then(
+      () => {
+        if (this.#assignmentRuns.get(sessionId) === tracked) this.#assignmentRuns.delete(sessionId);
+      },
+      () => {
+        if (this.#assignmentRuns.get(sessionId) === tracked) this.#assignmentRuns.delete(sessionId);
+      },
+    );
+    this.#assignmentRuns.set(sessionId, tracked);
+  }
+
+  #assignmentRow(botSlug: string | undefined, sessionId: string): AssignmentRow | undefined {
+    return this.#database.read(
+      (database) =>
+        (botSlug === undefined
+          ? database.prepare(`SELECT * FROM assignments WHERE session_id = ?`).get(sessionId)
+          : database
+              .prepare(`SELECT * FROM assignments WHERE bot_slug = ? AND session_id = ?`)
+              .get(botSlug, sessionId)) as AssignmentRow | undefined,
+    );
+  }
+
+  #assignmentByKey(botSlug: string, continuityKey: string): AssignmentRow | undefined {
+    return this.#database.read(
+      (database) =>
+        database
+          .prepare(`SELECT * FROM assignments WHERE bot_slug = ? AND continuity_key = ?`)
+          .get(botSlug, continuityKey) as AssignmentRow | undefined,
+    );
+  }
+
+  #activeAssignmentCount(): number {
+    return this.#database.read((database) => {
+      const row = database
+        .prepare(`SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working'`)
+        .get() as { count: number };
+      return row.count;
+    });
+  }
+
+  #requireAssignmentSummary(botSlug: string, sessionId: string): AssignmentSummary {
+    const assignment = this.getAssignment(botSlug, sessionId);
+    if (assignment === undefined) throw new Error(`Unknown Assignment Session: ${sessionId}`);
+    return assignment;
   }
 
   #recordReport(
@@ -622,30 +943,134 @@ class BotRuntimeImplementation implements BotRuntime {
   ): AssignmentReport {
     const summary = requireNonBlank(input.summary, 'Assignment report summary');
     const at = this.#now().toISOString();
-    const report: AssignmentReport = { state: input.state, summary, at };
+    const expectsReply = input.expectsReply === true;
+    const report: AssignmentReport = {
+      state: input.state,
+      summary,
+      at,
+      ...(expectsReply ? { expectsReply: true } : {}),
+    };
+    const sourceEventId = this.#createEventId();
     this.#database.transaction(
       (database) => {
         const changed = database
           .prepare(
             `UPDATE assignments
                 SET latest_report_state = ?, latest_report_summary = ?, latest_report_at = ?,
-                    updated_at = ?
+                    updated_at = ?,
+                    open_ask_source_event_id = CASE WHEN ? = 1 THEN ? ELSE NULL END,
+                    open_ask_at = CASE WHEN ? = 1 THEN ? ELSE NULL END
               WHERE session_id = ? AND bot_slug = ?`,
           )
-          .run(input.state, summary, at, at, sessionId, botSlug);
+          .run(
+            input.state,
+            summary,
+            at,
+            at,
+            expectsReply ? 1 : 0,
+            sourceEventId,
+            expectsReply ? 1 : 0,
+            at,
+            sessionId,
+            botSlug,
+          );
         if (changed.changes !== 1) throw new Error(`Unknown Assignment Session: ${sessionId}`);
         database
           .prepare(
             `INSERT INTO source_events (
                source_event_id, source_kind, bot_slug, assignment_session_id,
-               body, created_at, handled_at, attempt_state
-             ) VALUES (?, 'assignment-report', ?, ?, ?, ?, ?, 'handled')`,
+               body, created_at, handled_at, attempt_state, expects_reply
+             ) VALUES (?, 'assignment-report', ?, ?, ?, ?, ?, 'handled', ?)`,
           )
-          .run(this.#createEventId(), botSlug, sessionId, summary, at, at);
+          .run(sourceEventId, botSlug, sessionId, summary, at, at, expectsReply ? 1 : 0);
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
+    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleInboxTurn(botSlug);
     return report;
+  }
+
+  #shouldWakeNow(state: AssignmentReportState, expectsReply: boolean): boolean {
+    return expectsReply || state !== 'progress';
+  }
+
+  #scheduleInboxTurn(botSlug: string): void {
+    void this.#enqueue(botSlug, () => this.#runInboxTurn(botSlug));
+  }
+
+  async #runInboxTurn(botSlug: string): Promise<void> {
+    if (this.#closed) return;
+    const bot = this.#registry.get(botSlug);
+    if (bot === undefined || bot.paused === true) return;
+    const channel = this.#dmChannel(botSlug);
+    if (channel === undefined) return;
+    const collected = this.#collectInbox(botSlug);
+    if (collected.eventIds.length === 0) return;
+    const timestamp = this.#now().toISOString();
+    const orchestrator = this.#ensureOrchestrator(bot, timestamp);
+    this.#setObserved(collected.eventIds, timestamp);
+    try {
+      await this.#runOrchestratorTurn(
+        bot,
+        orchestrator,
+        collected.eventIds[0] ?? orchestrator.sessionId,
+        channel.id,
+        '',
+        collected.inbox,
+      );
+    } catch (error) {
+      this.#setObserved(collected.eventIds, null);
+      throw error;
+    }
+  }
+
+  #collectInbox(botSlug: string): { inbox: string; eventIds: string[] } {
+    const rows = this.#database.read(
+      (database) =>
+        database
+          .prepare(
+            `SELECT e.source_event_id, e.assignment_session_id, e.body, e.created_at,
+                    e.expects_reply, a.continuity_key, a.activity
+               FROM source_events e
+               LEFT JOIN assignments a ON a.session_id = e.assignment_session_id
+              WHERE e.bot_slug = ? AND e.source_kind = 'assignment-report'
+                AND e.observed_at IS NULL
+              ORDER BY e.rowid DESC
+              LIMIT 20`,
+          )
+          .all(botSlug) as unknown as InboxReportRow[],
+    );
+    // Newest-first in SQL bounds the batch; coalescing reads oldest-first so the
+    // unit keeps the latest summary and its repeat count.
+    rows.reverse();
+    const units = coalesceInbox(rows);
+    const [firstUnit] = units;
+    return {
+      inbox: firstUnit === undefined ? '' : renderInbox(units),
+      eventIds: rows.map((row) => row.source_event_id),
+    };
+  }
+
+  #dmChannel(botSlug: string): ChannelRecord | undefined {
+    return this.#channels
+      .list()
+      .find((channel) => channel.type === 'dm' && channel.botSlug === botSlug);
+  }
+
+  #setObserved(sourceEventIds: string[], at: string | null): void {
+    if (sourceEventIds.length === 0) return;
+    const placeholders = sourceEventIds.map(() => '?').join(', ');
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(
+            `UPDATE source_events SET observed_at = ?
+              WHERE source_event_id IN (${placeholders})`,
+          )
+          .run(at, ...sourceEventIds);
+      },
+      ['source-event', 'bot-inbox'],
+    );
   }
 
   #setActivity(sessionId: string, activity: AssignmentActivity): void {

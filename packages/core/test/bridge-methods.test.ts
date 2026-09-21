@@ -542,6 +542,7 @@ describe('bridge methods', () => {
               updatedAt: '2026-09-19T00:00:01.000Z',
             }
           : undefined,
+      whenIdle: async () => undefined,
       close: async () => undefined,
     }));
     methods.create({ displayName: 'Ada' });
@@ -615,6 +616,7 @@ describe('bridge methods', () => {
       },
       listAssignments: () => [],
       getAssignment: () => undefined,
+      whenIdle: async () => undefined,
       close: async () => undefined,
     }));
     methods.create({ displayName: 'Ada' });
@@ -648,6 +650,7 @@ describe('bridge methods', () => {
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
+      whenIdle: async () => undefined,
       close: async () => undefined,
     }));
     methods.create({ displayName: 'Ada' });

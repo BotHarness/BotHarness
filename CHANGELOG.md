@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- The Orchestrator now starts Assignments without waiting: `create_assignment` returns its Session id immediately, a continuity key reuses an idle Assignment instead of creating another, and Assignment reports and questions arrive through the Bot Inbox where an answer resumes the waiting Assignment ([ADR-0055](docs/adr/0055-assignment-collaboration-round-trips-through-the-bot-inbox.md), [#180](https://github.com/BotHarness/BotHarness/issues/180)).
+
 - PersonaBot creation now provisions a real Git-backed Memory Repository and the Orchestrator Session runs inside it; reopening a repository never auto-commits a provisional working-tree edit ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 - Removed the model-visible `memory_read`, `memory_search`, `memory_write`, and `memory_list` tools; V1 works through ordinary file, Shell, grep, and git capabilities ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 

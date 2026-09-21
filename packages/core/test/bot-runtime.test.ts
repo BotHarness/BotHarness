@@ -13,6 +13,7 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import {
   createBotRuntime,
   type AssignmentAgentRun,
+  type AssignmentRequestDelivery,
   type BotAgentAdapter,
   type BotRuntime,
   type HandleDmMessageInput,
@@ -25,13 +26,27 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.runs.push({ role: 'orchestrator', sessionId: run.sessionId });
-    const report = await run.createAssignment(`调查并回答：${run.message}`);
-    await run.channels.send({ body: `已完成：${report.summary}` });
+    if (run.message.trim().length > 0) {
+      const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+      if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
+      throw new Error(outcome.message);
+    }
+    if (run.inbox.includes('reported')) {
+      const latest = run.assignments
+        .list()
+        .map((assignment) => assignment.latestReport)
+        .find((report) => report !== undefined);
+      if (latest !== undefined) await run.channels.send({ body: `已完成：${latest.summary}` });
+    }
   }
 
   async runAssignment(run: AssignmentAgentRun): Promise<void> {
     this.runs.push({ role: 'assignment', sessionId: run.sessionId });
     await run.report({ state: 'completed', summary: `Assignment 已处理「${run.purpose}」` });
+  }
+
+  requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery {
+    return { delivery: 'followup', done: this.runAssignment(run) };
   }
 
   async close(): Promise<void> {}
@@ -110,13 +125,24 @@ describe('Bot runtime tracer bullet', () => {
     const agents: BotAgentAdapter = {
       async runOrchestrator(run) {
         orchestratorAttempts += 1;
-        if (orchestratorAttempts === 1) throw new Error('TRANSPORT: DeepSeek API request failed');
-        const report = await run.createAssignment(`调查并回答：${run.message}`);
-        await run.channels.send({ body: `已完成：${report.summary}` });
+        if (run.message.trim().length > 0) {
+          if (orchestratorAttempts === 1) throw new Error('TRANSPORT: DeepSeek API request failed');
+          const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+          if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
+          throw new Error(outcome.message);
+        }
+        const latest = run.assignments
+          .list()
+          .map((assignment) => assignment.latestReport)
+          .find((report) => report !== undefined);
+        if (latest !== undefined) await run.channels.send({ body: `已完成：${latest.summary}` });
       },
       async runAssignment(run) {
         assignmentRuns += 1;
         await run.report({ state: 'completed', summary: `Assignment 已处理「${run.purpose}」` });
+      },
+      requestAssignment(run) {
+        return { delivery: 'followup', done: this.runAssignment(run) };
       },
       async close() {},
     };
@@ -157,6 +183,7 @@ describe('Bot runtime tracer bullet', () => {
     ).toEqual([]);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
+    await runtime.whenIdle();
     expect(sourceEvents(owner)).toEqual([
       {
         source_event_id: 'source-retry',
@@ -166,15 +193,17 @@ describe('Bot runtime tracer bullet', () => {
         side_effect_started_at: expect.any(String),
       },
     ]);
-    expect(orchestratorAttempts).toBe(2);
+    // The DM turn starts the Assignment; the inbox turn answers the Channel afterwards.
+    expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
       channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
     ).toEqual([expect.objectContaining({ id: 'bot-retry' })]);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
+    await runtime.whenIdle();
     expect(sourceEvents(owner)).toHaveLength(1);
-    expect(orchestratorAttempts).toBe(2);
+    expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
       channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
@@ -207,13 +236,26 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         async runOrchestrator(run) {
           orchestratorAttempts += 1;
-          const report = await run.createAssignment('核对副作用');
-          await run.channels.send({ body: report.summary });
-          throw new Error('TRANSPORT after side effects');
+          if (run.message.trim().length > 0) {
+            const outcome = run.assignments.create({ purpose: '核对副作用' });
+            if (outcome.outcome === 'capacity' || outcome.outcome === 'key-busy') {
+              throw new Error(outcome.message);
+            }
+            await run.channels.send({ body: '副作用已开始' });
+            throw new Error('TRANSPORT after side effects');
+          }
+          const latest = run.assignments
+            .list()
+            .map((assignment) => assignment.latestReport)
+            .find((report) => report !== undefined);
+          if (latest !== undefined) await run.channels.send({ body: latest.summary });
         },
         async runAssignment(run) {
           assignmentRuns += 1;
           await run.report({ state: 'completed', summary: '副作用已完成' });
+        },
+        requestAssignment(run) {
+          return { delivery: 'followup', done: this.runAssignment(run) };
         },
         async close() {},
       },
@@ -235,6 +277,7 @@ describe('Bot runtime tracer bullet', () => {
     };
 
     await expect(admit(runtime, input)).rejects.toThrow(/TRANSPORT after side effects/);
+    await runtime.whenIdle();
     await expect(admit(runtime, input)).rejects.toThrow(/requires reconciliation/);
 
     expect(sourceEvents(owner)).toEqual([
@@ -245,12 +288,18 @@ describe('Bot runtime tracer bullet', () => {
         side_effect_started_at: expect.any(String),
       },
     ]);
-    expect(orchestratorAttempts).toBe(1);
+    // One DM turn starts the Assignment, one inbox turn reports it; the failed
+    // attempt is never replayed.
+    expect(orchestratorAttempts).toBe(2);
     expect(assignmentRuns).toBe(1);
     expect(runtime.listAssignments('ada')).toHaveLength(1);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
-    ).toEqual([expect.objectContaining({ id: 'bot-repair', body: '副作用已完成' })]);
+      channels
+        .readMessages(dm!.id)
+        .filter((message) => message.author.kind === 'bot')
+        .map((message) => message.body)
+        .sort(),
+    ).toEqual(['副作用已完成', '副作用已开始'].sort());
 
     await runtime.close();
     owner.close();
@@ -286,6 +335,7 @@ describe('Bot runtime tracer bullet', () => {
           await run.channels.send({ channelId: bobDm!.id, body: '冒充 Bob' });
         },
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -338,6 +388,7 @@ describe('Bot runtime tracer bullet', () => {
       messageId: 'human-1',
       body: '请调查发布状态',
     });
+    await runtime.whenIdle();
 
     const messages = channels.readMessages(dm!.id);
     expect(messages[0]).toMatchObject({
@@ -348,6 +399,7 @@ describe('Bot runtime tracer bullet', () => {
     expect(agents.runs).toEqual([
       { role: 'orchestrator', sessionId: 'orchestrator-ada' },
       { role: 'assignment', sessionId: 'assignment-1' },
+      { role: 'orchestrator', sessionId: 'orchestrator-ada' },
     ]);
     expect(runtime.listAssignments('ada')).toEqual([
       expect.objectContaining({
@@ -421,6 +473,7 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -474,6 +527,7 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       workspaceRoot: '/srv/runtime-workspaces',
@@ -521,6 +575,7 @@ describe('Bot runtime tracer bullet', () => {
           await gate;
         },
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -583,6 +638,7 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async () => undefined,
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -638,6 +694,7 @@ describe('Bot runtime tracer bullet', () => {
           if (started.length === 1) await gate;
         },
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -693,6 +750,7 @@ describe('Bot runtime tracer bullet', () => {
           runs.push(run.message);
         },
         runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
         close: async () => undefined,
       },
       now: FIXED_NOW,

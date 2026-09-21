@@ -121,7 +121,7 @@ Assignment Request mode 是 semantic：`context-update` 贡献 durable context �
 
 SQLite 与 DSH Session Persistence 无法原子 commit。因此 Assignment creation 与 delivery 使用最小的 **Assignment Delivery Intent**：stable id、idempotent acceptance 与 bounded restart reconciliation。它不是通用 queue、workflow engine 或 exactly-once claim。
 
-Assignment Report 携带有意义的 progress、blocked/waiting state、result 与 artifact reference；完整 execution history 留在 DSH。Assignment Lifecycle Notice 携带 Host-derived settlement/error/cancellation fact，并使用独立 provenance。两者都是 immutable Source Event，走普通 Inbox Trigger/Wake Policy path；attention coalescing 可以避免重复 wake，但不能删除任何事实。
+Assignment Report 携带有意义的 progress、blocked/waiting state、result 与 artifact reference；当它声明 `expects-reply`（Assignment Ask）时，Assignment 结束自己的 turn 等待答复，Orchestrator 用带 `answer_to` 的 Assignment Request 恢复它。创建 Assignment 与投递请求都不阻塞 Orchestrator 的 turn。完整 execution history 留在 DSH。Assignment Lifecycle Notice 携带 Host-derived settlement/error/cancellation fact，并使用独立 provenance。两者都是 immutable Source Event，走普通 Inbox Trigger/Wake Policy path；attention coalescing 可以避免重复 wake，但不能删除任何事实。
 
 Profile-wide **Assignment Concurrency Limit** 默认是 `3`，只计算正在执行的独立 Assignment Session。超过上限的 create 或 idle-wake attempt 立即失败，并返回结构化 machine field 和 LLM 可读说明。被拒绝的 attempt 不创建 queue、intent 或 dormant DSH Session。
 

@@ -5,6 +5,14 @@ import { describe, expect, it } from 'vitest';
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
 import { FakeAgentHost, FAKE_BOT as BOT } from './dsh-agent-host-fixture.js';
 
+const ASSIGNMENT = {
+  sessionId: 'assignment-1',
+  purpose: '核对发布状态',
+  activity: 'working' as const,
+  createdAt: '2026-09-17T00:00:00.000Z',
+  updatedAt: '2026-09-17T00:00:00.000Z',
+};
+
 describe('DSH Bot Agent adapter', () => {
   it('rejects when the durable turn outcome is an error even though the Agent becomes idle', async () => {
     const host = new FakeAgentHost({
@@ -24,9 +32,15 @@ describe('DSH Bot Agent adapter', () => {
         resume: false,
         bot: BOT,
         inboundChannelId: 'dm-test',
+        inbox: '',
         message: '请核对发布状态',
         channels: { read: () => [], search: () => [], send: async () => undefined as never },
-        createAssignment: async () => undefined as never,
+        assignments: {
+          create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+          list: () => [],
+          inspect: () => undefined,
+          request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+        },
       }),
     ).rejects.toThrow(/TRANSPORT.*DeepSeek API request failed/);
 
@@ -50,6 +64,7 @@ describe('DSH Bot Agent adapter', () => {
       resume: false,
       bot: BOT,
       inboundChannelId: 'dm-test',
+      inbox: '',
       message: '请核对发布状态',
       channels: {
         read: () => [],
@@ -64,9 +79,14 @@ describe('DSH Bot Agent adapter', () => {
           };
         },
       },
-      createAssignment: async (purpose) => {
-        expect(purpose).toBe('核对发布状态');
-        return { state: 'completed', summary: '发布状态正常', at: BOT.createdAt };
+      assignments: {
+        create: (input) => {
+          expect(input.purpose).toBe('核对发布状态');
+          return { outcome: 'created', assignment: ASSIGNMENT };
+        },
+        list: () => [],
+        inspect: () => undefined,
+        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
       },
     });
     await adapter.runAssignment({
@@ -78,6 +98,7 @@ describe('DSH Bot Agent adapter', () => {
         return { ...input, at: BOT.createdAt };
       },
     });
+    void reports;
 
     expect(sends).toEqual([{ body: '发布状态已经核对完成。' }]);
     expect(reports).toEqual([{ state: 'completed', summary: '发布状态正常' }]);
@@ -94,6 +115,9 @@ describe('DSH Bot Agent adapter', () => {
     expect(preparedWorkspaces).toEqual(['/runtime-workspaces/ada', '/runtime-workspaces/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'create_assignment',
+      'list_assignments',
+      'inspect_assignment',
+      'send_assignment_request',
       'channel_read',
       'channel_search',
       'channel_send',
@@ -115,8 +139,8 @@ describe('DSH Bot Agent adapter', () => {
       'report_to_orchestrator',
     ]);
     expect(host.scopes.get('orchestrator-ada')?.sections[0]?.text).toContain('Orchestrator');
-    expect(host.scopes.get('orchestrator-ada')?.sections[0]?.text).toContain('exactly one');
-    expect(host.scopes.get('assignment-1')?.sections[0]?.text).toContain('Assignment');
+    expect(host.scopes.get('orchestrator-ada')?.sections[0]?.text).toContain('does not wait');
+    expect(host.scopes.get('assignment-1')?.sections[0]?.text).toContain('expects_reply');
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
@@ -141,6 +165,7 @@ describe('DSH Bot Agent adapter', () => {
         resume,
         bot: BOT,
         inboundChannelId: 'dm-test',
+        inbox: '',
         message: '请核对发布状态',
         channels: {
           read: ({ channelId } = {}) => {
@@ -157,11 +182,12 @@ describe('DSH Bot Agent adapter', () => {
             body: input.body,
           }),
         },
-        createAssignment: async () => ({
-          state: 'completed',
-          summary: '发布状态正常',
-          at: BOT.createdAt,
-        }),
+        assignments: {
+          create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+          list: () => [],
+          inspect: () => undefined,
+          request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+        },
       });
     const stream = (callId: string, argumentsDelta: string) => {
       adapter.acceptAssistantStream('orchestrator-ada', {
