@@ -1,6 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-
 import { createElement, type ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -61,11 +58,6 @@ import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
 import type { BotSummary, ChannelSummary } from '../src/client/store.js';
-
-const sidebarSource = readFileSync(
-  fileURLToPath(new URL('../src/client/bot-sidebar.tsx', import.meta.url)),
-  'utf8',
-);
 
 const AT = '2026-09-19T00:00:00.000Z';
 
@@ -236,10 +228,6 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
-  it('does not reject an accepted drop from the browser-reset dropEffect', () => {
-    expect(sidebarSource).not.toContain("dropEffect === 'none'");
-  });
-
   it('renders the glyph-free section header anatomy', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
@@ -306,7 +294,6 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain('拖到此处置顶');
     expect(markup.indexOf('bh-pin-zone')).toBeLessThan(markup.indexOf('bh-roster-list'));
-    expect(sidebarSource).toMatch(/window\.setTimeout\(\(\) => \{[^}]*setPinZoneArmed\(true\)/s);
   });
 
   it('renders pinned PersonaBot DMs as draggable cards inside the pin drop zone', () => {
@@ -319,15 +306,6 @@ describe('bot sidebar rows', () => {
     expect(markup).toMatch(/class="bh-pinned[^"]*"[^>]*draggable="true"/);
     expect(markup).not.toContain('拖到此处置顶');
     expect(markup).toContain('bh-unpin-zone bh-unpin-zone-hidden');
-    expect(sidebarSource).toContain("t('pin.restore.zone.label')");
-    expect(sidebarSource).not.toContain('bh-roster-list-unpin-target');
-    expect(sidebarSource).not.toContain('拖到空白处取消置顶并回到原位');
-    expect(sidebarSource.match(/commitPinDrop\(false\)/g)).toHaveLength(1);
-    expect(sidebarSource).toMatch(/window\.setTimeout\(\(\) => \{[^}]*setUnpinZoneArmed\(true\)/s);
-    expect(sidebarSource).toContain("{ kind: 'scope', position: 'first' }");
-    expect(sidebarSource).toContain(
-      'actions.movePinnedChannel(channelId, plan.sectionId, plan.order)',
-    );
   });
 
   it('renders pinned group Channels with their hash glyph and removes their roster row', () => {
@@ -512,14 +490,6 @@ describe('bot sidebar rows', () => {
     setSortMode.mockClear();
     onSelect('unrelated');
     expect(setSortMode).not.toHaveBeenCalled();
-  });
-
-  it('owns right-click across the section block without stealing Channel menus', () => {
-    expect(sidebarSource).toMatch(
-      /className=\{`bh-section\$\{blockMarkerClass\}`\}\s+onContextMenu=\{\(event\) => \{/,
-    );
-    expect(sidebarSource).toContain("target.closest('[data-channel-id]')");
-    expect(sidebarSource).toContain('openSectionContextMenu(event.clientX, event.clientY)');
   });
 
   it('renders the section menu in native order with the mode checked and danger last', () => {

@@ -9,6 +9,11 @@ export interface MemoryCommit {
 }
 
 export interface MemoryGit {
+  /** Working-tree changes, relative paths from `git status --porcelain`. */
+  status(): string[];
+  /** Unified diff of the working tree against HEAD (bounded by the caller). */
+  diff(): string;
+  head(): string;
   commit(message: string): string;
   log(limit?: number): MemoryCommit[];
 }
@@ -51,8 +56,10 @@ function ensureIdentity(root: string, key: 'user.name' | 'user.email', value: st
   run(root, ['config', key, value]);
 }
 
-export function createMemoryGit(root: string): MemoryGit {
-  if (!existsSync(join(root, '.git'))) {
+/** Initialize a real Git repository on disk; idempotent for an existing one. */
+export function initializeMemoryGit(root: string): { created: boolean } {
+  const created = !existsSync(join(root, '.git'));
+  if (created) {
     run(root, ['init', '-b', 'main']);
   }
   ensureIdentity(root, 'user.name', 'BotHarness');
@@ -63,9 +70,29 @@ export function createMemoryGit(root: string): MemoryGit {
   if (!existsSync(attributes)) {
     writeFileSync(attributes, GITATTRIBUTES, 'utf8');
   }
-  commitIfChanges(root, INIT_COMMIT_MESSAGE);
+  return { created };
+}
 
+/** Commit the repository's initial files; only valid while it has no HEAD. */
+export function commitMemoryRepositorySeed(root: string): string {
+  return commitIfChanges(root, INIT_COMMIT_MESSAGE);
+}
+
+/** Open an existing repository without touching the working tree. */
+export function createMemoryGit(root: string): MemoryGit {
   return {
+    status() {
+      return run(root, ['status', '--porcelain'])
+        .split('\n')
+        .map((line) => line.slice(3).trim())
+        .filter((line) => line.length > 0);
+    },
+    diff() {
+      return run(root, ['diff', 'HEAD']);
+    },
+    head() {
+      return revParse(root);
+    },
     commit(message) {
       return commitIfChanges(root, message);
     },

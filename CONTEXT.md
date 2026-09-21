@@ -132,6 +132,28 @@ _Avoid_: integration, connector, channel binding
 The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. Its working directory is always the PersonaBot's Memory Repository; it is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row. Ordinary Session output remains execution history; only an explicit Channel messaging command authorized from trusted Session ownership and Channel membership speaks to a Human-facing Channel.
 _Avoid_: main agent, brain, supervisor
 
+### Computer
+
+**Computer**:
+A profile-scoped Linux desktop that every PersonaBot of one profile shares, with one persistent volume holding its files, browser profile (cookies and logins), and CLI credentials. Its isolation boundary is the profile, never a PersonaBot.
+_Avoid_: machine, VM, sandbox, desktop, host
+
+**Bot Screen**:
+The private work surface one PersonaBot uses on a Computer — the windows and tabs it opened. Observation and action are scoped to its owned windows; it is a visibility scope, not a security boundary.
+_Avoid_: display, virtual screen, workspace, desktop
+
+**Computer Provider**:
+The Provider that runs one Computer and supplies the observation and action capabilities PersonaBots use on it; exactly one is registered at a time.
+_Avoid_: driver, backend, sandbox
+
+**Takeover**:
+A human session on a Computer that pauses every PersonaBot acting there and disables model-facing screenshots for its duration. It is initiated from one Bot Screen but always applies to the whole Computer.
+_Avoid_: handoff, screen sharing, per-bot takeover
+
+**Computer Export**:
+A portable archive of one Computer's persistent volume, produced by an explicit export action and restorable on another Host. It is a profile-scoped facet, never part of a PersonaBot export.
+_Avoid_: PersonaBot export, backup file, disk image
+
 ### Memory
 
 **Memory**:
@@ -519,7 +541,7 @@ The RPC surface through which the Web Client reads PersonaBots and invokes separ
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:
-The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to PersonaBot navigation.
+The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to the Channel sidebar.
 _Avoid_: admin panel, dashboard, web console
 
 **Access policy**:

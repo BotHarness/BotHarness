@@ -13,6 +13,7 @@ import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotSessionSource } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
+import { createTestOwnership } from './helpers.js';
 
 const roots: string[] = [];
 
@@ -34,6 +35,7 @@ function setup() {
     states: createBotStateTracker(),
     channels,
     sessions,
+    ownership: createTestOwnership(),
     roster: createRosterStore(),
     createBotId: () => 'ada',
   });
@@ -42,12 +44,21 @@ function setup() {
   return { root, registry, methods, service };
 }
 
+/**
+ * Mirrors the gateway's SRC resolver: it reads the formal parameter names the
+ * wire `{ args }` mapping is keyed on. Tolerant of the arrow/rest/default
+ * forms the resolver accepts so a behaviour-preserving rewrite stays green.
+ */
 function parameterNames(method: (...args: never[]) => unknown): string[] {
   const source = Function.prototype.toString.call(method);
   const open = source.indexOf('(');
-  const close = source.indexOf(')', open + 1);
-  const body = source.slice(open + 1, close).trim();
-  return body.length === 0 ? [] : body.split(',').map((part) => part.trim());
+  const close = open === -1 ? -1 : source.indexOf(')', open + 1);
+  const parameters = open === -1 || close === -1 ? '' : source.slice(open + 1, close);
+  return parameters
+    .split(',')
+    .map((part) => part.trim().replace(/^\.\.\./, ''))
+    .map((part) => part.split('=')[0]?.trim() ?? '')
+    .filter((part) => part.length > 0);
 }
 
 describe('bridge typert service', () => {
@@ -89,6 +100,12 @@ describe('bridge typert service', () => {
       'pinsSet',
       'hiddenSet',
     ]);
+  });
+
+  it('reads parameter names from every form the SRC resolver accepts', () => {
+    expect(parameterNames(function (alpha: string, beta: number) {})).toEqual(['alpha', 'beta']);
+    expect(parameterNames((alpha: string, ...rest: string[]) => alpha)).toEqual(['alpha', 'rest']);
+    expect(parameterNames(function (alpha = 1, beta = 2) {})).toEqual(['alpha', 'beta']);
   });
 
   it('keeps every method signature parseable by the gateway SRC resolver', () => {

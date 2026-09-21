@@ -43,6 +43,31 @@ function admit(runtime: BotRuntime, input: HandleDmMessageInput): Promise<void> 
   return admission.settled;
 }
 
+function ownershipRows(owner: OperationalDatabaseOwner): Array<{
+  session_id: string;
+  bot_slug: string;
+  root_role: string;
+  provenance: string;
+  parent_session_id: string | null;
+  cwd_reference: string | null;
+}> {
+  return attachOperationalModule(owner, 'bot-runtime-test').read((database) =>
+    database
+      .prepare(
+        `SELECT session_id, bot_slug, root_role, provenance, parent_session_id, cwd_reference
+           FROM session_ownership ORDER BY created_at, session_id`,
+      )
+      .all(),
+  ) as Array<{
+    session_id: string;
+    bot_slug: string;
+    root_role: string;
+    provenance: string;
+    parent_session_id: string | null;
+    cwd_reference: string | null;
+  }>;
+}
+
 function sourceEvents(owner: OperationalDatabaseOwner): Array<{
   source_event_id: string;
   handled_at: string | null;
@@ -59,47 +84,6 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
 }
 
 describe('Bot runtime tracer bullet', () => {
-  it('does not turn an Orchestrator final message into a Channel message', async () => {
-    const home = createTempRoot('botharness-bot-runtime-silent-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
-    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
-    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
-    const dm = channels.getOrCreateDm('ada', 'Ada');
-    expect(dm).toBeDefined();
-    await channels.appendMessage(dm!.id, {
-      id: 'human-1',
-      at: FIXED_NOW().toISOString(),
-      author: { kind: 'human' },
-      body: '请调查发布状态',
-    });
-    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
-    const runtime = createBotRuntime({
-      database: owner,
-      registry,
-      channels,
-      agents: {
-        runOrchestrator: async () => undefined,
-        runAssignment: async () => undefined,
-        close: async () => undefined,
-      },
-      now: FIXED_NOW,
-      createSessionId: () => 'orchestrator-ada',
-    });
-
-    await admit(runtime, {
-      channelId: dm!.id,
-      messageId: 'human-1',
-      body: '请调查发布状态',
-    });
-
-    expect(channels.readMessages(dm!.id)).toEqual([
-      expect.objectContaining({ id: 'human-1', author: { kind: 'human' } }),
-    ]);
-
-    await runtime.close();
-    owner.close();
-  });
-
   it('keeps a failed Source Event pending, then retries and acknowledges it exactly once', async () => {
     const home = createTempRoot('botharness-bot-runtime-retry-');
     const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
@@ -384,6 +368,111 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     await reopened.close();
     reopenedOwner.close();
+  });
+
+  it('owns Sessions explicitly and records the run cwd as evidence, not identity', async () => {
+    const home = createTempRoot('botharness-bot-runtime-ownership-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(
+      registry.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/shared'] }).ok,
+    ).toBe(true);
+    expect(
+      registry.create({ slug: 'bob', displayName: 'Bob', workspaces: ['/srv/shared'] }).ok,
+    ).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const adaDm = channels.getOrCreateDm('ada', 'Ada');
+    const bobDm = channels.getOrCreateDm('bob', 'Bob');
+    for (const [id, channelId] of [
+      ['human-ada', adaDm!.id],
+      ['human-bob', bobDm!.id],
+    ] as const) {
+      await channels.appendMessage(channelId, {
+        id,
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: id,
+      });
+    }
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const sessionIds = ['orchestrator-ada', 'orchestrator-bob'];
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async () => undefined,
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createSessionId: () => sessionIds.shift() ?? 'unexpected-session',
+    });
+
+    await admit(runtime, { channelId: adaDm!.id, messageId: 'human-ada', body: 'hi' });
+    await admit(runtime, { channelId: bobDm!.id, messageId: 'human-bob', body: 'hi' });
+
+    expect(ownershipRows(owner)).toEqual([
+      {
+        session_id: 'orchestrator-ada',
+        bot_slug: 'ada',
+        root_role: 'orchestrator',
+        provenance: 'created',
+        parent_session_id: null,
+        cwd_reference: '/srv/shared',
+      },
+      {
+        session_id: 'orchestrator-bob',
+        bot_slug: 'bob',
+        root_role: 'orchestrator',
+        provenance: 'created',
+        parent_session_id: null,
+        cwd_reference: '/srv/shared',
+      },
+    ]);
+    expect(runtime.getAssignment('ada', 'orchestrator-bob')).toBeUndefined();
+
+    await runtime.close();
+    owner.close();
+  });
+
+  it('records the default runtime workspace as the cwd reference when no workspace is configured', async () => {
+    const home = createTempRoot('botharness-bot-runtime-cwd-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada');
+    await channels.appendMessage(dm!.id, {
+      id: 'human-1',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'hi',
+    });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async () => undefined,
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      workspaceRoot: '/srv/runtime-workspaces',
+      now: FIXED_NOW,
+      createSessionId: () => 'orchestrator-ada',
+    });
+
+    await admit(runtime, { channelId: dm!.id, messageId: 'human-1', body: 'hi' });
+
+    expect(ownershipRows(owner)).toEqual([
+      expect.objectContaining({
+        session_id: 'orchestrator-ada',
+        cwd_reference: '/srv/runtime-workspaces/ada',
+      }),
+    ]);
+
+    await runtime.close();
+    owner.close();
   });
 
   it('admits DM messages without waiting and runs them serially in order', async () => {

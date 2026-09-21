@@ -132,6 +132,26 @@ _避免使用_：integration、connector、channel binding
 PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Assignment Session。它的 working directory 始终是 PersonaBot 的 Memory Repository；它是 PersonaBot 的对外发声者，不是由 Human 管理的 Conversation，也不是 Assignment 列表中的一行。普通 Session output 只保留为 execution history；只有从可信 Session ownership 推导身份、并经过 Channel membership 授权的显式 Channel messaging command，才会向 Human-facing Channel 发声。
 _避免使用_：main agent、brain、supervisor
 
+**Computer**：
+一个 profile 级共享的 Linux 桌面，由该 profile 的所有 PersonaBot 共用；它拥有一个持久卷，保存其文件、浏览器 profile（Cookie 与登录态）与 CLI 凭据。它的隔离边界是 profile，绝不是某个 PersonaBot。
+_避免使用_：machine、VM、sandbox、desktop、host
+
+**Bot Screen**：
+某个 PersonaBot 在 Computer 上使用的私有工作界面——它打开的窗口与标签。观察与操作都限定在它拥有的窗口内；它是可见性作用域，不是安全边界。
+_避免使用_：display、virtual screen、workspace、desktop
+
+**Computer Provider**：
+运行一台 Computer 并提供 PersonaBot 在其上使用的观察与操作能力的 Provider；同一时刻只注册一个。
+_避免使用_：driver、backend、sandbox
+
+**Takeover**：
+Human 在一台 Computer 上的接管会话：暂停所有在该 Computer 上行动的 PersonaBot，并在其持续期间关闭面向模型的截图。它由某个 Bot Screen 发起，但始终作用于整台 Computer。
+_避免使用_：handoff、screen sharing、per-bot takeover
+
+**Computer Export**：
+一台 Computer 持久卷的可携带归档，由显式导出操作产生，可在另一台 Host 上恢复。它是 profile 级 facet，绝不是 PersonaBot export 的一部分。
+_避免使用_：PersonaBot export、backup file、disk image
+
 ### Memory（记忆）
 
 **Memory**：

@@ -19,11 +19,8 @@ import {
   type RosterSnapshot,
 } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
-import {
-  isInsideWorkspace,
-  type BotSessionSource,
-  type SessionSummary,
-} from '../sessions/source.js';
+import type { SessionOwnership } from '../sessions/ownership.js';
+import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
   AssignmentSummary,
@@ -100,6 +97,7 @@ export interface BridgeMethodsDeps {
   states: BotStateTracker;
   channels: ChannelStore;
   sessions: BotSessionSource;
+  ownership: SessionOwnership;
   roster: RosterStore;
   runtime?: BotRuntime;
   createBotId?: () => string;
@@ -225,9 +223,9 @@ function asNonBlank(source: Record<string, unknown>, key: string): string | unde
 
 function createFailure(
   slug: string,
-  reason: Extract<CreatePersonaBotResult, { ok: false }>['reason'],
+  failure: Extract<CreatePersonaBotResult, { ok: false }>,
 ): BridgeResult<never> {
-  switch (reason) {
+  switch (failure.reason) {
     case 'duplicate':
       return {
         ok: false,
@@ -237,6 +235,14 @@ function createFailure(
       return { ok: false, error: { code: 'invalid-slug', message: `invalid slug: ${slug}` } };
     case 'invalid-memory-dir':
       return invalidInput('memoryDir must be an absolute path');
+    case 'memory-unavailable':
+      return {
+        ok: false,
+        error: {
+          code: 'memory-unavailable',
+          message: `Memory Repository is unavailable: ${failure.detail ?? 'unknown reason'}`,
+        },
+      };
   }
 }
 
@@ -352,7 +358,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(workspaces.value === undefined ? {} : { workspaces: workspaces.value }),
         ...(avatarSeed.value === undefined ? {} : { avatar: avatarSeed.value }),
       });
-      if (!result.ok) return createFailure(slug, result.reason);
+      if (!result.ok) return createFailure(slug, result);
       return { ok: true, value: detailOf(result.record) };
     },
     update(payload) {
@@ -537,14 +543,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     sessions(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      const record = deps.registry.get(slug);
-      if (record === undefined) return unknownBot(slug);
-      const workspaces = record.workspaces;
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       const sessions = deps.sessions
         .list()
-        .filter((session) =>
-          workspaces.some((workspace) => isInsideWorkspace(session.cwd, workspace)),
-        )
+        .filter((session) => deps.ownership.resolve(session.id)?.botSlug === slug)
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       return { ok: true, value: { sessions } };
     },

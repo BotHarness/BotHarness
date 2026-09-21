@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-agent';
+import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import Schema from '@deepseek-ai/schemastery';
@@ -12,11 +13,15 @@ import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/regist
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
-import { mountOperationalDatabase, type OperationalDatabaseOwner } from './database/owner.js';
+import {
+  attachOperationalModule,
+  mountOperationalDatabase,
+  type OperationalDatabaseOwner,
+} from './database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
+import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
-import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
@@ -24,8 +29,10 @@ import {
   createDshBotAgentAdapter,
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
+import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
 import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
+import { createDshActivityProjection } from './state/dsh-activity.js';
 
 export const name = 'botharness-core';
 
@@ -51,6 +58,7 @@ export interface BotHarnessCore {
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   states: BotStateTracker;
+  ownership: SessionOwnership;
   memory: MemoryService;
   channels: ChannelStore;
   live: ChannelLiveHub;
@@ -77,9 +85,16 @@ export function createCore(
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
-  const registry = createPersonaBotRegistry({ rootDir });
+  const registry = createPersonaBotRegistry({
+    rootDir,
+    initializeMemory: (memoryDir) => {
+      const repository = ensureMemoryRepository({ memoryDir });
+      return repository.ok
+        ? { ok: true }
+        : { ok: false, message: `${repository.code}: ${repository.message}` };
+    },
+  });
   const states = createBotStateTracker();
-  const memory = createMemoryService({ registry });
   let live: ChannelLiveHub | undefined;
   const channels = createChannelStore({
     rootDir: join(dshHome, 'botharness', 'channels'),
@@ -91,11 +106,18 @@ export function createCore(
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const ownership = createSessionOwnership(
+    attachOperationalModule(operationalDatabase, 'session-ownership'),
+  );
+  const memory = createMemoryService({ registry, ownership });
+  const orchestratorCwd = (bot: { slug: string }): string | undefined =>
+    registry.memoryDirFor(bot.slug);
   return {
     rootDir,
     operationalDatabase,
     registry,
     states,
+    ownership,
     memory,
     channels,
     live,
@@ -105,6 +127,9 @@ export function createCore(
       registry,
       channels,
       agents: options.agents ?? unavailableAgentAdapter(),
+      ownership,
+      workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+      orchestratorCwd,
     }),
   };
 }
@@ -117,6 +142,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     agents: ctx.agents,
     defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
     defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+    orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     publishDraft: (event) => publishDraft(event),
   });
   const core = createCore({
@@ -136,19 +162,15 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
 
-  for (const tool of createMemoryTools({
-    resolveStore: (exec) => core.memory.storeForAgent(exec.agent),
-  })) {
-    ctx.tools.register(tool);
-  }
-
+  const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
   registerBridge(
     ctx,
     createBridgeMethods({
       registry: core.registry,
       states: core.states,
       channels: core.channels,
-      sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
+      sessions: createDshSessionSource(dshSessions),
+      ownership: core.ownership,
       roster: core.roster,
       runtime: core.runtime,
     }),
@@ -181,6 +203,32 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       });
     }, 'botharness: Channel live stream');
   });
+  const activity = createDshActivityProjection({
+    ownership: core.ownership,
+    states: core.states,
+  });
+  ctx.on(
+    'session/event',
+    (session, event) => {
+      activity.handleSessionEvent(session.id, event);
+    },
+    { global: true },
+  );
+  ctx.on(
+    'agent/created',
+    ({ agent }) => {
+      activity.handleAgentCreated(agent.session);
+    },
+    { global: true },
+  );
+  ctx.on(
+    'agent/disposed',
+    ({ agent }) => {
+      activity.handleSessionDisposed(agent.session.id);
+    },
+    { global: true },
+  );
+  activity.rebuild(dshSessions.list());
 
   // Storage is an optional capability: without it the plugin still loads and
   // the bridge reports `storage-unavailable` for arrangement writes.

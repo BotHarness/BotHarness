@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
@@ -9,6 +10,7 @@ import {
   type OperationalDatabaseModulePort,
   type OperationalDatabaseOwner,
 } from '../database/owner.js';
+import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 
 export type AssignmentActivity = 'working' | 'idle' | 'error';
 export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
@@ -109,6 +111,16 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
+  /** Shared ownership interface; defaults to one bound to `database`. */
+  ownership?: SessionOwnership;
+  /** Explicit run-configuration root recorded as each Session's cwd reference. */
+  workspaceRoot?: string;
+  /**
+   * Explicit Orchestrator working directory (the PersonaBot's Memory
+   * Repository). Assignments keep the legacy workspace resolution until
+   * Workspace Grants land.
+   */
+  orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   now?: () => Date;
   createSessionId?: () => string;
   createEventId?: () => string;
@@ -175,6 +187,9 @@ function requireNonBlank(value: string, name: string): string {
 
 class BotRuntimeImplementation implements BotRuntime {
   readonly #database: OperationalDatabaseModulePort;
+  readonly #ownership: SessionOwnership;
+  readonly #workspaceRoot: string | undefined;
+  readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #agents: BotAgentAdapter;
@@ -187,6 +202,11 @@ class BotRuntimeImplementation implements BotRuntime {
 
   constructor(options: BotRuntimeOptions) {
     this.#database = attachOperationalModule(options.database, 'bot-runtime');
+    this.#ownership =
+      options.ownership ??
+      createSessionOwnership(attachOperationalModule(options.database, 'session-ownership'));
+    this.#workspaceRoot = options.workspaceRoot;
+    this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
     this.#channels = options.channels;
     this.#agents = options.agents;
@@ -288,7 +308,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (!claim.shouldRun) return;
 
     const timestamp = this.#now().toISOString();
-    const orchestrator = this.#ensureOrchestrator(bot.slug, timestamp);
+    const orchestrator = this.#ensureOrchestrator(bot, timestamp);
     const markSideEffect = () => this.#markSourceEventNeedsRepair(claim.sourceEventId);
     try {
       await this.#agents.runOrchestrator({
@@ -483,32 +503,29 @@ class BotRuntimeImplementation implements BotRuntime {
     return channel;
   }
 
-  #ensureOrchestrator(botSlug: string, at: string): { sessionId: string; resume: boolean } {
-    const existing = this.#database.read((database) =>
-      database
-        .prepare(
-          `SELECT session_id
-             FROM session_ownership
-            WHERE bot_slug = ? AND root_role = 'orchestrator'
-            ORDER BY created_at DESC, session_id ASC
-            LIMIT 1`,
-        )
-        .get(botSlug),
-    ) as { session_id: string } | undefined;
-    if (existing !== undefined) return { sessionId: existing.session_id, resume: true };
+  #ensureOrchestrator(bot: PersonaBotRecord, at: string): { sessionId: string; resume: boolean } {
+    const existing = this.#ownership.rootsFor(bot.slug, 'orchestrator')[0];
+    if (existing !== undefined) return { sessionId: existing.sessionId, resume: true };
     const sessionId = this.#createSessionId();
-    this.#database.transaction(
-      (database) => {
-        database
-          .prepare(
-            `INSERT INTO session_ownership (session_id, bot_slug, root_role, created_at)
-             VALUES (?, ?, 'orchestrator', ?)`,
-          )
-          .run(sessionId, botSlug, at);
-      },
-      ['session-ownership'],
-    );
+    const cwdReference = this.#orchestratorCwdReference(bot);
+    this.#ownership.claim({
+      sessionId,
+      botSlug: bot.slug,
+      rootRole: 'orchestrator',
+      ...(cwdReference === undefined ? {} : { cwdReference }),
+      at,
+    });
     return { sessionId, resume: false };
+  }
+
+  #orchestratorCwdReference(bot: PersonaBotRecord): string | undefined {
+    return this.#orchestratorCwd?.(bot) ?? this.#cwdReference(bot);
+  }
+
+  #cwdReference(bot: PersonaBotRecord): string | undefined {
+    const configured = bot.workspaces[0];
+    if (configured !== undefined) return configured;
+    return this.#workspaceRoot === undefined ? undefined : join(this.#workspaceRoot, bot.slug);
   }
 
   async #createAssignment(
@@ -521,12 +538,14 @@ class BotRuntimeImplementation implements BotRuntime {
     const createdAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
-        database
-          .prepare(
-            `INSERT INTO session_ownership (session_id, bot_slug, root_role, created_at)
-             VALUES (?, ?, 'assignment', ?)`,
-          )
-          .run(sessionId, bot.slug, createdAt);
+        const cwdReference = this.#cwdReference(bot);
+        this.#ownership.claimWithin(database, {
+          sessionId,
+          botSlug: bot.slug,
+          rootRole: 'assignment',
+          ...(cwdReference === undefined ? {} : { cwdReference }),
+          at: createdAt,
+        });
         database
           .prepare(
             `INSERT INTO assignments (
