@@ -43,6 +43,7 @@ export interface OrchestratorAgentRun {
   resume: boolean;
   bot: PersonaBotRecord;
   message: string;
+  inboundChannelId: string;
   channels: OrchestratorChannelAccess;
   createAssignment(purpose: string): Promise<AssignmentReport>;
 }
@@ -315,6 +316,7 @@ class BotRuntimeImplementation implements BotRuntime {
         resume: orchestrator.resume,
         bot,
         message: body,
+        inboundChannelId: channelId,
         channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
         createAssignment: (purpose) => {
           const normalized = requireNonBlank(purpose, 'Assignment purpose');

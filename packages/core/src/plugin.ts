@@ -10,6 +10,8 @@ import Schema from '@deepseek-ai/schemastery';
 import { createBridgeMethods } from './bridge/methods.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
+import type { ChannelDraftEvent } from './channels/draft.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
 import {
   attachOperationalModule,
@@ -59,6 +61,7 @@ export interface BotHarnessCore {
   ownership: SessionOwnership;
   memory: MemoryService;
   channels: ChannelStore;
+  live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
 }
@@ -92,7 +95,13 @@ export function createCore(
     },
   });
   const states = createBotStateTracker();
-  const channels = createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') });
+  let live: ChannelLiveHub | undefined;
+  const channels = createChannelStore({
+    rootDir: join(dshHome, 'botharness', 'channels'),
+    onCommitted: (commit) => live?.publishCommitted(commit),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  live = createChannelLiveHub(channels);
   const operationalDatabase = mountOperationalDatabase({
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
@@ -111,6 +120,7 @@ export function createCore(
     ownership,
     memory,
     channels,
+    live,
     roster: createRosterStore({ warn: options.warn }),
     runtime: createBotRuntime({
       database: operationalDatabase,
@@ -127,20 +137,30 @@ export function createCore(
 export function apply(ctx: Context, config: BotHarnessConfig): void {
   if (!config.enabled) return;
   const dshHome = resolveDshHome();
+  let publishDraft: (event: ChannelDraftEvent) => void = () => undefined;
+  const agentAdapter = createDshBotAgentAdapter({
+    agents: ctx.agents,
+    defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
+    defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+    orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
+    publishDraft: (event) => publishDraft(event),
+  });
   const core = createCore({
     dshHome,
     warn: (message) => ctx.logger.warn(message),
-    agents: createDshBotAgentAdapter({
-      agents: ctx.agents,
-      defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost })
-        .agentDefaultModel,
-      defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
-      orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
-    }),
+    agents: agentAdapter,
   });
+  publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
+  ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
+
+  ctx.on(
+    'agent/assistant-stream',
+    ({ agent, frame }) => agentAdapter.acceptAssistantStream(agent.session.id, frame),
+    { global: true },
+  );
 
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
   registerBridge(
@@ -156,6 +176,33 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     }),
   );
 
+  // The shared /api carrier authenticates this exact Fetch route.
+  ctx.inject(['connection'], (connectionCtx) => {
+    const connection = (
+      connectionCtx as unknown as {
+        connection: {
+          fetch: {
+            register(route: {
+              path: string;
+              methods: readonly ['GET'];
+              requestBody: 'buffered';
+              fetch(request: Request): Promise<Response>;
+            }): () => Promise<void>;
+          };
+        };
+      }
+    ).connection;
+    connectionCtx.effect(() => {
+      return connection.fetch.register({
+        path: CHANNEL_STREAM_PATH,
+        methods: ['GET'],
+        requestBody: 'buffered',
+        fetch: async (request) => {
+          return core.live.open(request);
+        },
+      });
+    }, 'botharness: Channel live stream');
+  });
   const activity = createDshActivityProjection({
     ownership: core.ownership,
     states: core.states,

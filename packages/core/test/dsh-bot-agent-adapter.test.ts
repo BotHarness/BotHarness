@@ -1,3 +1,5 @@
+import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
+
 import { describe, expect, it } from 'vitest';
 
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
@@ -21,6 +23,7 @@ describe('DSH Bot Agent adapter', () => {
         sessionId: 'orchestrator-ada',
         resume: false,
         bot: BOT,
+        inboundChannelId: 'dm-test',
         message: '请核对发布状态',
         channels: { read: () => [], search: () => [], send: async () => undefined as never },
         createAssignment: async () => undefined as never,
@@ -46,6 +49,7 @@ describe('DSH Bot Agent adapter', () => {
       sessionId: 'orchestrator-ada',
       resume: false,
       bot: BOT,
+      inboundChannelId: 'dm-test',
       message: '请核对发布状态',
       channels: {
         read: () => [],
@@ -116,5 +120,81 @@ describe('DSH Bot Agent adapter', () => {
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
+  });
+
+  it('caches allowed and denied draft Channels only for the current Orchestrator run', async () => {
+    const host = new FakeAgentHost();
+    const reads: string[] = [];
+    const drafts: string[] = [];
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      defaultWorkspaceRoot: '/runtime-workspaces',
+      ensureWorkspace: () => undefined,
+      publishDraft: (event) => {
+        if (event.type === 'update') drafts.push(event.draft.body);
+      },
+    });
+    const run = (resume: boolean) =>
+      adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume,
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        message: '请核对发布状态',
+        channels: {
+          read: ({ channelId } = {}) => {
+            const id = channelId ?? 'dm-test';
+            reads.push(id);
+            if (id === 'outside') throw new Error('not a member');
+            return [];
+          },
+          search: () => [],
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot' as const, slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        createAssignment: async () => ({
+          state: 'completed',
+          summary: '发布状态正常',
+          at: BOT.createdAt,
+        }),
+      });
+    const stream = (callId: string, argumentsDelta: string) => {
+      adapter.acceptAssistantStream('orchestrator-ada', {
+        type: 'chunk',
+        attemptId: 'attempt-1',
+        revision: 1,
+        index: 0,
+        time: 1,
+        chunk: {
+          type: 'tool-call-delta',
+          index: 0,
+          id: callId,
+          name: 'channel_send',
+          argumentsDelta,
+        },
+      } as AssistantStreamFrame);
+    };
+
+    const first = run(false);
+    stream('allowed', '{"body":"a');
+    stream('allowed', 'b');
+    stream('allowed', 'c"}');
+    stream('denied-1', '{"body":"private","channel_id":"outside"}');
+    stream('denied-2', '{"body":"private","channel_id":"outside"}');
+    await first;
+    expect(reads).toEqual(['dm-test', 'outside']);
+    expect(drafts).toEqual(['a', 'ab', 'abc']);
+
+    const second = run(true);
+    stream('next', '{"body":"next"}');
+    await second;
+    expect(reads).toEqual(['dm-test', 'outside', 'dm-test']);
+    expect(drafts.at(-1)).toBe('next');
+    await adapter.close();
   });
 });

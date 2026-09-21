@@ -377,9 +377,13 @@ export async function loadChannelMessages(
   call: BridgeCall,
   channelId: string,
   signal?: AbortSignal,
-): Promise<ChannelMessage[]> {
-  const page = parseChannelMessages(await unwrap(call, 'channelMessages', { channelId }, signal));
-  return page.reverse();
+): Promise<{ messages: ChannelMessage[]; revision: number }> {
+  const value = await unwrap(call, 'channelMessages', { channelId }, signal);
+  const revision = asRecord(value)?.['revision'];
+  if (typeof revision !== 'number' || !Number.isSafeInteger(revision) || revision < 0) {
+    throw new Error('invalid channelMessages revision');
+  }
+  return { messages: parseChannelMessages(value).reverse(), revision };
 }
 
 export async function sendChannelMessage(
