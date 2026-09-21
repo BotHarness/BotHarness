@@ -43,6 +43,7 @@ window.__ModuleLoader__.load({
 			"",
 			"或 Docker Desktop：https://www.docker.com/products/docker-desktop/"
 		].join("\n");
+		const SHARED_NOTE = "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。";
 		const AUTHORIZATION_POINTS = [
 			"检测本机容器运行时；缺失时只给安装引导，不会自动安装",
 			"创建/复用持久卷（登录态与文件保留在这台电脑上）",
@@ -76,73 +77,10 @@ window.__ModuleLoader__.load({
 			whiteSpace: "pre-wrap",
 			wordBreak: "break-all"
 		};
-		/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
-		function ComputerEntry({ botSlug }) {
-			const [payload, setPayload] = (0, react.useState)();
-			const [error, setError] = (0, react.useState)();
-			const [busy, setBusy] = (0, react.useState)(false);
-			const [confirming, setConfirming] = (0, react.useState)(false);
-			const [approved, setApproved] = (0, react.useState)(() => globalThis.sessionStorage?.getItem(APPROVED_KEY) === "1");
-			const [busySince, setBusySince] = (0, react.useState)(void 0);
-			const [elapsed, setElapsed] = (0, react.useState)(0);
-			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
-			const refresh = (0, react.useCallback)(async () => {
-				try {
-					setPayload(await requestJson(STATUS_ENDPOINT));
-					setError(void 0);
-				} catch (cause) {
-					setError(String(cause));
-				}
-			}, []);
-			(0, react.useEffect)(() => {
-				refresh();
-				const timer = setInterval(() => void refresh(), 3e3);
-				return () => clearInterval(timer);
-			}, [refresh]);
-			const phase = payload?.status.phase;
-			const progress = payload?.status.progress;
-			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
-			(0, react.useEffect)(() => {
-				if (!inProgress) {
-					setBusySince(void 0);
-					setElapsed(0);
-					return;
-				}
-				setBusySince((current) => current ?? Date.now());
-				const timer = setInterval(() => {
-					setNowTs(Date.now());
-					setBusySince((current) => {
-						if (current !== void 0) setElapsed(Math.round((Date.now() - current) / 1e3));
-						return current;
-					});
-				}, 1e3);
-				return () => clearInterval(timer);
-			}, [inProgress]);
-			const act = (0, react.useCallback)(async (endpoint) => {
-				setBusy(true);
-				try {
-					await requestJson(endpoint, {
-						method: "POST",
-						headers: { "content-type": "application/json" },
-						body: JSON.stringify({ authorize: true })
-					});
-					await refresh();
-				} catch (cause) {
-					setError(String(cause));
-				} finally {
-					setBusy(false);
-				}
-			}, [refresh]);
-			const approve = (0, react.useCallback)((remember) => {
-				if (remember) {
-					globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
-					setApproved(true);
-				}
-				setConfirming(false);
-				act(START_ENDPOINT);
-			}, [act]);
-			const state = payload?.status.state ?? "absent";
-			if (payload !== void 0 && !payload.probe.available) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+		/** Pure three-state view; the container component supplies data and handlers. */
+		function ComputerEntryView(props) {
+			const { state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, onStart, onStop, onApprove, onCancel } = props;
+			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: SETUP_GUIDANCE
 			});
@@ -176,12 +114,7 @@ window.__ModuleLoader__.load({
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
 							type: "checkbox",
-							onChange: (event) => {
-								if (event.target.checked) {
-									globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
-									setApproved(true);
-								}
-							}
+							onChange: (event) => onApprove(event.target.checked)
 						}), "本次会话内不再询问"]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -192,17 +125,18 @@ window.__ModuleLoader__.load({
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
 							style: buttonStyle,
-							onClick: () => setConfirming(false),
+							onClick: onCancel,
 							children: "取消"
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
 							style: primaryButtonStyle,
-							onClick: () => approve(false),
+							onClick: onStart,
 							children: "授权并启动"
 						})]
 					})
 				]
 			});
+			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
 			if (state === "running") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -223,7 +157,7 @@ window.__ModuleLoader__.load({
 					type: "button",
 					style: buttonStyle,
 					disabled: busy || inProgress,
-					onClick: () => void act(STOP_ENDPOINT),
+					onClick: onStop,
 					children: busy || phase === "stopping" ? "停止中…" : "停止"
 				})]
 			});
@@ -259,7 +193,7 @@ window.__ModuleLoader__.load({
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: terminalStyle,
-						children: progress?.text ?? payload?.status.detail ?? "请稍候"
+						children: progress?.text ?? detail ?? "请稍候"
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: { opacity: .5 },
@@ -281,14 +215,101 @@ window.__ModuleLoader__.load({
 				},
 				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 					style: noteStyle,
-					children: error ?? payload?.status.detail ?? "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。"
+					children: error ?? detail ?? SHARED_NOTE
 				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 					type: "button",
 					style: primaryButtonStyle,
 					disabled: busy,
-					onClick: () => approved ? void act(START_ENDPOINT) : setConfirming(true),
+					onClick: onStart,
 					children: busy ? "启动中…" : "启动"
 				})]
+			});
+		}
+		/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
+		function ComputerEntry({ botSlug }) {
+			const [payload, setPayload] = (0, react.useState)();
+			const [error, setError] = (0, react.useState)();
+			const [busy, setBusy] = (0, react.useState)(false);
+			const [confirming, setConfirming] = (0, react.useState)(false);
+			const [approved, setApproved] = (0, react.useState)(() => globalThis.sessionStorage?.getItem(APPROVED_KEY) === "1");
+			const [busySince, setBusySince] = (0, react.useState)(void 0);
+			const [elapsed, setElapsed] = (0, react.useState)(0);
+			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
+			const refresh = (0, react.useCallback)(async () => {
+				try {
+					setPayload(await requestJson(STATUS_ENDPOINT));
+					setError(void 0);
+				} catch (cause) {
+					setError(String(cause));
+				}
+			}, []);
+			(0, react.useEffect)(() => {
+				refresh();
+				const timer = setInterval(() => void refresh(), 3e3);
+				return () => clearInterval(timer);
+			}, [refresh]);
+			const phase = payload?.status.phase;
+			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
+			(0, react.useEffect)(() => {
+				if (!inProgress) {
+					setBusySince(void 0);
+					setElapsed(0);
+					return;
+				}
+				setBusySince((current) => current ?? Date.now());
+				const timer = setInterval(() => {
+					setNowTs(Date.now());
+					setBusySince((current) => {
+						if (current !== void 0) setElapsed(Math.round((Date.now() - current) / 1e3));
+						return current;
+					});
+				}, 1e3);
+				return () => clearInterval(timer);
+			}, [inProgress]);
+			const act = (0, react.useCallback)(async (endpoint) => {
+				setBusy(true);
+				try {
+					await requestJson(endpoint, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ authorize: true })
+					});
+					await refresh();
+				} catch (cause) {
+					setError(String(cause));
+				} finally {
+					setBusy(false);
+				}
+			}, [refresh]);
+			const onStart = (0, react.useCallback)(() => {
+				if (!approved) {
+					setConfirming(true);
+					return;
+				}
+				act(START_ENDPOINT);
+			}, [act, approved]);
+			const onApprove = (0, react.useCallback)((remember) => {
+				if (remember) {
+					globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
+					setApproved(true);
+				}
+			}, []);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
+				state: payload?.status.state ?? "absent",
+				...phase === void 0 ? {} : { phase },
+				...payload?.status.detail === void 0 ? {} : { detail: payload.status.detail },
+				...payload?.status.progress === void 0 ? {} : { progress: payload.status.progress },
+				runtimeAvailable: payload?.probe.available ?? true,
+				confirming,
+				busy,
+				elapsed,
+				nowTs,
+				...error === void 0 ? {} : { error },
+				...botSlug === void 0 ? {} : { botSlug },
+				onStart,
+				onStop: () => void act(STOP_ENDPOINT),
+				onApprove,
+				onCancel: () => setConfirming(false)
 			});
 		}
 		function apply(ctx) {
@@ -305,6 +326,8 @@ window.__ModuleLoader__.load({
 			});
 		}
 		//#endregion
+		exports.ComputerEntry = ComputerEntry;
+		exports.ComputerEntryView = ComputerEntryView;
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;

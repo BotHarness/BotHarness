@@ -36,6 +36,12 @@ type ComputerPhase =
   | 'importing'
   | 'failed';
 
+interface ComputerProgress {
+  readonly percent?: number;
+  readonly text?: string;
+  readonly updatedAt?: number;
+}
+
 interface ComputerStatusPayload {
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
@@ -44,11 +50,7 @@ interface ComputerStatusPayload {
     readonly state: ComputerState;
     readonly phase?: ComputerPhase;
     readonly detail?: string;
-    readonly progress?: {
-      readonly percent?: number;
-      readonly text?: string;
-      readonly updatedAt?: number;
-    };
+    readonly progress?: ComputerProgress;
   };
 }
 
@@ -91,6 +93,9 @@ const SETUP_GUIDANCE = [
   '或 Docker Desktop：https://www.docker.com/products/docker-desktop/',
 ].join('\n');
 
+const SHARED_NOTE =
+  '这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。';
+
 const AUTHORIZATION_POINTS = [
   '检测本机容器运行时；缺失时只给安装引导，不会自动安装',
   '创建/复用持久卷（登录态与文件保留在这台电脑上）',
@@ -122,8 +127,152 @@ const terminalStyle: CSSProperties = {
   wordBreak: 'break-all',
 };
 
+export interface ComputerEntryViewProps {
+  readonly state: ComputerState;
+  readonly phase?: ComputerPhase;
+  readonly detail?: string;
+  readonly progress?: ComputerProgress;
+  readonly runtimeAvailable: boolean;
+  readonly confirming: boolean;
+  readonly busy: boolean;
+  readonly elapsed: number;
+  readonly nowTs: number;
+  readonly error?: string;
+  readonly botSlug?: string;
+  readonly onStart: () => void;
+  readonly onStop: () => void;
+  readonly onApprove: (remember: boolean) => void;
+  readonly onCancel: () => void;
+}
+
+/** Pure three-state view; the container component supplies data and handlers. */
+export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
+  const {
+    state,
+    phase,
+    detail,
+    progress,
+    runtimeAvailable,
+    confirming,
+    busy,
+    elapsed,
+    nowTs,
+    error,
+    botSlug,
+    onStart,
+    onStop,
+    onApprove,
+    onCancel,
+  } = props;
+
+  if (!runtimeAvailable) {
+    return <div style={noteStyle}>{SETUP_GUIDANCE}</div>;
+  }
+
+  if (confirming) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+        <div style={{ opacity: 0.8 }}>启动会在你的机器上执行：</div>
+        <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.6, opacity: 0.85 }}>
+          {AUTHORIZATION_POINTS.map((point) => (
+            <li key={point}>{point}</li>
+          ))}
+        </ul>
+        <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
+          <input type="checkbox" onChange={(event) => onApprove(event.target.checked)} />
+          本次会话内不再询问
+        </label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button type="button" style={buttonStyle} onClick={onCancel}>
+            取消
+          </button>
+          <button type="button" style={primaryButtonStyle} onClick={onStart}>
+            授权并启动
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const inProgress =
+    phase === 'pulling' ||
+    phase === 'starting' ||
+    phase === 'stopping' ||
+    phase === 'exporting' ||
+    phase === 'importing';
+
+  if (state === 'running') {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <iframe
+          title={`${botSlug ?? 'PersonaBot'} 的电脑`}
+          src={VIEWER_SRC}
+          style={{
+            width: '100%',
+            aspectRatio: '16 / 10',
+            border: '1px solid var(--dsh-border, #3a3a3a)',
+            borderRadius: 8,
+            background: '#000',
+          }}
+        />
+        <button type="button" style={buttonStyle} disabled={busy || inProgress} onClick={onStop}>
+          {busy || phase === 'stopping' ? '停止中…' : '停止'}
+        </button>
+      </div>
+    );
+  }
+
+  if (inProgress) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+        <div>{PHASE_LABEL[phase] ?? '处理中'}…</div>
+        <div
+          style={{
+            position: 'relative',
+            overflow: 'hidden',
+            height: 6,
+            borderRadius: 3,
+            background: 'rgba(127,127,127,0.25)',
+          }}
+        >
+          <div
+            style={
+              progress?.percent === undefined
+                ? { position: 'absolute', inset: 0, background: 'var(--dsh-accent, #4d6bfe)' }
+                : {
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    bottom: 0,
+                    width: `${String(progress.percent)}%`,
+                    background: 'var(--dsh-accent, #4d6bfe)',
+                  }
+            }
+          />
+        </div>
+        <div style={terminalStyle}>{progress?.text ?? detail ?? '请稍候'}</div>
+        <div style={{ opacity: 0.5 }}>
+          已用时 {elapsed}s
+          {progress?.updatedAt === undefined
+            ? ''
+            : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)))}s 前`}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
+      <div style={noteStyle}>{error ?? detail ?? SHARED_NOTE}</div>
+      <button type="button" style={primaryButtonStyle} disabled={busy} onClick={onStart}>
+        {busy ? '启动中…' : '启动'}
+      </button>
+    </div>
+  );
+}
+
 /** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
-function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
+export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -151,7 +300,6 @@ function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
   }, [refresh]);
 
   const phase = payload?.status.phase;
-  const progress = payload?.status.progress;
   const inProgress =
     phase === 'pulling' ||
     phase === 'starting' ||
@@ -195,139 +343,42 @@ function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
     [refresh],
   );
 
-  const approve = useCallback(
+  const onStart = useCallback(() => {
+    if (!approved) {
+      setConfirming(true);
+      return;
+    }
+    void act(START_ENDPOINT);
+  }, [act, approved]);
+
+  const onApprove = useCallback(
     (remember: boolean) => {
       if (remember) {
         globalThis.sessionStorage?.setItem(APPROVED_KEY, '1');
         setApproved(true);
       }
-      setConfirming(false);
-      void act(START_ENDPOINT);
     },
-    [act],
+    [],
   );
 
-  const state = payload?.status.state ?? 'absent';
-  const unavailable = payload !== undefined && !payload.probe.available;
-
-  if (unavailable) {
-    return <div style={noteStyle}>{SETUP_GUIDANCE}</div>;
-  }
-
-  if (confirming) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div style={{ opacity: 0.8 }}>启动会在你的机器上执行：</div>
-        <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.6, opacity: 0.85 }}>
-          {AUTHORIZATION_POINTS.map((point) => (
-            <li key={point}>{point}</li>
-          ))}
-        </ul>
-        <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
-          <input
-            type="checkbox"
-            onChange={(event) => {
-              if (event.target.checked) {
-                globalThis.sessionStorage?.setItem(APPROVED_KEY, '1');
-                setApproved(true);
-              }
-            }}
-          />
-          本次会话内不再询问
-        </label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button type="button" style={buttonStyle} onClick={() => setConfirming(false)}>
-            取消
-          </button>
-          <button type="button" style={primaryButtonStyle} onClick={() => approve(false)}>
-            授权并启动
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (state === 'running') {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <iframe
-          title={`${botSlug ?? 'PersonaBot'} 的电脑`}
-          src={VIEWER_SRC}
-          style={{
-            width: '100%',
-            aspectRatio: '16 / 10',
-            border: '1px solid var(--dsh-border, #3a3a3a)',
-            borderRadius: 8,
-            background: '#000',
-          }}
-        />
-        <button
-          type="button"
-          style={buttonStyle}
-          disabled={busy || inProgress}
-          onClick={() => void act(STOP_ENDPOINT)}
-        >
-          {busy || phase === 'stopping' ? '停止中…' : '停止'}
-        </button>
-      </div>
-    );
-  }
-
-  if (inProgress) {
-    return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div>{PHASE_LABEL[phase] ?? '处理中'}…</div>
-        <div
-          style={{
-            position: 'relative',
-            overflow: 'hidden',
-            height: 6,
-            borderRadius: 3,
-            background: 'rgba(127,127,127,0.25)',
-          }}
-        >
-          <div
-            style={
-              progress?.percent === undefined
-                ? { position: 'absolute', inset: 0, background: 'var(--dsh-accent, #4d6bfe)' }
-                : {
-                    position: 'absolute',
-                    left: 0,
-                    top: 0,
-                    bottom: 0,
-                    width: `${String(progress.percent)}%`,
-                    background: 'var(--dsh-accent, #4d6bfe)',
-                  }
-            }
-          />
-        </div>
-        <div style={terminalStyle}>{progress?.text ?? payload?.status.detail ?? '请稍候'}</div>
-        <div style={{ opacity: 0.5 }}>
-          已用时 {elapsed}s
-          {progress?.updatedAt === undefined
-            ? ''
-            : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)))}s 前`}
-        </div>
-      </div>
-    );
-  }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-      <div style={noteStyle}>
-        {error ??
-          payload?.status.detail ??
-          '这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。'}
-      </div>
-      <button
-        type="button"
-        style={primaryButtonStyle}
-        disabled={busy}
-        onClick={() => (approved ? void act(START_ENDPOINT) : setConfirming(true))}
-      >
-        {busy ? '启动中…' : '启动'}
-      </button>
-    </div>
+    <ComputerEntryView
+      state={payload?.status.state ?? 'absent'}
+      {...(phase === undefined ? {} : { phase })}
+      {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
+      {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
+      runtimeAvailable={payload?.probe.available ?? true}
+      confirming={confirming}
+      busy={busy}
+      elapsed={elapsed}
+      nowTs={nowTs}
+      {...(error === undefined ? {} : { error })}
+      {...(botSlug === undefined ? {} : { botSlug })}
+      onStart={onStart}
+      onStop={() => void act(STOP_ENDPOINT)}
+      onApprove={onApprove}
+      onCancel={() => setConfirming(false)}
+    />
   );
 }
 
