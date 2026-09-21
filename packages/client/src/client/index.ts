@@ -13,6 +13,7 @@ import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
 import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
+import { openBotSettings } from './bot-settings-open.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
@@ -136,7 +137,12 @@ export function apply(ctx: ClientContext): void {
         order: 10,
         label: () => t('panel.label'),
         locale: LOCALE_NS,
-        inject: () => ({ ...botModePrefsFace(prefs) }),
+        inject: () => ({
+          ...botModePrefsFace(prefs),
+          openSettings: () => {
+            openBotSettings(() => [t('settings.nav')]);
+          },
+        }),
       },
       createBotPanelEntry(() => {
         ctx.layout.selectPanel(null);

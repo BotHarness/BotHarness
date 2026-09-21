@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { BOT_GLYPH_SVG, botIconMarkup } from '../src/client/bot-icon.js';
-import { installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
+import { findBotNavCell, installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
+import { openBotSettings } from '../src/client/bot-settings-open.js';
 
 describe('bot icon markup', () => {
   it('serves the mascot as palette-matched artwork', () => {
@@ -52,6 +53,9 @@ describe('settings nav tagging', () => {
       has(name: string): boolean;
       contains(name: string): boolean;
     };
+    clicks: number;
+    click(): void;
+    getAttribute(name: string): string | null;
     style: { cssText: string; display: string };
     children: FakeElement[];
     firstElementChild: FakeElement | null;
@@ -83,6 +87,13 @@ describe('settings nav tagging', () => {
       innerHTML: '',
       firstChild: null,
       attributes: {},
+      clicks: 0,
+      click() {
+        element.clicks += 1;
+      },
+      getAttribute(name) {
+        return element.attributes[name] ?? null;
+      },
       style: { cssText: '', display: '' },
       get children() {
         return children.filter((child) => child.removed !== true);
@@ -130,6 +141,7 @@ describe('settings nav tagging', () => {
       body: fakeElement('body'),
       createElement: (tagName: string) => fakeElement(tagName),
       querySelectorAll: (selector: string) => (selector === 'button' ? [general, bot] : []),
+      querySelector: () => null,
     };
     const dispose = installBotNavIcon({
       labels: () => ['Bot 设置'],
@@ -149,5 +161,40 @@ describe('settings nav tagging', () => {
     dispose();
     expect(bot.classList.has('bh-bot-nav')).toBe(false);
     expect(bot.querySelector(':scope > .bh-bot-nav-icon')).toBeNull();
+  });
+  it('finds the Bot nav cell by label and opens Settings through the trigger', () => {
+    const bot = fakeNavCell('Bot 设置');
+    const general = fakeNavCell('通用设置');
+    const trigger = fakeElement('button');
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-expanded', 'false');
+    const document = {
+      body: fakeElement('body'),
+      createElement: (tagName: string) => fakeElement(tagName),
+      querySelectorAll: (selector: string) => (selector === 'button' ? [general, bot] : []),
+      querySelector: (selector: string) =>
+        selector === 'button[aria-haspopup="dialog"]' ? trigger : null,
+    };
+
+    expect(findBotNavCell(document as never, ['Bot 设置'])).toBe(bot);
+    expect(findBotNavCell(document as never, ['Bot settings'])).toBeUndefined();
+
+    openBotSettings(() => ['Bot 设置'], document as never);
+    expect(trigger.clicks).toBe(1);
+    expect(bot.clicks).toBe(1);
+    expect(general.clicks).toBe(0);
+  });
+
+  it('leaves an already-open Settings dialog alone', () => {
+    const trigger = fakeElement('button');
+    trigger.setAttribute('aria-expanded', 'true');
+    const document = {
+      body: fakeElement('body'),
+      createElement: (tagName: string) => fakeElement(tagName),
+      querySelectorAll: () => [],
+      querySelector: () => trigger,
+    };
+    openBotSettings(() => ['Bot 设置'], document as never);
+    expect(trigger.clicks).toBe(0);
   });
 });

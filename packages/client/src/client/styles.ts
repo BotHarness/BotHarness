@@ -365,6 +365,37 @@ button:has(.bh-panel-glyph)::before {
   inset: 0;
 }
 
+/* Settings gear on the active Bot row: hidden until the row is hovered, then
+   it opens the Bot section of the Settings dialog. */
+.bh-panel-gear {
+  position: absolute;
+  top: 50%;
+  right: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--dsw-alias-label-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition:
+    opacity 120ms var(--ds-ease-in-out),
+    background 120ms var(--ds-ease-in-out);
+}
+
+button:has(.bh-panel-glyph):hover .bh-panel-gear {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bh-panel-gear:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
 .bh-pin-zone {
   flex: none;
   overflow: hidden;

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   Button,
@@ -10,6 +11,7 @@ import {
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
+  IconSettingsOutline16,
   HoverCard,
   Menu,
   StateDot,
@@ -85,40 +87,69 @@ export interface BotPanelEntryProps {
   active: boolean;
   /** Live preference hook injected by the panellist registration. */
   useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
+  /** Open Settings on the Bot section; injected by the panellist registration. */
+  openSettings: () => void;
+  /** Slot-provided translator for the BotHarness namespace. */
+  t: BotHarnessTranslate;
 }
 
 /**
- * Sidebar panel glyph for the selected panel. While active, an absolutely
- * positioned hit target covers the whole shell row (see the
- * `button:has(.bh-panel-glyph)` rule in styles.ts) and turns the shell's
- * re-selection click into a mode exit; the capture handler stops React's
- * propagation so the shell's own `selectPanel(id)` never runs.
+ * Sidebar panel glyph for the selected panel. While the panel is active the
+ * whole shell row becomes the exit target (a hit layer portaled into the row
+ * button) and, in the wide sidebar, a settings gear fades in on hover that
+ * opens the Bot section of the Settings dialog. The shell's row is a button,
+ * so the overlay is a span with a button role — nesting a real button inside
+ * it would be invalid.
  */
 export function BotPanelIcon({
   size,
   active,
   onExit,
   useBotModePrefs,
-}: {
-  size: number;
-  active: boolean;
-  onExit: () => void;
-  useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
-}): ReactElement {
+  openSettings,
+  t,
+}: BotPanelEntryProps & { onExit: () => void }): ReactElement {
   const icon = useBotModePrefs((prefs) => prefs.botIcon);
+  const glyph = useRef<HTMLSpanElement>(null);
+  const [row, setRow] = useState<HTMLElement | null>(null);
+  const wide = size === 16;
+
+  useEffect(() => {
+    setRow(glyph.current?.closest('button') ?? null);
+  }, []);
+
   return (
-    <span className="bh-panel-glyph">
+    <span className="bh-panel-glyph" ref={glyph}>
       <BotIcon icon={icon} size={size} />
-      {active ? (
-        <span
-          className="bh-panel-glyph-hit"
-          aria-hidden="true"
-          onClickCapture={(event) => {
-            event.stopPropagation();
-            onExit();
-          }}
-        />
-      ) : null}
+      {active && row !== null
+        ? createPortal(
+            <>
+              <span
+                className="bh-panel-glyph-hit"
+                aria-hidden="true"
+                onClickCapture={(event) => {
+                  event.stopPropagation();
+                  onExit();
+                }}
+              />
+              {wide ? (
+                <span
+                  className="bh-panel-gear"
+                  role="button"
+                  aria-label={t('panel.settings')}
+                  title={t('panel.settings')}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openSettings();
+                  }}
+                >
+                  <IconSettingsOutline16 size={14} />
+                </span>
+              ) : null}
+            </>,
+            row,
+          )
+        : null}
     </span>
   );
 }
@@ -126,9 +157,16 @@ export function BotPanelIcon({
 export function createBotPanelEntry(
   onExit: () => void,
 ): (props: BotPanelEntryProps) => ReactElement {
-  return function BotPanelEntry({ size, active, useBotModePrefs }) {
+  return function BotPanelEntry({ size, active, useBotModePrefs, openSettings, t }) {
     return (
-      <BotPanelIcon size={size} active={active} onExit={onExit} useBotModePrefs={useBotModePrefs} />
+      <BotPanelIcon
+        size={size}
+        active={active}
+        onExit={onExit}
+        useBotModePrefs={useBotModePrefs}
+        openSettings={openSettings}
+        t={t}
+      />
     );
   };
 }

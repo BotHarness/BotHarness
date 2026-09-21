@@ -19,6 +19,8 @@
 
 ### Changed
 
+- 应用侧边栏的 Bot 模式切换按钮在已启用时再次点击会退出 Bot 模式；hover 时右侧出现设置齿轮，点击直接打开设置对话框的 Bot 分区（[#177](https://github.com/BotHarness/BotHarness/issues/177)）。
+
 - BotHarness 有了自己的 Bot 图标：应用侧边栏的「BOT 模式」入口与 Bot 设置分区的导航项默认显示 DeepSeekBot 吉祥物（含亮/暗两套图），新增的「Bot 图标」行可切换为生成形象或通用机器人图标（[#178](https://github.com/BotHarness/BotHarness/issues/178)）。
 
 - BotHarness 的偏好设置移入设置对话框中专属的 Bot 分区——界面动效与 BOT 列表排序两行从原生「通用设置」移出，Computer 的设置、导出/导入与资源上限随后也会落在这里（[#177](https://github.com/BotHarness/BotHarness/issues/177)）。

@@ -7,6 +7,7 @@ export const LOCALE_NS = 'botharness';
 export const zh = {
   'settings.nav': 'Bot 设置',
   'panel.label': 'Bot 模式',
+  'panel.settings': 'Bot 设置',
   'icon.row.title': 'Bot 图标',
   'icon.row.description': '选择 Bot 在应用侧边栏与设置导航中使用的标记',
   'icon.menu.label': 'Bot 图标',
@@ -72,6 +73,7 @@ export type BotHarnessKey = keyof typeof zh;
 export const en = {
   'settings.nav': 'Bot settings',
   'panel.label': 'Bot mode',
+  'panel.settings': 'Bot settings',
   'icon.row.title': 'Bot icon',
   'icon.row.description': 'Choose the mark for the Bot in the app sidebar and Settings navigation',
   'icon.menu.label': 'Bot icon',

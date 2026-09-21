@@ -29,6 +29,19 @@ function navLabelNode(button: Element): Element | undefined {
   return spans.length === 1 ? (spans[0] ?? undefined) : undefined;
 }
 
+/**
+ * Find the Bot section's nav cell in the Settings navigation: the shell-owned
+ * button whose visible children are a glyph and our localized label.
+ */
+export function findBotNavCell(doc: Document, labels: readonly string[]): HTMLElement | undefined {
+  for (const button of doc.querySelectorAll('button')) {
+    const label = navLabelNode(button);
+    if (label === undefined || !isBotNavLabel(label.textContent, labels)) continue;
+    return button as HTMLElement;
+  }
+  return undefined;
+}
+
 export interface BotNavIconOptions {
   /** Localized labels the section may render right now (locale may change). */
   readonly labels: () => readonly string[];
@@ -54,10 +67,9 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
   const apply = (): void => {
     const labels = options.labels();
     const markup = options.markup();
-    for (const button of doc.querySelectorAll('button')) {
-      const label = navLabelNode(button);
-      if (label === undefined || !isBotNavLabel(label.textContent, labels)) continue;
-      const cell = button as HTMLElement;
+    const cell = findBotNavCell(doc, labels);
+    if (cell !== undefined) {
+      const label = navLabelNode(cell);
       cell.classList.add(BOT_NAV_MARKER);
       touched.add(cell);
       // Hide the shell glyph with an inline style, not a class: the shell
