@@ -11,16 +11,6 @@ import { defineConfig, type UserConfig } from 'tsdown';
  */
 const CLIENT_ID = '@botharness/client';
 
-const CLIENT_BANNER = `window.__ModuleLoader__.load({
-  id: '${CLIENT_ID}',
-  factory: (require) => {
-    var module = { exports: {} };
-    var exports = module.exports;`;
-
-const CLIENT_FOOTER = `    return module.exports;
-  },
-});`;
-
 const PLATFORM_MODULES = [
   /^react$/,
   /^react\/jsx-runtime$/,
@@ -34,23 +24,43 @@ const PLATFORM_MODULES = [
   '@deepseek-ai/dsh-client-ui-dockkit',
 ];
 
+function clientBundle(id: string, entry: string[], outDir: string): UserConfig {
+  return {
+    entry,
+    outDir,
+    format: ['cjs'],
+    platform: 'browser',
+    dts: false,
+    clean: true,
+    sourcemap: true,
+    external: PLATFORM_MODULES,
+    outputOptions: {
+      entryFileNames: 'client.js',
+      banner: `window.__ModuleLoader__.load({
+  id: '${id}',
+  factory: (require) => {
+    var module = { exports: {} };
+    var exports = module.exports;`,
+      footer: `    return module.exports;
+  },
+});`,
+    },
+  };
+}
+
 export const CLIENT_BUNDLE_OUT_DIR = 'packages/client/lib';
 
-export const clientBundleOptions: UserConfig = {
-  entry: ['packages/client/src/client/index.ts'],
-  outDir: CLIENT_BUNDLE_OUT_DIR,
-  format: ['cjs'],
-  platform: 'browser',
-  dts: false,
-  clean: true,
-  sourcemap: true,
-  external: PLATFORM_MODULES,
-  outputOptions: {
-    entryFileNames: 'client.js',
-    banner: CLIENT_BANNER,
-    footer: CLIENT_FOOTER,
-  },
-};
+export const clientBundleOptions: UserConfig = clientBundle(
+  CLIENT_ID,
+  ['packages/client/src/client/index.ts'],
+  CLIENT_BUNDLE_OUT_DIR,
+);
+
+export const computerClientBundleOptions: UserConfig = clientBundle(
+  '@botharness/computer',
+  ['packages/computer/src/client/index.tsx'],
+  'packages/computer/lib',
+);
 
 export default defineConfig([
   {
@@ -75,5 +85,14 @@ export default defineConfig([
     dts: true,
     clean: true,
   },
+  {
+    entry: ['packages/computer/src/index.ts'],
+    outDir: 'packages/computer/dist',
+    format: ['esm'],
+    platform: 'node',
+    dts: true,
+    clean: true,
+  },
   clientBundleOptions,
+  computerClientBundleOptions,
 ]);
