@@ -105,4 +105,19 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-name-input \{[^}]*border-radius: 22px/);
     expect(source).not.toContain('bh-modal-input');
   });
+
+  it('uses the shared product motion boundary instead of component media queries', () => {
+    expect(source).not.toContain('prefers-reduced-motion');
+    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-persona-avatar::before");
+    expect(source).toContain("html[data-botharness-motion='full'] .bh-motion-preview-sample i");
+  });
+
+  it('keeps the composer island token-driven and clear of the message scroll area', () => {
+    expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 20px/);
+    expect(source).toMatch(
+      /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
+    );
+    expect(source).toMatch(/\.bh-composer \{[^}]*safe-area-inset-bottom/);
+    expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
+  });
 });

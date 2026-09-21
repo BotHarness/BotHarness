@@ -5,6 +5,16 @@ export const LOCALE_NS = 'botharness';
 
 /** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
+  'motion.menu.label': '动效偏好',
+  'motion.system': '跟随系统',
+  'motion.reduce': '减少动效',
+  'motion.full': '完整动效',
+  'motion.row.title': '界面动效',
+  'motion.row.description': '控制 BotHarness 中持续和空间动效的呈现方式',
+  'motion.row.memory': '仅当前会话生效，不会保存',
+  'motion.preview.label': '动效预览',
+  'motion.preview.reduce': '当前已减少动效',
+  'motion.preview.full': '当前使用完整动效',
   'sort.menu.label': '排序方式',
   'sort.updated': '最近更新',
   'sort.manual': '手动排序',
@@ -23,6 +33,16 @@ export type BotHarnessKey = keyof typeof zh;
 
 /** English dictionary, checked against the Chinese key set. */
 export const en = {
+  'motion.menu.label': 'Motion preference',
+  'motion.system': 'Follow system',
+  'motion.reduce': 'Reduce motion',
+  'motion.full': 'Full motion',
+  'motion.row.title': 'Interface motion',
+  'motion.row.description': 'Controls continuous and spatial motion across BotHarness',
+  'motion.row.memory': 'Applies in this session only; not saved',
+  'motion.preview.label': 'Motion preview',
+  'motion.preview.reduce': 'Motion is reduced',
+  'motion.preview.full': 'Full motion is active',
   'sort.menu.label': 'Sort by',
   'sort.updated': 'Recently updated',
   'sort.manual': 'Manual order',

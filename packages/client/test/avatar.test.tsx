@@ -76,16 +76,16 @@ describe('PersonaBotAvatar', () => {
 });
 
 describe('personaBotActivity', () => {
-  it('bridges an in-flight selected DM to working until the Host projection updates', () => {
+  it('does not infer PersonaBot activity from an in-flight local send', () => {
     expect(
       personaBotActivity(
         { selection: ADA_SELECTION, conversation: SENDING_CONVERSATION },
         IDLE_BOT,
       ),
-    ).toBe('working');
+    ).toBe('idle');
   });
 
-  it('keeps the Host-projected state authoritative over the local request bridge', () => {
+  it('keeps the Host-projected state authoritative', () => {
     expect(
       personaBotActivity(
         { selection: ADA_SELECTION, conversation: SENDING_CONVERSATION },

@@ -24,12 +24,21 @@ import { zh, type BotHarnessKey } from '../src/client/locale.js';
 const t = (key: BotHarnessKey): string => zh[key];
 
 function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
-  return { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready', ...patch };
+  return {
+    motionPreference: 'system',
+    effectiveMotion: 'full',
+    sortMode: 'updated',
+    sortModes: {},
+    mode: 'host',
+    status: 'ready',
+    ...patch,
+  };
 }
 
 function renderRow(
   prefs: BotModePrefsSnapshot,
   setSortMode: (mode: string) => void = () => undefined,
+  setMotionPreference: (preference: string) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
     createElement(BotModeRow, {
@@ -37,6 +46,7 @@ function renderRow(
       useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
         selector(prefs)) as never,
       setSortMode: setSortMode as never,
+      setMotionPreference: setMotionPreference as never,
     } as never),
   );
 }
@@ -44,6 +54,12 @@ function renderRow(
 function lastMenu(): Record<string, unknown> {
   const found = captured.menus.at(-1);
   if (found === undefined) throw new Error('menu not rendered');
+  return found;
+}
+
+function motionMenu(): Record<string, unknown> {
+  const found = captured.menus[0];
+  if (found === undefined) throw new Error('motion menu not rendered');
   return found;
 }
 
@@ -58,11 +74,36 @@ describe('BOT-mode General settings row', () => {
     expect(markup).toContain('BOT 列表排序');
     expect(markup).toContain('设置 BOT 模式列表的默认排序方式');
     expect(markup).toContain('手动排序');
-    expect(markup).toContain('bh-sort-selector');
+    expect(markup).toContain('bh-settings-selector');
     expect(lastMenu()['selectedId']).toBe('manual');
     expect(
       (lastMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
     ).toEqual(['updated', 'manual']);
+  });
+
+  it('renders and writes the three-state motion preference with its effective preview', () => {
+    const setMotionPreference = vi.fn();
+    const markup = renderRow(
+      snapshot({ motionPreference: 'system', effectiveMotion: 'reduce' }),
+      () => undefined,
+      setMotionPreference,
+    );
+
+    expect(markup).toContain('界面动效');
+    expect(markup).toContain('跟随系统');
+    expect(markup).toContain('当前已减少动效');
+    expect(motionMenu()['selectedId']).toBe('system');
+    expect(
+      (motionMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
+    ).toEqual(['system', 'reduce', 'full']);
+
+    const onSelect = motionMenu()['onSelect'] as (id: string) => void;
+    onSelect('full');
+    expect(setMotionPreference).toHaveBeenCalledWith('full');
+
+    setMotionPreference.mockClear();
+    onSelect('unrelated');
+    expect(setMotionPreference).not.toHaveBeenCalled();
   });
 
   it('writes through the shared policy when an option is picked', () => {

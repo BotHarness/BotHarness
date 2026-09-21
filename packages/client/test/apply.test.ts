@@ -41,7 +41,11 @@ interface Spec {
 interface FakeScope {
   getSnapshot(): {
     status: 'ready';
-    value: { sortMode: 'updated'; sortModes: Record<string, never> };
+    value: {
+      motionPreference: 'system';
+      sortMode: 'updated';
+      sortModes: Record<string, never>;
+    };
     user: Record<string, never>;
     writable: boolean;
     mode: 'host';
@@ -55,7 +59,7 @@ function fakeScope(): FakeScope {
   return {
     getSnapshot: () => ({
       status: 'ready',
-      value: { sortMode: 'updated', sortModes: {} },
+      value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
       user: {},
       writable: true,
       mode: 'host',

@@ -34,7 +34,29 @@ function isBaselineModule(id: string): boolean {
   return BASELINE_MODULES.has(id) || id.startsWith('react/');
 }
 
-function baselineModuleStub(): Record<string, unknown> {
+function baselineModuleStub(id: string): Record<string, unknown> {
+  if (id === '@deepseek-ai/dsh-client-store') {
+    return {
+      createSnapshotStore(initial: Record<string, unknown>) {
+        let snapshot = initial;
+        const listeners = new Set<() => void>();
+        return {
+          getSnapshot: () => snapshot,
+          subscribe(listener: () => void) {
+            listeners.add(listener);
+            return () => {
+              listeners.delete(listener);
+            };
+          },
+          update(recipe: (draft: Record<string, unknown>) => void) {
+            snapshot = { ...snapshot };
+            recipe(snapshot);
+            for (const listener of listeners) listener();
+          },
+        };
+      },
+    };
+  }
   const stub: Record<string, unknown> = {};
   return new Proxy(stub, {
     get: (target, property) => {
@@ -46,7 +68,7 @@ function baselineModuleStub(): Record<string, unknown> {
 }
 
 const shellRequire = (id: string): unknown =>
-  id.startsWith('@deepseek-ai/') ? baselineModuleStub() : requireFromTest(id);
+  id.startsWith('@deepseek-ai/') ? baselineModuleStub(id) : requireFromTest(id);
 
 let bundleCode = '';
 let entry: LoadedEntry | undefined;

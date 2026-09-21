@@ -16,7 +16,8 @@ export const CSS =
   box-sizing: border-box;
 }
 .bh-root button,
-.bh-root input {
+.bh-root input,
+.bh-root textarea {
   font: inherit;
 }
 
@@ -459,12 +460,10 @@ button:has(.bh-panel-glyph) {
     transform: translateY(-1.5px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .bh-persona-avatar::before,
-  .bh-avatar-media,
-  .bh-avatar-thinking i {
-    animation: none !important;
-  }
+html[data-botharness-motion='reduce'] .bh-persona-avatar::before,
+html[data-botharness-motion='reduce'] .bh-avatar-media,
+html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
+  animation: none !important;
 }
 
 /* 原生 .flatList/.groupSection 行距：同一 scope 内相邻行 2px。 */
@@ -836,10 +835,8 @@ button:has(.bh-panel-glyph) {
   cursor: default;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bh-section-chevron {
-    transition: none;
-  }
+html[data-botharness-motion='reduce'] .bh-section-chevron {
+  transition: none;
 }
 
 /* 右键「移动到」菜单的锚点：JsonTree 的 proxy-rect 方案 —— fixed 定位的
@@ -1066,7 +1063,7 @@ button:has(.bh-panel-glyph) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 14px 18px 10px;
 }
 .bh-chat-empty {
   height: 100%;
@@ -1118,27 +1115,119 @@ button:has(.bh-panel-glyph) {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 6px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
+  gap: 7px;
+  margin: 0 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  padding: 8px 10px 9px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 20px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 8px 24px
+    color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
   flex: 0 0 auto;
 }
-.bh-composer-activity {
+.bh-composer-activity-region {
+  min-height: 0;
+  min-width: 0;
+}
+.bh-composer-activity-region[data-empty='true'] {
+  display: none;
+}
+.bh-composer-activity-trigger {
+  width: 100%;
   min-height: 24px;
   display: flex;
   align-items: center;
   gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  padding: 0 4px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11.5px;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-composer-activity-trigger:hover,
+.bh-composer-activity-trigger:focus-visible,
+.bh-composer-activity-trigger[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-composer-activity-trigger:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+.bh-composer-activity-summary {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-composer-activity-details {
+  margin: 5px 4px 1px 32px;
+  border-left: 1px solid var(--dsw-alias-border-l2);
+  padding: 4px 8px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11.5px;
 }
+.bh-composer-activity-details[hidden] {
+  display: none;
+}
+.bh-composer-activity-details p,
+.bh-composer-activity-details dl {
+  margin: 0;
+}
+.bh-composer-activity-details dl {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.bh-composer-activity-details dl > div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-composer-activity-details dt {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-composer-activity-details dd {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .bh-composer-controls {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   gap: 8px;
 }
 .bh-composer-input {
   flex: 1;
   min-width: 0;
+  min-height: 34px;
+  max-height: 144px;
+  border: 0;
+  outline: none;
+  resize: none;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+.bh-composer-input::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+.bh-composer-input:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+.bh-send-btn {
+  flex: 0 0 auto;
+  margin-bottom: 1px;
 }
 
 .bh-side-pane {
@@ -1256,14 +1345,18 @@ button:has(.bh-panel-glyph) {
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */
-.bh-sort-row {
+.bh-settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+.bh-settings-row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 16px 0;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
-.bh-sort-row-text {
+.bh-settings-row-text {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1271,19 +1364,19 @@ button:has(.bh-panel-glyph) {
   gap: 4px;
   padding-right: 48px;
 }
-.bh-sort-row-title {
+.bh-settings-row-title {
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }
-.bh-sort-row-desc {
+.bh-settings-row-desc {
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
-.bh-sort-selector {
+.bh-settings-selector {
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -1298,10 +1391,76 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
-.bh-sort-selector:hover {
+.bh-settings-selector:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.bh-sort-chevron {
+.bh-settings-chevron {
   flex: none;
+}
+.bh-motion-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 24px;
+  margin-top: 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  padding: 2px 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+.bh-motion-preview-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: 22px;
+  height: 12px;
+}
+.bh-motion-preview-sample i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-business-primary);
+  opacity: 0.45;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i {
+  animation: bh-motion-preview-dot 1100ms var(--ds-ease-in-out) infinite;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(2) {
+  animation-delay: 130ms;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
+  animation-delay: 260ms;
+}
+@keyframes bh-motion-preview-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 720px) {
+  .bh-composer {
+    margin-right: 8px;
+    margin-left: 8px;
+  }
+  .bh-send-label {
+    display: none;
+  }
+  .bh-settings-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .bh-settings-row-text {
+    flex-basis: 100%;
+    padding-right: 0;
+  }
 }
 `;

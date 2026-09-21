@@ -9,14 +9,23 @@ describe('@botharness/client host half', () => {
   });
 
   it('resolves the BOT-mode section with an updated default and a per-section map', () => {
-    expect(BotModeSettingsSchema({})).toEqual({ sortMode: 'updated', sortModes: {} });
+    expect(BotModeSettingsSchema({})).toEqual({
+      motionPreference: 'system',
+      sortMode: 'updated',
+      sortModes: {},
+    });
     expect(BotModeSettingsSchema({ sortMode: 'manual' })).toEqual({
+      motionPreference: 'system',
       sortMode: 'manual',
       sortModes: {},
     });
     expect(BotModeSettingsSchema({ sortModes: { s1: 'manual' } })).toEqual({
+      motionPreference: 'system',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
+    });
+    expect(BotModeSettingsSchema({ motionPreference: 'full' })).toMatchObject({
+      motionPreference: 'full',
     });
   });
 

@@ -16,6 +16,7 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
+import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
@@ -45,6 +46,14 @@ export function apply(ctx: ClientContext): void {
   const prefs = new BotModePrefs(storage);
 
   ctx.effect(installStyles, 'botharness: client styles');
+  ctx.effect(
+    () => prefs.attachSystemMotion(browserSystemMotionSource()),
+    'botharness: system motion preference',
+  );
+  ctx.effect(() => {
+    if (typeof document === 'undefined') return () => {};
+    return mountMotionPolicyAttribute(prefs.source, document.documentElement);
+  }, 'botharness: motion policy boundary');
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness: dictionaries');
   ctx.effect(() => {
     store.setConfig(loadRosterConfig(storage));
