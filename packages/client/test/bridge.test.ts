@@ -636,7 +636,10 @@ describe('bridge actions', () => {
       kind: 'bot',
       slug: 'bot-generated',
     });
-    expect(clientStore.getSnapshot().conversation.status).toBe('idle');
+    // Creating a PersonaBot opens its DM conversation, so surfaces that need
+    // the selected Channel (the Channel sidebar) render immediately.
+    expect(clientStore.getSnapshot().conversation.status).toBe('ready');
+    expect(clientStore.getSnapshot().conversation.channel?.id).toBe('dm-bot-generated');
     expect(clientStore.getSnapshot().roster.topOrder?.[0]).toEqual({
       kind: 'channel',
       id: 'dm-bot-generated',
