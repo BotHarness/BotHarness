@@ -39,6 +39,8 @@ describe('Channel composer', () => {
     expect(markup.indexOf('bh-composer-activity-status')).toBeLessThan(
       markup.indexOf('class="bh-composer"'),
     );
+    expect(markup).toContain('class="bh-avatar-facepile bh-composer-activity-facepile"');
+    expect(markup).toContain('style="width:40px;height:40px"');
     expect(markup).not.toContain('aria-expanded');
     expect(markup).toContain('Ada 正在思考');
     expect(markup).toContain('<textarea');

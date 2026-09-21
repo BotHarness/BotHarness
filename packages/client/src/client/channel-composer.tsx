@@ -59,7 +59,11 @@ function PersonaBotActivityStatus({
       aria-live="polite"
       title={activity.summary}
     >
-      <PersonaBotFacepile items={activity.items} size={24} />
+      <PersonaBotFacepile
+        className="bh-composer-activity-facepile"
+        items={activity.items}
+        size={40}
+      />
       <span className="bh-composer-activity-summary">{activity.summary}</span>
     </div>
   );

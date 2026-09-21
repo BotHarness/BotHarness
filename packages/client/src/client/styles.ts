@@ -1128,14 +1128,21 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
     color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
 }
 .bh-composer-activity-status {
-  min-height: 24px;
+  min-height: 40px;
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 0 8px;
+  gap: 10px;
+  padding: 0 6px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11.5px;
+}
+.bh-composer-activity-facepile .bh-persona-avatar,
+.bh-composer-activity-facepile .bh-avatar-facepile-overflow {
+  border: 0;
+}
+.bh-composer-activity-facepile .bh-persona-avatar::before {
+  display: none;
 }
 .bh-composer-activity-summary {
   min-width: 0;

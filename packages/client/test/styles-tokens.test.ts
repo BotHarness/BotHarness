@@ -118,6 +118,10 @@ describe('client styles', () => {
       /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
     );
     expect(source).toMatch(/\.bh-composer-shell \{[^}]*safe-area-inset-bottom/);
+    expect(source).toMatch(/\.bh-composer-activity-facepile \.bh-persona-avatar[^}]*border: 0/);
+    expect(source).toMatch(
+      /\.bh-composer-activity-facepile \.bh-persona-avatar::before \{[^}]*display: none/,
+    );
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
   });
 });
