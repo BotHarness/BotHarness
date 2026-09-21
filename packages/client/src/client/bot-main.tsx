@@ -265,20 +265,6 @@ function ConversationView({
                 ))}
               </span>
             )}
-            <Tag tone="quiet" className="bh-pill">
-              {channel?.type === 'group' ? '群聊' : '私聊'}
-            </Tag>
-            <button
-              type="button"
-              className="bh-topbar-toggle"
-              aria-label={
-                sidebar.mode === 'hidden' ? '展开 Channel sidebar' : '收起 Channel sidebar'
-              }
-              aria-expanded={sidebar.mode !== 'hidden'}
-              onClick={sidebar.toggle}
-            >
-              <IconPanelLeftOutline16 size={16} />
-            </button>
           </div>
           <div className="bh-chat-body" ref={scrollRef}>
             {conversation.status === 'loading' && messages.length === 0 ? (
@@ -326,6 +312,16 @@ function ConversationView({
           actions={actions}
           controller={sidebar}
         />
+        <button
+          type="button"
+          className="bh-sidebar-toggle"
+          aria-label={sidebar.mode === 'hidden' ? '展开 Channel sidebar' : '收起 Channel sidebar'}
+          aria-expanded={sidebar.mode !== 'hidden'}
+          aria-controls="bh-channel-sidebar"
+          onClick={sidebar.toggle}
+        >
+          <IconPanelLeftOutline16 size={16} />
+        </button>
       </div>
     </div>
   );

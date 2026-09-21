@@ -8,10 +8,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import {
-  IconChevronDownOutline14,
-  IconCloseOutline16,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -208,20 +205,13 @@ export function ChannelSidebar({
   };
   const panel = (
     <div
+      id="bh-channel-sidebar"
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
       role="complementary"
       aria-label="Channel sidebar"
     >
       <div className="bh-channel-sidebar-head">
         <span className="bh-channel-sidebar-title">{channel.name}</span>
-        <button
-          type="button"
-          className="bh-channel-sidebar-close"
-          aria-label="收起 Channel sidebar"
-          onClick={controller.close}
-        >
-          <IconCloseOutline16 size={16} />
-        </button>
       </div>
       <div className="bh-channel-sidebar-entries">
         {entries.length === 0 ? (
