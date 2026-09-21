@@ -113,7 +113,9 @@ describe('client styles', () => {
   });
 
   it('keeps the composer island token-driven and clear of the message scroll area', () => {
-    expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 20px/);
+    expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 999px/);
+    expect(source).toMatch(/\.bh-composer-expanded \{[^}]*padding-bottom: 48px/);
+    expect(source).toMatch(/\.bh-composer-expanded \{[^}]*border-radius: 20px/);
     expect(source).toMatch(
       /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
     );
@@ -123,5 +125,8 @@ describe('client styles', () => {
       /\.bh-composer-activity-facepile \.bh-persona-avatar::before \{[^}]*display: none/,
     );
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
+    expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
+    expect(source).toMatch(/\.bh-composer-expanded \.bh-composer-footer \{[^}]*bottom: 8px/);
+    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
   });
 });

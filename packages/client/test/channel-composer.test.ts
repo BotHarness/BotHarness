@@ -37,7 +37,7 @@ describe('Channel composer', () => {
     expect(markup).toContain('class="bh-composer-shell"');
     expect(markup).toContain('class="bh-composer-activity-status"');
     expect(markup.indexOf('bh-composer-activity-status')).toBeLessThan(
-      markup.indexOf('class="bh-composer"'),
+      markup.indexOf('class="bh-composer bh-composer-'),
     );
     expect(markup).toContain('class="bh-avatar-facepile bh-composer-activity-facepile"');
     expect(markup).toContain('style="width:40px;height:40px"');
@@ -45,6 +45,8 @@ describe('Channel composer', () => {
     expect(markup).toContain('Ada 正在思考');
     expect(markup).toContain('<textarea');
     expect(markup).toContain('hello');
+    expect(markup).toContain('class="bh-composer bh-composer-compact"');
+    expect(markup).toContain('data-layout="compact"');
   });
 
   it('does not render status chrome when no active projection is available', () => {
@@ -59,7 +61,7 @@ describe('Channel composer', () => {
     );
 
     expect(markup).not.toContain('bh-composer-activity-status');
-    expect(markup).toContain('class="bh-composer"');
+    expect(markup).toContain('class="bh-composer bh-composer-compact"');
     expect(markup).toContain('disabled=""');
   });
 
@@ -88,10 +90,13 @@ describe('Channel composer', () => {
 
   it('grows to a bounded height and switches to internal scrolling', () => {
     const style = { height: '', overflowY: '' };
-    fitComposerTextarea({ scrollHeight: 88, style } as never);
+    expect(fitComposerTextarea({ scrollHeight: 34, style } as never)).toBe(false);
+    expect(style).toEqual({ height: '34px', overflowY: 'hidden' });
+
+    expect(fitComposerTextarea({ scrollHeight: 88, style } as never)).toBe(true);
     expect(style).toEqual({ height: '88px', overflowY: 'hidden' });
 
-    fitComposerTextarea({ scrollHeight: 220, style } as never);
+    expect(fitComposerTextarea({ scrollHeight: 220, style } as never)).toBe(true);
     expect(style).toEqual({ height: '144px', overflowY: 'auto' });
   });
 });

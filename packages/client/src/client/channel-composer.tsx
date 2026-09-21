@@ -1,4 +1,4 @@
-import { useEffect, useRef, type KeyboardEvent, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
 
 import { Button, IconSendOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -38,11 +38,13 @@ export function shouldSubmitComposerKey(
 export function fitComposerTextarea(
   element: Pick<HTMLTextAreaElement, 'scrollHeight' | 'style'>,
   maxHeight = 144,
-): void {
+  singleLineHeight = 34,
+): boolean {
   element.style.height = '0px';
   const height = Math.min(element.scrollHeight, maxHeight);
   element.style.height = `${height}px`;
   element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
+  return element.scrollHeight > singleLineHeight;
 }
 
 function PersonaBotActivityStatus({
@@ -82,16 +84,22 @@ export function ChannelComposer({
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
-    if (inputRef.current !== null) fitComposerTextarea(inputRef.current);
+    if (inputRef.current === null) return;
+    const nextExpanded = fitComposerTextarea(inputRef.current);
+    setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
   }, [value]);
 
   return (
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} />
-      <div className="bh-composer">
-        <div className="bh-composer-controls">
+      <div
+        className={`bh-composer ${expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
+        data-layout={expanded ? 'expanded' : 'compact'}
+      >
+        <div className="bh-composer-body">
           <textarea
             ref={inputRef}
             className="bh-composer-input"
@@ -108,17 +116,17 @@ export function ChannelComposer({
               void onSubmit();
             }}
           />
+        </div>
+        <div className="bh-composer-footer">
           <Button
             className="bh-send-btn"
             variant="primary"
             size="sm"
             icon={<IconSendOutline16 size={16} />}
-            aria-label="发送"
+            aria-label={sending ? '发送中' : '发送'}
             disabled={value.trim().length === 0 || sending}
             onClick={() => void onSubmit()}
-          >
-            <span className="bh-send-label">{sending ? '发送中' : '发送'}</span>
-          </Button>
+          />
         </div>
       </div>
     </div>
