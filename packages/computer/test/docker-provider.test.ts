@@ -114,7 +114,7 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'info') return ok('27.0.0');
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
-          if (format.includes('Config.Image')) return ok('botharness-computer:xfce-chrome');
+          if (format.includes('Config.Image')) return ok('lscr.io/linuxserver/webtop:ubuntu-xfce');
           return ok('exited\n');
         }
         return ok('ok');
@@ -123,6 +123,24 @@ describe('Docker computer provider', () => {
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
     expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+  });
+
+  it('recreates a running container whose image no longer matches', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('Config.Image')) return ok('old-image:latest');
+          return ok('running\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
   });
 
   it('recreates the container when its image no longer matches', async () => {
@@ -216,7 +234,7 @@ describe('Docker computer provider', () => {
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
   });
 
-  it('builds the shipped image context when the image is missing', async () => {
+  it('bounds memory, swap and process count on the container', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
@@ -225,12 +243,28 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'image') return fail('No such image');
         return ok('ok');
       }, calls),
-      config: { imageContext: '/pkg/image', buildOnMissing: true },
     });
     await provider.start();
-    const build = calls.find((argv) => argv[1] === 'build');
-    expect((build ?? []).join(' ')).toContain('/pkg/image');
-    expect(calls.some((argv) => argv[1] === 'pull')).toBe(false);
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('--memory 2g');
+    expect(run).toContain('--memory-swap 2g');
+    expect(run).toContain('--pids-limit 4096');
+    expect(run).toContain('--shm-size 512m');
+  });
+
+  it('prepares the Chromium shortcut in the volume after start', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const exec = (calls.find((argv) => argv[1] === 'exec') ?? []).join(' ');
+    expect(exec).toContain('chromium.desktop');
   });
 
   it('passes the requested desktop locale into the container', async () => {

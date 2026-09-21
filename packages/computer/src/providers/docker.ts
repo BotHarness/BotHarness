@@ -30,33 +30,30 @@ export interface DockerComputerConfig {
   readonly cpus: number;
   readonly memory: string;
   readonly shmSize: string;
+  /** Caps the container's process count so a runaway app cannot fork-bomb the host. */
+  readonly pidsLimit: number;
   readonly idleStopMinutes: number;
   /** HARDEN_DESKTOP removes terminals/sudo; a full desktop usually wants it off. */
   readonly hardenDesktop: boolean;
   /** Locale the desktop runs in, e.g. zh_CN.UTF-8. */
   readonly language: string;
-  /** Docker build context used when the image is missing; empty disables building. */
-  readonly imageContext: string;
-  /** Build `imageContext` when the image is absent instead of pulling `image`. */
-  readonly buildOnMissing: boolean;
 }
 
 export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
-  // Built locally from imageContext: a full XFCE desktop (panel, wallpaper,
-  // file manager) with Chrome preinstalled and desktop locales generated.
-  image: 'botharness-computer:xfce-chrome',
+  // The upstream webtop image already ships an XFCE desktop, Chromium and the
+  // en_US/zh_CN locales, so BotHarness pulls it instead of building its own.
+  image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
   hostPort: 39_001,
   containerPort: 3000,
   cpus: 2,
-  memory: '4g',
-  shmSize: '1g',
+  memory: '2g',
+  shmSize: '512m',
+  pidsLimit: 4096,
   idleStopMinutes: 30,
   hardenDesktop: true,
   language: 'en_US.UTF-8',
-  imageContext: '',
-  buildOnMissing: true,
 };
 
 interface DockerComputerProviderOptions {
@@ -200,6 +197,52 @@ export function createDockerComputerProvider(
     throw failure(message);
   };
 
+  /** The image the existing container was created from, if it still exists. */
+  const containerImage = async (): Promise<string | undefined> => {
+    const result = await runner.run([
+      'docker',
+      'inspect',
+      '--format',
+      '{{.Config.Image}}',
+      config.containerName,
+    ]);
+    return result.code === 0 ? result.stdout.trim() : undefined;
+  };
+
+  /**
+   * A container keeps the image it was created from; when the configured image
+   * changed (an upgrade), recreate it on the next start while keeping the
+   * volume. Returns true when the container was removed.
+   */
+  const recreateIfImageChanged = async (): Promise<boolean> => {
+    const image = await containerImage();
+    if (image === undefined || image === config.image) return false;
+    const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
+    if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
+    running = false;
+    observe('absent', `image changed: ${image} → ${config.image}`);
+    return true;
+  };
+
+  /**
+   * The base image ships Chromium, but a shortcut inside the volume is only
+   * created at start: build-time writes under /config are shadowed by the
+   * mounted volume, and the volume may predate this version. Best effort.
+   */
+  const ensureDesktopShortcut = async (): Promise<void> => {
+    const result = await runner.run([
+      'docker',
+      'exec',
+      config.containerName,
+      'sh',
+      '-c',
+      'test -f /config/Desktop/chromium.desktop || { mkdir -p /config/Desktop && cp -f /usr/share/applications/chromium.desktop /config/Desktop/chromium.desktop && chmod +x /config/Desktop/chromium.desktop && chown abc:abc /config/Desktop /config/Desktop/chromium.desktop; }; command -v google-chrome-stable >/dev/null 2>&1 || rm -f /config/Desktop/google-chrome.desktop',
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('desktop shortcut could not be prepared');
+    }
+  };
+
   const runStart = async (): Promise<void> => {
     cancelRequested = false;
     const probe = await probeRuntime();
@@ -209,53 +252,30 @@ export function createDockerComputerProvider(
     }
     const existing = await inspect();
     throwIfCancelled();
-    if (existing.state === 'running') {
+    if (existing.state === 'running' && !(await recreateIfImageChanged())) {
       phase = 'running';
       detail = undefined;
       return;
     }
-    if (existing.state === 'stopped') {
-      const currentImage = await runner.run([
-        'docker',
-        'inspect',
-        '--format',
-        '{{.Config.Image}}',
-        config.containerName,
-      ]);
-      if (currentImage.code === 0 && currentImage.stdout.trim() !== config.image) {
-        // The configured image changed (e.g. an upgrade): recreate the container
-        // while keeping its volume.
-        const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
-        if (remove.code !== 0) {
-          fail(remove.stderr.trim() || 'docker rm failed');
-        }
-      } else {
-        phase = 'starting';
-        detail = '正在启动已有容器…';
-        throwIfCancelled();
-        const start = await runner.run(['docker', 'start', config.containerName]);
-        if (start.code !== 0) {
-          fail(start.stderr.trim() || 'docker start failed');
-        }
-        phase = 'running';
-        detail = undefined;
-        running = true;
-        return;
+    if (existing.state === 'stopped' && !(await recreateIfImageChanged())) {
+      phase = 'starting';
+      detail = '正在启动已有容器…';
+      throwIfCancelled();
+      const start = await runner.run(['docker', 'start', config.containerName]);
+      if (start.code !== 0) {
+        fail(start.stderr.trim() || 'docker start failed');
       }
+      phase = 'running';
+      detail = undefined;
+      running = true;
+      await ensureDesktopShortcut();
+      return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
     throwIfCancelled();
-    if (image.code !== 0 && config.buildOnMissing && config.imageContext !== '') {
+    if (image.code !== 0) {
       phase = 'pulling';
-      detail = '正在构建 Computer 镜像（首次需要几分钟）…';
-      const build = await runner.run(['docker', 'build', '-t', config.image, config.imageContext]);
-      if (build.code !== 0) {
-        fail(build.stderr.trim() || 'docker build failed');
-      }
-      throwIfCancelled();
-    } else if (image.code !== 0) {
-      phase = 'pulling';
-      detail = '正在拉取镜像（首次约 1.2 GB，请耐心等待）…';
+      detail = '正在拉取镜像（首次约 1.5 GB，请耐心等待）…';
       const tracker = createPullTracker();
       pullProgress = tracker.snapshot();
       const pull: ComputerRuntimeResult =
@@ -290,6 +310,10 @@ export function createDockerComputerProvider(
       String(config.cpus),
       '--memory',
       config.memory,
+      '--memory-swap',
+      config.memory,
+      '--pids-limit',
+      String(config.pidsLimit),
       '--shm-size',
       config.shmSize,
       '-p',
@@ -320,6 +344,7 @@ export function createDockerComputerProvider(
     phase = 'running';
     detail = undefined;
     running = true;
+    await ensureDesktopShortcut();
   };
 
   const withDetail = (status: ComputerStatus): ComputerStatus => {

@@ -1,5 +1,4 @@
 import { spawn } from 'node:child_process';
-import { fileURLToPath } from 'node:url';
 import { readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
@@ -31,14 +30,9 @@ export interface ComputerConfig {
   hardenDesktop: boolean;
   /** Desktop locale, e.g. zh_CN.UTF-8; defaults to the DSH locale preference. */
   language: string;
-  /** Docker build context for the local image; empty disables building. */
-  imageContext: string;
   /** Human-chosen directory that holds Computer exports; empty disables export/import. */
   exportDir: string;
 }
-
-/** The Docker build context shipped beside this package (webtop + Chrome). */
-const DEFAULT_IMAGE_CONTEXT = fileURLToPath(new URL('../image', import.meta.url));
 
 /** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
 export function desktopLocale(language: string): string {
@@ -57,7 +51,6 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   language: DEFAULT_DOCKER_CONFIG.language,
-  imageContext: DEFAULT_IMAGE_CONTEXT,
   exportDir: '',
 };
 
@@ -73,7 +66,6 @@ export const Config = Schema.object({
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
   hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
   language: Schema.string().default(DEFAULT_CONFIG.language),
-  imageContext: Schema.string().default(DEFAULT_CONFIG.imageContext),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description('导出目录；为空时禁用导出/导入'),
@@ -168,7 +160,6 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       idleStopMinutes: config.idleStopMinutes,
       hardenDesktop: config.hardenDesktop,
       language: config.language,
-      imageContext: config.imageContext,
     },
   });
 
