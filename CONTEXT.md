@@ -104,6 +104,10 @@ _Avoid_: exactly-once delivery, task queue, workflow, AgentHandle state
 A durable Session-origin Source Event by which an Assignment Session proactively or responsively returns meaningful progress, blocked or waiting state, results, and artifact references to its PersonaBot's Orchestrator. Full execution history remains in DSH SessionPersistence; each report stays immutable while unobserved repeats may share one Attention Unit.
 _Avoid_: direct Channel reply, copied Session log, ephemeral callback
 
+**Assignment Ask**:
+An Assignment Report variant that declares the Assignment is waiting for an Orchestrator reply before continuing. The Assignment ends its turn while it waits, and the Orchestrator's addressed Assignment Request resumes the Session; it is not a blocking call, a Channel message, or a separate lifecycle.
+_Avoid_: blocking call, direct Orchestrator message, question queue
+
 **Assignment Lifecycle Notice**:
 A durable Host-origin Source Event emitted only for a meaningful execution boundary such as settled, error, or cancellation. It carries DSH-derived last-run facts, a concise safe summary, and report/artifact references when available, but remains distinct from content the Assignment Agent authored.
 _Avoid_: Assignment Report, fabricated agent message, per-turn directory snapshot

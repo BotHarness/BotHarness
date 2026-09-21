@@ -104,6 +104,10 @@ _避免使用_：exactly-once delivery、task queue、workflow、AgentHandle sta
 一种持久的、源自 Session 的 Source Event，Assignment Session 通过它主动或响应式地向其 PersonaBot 的 Orchestrator 返回有意义的进度、blocked 或 waiting 状态、结果和 artifact reference。完整执行历史仍保留在 DSH SessionPersistence 中；每份 report 保持不可变，而尚未 Observation 的重复报告可共享一个 Attention Unit。
 _避免使用_：direct Channel reply、copied Session log、ephemeral callback
 
+**Assignment Ask**：
+Assignment Report 的一种变体：Assignment 声明它在继续之前需要 Orchestrator 的答复。等待期间 Assignment 结束自己的 turn，Orchestrator 的一条带地址 Assignment Request 会恢复该 Session；它不是阻塞调用、不是 Channel 消息，也不是独立生命周期。
+_避免使用_：blocking call、direct Orchestrator message、question queue
+
 **Assignment Lifecycle Notice**：
 一种持久的、源自 Host 的 Source Event，只在 settled、error 或 cancellation 等有意义的执行边界发出。它携带源自 DSH 的 last-run facts、简洁安全的摘要，并在可用时包含 report/artifact reference；但它始终不同于 Assignment Agent 自己撰写的内容。
 _避免使用_：Assignment Report、fabricated agent message、per-turn directory snapshot
