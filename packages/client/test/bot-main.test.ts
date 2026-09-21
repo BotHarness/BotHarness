@@ -90,4 +90,48 @@ describe('Bot main Assignment pane', () => {
     expect(markup).not.toContain('Ada 空闲');
     expect(markup).not.toContain('bh-composer-activity-status');
   });
+
+  it('marks a locally echoed Human message as pending until the Host commits it', () => {
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+    };
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:01:00.000Z',
+    };
+    store.setRoster([bot], [channel]);
+    store.select({ kind: 'bot', slug: 'ada' });
+    store.setConversation({
+      status: 'ready',
+      channel,
+      messages: [
+        {
+          id: 'local-echo-1',
+          at: '2026-09-21T00:02:00.000Z',
+          author: { kind: 'human' },
+          body: 'hello',
+          pending: true,
+        },
+      ],
+      error: undefined,
+      sending: true,
+    });
+    store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
+
+    const markup = renderToStaticMarkup(createElement(BotMain, { actions: {} as BridgeActions }));
+
+    expect(markup).toContain('bh-bubble-pending');
+    expect(markup).toContain('发送中');
+    expect(markup).toContain('hello');
+  });
 });

@@ -23,7 +23,13 @@ import {
 } from './bridge.js';
 import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
 import { completeFlatEntries, flatRosterChannelIds } from './roster-order.js';
-import type { BotSummary, ChannelSummary, ClientStore, ConversationSelection } from './store.js';
+import type {
+  BotSummary,
+  ChannelMessage,
+  ChannelSummary,
+  ClientStore,
+  ConversationSelection,
+} from './store.js';
 
 export interface BridgeActions {
   load(signal?: AbortSignal): Promise<void>;
@@ -64,6 +70,24 @@ export interface BridgeActions {
    * already carries a flat order, is read-only, or holds nothing to convert.
    */
   ensureFlatTopOrder(): Promise<boolean>;
+}
+
+let localEchoSequence = 0;
+
+function nextLocalEchoId(): string {
+  localEchoSequence += 1;
+  return `local-echo-${Date.now().toString(36)}-${localEchoSequence}`;
+}
+
+function reconcileCommittedMessage(
+  messages: readonly ChannelMessage[],
+  localId: string,
+  committed: ChannelMessage,
+): ChannelMessage[] {
+  return [
+    ...messages.filter((message) => message.id !== localId && message.id !== committed.id),
+    committed,
+  ];
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
@@ -263,23 +287,32 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       const channel = snapshot.conversation.channel;
       const text = body.trim();
       if (channel === undefined || text.length === 0 || snapshot.conversation.sending) return false;
-      clientStore.setConversation({ sending: true, error: undefined });
+      const localId = nextLocalEchoId();
+      clientStore.setConversation({
+        sending: true,
+        error: undefined,
+        messages: [
+          ...snapshot.conversation.messages,
+          {
+            id: localId,
+            at: new Date().toISOString(),
+            author: { kind: 'human' },
+            body: text,
+            pending: true,
+          },
+        ],
+      });
       try {
         const message = await sendChannelMessage(call, channel.id, text);
         const selection = currentSelection();
-        const [messages, assignments] = await Promise.all([
-          loadChannelMessages(call, channel.id),
-          selection?.kind === 'bot'
-            ? loadAssignments(call, selection.slug)
-            : Promise.resolve(undefined),
-        ]);
+        const assignments =
+          selection?.kind === 'bot' ? await loadAssignments(call, selection.slug) : undefined;
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id !== channel.id) return false;
-        const updatedAt = messages.at(-1)?.at ?? message.at;
-        clientStore.upsertChannel({ ...channel, updatedAt });
+        clientStore.upsertChannel({ ...channel, updatedAt: message.at });
         clientStore.setConversation({
           sending: false,
-          messages,
+          messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
         });
         if (selection?.kind === 'bot' && currentSelection() === selection) {
           clientStore.setAssignments({
@@ -291,7 +324,12 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         return true;
       } catch (error) {
         if (clientStore.getSnapshot().conversation.channel?.id === channel.id) {
-          clientStore.setConversation({ sending: false, error: errorMessage(error) });
+          const latest = clientStore.getSnapshot();
+          clientStore.setConversation({
+            sending: false,
+            error: errorMessage(error),
+            messages: latest.conversation.messages.filter((message) => message.id !== localId),
+          });
         }
         return false;
       }

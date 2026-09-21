@@ -462,17 +462,20 @@ describe('bridge methods', () => {
 
   it('sends a DM through the Bot runtime and exposes only Assignment read models', async () => {
     const handled: Array<{ channelId: string; messageId: string; body: string }> = [];
+    let settled: Promise<void> = Promise.resolve();
     const { methods } = setup([], ['ada'], (channels) => ({
-      async handleDmMessage(input) {
+      admitDmMessage(input) {
         handled.push(input);
-        const reply = {
-          id: 'bot-reply-1',
-          at: '2026-09-19T00:00:02.000Z',
-          author: { kind: 'bot' as const, slug: 'ada' },
-          body: '已经完成发布状态核对。',
-        };
-        await channels.appendMessage(input.channelId, reply);
-        return undefined;
+        settled = (async () => {
+          const reply = {
+            id: 'bot-reply-1',
+            at: '2026-09-19T00:00:02.000Z',
+            author: { kind: 'bot' as const, slug: 'ada' },
+            body: '已经完成发布状态核对。',
+          };
+          await channels.appendMessage(input.channelId, reply);
+        })();
+        return { admitted: true as const, settled };
       },
       listAssignments: () => [
         {
@@ -520,6 +523,12 @@ describe('bridge methods', () => {
         body: '请核对发布状态',
       },
     ]);
+    const pending = methods.channelMessages({ channelId: 'dm-ada' });
+    expect(pending.ok && pending.value.messages.map((message) => message.body)).toContain(
+      '请核对发布状态',
+    );
+
+    await settled;
     const messages = methods.channelMessages({ channelId: 'dm-ada' });
     expect(messages.ok && messages.value.messages.map((message) => message.body)).toEqual([
       '已经完成发布状态核对。',
@@ -545,6 +554,76 @@ describe('bridge methods', () => {
           sourceEventId: 'source-1',
         }),
       },
+    });
+  });
+
+  it('returns from a DM send before the admitted Orchestrator turns settle', async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const settledTurns: Promise<void>[] = [];
+    const admitted: string[] = [];
+    const { methods } = setup([], ['ada'], (channels) => ({
+      admitDmMessage(input) {
+        admitted.push(input.body);
+        const settled = (async () => {
+          await gate;
+          await channels.appendMessage(input.channelId, {
+            id: `bot-reply-${admitted.length}`,
+            at: '2026-09-19T00:00:02.000Z',
+            author: { kind: 'bot' as const, slug: 'ada' },
+            body: `reply-${input.body}`,
+          });
+        })();
+        settledTurns.push(settled);
+        return { admitted: true as const, settled };
+      },
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      close: async () => undefined,
+    }));
+    methods.create({ displayName: 'Ada' });
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+
+    const first = await methods.channelSend({ channelId: 'dm-ada', body: 'first' });
+    const second = await methods.channelSend({ channelId: 'dm-ada', body: 'second' });
+
+    expect(first.ok).toBe(true);
+    expect(second.ok).toBe(true);
+    expect(admitted).toEqual(['first', 'second']);
+    const before = methods.channelMessages({ channelId: 'dm-ada' });
+    expect(before.ok && before.value.messages.map((message) => message.body)).toEqual([
+      'second',
+      'first',
+    ]);
+
+    release();
+    await Promise.all(settledTurns);
+    const after = methods.channelMessages({ channelId: 'dm-ada' });
+    expect(after.ok && after.value.messages.map((message) => message.body)).toEqual([
+      'reply-second',
+      'reply-first',
+      'second',
+      'first',
+    ]);
+  });
+
+  it('maps an archived PersonaBot admission failure to a stable error', async () => {
+    const { methods } = setup([], ['ada'], () => ({
+      admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      close: async () => undefined,
+    }));
+    methods.create({ displayName: 'Ada' });
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+
+    const sent = await methods.channelSend({ channelId: 'dm-ada', body: 'hello' });
+
+    expect(sent).toEqual({
+      ok: false,
+      error: { code: 'bot-archived', message: 'PersonaBot is archived: ada' },
     });
   });
 

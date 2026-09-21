@@ -1141,6 +1141,9 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   background: var(--dsw-alias-interactive-bg-active);
   border-color: transparent;
 }
+.bh-bubble-pending {
+  opacity: 0.55;
+}
 .bh-bubble-author {
   font-size: 11px;
   color: var(--dsw-alias-label-tertiary);

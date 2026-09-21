@@ -88,12 +88,16 @@ function MessageBubble({
           />
         )
       ) : null}
-      <div className={`bh-bubble${human ? ' bh-bubble-me' : ''}`}>
+      <div
+        className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true ? ' bh-bubble-pending' : ''}`}
+      >
         {human || continuation ? null : (
           <div className="bh-bubble-author">{authorLabel(message, bots)}</div>
         )}
         <div className="bh-bubble-body">{message.body}</div>
-        <div className="bh-bubble-time">{clockTime(message.at)}</div>
+        <div className="bh-bubble-time">
+          {message.pending === true ? '发送中' : clockTime(message.at)}
+        </div>
       </div>
     </div>
   );

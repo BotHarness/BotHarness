@@ -296,45 +296,14 @@ describe('bridge actions', () => {
     expect(writes).toEqual([['ada'], []]);
   });
 
-  it('sends a message, reloads the Bot reply, and refreshes Assignments', async () => {
-    let messageReads = 0;
+  it('echoes a DM message locally, then reconciles it with the committed message', async () => {
     let assignmentReads = 0;
+    let resolveSend: (value: { message: Record<string, unknown> }) => void = () => undefined;
+    const response = new Promise<{ message: Record<string, unknown> }>((resolve) => {
+      resolveSend = resolve;
+    });
     const { clientStore, actions } = setup({
-      channelMessages: () => {
-        messageReads += 1;
-        return {
-          messages:
-            messageReads === 1
-              ? [
-                  {
-                    id: 'm2',
-                    at: '2026-09-19T00:02:00.000Z',
-                    author: { kind: 'human' },
-                    body: 'newer',
-                  },
-                  {
-                    id: 'm1',
-                    at: '2026-09-19T00:01:00.000Z',
-                    author: { kind: 'human' },
-                    body: 'older',
-                  },
-                ]
-              : [
-                  {
-                    id: 'm4',
-                    at: '2026-09-19T00:04:00.000Z',
-                    author: { kind: 'bot', slug: 'ada' },
-                    body: '已经核对完成。',
-                  },
-                  {
-                    id: 'm3',
-                    at: '2026-09-19T00:03:00.000Z',
-                    author: { kind: 'human' },
-                    body: 'hello',
-                  },
-                ],
-        };
-      },
+      channelSend: () => response,
       assignments: () => {
         assignmentReads += 1;
         return { assignments: [] };
@@ -343,20 +312,55 @@ describe('bridge actions', () => {
     await actions.load();
     await actions.openBot('ada');
 
-    const sent = await actions.send('hello');
-    const state = clientStore.getSnapshot();
+    const sending = actions.send('hello');
+    const echoed = clientStore.getSnapshot().conversation;
+    expect(echoed.sending).toBe(true);
+    expect(echoed.messages.map((message) => message.body)).toEqual(['older', 'newer', 'hello']);
+    expect(echoed.messages.at(-1)?.pending).toBe(true);
 
-    expect(sent).toBe(true);
-    expect(state.conversation.sending).toBe(false);
-    expect(state.conversation.messages.map((message) => message.body)).toEqual([
-      'hello',
-      '已经核对完成。',
+    resolveSend({
+      message: {
+        id: 'm3',
+        at: '2026-09-19T00:03:00.000Z',
+        author: { kind: 'human' },
+        body: 'hello',
+      },
+    });
+    await expect(sending).resolves.toBe(true);
+
+    const settled = clientStore.getSnapshot();
+    expect(settled.conversation.sending).toBe(false);
+    expect(settled.conversation.messages).toEqual([
+      { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },
+      { id: 'm2', at: '2026-09-19T00:02:00.000Z', author: { kind: 'human' }, body: 'newer' },
+      {
+        id: 'm3',
+        at: '2026-09-19T00:03:00.000Z',
+        author: { kind: 'human' },
+        body: 'hello',
+      },
     ]);
-    expect(messageReads).toBe(2);
     expect(assignmentReads).toBe(2);
-    expect(state.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
-      '2026-09-19T00:04:00.000Z',
+    expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
+      '2026-09-19T00:03:00.000Z',
     );
+  });
+
+  it('removes the local echo and reports the failure when a send is rejected', async () => {
+    const { clientStore, actions } = setup({
+      channelSend: () => {
+        throw new Error('PersonaBot is archived: ada');
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+
+    await expect(actions.send('hello')).resolves.toBe(false);
+
+    const state = clientStore.getSnapshot();
+    expect(state.conversation.messages.map((message) => message.body)).toEqual(['older', 'newer']);
+    expect(state.conversation.sending).toBe(false);
+    expect(state.conversation.error).toBe('PersonaBot is archived: ada');
   });
 
   it('creates a group channel, selects it, and surfaces failures', async () => {
