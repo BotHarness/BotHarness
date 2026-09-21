@@ -397,7 +397,7 @@ function ComputerPanel(): ReactElement {
             <button type="button" style={buttonStyle} onClick={() => setConfirming(false)}>
               取消
             </button>
-            <button type="button" style={primaryButtonStyle} onClick={() => approve(true)}>
+            <button type="button" style={primaryButtonStyle} onClick={() => approve(false)}>
               授权并启动
             </button>
           </div>

@@ -193,6 +193,53 @@ describe('Docker computer provider', () => {
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
   });
 
+  it('restarts the Computer when export fails after stopping it', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return ok('running\n');
+        if (argv[1] === 'run') return fail('tar: write error');
+        return ok('ok');
+      }, calls),
+    });
+    await expect(provider.exportTo?.('/tmp/exports')).rejects.toThrow(/write error/);
+    const verbs = calls.map((argv) => argv[1]);
+    expect(verbs).toContain('stop');
+    expect(verbs.filter((verb) => verb === 'start').length).toBeGreaterThanOrEqual(1);
+  });
+
+  it('cancels an in-flight start when stop is requested', async () => {
+    let release = (): void => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: {
+        run: async (argv) => {
+          calls.push([...argv]);
+          if (argv[1] === 'info') return ok('27.0.0');
+          if (argv[1] === 'inspect') return fail('No such object');
+          if (argv[1] === 'image') return fail('No such image');
+          return ok('ok');
+        },
+        runStreaming: async (_argv, onChunk) => {
+          onChunk('abc123456789: Pulling fs layer\n');
+          await gate;
+          return ok('pulled');
+        },
+      },
+    });
+    const starting = provider.start();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const stopping = provider.stop();
+    release();
+    await expect(starting).rejects.toThrow(/cancelled/);
+    await stopping;
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+  });
+
   it('streams pull output into status progress while starting', async () => {
     let release = (): void => undefined;
     const gate = new Promise<void>((resolve) => {

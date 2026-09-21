@@ -170,10 +170,8 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     return () => clearInterval(timer);
   }, 'botharness-computer: idle stop');
 
-  let hostConnection: HostConnectionLike | undefined;
   ctx.inject(['connection'], (connectionCtx) => {
     const connection = (connectionCtx as unknown as { connection: HostConnectionLike }).connection;
-    hostConnection = connection;
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
 
@@ -188,7 +186,6 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         const status = await service
           .status()
           .catch((error: unknown) => ({ state: 'failed' as const, detail: String(error) }));
-        if (status.state === 'running') watcher.touch();
         return json({
           provider: service.providerName ?? null,
           probe,
@@ -346,16 +343,18 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     );
   });
 
-  ctx.inject(['webServer'], (webCtx) => {
+  ctx.inject(['connection', 'webServer'], (viewerCtx) => {
     let webServer: HostWebServerLike | undefined;
+    let connection: HostConnectionLike | undefined;
     try {
-      webServer = (webCtx as unknown as { webServer?: HostWebServerLike }).webServer;
+      webServer = (viewerCtx as unknown as { webServer?: HostWebServerLike }).webServer;
+      connection = (viewerCtx as unknown as { connection?: HostConnectionLike }).connection;
     } catch (error) {
-      console.error('[botharness-computer] webServer unavailable:', String(error));
+      log(`viewer registration failed: ${String(error)}`);
       return;
     }
-    if (webServer === undefined) {
-      console.error('[botharness-computer] webServer service is missing');
+    if (webServer === undefined || connection === undefined) {
+      log('viewer registration skipped: connection or webServer service is missing');
       return;
     }
     const proxy = new ViewerProxy({ prefix: VIEWER_PREFIX, upstream: () => service.upstream() });
@@ -376,7 +375,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
               if (Array.isArray(value)) for (const item of value) requestHeaders.append(key, item);
               else if (value !== undefined) requestHeaders.set(key, value);
             }
-            const rejection = hostConnection?.requestRejection({ headers: requestHeaders });
+            const rejection = connection.requestRejection({ headers: requestHeaders });
             if (rejection !== undefined) {
               nodeResponse.writeHead(rejection);
               nodeResponse.end();
@@ -416,7 +415,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
             webServer.registerUpgrade?.({
               path: socketPath,
               handler: (request, socket, head) => {
-                const rejection = hostConnection?.requestRejection({
+                const rejection = connection.requestRejection({
                   headers: request.headers as unknown as Headers,
                 });
                 if (rejection !== undefined) {

@@ -111,6 +111,27 @@ export function createDockerComputerProvider(
   let running = false;
   let operation: Promise<void> | undefined;
   let pullProgress: ComputerProgress | undefined;
+  let lifecycle: Promise<unknown> = Promise.resolve();
+  let cancelRequested = false;
+
+  /** Serializes lifecycle operations so a stop cannot race an in-flight start. */
+  const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = lifecycle.then(task, task);
+    lifecycle = run.then(
+      () => undefined,
+      () => undefined,
+    );
+    return run;
+  };
+
+  /** Aborts an in-flight start at its next checkpoint when a stop was requested. */
+  const throwIfCancelled = (): void => {
+    if (!cancelRequested) return;
+    cancelRequested = false;
+    phase = 'idle';
+    detail = undefined;
+    throw new Error('computer start cancelled');
+  };
 
   const probeRuntime = async (): Promise<ComputerRuntimeProbe> => {
     const result = await runner.run(['docker', 'info', '--format', '{{.ServerVersion}}']);
@@ -148,11 +169,14 @@ export function createDockerComputerProvider(
   };
 
   const runStart = async (): Promise<void> => {
+    cancelRequested = false;
     const probe = await probeRuntime();
+    throwIfCancelled();
     if (!probe.available) {
       fail(probe.detail ?? 'docker runtime is not available');
     }
     const existing = await inspect();
+    throwIfCancelled();
     if (existing.state === 'running') {
       phase = 'running';
       detail = undefined;
@@ -161,6 +185,7 @@ export function createDockerComputerProvider(
     if (existing.state === 'stopped') {
       phase = 'starting';
       detail = '正在启动已有容器…';
+      throwIfCancelled();
       const start = await runner.run(['docker', 'start', config.containerName]);
       if (start.code !== 0) {
         fail(start.stderr.trim() || 'docker start failed');
@@ -171,6 +196,7 @@ export function createDockerComputerProvider(
       return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
+    throwIfCancelled();
     if (image.code !== 0) {
       phase = 'pulling';
       detail = '正在拉取镜像（首次约 1.2 GB，请耐心等待）…';
@@ -187,6 +213,7 @@ export function createDockerComputerProvider(
         fail(pull.stderr.trim() || 'docker pull failed');
       }
       pullProgress = undefined;
+      throwIfCancelled();
     }
     phase = 'starting';
     detail = '正在创建并启动容器…';
@@ -194,6 +221,7 @@ export function createDockerComputerProvider(
     if (volume.code !== 0) {
       fail(volume.stderr.trim() || 'docker volume create failed');
     }
+    throwIfCancelled();
     const start = await runner.run([
       'docker',
       'run',
@@ -221,6 +249,14 @@ export function createDockerComputerProvider(
     if (start.code !== 0) {
       fail(start.stderr.trim() || 'docker run failed');
     }
+    if (cancelRequested) {
+      cancelRequested = false;
+      await runner.run(['docker', 'stop', config.containerName]);
+      running = false;
+      phase = 'idle';
+      detail = undefined;
+      throw new Error('computer start cancelled');
+    }
     phase = 'running';
     detail = undefined;
     running = true;
@@ -247,29 +283,35 @@ export function createDockerComputerProvider(
     phase = 'exporting';
     detail = '正在打包 Computer 数据…';
     const archive = `${config.volumeName}-${new Date().toISOString().replace(/[:.]/g, '-')}.tar`;
-    const tar = await runner.run([
-      'docker',
-      'run',
-      '--rm',
-      '--entrypoint',
-      '/bin/sh',
-      '-v',
-      `${config.volumeName}:/data`,
-      '-v',
-      `${destDir}:/backup`,
-      config.image,
-      '-c',
-      `tar cf /backup/${archive} -C /data .`,
-    ]);
-    if (tar.code !== 0) fail(tar.stderr.trim() || 'computer export failed');
-    if (wasRunning) {
-      const start = await runner.run(['docker', 'start', config.containerName]);
-      if (start.code !== 0) fail(start.stderr.trim() || 'docker start failed');
-      running = true;
+    try {
+      const tar = await runner.run([
+        'docker',
+        'run',
+        '--rm',
+        '--entrypoint',
+        '/bin/sh',
+        '-v',
+        `${config.volumeName}:/data`,
+        '-v',
+        `${destDir}:/backup`,
+        config.image,
+        '-c',
+        `tar cf /backup/${archive} -C /data .`,
+      ]);
+      if (tar.code !== 0) fail(tar.stderr.trim() || 'computer export failed');
+      phase = 'idle';
+      detail = undefined;
+      return join(destDir, archive);
+    } finally {
+      if (wasRunning) {
+        const start = await runner.run(['docker', 'start', config.containerName]);
+        if (start.code !== 0) {
+          fail(start.stderr.trim() || 'docker start failed');
+        } else {
+          running = true;
+        }
+      }
     }
-    phase = 'idle';
-    detail = undefined;
-    return join(destDir, archive);
   };
 
   const importFrom = async (archive: string): Promise<void> => {
@@ -318,32 +360,39 @@ export function createDockerComputerProvider(
         return withDetail({ state: 'failed', phase: 'failed' });
       }
       const status = await inspect();
+      if (phase === 'stopping' || phase === 'exporting' || phase === 'importing') {
+        return withDetail({ ...status, phase });
+      }
       if (status.state === 'running') phase = 'running';
       return status;
     },
     async start(): Promise<void> {
       if (operation !== undefined) return operation;
-      operation = runStart().finally(() => {
+      operation = enqueue(runStart).finally(() => {
         operation = undefined;
       });
       return operation;
     },
     async stop(): Promise<void> {
-      phase = 'stopping';
-      const result = await runner.run(['docker', 'stop', config.containerName]);
-      if (result.code !== 0 && !result.stderr.includes('No such container')) {
-        phase = 'failed';
-        detail = result.stderr.trim() || 'docker stop failed';
-        throw failure(detail);
-      }
-      running = false;
-      phase = 'idle';
-      detail = undefined;
+      cancelRequested = true;
+      await enqueue(async () => {
+        phase = 'stopping';
+        detail = undefined;
+        const result = await runner.run(['docker', 'stop', config.containerName]);
+        if (result.code !== 0 && !result.stderr.includes('No such container')) {
+          phase = 'failed';
+          detail = result.stderr.trim() || 'docker stop failed';
+          throw failure(detail);
+        }
+        running = false;
+        phase = 'idle';
+        detail = undefined;
+      });
     },
     upstream(): URL | undefined {
       return running ? new URL(`http://127.0.0.1:${config.hostPort}/`) : undefined;
     },
-    exportTo,
-    importFrom,
+    exportTo: (destDir: string) => enqueue(() => exportTo(destDir)),
+    importFrom: (archive: string) => enqueue(() => importFrom(archive)),
   };
 }

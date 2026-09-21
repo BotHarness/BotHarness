@@ -355,7 +355,7 @@ window.__ModuleLoader__.load({
 								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
 									style: primaryButtonStyle,
-									onClick: () => approve(true),
+									onClick: () => approve(false),
 									children: "授权并启动"
 								})]
 							})
