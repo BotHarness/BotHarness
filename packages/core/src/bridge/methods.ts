@@ -365,6 +365,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return setPaused(payload, false);
     },
     channels() {
+      // A PersonaBot's DM is a first-class Channel, not a UI-only contact.
+      // Reconcile older profiles on read so every Bot can participate in the
+      // same durable section membership and top-level order as group Channels.
+      for (const bot of deps.registry.list()) {
+        deps.channels.getOrCreateDm(bot.slug, bot.displayName);
+      }
       return { ok: true, value: { channels: deps.channels.list() } };
     },
     channelDm(payload) {

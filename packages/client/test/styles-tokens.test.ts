@@ -90,6 +90,7 @@ describe('client styles', () => {
     );
     expect(source).toMatch(/\.bh-section\.bh-drop-before::before,[^{]*\{[^}]*position: absolute/);
     expect(source).toMatch(/\.bh-channel-row\.bh-drag-source \{\s*opacity: 0\.4/);
+    expect(source).toMatch(/\.bh-contact\.bh-drag-source \{\s*opacity: 0\.4/);
   });
 
   it('anchors the channel move menu at the cursor proxy', () => {

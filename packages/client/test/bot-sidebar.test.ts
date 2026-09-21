@@ -95,6 +95,16 @@ const FLAT_CHANNEL: ChannelSummary = {
   updatedAt: AT,
 };
 
+const DM_CHANNEL: ChannelSummary = {
+  id: 'dm-atlas',
+  type: 'dm',
+  name: 'Atlas',
+  members: ['atlas'],
+  botSlug: 'atlas',
+  createdAt: AT,
+  updatedAt: AT,
+};
+
 function stubActions(): BridgeActions {
   return {
     load: vi.fn(async () => undefined),
@@ -251,7 +261,7 @@ describe('bot sidebar rows', () => {
   });
 
   it('keeps the two-line bot contact rows', () => {
-    store.setRoster([BOT], []);
+    store.setRoster([BOT], [DM_CHANNEL]);
     const markup = renderSidebar();
 
     expect(markup).toContain('bh-contact');
@@ -260,6 +270,33 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('研究');
     expect(markup).toContain('写作');
     expect(markup).toContain('文件研究助手');
+  });
+
+  it('renders a PersonaBot DM inside a section with the same channel drag lifecycle', () => {
+    setRoster({ sections: [section('s1', '工作流', ['dm-atlas'])] });
+    store.setRoster([BOT], [DM_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup.indexOf('工作流')).toBeLessThan(markup.indexOf('Atlas'));
+    expect(markup).toContain('bh-contact');
+    expect(markup).toContain('data-channel-id="dm-atlas"');
+    expect(markup.match(/draggable="true"/g)).toHaveLength(2);
+  });
+
+  it('places a loose PersonaBot DM between sections through topOrder', () => {
+    setRoster({
+      sections: [section('s1', '工作流', []), section('s2', '研究', [])],
+      topOrder: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: 'dm-atlas' },
+        { kind: 'section', id: 's2' },
+      ],
+    });
+    store.setRoster([BOT], [DM_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup.indexOf('工作流')).toBeLessThan(markup.indexOf('Atlas'));
+    expect(markup.indexOf('Atlas')).toBeLessThan(markup.indexOf('研究'));
   });
 
   it('renders the read-only note after a roster write reported storage-unavailable', () => {

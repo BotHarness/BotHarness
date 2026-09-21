@@ -268,7 +268,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     },
     async createBot(input) {
       const bot = await createPersonaBot(call, input);
+      const channel = await openDmChannel(call, bot.slug, bot.displayName);
       clientStore.upsertBot(bot);
+      clientStore.upsertChannel(channel);
       clientStore.select({ kind: 'bot', slug: bot.slug });
       return bot;
     },
@@ -347,7 +349,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         undefined,
         snapshot.roster.sections.map((section) => section.id),
         snapshot.channels
-          .filter((channel) => channel.type === 'group')
+          .filter(
+            (channel) =>
+              channel.type === 'group' ||
+              (channel.botSlug !== undefined && !snapshot.roster.pins.includes(channel.botSlug)),
+          )
           .map((channel) => channel.id),
         sectioned,
       );

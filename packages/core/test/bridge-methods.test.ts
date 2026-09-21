@@ -196,11 +196,11 @@ describe('bridge methods', () => {
     );
   });
 
-  it('writes a placeholder PERSONA.md when create has no persona', () => {
+  it('creates a name-only bot without provisioning Memory or Persona', () => {
     const { root, methods } = setup([], ['plain']);
 
     expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
-    expect(readFileSync(join(root, 'plain', 'memory', 'PERSONA.md'), 'utf8')).toBe('# Plain\n');
+    expect(existsSync(join(root, 'plain', 'memory'))).toBe(false);
   });
 
   it('owns ID generation and reports malformed Human-facing fields', () => {
@@ -339,7 +339,20 @@ describe('bridge methods', () => {
     const { methods } = setup();
     methods.create({ slug: 'ada', displayName: 'Ada' });
 
-    expect(methods.channels({})).toEqual({ ok: true, value: { channels: [] } });
+    expect(methods.channels({})).toEqual({
+      ok: true,
+      value: {
+        channels: [
+          expect.objectContaining({
+            id: 'dm-ada',
+            type: 'dm',
+            name: 'Ada',
+            members: ['ada'],
+            botSlug: 'ada',
+          }),
+        ],
+      },
+    });
 
     const dm = methods.channelDm({ slug: 'ada', displayName: 'Ada' });
     expect(dm.ok && dm.value.channel).toMatchObject({
