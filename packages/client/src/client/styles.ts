@@ -1111,90 +1111,35 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   text-align: right;
 }
 
-.bh-composer {
+.bh-composer-shell {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 7px;
+  gap: 6px;
   margin: 0 14px calc(12px + env(safe-area-inset-bottom, 0px));
+  flex: 0 0 auto;
+}
+.bh-composer {
   padding: 8px 10px 9px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 20px;
   background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 8px 24px
     color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
-  flex: 0 0 auto;
 }
-.bh-composer-activity-region {
-  min-height: 0;
-  min-width: 0;
-}
-.bh-composer-activity-region[data-empty='true'] {
-  display: none;
-}
-.bh-composer-activity-trigger {
-  width: 100%;
+.bh-composer-activity-status {
   min-height: 24px;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 8px;
-  border: 0;
-  border-radius: 10px;
-  padding: 0 4px;
-  background: transparent;
+  padding: 0 8px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11.5px;
-  text-align: left;
-  cursor: pointer;
-}
-.bh-composer-activity-trigger:hover,
-.bh-composer-activity-trigger:focus-visible,
-.bh-composer-activity-trigger[aria-expanded='true'] {
-  background: var(--dsw-alias-interactive-bg-hover);
-  color: var(--dsw-alias-label-secondary);
-}
-.bh-composer-activity-trigger:focus-visible {
-  outline: 1px solid var(--dsw-alias-state-business-primary);
-  outline-offset: 1px;
 }
 .bh-composer-activity-summary {
   min-width: 0;
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.bh-composer-activity-details {
-  margin: 5px 4px 1px 32px;
-  border-left: 1px solid var(--dsw-alias-border-l2);
-  padding: 4px 8px;
-  color: var(--dsw-alias-label-tertiary);
-  font-size: 11.5px;
-}
-.bh-composer-activity-details[hidden] {
-  display: none;
-}
-.bh-composer-activity-details p,
-.bh-composer-activity-details dl {
-  margin: 0;
-}
-.bh-composer-activity-details dl {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-.bh-composer-activity-details dl > div {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  min-width: 0;
-}
-.bh-composer-activity-details dt {
-  color: var(--dsw-alias-label-secondary);
-}
-.bh-composer-activity-details dd {
-  min-width: 0;
-  margin: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1447,7 +1392,7 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 }
 
 @media (max-width: 720px) {
-  .bh-composer {
+  .bh-composer-shell {
     margin-right: 8px;
     margin-left: 8px;
   }

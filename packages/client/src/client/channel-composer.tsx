@@ -1,15 +1,8 @@
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type ReactElement } from 'react';
 
 import { Button, IconSendOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
-
-/** Safe, presentation-ready detail exposed by a PersonaBot activity projection. */
-export interface ChannelComposerActivityDetail {
-  id: string;
-  label: string;
-  value: string;
-}
 
 /**
  * Activity projection consumed by the composer. It carries no Session payload
@@ -18,7 +11,6 @@ export interface ChannelComposerActivityDetail {
 export interface ChannelComposerActivity {
   items: readonly PersonaBotFacepileItem[];
   summary: string;
-  details?: readonly ChannelComposerActivityDetail[] | undefined;
 }
 
 export interface ChannelComposerProps {
@@ -53,60 +45,22 @@ export function fitComposerTextarea(
   element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }
 
-function PersonaBotActivityRegion({
+function PersonaBotActivityStatus({
   activity,
 }: {
   activity: ChannelComposerActivity | undefined;
-}): ReactElement {
-  const [expanded, setExpanded] = useState(false);
-  const detailsId = useId();
-  const visible = activity !== undefined && activity.items.length > 0;
+}): ReactElement | null {
+  if (activity === undefined || activity.items.length === 0) return null;
 
-  useEffect(() => {
-    setExpanded(false);
-  }, [activity?.summary]);
-
-  if (!visible) {
-    return <div className="bh-composer-activity-region" data-empty="true" aria-hidden="true" />;
-  }
-
-  const details = activity.details ?? [];
   return (
-    <div className="bh-composer-activity-region" data-empty="false">
-      <button
-        type="button"
-        className="bh-composer-activity-trigger"
-        aria-expanded={expanded}
-        aria-controls={detailsId}
-        title={activity.summary}
-        onClick={() => {
-          setExpanded((value) => !value);
-        }}
-      >
-        <PersonaBotFacepile items={activity.items} size={24} />
-        <span className="bh-composer-activity-summary" aria-live="polite">
-          {activity.summary}
-        </span>
-      </button>
-      <div
-        id={detailsId}
-        className="bh-composer-activity-details"
-        hidden={!expanded}
-        aria-label="PersonaBot 当前活动"
-      >
-        {details.length === 0 ? (
-          <p>{activity.summary}</p>
-        ) : (
-          <dl>
-            {details.map((detail) => (
-              <div key={detail.id}>
-                <dt>{detail.label}</dt>
-                <dd>{detail.value}</dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </div>
+    <div
+      className="bh-composer-activity-status"
+      role="status"
+      aria-live="polite"
+      title={activity.summary}
+    >
+      <PersonaBotFacepile items={activity.items} size={24} />
+      <span className="bh-composer-activity-summary">{activity.summary}</span>
     </div>
   );
 }
@@ -130,36 +84,38 @@ export function ChannelComposer({
   }, [value]);
 
   return (
-    <div className="bh-composer">
-      <PersonaBotActivityRegion activity={activity} />
-      <div className="bh-composer-controls">
-        <textarea
-          ref={inputRef}
-          className="bh-composer-input"
-          rows={1}
-          placeholder={placeholder}
-          value={value}
-          disabled={sending}
-          onChange={(event) => {
-            onChange(event.target.value);
-          }}
-          onKeyDown={(event) => {
-            if (!shouldSubmitComposerKey(event)) return;
-            event.preventDefault();
-            void onSubmit();
-          }}
-        />
-        <Button
-          className="bh-send-btn"
-          variant="primary"
-          size="sm"
-          icon={<IconSendOutline16 size={16} />}
-          aria-label="发送"
-          disabled={value.trim().length === 0 || sending}
-          onClick={() => void onSubmit()}
-        >
-          <span className="bh-send-label">{sending ? '发送中' : '发送'}</span>
-        </Button>
+    <div className="bh-composer-shell">
+      <PersonaBotActivityStatus activity={activity} />
+      <div className="bh-composer">
+        <div className="bh-composer-controls">
+          <textarea
+            ref={inputRef}
+            className="bh-composer-input"
+            rows={1}
+            placeholder={placeholder}
+            value={value}
+            disabled={sending}
+            onChange={(event) => {
+              onChange(event.target.value);
+            }}
+            onKeyDown={(event) => {
+              if (!shouldSubmitComposerKey(event)) return;
+              event.preventDefault();
+              void onSubmit();
+            }}
+          />
+          <Button
+            className="bh-send-btn"
+            variant="primary"
+            size="sm"
+            icon={<IconSendOutline16 size={16} />}
+            aria-label="发送"
+            disabled={value.trim().length === 0 || sending}
+            onClick={() => void onSubmit()}
+          >
+            <span className="bh-send-label">{sending ? '发送中' : '发送'}</span>
+          </Button>
+        </div>
       </div>
     </div>
   );

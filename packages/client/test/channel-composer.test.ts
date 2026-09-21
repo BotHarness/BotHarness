@@ -18,8 +18,8 @@ import {
   shouldSubmitComposerKey,
 } from '../src/client/channel-composer.js';
 
-describe('Channel composer island', () => {
-  it('renders one stable, accessible activity region without owning its projection', () => {
+describe('Channel composer', () => {
+  it('renders a non-interactive live activity status outside the rounded composer', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {
         value: 'hello',
@@ -28,22 +28,24 @@ describe('Channel composer island', () => {
         activity: {
           items: [{ personaBotId: 'ada', name: 'Ada', state: 'thinking' }],
           summary: 'Ada 正在思考',
-          details: [{ id: 'ada', label: 'Ada', value: '正在思考' }],
         },
         onChange: () => undefined,
         onSubmit: () => undefined,
       }),
     );
 
-    expect(markup).toContain('class="bh-composer"');
-    expect(markup).toContain('class="bh-composer-activity-region"');
-    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('class="bh-composer-shell"');
+    expect(markup).toContain('class="bh-composer-activity-status"');
+    expect(markup.indexOf('bh-composer-activity-status')).toBeLessThan(
+      markup.indexOf('class="bh-composer"'),
+    );
+    expect(markup).not.toContain('aria-expanded');
     expect(markup).toContain('Ada 正在思考');
     expect(markup).toContain('<textarea');
     expect(markup).toContain('hello');
   });
 
-  it('keeps the activity slot stable when no projection is available', () => {
+  it('does not render status chrome when no active projection is available', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {
         value: '',
@@ -54,8 +56,8 @@ describe('Channel composer island', () => {
       }),
     );
 
-    expect(markup).toContain('class="bh-composer-activity-region"');
-    expect(markup).toContain('data-empty="true"');
+    expect(markup).not.toContain('bh-composer-activity-status');
+    expect(markup).toContain('class="bh-composer"');
     expect(markup).toContain('disabled=""');
   });
 

@@ -296,17 +296,17 @@ function ConversationView({
   const activeFacepile = channelFacepile.filter((item) => item.state !== 'idle');
   const composerFacepile: PersonaBotFacepileItem[] =
     bot === undefined
-      ? activeFacepile.length > 0
-        ? activeFacepile
-        : channelFacepile
-      : [
-          {
-            personaBotId: bot.slug,
-            name: bot.displayName,
-            src: bot.avatar,
-            state: botActivity,
-          },
-        ];
+      ? activeFacepile
+      : botActivity === undefined || botActivity === 'idle'
+        ? []
+        : [
+            {
+              personaBotId: bot.slug,
+              name: bot.displayName,
+              src: bot.avatar,
+              state: botActivity,
+            },
+          ];
   const composerActivity: ChannelComposerActivity | undefined =
     composerFacepile.length === 0
       ? undefined
@@ -315,14 +315,7 @@ function ConversationView({
           summary:
             composerFacepile.length === 1
               ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle')}`
-              : activeFacepile.length > 0
-                ? `${composerFacepile.length} 个 PersonaBot 有状态更新`
-                : `${composerFacepile.length} 个 PersonaBot 在此频道`,
-          details: composerFacepile.map((item) => ({
-            id: item.personaBotId,
-            label: item.name,
-            value: personaBotActivityLabel(item.state ?? 'idle'),
-          })),
+              : `${composerFacepile.length} 个 PersonaBot 有状态更新`,
         };
   const channelId = channel?.id;
   const currentChannel = useRef(channelId);

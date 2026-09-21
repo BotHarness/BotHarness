@@ -117,7 +117,7 @@ describe('client styles', () => {
     expect(source).toMatch(
       /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
     );
-    expect(source).toMatch(/\.bh-composer \{[^}]*safe-area-inset-bottom/);
+    expect(source).toMatch(/\.bh-composer-shell \{[^}]*safe-area-inset-bottom/);
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
   });
 });
