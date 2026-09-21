@@ -14,6 +14,8 @@ import {
   createBotRuntime,
   type AssignmentAgentRun,
   type BotAgentAdapter,
+  type BotRuntime,
+  type HandleDmMessageInput,
   type OrchestratorAgentRun,
 } from '../src/runtime/bot-runtime.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
@@ -33,6 +35,12 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
   }
 
   async close(): Promise<void> {}
+}
+
+function admit(runtime: BotRuntime, input: HandleDmMessageInput): Promise<void> {
+  const admission = runtime.admitDmMessage(input);
+  if (!admission.admitted) throw new Error(`admission rejected: ${admission.reason}`);
+  return admission.settled;
 }
 
 function sourceEvents(owner: OperationalDatabaseOwner): Array<{
@@ -78,7 +86,7 @@ describe('Bot runtime tracer bullet', () => {
       createSessionId: () => 'orchestrator-ada',
     });
 
-    await runtime.handleDmMessage({
+    await admit(runtime, {
       channelId: dm!.id,
       messageId: 'human-1',
       body: '请调查发布状态',
@@ -143,7 +151,7 @@ describe('Bot runtime tracer bullet', () => {
       body: '请重试发布状态',
     };
 
-    await expect(runtime.handleDmMessage(input)).rejects.toThrow(/TRANSPORT/);
+    await expect(admit(runtime, input)).rejects.toThrow(/TRANSPORT/);
     expect(sourceEvents(owner)).toEqual([
       { source_event_id: 'source-retry', handled_at: null, attempt_state: 'retryable' },
     ]);
@@ -152,7 +160,7 @@ describe('Bot runtime tracer bullet', () => {
       channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
     ).toEqual([]);
 
-    await expect(runtime.handleDmMessage(input)).resolves.toBeUndefined();
+    await expect(admit(runtime, input)).resolves.toBeUndefined();
     expect(sourceEvents(owner)).toEqual([
       {
         source_event_id: 'source-retry',
@@ -166,7 +174,7 @@ describe('Bot runtime tracer bullet', () => {
       channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
     ).toEqual([expect.objectContaining({ id: 'bot-retry' })]);
 
-    await expect(runtime.handleDmMessage(input)).resolves.toBeUndefined();
+    await expect(admit(runtime, input)).resolves.toBeUndefined();
     expect(sourceEvents(owner)).toHaveLength(1);
     expect(orchestratorAttempts).toBe(2);
     expect(assignmentRuns).toBe(1);
@@ -228,8 +236,8 @@ describe('Bot runtime tracer bullet', () => {
       body: '请核对副作用',
     };
 
-    await expect(runtime.handleDmMessage(input)).rejects.toThrow(/TRANSPORT after side effects/);
-    await expect(runtime.handleDmMessage(input)).rejects.toThrow(/requires reconciliation/);
+    await expect(admit(runtime, input)).rejects.toThrow(/TRANSPORT after side effects/);
+    await expect(admit(runtime, input)).rejects.toThrow(/requires reconciliation/);
 
     expect(sourceEvents(owner)).toEqual([
       { source_event_id: 'source-repair', handled_at: null, attempt_state: 'needs-repair' },
@@ -282,7 +290,7 @@ describe('Bot runtime tracer bullet', () => {
     });
 
     await expect(
-      runtime.handleDmMessage({
+      admit(runtime, {
         channelId: adaDm!.id,
         messageId: 'human-1',
         body: '尝试越权',
@@ -322,7 +330,7 @@ describe('Bot runtime tracer bullet', () => {
       })(),
     });
 
-    await runtime.handleDmMessage({
+    await admit(runtime, {
       channelId: dm!.id,
       messageId: 'human-1',
       body: '请调查发布状态',
@@ -376,5 +384,124 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     await reopened.close();
     reopenedOwner.close();
+  });
+
+  it('admits DM messages without waiting and runs them serially in order', async () => {
+    const home = createTempRoot('botharness-bot-runtime-queue-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada');
+    expect(dm).toBeDefined();
+    for (const id of ['human-1', 'human-2']) {
+      await channels.appendMessage(dm!.id, {
+        id,
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: id,
+      });
+    }
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const started: string[] = [];
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        async runOrchestrator(run) {
+          started.push(run.message);
+          if (started.length === 1) await gate;
+        },
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createSessionId: () => 'orchestrator-ada',
+    });
+
+    const first = runtime.admitDmMessage({
+      channelId: dm!.id,
+      messageId: 'human-1',
+      body: 'human-1',
+    });
+    const second = runtime.admitDmMessage({
+      channelId: dm!.id,
+      messageId: 'human-2',
+      body: 'human-2',
+    });
+
+    expect(first.admitted).toBe(true);
+    expect(second.admitted).toBe(true);
+    expect(started).toEqual([]);
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(started).toEqual(['human-1']);
+
+    release();
+    if (!first.admitted || !second.admitted) throw new Error('expected both admissions');
+    await Promise.all([first.settled, second.settled]);
+    expect(started).toEqual(['human-1', 'human-2']);
+    const events = sourceEvents(owner);
+    expect(events).toHaveLength(2);
+    expect(
+      events.every((event) => event.attempt_state === 'handled' && event.handled_at !== null),
+    ).toBe(true);
+
+    await runtime.close();
+    owner.close();
+  });
+
+  it('rejects admission for unknown, non-DM, archived, and blank targets without scheduling', async () => {
+    const home = createTempRoot('botharness-bot-runtime-admission-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada');
+    const group = channels.createGroup({ name: 'Team', members: [] });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const runs: string[] = [];
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        async runOrchestrator(run) {
+          runs.push(run.message);
+        },
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createSessionId: () => 'orchestrator-ada',
+    });
+
+    expect(
+      runtime.admitDmMessage({ channelId: 'dm-missing', messageId: 'm-1', body: 'hello' }),
+    ).toEqual({ admitted: false, reason: 'unknown-channel' });
+    expect(
+      runtime.admitDmMessage({ channelId: group.id, messageId: 'm-2', body: 'hello' }),
+    ).toEqual({ admitted: false, reason: 'not-dm' });
+    expect(runtime.admitDmMessage({ channelId: dm!.id, messageId: 'm-3', body: '   ' })).toEqual({
+      admitted: false,
+      reason: 'blank-body',
+    });
+
+    registry.setPaused('ada', true);
+    expect(runtime.admitDmMessage({ channelId: dm!.id, messageId: 'm-4', body: 'hello' })).toEqual({
+      admitted: false,
+      reason: 'archived-bot',
+    });
+    registry.setPaused('ada', false);
+
+    await runtime.close();
+    expect(runtime.admitDmMessage({ channelId: dm!.id, messageId: 'm-5', body: 'hello' })).toEqual({
+      admitted: false,
+      reason: 'runtime-closed',
+    });
+    expect(runs).toEqual([]);
+    owner.close();
   });
 });

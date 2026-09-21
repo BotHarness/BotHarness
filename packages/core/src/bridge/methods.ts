@@ -24,7 +24,12 @@ import {
   type BotSessionSource,
   type SessionSummary,
 } from '../sessions/source.js';
-import type { AssignmentDetail, AssignmentSummary, BotRuntime } from '../runtime/bot-runtime.js';
+import type {
+  AssignmentDetail,
+  AssignmentSummary,
+  BotRuntime,
+  DmAdmissionFailure,
+} from '../runtime/bot-runtime.js';
 import type {
   AggregatedState,
   BotStateSnapshot,
@@ -141,6 +146,33 @@ function unknownBot(slug: string): BridgeResult<never> {
 
 function unknownChannel(id: string): BridgeResult<never> {
   return { ok: false, error: { code: 'not-found', message: `unknown Channel: ${id}` } };
+}
+
+function dmAdmissionFailure(
+  channelId: string,
+  botSlug: string | undefined,
+  reason: DmAdmissionFailure,
+): BridgeResult<never> {
+  switch (reason) {
+    case 'unknown-channel':
+      return unknownChannel(channelId);
+    case 'not-dm':
+      return invalidInput('Bot runtime accepts only PersonaBot DM messages');
+    case 'unknown-bot':
+      return unknownBot(botSlug ?? channelId);
+    case 'archived-bot':
+      return {
+        ok: false,
+        error: {
+          code: 'bot-archived',
+          message: `PersonaBot is archived: ${botSlug ?? channelId}`,
+        },
+      };
+    case 'blank-body':
+      return invalidInput('body is required');
+    case 'runtime-closed':
+      return { ok: false, error: { code: 'unavailable', message: 'Bot runtime is closed' } };
+  }
 }
 
 function unknownAssignment(sessionId: string): BridgeResult<never> {
@@ -439,11 +471,14 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const appended = await deps.channels.appendMessage(channelId, message);
       if (appended === undefined) return unknownChannel(channelId);
       if (channel.type === 'dm' && deps.runtime !== undefined) {
-        await deps.runtime.handleDmMessage({
+        const admission = deps.runtime.admitDmMessage({
           channelId,
           messageId: appended.id,
           body: appended.body,
         });
+        if (!admission.admitted) {
+          return dmAdmissionFailure(channelId, channel.botSlug, admission.reason);
+        }
       }
       return { ok: true, value: { message: appended } };
     },

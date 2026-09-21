@@ -77,8 +77,27 @@ export interface HandleDmMessageInput {
   body: string;
 }
 
+export type DmAdmissionFailure =
+  | 'runtime-closed'
+  | 'unknown-channel'
+  | 'not-dm'
+  | 'unknown-bot'
+  | 'archived-bot'
+  | 'blank-body';
+
+export type DmMessageAdmission =
+  | { admitted: true; settled: Promise<void> }
+  | { admitted: false; reason: DmAdmissionFailure };
+
 export interface BotRuntime {
-  handleDmMessage(input: HandleDmMessageInput): Promise<void>;
+  /**
+   * Validate one Human DM against the current Channel and PersonaBot, durably
+   * claim its Source Event, and schedule the Orchestrator turn on the
+   * Channel's serial queue. Returns after admission and scheduling; the
+   * returned `settled` promise resolves when that turn finishes and is never
+   * awaited by the browser bridge.
+   */
+  admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
   close(): Promise<void>;
@@ -176,15 +195,32 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
   }
 
-  handleDmMessage(input: HandleDmMessageInput): Promise<void> {
-    if (this.#closed) return Promise.reject(new Error('Bot runtime is closed'));
-    const previous = this.#tails.get(input.channelId) ?? Promise.resolve();
-    const run = previous.then(
-      () => this.#handleDmMessage(input),
-      () => this.#handleDmMessage(input),
-    );
+  admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission {
+    if (this.#closed) return { admitted: false, reason: 'runtime-closed' };
+    const channel = this.#channels.get(input.channelId);
+    if (channel === undefined) return { admitted: false, reason: 'unknown-channel' };
+    if (channel.type !== 'dm' || channel.botSlug === undefined) {
+      return { admitted: false, reason: 'not-dm' };
+    }
+    const bot = this.#registry.get(channel.botSlug);
+    if (bot === undefined) return { admitted: false, reason: 'unknown-bot' };
+    if (bot.paused === true) return { admitted: false, reason: 'archived-bot' };
+    const body = input.body.trim();
+    if (body.length === 0) return { admitted: false, reason: 'blank-body' };
+
+    const timestamp = this.#now().toISOString();
+    const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
+    return {
+      admitted: true,
+      settled: this.#enqueue(channel.id, () => this.#runDmTurn(bot, channel.id, body, claim)),
+    };
+  }
+
+  #enqueue(channelId: string, task: () => Promise<void>): Promise<void> {
+    const previous = this.#tails.get(channelId) ?? Promise.resolve();
+    const run = previous.then(task, task);
     this.#tails.set(
-      input.channelId,
+      channelId,
       run.then(
         () => undefined,
         () => undefined,
@@ -239,24 +275,18 @@ class BotRuntimeImplementation implements BotRuntime {
     await this.#agents.close();
   }
 
-  async #handleDmMessage(input: HandleDmMessageInput): Promise<void> {
-    const body = requireNonBlank(input.body, 'body');
-    const channel = this.#channels.get(input.channelId);
-    if (channel === undefined) throw new Error(`Unknown Channel: ${input.channelId}`);
-    if (channel.type !== 'dm' || channel.botSlug === undefined) {
-      throw new Error('Bot runtime accepts only PersonaBot DM messages');
-    }
-    const bot = this.#registry.get(channel.botSlug);
-    if (bot === undefined) throw new Error(`Unknown PersonaBot: ${channel.botSlug}`);
-    if (bot.paused === true) throw new Error(`PersonaBot is archived: ${bot.slug}`);
-
-    const timestamp = this.#now().toISOString();
-    const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
+  async #runDmTurn(
+    bot: PersonaBotRecord,
+    channelId: string,
+    body: string,
+    claim: SourceEventClaim,
+  ): Promise<void> {
     if (claim.reconciliationRequired === true) {
       throw new Error(`Source Event ${claim.sourceEventId} requires reconciliation before replay`);
     }
     if (!claim.shouldRun) return;
 
+    const timestamp = this.#now().toISOString();
     const orchestrator = this.#ensureOrchestrator(bot.slug, timestamp);
     const markSideEffect = () => this.#markSourceEventNeedsRepair(claim.sourceEventId);
     try {
@@ -265,7 +295,7 @@ class BotRuntimeImplementation implements BotRuntime {
         resume: orchestrator.resume,
         bot,
         message: body,
-        channels: this.#channelAccess(bot.slug, channel.id, markSideEffect),
+        channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
         createAssignment: (purpose) => {
           const normalized = requireNonBlank(purpose, 'Assignment purpose');
           markSideEffect();

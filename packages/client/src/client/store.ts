@@ -36,6 +36,8 @@ export interface ChannelMessage {
   at: string;
   author: ChannelAuthor;
   body: string;
+  /** Local echo awaiting the Host's committed message; never sent on the wire. */
+  pending?: boolean;
 }
 
 export interface SessionSummary {
