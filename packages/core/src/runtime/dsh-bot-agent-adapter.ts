@@ -123,14 +123,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.#assertOpen();
     this.#runs.set(run.sessionId, { role: 'orchestrator', run });
+    const access = new Map<string, boolean>();
     this.#drafts.begin(run.sessionId, {
       channelId: run.inboundChannelId,
       botSlug: run.bot.slug,
       canAccess: (channelId) => {
+        const cached = access.get(channelId);
+        if (cached !== undefined) return cached;
         try {
           run.channels.read({ channelId, limit: 1 });
+          access.set(channelId, true);
           return true;
         } catch {
+          access.set(channelId, false);
           return false;
         }
       },
