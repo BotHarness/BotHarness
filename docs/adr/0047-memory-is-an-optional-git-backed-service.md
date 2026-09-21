@@ -36,7 +36,7 @@ Application-defined Cordis Events report reconciliation and accepted or rejected
 ## Consequences of the update
 
 - The DM → Orchestrator path now depends on successful Memory Repository creation and reconciliation; the earlier name-only/no-Memory tracer-bullet claim is retired.
-- The Memory destination is always present in PersonaBot navigation. Provider-unavailable becomes a fail-closed creation/runtime recovery condition rather than a supported capability-absent mode.
+- The Memory entry is always present in a PersonaBot's Channel sidebar. Provider-unavailable becomes a fail-closed creation/runtime recovery condition rather than a supported capability-absent mode.
 - Existing `memory_*` Tools are legacy implementation surface and are not part of the v1 model-facing contract. Human UI and trusted Plugins continue to cross the Host boundary through Memory Service commands and queries.
 - Pin metadata may be edited as an ordinary file, but it affects future prompt assembly only after an accepted Memory Commit passes the configured byte budget and model-aware preflight.
 - ADR-0002's file-first direction is restored and deepened. ADR-0003 and ADR-0004 remain historical decisions superseded by this ADR; ADR-0014 remains superseded with Persona treated as conventional editable Memory content.

@@ -36,3 +36,7 @@ This decision replaces this ADR's earlier read-only right-side Session inspector
 - A user-facing concepts guide must distinguish PersonaBot navigation, Chat, Memory, Assignment, Assignment Session, Channel, Bot Inbox, and Bridge.
 
 References for the comparison: [Letta Code conversations](https://docs.letta.com/guides/ade/desktop/) and [Letta concurrent conversation guidance](https://docs.letta.com/api/typescript/resources/agents/subresources/messages/methods/create).
+
+## Superseded (2026-09-21)
+
+The right-side information architecture changed (ADR-0053). `PersonaBot navigation` retires as an area name and becomes the scoped **Channel sidebar**: the right region exists for group Channels too, holding scope-appropriate entries (membership and Channel management for a group Channel; PersonaBot entries such as Assignments, Memory, Bot Inbox, and Computer for a DM). Chat remains the **Channel body**, not a sidebar entry, and Memory no longer "replaces the center body" — whether any entry may claim the Channel body is deferred. The fixed "Chat / Memory / Assignments" destination list is replaced by an open, ordered registration seam; the DM-only and single-Bot rules still hold for PersonaBot entries.
