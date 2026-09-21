@@ -7,6 +7,7 @@ import type { Duplex } from 'node:stream';
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 
+import { createComputerDiagnostics } from './diagnostics.js';
 import { createIdleWatcher } from './idle.js';
 import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers/docker.js';
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
@@ -25,6 +26,8 @@ export interface ComputerConfig {
   memory: string;
   shmSize: string;
   idleStopMinutes: number;
+  /** Removes terminals and sudo inside the Computer; off for a full desktop. */
+  hardenDesktop: boolean;
   /** Human-chosen directory that holds Computer exports; empty disables export/import. */
   exportDir: string;
 }
@@ -39,6 +42,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   memory: DEFAULT_DOCKER_CONFIG.memory,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
+  hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   exportDir: '',
 };
 
@@ -52,6 +56,7 @@ export const Config = Schema.object({
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
+  hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description('导出目录；为空时禁用导出/导入'),
@@ -128,9 +133,11 @@ export const VIEWER_PREFIX = '/botharness-computer/viewer';
 export function apply(ctx: Context, config: ComputerConfig): void {
   if (!config.enabled) return;
 
+  const diagnostics = createComputerDiagnostics();
   const service: ComputerService = createComputerService();
   const provider = createDockerComputerProvider({
     runner: createProcessRunner(),
+    onEvent: (detail) => diagnostics.record('container', detail),
     config: {
       image: config.image,
       containerName: config.containerName,
@@ -140,6 +147,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       memory: config.memory,
       shmSize: config.shmSize,
       idleStopMinutes: config.idleStopMinutes,
+      hardenDesktop: config.hardenDesktop,
     },
   });
 
@@ -149,6 +157,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
 
   const log = (message: string): void => {
     ctx.logger.info(`botharness-computer: ${message}`);
+    diagnostics.record('lifecycle', message);
   };
 
   const watcher = createIdleWatcher({
@@ -295,6 +304,33 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(exportRoute),
       'botharness-computer: export route',
+    );
+
+    const diagnosticsRoute = {
+      path: '/api/computer/diagnostics',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (): Promise<Response> => json({ ok: true, events: diagnostics.tail() }),
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(diagnosticsRoute),
+      'botharness-computer: diagnostics route',
+    );
+
+    const viewerEventRoute = {
+      path: '/api/computer/diagnostics/viewer',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        const detail = typeof body.detail === 'string' ? body.detail.slice(0, 300) : '';
+        diagnostics.record('viewer', detail === '' ? 'viewer event' : detail);
+        return json({ ok: true });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(viewerEventRoute),
+      'botharness-computer: viewer diagnostics route',
     );
 
     const exportsRoute = {

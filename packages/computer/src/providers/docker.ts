@@ -31,10 +31,14 @@ export interface DockerComputerConfig {
   readonly memory: string;
   readonly shmSize: string;
   readonly idleStopMinutes: number;
+  /** HARDEN_DESKTOP removes terminals/sudo; a full desktop usually wants it off. */
+  readonly hardenDesktop: boolean;
 }
 
 export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
-  image: 'lscr.io/linuxserver/chrome:latest',
+  // A full XFCE desktop (panel, wallpaper, file manager) instead of a
+  // single-app image, so the Computer looks and behaves like a real machine.
+  image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
   hostPort: 39_001,
@@ -43,11 +47,14 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   memory: '4g',
   shmSize: '1g',
   idleStopMinutes: 30,
+  hardenDesktop: true,
 };
 
 interface DockerComputerProviderOptions {
   readonly runner: ComputerRuntimeRunner;
   readonly config?: Partial<DockerComputerConfig>;
+  /** Receives container state transitions for the plugin diagnostics stream. */
+  readonly onEvent?: (detail: string) => void;
 }
 
 function combine(config: Partial<DockerComputerConfig> | undefined): DockerComputerConfig {
@@ -105,7 +112,7 @@ export function createDockerComputerProvider(
   options: DockerComputerProviderOptions,
 ): ComputerProvider {
   const config = combine(options.config);
-  const { runner } = options;
+  const { runner, onEvent } = options;
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
@@ -113,6 +120,7 @@ export function createDockerComputerProvider(
   let pullProgress: ComputerProgress | undefined;
   let lifecycle: Promise<unknown> = Promise.resolve();
   let cancelRequested = false;
+  let lastObservedState: string | undefined;
 
   /** Serializes lifecycle operations so a stop cannot race an in-flight start. */
   const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
@@ -144,22 +152,35 @@ export function createDockerComputerProvider(
     return { available: true };
   };
 
+  const observe = (state: string, detail: string | undefined): void => {
+    if (lastObservedState === state) return;
+    const from = lastObservedState ?? 'unknown';
+    lastObservedState = state;
+    onEvent?.(`container ${from} → ${state}${detail === undefined ? '' : ` (${detail})`}`);
+  };
+
   const inspect = async (): Promise<ComputerStatus> => {
     const result = await runner.run([
       'docker',
       'inspect',
       '--format',
-      '{{.State.Status}}',
+      '{{.State.Status}} {{.State.ExitCode}}',
       config.containerName,
     ]);
     if (result.code !== 0) {
       running = false;
+      observe('absent', undefined);
       return { state: 'absent' };
     }
-    const status = result.stdout.trim();
+    const [status = '', exitCode = ''] = result.stdout.trim().split(/\s+/);
     running = status === 'running';
-    if (running) return { state: 'running' };
-    return status === '' ? { state: 'stopped' } : { state: 'stopped', detail: status };
+    if (running) {
+      observe('running', undefined);
+      return { state: 'running' };
+    }
+    const detail = status === '' ? undefined : `${status} code=${exitCode}`;
+    observe(status === '' ? 'stopped' : status, detail);
+    return detail === undefined ? { state: 'stopped' } : { state: 'stopped', detail };
   };
 
   const fail = (message: string): never => {
@@ -239,7 +260,7 @@ export function createDockerComputerProvider(
       '-p',
       `127.0.0.1:${config.hostPort}:${config.containerPort}`,
       '-e',
-      'HARDEN_DESKTOP=true',
+      `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
       '-e',
       'PIXELFLUX_WAYLAND=false',
       '-v',

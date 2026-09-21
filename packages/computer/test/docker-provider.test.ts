@@ -193,6 +193,21 @@ describe('Docker computer provider', () => {
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
   });
 
+  it('honors the hardening switch in the container environment', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        return ok('ok');
+      }, calls),
+      config: { hardenDesktop: false },
+    });
+    await provider.start();
+    const run = calls.find((argv) => argv[1] === 'run');
+    expect((run ?? []).join(' ')).toContain('HARDEN_DESKTOP=false');
+  });
+
   it('restarts the Computer when export fails after stopping it', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
