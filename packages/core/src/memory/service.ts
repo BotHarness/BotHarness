@@ -2,6 +2,7 @@ import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
 import { inspectMemoryRepository, type MemoryRepositoryInspection } from './repository.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
+import { formatMemoryTree, memoryTreeSignature } from './tree.js';
 
 export interface MemoryAgentRef {
   session?: { id?: string };
@@ -22,6 +23,12 @@ export interface MemoryService {
    */
   storeForSession(sessionId: string | undefined): MemoryStore | undefined;
   storeForAgent(agent: MemoryAgentRef | undefined): MemoryStore | undefined;
+  /**
+   * Prompt-stable Memory tree text for one Session: identical bytes while the
+   * rendered tree would not change, even when a same-day rewrite moved the
+   * file's mtime. Empty when the Session owns no ready repository.
+   */
+  treeForSession(sessionId: string | undefined): string;
   /** Explicit repository path for diagnostics and repair surfaces. */
   memoryDirFor(sessionId: string | undefined): string | undefined;
   /** Repository health for the Memory surface; never mutates. */
@@ -56,6 +63,25 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     return store;
   };
 
+  const treeCache = new Map<string, { revision: string; signature: string; text: string }>();
+
+  const treeForSession = (sessionId: string | undefined): string => {
+    const store = storeForSession(sessionId);
+    if (store === undefined) return '';
+    const cached = treeCache.get(store.memoryDir);
+    const revision = store.treeRevision();
+    if (cached !== undefined && cached.revision === revision) return cached.text;
+    const entries = store.tree();
+    const signature = memoryTreeSignature(entries);
+    if (cached !== undefined && cached.signature === signature) {
+      treeCache.set(store.memoryDir, { ...cached, revision });
+      return cached.text;
+    }
+    const text = formatMemoryTree(entries);
+    treeCache.set(store.memoryDir, { revision, signature, text });
+    return text;
+  };
+
   const storeForSession = (sessionId: string | undefined): MemoryStore | undefined => {
     const memoryDir = memoryDirFor(sessionId);
     if (memoryDir === undefined) return undefined;
@@ -66,6 +92,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
   return {
     memoryDirFor,
     repositoryFor,
+    treeForSession,
     storeForSession,
     storeForAgent: (agent) => storeForSession(agent?.session?.id),
   };

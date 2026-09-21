@@ -15,6 +15,7 @@ import { searchMemoryFiles, type MemorySearchFile, type MemorySearchHit } from '
 import {
   collectTreeEntries,
   listMemoryFiles,
+  memoryTreeDay,
   readMemoryDocument,
   type MemoryTreeEntry,
 } from './tree.js';
@@ -63,6 +64,11 @@ export interface MemoryStore {
   read(path: string): MemoryEntry | undefined;
   write(input: MemoryWriteInput): Promise<MemoryWriteResult>;
   tree(): MemoryTreeEntry[];
+  /**
+   * Cheap stat-level fingerprint of the repository's Markdown files, used to
+   * skip re-parsing for a prompt tree that would render identically.
+   */
+  treeRevision(): string;
   search(query: string): Promise<MemorySearchHit[]>;
   persona(): string | undefined;
   history(limit?: number): MemoryCommit[];
@@ -98,7 +104,9 @@ function renderIndex(entries: MemoryTreeEntry[]): string {
     } else if (entry.kind === 'overflow') {
       lines.push(`- … and ${entry.count} more files not shown`);
     } else {
-      lines.push(`- \`${entry.path}\` — ${entry.summary} (updated ${entry.updatedAt})`);
+      lines.push(
+        `- \`${entry.path}\` — ${entry.summary} (updated ${memoryTreeDay(entry.updatedAt)})`,
+      );
     }
   }
   return `${lines.join('\n')}\n`;
@@ -194,6 +202,18 @@ export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
     },
     tree() {
       return collectTreeEntries(root);
+    },
+    treeRevision() {
+      return listMemoryFiles(root)
+        .map((relativePath) => {
+          try {
+            const stats = statSync(join(root, relativePath));
+            return `${relativePath}:${stats.size}:${stats.mtimeMs}`;
+          } catch {
+            return `${relativePath}:missing`;
+          }
+        })
+        .join('\n');
     },
     async search(query) {
       return searchMemoryFiles(root, listSearchFiles(root), query);

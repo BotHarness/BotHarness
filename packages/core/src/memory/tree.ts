@@ -141,6 +141,16 @@ export function collectTreeEntries(
   return foldEntries(files, limit);
 }
 
+/**
+ * The tree renders dates, never wall-clock times: a same-day rewrite of an
+ * existing file must produce byte-identical prompt text so the model's cached
+ * prefix survives. A date boundary is an accepted cache reset.
+ */
+export function memoryTreeDay(updatedAt: string): string {
+  const day = /^(\d{4}-\d{2}-\d{2})/u.exec(updatedAt.trim());
+  return day?.[1] ?? updatedAt.trim();
+}
+
 export function formatMemoryTree(entries: MemoryTreeEntry[]): string {
   return entries
     .map((entry) => {
@@ -148,7 +158,18 @@ export function formatMemoryTree(entries: MemoryTreeEntry[]): string {
       if (entry.kind === 'overflow') {
         return `… and ${entry.count} more ${entry.count === 1 ? 'file' : 'files'} not shown`;
       }
-      return `${entry.path} — ${entry.summary} (updated ${entry.updatedAt})`;
+      return `${entry.path} — ${entry.summary} (updated ${memoryTreeDay(entry.updatedAt)})`;
+    })
+    .join('\n');
+}
+
+/** Signature that changes only when the rendered tree would change. */
+export function memoryTreeSignature(entries: MemoryTreeEntry[]): string {
+  return entries
+    .map((entry) => {
+      if (entry.kind === 'folder') return `d:${entry.path}:${entry.count}`;
+      if (entry.kind === 'overflow') return `o:${entry.count}`;
+      return `f:${entry.path}:${memoryTreeDay(entry.updatedAt)}:${entry.summary}`;
     })
     .join('\n');
 }

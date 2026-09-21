@@ -107,6 +107,7 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
+export { memoryTreeDay, memoryTreeSignature } from './memory/tree.js';
 export {
   createDshSessionSource,
   isInsideWorkspace,

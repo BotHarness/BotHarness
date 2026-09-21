@@ -33,7 +33,7 @@ describe('memory store write', () => {
     const index = readFileSync(join(root, 'MEMORY.md'), 'utf8');
     expect(index).toContain('customers/acme.md');
     expect(index).toContain('Acme renewal');
-    expect(index).toContain('2026-09-17T00:00:00.000Z');
+    expect(index).toContain('(updated 2026-09-17)');
   });
 
   it('round-trips reads and reports degraded files with warnings', async () => {

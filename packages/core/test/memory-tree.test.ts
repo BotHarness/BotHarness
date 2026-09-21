@@ -3,10 +3,40 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { MEMORY_TREE_LIMIT, createMemoryStore, formatMemoryTree } from '../src/index.js';
+import {
+  MEMORY_TREE_LIMIT,
+  createMemoryStore,
+  formatMemoryTree,
+  memoryTreeDay,
+  memoryTreeSignature,
+} from '../src/index.js';
 import { FIXED_NOW, createTempRoot } from './helpers.js';
 
 describe('memory tree', () => {
+  it('renders dates only and signs only what changes the rendered tree', () => {
+    const entry = (summary: string, updatedAt: string) => ({
+      kind: 'file' as const,
+      path: 'facts/acme.md',
+      summary,
+      updatedAt,
+    });
+
+    expect(memoryTreeDay('2026-09-17T00:00:00.000Z')).toBe('2026-09-17');
+    expect(memoryTreeDay('not-a-date')).toBe('not-a-date');
+    expect(formatMemoryTree([entry('Acme', '2026-09-17T08:00:00.000Z')])).toBe(
+      'facts/acme.md — Acme (updated 2026-09-17)',
+    );
+    expect(memoryTreeSignature([entry('Acme', '2026-09-17T08:00:00.000Z')])).toBe(
+      memoryTreeSignature([entry('Acme', '2026-09-17T23:59:59.000Z')]),
+    );
+    expect(memoryTreeSignature([entry('Acme', '2026-09-18T00:00:00.000Z')])).not.toBe(
+      memoryTreeSignature([entry('Acme', '2026-09-17T00:00:00.000Z')]),
+    );
+    expect(memoryTreeSignature([entry('Other', '2026-09-17T00:00:00.000Z')])).not.toBe(
+      memoryTreeSignature([entry('Acme', '2026-09-17T00:00:00.000Z')]),
+    );
+  });
+
   it('lists sorted file entries with front-matter summaries and degrades raw files', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
