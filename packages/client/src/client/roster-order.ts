@@ -336,6 +336,22 @@ export interface FlatInsertPlan {
 }
 
 /**
+ * Channel ids that participate in the sidebar's flat order. Group Channels
+ * always participate; a PersonaBot DM participates while its bot is not
+ * pinned. Orphan DMs have no renderable PersonaBot row and are omitted.
+ */
+export function flatRosterChannelIds(
+  channels: readonly ChannelSummary[],
+  pinnedBotSlugs: ReadonlySet<string>,
+): string[] {
+  return channels.flatMap((channel) => {
+    if (channel.type === 'group') return [channel.id];
+    if (channel.botSlug === undefined || pinnedBotSlugs.has(channel.botSlug)) return [];
+    return [channel.id];
+  });
+}
+
+/**
  * Plan one loose flat placement: a gap drop beside a section block, or a drop
  * onto a loose row. A sectioned source is unassigned first (single ownership;
  * no scope mode is ever touched) and lands beside the anchor; a loose source
