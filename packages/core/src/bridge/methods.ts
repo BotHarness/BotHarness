@@ -53,6 +53,11 @@ export interface PersonaBotDetail extends PersonaBotSummary {
   sessions: Record<string, SessionState>;
 }
 
+/** Channel list projection; latestMessage is derived from the durable message log. */
+export interface ChannelListItem extends ChannelRecord {
+  latestMessage?: ChannelMessage;
+}
+
 export interface BridgeError {
   code: string;
   message: string;
@@ -67,9 +72,10 @@ export interface BridgeMethods {
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-  channels(payload: unknown): BridgeResult<{ channels: ChannelRecord[] }>;
+  channels(payload: unknown): BridgeResult<{ channels: ChannelListItem[] }>;
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -83,6 +89,7 @@ export interface BridgeMethods {
   sectionReorder(payload: unknown): Promise<BridgeResult<{ sectionOrder: string[] }>>;
   topReorder(payload: unknown): Promise<BridgeResult<{ topOrder: TopOrderEntry[] }>>;
   pinsSet(payload: unknown): Promise<BridgeResult<{ pins: string[] }>>;
+  hiddenSet(payload: unknown): Promise<BridgeResult<{ hidden: string[] }>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -207,6 +214,7 @@ const topReorderPayload = z.object({
   order: z.array(z.object({ kind: z.enum(['section', 'channel']), id: z.string().min(1) })),
 });
 const pinsSetPayload = z.object({ pins: z.array(z.string()) });
+const hiddenSetPayload = z.object({ hidden: z.array(z.string()) });
 
 function asNonBlank(source: Record<string, unknown>, key: string): string | undefined {
   const value = source[key];
@@ -401,7 +409,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       for (const bot of deps.registry.list()) {
         deps.channels.getOrCreateDm(bot.slug, bot.displayName);
       }
-      return { ok: true, value: { channels: deps.channels.list() } };
+      const channels = deps.channels.list().map((channel) => {
+        const latestMessage = deps.channels.latestMessage(channel.id);
+        return { ...channel, ...(latestMessage === undefined ? {} : { latestMessage }) };
+      });
+      return { ok: true, value: { channels } };
     },
     channelDm(payload) {
       const source = asObject(payload);
@@ -427,6 +439,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const channel = deps.channels.createGroup({ name, members: [...members] });
       return { ok: true, value: { channel } };
+    },
+    channelRename(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const name = asNonBlank(source, 'name')?.trim();
+      if (channelId === undefined) return invalidInput('channelId is required');
+      if (name === undefined) return invalidInput('name is required');
+      const existing = deps.channels.get(channelId);
+      if (existing === undefined) return unknownChannel(channelId);
+
+      let bot: PersonaBotDetail | undefined;
+      if (existing.type === 'dm' && existing.botSlug !== undefined) {
+        if (deps.registry.get(existing.botSlug) === undefined) return unknownBot(existing.botSlug);
+        const result = deps.registry.update(existing.botSlug, { displayName: name });
+        if (!result.ok) return unknownBot(existing.botSlug);
+        bot = detailOf(result.record).bot;
+      }
+      const channel = deps.channels.rename(channelId, name);
+      if (channel === undefined) return unknownChannel(channelId);
+      return { ok: true, value: { channel, ...(bot === undefined ? {} : { bot }) } };
     },
     channelMessages(payload) {
       const source = asObject(payload);
@@ -569,6 +601,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const parsed = pinsSetPayload.safeParse(payload);
       if (!parsed.success) return invalidInput('invalid pinsSet payload');
       return rosterWrite(async () => ({ pins: await deps.roster.pinsSet(parsed.data.pins) }));
+    },
+    async hiddenSet(payload) {
+      const parsed = hiddenSetPayload.safeParse(payload);
+      if (!parsed.success) return invalidInput('invalid hiddenSet payload');
+      return rosterWrite(async () => ({ hidden: await deps.roster.hiddenSet(parsed.data.hidden) }));
     },
   };
 }

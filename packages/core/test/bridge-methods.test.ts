@@ -338,8 +338,8 @@ describe('bridge methods', () => {
     });
   });
 
-  it('lists, opens, and creates local channels', () => {
-    const { methods } = setup();
+  it('lists, opens, and creates local channels with a latest-message projection', async () => {
+    const { methods, registry } = setup();
     methods.create({ slug: 'ada', displayName: 'Ada' });
 
     expect(methods.channels({})).toEqual({
@@ -369,6 +369,10 @@ describe('bridge methods', () => {
     expect(again.ok && again.value.channel.id).toBe('dm-ada');
     expect(again.ok && again.value.channel.name).toBe('Ada');
 
+    await methods.channelSend({ channelId: 'dm-ada', body: '最新进展' });
+    const dmList = methods.channels({});
+    expect(dmList.ok && dmList.value.channels[0]?.latestMessage?.body).toBe('最新进展');
+
     const group = methods.channelCreate({ name: 'Design Team', members: ['ada', 'bob'] });
     expect(group.ok && group.value.channel).toMatchObject({
       id: 'group-design-team',
@@ -376,6 +380,20 @@ describe('bridge methods', () => {
       name: 'Design Team',
       members: ['ada', 'bob'],
     });
+    const renamedGroup = methods.channelRename({
+      channelId: 'group-design-team',
+      name: '  Product Team  ',
+    });
+    expect(renamedGroup.ok && renamedGroup.value.channel.name).toBe('Product Team');
+    expect(renamedGroup.ok && renamedGroup.value.bot).toBeUndefined();
+
+    const renamedDm = methods.channelRename({ channelId: 'dm-ada', name: 'Ada Lovelace' });
+    expect(renamedDm.ok && renamedDm.value.channel).toMatchObject({
+      id: 'dm-ada',
+      name: 'Ada Lovelace',
+    });
+    expect(renamedDm.ok && renamedDm.value.bot?.displayName).toBe('Ada Lovelace');
+    expect(registry.get('ada')?.displayName).toBe('Ada Lovelace');
     const listed = methods.channels({});
     expect(listed.ok && listed.value.channels.map((channel) => channel.id)).toEqual([
       'group-design-team',
@@ -406,6 +424,18 @@ describe('bridge methods', () => {
     expect(methods.channelMessages({})).toEqual({
       ok: false,
       error: { code: 'invalid-input', message: 'channelId is required' },
+    });
+    expect(methods.channelRename({ name: 'Team' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'channelId is required' },
+    });
+    expect(methods.channelRename({ channelId: 'dm-ada', name: '  ' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'name is required' },
+    });
+    expect(methods.channelRename({ channelId: 'missing', name: 'Team' })).toEqual({
+      ok: false,
+      error: { code: 'not-found', message: 'unknown Channel: missing' },
     });
     expect(methods.channelMessages({ channelId: 'dm-missing' })).toEqual({
       ok: false,

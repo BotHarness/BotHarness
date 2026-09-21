@@ -36,6 +36,112 @@ export const CSS =
 }
 .bh-region-rail {
   padding: 0;
+  align-items: center;
+  gap: 0;
+  scrollbar-width: none;
+}
+.bh-region-rail::-webkit-scrollbar {
+  display: none;
+}
+.bh-rail-group {
+  display: flex;
+  width: 36px;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+.bh-rail-channel {
+  display: flex;
+  width: 36px;
+  height: 36px;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.bh-rail-channel:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-rail-channel.bh-selected {
+  background: var(--dsw-specific-sidebar-nav-item-active);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-rail-channel:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+.bh-rail-channel-icon {
+  display: inline-flex;
+  width: 32px;
+  height: 32px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--dsw-alias-button-elevated-fill);
+}
+.bh-rail-divider {
+  width: 28px;
+  flex: none;
+  margin: 10px 4px;
+  border-top: 0.5px solid var(--dsw-alias-border-l3);
+}
+
+/* HoverCard portals this preview to body, so these rules intentionally do
+   not depend on the bh-root ancestor or its three local brand aliases. */
+.bh-rail-preview {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--dsw-alias-label-primary);
+}
+.bh-rail-preview-head {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 8px;
+}
+.bh-rail-preview-icon {
+  display: inline-flex;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 50%;
+}
+.bh-rail-preview-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 20px;
+}
+.bh-rail-preview-meta,
+.bh-rail-preview-description,
+.bh-rail-preview-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  line-height: 18px;
+  -webkit-box-orient: vertical;
+}
+.bh-rail-preview-meta,
+.bh-rail-preview-description {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  -webkit-line-clamp: 2;
+}
+.bh-rail-preview-summary {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  -webkit-line-clamp: 3;
 }
 
 /* 原生 工作区 sectionHeader 模式（ui-workspace WorkspaceBrowser.module.css）：
@@ -238,9 +344,14 @@ button:has(.bh-panel-glyph) {
 
 .bh-pin-zone {
   flex: none;
-  margin-bottom: 12px;
+  overflow: hidden;
+  margin-bottom: 0;
   border-radius: 12px;
   transition:
+    height 150ms var(--ds-ease-in-out),
+    min-height 150ms var(--ds-ease-in-out),
+    margin-bottom 150ms var(--ds-ease-in-out),
+    opacity 120ms var(--ds-ease-in-out),
     background 120ms var(--ds-ease-in-out),
     border-color 120ms var(--ds-ease-in-out),
     box-shadow 120ms var(--ds-ease-in-out);
@@ -248,12 +359,24 @@ button:has(.bh-panel-glyph) {
 .bh-pin-zone-empty {
   display: grid;
   place-items: center;
+  height: 96px;
   min-height: 96px;
+  margin-bottom: 12px;
   margin-inline: 4px;
   border: 1px dashed var(--dsw-alias-border-l3);
   background: var(--dsw-alias-button-elevated-fill);
+  opacity: 1;
+}
+.bh-pin-zone-empty.bh-pin-zone-hidden {
+  height: 0;
+  min-height: 0;
+  margin-bottom: 0;
+  border-width: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 .bh-pin-zone-filled {
+  margin-bottom: 12px;
   padding: 4px;
 }
 .bh-pin-zone-active {
@@ -264,6 +387,46 @@ button:has(.bh-panel-glyph) {
   border-color: var(--bh-accent);
 }
 .bh-pin-zone-hint {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
+.bh-unpin-zone {
+  display: grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  height: 72px;
+  min-height: 72px;
+  margin: 0 4px 12px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  border-radius: 12px;
+  background: var(--dsw-alias-button-elevated-fill);
+  opacity: 1;
+  transition:
+    height 150ms var(--ds-ease-in-out),
+    min-height 150ms var(--ds-ease-in-out),
+    margin-bottom 150ms var(--ds-ease-in-out),
+    opacity 120ms var(--ds-ease-in-out),
+    background 120ms var(--ds-ease-in-out),
+    border-color 120ms var(--ds-ease-in-out),
+    box-shadow 120ms var(--ds-ease-in-out);
+}
+.bh-unpin-zone-hidden {
+  height: 0;
+  min-height: 0;
+  margin-bottom: 0;
+  border-width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+.bh-unpin-zone-active {
+  background: var(--bh-hover);
+  border-color: var(--bh-accent);
+  box-shadow: inset 0 0 0 1px var(--bh-accent);
+}
+.bh-unpin-zone-hint {
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   font-weight: 500;
@@ -304,6 +467,17 @@ button:has(.bh-panel-glyph) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.bh-pinned-channel-icon {
+  display: inline-flex;
+  width: 54px;
+  height: 54px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-secondary);
 }
 .bh-persona-avatar {
   position: relative;
@@ -507,14 +681,6 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
 .bh-roster-list {
   flex: 1 0 auto;
   min-height: 72px;
-  border-radius: 10px;
-  transition:
-    background 120ms var(--ds-ease-in-out),
-    box-shadow 120ms var(--ds-ease-in-out);
-}
-.bh-roster-list-drop-active {
-  background: var(--bh-hover);
-  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l3);
 }
 /* 区块距（PM 定稿）：section 之间、平铺列表与首个 section 之间 12px ——
    外壳自身的块节奏（logoRow / panelList 的 margin-bottom 8px，收起态 12px）
@@ -881,6 +1047,8 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   cursor: default;
 }
 
+html[data-botharness-motion='reduce'] .bh-pin-zone,
+html[data-botharness-motion='reduce'] .bh-unpin-zone,
 html[data-botharness-motion='reduce'] .bh-section-chevron {
   transition: none;
 }
@@ -1014,6 +1182,78 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-radius: 8px;
   padding: 6px 8px;
   font-size: 12px;
+}
+
+/* Hidden Channel recovery is portaled under body; never depend on .bh-root. */
+.bh-hidden-manager {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+.bh-hidden-manager > :last-child {
+  gap: 8px;
+  margin-top: 12px;
+}
+.bh-hidden-search {
+  box-sizing: border-box;
+  width: 100%;
+}
+.bh-hidden-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(360px, 55vh);
+  overflow-y: auto;
+}
+.bh-hidden-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 2px 4px;
+  border-radius: 8px;
+}
+.bh-hidden-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-hidden-channel-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-hidden-copy {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+.bh-hidden-name,
+.bh-hidden-meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-hidden-name {
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 18px;
+}
+.bh-hidden-meta {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  line-height: 16px;
+}
+.bh-hidden-empty {
+  padding: 28px 8px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 13px;
+  text-align: center;
 }
 
 .bh-note {

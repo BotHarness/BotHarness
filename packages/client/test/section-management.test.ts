@@ -45,6 +45,7 @@ import {
   DANGER_ACTION_CLASS,
   globalSortMenuItems,
   SectionDeleteModal,
+  NEW_SECTION_MOVE_TARGET,
   SectionRenameModal,
   sectionMenuItems,
   UNGROUPED_MOVE_TARGET,
@@ -83,11 +84,13 @@ beforeEach(() => {
 });
 
 describe('section menus', () => {
-  it('orders the global default menu as heading plus the two concrete modes', () => {
+  it('orders the global menu as sort modes followed by hidden Channel management', () => {
     expect(globalSortMenuItems(t).map((item) => ('id' in item ? item.id : undefined))).toEqual([
       'sort-label',
       'updated',
       'manual',
+      'roster-separator',
+      'hidden',
     ]);
   });
 
@@ -99,11 +102,19 @@ describe('section menus', () => {
       'manual',
       'inherit',
       'section-separator',
+      'move-up',
+      'move-down',
+      'section-action-separator',
       'rename',
       'delete',
     ]);
     const last = items.at(-1);
     expect(last !== undefined && 'danger' in last && last.danger === true).toBe(true);
+    const bounded = sectionMenuItems(t, { canMoveUp: false, canMoveDown: true });
+    const moveUp = bounded.find((item) => 'id' in item && item.id === 'move-up');
+    const moveDown = bounded.find((item) => 'id' in item && item.id === 'move-down');
+    expect(moveUp !== undefined && 'disabled' in moveUp && moveUp.disabled).toBe(true);
+    expect(moveDown !== undefined && 'disabled' in moveDown && moveDown.disabled).toBe(false);
   });
 });
 
@@ -125,18 +136,23 @@ describe('channel move menu', () => {
     const move = moveItem('s2');
 
     expect(move.label).toBe('移动到');
-    expect(move.submenu?.map((item) => item.id)).toEqual(['s1', 's2', UNGROUPED_MOVE_TARGET]);
+    expect(move.submenu?.map((item) => item.id)).toEqual([
+      NEW_SECTION_MOVE_TARGET,
+      's1',
+      's2',
+      UNGROUPED_MOVE_TARGET,
+    ]);
   });
 
   it('marks the current scope with the trailing check and only that row', () => {
     const label = (item: MenuItem): string => renderToStaticMarkup(item.label as never);
     const inSection = (moveItem('s2').submenu ?? []).map(label);
-    expect(inSection[1]).toContain('data-icon="IconCheckOutline16"');
-    expect(inSection[0]).not.toContain('data-icon="IconCheckOutline16"');
-    expect(inSection[2]).not.toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[2]).toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[1]).not.toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[3]).not.toContain('data-icon="IconCheckOutline16"');
 
     const ungrouped = (moveItem(undefined).submenu ?? []).map(label);
-    expect(ungrouped[2]).toContain('data-icon="IconCheckOutline16"');
+    expect(ungrouped[3]).toContain('data-icon="IconCheckOutline16"');
     expect(ungrouped[0]).not.toContain('data-icon="IconCheckOutline16"');
   });
 });

@@ -24,6 +24,8 @@ export interface ChannelSummary {
   botSlug?: string;
   createdAt: string;
   updatedAt: string;
+  /** Latest durable message projected by the Channel list query for compact previews. */
+  latestMessage?: ChannelMessage;
 }
 
 export type ChannelAuthor =
@@ -91,7 +93,10 @@ export interface AssignmentsState {
 
 /** Host-owned arrangement mirrored from `rosterGet`; never written locally. */
 export interface RosterState {
+  /** Pinned Channel ids in display order. */
   pins: readonly string[];
+  /** Channel ids hidden from expanded and collapsed roster navigation. */
+  hidden: readonly string[];
   sections: readonly RosterSection[];
   /**
    * Flat top-level order, or `undefined` when the host domain predates the
@@ -149,6 +154,7 @@ function initialAssignments(): AssignmentsState {
 function initialRoster(): RosterState {
   return {
     pins: [],
+    hidden: [],
     sections: [],
     topOrder: undefined,
     readOnly: false,
@@ -219,8 +225,9 @@ export function createStore(): ClientStore {
       update({ roster: { ...state.roster, ...patch } });
     },
     upsertChannel(channel) {
+      const previous = state.channels.find((candidate) => candidate.id === channel.id);
       const existing = state.channels.filter((candidate) => candidate.id !== channel.id);
-      update({ channels: [channel, ...existing] });
+      update({ channels: [{ ...previous, ...channel }, ...existing] });
     },
     select(selection) {
       if (sameSelection(state.selection, selection)) return;

@@ -29,16 +29,18 @@ export const topOrderEntry = z.object({
 export type TopOrderEntry = z.infer<typeof topOrderEntry>;
 
 /**
- * Durable global singleton. `pins` is the pinned BOT slug list in display
- * order; `sectionOrder` is the section display order (the `sections` table has
- * no implicit order); `topOrder` is the flat top-level order mixing section
- * blocks and loose channels. `topOrder` is optional so domains written before
- * the flat remodel still parse — absent means legacy (sections in
- * `sectionOrder`, every unsectioned channel loose at the end) and the client
- * converts it once on first load.
+ * Durable global singleton. `pins` is the pinned Channel id list in display
+ * order; legacy records may contain PersonaBot slugs and are canonicalised by
+ * the client on load. `sectionOrder` is the section display order (the
+ * `sections` table has no implicit order); `topOrder` is the flat top-level
+ * order mixing section blocks and loose channels. `topOrder` is optional so
+ * domains written before the flat remodel still parse — absent means legacy
+ * (sections in `sectionOrder`, every unsectioned channel loose at the end) and
+ * the client converts it once on first load.
  */
 export const rosterDomainState = z.object({
   pins: z.array(z.string()),
+  hidden: z.array(z.string()).optional(),
   sectionOrder: z.array(z.string()),
   topOrder: z.array(topOrderEntry).optional(),
 });
@@ -56,7 +58,7 @@ export const rosterDomainSpec = defineDomain({
   layout: 'single',
   global: {
     schema: rosterDomainState,
-    initial: { pins: [], sectionOrder: [], topOrder: [] },
+    initial: { pins: [], hidden: [], sectionOrder: [], topOrder: [] },
   },
   tables: { sections: domainTable<string, RosterSectionRecord>(rosterSectionRecord) },
 });

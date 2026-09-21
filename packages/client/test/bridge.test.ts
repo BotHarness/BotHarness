@@ -98,13 +98,23 @@ describe('bridge parsers', () => {
   });
 
   it('drops malformed channels and keeps botSlug only when present', () => {
+    const latestMessage = {
+      id: 'm-latest',
+      at: '2026-09-19T00:03:00.000Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: '最新进展',
+    };
     const channels = parseChannelRecords({
-      channels: [GROUP, DM, { id: 'bad', type: 'nope', name: 'x' }, null],
+      channels: [GROUP, { ...DM, latestMessage }, { id: 'bad', type: 'nope', name: 'x' }, null],
     });
 
     expect(channels).toHaveLength(2);
     expect(channels[0]).toMatchObject({ id: 'group-team', type: 'group' });
-    expect(channels[1]).toMatchObject({ id: 'dm-ada', botSlug: 'ada' });
+    expect(channels[1]).toMatchObject({
+      id: 'dm-ada',
+      botSlug: 'ada',
+      latestMessage: { id: 'm-latest', body: '最新进展' },
+    });
     expect('botSlug' in channels[0]!).toBe(false);
     expect(parseChannelRecord(undefined)).toBeUndefined();
   });
@@ -200,6 +210,10 @@ describe('bridge actions', () => {
       channelCreate: (payload) => ({
         channel: { ...GROUP, name: payload['name'], members: [] },
       }),
+      channelRename: (payload) => ({
+        channel: { ...DM, name: payload['name'] },
+        bot: { ...BOT, displayName: payload['name'] },
+      }),
       assignments: () => ({
         assignments: [
           {
@@ -263,6 +277,9 @@ describe('bridge actions', () => {
     expect(state.conversation.status).toBe('ready');
     expect(state.conversation.channel?.id).toBe('dm-ada');
     expect(state.conversation.messages.map((message) => message.body)).toEqual(['older', 'newer']);
+    expect(state.channels.find((channel) => channel.id === 'dm-ada')?.latestMessage?.body).toBe(
+      'newer',
+    );
     expect(state.assignments.items.map((assignment) => assignment.sessionId)).toEqual([
       'assignment-1',
     ]);
@@ -273,7 +290,23 @@ describe('bridge actions', () => {
     });
   });
 
-  it('pins and unpins a PersonaBot through the durable roster before refreshing', async () => {
+  it('renames a DM Channel and its PersonaBot projection without changing either id', async () => {
+    const { clientStore, actions } = setup();
+    await actions.load();
+    await actions.openBot('ada');
+
+    await expect(actions.renameChannel('dm-ada', 'Ada Lovelace')).resolves.toBe(true);
+
+    const state = clientStore.getSnapshot();
+    expect(state.bots.find((bot) => bot.slug === 'ada')).toMatchObject({
+      slug: 'ada',
+      displayName: 'Ada Lovelace',
+    });
+    expect(state.channels.find((channel) => channel.id === 'dm-ada')?.name).toBe('Ada Lovelace');
+    expect(state.conversation.channel?.name).toBe('Ada Lovelace');
+  });
+
+  it('pins and unpins group and DM Channels through the durable roster before refreshing', async () => {
     const writes: string[][] = [];
     let pins: string[] = [];
     const { clientStore, actions } = setup({
@@ -286,14 +319,165 @@ describe('bridge actions', () => {
     });
     await actions.load();
 
-    await expect(actions.setBotPinned('ada', true)).resolves.toBe(true);
-    expect(clientStore.getSnapshot().roster.pins).toEqual(['ada']);
-    await expect(actions.setBotPinned('ada', true)).resolves.toBe(true);
-    expect(writes).toEqual([['ada']]);
+    await expect(actions.setChannelPinned('group-team', true)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster.pins).toEqual(['group-team']);
+    await expect(actions.setChannelPinned('group-team', true)).resolves.toBe(true);
+    expect(writes).toEqual([['group-team']]);
 
-    await expect(actions.setBotPinned('ada', false)).resolves.toBe(true);
-    expect(clientStore.getSnapshot().roster.pins).toEqual([]);
-    expect(writes).toEqual([['ada'], []]);
+    await expect(actions.setChannelPinned('dm-ada', true)).resolves.toBe(true);
+    await expect(actions.setChannelPinned('group-team', false)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster.pins).toEqual(['dm-ada']);
+    expect(writes).toEqual([['group-team'], ['group-team', 'dm-ada'], ['dm-ada']]);
+  });
+
+  it('hides and restores a Channel without changing its pin, section, or flat order', async () => {
+    const writes: string[][] = [];
+    let hidden: string[] = [];
+    const pins = ['group-team'];
+    const sections = [{ id: 's1', name: 'A', channelIds: ['group-team'] }];
+    const topOrder = [{ kind: 'section' as const, id: 's1' }];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({ pins, hidden, sections, topOrder }),
+      hiddenSet: (payload) => {
+        hidden = [...(payload['hidden'] as string[])];
+        writes.push(hidden);
+        return { hidden };
+      },
+    });
+    await actions.load();
+
+    await expect(actions.setChannelHidden('group-team', true)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster).toMatchObject({
+      pins,
+      hidden: ['group-team'],
+      sections,
+      topOrder,
+    });
+    await expect(actions.setChannelHidden('group-team', true)).resolves.toBe(true);
+    expect(writes).toEqual([['group-team']]);
+
+    await expect(actions.setChannelHidden('group-team', false)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster).toMatchObject({
+      pins,
+      hidden: [],
+      sections,
+      topOrder,
+    });
+    expect(writes).toEqual([['group-team'], []]);
+  });
+
+  it('unpins and places a Channel inside a section before one roster refresh', async () => {
+    const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
+    let reads = 0;
+    let pins = ['group-team'];
+    let channelIds = ['dm-ada'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => {
+        reads += 1;
+        return { pins, sections: [{ id: 's1', name: 'A', channelIds }], topOrder: [] };
+      },
+      channelAssign: (payload) => {
+        calls.push({ endpoint: 'channelAssign', payload });
+        const channelId = String(payload['channelId']);
+        const index = Number(payload['index']);
+        const without = channelIds.filter((id) => id !== channelId);
+        channelIds = [...without.slice(0, index), channelId, ...without.slice(index)];
+        return {};
+      },
+      pinsSet: (payload) => {
+        calls.push({ endpoint: 'pinsSet', payload });
+        pins = [...(payload['pins'] as string[])];
+        return { pins };
+      },
+    });
+    await actions.load();
+
+    await expect(
+      actions.movePinnedChannel('group-team', 's1', ['group-team', 'dm-ada']),
+    ).resolves.toBe(true);
+
+    expect(calls).toEqual([
+      {
+        endpoint: 'channelAssign',
+        payload: { channelId: 'group-team', sectionId: 's1', index: 0 },
+      },
+      {
+        endpoint: 'channelAssign',
+        payload: { channelId: 'dm-ada', sectionId: 's1', index: 1 },
+      },
+      { endpoint: 'pinsSet', payload: { pins: [] } },
+    ]);
+    expect(reads).toBe(2);
+    expect(clientStore.getSnapshot().roster).toMatchObject({
+      pins: [],
+      sections: [{ id: 's1', channelIds: ['group-team', 'dm-ada'] }],
+    });
+  });
+
+  it('unpins and places a Channel at an exact loose top-level position', async () => {
+    const calls: Array<{ endpoint: string; payload: Record<string, unknown> }> = [];
+    let pins = ['group-team'];
+    let topOrder: Array<{ kind: 'section' | 'channel'; id: string }> = [
+      { kind: 'section', id: 's1' },
+    ];
+    let channelIds = ['group-team'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({
+        pins,
+        sections: [{ id: 's1', name: 'A', channelIds }],
+        topOrder,
+      }),
+      channelAssign: (payload) => {
+        calls.push({ endpoint: 'channelAssign', payload });
+        channelIds = channelIds.filter((id) => id !== payload['channelId']);
+        return {};
+      },
+      topReorder: (payload) => {
+        calls.push({ endpoint: 'topReorder', payload });
+        topOrder = payload['order'] as typeof topOrder;
+        return { topOrder };
+      },
+      pinsSet: (payload) => {
+        calls.push({ endpoint: 'pinsSet', payload });
+        pins = [...(payload['pins'] as string[])];
+        return { pins };
+      },
+    });
+    await actions.load();
+
+    await expect(
+      actions.movePinnedChannelToFlat('group-team', [
+        { kind: 'channel', id: 'group-team' },
+        { kind: 'section', id: 's1' },
+      ]),
+    ).resolves.toBe(true);
+
+    expect(calls.map((call) => call.endpoint)).toEqual(['channelAssign', 'topReorder', 'pinsSet']);
+    expect(clientStore.getSnapshot().roster).toMatchObject({
+      pins: [],
+      topOrder: [
+        { kind: 'channel', id: 'group-team' },
+        { kind: 'section', id: 's1' },
+      ],
+    });
+  });
+
+  it('canonicalises legacy PersonaBot-slug pins to their DM Channel ids', async () => {
+    const writes: string[][] = [];
+    let pins = ['ada'];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({ pins, sections: [], topOrder: [] }),
+      pinsSet: (payload) => {
+        pins = [...(payload['pins'] as string[])];
+        writes.push(pins);
+        return { pins };
+      },
+    });
+    await actions.load();
+
+    await expect(actions.ensureChannelPins()).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster.pins).toEqual(['dm-ada']);
+    expect(writes).toEqual([['dm-ada']]);
   });
 
   it('echoes a DM message locally, then reconciles it with the committed message', async () => {
@@ -343,6 +527,9 @@ describe('bridge actions', () => {
     expect(assignmentReads).toBe(2);
     expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
       '2026-09-19T00:03:00.000Z',
+    );
+    expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.latestMessage?.body).toBe(
+      'hello',
     );
   });
 
@@ -505,10 +692,12 @@ describe('bridge actions', () => {
 
     expect(clientStore.getSnapshot().roster).toEqual({
       pins: ['ada'],
+      hidden: [],
       sections: [
         { id: 's2', name: '研究', channelIds: [] },
         { id: 's1', name: '工作流', channelIds: ['c1'] },
       ],
+      topOrder: undefined,
       readOnly: false,
     });
   });
@@ -814,7 +1003,9 @@ describe('bridge actions', () => {
     await actions.refreshRoster();
     expect(clientStore.getSnapshot().roster).toEqual({
       pins: ['ada'],
+      hidden: [],
       sections: [],
+      topOrder: undefined,
       readOnly: false,
     });
     warn.mockRestore();

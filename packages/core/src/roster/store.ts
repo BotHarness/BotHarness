@@ -24,6 +24,8 @@ export interface RosterSection {
 /** Public projection of the whole arrangement. */
 export interface RosterSnapshot {
   pins: string[];
+  /** Channel ids hidden from every roster navigation surface. */
+  hidden: string[];
   sectionOrder: string[];
   sections: RosterSection[];
   /**
@@ -126,6 +128,7 @@ function nextGlobalState(
   state: RosterDomainState,
   patch: {
     pins?: readonly string[];
+    hidden?: readonly string[];
     sectionOrder?: readonly string[];
     topOrder?: readonly TopOrderEntry[] | undefined;
   },
@@ -135,6 +138,8 @@ function nextGlobalState(
     sectionOrder:
       patch.sectionOrder === undefined ? [...state.sectionOrder] : [...patch.sectionOrder],
   };
+  const hidden = patch.hidden ?? state.hidden;
+  if (hidden !== undefined) next.hidden = [...hidden];
   const topOrder = patch.topOrder ?? state.topOrder;
   if (topOrder !== undefined) next.topOrder = [...topOrder];
   return next;
@@ -218,6 +223,7 @@ export class RosterStore {
     const sections = this.orderedSections(order);
     return {
       pins: [...state.pins],
+      hidden: [...(state.hidden ?? [])],
       sectionOrder: sections.map((section) => section.id),
       sections,
       topOrder,
@@ -440,8 +446,8 @@ export class RosterStore {
   }
 
   /**
-   * Replace the pinned BOT slug list.
-   * @param pins - Pinned slugs; duplicates and blanks are dropped.
+   * Replace the pinned Channel id list.
+   * @param pins - Pinned Channel ids; duplicates and blanks are dropped.
    * @returns the committed pins.
    */
   pinsSet(pins: readonly string[]): Promise<string[]> {
@@ -451,6 +457,25 @@ export class RosterStore {
       const state = global.get();
       if (!sameIds(next, state.pins)) {
         await global.set(nextGlobalState(state, { pins: next }));
+      }
+      return next;
+    });
+  }
+
+  /**
+   * Replace the Channel ids hidden from the roster. Hiding is presentation
+   * state only: pins, section membership, and flat order stay untouched so a
+   * restored Channel returns to its exact previous placement.
+   * @param hidden - Hidden Channel ids; duplicates and blanks are dropped.
+   * @returns the committed hidden list.
+   */
+  hiddenSet(hidden: readonly string[]): Promise<string[]> {
+    return this.enqueue(async () => {
+      const global = this.requireGlobal();
+      const next = uniqueStrings(hidden);
+      const state = global.get();
+      if (!sameIds(next, state.hidden ?? [])) {
+        await global.set(nextGlobalState(state, { hidden: next }));
       }
       return next;
     });

@@ -62,7 +62,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twenty-two bridge endpoints for typert claims', () => {
+  it('marks exactly the twenty-four bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -75,6 +75,7 @@ describe('bridge typert service', () => {
       'channels',
       'channelDm',
       'channelCreate',
+      'channelRename',
       'channelMessages',
       'channelSend',
       'assignments',
@@ -88,6 +89,7 @@ describe('bridge typert service', () => {
       'sectionReorder',
       'topReorder',
       'pinsSet',
+      'hiddenSet',
     ]);
   });
 
@@ -112,6 +114,7 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
+    expect(parameterNames(service.channelRename)).toEqual(['channelId', 'name']);
     expect(parameterNames(service.channelMessages)).toEqual(['channelId', 'before', 'limit']);
     expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
@@ -125,6 +128,7 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.sectionReorder)).toEqual(['order']);
     expect(parameterNames(service.topReorder)).toEqual(['order']);
     expect(parameterNames(service.pinsSet)).toEqual(['pins']);
+    expect(parameterNames(service.hiddenSet)).toEqual(['hidden']);
   });
 
   it('dispatches named arguments into the read model', async () => {
@@ -140,9 +144,13 @@ describe('bridge typert service', () => {
 
     const dm = service.channelDm('ada', 'Ada');
     expect(dm.channel.id).toBe('dm-ada');
+    const renamed = service.channelRename('dm-ada', 'Ada Lovelace');
+    expect(renamed.channel.name).toBe('Ada Lovelace');
+    expect(renamed.bot?.displayName).toBe('Ada Lovelace');
     expect(service.channels().channels.map((channel) => channel.id)).toEqual(['dm-ada']);
     const sent = await service.channelSend('dm-ada', 'hello');
     expect(sent.message.body).toBe('hello');
+    expect(service.channels().channels[0]?.latestMessage?.body).toBe('hello');
     expect(service.channelMessages('dm-ada').messages[0]?.body).toBe('hello');
     expect(service.assignments('ada').assignments).toEqual([]);
     expect(service.sessions('ada').sessions).toEqual([]);

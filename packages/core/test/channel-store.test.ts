@@ -78,6 +78,22 @@ describe('channel store', () => {
     ).toMatchObject({ id: 'dm-ada', type: 'dm', name: 'Ada', members: ['ada'] });
   });
 
+  it('renames group and DM channels without changing their stable ids or timestamps', () => {
+    const store = createChannelStore({ rootDir: createRoot(), now: tickingNow() });
+    const dm = store.getOrCreateDm('ada', 'Ada');
+    const group = store.createGroup({ name: 'Team', members: [] });
+
+    expect(store.rename(dm?.id ?? '', '  Ada Lovelace  ')).toMatchObject({
+      id: 'dm-ada',
+      name: 'Ada Lovelace',
+      createdAt: dm?.createdAt,
+      updatedAt: dm?.updatedAt,
+    });
+    expect(store.rename(group.id, '  Research  ')?.name).toBe('Research');
+    expect(store.rename(group.id, '   ')).toBeUndefined();
+    expect(store.rename('missing', 'Name')).toBeUndefined();
+  });
+
   it('falls back to the slug when the DM name is blank and rejects hostile slugs', () => {
     const store = createChannelStore({ rootDir: createRoot(), now: tickingNow() });
 
@@ -155,6 +171,8 @@ describe('channel store', () => {
       body: 'm5',
       author: { kind: 'human' },
     });
+    expect(store.latestMessage('dm-ada')?.body).toBe('m5');
+    expect(store.latestMessage('missing')).toBeUndefined();
   });
 
   it('serializes concurrent appends to the same channel', async () => {
@@ -181,8 +199,10 @@ describe('channel store', () => {
       'utf8',
     );
     await store.appendMessage('dm-ada', message('good again'));
+    appendFileSync(join(root, 'dm-ada', 'messages.ndjson'), 'not json\n', 'utf8');
 
     expect(store.readMessages('dm-ada').map((entry) => entry.body)).toEqual(['good again', 'good']);
+    expect(store.latestMessage('dm-ada')?.body).toBe('good again');
   });
 
   it('tolerates a missing directory and unknown channels', async () => {

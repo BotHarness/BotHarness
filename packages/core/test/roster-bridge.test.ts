@@ -88,7 +88,7 @@ describe('roster bridge methods with storage', () => {
     });
     expect(methods.rosterGet({})).toEqual({
       ok: true,
-      value: { pins: [], sectionOrder: [], sections: [] },
+      value: { pins: [], hidden: [], sectionOrder: [], sections: [], topOrder: undefined },
     });
   });
 
@@ -117,7 +117,7 @@ describe('roster bridge methods with storage', () => {
     });
   });
 
-  it('reorders sections and sets pins', async () => {
+  it('reorders sections and sets pins and hidden Channels', async () => {
     const { methods, fake } = await attached();
     const first = await methods.sectionCreate({ name: 'A' });
     const second = await methods.sectionCreate({ name: 'B' });
@@ -132,7 +132,15 @@ describe('roster bridge methods with storage', () => {
       ok: true,
       value: { pins: ['ada', 'scout'] },
     });
-    expect(fake.state()).toEqual({ pins: ['ada', 'scout'], sectionOrder: [secondId, firstId] });
+    expect(await methods.hiddenSet({ hidden: ['scout', 'scout'] })).toEqual({
+      ok: true,
+      value: { hidden: ['scout'] },
+    });
+    expect(fake.state()).toEqual({
+      pins: ['ada', 'scout'],
+      hidden: ['scout'],
+      sectionOrder: [secondId, firstId],
+    });
 
     const snapshot = methods.rosterGet({});
     expect(snapshot.ok && snapshot.value.sections.map((section) => section.id)).toEqual([
@@ -213,6 +221,10 @@ describe('roster bridge methods with storage', () => {
     expect(await methods.pinsSet({ pins: 'ada' })).toEqual({
       ok: false,
       error: { code: 'invalid-input', message: 'invalid pinsSet payload' },
+    });
+    expect(await methods.hiddenSet({ hidden: 'ada' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'invalid hiddenSet payload' },
     });
   });
 });

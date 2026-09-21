@@ -36,8 +36,11 @@ export interface ChannelStore {
   rootDir: string;
   list(): ChannelRecord[];
   get(id: string): ChannelRecord | undefined;
+  /** Latest valid durable message, without parsing the full history into records. */
+  latestMessage(id: string): ChannelMessage | undefined;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
+  rename(id: string, name: string): ChannelRecord | undefined;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
 }
@@ -104,6 +107,29 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   return {
     rootDir,
     get: read,
+    latestMessage(id) {
+      if (!isValidChannelId(id)) return undefined;
+      let text: string;
+      try {
+        text = readFileSync(messagesFile(id), 'utf8');
+      } catch (error) {
+        if (isMissing(error)) return undefined;
+        throw error;
+      }
+      const lines = text.split('\n');
+      for (let index = lines.length - 1; index >= 0; index -= 1) {
+        const line = lines[index]?.trim() ?? '';
+        if (line.length === 0) continue;
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(line);
+        } catch {
+          continue;
+        }
+        if (isChannelMessage(parsed)) return parsed;
+      }
+      return undefined;
+    },
     list() {
       let entries: Dirent[];
       try {
@@ -154,6 +180,14 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       };
       write(record);
       return record;
+    },
+    rename(id, name) {
+      const record = read(id);
+      const trimmed = name.trim();
+      if (record === undefined || trimmed.length === 0) return undefined;
+      const renamed = { ...record, name: trimmed };
+      write(renamed);
+      return renamed;
     },
     appendMessage(id, message) {
       return enqueue(id, () => {

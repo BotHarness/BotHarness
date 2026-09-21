@@ -9,6 +9,7 @@ import {
   orderScopeChannels,
   planChannelMove,
   planFlatInsert,
+  resolvePinnedChannelIds,
   resolvedSortMode,
   resolveBlockDropTarget,
   rowDropHalf,
@@ -374,6 +375,22 @@ describe('channel move application', () => {
 });
 
 describe('empty section drop', () => {
+  it('places a pinned member at the predicted first position in its original row-less section', () => {
+    expect(
+      planChannelMove('s1', 'pinned', {
+        targetScopeId: 's1',
+        target: { kind: 'scope', position: 'first' },
+        targetOrder: ['a', 'b'],
+        targetManualOverride: false,
+      }),
+    ).toEqual({
+      kind: 'section',
+      sectionId: 's1',
+      order: ['pinned', 'a', 'b'],
+      setManualOverride: true,
+    });
+  });
+
   it('appends at index 0 and flips an automatic target to manual', () => {
     expect(
       planChannelMove(undefined, 'x', {
@@ -446,7 +463,7 @@ describe('empty section drop', () => {
 });
 
 describe('flat order completion', () => {
-  it('includes unpinned PersonaBot DMs beside group channels', () => {
+  it('excludes every pinned Channel and includes unpinned renderable Channels', () => {
     expect(
       flatRosterChannelIds(
         [
@@ -461,9 +478,24 @@ describe('flat order completion', () => {
           }),
           channel('dm-orphan', '2026-09-18T10:00:00.000Z', { type: 'dm' }),
         ],
-        new Set(['pinned-bot']),
+        new Set(['group', 'dm-pinned']),
       ),
-    ).toEqual(['group', 'dm-loose']);
+    ).toEqual(['dm-loose']);
+  });
+
+  it('resolves legacy PersonaBot slug pins to canonical DM Channel ids', () => {
+    const channels = [
+      channel('group', '2026-09-18T10:00:00.000Z'),
+      channel('dm-ada', '2026-09-18T10:00:00.000Z', {
+        type: 'dm',
+        botSlug: 'ada',
+      }),
+    ];
+
+    expect(resolvePinnedChannelIds(channels, ['ada', 'group', 'ada', 'missing'])).toEqual([
+      'dm-ada',
+      'group',
+    ]);
   });
 
   it('keeps stored entries and appends unknown channels at the end', () => {
@@ -593,6 +625,28 @@ describe('loose flat inserts', () => {
         { kind: 'channel', id: 'loose' },
         { kind: 'section', id: 's2' },
         { kind: 'channel', id: 'x' },
+      ],
+      unassign: true,
+    });
+  });
+
+  it('removes a preserved pinned source entry before inserting at the drop target', () => {
+    expect(
+      planFlatInsert(
+        [
+          { kind: 'channel', id: 'pinned' },
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'target' },
+        ],
+        'pinned',
+        true,
+        { kind: 'channel', id: 'target', side: 'after' },
+      ),
+    ).toEqual({
+      order: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: 'target' },
+        { kind: 'channel', id: 'pinned' },
       ],
       unassign: true,
     });
