@@ -60,14 +60,31 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
       const cell = button as HTMLElement;
       cell.classList.add(BOT_NAV_MARKER);
       touched.add(cell);
-      let box = cell.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`);
+      // Hide the shell glyph with an inline style, not a class: the shell
+      // re-renders the button's className on locale or active-state changes,
+      // but React never touches inline styles it did not set.
+      for (const child of cell.children) {
+        if (child === label || child.classList.contains(BOT_NAV_ICON_CLASS)) continue;
+        (child as HTMLElement).style.display = 'none';
+      }
+      let box = cell.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`) as HTMLElement | null;
       if (box === null) {
-        box = doc.createElement('span');
+        box = doc.createElement('span') as HTMLElement;
         box.className = BOT_NAV_ICON_CLASS;
         box.setAttribute('aria-hidden', 'true');
         cell.insertBefore(box, cell.firstChild);
       }
-      if (box.innerHTML !== markup) box.innerHTML = markup;
+      // Size in place too, so the mark never depends on our stylesheet
+      // reaching a shell-owned surface.
+      box.style.cssText =
+        'display:inline-flex;flex:none;align-items:center;justify-content:center;width:16px;height:16px;';
+      if (box.innerHTML !== markup) {
+        box.innerHTML = markup;
+        const media = box.firstElementChild as HTMLElement | null;
+        if (media !== null) {
+          media.style.cssText = 'display:block;width:100%;height:100%;object-fit:contain;';
+        }
+      }
     }
   };
 

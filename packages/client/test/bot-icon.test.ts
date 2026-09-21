@@ -50,7 +50,11 @@ describe('settings nav tagging', () => {
       add(name: string): void;
       remove(name: string): void;
       has(name: string): boolean;
+      contains(name: string): boolean;
     };
+    style: { cssText: string; display: string };
+    children: FakeElement[];
+    firstElementChild: FakeElement | null;
     setAttribute(name: string, value: string): void;
     insertBefore(node: FakeElement, before: FakeElement | null): void;
     removed?: boolean;
@@ -65,6 +69,7 @@ describe('settings nav tagging', () => {
       add: (name) => names.add(name),
       remove: (name) => names.delete(name),
       has: (name) => names.has(name),
+      contains: (name) => names.has(name),
     };
   }
 
@@ -78,6 +83,13 @@ describe('settings nav tagging', () => {
       innerHTML: '',
       firstChild: null,
       attributes: {},
+      style: { cssText: '', display: '' },
+      get children() {
+        return children.filter((child) => child.removed !== true);
+      },
+      get firstElementChild() {
+        return children.find((child) => child.removed !== true) ?? null;
+      },
       classList: fakeClassList(),
       setAttribute(name, value) {
         element.attributes[name] = value;
@@ -101,7 +113,6 @@ describe('settings nav tagging', () => {
         );
       },
     };
-    (element as unknown as { children: FakeElement[] }).children = children;
     return element;
   }
 
@@ -131,6 +142,9 @@ describe('settings nav tagging', () => {
     const box = bot.querySelector(':scope > .bh-bot-nav-icon');
     expect(box?.innerHTML).toContain('data:image/png;base64');
     expect(box?.attributes['aria-hidden']).toBe('true');
+    expect(box?.style.cssText).toContain('width:16px');
+    const glyph = bot.children.find((child) => child.tagName === 'svg');
+    expect(glyph?.style.display).toBe('none');
 
     dispose();
     expect(bot.classList.has('bh-bot-nav')).toBe(false);
