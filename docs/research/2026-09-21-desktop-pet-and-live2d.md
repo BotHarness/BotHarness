@@ -65,6 +65,8 @@
 
 结论：**要 Cubism 2.1 老模型 → 只有 untitled 的 `cubism-legacy` entry；要跟随已验证路径 → easy-live2d。** 两者都依赖官方 Core，业务代码可互换，接成 renderer seam 后选型是可替换的。
 
+版本补充：untitled 引擎 npm 已从 `1.0.1`（2026-02）演进到 **`1.4.0`（2026-09-20）**，1.4.0 原生修复了 extensionless/blob URL 纹理识别与 Cubism teardown 生命周期，并新增纹理 LOD（1.1.0）等；AnySoul 当年在 `1.0.1` 上自建运行时与 workaround 的完整复盘见 `docs/research/2026-09-21-anysoul-live2d-runtime.md`（含 LLM tool call → 行为映射与动画 runtime 的可复用设计）。
+
 ## 5. 许可与合规闸门（真正的阻塞项）
 
 1. **Cubism Core 是专有软件**：`live2dcubismcore.min.js` 只能从官方 SDK 下载页获取，使用前需接受 Live2D 的 Cubism SDK 发布许可；免费额度/署名义务等具体条款本轮**未逐条核对**。Core 不得单独再分发，但随应用分发需按许可执行（标「未验证」）。
@@ -96,3 +98,4 @@
 - `easy-live2d`：<https://github.com/Panzer-Jack/easy-live2d>（README、`package.json`；文档站 <https://panzer-jack.github.io/easy-live2d/>）
 - `dsh-pet-component`：npm <https://www.npmjs.com/package/dsh-pet-component>（`0.2.2`）
 - Cubism SDK for Web / Core 下载：<https://www.live2d.com/en/sdk/download/web/>
+- 相关：`docs/research/2026-09-21-anysoul-live2d-runtime.md`（AnySoul 组合方式、引擎 1.0.1→1.4.0 delta、DSH-Live2D/DSH-Avatar 设计输入）
