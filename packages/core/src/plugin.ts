@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-agent';
+import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import Schema from '@deepseek-ai/schemastery';
@@ -10,7 +11,11 @@ import { createBridgeMethods } from './bridge/methods.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
-import { mountOperationalDatabase, type OperationalDatabaseOwner } from './database/owner.js';
+import {
+  attachOperationalModule,
+  mountOperationalDatabase,
+  type OperationalDatabaseOwner,
+} from './database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
@@ -22,8 +27,10 @@ import {
   createDshBotAgentAdapter,
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
+import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
 import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
+import { createDshActivityProjection } from './state/dsh-activity.js';
 
 export const name = 'botharness-core';
 
@@ -49,6 +56,7 @@ export interface BotHarnessCore {
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
   states: BotStateTracker;
+  ownership: SessionOwnership;
   memory: MemoryService;
   channels: ChannelStore;
   roster: RosterStore;
@@ -82,11 +90,15 @@ export function createCore(
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const ownership = createSessionOwnership(
+    attachOperationalModule(operationalDatabase, 'session-ownership'),
+  );
   return {
     rootDir,
     operationalDatabase,
     registry,
     states,
+    ownership,
     memory,
     channels,
     roster: createRosterStore({ warn: options.warn }),
@@ -95,6 +107,8 @@ export function createCore(
       registry,
       channels,
       agents: options.agents ?? unavailableAgentAdapter(),
+      ownership,
+      workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
     }),
   };
 }
@@ -122,17 +136,46 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ctx.tools.register(tool);
   }
 
+  const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
   registerBridge(
     ctx,
     createBridgeMethods({
       registry: core.registry,
       states: core.states,
       channels: core.channels,
-      sessions: createDshSessionSource((ctx as unknown as { sessions: DshSessionStore }).sessions),
+      sessions: createDshSessionSource(dshSessions),
+      ownership: core.ownership,
       roster: core.roster,
       runtime: core.runtime,
     }),
   );
+
+  const activity = createDshActivityProjection({
+    ownership: core.ownership,
+    states: core.states,
+  });
+  ctx.on(
+    'session/event',
+    (session, event) => {
+      activity.handleSessionEvent(session.id, event);
+    },
+    { global: true },
+  );
+  ctx.on(
+    'agent/created',
+    ({ agent }) => {
+      activity.handleAgentCreated(agent.session);
+    },
+    { global: true },
+  );
+  ctx.on(
+    'agent/disposed',
+    ({ agent }) => {
+      activity.handleSessionDisposed(agent.session.id);
+    },
+    { global: true },
+  );
+  activity.rebuild(dshSessions.list());
 
   // Storage is an optional capability: without it the plugin still loads and
   // the bridge reports `storage-unavailable` for arrangement writes.

@@ -541,7 +541,7 @@ The RPC surface through which the Web Client reads PersonaBots and invokes separ
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:
-The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to PersonaBot navigation.
+The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to the Channel sidebar.
 _Avoid_: admin panel, dashboard, web console
 
 **Access policy**:

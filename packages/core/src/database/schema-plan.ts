@@ -80,9 +80,25 @@ const SOURCE_EVENT_ATTEMPT_MIGRATION: SchemaMigration = {
   },
 };
 
+const SESSION_OWNERSHIP_LINEAGE_MIGRATION: SchemaMigration = {
+  generation: 6,
+  module: 'session-ownership',
+  description: 'Record ownership provenance, lineage, and the explicit cwd reference',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE session_ownership
+        ADD COLUMN provenance TEXT NOT NULL DEFAULT 'legacy'
+        CHECK (provenance IN ('created', 'fork', 'subagent', 'repair', 'legacy'));
+      ALTER TABLE session_ownership ADD COLUMN parent_session_id TEXT;
+      ALTER TABLE session_ownership ADD COLUMN cwd_reference TEXT;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
   ASSIGNMENT_DIRECTORY_MIGRATION,
   SOURCE_EVENT_ATTEMPT_MIGRATION,
+  SESSION_OWNERSHIP_LINEAGE_MIGRATION,
 ]);
