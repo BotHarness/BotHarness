@@ -139,18 +139,19 @@ describe('client apply', () => {
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 
-  it('registers the General settings row only while settingsScope is served', () => {
+  it('registers the BotHarness settings section only while settingsScope is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];
     apply(createScoped(specs, disposed, true) as never);
 
-    const row = specs.find((spec) => spec.name === 'settings.general.item');
-    expect(row).toMatchObject({ id: 'bot-mode-sort', order: 30, locale: 'botharness' });
-    expect(row?.inject).toBeTypeOf('function');
+    const section = specs.find((spec) => spec.name === 'settings.section');
+    expect(section).toMatchObject({ id: 'botharness', order: 25, locale: 'botharness' });
+    expect(section?.inject).toBeTypeOf('function');
+    expect(section?.label).toBeTypeOf('function');
 
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);
-    expect(withoutSettings.some((spec) => spec.name === 'settings.general.item')).toBe(false);
+    expect(withoutSettings.some((spec) => spec.name === 'settings.section')).toBe(false);
   });
 });

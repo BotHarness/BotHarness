@@ -5,6 +5,7 @@ export const LOCALE_NS = 'botharness';
 
 /** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
+  'settings.nav': 'Bot 设置',
   'motion.menu.label': '动效偏好',
   'motion.system': '跟随系统',
   'motion.reduce': '减少动效',
@@ -62,6 +63,7 @@ export type BotHarnessKey = keyof typeof zh;
 
 /** English dictionary, checked against the Chinese key set. */
 export const en = {
+  'settings.nav': 'Bot settings',
   'motion.menu.label': 'Motion preference',
   'motion.system': 'Follow system',
   'motion.reduce': 'Reduce motion',

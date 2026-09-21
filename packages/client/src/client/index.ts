@@ -10,7 +10,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
 import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
-import { BotModeRow } from './bot-mode-row.js';
+import { BotSettingsSection } from './bot-settings-section.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { channelSidebarBuiltins } from './channel-sidebar-builtins.js';
@@ -91,16 +91,18 @@ export function apply(ctx: ClientContext): void {
       namespace: BOT_MODE_NAMESPACE,
     });
     prefs.attach(scope);
-    settingsCtx.slots.inject('settings.general.item', () =>
+    const t = settingsCtx.locale.bind(LOCALE_NS);
+    settingsCtx.slots.inject('settings.section', () =>
       settingsCtx.slots.register(
         {
-          name: 'settings.general.item',
-          id: 'bot-mode-sort',
-          order: 30,
+          name: 'settings.section',
+          id: 'botharness',
+          order: 25,
+          label: () => t('settings.nav'),
           locale: LOCALE_NS,
           inject: () => botModePrefsFace(prefs),
         },
-        BotModeRow,
+        BotSettingsSection,
       ),
     );
     return () => {

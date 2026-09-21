@@ -13,8 +13,8 @@ import {
 import type { BotModePrefsFace } from './bot-mode-prefs.js';
 import type { BotHarnessKey } from './locale.js';
 
-/** Full Settings-row props. */
-export type BotModeRowProps = PropsRuntime<'settings.general.item'> &
+/** Full Settings-section props. */
+export type BotSettingsSectionProps = PropsRuntime<'settings.section'> &
   PropsLocale<'botharness'> &
   InjectFace<BotModePrefsFace>;
 
@@ -30,16 +30,18 @@ const MOTION_OPTIONS: readonly { id: BotModeMotionPreference; label: BotHarnessK
 ];
 
 /**
- * Render the shared BotHarness motion and BOT-mode sorting preferences.
- * @param props - composed Settings slot props.
- * @returns the preference row.
+ * The BotHarness settings page: the shared motion and BOT-mode sorting
+ * preferences, rendered as their own section instead of inside the native
+ * General page.
+ * @param props - composed Settings section props.
+ * @returns the BotHarness settings page.
  */
-export function BotModeRow({
+export function BotSettingsSection({
   t,
   useBotModePrefs,
   setMotionPreference,
   setSortMode,
-}: BotModeRowProps): ReactElement {
+}: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);

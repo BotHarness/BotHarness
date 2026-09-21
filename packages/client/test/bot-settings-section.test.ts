@@ -18,7 +18,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { BotModeRow } from '../src/client/bot-mode-row.js';
+import { BotSettingsSection } from '../src/client/bot-settings-section.js';
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
 
 const t = (key: BotHarnessKey): string => zh[key];
@@ -35,13 +35,13 @@ function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   };
 }
 
-function renderRow(
+function renderSection(
   prefs: BotModePrefsSnapshot,
   setSortMode: (mode: string) => void = () => undefined,
   setMotionPreference: (preference: string) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
-    createElement(BotModeRow, {
+    createElement(BotSettingsSection, {
       t,
       useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
         selector(prefs)) as never,
@@ -69,7 +69,7 @@ beforeEach(() => {
 
 describe('BOT-mode General settings row', () => {
   it('renders the row copy and the selected mode from the shared store', () => {
-    const markup = renderRow(snapshot({ sortMode: 'manual' }));
+    const markup = renderSection(snapshot({ sortMode: 'manual' }));
 
     expect(markup).toContain('BOT 列表排序');
     expect(markup).toContain('设置 BOT 模式列表的默认排序方式');
@@ -83,7 +83,7 @@ describe('BOT-mode General settings row', () => {
 
   it('renders and writes the three-state motion preference with its effective preview', () => {
     const setMotionPreference = vi.fn();
-    const markup = renderRow(
+    const markup = renderSection(
       snapshot({ motionPreference: 'system', effectiveMotion: 'reduce' }),
       () => undefined,
       setMotionPreference,
@@ -108,7 +108,7 @@ describe('BOT-mode General settings row', () => {
 
   it('writes through the shared policy when an option is picked', () => {
     const setSortMode = vi.fn();
-    renderRow(snapshot(), setSortMode);
+    renderSection(snapshot(), setSortMode);
 
     const onSelect = lastMenu()['onSelect'] as (id: string) => void;
     onSelect('manual');
@@ -120,7 +120,7 @@ describe('BOT-mode General settings row', () => {
   });
 
   it('surfaces the memory-mode caveat instead of pretending persistence', () => {
-    const markup = renderRow(snapshot({ status: 'unavailable', mode: 'memory' }));
+    const markup = renderSection(snapshot({ status: 'unavailable', mode: 'memory' }));
 
     expect(markup).toContain('仅当前会话生效，不会保存');
     expect(markup).not.toContain('设置 BOT 模式列表的默认排序方式');
