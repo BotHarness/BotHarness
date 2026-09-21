@@ -91,13 +91,14 @@ describe('settings nav tagging', () => {
         element.removed = true;
       },
       querySelectorAll(selector) {
-        return selector === ':scope > span'
-          ? children.filter((child) => child.tagName === 'span')
-          : [];
+        const live = children.filter((child) => child.removed !== true);
+        return selector === ':scope > span' ? live.filter((child) => child.tagName === 'span') : [];
       },
       querySelector(selector) {
         const wanted = selector.replace(':scope > .', '');
-        return children.find((child) => child.className === wanted) ?? null;
+        return (
+          children.find((child) => child.className === wanted && child.removed !== true) ?? null
+        );
       },
     };
     (element as unknown as { children: FakeElement[] }).children = children;
@@ -106,7 +107,7 @@ describe('settings nav tagging', () => {
 
   function fakeNavCell(label: string): FakeElement {
     const cell = fakeElement('button');
-    cell.insertBefore(fakeElement('span'), null);
+    cell.insertBefore(fakeElement('svg'), null);
     cell.insertBefore(fakeElement('span', label), null);
     return cell;
   }
