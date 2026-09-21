@@ -13,16 +13,27 @@ import {
   loadRoster,
   openDmChannel,
   removeRosterSection,
+  renameChannel as renameChannelViaBridge,
   renameRosterSection,
   reorderRosterSections,
   reorderTopOrder,
   sendChannelMessage,
+  setRosterHidden,
   setRosterPins,
   type BridgeCall,
   type CreatePersonaBotInput,
 } from './bridge.js';
-import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
-import { completeFlatEntries, flatRosterChannelIds } from './roster-order.js';
+import {
+  planSectionChannelOrder,
+  sameIds,
+  type RosterSection,
+  type TopOrderEntry,
+} from './roster.js';
+import {
+  completeFlatEntries,
+  flatRosterChannelIds,
+  resolvePinnedChannelIds,
+} from './roster-order.js';
 import type {
   BotSummary,
   ChannelMessage,
@@ -40,11 +51,22 @@ export interface BridgeActions {
   send(body: string): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
+  renameChannel(channelId: string, name: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
-  /** Add or remove one PersonaBot from the durable pinned-grid order. */
-  setBotPinned(slug: string, pinned: boolean): Promise<boolean>;
+  /** Add or remove one Channel from the durable pinned-grid order. */
+  setChannelPinned(channelId: string, pinned: boolean): Promise<boolean>;
+  /** Hide or restore one Channel without changing its pin, section, or order. */
+  setChannelHidden(channelId: string, hidden: boolean): Promise<boolean>;
+  /** Unpin one Channel and place it at an exact position inside a section. */
+  movePinnedChannel(
+    channelId: string,
+    sectionId: string,
+    order: readonly string[],
+  ): Promise<boolean>;
+  /** Unpin one Channel and place it at an exact loose top-level position. */
+  movePinnedChannelToFlat(channelId: string, order: readonly TopOrderEntry[]): Promise<boolean>;
   assignChannel(channelId: string, sectionId: string | undefined, index?: number): Promise<boolean>;
   /** Freeze a section's channel order through positioned channelAssign writes. */
   setSectionChannelOrder(sectionId: string, order: readonly string[]): Promise<boolean>;
@@ -64,6 +86,8 @@ export interface BridgeActions {
    * absolute flat order. No scope mode changes.
    */
   moveToFlat(channelId: string, order: readonly TopOrderEntry[]): Promise<boolean>;
+  /** Convert legacy PersonaBot-slug pins into canonical Channel ids once. */
+  ensureChannelPins(): Promise<boolean>;
   /**
    * Convert a pre-flat host arrangement once: sections in snapshot order,
    * then every unsectioned channel loose at the end. Skips when the host
@@ -100,6 +124,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       if (signal?.aborted === true) return;
       clientStore.setRosterState({
         pins: snapshot.pins,
+        hidden: snapshot.hidden,
         sections: snapshot.sections,
         topOrder: snapshot.topOrder,
         readOnly: false,
@@ -145,10 +170,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     }
     const snapshot = clientStore.getSnapshot();
     const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+    const pinnedChannelIds = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
     const flat = completeFlatEntries(
       snapshot.roster.topOrder,
       snapshot.roster.sections.map((section) => section.id),
-      flatRosterChannelIds(snapshot.channels, new Set(snapshot.roster.pins)),
+      flatRosterChannelIds(snapshot.channels, new Set(pinnedChannelIds)),
       sectioned,
     );
     const order: TopOrderEntry[] = [
@@ -249,10 +275,15 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         const channel = await openDmChannel(call, slug, bot.displayName);
         const messages = await loadChannelMessages(call, channel.id);
         if (currentSelection() !== selection) return;
-        clientStore.upsertChannel(channel);
+        const latestMessage = messages.at(-1);
+        const projectedChannel =
+          latestMessage === undefined
+            ? channel
+            : { ...channel, updatedAt: latestMessage.at, latestMessage };
+        clientStore.upsertChannel(projectedChannel);
         clientStore.setConversation({
           status: 'ready',
-          channel,
+          channel: projectedChannel,
           messages,
           error: undefined,
           sending: false,
@@ -309,7 +340,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           selection?.kind === 'bot' ? await loadAssignments(call, selection.slug) : undefined;
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id !== channel.id) return false;
-        clientStore.upsertChannel({ ...channel, updatedAt: message.at });
+        clientStore.upsertChannel({ ...channel, updatedAt: message.at, latestMessage: message });
         clientStore.setConversation({
           sending: false,
           messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
@@ -350,6 +381,20 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       await openChannelById(channel.id);
       return channel;
     },
+    async renameChannel(channelId, name) {
+      try {
+        const result = await renameChannelViaBridge(call, channelId, name);
+        clientStore.upsertChannel(result.channel);
+        if (result.bot !== undefined) clientStore.upsertBot(result.bot);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId) {
+          clientStore.setConversation({ channel: result.channel });
+        }
+        return true;
+      } catch (error) {
+        console.warn('botharness: channel rename failed', error);
+        return false;
+      }
+    },
     async createSection(name) {
       try {
         const section = await createRosterSection(call, name);
@@ -370,11 +415,12 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         await removeRosterSection(call, sectionId);
       });
     },
-    async setBotPinned(slug, pinned) {
-      const current = clientStore.getSnapshot().roster.pins;
+    async setChannelPinned(channelId, pinned) {
+      const snapshot = clientStore.getSnapshot();
+      const current = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
       const next = pinned
-        ? [...current.filter((candidate) => candidate !== slug), slug]
-        : current.filter((candidate) => candidate !== slug);
+        ? [...current.filter((candidate) => candidate !== channelId), channelId]
+        : current.filter((candidate) => candidate !== channelId);
       if (
         next.length === current.length &&
         next.every((candidate, index) => candidate === current[index])
@@ -383,6 +429,39 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       }
       return rosterMutate(async () => {
         await setRosterPins(call, next);
+      });
+    },
+    async setChannelHidden(channelId, hidden) {
+      const current = [...clientStore.getSnapshot().roster.hidden];
+      const next = hidden
+        ? [...current.filter((candidate) => candidate !== channelId), channelId]
+        : current.filter((candidate) => candidate !== channelId);
+      if (sameIds(next, current)) return true;
+      return rosterMutate(async () => {
+        await setRosterHidden(call, next);
+      });
+    },
+    async movePinnedChannel(channelId, sectionId, order) {
+      const snapshot = clientStore.getSnapshot();
+      const nextPins = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins).filter(
+        (candidate) => candidate !== channelId,
+      );
+      return rosterMutate(async () => {
+        for (let index = 0; index < order.length; index += 1) {
+          await assignRosterChannel(call, order[index] as string, sectionId, index);
+        }
+        await setRosterPins(call, nextPins);
+      });
+    },
+    async movePinnedChannelToFlat(channelId, order) {
+      const snapshot = clientStore.getSnapshot();
+      const nextPins = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins).filter(
+        (candidate) => candidate !== channelId,
+      );
+      return rosterMutate(async () => {
+        await assignRosterChannel(call, channelId, undefined);
+        await reorderTopOrder(call, order);
+        await setRosterPins(call, nextPins);
       });
     },
     async assignChannel(channelId, sectionId, index) {
@@ -426,14 +505,29 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         await reorderTopOrder(call, order);
       });
     },
+    async ensureChannelPins() {
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.roster.readOnly) return true;
+      const pins = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
+      if (
+        pins.length === snapshot.roster.pins.length &&
+        pins.every((channelId, index) => channelId === snapshot.roster.pins[index])
+      ) {
+        return true;
+      }
+      return rosterMutate(async () => {
+        await setRosterPins(call, pins);
+      });
+    },
     async ensureFlatTopOrder() {
       const snapshot = clientStore.getSnapshot();
       if (snapshot.roster.readOnly || snapshot.roster.topOrder !== undefined) return true;
       const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+      const pinnedChannelIds = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
       const order = completeFlatEntries(
         undefined,
         snapshot.roster.sections.map((section) => section.id),
-        flatRosterChannelIds(snapshot.channels, new Set(snapshot.roster.pins)),
+        flatRosterChannelIds(snapshot.channels, new Set(pinnedChannelIds)),
         sectioned,
       );
       if (order.length === 0) return true;

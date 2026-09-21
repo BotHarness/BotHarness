@@ -22,23 +22,32 @@ export type BotMenuTranslate = (key: BotHarnessKey) => string;
 /** Caller class that paints the delete confirm's outline button in the error colour. */
 export const DANGER_ACTION_CLASS = 'bh-danger-action';
 
-/** The global default menu of the message-list header: heading plus the two concrete modes. */
+/** The global message-list menu: sort modes plus roster management actions. */
 export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   return [
     { type: 'label', id: 'sort-label', text: t('sort.menu.label') },
     { id: 'updated', label: t('sort.updated') },
     { id: 'manual', label: t('sort.manual') },
+    { type: 'separator', id: 'roster-separator' },
+    { id: 'hidden', label: t('hidden.manage') },
   ];
 }
 
-/** One section's menu, in native order: sort heading/modes, then rename, then danger delete. */
-export function sectionMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
+/** One section's menu: sort, positional actions, rename, then safe section removal. */
+export function sectionMenuItems(
+  t: BotMenuTranslate,
+  options: { canMoveUp?: boolean; canMoveDown?: boolean } = {},
+): readonly MenuEntry[] {
+  const { canMoveUp = true, canMoveDown = true } = options;
   return [
     { type: 'label', id: 'sort-label', text: t('sort.menu.label') },
     { id: 'updated', label: t('sort.updated') },
     { id: 'manual', label: t('sort.manual') },
     { id: 'inherit', label: t('sort.inherit') },
     { type: 'separator', id: 'section-separator' },
+    { id: 'move-up', label: t('section.moveUp'), disabled: !canMoveUp },
+    { id: 'move-down', label: t('section.moveDown'), disabled: !canMoveDown },
+    { type: 'separator', id: 'section-action-separator' },
     { id: 'rename', label: t('section.rename'), icon: <IconEditOutline16 /> },
     { id: 'delete', label: t('section.delete'), icon: <IconTrashOutline16 />, danger: true },
   ];
@@ -50,6 +59,8 @@ export function sectionMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
  */
 export const UNGROUPED_MOVE_TARGET = 'ungrouped';
 
+/** Menu id that opens section creation and moves this channel into it. */
+export const NEW_SECTION_MOVE_TARGET = 'new-section';
 /** Submenu label with the trailing check the current location carries. */
 function checkedTargetLabel(text: string): ReactElement {
   return (
@@ -83,6 +94,7 @@ export function channelMoveMenuItems(
       id: 'move',
       label: t('move.menu.label'),
       submenu: [
+        target(NEW_SECTION_MOVE_TARGET, t('move.newSection'), false),
         ...sections.map((section) =>
           target(section.id, section.name, section.id === currentSectionId),
         ),
@@ -177,6 +189,61 @@ export function SectionRenameModal({
       <NameField
         label="分组名称"
         placeholder="分组名称"
+        value={draft}
+        disabled={blank}
+        onChange={setDraft}
+        onSubmit={() => {
+          if (!blank) onRename(trimmed);
+        }}
+      />
+    </Modal>
+  );
+}
+
+export interface ChannelRenameModalProps {
+  name: string;
+  bot: boolean;
+  onCancel: () => void;
+  onRename: (name: string) => void;
+}
+
+/** One rename surface for group Channels and PersonaBot-backed DM Channels. */
+export function ChannelRenameModal({
+  name,
+  bot,
+  onCancel,
+  onRename,
+}: ChannelRenameModalProps): ReactElement {
+  const [draft, setDraft] = useState(name);
+  const trimmed = draft.trim();
+  const blank = trimmed.length === 0;
+  const label = bot ? 'PersonaBot 名称' : '频道名称';
+  return (
+    <Modal
+      open
+      onClose={onCancel}
+      closeLabel="关闭"
+      title={bot ? '重命名 PersonaBot' : '重命名频道'}
+      footer={
+        <>
+          <Button variant="outline" onClick={onCancel}>
+            取消
+          </Button>
+          <Button
+            variant="primary"
+            disabled={blank}
+            onClick={() => {
+              if (!blank) onRename(trimmed);
+            }}
+          >
+            重命名
+          </Button>
+        </>
+      }
+    >
+      <NameField
+        label={label}
+        placeholder={label}
         value={draft}
         disabled={blank}
         onChange={setDraft}

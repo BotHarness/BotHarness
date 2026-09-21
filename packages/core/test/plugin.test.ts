@@ -182,6 +182,7 @@ describe('plugin entry', () => {
       'channels',
       'channelDm',
       'channelCreate',
+      'channelRename',
       'channelMessages',
       'channelSend',
       'assignments',
@@ -195,6 +196,7 @@ describe('plugin entry', () => {
       'sectionReorder',
       'topReorder',
       'pinsSet',
+      'hiddenSet',
     ]);
   });
 
@@ -212,8 +214,10 @@ describe('plugin entry', () => {
     const bridge = ctx.get('botharnessBridge');
     expect(bridge?.rosterGet()).toEqual({
       pins: [],
+      hidden: [],
       sectionOrder: [],
       sections: [],
+      topOrder: undefined,
     });
   });
 

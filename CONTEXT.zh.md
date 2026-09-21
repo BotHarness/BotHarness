@@ -262,6 +262,10 @@ _避免使用_：mailbox item、message copy、delivery attempt
 平台原生的 conversation space；类型为 `dm`（一个 PersonaBot 与一位 Human）或 `group chat`（多个 member；非正式称为 chatroom）。Channel 在本地保留自己的历史。两种类型遵循同一套 Channel section 归属、顶层顺序、拖拽与移动规则；DM 保留其 PersonaBot 头像表现。
 _避免使用_：room、server、board
 
+**Hidden Channel**：
+由 Human 明确选择、从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可从隐藏频道管理器恢复它。
+_避免使用_：deleted Channel、archived Channel、muted Channel、Content Purge
+
 **Channel section**：
 用户创建、可折叠的 Channel 分组，显示在 bot-mode sidebar 中。它只是本地 display arrangement，不属于 Soul。
 _避免使用_：folder、category、group
@@ -494,16 +498,28 @@ _避免使用_：Profile Transfer、clone、ordinary restore
 bot-mode sidebar 中展示 PersonaBot 与 Channel 及其 state 的列表。
 _避免使用_：dashboard、bot list
 
-**PersonaBot navigation**：
-只在一个 PersonaBot 的 DM 中出现的上下文导航：Chat 与 Memory 始终存在，所拥有的 Assignment 作为从属列表展示。它不出现在 group Channel 中，也绝不会把 Orchestrator Session 当作 Assignment 展示。
-_避免使用_：session panel、bot workspace、inspector
+**App Sidebar**：
+DSH 原生 client 的左侧栏；在 Bot mode 中呈现 Roster。采用此名称是为了与右侧的 Channel sidebar 区分。
+_避免使用_：left sidebar、main sidebar、navigation
+
+**Channel sidebar**：
+Bot mode panel 中由当前所选 Channel 决定 scope 的右侧区域：group Channel 显示 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 Assignment、Memory、Bot Inbox 等 entry。它不是 DSH 原生、由 Session 决定 scope 的右侧栏。
+_避免使用_：PersonaBot navigation、right panel、session panel、inspector、workbench
+
+**Channel body**：
+Bot mode panel 的中间区域，包含所选 Channel 的 header、primary content 与 composer；DM 在这里呈现 Chat。
+_避免使用_：main pane、conversation view、chat panel
+
+**Channel sidebar entry**：
+Channel sidebar 中一个已注册、可折叠的 item，具有稳定 id、label、order、scope 与 renderer，可用于展示信息、提供 control，或同时承担两者。不可用的 entry 直接缺席，不显示 placeholder。
+_避免使用_：widget、card、tab、destination、Channel section
 
 **Client bridge**：
 Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RPC surface，不与 Client 共享 Host service。
 _避免使用_：remote、IPC、gateway
 
 **Settings UI**：
-harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 Memory 的链接。日常 Memory 使用属于 PersonaBot navigation。
+harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 Memory 的链接。日常 Memory 使用属于 Channel sidebar。
 _避免使用_：admin panel、dashboard、web console
 
 **Access policy**：
