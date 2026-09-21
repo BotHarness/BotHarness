@@ -1285,7 +1285,7 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 8px 10px 14px;
+  padding: 12px 8px 12px 14px;
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 .bh-channel-sidebar-title {
