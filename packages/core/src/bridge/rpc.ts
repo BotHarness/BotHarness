@@ -6,6 +6,7 @@ import type {
   BridgeError,
   BridgeMethods,
   BridgeResult,
+  ChannelListItem,
   PersonaBotDetail,
   PersonaBotSummary,
 } from './methods.js';
@@ -133,7 +134,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.resume({ slug }));
   }
 
-  channels(): { channels: ChannelRecord[] } {
+  channels(): { channels: ChannelListItem[] } {
     return unwrap(this.methods.channels({}));
   }
 
@@ -143,6 +144,13 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   channelCreate(name: string, members: string[]): { channel: ChannelRecord } {
     return unwrap(this.methods.channelCreate({ name, members }));
+  }
+
+  channelRename(
+    channelId: string,
+    name: string,
+  ): { channel: ChannelRecord; bot?: PersonaBotDetail } {
+    return unwrap(this.methods.channelRename({ channelId, name }));
   }
 
   channelMessages(
@@ -204,6 +212,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   pinsSet(pins: string[]): Promise<{ pins: string[] }> {
     return unwrapAsync(this.methods.pinsSet({ pins }));
   }
+
+  hiddenSet(hidden: string[]): Promise<{ hidden: string[] }> {
+    return unwrapAsync(this.methods.hiddenSet({ hidden }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -216,6 +228,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channels',
   'channelDm',
   'channelCreate',
+  'channelRename',
   'channelMessages',
   'channelSend',
   'assignments',
@@ -229,6 +242,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'sectionReorder',
   'topReorder',
   'pinsSet',
+  'hiddenSet',
 ]);
 
 /**

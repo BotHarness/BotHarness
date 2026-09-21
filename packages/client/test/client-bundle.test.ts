@@ -166,6 +166,7 @@ describe('@botharness/client browser bundle', () => {
         register: () => () => undefined,
         bind: () => (key: string) => key,
       },
+      provide: () => () => undefined,
       effect: (callback: () => unknown) => {
         callback();
         return () => undefined;

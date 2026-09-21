@@ -284,6 +284,10 @@ _Avoid_: mailbox item, message copy, delivery attempt
 A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a DM keeps its PersonaBot avatar presentation.
 _Avoid_: room, server, board
 
+**Hidden Channel**:
+A Channel omitted from expanded and collapsed roster navigation by an explicit Human presentation choice. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can restore it from the hidden-Channel manager.
+_Avoid_: deleted Channel, archived Channel, muted Channel, Content Purge
+
 **Channel section**:
 A user-created, collapsible grouping of Channels in the bot-mode sidebar. Local display arrangement, not part of a Soul.
 _Avoid_: folder, category, group

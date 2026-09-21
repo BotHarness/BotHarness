@@ -13,6 +13,8 @@ import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { BotModeRow } from './bot-mode-row.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
+import { channelSidebarBuiltins } from './channel-sidebar-builtins.js';
+import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
@@ -44,6 +46,14 @@ export function apply(ctx: ClientContext): void {
   const call = createBridgeCall(ctx);
   const actions: BridgeActions = createActions(call, store);
   const prefs = new BotModePrefs(storage);
+  const channelSidebar = createChannelSidebarRegistry();
+  ctx.provide('channelSidebar', channelSidebar);
+  ctx.effect(() => {
+    const disposers = channelSidebarBuiltins.map((entry) => channelSidebar.register(entry));
+    return () => {
+      for (const dispose of disposers) dispose();
+    };
+  }, 'botharness: Channel sidebar entries');
 
   ctx.effect(installStyles, 'botharness: client styles');
   ctx.effect(
@@ -66,6 +76,8 @@ export function apply(ctx: ClientContext): void {
         remapSortModes: (mapping) => prefs.remapSectionSortModes(mapping),
       });
       if (outcome === 'migrated') await actions.refreshRoster(controller.signal);
+      if (controller.signal.aborted) return;
+      await actions.ensureChannelPins();
       if (controller.signal.aborted) return;
       await actions.ensureFlatTopOrder();
     });
@@ -115,7 +127,7 @@ export function apply(ctx: ClientContext): void {
       {
         name: 'main',
         key: PANEL_ID,
-        inject: () => ({ actions }),
+        inject: () => ({ actions, channelSidebar }),
       },
       BotPanel,
     ),
@@ -145,7 +157,7 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions }),
+          inject: () => ({ actions, channelSidebar }),
         },
         BotMain,
       ),

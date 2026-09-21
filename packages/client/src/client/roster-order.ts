@@ -125,10 +125,14 @@ export function commitScopeReorder(
   return { order, setManualOverride: !manualOverride };
 }
 
-/** Where a drop landed: a row half, or a scope itself (context-menu pick). */
+/** Where a drop landed: a row half, or a whole scope at a deliberate edge. */
 export type ScopeDropTarget =
   | { kind: 'row'; channelId: string; half: 'before' | 'after' }
-  | { kind: 'scope' };
+  | {
+      kind: 'scope';
+      /** Drag prediction lines use first; context-menu picks default to last. */
+      position?: 'first' | 'last';
+    };
 
 /** One drop resolved against its target scope. */
 export interface ChannelMoveDrop {
@@ -164,11 +168,12 @@ export function planChannelMove(
 ): ChannelMovePlan | undefined {
   if (drop.target.kind === 'row' && drop.target.channelId === channelId) return undefined;
   const sameScope = sourceScopeId === drop.targetScopeId;
-  if (drop.target.kind === 'scope' && sameScope) return undefined;
+  if (drop.target.kind === 'scope' && sameScope && drop.targetOrder.includes(channelId))
+    return undefined;
   const without = drop.targetOrder.filter((id) => id !== channelId);
   let order: string[];
   if (drop.target.kind === 'scope') {
-    order = [...without, channelId];
+    order = drop.target.position === 'first' ? [channelId, ...without] : [...without, channelId];
   } else {
     const targetIndex = without.indexOf(drop.target.channelId);
     if (targetIndex === -1) return undefined;
@@ -336,17 +341,45 @@ export interface FlatInsertPlan {
 }
 
 /**
- * Channel ids that participate in the sidebar's flat order. Group Channels
- * always participate; a PersonaBot DM participates while its bot is not
- * pinned. Orphan DMs have no renderable PersonaBot row and are omitted.
+ * Resolve durable pin tokens to Channel ids. Current records already contain
+ * Channel ids; a pre-channel-pinning record may contain a PersonaBot slug, so
+ * resolve that slug to its DM until the next pin write canonicalises the list.
+ */
+export function resolvePinnedChannelIds(
+  channels: readonly ChannelSummary[],
+  pins: readonly string[],
+): string[] {
+  const byId = new Map(channels.map((channel) => [channel.id, channel]));
+  const dmByBotSlug = new Map(
+    channels.flatMap((channel) =>
+      channel.type === 'dm' && channel.botSlug !== undefined ? [[channel.botSlug, channel]] : [],
+    ),
+  );
+  const resolved: string[] = [];
+  const seen = new Set<string>();
+  for (const pin of pins) {
+    const channel = byId.get(pin) ?? dmByBotSlug.get(pin);
+    if (channel === undefined || seen.has(channel.id)) continue;
+    if (channel.type === 'dm' && channel.botSlug === undefined) continue;
+    seen.add(channel.id);
+    resolved.push(channel.id);
+  }
+  return resolved;
+}
+
+/**
+ * Channel ids that participate in the sidebar's flat order. Every renderable
+ * unpinned Channel participates; orphan DMs have no PersonaBot row and are
+ * omitted.
  */
 export function flatRosterChannelIds(
   channels: readonly ChannelSummary[],
-  pinnedBotSlugs: ReadonlySet<string>,
+  pinnedChannelIds: ReadonlySet<string>,
 ): string[] {
   return channels.flatMap((channel) => {
+    if (pinnedChannelIds.has(channel.id)) return [];
     if (channel.type === 'group') return [channel.id];
-    if (channel.botSlug === undefined || pinnedBotSlugs.has(channel.botSlug)) return [];
+    if (channel.botSlug === undefined) return [];
     return [channel.id];
   });
 }
@@ -369,20 +402,26 @@ export function planFlatInsert(
   fromSection: boolean,
   anchor: FlatAnchor,
 ): FlatInsertPlan | undefined {
-  const keys = flat.map(flatEntryKey);
-  const anchorIndex = keys.indexOf(`${anchor.kind}:${anchor.id}`);
-  if (anchorIndex === -1) return undefined;
   if (fromSection) {
+    // A pinned loose Channel keeps its durable topOrder slot while pinned.
+    // Treat it like a sectioned source: remove that stale slot before placing
+    // the one accepted occurrence at the predicted drop line.
+    const without = flat.filter((entry) => entry.kind !== 'channel' || entry.id !== channelId);
+    const anchorIndex = without.map(flatEntryKey).indexOf(`${anchor.kind}:${anchor.id}`);
+    if (anchorIndex === -1) return undefined;
     const at = anchor.side === 'before' ? anchorIndex : anchorIndex + 1;
     return {
       order: [
-        ...flat.slice(0, at).map((entry) => ({ ...entry })),
+        ...without.slice(0, at).map((entry) => ({ ...entry })),
         { kind: 'channel' as const, id: channelId },
-        ...flat.slice(at).map((entry) => ({ ...entry })),
+        ...without.slice(at).map((entry) => ({ ...entry })),
       ],
       unassign: true,
     };
   }
+  const keys = flat.map(flatEntryKey);
+  const anchorIndex = keys.indexOf(`${anchor.kind}:${anchor.id}`);
+  if (anchorIndex === -1) return undefined;
   const selfIndex = keys.indexOf(`channel:${channelId}`);
   if (selfIndex === -1) return undefined;
   const without = flat.filter((_, index) => index !== selfIndex);

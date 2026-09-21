@@ -159,6 +159,7 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
   const botSlug = record['botSlug'];
   const createdAt = record['createdAt'];
   const updatedAt = record['updatedAt'];
+  const latestMessage = parseChannelMessage(record['latestMessage']);
   return {
     id,
     type,
@@ -167,6 +168,7 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
     createdAt: typeof createdAt === 'string' ? createdAt : '',
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
+    ...(latestMessage === undefined ? {} : { latestMessage }),
   };
 }
 
@@ -348,8 +350,27 @@ export async function createGroupChannel(
 ): Promise<ChannelSummary> {
   const value = await unwrap(call, 'channelCreate', { name, members: [] }, signal);
   const channel = parseChannelRecord(asRecord(value)?.['channel']);
+
   if (channel === undefined) throw new Error('invalid channelCreate response');
   return channel;
+}
+
+export interface RenameChannelResult {
+  channel: ChannelSummary;
+  bot?: BotSummary;
+}
+
+export async function renameChannel(
+  call: BridgeCall,
+  channelId: string,
+  name: string,
+  signal?: AbortSignal,
+): Promise<RenameChannelResult> {
+  const value = asRecord(await unwrap(call, 'channelRename', { channelId, name }, signal));
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelRename response');
+  const bot = parseBotSummary(value?.['bot']);
+  return { channel, ...(bot === undefined ? {} : { bot }) };
 }
 
 export async function loadChannelMessages(
@@ -465,4 +486,12 @@ export async function setRosterPins(
   signal?: AbortSignal,
 ): Promise<void> {
   await unwrap(call, 'pinsSet', { pins }, signal);
+}
+
+export async function setRosterHidden(
+  call: BridgeCall,
+  hidden: readonly string[],
+  signal?: AbortSignal,
+): Promise<void> {
+  await unwrap(call, 'hiddenSet', { hidden }, signal);
 }

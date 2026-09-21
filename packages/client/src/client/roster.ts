@@ -18,9 +18,10 @@ export interface TopOrderEntry {
   id: string;
 }
 
-/** The arrangement projected by `rosterGet`; sections arrive in display order. */
+/** The arrangement projected by `rosterGet`; `pins` contains Channel ids. */
 export interface RosterSnapshot {
   pins: string[];
+  hidden: string[];
   sections: RosterSection[];
   /**
    * Flat top-level order, or `undefined` when the host domain predates the
@@ -31,7 +32,7 @@ export interface RosterSnapshot {
 
 /** The arrangement a host without a storage backend projects. */
 export function emptyRosterSnapshot(): RosterSnapshot {
-  return { pins: [], sections: [], topOrder: undefined };
+  return { pins: [], hidden: [], sections: [], topOrder: undefined };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | undefined {
@@ -128,7 +129,12 @@ export function parseRosterSnapshot(value: unknown): RosterSnapshot {
       sections.push(section);
     }
   }
-  return { pins: uniqueStrings(record['pins']), sections, topOrder: parseTopOrder(record) };
+  return {
+    pins: uniqueStrings(record['pins']),
+    hidden: uniqueStrings(record['hidden']),
+    sections,
+    topOrder: parseTopOrder(record),
+  };
 }
 
 /** Parse one flat entry; malformed entries (bad kind, blank id) are dropped. */

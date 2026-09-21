@@ -7,9 +7,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconAgentPresetOutline16: stub,
     IconChevronDownOutline14: stub,
     IconChevronRightOutline14: stub,
+    IconCloseOutline16: stub,
     IconEditOutline16: stub,
     IconEllipsisOutline16: stub,
     IconNewChatOutline16: stub,
+    IconPanelLeftOutline16: stub,
     IconTriangleRightFill14: stub,
     IconTrashOutline16: stub,
     IconPlusOutline16: stub,
@@ -93,6 +95,7 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
       register: () => () => undefined,
       bind: () => (key: string) => key,
     },
+    provide: () => () => undefined,
     effect: (callback: () => unknown) => {
       callback();
       return () => undefined;

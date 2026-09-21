@@ -93,19 +93,57 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-contact\.bh-drag-source \{\s*opacity: 0\.4/);
   });
 
-  it('keeps pin and unpin drop feedback token-based and layout-stable', () => {
+  it('collapses idle drag targets and exposes an explicit restore-position zone', () => {
     expect(source).toMatch(/\.bh-pin-zone-empty \{[^}]*min-height: 96px/);
+    expect(source).toMatch(
+      /\.bh-pin-zone-empty\.bh-pin-zone-hidden \{[^}]*height: 0;[^}]*opacity: 0/,
+    );
+    expect(source).toMatch(/\.bh-pin-zone \{[^}]*height 150ms var\(--ds-ease-in-out\)/);
     expect(source).toMatch(
       /\.bh-pin-zone-empty \{[^}]*border: 1px dashed var\(--dsw-alias-border-l3\)/,
     );
     expect(source).toMatch(/\.bh-pin-zone-active \{[^}]*background: var\(--bh-hover\)/);
-    expect(source).toMatch(/\.bh-roster-list-drop-active \{[^}]*background: var\(--bh-hover\)/);
+    expect(source).toMatch(
+      /\.bh-unpin-zone \{[^}]*height: 72px;[^}]*border: 1px dashed var\(--dsw-alias-border-l3\)/,
+    );
+    expect(source).toMatch(
+      /\.bh-unpin-zone-hidden \{[^}]*height: 0;[^}]*opacity: 0;[^}]*pointer-events: none/,
+    );
+    expect(source).toMatch(/\.bh-unpin-zone-active \{[^}]*background: var\(--bh-hover\)/);
+    expect(source).not.toContain('.bh-roster-list-unpin-target');
     expect(source).toMatch(/\.bh-pinned\.bh-drag-source \{\s*opacity: 0\.4/);
   });
 
   it('anchors the channel move menu at the cursor proxy', () => {
     expect(source).toMatch(/\.bh-menu-anchor \{\s*position: fixed/);
     expect(source).toMatch(/\.bh-move-checked \{\s*display: flex/);
+  });
+
+  it('fits ordered Channels into the native 36px collapsed rail and separates pins', () => {
+    expect(source).toMatch(/\.bh-rail-group \{[^}]*width: 36px/);
+    expect(source).toMatch(/\.bh-rail-channel \{[^}]*width: 36px;[^}]*height: 36px/);
+    expect(source).toMatch(
+      /\.bh-rail-divider \{[^}]*border-top: 0\.5px solid var\(--dsw-alias-border-l3\)/,
+    );
+    expect(source).toMatch(/\.bh-rail-preview \{[^}]*display: flex/);
+    expect(source).toMatch(
+      /\.bh-rail-preview-meta,[^{]*\.bh-rail-preview-description \{[^}]*color: var\(--dsw-alias-label-tertiary\)/,
+    );
+    expect(source).toMatch(
+      /\.bh-rail-preview-summary \{[^}]*color: var\(--dsw-alias-label-secondary\)/,
+    );
+  });
+
+  it('keeps hidden-channel content inside the native Modal body box', () => {
+    expect(source).toMatch(/\.bh-hidden-manager \{[^}]*gap: 0;[^}]*min-width: 0/);
+    expect(source).toMatch(
+      /\.bh-hidden-manager > :last-child \{[^}]*gap: 8px;[^}]*margin-top: 12px/,
+    );
+    expect(source).toMatch(/\.bh-hidden-search \{[^}]*box-sizing: border-box;[^}]*width: 100%/);
+    expect(source).toMatch(
+      /\.bh-hidden-row \{[^}]*box-sizing: border-box;[^}]*gap: 8px;[^}]*min-height: 40px;[^}]*padding: 2px 4px/,
+    );
+    expect(source).not.toContain('min-width: min(420px, calc(100vw - 48px))');
   });
 
   it('copies the native rename input box model without portaled overrides', () => {
