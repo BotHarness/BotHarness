@@ -19,10 +19,16 @@ RUN apt-get update \
        /etc/locale.gen \
   && locale-gen \
   && rm -rf /var/lib/apt/lists/* \
-  && mkdir -p /config/Desktop \
-  && cp /usr/share/applications/google-chrome.desktop /config/Desktop/google-chrome.desktop \
-  && chmod +x /config/Desktop/google-chrome.desktop \
-  && chown -R abc:abc /config/Desktop
+  && mkdir -p /custom-cont-init.d \
+  && printf '%s\n' \
+       '#!/bin/sh' \
+       'set -e' \
+       'mkdir -p /config/Desktop' \
+       'cp -f /usr/share/applications/google-chrome.desktop /config/Desktop/google-chrome.desktop' \
+       'chmod +x /config/Desktop/google-chrome.desktop' \
+       'chown abc:abc /config/Desktop /config/Desktop/google-chrome.desktop' \
+       > /custom-cont-init.d/10-desktop-chrome \
+  && chmod +x /custom-cont-init.d/10-desktop-chrome
 
 # Overridden per Computer from the DSH locale preference; the generated locales
 # above cover the shipped languages.

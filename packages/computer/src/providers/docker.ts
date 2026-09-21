@@ -215,17 +215,33 @@ export function createDockerComputerProvider(
       return;
     }
     if (existing.state === 'stopped') {
-      phase = 'starting';
-      detail = '正在启动已有容器…';
-      throwIfCancelled();
-      const start = await runner.run(['docker', 'start', config.containerName]);
-      if (start.code !== 0) {
-        fail(start.stderr.trim() || 'docker start failed');
+      const currentImage = await runner.run([
+        'docker',
+        'inspect',
+        '--format',
+        '{{.Config.Image}}',
+        config.containerName,
+      ]);
+      if (currentImage.code === 0 && currentImage.stdout.trim() !== config.image) {
+        // The configured image changed (e.g. an upgrade): recreate the container
+        // while keeping its volume.
+        const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
+        if (remove.code !== 0) {
+          fail(remove.stderr.trim() || 'docker rm failed');
+        }
+      } else {
+        phase = 'starting';
+        detail = '正在启动已有容器…';
+        throwIfCancelled();
+        const start = await runner.run(['docker', 'start', config.containerName]);
+        if (start.code !== 0) {
+          fail(start.stderr.trim() || 'docker start failed');
+        }
+        phase = 'running';
+        detail = undefined;
+        running = true;
+        return;
       }
-      phase = 'running';
-      detail = undefined;
-      running = true;
-      return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
     throwIfCancelled();

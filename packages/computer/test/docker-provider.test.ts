@@ -112,13 +112,36 @@ describe('Docker computer provider', () => {
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
         if (argv[1] === 'info') return ok('27.0.0');
-        if (argv[1] === 'inspect') return ok('exited\n');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('Config.Image')) return ok('botharness-computer:xfce-chrome');
+          return ok('exited\n');
+        }
         return ok('ok');
       }, calls),
     });
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
     expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+  });
+
+  it('recreates the container when its image no longer matches', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('Config.Image')) return ok('old-image:latest');
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(false);
   });
 
   it('surfaces a failed pull as a failed status with detail', async () => {
