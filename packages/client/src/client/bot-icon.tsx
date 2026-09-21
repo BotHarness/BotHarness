@@ -2,7 +2,14 @@ import { blobatar } from 'blobatar';
 import type { CSSProperties, ReactElement } from 'react';
 
 import type { BotModeIcon } from '../bot-mode-settings.js';
-import { DEEPSEEKBOT_DARK_DATA_URI, DEEPSEEKBOT_LIGHT_DATA_URI } from './bot-icon-assets.js';
+import {
+  DEEPSEEKBOT_DARK_DATA_URI,
+  DEEPSEEKBOT_LIGHT_DATA_URI,
+  DEEPSEEKBOT_SIMPLE_DARK_DATA_URI,
+  DEEPSEEKBOT_SIMPLE_LIGHT_DATA_URI,
+  DEEPSEEKBOT_SIMPLE_TRANSPARENT_DATA_URI,
+  DEEPSEEKBOT_TRANSPARENT_DATA_URI,
+} from './bot-icon-assets.js';
 import { useBotColorScheme, type BotColorScheme } from './bot-color-scheme.js';
 
 /**
@@ -31,8 +38,15 @@ export const BOT_GLYPH_SVG =
  * @returns HTML markup for one icon box.
  */
 export function botIconMarkup(icon: BotModeIcon, scheme: BotColorScheme): string {
-  if (icon === 'mascot') {
-    const source = scheme === 'dark' ? DEEPSEEKBOT_DARK_DATA_URI : DEEPSEEKBOT_LIGHT_DATA_URI;
+  if (icon === 'mascot' || icon === 'simple') {
+    const simple = icon === 'simple';
+    const source = simple
+      ? scheme === 'dark'
+        ? DEEPSEEKBOT_SIMPLE_DARK_DATA_URI
+        : DEEPSEEKBOT_SIMPLE_LIGHT_DATA_URI
+      : scheme === 'dark'
+        ? DEEPSEEKBOT_DARK_DATA_URI
+        : DEEPSEEKBOT_LIGHT_DATA_URI;
     return `<img src="${source}" alt="" draggable="false" />`;
   }
   if (icon === 'blob') {
@@ -43,6 +57,17 @@ export function botIconMarkup(icon: BotModeIcon, scheme: BotColorScheme): string
     }
   }
   return BOT_GLYPH_SVG;
+}
+
+/**
+ * Transparent artwork used as the Bot mode switch's texture layer. The simple
+ * variant keeps its own backdrop; the generated and generic marks fall back to
+ * the mascot artwork.
+ */
+export function botBackdropUri(icon: BotModeIcon): string {
+  return icon === 'simple'
+    ? DEEPSEEKBOT_SIMPLE_TRANSPARENT_DATA_URI
+    : DEEPSEEKBOT_TRANSPARENT_DATA_URI;
 }
 
 /** The Bot mark as a React element sized by the caller's box. */

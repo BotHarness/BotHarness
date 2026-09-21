@@ -364,7 +364,8 @@ button:has(.bh-panel-glyph)::before {
   bottom: 0;
   width: 200%;
   height: 200%;
-  background: url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI}) left bottom / contain no-repeat;
+  background: var(--bh-bot-texture, url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI})) left bottom / contain
+    no-repeat;
   opacity: 0.1;
   pointer-events: none;
 }

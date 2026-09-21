@@ -28,6 +28,7 @@ const SORT_OPTIONS: readonly { id: BotModeSortMode; label: BotHarnessKey }[] = [
 
 const ICON_OPTIONS: readonly { id: BotModeIcon; label: BotHarnessKey }[] = [
   { id: 'mascot', label: 'icon.mascot' },
+  { id: 'simple', label: 'icon.simple' },
   { id: 'blob', label: 'icon.blob' },
   { id: 'bot', label: 'icon.bot' },
 ];
@@ -57,7 +58,13 @@ export function BotSettingsSection({
   const [sortOpen, setSortOpen] = useState(false);
   const [iconOpen, setIconOpen] = useState(false);
   const iconLabel: BotHarnessKey =
-    prefs.botIcon === 'blob' ? 'icon.blob' : prefs.botIcon === 'bot' ? 'icon.bot' : 'icon.mascot';
+    prefs.botIcon === 'blob'
+      ? 'icon.blob'
+      : prefs.botIcon === 'bot'
+        ? 'icon.bot'
+        : prefs.botIcon === 'simple'
+          ? 'icon.simple'
+          : 'icon.mascot';
   const sortLabel: BotHarnessKey = prefs.sortMode === 'manual' ? 'sort.manual' : 'sort.updated';
   const motionLabel: BotHarnessKey =
     prefs.motionPreference === 'reduce'

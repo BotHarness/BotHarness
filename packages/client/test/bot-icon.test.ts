@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { BOT_GLYPH_SVG, botIconMarkup } from '../src/client/bot-icon.js';
+import { BOT_GLYPH_SVG, botBackdropUri, botIconMarkup } from '../src/client/bot-icon.js';
 import { findBotNavCell, installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
 import { openBotSettings } from '../src/client/bot-settings-open.js';
 
@@ -12,6 +12,21 @@ describe('bot icon markup', () => {
     expect(light).toContain('data:image/png;base64,');
     expect(dark).toContain('data:image/png;base64,');
     expect(dark).not.toBe(light);
+  });
+
+  it('serves the simple variant as its own palette-matched artwork', () => {
+    const light = botIconMarkup('simple', 'light');
+    const dark = botIconMarkup('simple', 'dark');
+    expect(light).toContain('<img');
+    expect(light).toContain('data:image/png;base64,');
+    expect(dark).not.toBe(light);
+    expect(light).not.toBe(botIconMarkup('mascot', 'light'));
+  });
+
+  it('keeps a backdrop per variant and falls back to the mascot', () => {
+    expect(botBackdropUri('simple')).not.toBe(botBackdropUri('mascot'));
+    expect(botBackdropUri('blob')).toBe(botBackdropUri('mascot'));
+    expect(botBackdropUri('bot')).toBe(botBackdropUri('mascot'));
   });
 
   it('generates one deterministic blob', () => {

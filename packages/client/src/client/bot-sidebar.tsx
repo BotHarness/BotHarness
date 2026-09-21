@@ -25,7 +25,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store';
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
-import { BotIcon } from './bot-icon.js';
+import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
 import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
@@ -115,8 +115,11 @@ export function BotPanelIcon({
   const wide = size === 16;
 
   useEffect(() => {
-    setRow(glyph.current?.closest('button') ?? null);
-  }, [size]);
+    const button = glyph.current?.closest('button') ?? null;
+    setRow(button);
+    // The switch's texture layer is the chosen variant's transparent artwork.
+    button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
+  }, [size, icon]);
 
   // The shell row is a button, so keyboard activation would re-select the
   // panel; while Bot mode is on, Enter and Space leave it instead. The gear

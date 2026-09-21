@@ -26,7 +26,7 @@ export const BOT_MODE_SORT_MODES = ['updated', 'manual'] as const;
 export const BOT_MODE_MOTION_PREFERENCES = ['system', 'reduce', 'full'] as const;
 
 /** Bot icon choices accepted at settings boundaries. */
-export const BOT_MODE_ICONS = ['mascot', 'blob', 'bot'] as const;
+export const BOT_MODE_ICONS = ['mascot', 'simple', 'blob', 'bot'] as const;
 
 /** Global or per-section sort mode: newest-first (`updated`) or the user's frozen order (`manual`). */
 export type BotModeSortMode = (typeof BOT_MODE_SORT_MODES)[number];
@@ -58,7 +58,7 @@ export function isBotModeMotionPreference(value: unknown): value is BotModeMotio
 
 /** Narrow one wire, storage, or registry value to a persistable Bot icon. */
 export function isBotModeIcon(value: unknown): value is BotModeIcon {
-  return value === 'mascot' || value === 'blob' || value === 'bot';
+  return value === 'mascot' || value === 'simple' || value === 'blob' || value === 'bot';
 }
 
 /** Durable BOT-mode section shared by the Host schema and the browser scope. */

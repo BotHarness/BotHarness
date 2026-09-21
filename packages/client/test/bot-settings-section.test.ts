@@ -148,7 +148,7 @@ describe('BotHarness settings section', () => {
     expect(iconMenu()['selectedId']).toBe('blob');
     expect(
       (iconMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
-    ).toEqual(['mascot', 'blob', 'bot']);
+    ).toEqual(['mascot', 'simple', 'blob', 'bot']);
 
     (iconMenu()['onSelect'] as (id: string) => void)('bot');
     expect(setBotIcon).toHaveBeenCalledWith('bot');

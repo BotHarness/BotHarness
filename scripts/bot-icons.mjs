@@ -19,6 +19,9 @@ const sources = [
   ['DEEPSEEKBOT_LIGHT_DATA_URI', 'deepseekbot-light.png'],
   ['DEEPSEEKBOT_DARK_DATA_URI', 'deepseekbot-dark.png'],
   ['DEEPSEEKBOT_TRANSPARENT_DATA_URI', 'deepseekbot-transparent.png'],
+  ['DEEPSEEKBOT_SIMPLE_LIGHT_DATA_URI', 'deepseekbot-simple-light.png'],
+  ['DEEPSEEKBOT_SIMPLE_DARK_DATA_URI', 'deepseekbot-simple-dark.png'],
+  ['DEEPSEEKBOT_SIMPLE_TRANSPARENT_DATA_URI', 'deepseekbot-simple-transparent.png'],
 ];
 
 const lines = [
