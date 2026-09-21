@@ -12,7 +12,7 @@ window.__ModuleLoader__.load({
 		const STATUS_ENDPOINT = "/api/computer/status";
 		const START_ENDPOINT = "/api/computer/start";
 		const STOP_ENDPOINT = "/api/computer/stop";
-		const VIEWER_SRC = "/botharness-computer/viewer/vnc.html?autoconnect=1&resize=scale&reconnect=1";
+		const VIEWER_SRC = "/botharness-computer/viewer/";
 		const APPROVED_KEY = "botharness-computer-start-approved";
 		async function requestJson(url, init) {
 			const response = await fetch(url, {
@@ -145,6 +145,7 @@ window.__ModuleLoader__.load({
 			const [approved, setApproved] = (0, react.useState)(() => globalThis.sessionStorage?.getItem(APPROVED_KEY) === "1");
 			const busySince = (0, react.useRef)(void 0);
 			const [elapsed, setElapsed] = (0, react.useState)(0);
+			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
 			const refresh = (0, react.useCallback)(async () => {
 				try {
 					setPayload(await requestJson(STATUS_ENDPOINT));
@@ -169,6 +170,7 @@ window.__ModuleLoader__.load({
 				}
 				busySince.current ??= Date.now();
 				const timer = setInterval(() => {
+					setNowTs(Date.now());
 					if (busySince.current !== void 0) setElapsed(Math.round((Date.now() - busySince.current) / 1e3));
 				}, 1e3);
 				return () => clearInterval(timer);
@@ -326,7 +328,8 @@ window.__ModuleLoader__.load({
 							children: [
 								"已用时 ",
 								elapsed,
-								"s"
+								"s",
+								progress?.updatedAt === void 0 ? "" : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1e3)))}s 前`
 							]
 						})
 					]

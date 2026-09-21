@@ -18,7 +18,7 @@ export const inject = ['slots'];
 const STATUS_ENDPOINT = '/api/computer/status';
 const START_ENDPOINT = '/api/computer/start';
 const STOP_ENDPOINT = '/api/computer/stop';
-const VIEWER_SRC = '/botharness-computer/viewer/vnc.html?autoconnect=1&resize=scale&reconnect=1';
+const VIEWER_SRC = '/botharness-computer/viewer/';
 const APPROVED_KEY = 'botharness-computer-start-approved';
 
 type ComputerState = 'absent' | 'stopped' | 'running' | 'failed';
@@ -31,7 +31,11 @@ interface ComputerStatusPayload {
     readonly state: ComputerState;
     readonly phase?: ComputerPhase;
     readonly detail?: string;
-    readonly progress?: { readonly percent?: number; readonly text?: string };
+    readonly progress?: {
+      readonly percent?: number;
+      readonly text?: string;
+      readonly updatedAt?: number;
+    };
   };
 }
 
@@ -179,6 +183,7 @@ function ComputerPanel(): ReactElement {
   );
   const busySince = useRef<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
+  const [nowTs, setNowTs] = useState(() => Date.now());
 
   const refresh = useCallback(async () => {
     try {
@@ -207,6 +212,7 @@ function ComputerPanel(): ReactElement {
     }
     busySince.current ??= Date.now();
     const timer = setInterval(() => {
+      setNowTs(Date.now());
       if (busySince.current !== undefined) {
         setElapsed(Math.round((Date.now() - busySince.current) / 1000));
       }
@@ -349,7 +355,12 @@ function ComputerPanel(): ReactElement {
             />
           </div>
           <div className="bc-terminal">{progress?.text ?? payload?.status.detail ?? '请稍候'}</div>
-          <div style={{ opacity: 0.5 }}>已用时 {elapsed}s</div>
+          <div style={{ opacity: 0.5 }}>
+            已用时 {elapsed}s
+            {progress?.updatedAt === undefined
+              ? ''
+              : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)))}s 前`}
+          </div>
         </div>
       ) : (
         <div style={bodyStyle}>

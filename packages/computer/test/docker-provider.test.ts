@@ -140,15 +140,20 @@ describe('Docker computer provider', () => {
   });
 
   it('tracks completed layers and the latest pull line', () => {
-    const tracker = createPullTracker();
+    let clock = 1000;
+    const tracker = createPullTracker(() => clock);
     tracker.observe('abc123456789: Pulling fs layer\r\n');
     tracker.observe('def456789012: Pulling fs layer\r\n');
     tracker.observe('abc123456789: Pull complete\r\n');
     const half = tracker.snapshot();
     expect(half.percent).toBe(50);
     expect(half.text).toContain('abc123456789');
+    expect(half.updatedAt).toBe(1000);
+    clock = 4000;
     tracker.observe('def456789012: Pull complete\r\n');
-    expect(tracker.snapshot().percent).toBe(100);
+    const complete = tracker.snapshot();
+    expect(complete.percent).toBe(100);
+    expect(complete.updatedAt).toBe(4000);
   });
 
   it('streams pull output into status progress while starting', async () => {

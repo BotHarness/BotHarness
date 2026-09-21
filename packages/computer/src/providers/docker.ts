@@ -61,13 +61,14 @@ function failure(detail: string): Error {
  * layers over layers seen) plus the latest terminal line. Docker prints one
  * layer id per line in non-TTY mode; we never claim precision we do not have.
  */
-export function createPullTracker(): {
+export function createPullTracker(now: () => number = Date.now): {
   observe(chunk: string): void;
   snapshot(): ComputerProgress;
 } {
   const layers = new Map<string, { done: boolean }>();
   let text = '';
   let percent = 0;
+  let updatedAt: number | undefined;
 
   return {
     observe(chunk: string): void {
@@ -75,6 +76,7 @@ export function createPullTracker(): {
         const line = raw.trim();
         if (line === '') continue;
         text = line.length > 160 ? `${line.slice(0, 157)}…` : line;
+        updatedAt = now();
         const match = /^([0-9a-f]{6,64})\s*:\s*(.+)$/i.exec(line);
         if (match === null) continue;
         const id = match[1] ?? '';
@@ -88,7 +90,11 @@ export function createPullTracker(): {
       }
     },
     snapshot(): ComputerProgress {
-      return text === '' ? { percent } : { percent, text };
+      return updatedAt === undefined
+        ? { percent }
+        : text === ''
+          ? { percent, updatedAt }
+          : { percent, text, updatedAt };
     },
   };
 }

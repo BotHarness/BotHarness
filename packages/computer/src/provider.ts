@@ -39,6 +39,8 @@ export interface ComputerProgress {
   readonly percent?: number;
   /** Latest raw runtime line, for users who want the terminal view. */
   readonly text?: string;
+  /** Epoch milliseconds of the last observed runtime output, for liveness display. */
+  readonly updatedAt?: number;
 }
 
 export interface ComputerStatus {
