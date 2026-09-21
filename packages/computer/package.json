@@ -38,9 +38,7 @@
     },
     "client": {
       "platform": "web",
-      "inject": [
-        "@botharness/client"
-      ]
+      "inject": []
     }
   }
 }
