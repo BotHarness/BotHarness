@@ -10,9 +10,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconAgentPresetOutline16: stub,
     IconChevronDownOutline14: stub,
     IconCloseFill14: stub,
+    IconCloseOutline16: stub,
     IconEllipsisOutline16: stub,
     IconFolderOpenOutline16: stub,
     IconNewChatOutline16: stub,
+    IconPanelLeftOutline16: stub,
     IconPlusOutline16: stub,
     IconSearchOutline16: stub,
     IconSendOutline16: stub,
@@ -29,7 +31,23 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import type { BridgeActions } from '../src/client/actions.js';
 import { BotMain } from '../src/client/bot-main.js';
+import { channelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
+import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
+import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
 import { store } from '../src/client/store.js';
+
+const entryProps = {
+  scope: 'personabot' as const,
+  channelId: 'dm-ada',
+  botSlug: 'ada',
+  actions: {} as BridgeActions,
+};
+
+function sidebarRegistry() {
+  const registry = createChannelSidebarRegistry();
+  for (const entry of channelSidebarBuiltins) registry.register(entry);
+  return registry;
+}
 
 describe('Bot main Assignment pane', () => {
   it('shows Assignment items and the selected read-only report beside a DM', () => {
@@ -80,15 +98,52 @@ describe('Bot main Assignment pane', () => {
       error: undefined,
     });
 
-    const markup = renderToStaticMarkup(createElement(BotMain, { actions: {} as BridgeActions }));
+    const markup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
 
     expect(markup).toContain('事项');
+    expect(markup).toContain('收起 Channel sidebar');
+    expect(markup).not.toContain('研究发布状态');
+    expect(markup).not.toContain('Ada 空闲');
+    expect(markup).not.toContain('bh-composer-activity-status');
+  });
+
+  it('renders an expanded entry body from the registered entry', () => {
+    const assignments = channelSidebarBuiltins.find((entry) => entry.id === 'assignments');
+    expect(assignments).toBeDefined();
+
+    const markup = renderToStaticMarkup(
+      createElement(ChannelSidebarEntrySection, {
+        entry: assignments!,
+        expanded: true,
+        onToggle: () => undefined,
+        entryProps,
+      }),
+    );
+
+    expect(markup).toContain('aria-expanded="true"');
     expect(markup).toContain('研究发布状态');
     expect(markup).toContain('发布状态正常');
     expect(markup).toContain('Assignment Session');
     expect(markup).not.toContain('Orchestrator Session');
-    expect(markup).not.toContain('Ada 空闲');
-    expect(markup).not.toContain('bh-composer-activity-status');
+    expect(markup).toContain('1');
+  });
+
+  it('renders a collapsed entry header without its body', () => {
+    const assignments = channelSidebarBuiltins.find((entry) => entry.id === 'assignments');
+    const markup = renderToStaticMarkup(
+      createElement(ChannelSidebarEntrySection, {
+        entry: assignments!,
+        expanded: false,
+        onToggle: () => undefined,
+        entryProps,
+      }),
+    );
+
+    expect(markup).toContain('aria-expanded="false"');
+    expect(markup).toContain('事项');
+    expect(markup).not.toContain('研究发布状态');
   });
 
   it('marks a locally echoed Human message as pending until the Host commits it', () => {
@@ -128,7 +183,9 @@ describe('Bot main Assignment pane', () => {
     });
     store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
 
-    const markup = renderToStaticMarkup(createElement(BotMain, { actions: {} as BridgeActions }));
+    const markup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
 
     expect(markup).toContain('bh-bubble-pending');
     expect(markup).toContain('发送中');

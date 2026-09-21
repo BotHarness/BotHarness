@@ -1,6 +1,10 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
-import { IconAgentPresetOutline16, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  IconAgentPresetOutline16,
+  IconPanelLeftOutline16,
+  Tag,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import {
@@ -11,7 +15,8 @@ import {
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import { ChannelComposer, type ChannelComposerActivity } from './channel-composer.js';
-import { formatRelativeTime } from './labels.js';
+import type { ChannelSidebarRegistry } from './channel-sidebar.js';
+import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
   store,
@@ -140,137 +145,16 @@ function EmptyConversation({
   );
 }
 
-function assignmentStatus(activity: 'working' | 'idle' | 'error'): string {
-  switch (activity) {
-    case 'working':
-      return '进行中';
-    case 'idle':
-      return '已报告';
-    case 'error':
-      return '出错';
-  }
-}
-
-function AssignmentsPane({
-  state,
-  actions,
-}: {
-  state: ClientState;
-  actions: BridgeActions;
-}): ReactElement {
-  const assignments = state.assignments;
-  const selected = assignments.selected;
-  return (
-    <div className="bh-side-pane-inner">
-      <div className="bh-side-pane-head">
-        <span>事项</span>
-        <Tag tone="neutral">{assignments.items.length}</Tag>
-      </div>
-      <div className="bh-side-pane-body">
-        {assignments.status === 'loading' ? <div className="bh-note">正在加载事项…</div> : null}
-        {assignments.status === 'error' && assignments.error !== undefined ? (
-          <div className="bh-error">事项加载失败：{assignments.error}</div>
-        ) : null}
-        {assignments.status === 'ready' && assignments.items.length === 0 ? (
-          <div className="bh-note">还没有事项。直接在左侧聊天，BOT 会按需自行安排。</div>
-        ) : null}
-        {assignments.items.map((assignment) => (
-          <button
-            type="button"
-            className={
-              assignment.sessionId === selected?.sessionId
-                ? 'bh-assignment-row bh-assignment-row-selected'
-                : 'bh-assignment-row'
-            }
-            key={assignment.sessionId}
-            aria-pressed={assignment.sessionId === selected?.sessionId}
-            onClick={() => void actions.openAssignment(assignment.sessionId)}
-          >
-            <div className="bh-assignment-title">{assignment.purpose}</div>
-            <div className="bh-assignment-meta">
-              <span>{assignmentStatus(assignment.activity)}</span>
-              <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now())}</span>
-            </div>
-            {assignment.latestReport === undefined ? null : (
-              <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
-            )}
-          </button>
-        ))}
-        {selected === undefined ? null : (
-          <section className="bh-assignment-detail" aria-label="事项详情">
-            <div className="bh-assignment-detail-label">事项详情</div>
-            <div className="bh-assignment-detail-purpose">{selected.purpose}</div>
-            <dl>
-              <div>
-                <dt>状态</dt>
-                <dd>{assignmentStatus(selected.activity)}</dd>
-              </div>
-              <div>
-                <dt>最近报告</dt>
-                <dd>{selected.latestReport?.summary ?? '尚未报告'}</dd>
-              </div>
-              <div>
-                <dt>Assignment Session</dt>
-                <dd className="bh-assignment-id" title={selected.sessionId}>
-                  {selected.sessionId}
-                </dd>
-              </div>
-            </dl>
-          </section>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function MembersPane({
-  state,
-  channel,
-}: {
-  state: ClientState;
-  channel: ChannelSummary | undefined;
-}): ReactElement {
-  const members = channel?.members ?? [];
-  return (
-    <div className="bh-side-pane-inner">
-      <div className="bh-side-pane-head">
-        <span>成员</span>
-        <Tag tone="neutral">{members.length}</Tag>
-      </div>
-      <div className="bh-side-pane-body">
-        {members.length === 0 ? (
-          <div className="bh-note">还没有成员。BOT 参与群聊随 v1.1 到来。</div>
-        ) : (
-          members.map((slug) => (
-            <div className="bh-member-row" key={slug}>
-              {(() => {
-                const member = state.bots.find((candidate) => candidate.slug === slug);
-                return (
-                  <PersonaBotAvatar
-                    personaBotId={slug}
-                    name={member?.displayName ?? slug}
-                    src={member?.avatar}
-                    state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-                    size={26}
-                  />
-                );
-              })()}
-              <span className="bh-name">{memberName(state.bots, slug)}</span>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
-}
-
 function ConversationView({
   state,
   actions,
+  channelSidebar,
 }: {
   state: ClientState;
   actions: BridgeActions;
+  channelSidebar: ChannelSidebarRegistry;
 }): ReactElement {
+  const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
   const submitting = useRef(false);
@@ -384,6 +268,17 @@ function ConversationView({
             <Tag tone="quiet" className="bh-pill">
               {channel?.type === 'group' ? '群聊' : '私聊'}
             </Tag>
+            <button
+              type="button"
+              className="bh-topbar-toggle"
+              aria-label={
+                sidebar.mode === 'hidden' ? '展开 Channel sidebar' : '收起 Channel sidebar'
+              }
+              aria-expanded={sidebar.mode !== 'hidden'}
+              onClick={sidebar.toggle}
+            >
+              <IconPanelLeftOutline16 size={16} />
+            </button>
           </div>
           <div className="bh-chat-body" ref={scrollRef}>
             {conversation.status === 'loading' && messages.length === 0 ? (
@@ -425,30 +320,41 @@ function ConversationView({
             onSubmit={submit}
           />
         </section>
-        <aside className="bh-side-pane">
-          {state.selection?.kind === 'bot' ? (
-            <AssignmentsPane state={state} actions={actions} />
-          ) : (
-            <MembersPane state={state} channel={channel} />
-          )}
-        </aside>
+        <ChannelSidebar
+          registry={channelSidebar}
+          state={state}
+          actions={actions}
+          controller={sidebar}
+        />
       </div>
     </div>
   );
 }
 
-export function BotMain({ actions }: { actions: BridgeActions }): ReactElement {
+export function BotMain({
+  actions,
+  channelSidebar,
+}: {
+  actions: BridgeActions;
+  channelSidebar: ChannelSidebarRegistry;
+}): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} />;
-  return <ConversationView state={state} actions={actions} />;
+  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} />;
 }
 
-export function BotPanel({ actions }: { actions: BridgeActions }): ReactElement {
+export function BotPanel({
+  actions,
+  channelSidebar,
+}: {
+  actions: BridgeActions;
+  channelSidebar: ChannelSidebarRegistry;
+}): ReactElement {
   useEffect(() => {
     store.setMode('bot');
     return () => {
       store.setMode('dsh');
     };
   }, []);
-  return <BotMain actions={actions} />;
+  return <BotMain actions={actions} channelSidebar={channelSidebar} />;
 }
