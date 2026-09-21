@@ -61,6 +61,7 @@ describe('bot panel entry', () => {
     // which only exists in the browser; server rendering shows the mark.
     expect(inactive).toContain('bh-bot-icon');
     expect(active).toContain('bh-bot-icon');
+    expect(inactive).toContain('data-wide="true"');
     expect(inactive).not.toContain('bh-panel-glyph-hit');
   });
 });

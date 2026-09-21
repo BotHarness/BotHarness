@@ -1,5 +1,5 @@
 import { blobatar } from 'blobatar';
-import type { ReactElement } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 
 import type { BotModeIcon } from '../bot-mode-settings.js';
 import { DEEPSEEKBOT_DARK_DATA_URI, DEEPSEEKBOT_LIGHT_DATA_URI } from './bot-icon-assets.js';
@@ -59,7 +59,7 @@ export function BotIcon({
   return (
     <span
       className={className === undefined ? 'bh-bot-icon' : `bh-bot-icon ${className}`}
-      style={{ width: size, height: size }}
+      style={{ '--bh-bot-icon-size': `${String(size)}px` } as CSSProperties}
       aria-hidden="true"
       dangerouslySetInnerHTML={{ __html: botIconMarkup(icon, scheme) }}
     />

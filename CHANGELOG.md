@@ -19,7 +19,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
-- The app sidebar's Bot mode switch toggles Bot mode off when it is clicked again, and hovering it reveals a settings gear that opens the Settings dialog on the Bot section ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
+- The app sidebar's Bot mode switch splits into a full-height Bot mark and a rounded label block: clicking the row again leaves Bot mode, and hovering reveals a settings gear on the label block that opens the Settings dialog on the Bot section ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
 
 - BotHarness now has its own Bot mark: the app sidebar's BOT-mode entry and the Bot settings section's navigation show the DeepSeekBot mascot (light and dark artwork), and the new Bot icon row switches it to a generated blob or a generic bot glyph ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
 
