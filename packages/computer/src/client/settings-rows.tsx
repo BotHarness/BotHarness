@@ -15,13 +15,14 @@ import {
   IconFolderOpenOutline16,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 
 import {
   COMPUTER_EXPORT_DIR_FIELD,
   COMPUTER_IDLE_STOP_FIELD,
   type ComputerSettings,
 } from '../settings.js';
+import type { ComputerTranslate } from './locale.js';
 
 /** Sync state of the Host settings scope the rows consume. */
 export interface ComputerSettingsSnapshot {
@@ -113,10 +114,14 @@ export class ComputerSettingsPrefs {
 /** Face injected into the rows by the registration. */
 export interface ComputerSettingsFace {
   prefs: ComputerSettingsPrefs;
+  /** Whether a directory picker is available in this deployment. */
+  pickerAvailable: boolean;
   /** Open the Host's directory picker; `null` when cancelled. */
   pickDirectory: () => Promise<string | null>;
-  /** Archive the Computer's store into the configured directory. */
-  exportArchive: () => Promise<string>;
+  /** Open a directory with the Host's file manager. */
+  openDirectory: (dir: string) => Promise<void>;
+  /** Archive the Computer's store; `dir` overrides the configured directory. */
+  exportArchive: (dir?: string) => Promise<string>;
   /** Restore an archive from the configured directory. */
   importArchive: (file: string) => Promise<void>;
   /** List the archives the configured directory holds. */
@@ -131,6 +136,7 @@ const EXPORT_ENDPOINT = '/api/computer/export';
 const IMPORT_ENDPOINT = '/api/computer/import';
 const EXPORTS_ENDPOINT = '/api/computer/exports';
 const STATUS_ENDPOINT = '/api/computer/status';
+const OPEN_DIR_ENDPOINT = '/api/computer/open-dir';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin', ...init });
@@ -157,13 +163,19 @@ export function createComputerSettingsFace(options: {
   const { prefs } = options;
   return {
     prefs,
+    pickerAvailable: options.pickDirectory !== undefined,
     pickDirectory: async () =>
       options.pickDirectory === undefined ? null : options.pickDirectory(),
-    exportArchive: async () => {
+    openDirectory: async (dir) => {
+      await postAuthorized(OPEN_DIR_ENDPOINT, dir === '' ? {} : { dir });
+    },
+    exportArchive: async (dir) => {
       const payload = await requestJson<{ archive?: string }>(EXPORT_ENDPOINT, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ authorize: true }),
+        body: JSON.stringify(
+          dir === undefined || dir === '' ? { authorize: true } : { authorize: true, dir },
+        ),
       });
       return payload.archive ?? '';
     },
@@ -229,19 +241,27 @@ function Selector({
 
 /** The Computer group inside the BotHarness settings page. */
 export function ComputerSettingsRows({
+  t,
   prefs,
+  pickerAvailable,
   pickDirectory,
+  openDirectory,
   exportArchive,
   importArchive,
   listArchives,
   hostExportDir,
-}: PropsRuntime<'botharness.settings.item'> & InjectFace<ComputerSettingsFace>): ReactElement {
+}: PropsRuntime<'botharness.settings.item'> &
+  PropsLocale<'botharness-computer'> &
+  InjectFace<ComputerSettingsFace>): ReactElement {
   const [snapshot, setSnapshot] = useState(prefs.getSnapshot);
   const [idleOpen, setIdleOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [archives, setArchives] = useState<readonly string[] | undefined>(undefined);
   const [busy, setBusy] = useState<'export' | 'import' | undefined>(undefined);
   const [confirming, setConfirming] = useState<'export' | 'import' | undefined>(undefined);
+  const [exportTarget, setExportTarget] = useState<string | undefined>(undefined);
+  const [manualOpen, setManualOpen] = useState(false);
+  const [manualPath, setManualPath] = useState('');
   const [note, setNote] = useState<string | undefined>(undefined);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
 
@@ -258,23 +278,56 @@ export function ComputerSettingsRows({
   const hasDir = exportDir !== '';
   const writable = snapshot.status === 'ready' && snapshot.writable;
 
-  const pick = useCallback(() => {
-    void pickDirectory()
+  const pickDirectoryInto = useCallback(
+    (apply: (dir: string) => void) => {
+      void pickDirectory()
+        .then((dir) => {
+          if (dir !== null) apply(dir);
+        })
+        .catch(() => {
+          setManualOpen(true);
+          setNote(t('rows.pickerFailed'));
+        });
+    },
+    [pickDirectory, t],
+  );
+
+  const pickExportDir = useCallback(() => {
+    pickDirectoryInto((dir) => {
+      setManualPath(dir);
+      prefs.setExportDir(dir);
+      setNote(undefined);
+    });
+  }, [pickDirectoryInto, prefs]);
+
+  const startExport = useCallback(() => {
+    if (!pickerAvailable) {
+      setConfirming('export');
+      return;
+    }
+    pickDirectory()
       .then((dir) => {
-        if (dir !== null) prefs.setExportDir(dir);
+        if (dir === null) return;
+        setExportTarget(dir);
+        setConfirming('export');
       })
-      .catch((error: unknown) => setNote(String(error)));
-  }, [pickDirectory, prefs]);
+      .catch(() => {
+        setExportTarget(undefined);
+        setConfirming('export');
+      });
+  }, [pickDirectory, pickerAvailable]);
 
   const runExport = useCallback(() => {
     setConfirming(undefined);
     setBusy('export');
     setNote(undefined);
-    void exportArchive()
-      .then((archive) => setNote(archive === '' ? '导出完成。' : `已导出：${archive}`))
+    void exportArchive(exportTarget)
+      .then((archive) =>
+        setNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive })),
+      )
       .catch((error: unknown) => setNote(String(error)))
       .finally(() => setBusy(undefined));
-  }, [exportArchive]);
+  }, [exportArchive, exportTarget, t]);
 
   const runImport = useCallback(
     (file: string) => {
@@ -283,11 +336,11 @@ export function ComputerSettingsRows({
       setBusy('import');
       setNote(undefined);
       void importArchive(file)
-        .then(() => setNote(`已从 ${file} 导入并重启 Computer。`))
+        .then(() => setNote(t('rows.imported', { file })))
         .catch((error: unknown) => setNote(String(error)))
         .finally(() => setBusy(undefined));
     },
-    [importArchive],
+    [importArchive, t],
   );
 
   const openImport = useCallback(() => {
@@ -295,33 +348,93 @@ export function ComputerSettingsRows({
       .then((files) => {
         setArchives(files);
         setImportOpen(true);
-        if (files.length === 0) setNote('该目录还没有归档；先导出一次。');
+        if (files.length === 0) setNote(t('rows.noArchives'));
       })
       .catch((error: unknown) => setNote(String(error)));
-  }, [listArchives]);
+  }, [listArchives, t]);
+
+  const openDir = useCallback(() => {
+    void openDirectory(exportDir).catch((error: unknown) => setNote(String(error)));
+  }, [exportDir, openDirectory]);
 
   return (
     <div className="bh-settings-rows">
       <Row
-        title="Computer 导出目录"
+        title={t('rows.exportDir.title')}
         description={
-          hasDir ? `当前：${exportDir}` : '选择目录后即可导出/导入；未配置时导出与导入不可用'
+          hasDir ? t('rows.exportDir.current', { dir: exportDir }) : t('rows.exportDir.empty')
         }
       >
-        <button type="button" className="bh-settings-selector" disabled={!writable} onClick={pick}>
-          <IconFolderOpenOutline16 size={14} />
-          选择…
-        </button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {pickerAvailable ? (
+            <button
+              type="button"
+              className="bh-settings-selector"
+              disabled={!writable}
+              onClick={pickExportDir}
+            >
+              <IconFolderOpenOutline16 size={14} />
+              {t('rows.exportDir.pick')}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="bh-settings-selector"
+            disabled={!hasDir}
+            onClick={openDir}
+          >
+            {t('rows.exportDir.open')}
+          </button>
+          <button
+            type="button"
+            className="bh-settings-selector"
+            disabled={!writable}
+            onClick={() => {
+              setManualOpen((value) => !value);
+              setManualPath(exportDir);
+            }}
+          >
+            {t('rows.exportDir.manual')}
+          </button>
+        </div>
       </Row>
 
-      <Row title="空闲停止" description="无观看者时 Computer 自动停止的等待时间">
+      {manualOpen ? (
+        <div className="bh-settings-row">
+          <div className="bh-settings-row-text">
+            <input
+              className="bh-settings-input"
+              value={manualPath}
+              placeholder="/absolute/path"
+              aria-label={t('rows.exportDir.manual')}
+              onChange={(event) => {
+                setManualPath(event.target.value);
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            className="bh-settings-selector"
+            disabled={!writable || manualPath.trim() === ''}
+            onClick={() => {
+              prefs.setExportDir(manualPath.trim());
+              setManualOpen(false);
+              setNote(undefined);
+            }}
+          >
+            {t('rows.exportDir.save')}
+          </button>
+        </div>
+      ) : null}
+
+      <Row title={t('rows.idle.title')} description={t('rows.idle.description')}>
         <Menu
           open={idleOpen}
           portal
           align="end"
           items={IDLE_OPTIONS.map((minutes) => ({
             id: String(minutes),
-            label: `${String(minutes)} 分钟`,
+            label: t('rows.idle.minutes', { minutes }),
           }))}
           selectedId={String(snapshot.idleStopMinutes)}
           onSelect={(id) => {
@@ -333,7 +446,7 @@ export function ComputerSettingsRows({
           }}
           anchor={
             <Selector
-              label={`${String(snapshot.idleStopMinutes)} 分钟`}
+              label={t('rows.idle.minutes', { minutes: snapshot.idleStopMinutes })}
               open={idleOpen}
               disabled={!writable}
               onToggle={() => {
@@ -344,8 +457,8 @@ export function ComputerSettingsRows({
         />
       </Row>
 
-      <Row title="导出 / 导入" description="把 Computer 的持久存储打包成一个归档，或从归档恢复">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <Row title={t('rows.transfer.title')} description={t('rows.transfer.description')}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {confirming === 'export' ? (
             <>
               <button
@@ -355,10 +468,10 @@ export function ComputerSettingsRows({
                   setConfirming(undefined);
                 }}
               >
-                取消
+                {t('entry.cancel')}
               </button>
               <button type="button" className="bh-settings-selector" onClick={runExport}>
-                授权并导出
+                {t('rows.authorizeExport')}
               </button>
             </>
           ) : (
@@ -366,11 +479,13 @@ export function ComputerSettingsRows({
               type="button"
               className="bh-settings-selector"
               disabled={!hasDir || busy !== undefined}
-              onClick={() => {
-                setConfirming('export');
-              }}
+              onClick={startExport}
             >
-              {busy === 'export' ? '导出中…' : '导出'}
+              {busy === 'export'
+                ? t('rows.exporting')
+                : pickerAvailable
+                  ? t('rows.exportTo')
+                  : t('rows.export')}
             </button>
           )}
           {confirming === 'import' ? (
@@ -381,7 +496,7 @@ export function ComputerSettingsRows({
                 setConfirming(undefined);
               }}
             >
-              取消导入
+              {t('rows.cancelImport')}
             </button>
           ) : (
             <Menu
@@ -398,7 +513,7 @@ export function ComputerSettingsRows({
               }}
               anchor={
                 <Selector
-                  label={busy === 'import' ? '导入中…' : '导入…'}
+                  label={busy === 'import' ? t('rows.importing') : t('rows.import')}
                   open={importOpen}
                   disabled={!hasDir || busy !== undefined}
                   onToggle={openImport}
@@ -415,14 +530,14 @@ export function ComputerSettingsRows({
                 if (file !== undefined) runImport(file);
               }}
             >
-              授权并导入 {archives[0]}
+              {t('rows.authorizeImport', { file: archives[0] })}
             </button>
           ) : null}
         </div>
       </Row>
 
       {snapshot.status === 'unavailable' ? (
-        <div className="bh-note">设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。</div>
+        <div className="bh-note">{t('rows.noSettings')}</div>
       ) : null}
       {note === undefined ? null : <div className="bh-note">{note}</div>}
     </div>

@@ -141,17 +141,17 @@ describe('BotHarness settings section', () => {
     expect(markup).toContain('仅当前会话生效，不会保存');
     expect(markup).not.toContain('设置 Bot 模式列表的默认排序方式');
   });
-  it('renders the Bot icon choice and writes the picked mark', () => {
+  it('renders one card per Bot mark and writes the picked one', () => {
     const setBotIcon = vi.fn();
     const markup = renderSection(snapshot({ botIcon: 'blob' }), undefined, undefined, setBotIcon);
     expect(markup).toContain('Bot 图标');
     expect(markup).toContain('生成形象');
-    expect(iconMenu()['selectedId']).toBe('blob');
-    expect(
-      (iconMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
-    ).toEqual(['mascot', 'simple', 'blob', 'bot']);
+    expect(markup).toContain('bh-icon-grid');
+    expect(markup).toContain('data-selected="true"');
+    expect(markup.match(/bh-icon-card(?!-)/g)?.length).toBe(4);
 
-    (iconMenu()['onSelect'] as (id: string) => void)('bot');
-    expect(setBotIcon).toHaveBeenCalledWith('bot');
+    const cards = [...markup.matchAll(/<button[^>]*class="bh-icon-card"[^>]*>/g)].map((m) => m[0]);
+    expect(cards).toHaveLength(4);
+    expect(cards.filter((card) => card.includes('data-selected="true"'))).toHaveLength(1);
   });
 });

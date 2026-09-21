@@ -116,6 +116,33 @@ describe('computer settings face', () => {
       prefs: new ComputerSettingsPrefs(),
       pickDirectory: async () => '/picked',
     });
+    expect(face.pickerAvailable).toBe(true);
     expect(await face.pickDirectory()).toBe('/picked');
+  });
+
+  it('exports into an explicit directory and opens folders', async () => {
+    const calls: { url: string; init: RequestInit | undefined }[] = [];
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, archive: '/target/a.tar' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
+
+    expect(await face.exportArchive('/target')).toBe('/target/a.tar');
+    await face.openDirectory('/target');
+
+    const exportCall = calls.find((call) => call.url === '/api/computer/export');
+    expect(JSON.parse(String(exportCall?.init?.body))).toEqual({
+      authorize: true,
+      dir: '/target',
+    });
+    const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
+    expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
+    expect(face.pickerAvailable).toBe(false);
   });
 });

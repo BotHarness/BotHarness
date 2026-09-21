@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { LOCALE_NS, en, zh, type ComputerKey, type ComputerTranslate } from './locale.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 
@@ -28,7 +29,7 @@ export const name = 'botharness-computer-client';
  * bundle stays self-contained (importing that package at runtime would inline
  * its client code into ours).
  */
-export const inject = ['slots', 'channelSidebar', 'connection'];
+export const inject = ['slots', 'channelSidebar', 'connection', 'locale'];
 
 const STATUS_ENDPOINT = '/api/computer/status';
 const START_ENDPOINT = '/api/computer/start';
@@ -104,30 +105,21 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
-const PHASE_LABEL: Partial<Record<ComputerPhase, string>> = {
-  pulling: '正在拉取镜像',
-  starting: '正在启动',
-  stopping: '正在停止',
+const PHASE_LABEL: Partial<Record<ComputerPhase, ComputerKey>> = {
+  pulling: 'entry.phase.pulling',
+  starting: 'entry.phase.starting',
+  stopping: 'entry.phase.stopping',
 };
 
-const SETUP_GUIDANCE = [
-  '未检测到容器运行时。任选其一安装后重试：',
-  '',
-  'Colima（推荐，MIT）：',
-  '  brew install colima docker',
-  '  brew services start colima',
-  '',
-  '或 Docker Desktop：https://www.docker.com/products/docker-desktop/',
-].join('\n');
+const SETUP_GUIDANCE_KEY: ComputerKey = 'entry.setup';
 
-const SHARED_NOTE =
-  '这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。';
+const SHARED_NOTE_KEY: ComputerKey = 'entry.shared';
 
-const AUTHORIZATION_POINTS = [
-  '检测本机容器运行时；缺失时只给安装引导，不会自动安装',
-  '创建/复用持久卷（登录态与文件保留在这台电脑上）',
-  '拉取镜像（首次约 1.2 GB 网络流量）并创建容器',
-  '把 Web VNC 绑定到 127.0.0.1 的本地端口，仅本机可访问',
+const AUTHORIZATION_POINTS: readonly ComputerKey[] = [
+  'entry.authorize.probe',
+  'entry.authorize.volume',
+  'entry.authorize.pull',
+  'entry.authorize.bind',
 ];
 
 const noteStyle: CSSProperties = { opacity: 0.7, fontSize: 12, whiteSpace: 'pre-wrap' };
@@ -365,11 +357,13 @@ function CollapseIcon(): ReactElement {
  * viewer iframe is mounted at a time.
  */
 function RunningCard({
+  t,
   botSlug,
   busy,
   stopping,
   onStop,
 }: {
+  readonly t: ComputerTranslate;
   readonly botSlug: string | undefined;
   readonly busy: boolean;
   readonly stopping: boolean;
@@ -383,7 +377,7 @@ function RunningCard({
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
-  const title = `${botSlug ?? 'PersonaBot'} 的屏幕`;
+  const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
   const inlineReady = useFrameReady(inlineRef, !expanded);
   const fullReady = useFrameReady(fullRef, expanded);
@@ -449,14 +443,14 @@ function RunningCard({
     };
   }, [expanded]);
 
-  const indicatorLabel = reconnecting ? '正在重新连接' : '连接中';
+  const indicatorLabel = reconnecting ? t('entry.reconnecting') : t('entry.connecting');
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
         role={ready && !expanded ? 'button' : undefined}
         tabIndex={ready && !expanded ? 0 : undefined}
-        aria-label={ready ? '打开大屏' : indicatorLabel}
+        aria-label={ready ? t('entry.openFullscreen') : indicatorLabel}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
@@ -486,7 +480,7 @@ function RunningCard({
               opacity: 0.8,
             }}
           >
-            已在大屏打开
+            {t('entry.fullscreenOpened')}
           </div>
         ) : (
           <>
@@ -517,7 +511,7 @@ function RunningCard({
                     fontWeight: 500,
                   }}
                 >
-                  ⤢ 打开
+                  ⤢ {t('entry.openFullscreen')}
                 </span>
               </div>
             ) : null}
@@ -527,7 +521,7 @@ function RunningCard({
       <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{title}</div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button type="button" style={buttonStyle} disabled={busy || stopping} onClick={onStop}>
-          {busy || stopping ? '停止中…' : '停止'}
+          {busy || stopping ? t('entry.stopping') : t('entry.stop')}
         </button>
         <button
           type="button"
@@ -536,9 +530,9 @@ function RunningCard({
             setReconnecting(true);
             setReloadKey((key) => key + 1);
           }}
-          title="重新连接画面"
+          title={t('entry.reconnect')}
         >
-          重新连接
+          {t('entry.reconnect')}
         </button>
       </div>
 
@@ -576,8 +570,8 @@ function RunningCard({
                 <button
                   type="button"
                   onClick={() => setExpanded(false)}
-                  aria-label="收起全屏"
-                  title="收起全屏"
+                  aria-label={t('entry.collapseFullscreen')}
+                  title={t('entry.collapseFullscreen')}
                   style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}
                 >
                   <CollapseIcon />
@@ -602,6 +596,7 @@ function RunningCard({
 }
 
 export interface ComputerEntryViewProps {
+  readonly t: ComputerTranslate;
   readonly state: ComputerState;
   readonly phase?: ComputerPhase;
   readonly detail?: string;
@@ -623,6 +618,7 @@ export interface ComputerEntryViewProps {
 /** Pure three-state view; the container component supplies data and handlers. */
 export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   const {
+    t,
     state,
     phase,
     detail,
@@ -642,28 +638,28 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   } = props;
 
   if (!runtimeAvailable) {
-    return <div style={noteStyle}>{SETUP_GUIDANCE}</div>;
+    return <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>;
   }
 
   if (confirming) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div style={{ opacity: 0.8 }}>启动会在你的机器上执行：</div>
+        <div style={{ opacity: 0.8 }}>{t('entry.authorizeIntro')}</div>
         <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.6, opacity: 0.85 }}>
           {AUTHORIZATION_POINTS.map((point) => (
-            <li key={point}>{point}</li>
+            <li key={point}>{t(point)}</li>
           ))}
         </ul>
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
           <input type="checkbox" onChange={(event) => onApprove(event.target.checked)} />
-          本次会话内不再询问
+          {t('entry.remember')}
         </label>
         <div style={{ display: 'flex', gap: 8 }}>
           <button type="button" style={buttonStyle} onClick={onCancel}>
-            取消
+            {t('entry.cancel')}
           </button>
           <button type="button" style={primaryButtonStyle} onClick={onConfirmStart}>
-            授权并启动
+            {t('entry.authorize')}
           </button>
         </div>
       </div>
@@ -679,14 +675,20 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
 
   if (state === 'running') {
     return (
-      <RunningCard botSlug={botSlug} busy={busy} stopping={phase === 'stopping'} onStop={onStop} />
+      <RunningCard
+        t={t}
+        botSlug={botSlug}
+        busy={busy}
+        stopping={phase === 'stopping'}
+        onStop={onStop}
+      />
     );
   }
 
   if (inProgress) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-        <div>{PHASE_LABEL[phase] ?? '处理中'}…</div>
+        <div>{t(PHASE_LABEL[phase] ?? 'entry.phase.working')}…</div>
         <div
           style={{
             position: 'relative',
@@ -711,12 +713,14 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
             }
           />
         </div>
-        <div style={terminalStyle}>{progress?.text ?? detail ?? '请稍候'}</div>
+        <div style={terminalStyle}>{progress?.text ?? detail ?? t('entry.wait')}</div>
         <div style={{ opacity: 0.5 }}>
-          已用时 {elapsed}s
+          {t('entry.elapsed', { seconds: elapsed })}
           {progress?.updatedAt === undefined
             ? ''
-            : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)))}s 前`}
+            : ` · ${t('entry.updated', {
+                seconds: Math.max(0, Math.round((nowTs - progress.updatedAt) / 1000)),
+              })}`}
         </div>
       </div>
     );
@@ -724,12 +728,21 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-      <div style={noteStyle}>{error ?? detail ?? SHARED_NOTE}</div>
+      <div style={noteStyle}>{error ?? detail ?? t(SHARED_NOTE_KEY)}</div>
       <button type="button" style={primaryButtonStyle} disabled={busy} onClick={onStart}>
-        {busy ? '启动中…' : '启动'}
+        {busy ? t('entry.starting') : t('entry.start')}
       </button>
     </div>
   );
+}
+
+/** Bind the entry to the Computer's locale namespace once per registration. */
+export function createComputerEntry(
+  t: ComputerTranslate,
+): (props: ChannelSidebarEntryProps) => ReactElement {
+  return function ComputerEntryWithLocale(props: ChannelSidebarEntryProps): ReactElement {
+    return <ComputerEntry {...props} t={t} />;
+  };
 }
 
 /** Resolves the PersonaBot's display name through the BotHarness bridge. */
@@ -762,7 +775,10 @@ function useBotDisplayName(botSlug: string | undefined): string | undefined {
 }
 
 /** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
-export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
+function ComputerEntry({
+  botSlug,
+  t,
+}: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
   const displayName = useBotDisplayName(botSlug);
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
@@ -861,6 +877,7 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
 
   return (
     <ComputerEntryView
+      t={t}
       state={payload?.status.state ?? 'absent'}
       {...(phase === undefined ? {} : { phase })}
       {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
@@ -906,6 +923,7 @@ export function apply(ctx: ClientContext): void {
           name: 'botharness.settings.item',
           id: 'computer',
           order: 10,
+          locale: LOCALE_NS,
           inject: () => face,
         },
         ComputerSettingsRows,
@@ -922,6 +940,8 @@ export function apply(ctx: ClientContext): void {
       style.remove();
     };
   }, 'botharness-computer: client styles');
+  const t = ctx.locale.bind(LOCALE_NS);
+  ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness-computer: dictionaries');
   ctx.inject(['channelSidebar', 'connection'], (sidebarCtx) => {
     const registry = (sidebarCtx as unknown as { channelSidebar?: ChannelSidebarRegistryLike })
       .channelSidebar;
@@ -932,10 +952,10 @@ export function apply(ctx: ClientContext): void {
       () =>
         registry.register({
           id: ENTRY_ID,
-          label: '电脑',
+          label: t('entry.label'),
           order: 40,
           scope: 'personabot',
-          component: ComputerEntry,
+          component: createComputerEntry(t),
         }),
       'botharness-computer: channel sidebar entry',
     );

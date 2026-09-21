@@ -14,9 +14,20 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import { apply, ComputerEntryView, type ComputerEntryViewProps } from '../src/client/index.js';
+import { zh, type ComputerKey, type ComputerTranslate } from '../src/client/locale.js';
+
+const t = ((key: ComputerKey, params?: Record<string, unknown>): string => {
+  let text: string = zh[key];
+  if (params === undefined) return text;
+  for (const [name, value] of Object.entries(params)) {
+    text = text.replace(`{${name}}`, String(value));
+  }
+  return text;
+}) as unknown as ComputerTranslate;
 
 function view(overrides: Partial<ComputerEntryViewProps> = {}): string {
   const props: ComputerEntryViewProps = {
+    t,
     state: 'stopped',
     runtimeAvailable: true,
     confirming: false,
@@ -55,6 +66,7 @@ describe('Computer channel sidebar entry registration', () => {
       }),
     };
     const ctx = {
+      locale: { bind: () => t, register: () => () => {} },
       inject: (deps: string[], callback: (context: unknown) => void) => {
         if (deps.includes('settingsScope')) {
           callback({ settingsScope: settings });

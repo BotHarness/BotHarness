@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import type { Duplex } from 'node:stream';
 
 import type { Context } from '@deepseek-ai/cordis';
@@ -215,6 +215,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       },
     );
     settings = scope;
+    log(`runtime settings registered (${COMPUTER_SETTINGS_NAMESPACE})`);
     return () => {
       settings = undefined;
     };
@@ -358,9 +359,15 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       fetch: async (request: Request): Promise<Response> => {
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
-        const exportDir = effective().exportDir;
+        // The Human may export to a directory chosen at export time; the
+        // configured directory is the default.
+        const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
+        if (requested !== undefined && !isAbsolute(requested)) {
+          return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
+        }
+        const exportDir = requested ?? effective().exportDir;
         if (exportDir === '') return missingExportDir();
-        log('export requested (panel)');
+        log(`export requested (panel)${requested === undefined ? '' : ` → ${requested}`}`);
         try {
           const archive = await service.exportTo(exportDir);
           return json({ ok: true, archive });
@@ -372,6 +379,41 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(exportRoute),
       'botharness-computer: export route',
+    );
+
+    const openDirRoute = {
+      path: '/api/computer/open-dir',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        if (body.authorize !== true) return unauthorized();
+        const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
+        if (requested !== undefined && !isAbsolute(requested)) {
+          return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
+        }
+        const dir = requested ?? effective().exportDir;
+        if (dir === '') return missingExportDir();
+        const opener =
+          process.platform === 'darwin'
+            ? 'open'
+            : process.platform === 'win32'
+              ? 'explorer'
+              : 'xdg-open';
+        try {
+          // Argument array, never a shell: the path is data, not a command.
+          const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
+          child.unref();
+          log(`opened directory (${dir})`);
+          return json({ ok: true });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(openDirRoute),
+      'botharness-computer: open-dir route',
     );
 
     const diagnosticsRoute = {
