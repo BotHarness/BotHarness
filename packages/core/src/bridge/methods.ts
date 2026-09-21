@@ -19,11 +19,8 @@ import {
   type RosterSnapshot,
 } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
-import {
-  isInsideWorkspace,
-  type BotSessionSource,
-  type SessionSummary,
-} from '../sessions/source.js';
+import type { SessionOwnership } from '../sessions/ownership.js';
+import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
   AssignmentSummary,
@@ -93,6 +90,7 @@ export interface BridgeMethodsDeps {
   states: BotStateTracker;
   channels: ChannelStore;
   sessions: BotSessionSource;
+  ownership: SessionOwnership;
   roster: RosterStore;
   runtime?: BotRuntime;
   createBotId?: () => string;
@@ -505,14 +503,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     sessions(payload) {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
-      const record = deps.registry.get(slug);
-      if (record === undefined) return unknownBot(slug);
-      const workspaces = record.workspaces;
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       const sessions = deps.sessions
         .list()
-        .filter((session) =>
-          workspaces.some((workspace) => isInsideWorkspace(session.cwd, workspace)),
-        )
+        .filter((session) => deps.ownership.resolve(session.id)?.botSlug === slug)
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       return { ok: true, value: { sessions } };
     },

@@ -18,6 +18,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Session listing and PersonaBot activity now resolve through explicit durable Session ownership, including fork and Subagent lineage, instead of cwd or workspace membership ([#80](https://github.com/BotHarness/BotHarness/issues/80)).
+
 - PersonaBot DM rows can now be pinned by context menu or by dragging them into the persistent pin zone, while pinned cards can be dragged back to the highlighted roster to unpin; neither path loses the DM's previous section or loose position ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
@@ -28,6 +30,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Channel messages no longer wait for the PersonaBot's Orchestrator turn: a Human message appears immediately, can be sent while the bot is still working, and is admitted to the Bot Inbox for serial processing ([#140](https://github.com/BotHarness/BotHarness/issues/140)).
 
 ### Documentation
+
 - Documented the Channel sidebar as Bot mode's scoped right region with one ordered, collapsible entry seam, retiring PersonaBot navigation ([ADR-0053](docs/adr/0053-channel-sidebar-is-the-scoped-right-sidebar.md), [#156](https://github.com/BotHarness/BotHarness/issues/156)).
 
 - Added the canonical Release Ledger, bilingual parity checks, and contributor guidance ([#100](https://github.com/BotHarness/BotHarness/issues/100)).

@@ -9,9 +9,18 @@ export interface DshSessionEvent {
   data: unknown;
 }
 
+export interface DshSessionHeader {
+  cwd?: string;
+  createdAt: number;
+  /** The Session this one was forked from, when DSH recorded seed lineage. */
+  parentSession?: string;
+  /** DSH's coarse classification for a subagent child Session. */
+  origin?: 'subagent';
+}
+
 export interface DshSession {
   id: string;
-  header: { cwd?: string; createdAt: number };
+  header: DshSessionHeader;
   snapshotEvents(): readonly DshSessionEvent[];
 }
 

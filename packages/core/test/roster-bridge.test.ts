@@ -10,6 +10,7 @@ import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore, type RosterStore } from '../src/roster/store.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createFakeRosterDomain, type FakeRosterDomain } from './roster-fixture.js';
+import { createFakeSessionOwnership } from './helpers.js';
 
 const roots: string[] = [];
 
@@ -27,6 +28,7 @@ function setup(): { methods: BridgeMethods; roster: RosterStore; fake: FakeRoste
     states: createBotStateTracker(),
     channels: createChannelStore({ rootDir: join(root, 'channels') }),
     sessions: { list: () => [] },
+    ownership: createFakeSessionOwnership(),
     roster,
   });
   return { methods, roster, fake };

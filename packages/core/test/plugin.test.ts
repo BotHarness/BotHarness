@@ -14,7 +14,9 @@ import {
   type BotHarnessCore,
   type PersonaBotRegistry,
 } from '../src/index.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { createSessionOwnership } from '../src/sessions/ownership.js';
 import { createTempRoot } from './helpers.js';
 import { createFakeRosterDomain } from './roster-fixture.js';
 
@@ -96,6 +98,57 @@ describe('plugin entry', () => {
     ]);
   });
 
+  it('rebuilds the activity projection from owned Session logs and follows live events', () => {
+    const home = createTempRoot('botharness-plugin-activity-');
+    vi.stubEnv('DSH_HOME', home);
+    const seeded = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    createSessionOwnership(attachOperationalModule(seeded, 'session-ownership')).claim({
+      sessionId: 'owned-1',
+      botSlug: 'ada',
+      rootRole: 'orchestrator',
+      cwdReference: '/srv/shared',
+      at: '2026-09-21T00:00:00.000Z',
+    });
+    seeded.close();
+
+    const { ctx, stubs } = createStubContext();
+    const log = (type: string) => [{ type, time: 1, data: {} }];
+    stubs.sessions.list.mockReturnValue([
+      {
+        id: 'owned-1',
+        header: { cwd: '/srv/shared', createdAt: 0 },
+        snapshotEvents: () => log('tool/call'),
+      },
+      {
+        id: 'unowned-1',
+        header: { cwd: '/srv/shared', createdAt: 0 },
+        snapshotEvents: () => log('tool/call'),
+      },
+    ]);
+
+    apply(ctx, { enabled: true });
+    const core = ctx.get('botharness') as BotHarnessCore | undefined;
+
+    expect(core?.states.snapshot('ada').sessions).toEqual({ 'owned-1': 'working' });
+
+    ctx.emit(
+      'session/event',
+      { id: 'owned-1' } as never,
+      { type: 'turn/end', time: 2, data: {} } as never,
+    );
+    expect(core?.states.snapshot('ada').sessions).toEqual({ 'owned-1': 'done' });
+
+    ctx.emit(
+      'session/event',
+      { id: 'unowned-1' } as never,
+      { type: 'tool/call', time: 3, data: {} } as never,
+    );
+    expect(core?.states.snapshot('ada').sessions).toEqual({ 'owned-1': 'done' });
+
+    ctx.emit('agent/disposed', { agent: { session: { id: 'owned-1' } } } as never);
+    expect(core?.states.snapshot('ada').sessions).toEqual({});
+  });
+
   it('closes the operational database last with the plugin fiber', async () => {
     const home = createTempRoot('botharness-plugin-lifecycle-');
     vi.stubEnv('DSH_HOME', home);
@@ -133,6 +186,14 @@ describe('plugin entry', () => {
       expect(core?.registry).toBeDefined();
       expect(core?.memory).toBeDefined();
       expect(core?.channels).toBeDefined();
+      expect(() =>
+        core?.ownership.claim({
+          sessionId: 'session-1',
+          botSlug: 'ada',
+          rootRole: 'orchestrator',
+          at: '2026-09-21T00:00:00.000Z',
+        }),
+      ).toThrow(/recovery mode/);
       expect(stubs.tools.register).toHaveBeenCalledTimes(4);
       expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
       expect(ctx.get('botharnessBridge')).toBeDefined();

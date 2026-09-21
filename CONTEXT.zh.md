@@ -494,16 +494,28 @@ _避免使用_：Profile Transfer、clone、ordinary restore
 bot-mode sidebar 中展示 PersonaBot 与 Channel 及其 state 的列表。
 _避免使用_：dashboard、bot list
 
-**PersonaBot navigation**：
-只在一个 PersonaBot 的 DM 中出现的上下文导航：Chat 与 Memory 始终存在，所拥有的 Assignment 作为从属列表展示。它不出现在 group Channel 中，也绝不会把 Orchestrator Session 当作 Assignment 展示。
-_避免使用_：session panel、bot workspace、inspector
+**App Sidebar**：
+Client 中 DSH 原生的左栏；在 bot mode 下渲染 Roster。命名用于与右侧的 Channel sidebar 区分。
+_避免使用_：left sidebar、main sidebar、navigation
+
+**Channel sidebar**：
+Bot mode panel 右侧的区域，scope 跟随当前选中的 Channel：group Channel 显示其 membership 与 Channel management entry，PersonaBot DM 显示该 PersonaBot 自己的 entry，例如 Assignments、Memory 与其 Bot Inbox。它不是 DSH session-scoped 的原生右栏。
+_避免使用_：PersonaBot navigation、right panel、session panel、inspector、workbench
+
+**Channel body**：
+Bot mode panel 的中部区域：选中 Channel 的 header、primary content 与 composer。DM 在这里渲染其 Chat。
+_避免使用_：main pane、conversation view、chat panel
+
+**Channel sidebar entry**：
+Channel sidebar 中一个已注册、可折叠的条目：稳定的 id、label、order、scope，以及一个可以展示信息、提供 control 或两者兼有的 renderer。不可用的 entry 直接缺席，而不是显示占位。
+_避免使用_：widget、card、tab、destination、Channel section
 
 **Client bridge**：
 Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RPC surface，不与 Client 共享 Host service。
 _避免使用_：remote、IPC、gateway
 
 **Settings UI**：
-harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 Memory 的链接。日常 Memory 使用属于 PersonaBot navigation。
+harness 内部的 DSH settings surface，用于 setup、全局/plugin setting、PersonaBot administration、Memory diagnostics，以及进入 Memory 的链接。日常 Memory 使用属于 Channel sidebar。
 _避免使用_：admin panel、dashboard、web console
 
 **Access policy**：

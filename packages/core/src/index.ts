@@ -76,6 +76,29 @@ export type {
   SessionState,
 } from './state/bot-state.js';
 export {
+  createDshActivityProjection,
+  deriveSessionState,
+  sessionStateForEvent,
+} from './state/dsh-activity.js';
+export type {
+  DshActivityProjection,
+  DshActivityRebuildReport,
+  DshActivitySession,
+} from './state/dsh-activity.js';
+export {
+  createSessionOwnership,
+  SessionOwnershipConflictError,
+  SessionOwnershipError,
+} from './sessions/ownership.js';
+export type {
+  SessionOwnership,
+  SessionOwnershipClaim,
+  SessionOwnershipProvenance,
+  SessionOwnershipRecord,
+  SessionOwnershipRepair,
+  SessionRootRole,
+} from './sessions/ownership.js';
+export {
   canonicalizeWorkspacePath,
   createImStoreReader,
   parseImBotsConfig,
@@ -95,6 +118,7 @@ export type {
   BotSessionSource,
   DshSession,
   DshSessionEvent,
+  DshSessionHeader,
   DshSessionStore,
   SessionSummary,
 } from './sessions/source.js';

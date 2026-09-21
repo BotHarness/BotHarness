@@ -13,6 +13,7 @@ import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotSessionSource } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
+import { createFakeSessionOwnership } from './helpers.js';
 
 const roots: string[] = [];
 
@@ -34,6 +35,7 @@ function setup() {
     states: createBotStateTracker(),
     channels,
     sessions,
+    ownership: createFakeSessionOwnership(),
     roster: createRosterStore(),
     createBotId: () => 'ada',
   });
