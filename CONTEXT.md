@@ -494,9 +494,21 @@ _Avoid_: Profile Transfer, clone, ordinary restore
 The bot-mode sidebar list of PersonaBots and Channels, with their state.
 _Avoid_: dashboard, bot list
 
-**PersonaBot navigation**:
-The DM-only contextual navigation for one PersonaBot: Chat and Memory are always present, and owned Assignments form a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
-_Avoid_: session panel, bot workspace, inspector
+**App Sidebar**:
+The DSH-native left column of the client, which in Bot mode renders the Roster. It is named to distinguish it from the Channel sidebar on the right.
+_Avoid_: left sidebar, main sidebar, navigation
+
+**Channel sidebar**:
+The right-side region of the Bot mode panel, scoped to the currently selected Channel: a group Channel shows its membership and Channel management entries, and a PersonaBot DM shows that PersonaBot's own entries such as Assignments, Memory, and its Bot Inbox. It is not the DSH session-scoped native right column.
+_Avoid_: PersonaBot navigation, right panel, session panel, inspector, workbench
+
+**Channel body**:
+The center region of the Bot mode panel: the selected Channel's header, primary content, and composer. A DM renders its Chat here.
+_Avoid_: main pane, conversation view, chat panel
+
+**Channel sidebar entry**:
+One registered, collapsible item of a Channel sidebar: a stable id, label, order, scope, and a renderer that may display information, offer controls, or both. An unavailable entry is absent rather than a placeholder.
+_Avoid_: widget, card, tab, destination, Channel section
 
 **Client bridge**:
 The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
