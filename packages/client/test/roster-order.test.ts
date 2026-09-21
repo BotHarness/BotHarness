@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   applyChannelMove,
+  flatRosterChannelIds,
   commitScopeReorder,
   completeFlatEntries,
   moveWithinOrder,
@@ -445,6 +446,26 @@ describe('empty section drop', () => {
 });
 
 describe('flat order completion', () => {
+  it('includes unpinned PersonaBot DMs beside group channels', () => {
+    expect(
+      flatRosterChannelIds(
+        [
+          channel('group', '2026-09-18T10:00:00.000Z'),
+          channel('dm-loose', '2026-09-18T10:00:00.000Z', {
+            type: 'dm',
+            botSlug: 'loose-bot',
+          }),
+          channel('dm-pinned', '2026-09-18T10:00:00.000Z', {
+            type: 'dm',
+            botSlug: 'pinned-bot',
+          }),
+          channel('dm-orphan', '2026-09-18T10:00:00.000Z', { type: 'dm' }),
+        ],
+        new Set(['pinned-bot']),
+      ),
+    ).toEqual(['group', 'dm-loose']);
+  });
+
   it('keeps stored entries and appends unknown channels at the end', () => {
     expect(
       completeFlatEntries(

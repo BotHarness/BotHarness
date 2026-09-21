@@ -46,6 +46,7 @@ import type { RosterSection } from './roster.js';
 import {
   applyChannelMove,
   completeFlatEntries,
+  flatRosterChannelIds,
   moveWithinOrder,
   orderScopeChannels,
   planChannelMove,
@@ -374,7 +375,7 @@ export function BotSidebar({
     return bot !== undefined && matchesQuery(query, bot.displayName, ...bot.roles);
   });
   const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
-  const rosterChannelIds = rosterChannels.map((channel) => channel.id);
+  const rosterChannelIds = flatRosterChannelIds(state.channels, pinned);
   /**
    * Flat top-level entries in display order: the host `topOrder` completed
    * with channels the flat list does not know yet (appended at the end), or —
@@ -580,10 +581,14 @@ export function BotSidebar({
   const runFlatInsert = (channelId: string, sourceScopeId: ScopeId, anchor: FlatAnchor): void => {
     const snapshot = store.getSnapshot();
     const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+    const snapshotChannelIds = flatRosterChannelIds(
+      snapshot.channels,
+      new Set(snapshot.roster.pins),
+    );
     const flat = completeFlatEntries(
       snapshot.roster.topOrder,
       snapshot.roster.sections.map((section) => section.id),
-      snapshot.channels.filter((channel) => channel.type === 'group').map((channel) => channel.id),
+      snapshotChannelIds,
       sectioned,
     );
     const plan = planFlatInsert(flat, channelId, sourceScopeId !== undefined, anchor);
