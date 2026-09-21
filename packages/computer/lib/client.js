@@ -6,7 +6,405 @@ window.__ModuleLoader__.load({
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
     let react = require('react');
     let react_dom = require('react-dom');
+    let _deepseek_ai_dsh_client_ui_primitives = require('@deepseek-ai/dsh-client-ui-primitives');
     let react_jsx_runtime = require('react/jsx-runtime');
+    //#region packages/computer/src/settings.ts
+    /**
+     * Runtime-editable Computer configuration, shared by the Host settings
+     * registration and the browser scope. Kept free of schemastery so the client
+     * bundle pulls only constants and types.
+     */
+    /** Settings namespace owning the Computer's runtime-editable fields. */
+    const COMPUTER_SETTINGS_NAMESPACE = 'botharness-computer';
+    /** Field carrying the directory that holds Computer exports. */
+    const COMPUTER_EXPORT_DIR_FIELD = 'exportDir';
+    /** Field carrying the idle stop minutes. */
+    const COMPUTER_IDLE_STOP_FIELD = 'idleStopMinutes';
+    //#endregion
+    //#region packages/computer/src/client/settings-rows.tsx
+    /**
+     * The Computer's rows inside the BotHarness settings section. They own the
+     * runtime-editable settings (`exportDir`, `idleStopMinutes`) through the
+     * shared settings scope, use the Host's directory picker, and drive the
+     * export/import endpoints with an explicit authorization step. Copy stays in
+     * this bundle's own words; the section's row classes come from
+     * `@botharness/client`, which is always mounted when this page renders.
+     * @module @botharness/computer/settings-rows
+     */
+    /** Live Computer settings published to the rows. */
+    var ComputerSettingsPrefs = class {
+      snapshot = {
+        exportDir: '',
+        idleStopMinutes: 30,
+        status: 'loading',
+        writable: false,
+      };
+      listeners = /* @__PURE__ */ new Set();
+      scope;
+      detach;
+      attach(scope) {
+        this.detach?.();
+        this.scope = scope;
+        this.detach = scope.subscribe(() => {
+          this.sync();
+        });
+        this.sync();
+        return () => {
+          this.detach?.();
+          this.detach = void 0;
+          this.scope = void 0;
+        };
+      }
+      getSnapshot = () => this.snapshot;
+      subscribe = (listener) => {
+        this.listeners.add(listener);
+        return () => {
+          this.listeners.delete(listener);
+        };
+      };
+      setExportDir(exportDir) {
+        this.publish({ exportDir });
+        this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir).catch(() => void 0);
+      }
+      setIdleStopMinutes(idleStopMinutes) {
+        this.publish({ idleStopMinutes });
+        this.scope?.set(COMPUTER_IDLE_STOP_FIELD, idleStopMinutes).catch(() => void 0);
+      }
+      publish(patch) {
+        this.snapshot = {
+          ...this.snapshot,
+          ...patch,
+        };
+        for (const listener of this.listeners) listener();
+      }
+      sync() {
+        const scope = this.scope;
+        if (scope === void 0) return;
+        const next = scope.getSnapshot();
+        const value = next.value;
+        this.snapshot = {
+          exportDir: value?.exportDir ?? '',
+          idleStopMinutes: value?.idleStopMinutes ?? 30,
+          status: next.status,
+          writable: next.writable,
+        };
+        for (const listener of this.listeners) listener();
+      }
+    };
+    const IDLE_OPTIONS = [15, 30, 60, 120, 240];
+    const EXPORT_ENDPOINT = '/api/computer/export';
+    const IMPORT_ENDPOINT = '/api/computer/import';
+    const EXPORTS_ENDPOINT = '/api/computer/exports';
+    const STATUS_ENDPOINT$1 = '/api/computer/status';
+    async function requestJson$1(url, init) {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...init,
+      });
+      if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
+      return await response.json();
+    }
+    async function postAuthorized(url, body = {}) {
+      await requestJson$1(url, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          authorize: true,
+          ...body,
+        }),
+      });
+    }
+    /**
+     * Build the rows' inject face: the settings prefs plus the picker and the
+     * export/import endpoints.
+     */
+    function createComputerSettingsFace(options) {
+      const { prefs } = options;
+      return {
+        prefs,
+        pickDirectory: async () =>
+          options.pickDirectory === void 0 ? null : options.pickDirectory(),
+        exportArchive: async () => {
+          return (
+            (
+              await requestJson$1(EXPORT_ENDPOINT, {
+                method: 'POST',
+                headers: { 'content-type': 'application/json' },
+                body: JSON.stringify({ authorize: true }),
+              })
+            ).archive ?? ''
+          );
+        },
+        importArchive: async (file) => {
+          await postAuthorized(IMPORT_ENDPOINT, { file });
+        },
+        listArchives: async () => {
+          return (await requestJson$1(EXPORTS_ENDPOINT)).files ?? [];
+        },
+        hostExportDir: async () => {
+          return (await requestJson$1(STATUS_ENDPOINT$1)).exportDir ?? '';
+        },
+      };
+    }
+    function Row({ title, description, children }) {
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+        className: 'bh-settings-row',
+        children: [
+          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+            className: 'bh-settings-row-text',
+            children: [
+              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-settings-row-title',
+                children: title,
+              }),
+              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-settings-row-desc',
+                children: description,
+              }),
+            ],
+          }),
+          children,
+        ],
+      });
+    }
+    function Selector({ label, open, onToggle, disabled }) {
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('button', {
+        type: 'button',
+        className: 'bh-settings-selector',
+        'aria-haspopup': 'menu',
+        'aria-expanded': open,
+        disabled: disabled === true,
+        onClick: onToggle,
+        children: [
+          label,
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+            _deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutline14,
+            { className: 'bh-settings-chevron' },
+          ),
+        ],
+      });
+    }
+    /** The Computer group inside the BotHarness settings page. */
+    function ComputerSettingsRows({
+      prefs,
+      pickDirectory,
+      exportArchive,
+      importArchive,
+      listArchives,
+      hostExportDir,
+    }) {
+      const [snapshot, setSnapshot] = (0, react.useState)(prefs.getSnapshot);
+      const [idleOpen, setIdleOpen] = (0, react.useState)(false);
+      const [importOpen, setImportOpen] = (0, react.useState)(false);
+      const [archives, setArchives] = (0, react.useState)(void 0);
+      const [busy, setBusy] = (0, react.useState)(void 0);
+      const [confirming, setConfirming] = (0, react.useState)(void 0);
+      const [note, setNote] = (0, react.useState)(void 0);
+      const [hostDir, setHostDir] = (0, react.useState)(void 0);
+      (0, react.useEffect)(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
+      (0, react.useEffect)(() => {
+        if (snapshot.status !== 'unavailable') return;
+        hostExportDir()
+          .then((dir) => setHostDir(dir))
+          .catch(() => void 0);
+      }, [hostExportDir, snapshot.status]);
+      const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
+      const hasDir = exportDir !== '';
+      const writable = snapshot.status === 'ready' && snapshot.writable;
+      const pick = (0, react.useCallback)(() => {
+        pickDirectory()
+          .then((dir) => {
+            if (dir !== null) prefs.setExportDir(dir);
+          })
+          .catch((error) => setNote(String(error)));
+      }, [pickDirectory, prefs]);
+      const runExport = (0, react.useCallback)(() => {
+        setConfirming(void 0);
+        setBusy('export');
+        setNote(void 0);
+        exportArchive()
+          .then((archive) => setNote(archive === '' ? '导出完成。' : `已导出：${archive}`))
+          .catch((error) => setNote(String(error)))
+          .finally(() => setBusy(void 0));
+      }, [exportArchive]);
+      const runImport = (0, react.useCallback)(
+        (file) => {
+          setImportOpen(false);
+          setConfirming(void 0);
+          setBusy('import');
+          setNote(void 0);
+          importArchive(file)
+            .then(() => setNote(`已从 ${file} 导入并重启 Computer。`))
+            .catch((error) => setNote(String(error)))
+            .finally(() => setBusy(void 0));
+        },
+        [importArchive],
+      );
+      const openImport = (0, react.useCallback)(() => {
+        listArchives()
+          .then((files) => {
+            setArchives(files);
+            setImportOpen(true);
+            if (files.length === 0) setNote('该目录还没有归档；先导出一次。');
+          })
+          .catch((error) => setNote(String(error)));
+      }, [listArchives]);
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+        className: 'bh-settings-rows',
+        children: [
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+            title: 'Computer 导出目录',
+            description: hasDir
+              ? `当前：${exportDir}`
+              : '选择目录后即可导出/导入；未配置时导出与导入不可用',
+            children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('button', {
+              type: 'button',
+              className: 'bh-settings-selector',
+              disabled: !writable,
+              onClick: pick,
+              children: [
+                /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                  _deepseek_ai_dsh_client_ui_primitives.IconFolderOpenOutline16,
+                  { size: 14 },
+                ),
+                '选择…',
+              ],
+            }),
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+            title: '空闲停止',
+            description: '无观看者时 Computer 自动停止的等待时间',
+            children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+              _deepseek_ai_dsh_client_ui_primitives.Menu,
+              {
+                open: idleOpen,
+                portal: true,
+                align: 'end',
+                items: IDLE_OPTIONS.map((minutes) => ({
+                  id: String(minutes),
+                  label: `${String(minutes)} 分钟`,
+                })),
+                selectedId: String(snapshot.idleStopMinutes),
+                onSelect: (id) => {
+                  setIdleOpen(false);
+                  prefs.setIdleStopMinutes(Number(id));
+                },
+                onClose: () => {
+                  setIdleOpen(false);
+                },
+                anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
+                  label: `${String(snapshot.idleStopMinutes)} 分钟`,
+                  open: idleOpen,
+                  disabled: !writable,
+                  onToggle: () => {
+                    setIdleOpen((value) => !value);
+                  },
+                }),
+              },
+            ),
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+            title: '导出 / 导入',
+            description: '把 Computer 的持久存储打包成一个归档，或从归档恢复',
+            children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+              style: {
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+              },
+              children: [
+                confirming === 'export'
+                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                      children: [
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          onClick: () => {
+                            setConfirming(void 0);
+                          },
+                          children: '取消',
+                        }),
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          onClick: runExport,
+                          children: '授权并导出',
+                        }),
+                      ],
+                    })
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      disabled: !hasDir || busy !== void 0,
+                      onClick: () => {
+                        setConfirming('export');
+                      },
+                      children: busy === 'export' ? '导出中…' : '导出',
+                    }),
+                confirming === 'import'
+                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      onClick: () => {
+                        setConfirming(void 0);
+                      },
+                      children: '取消导入',
+                    })
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                      _deepseek_ai_dsh_client_ui_primitives.Menu,
+                      {
+                        open: importOpen,
+                        portal: true,
+                        align: 'end',
+                        items: (archives ?? []).map((file) => ({
+                          id: file,
+                          label: file,
+                        })),
+                        onSelect: (id) => {
+                          setConfirming('import');
+                          setArchives([id]);
+                        },
+                        onClose: () => {
+                          setImportOpen(false);
+                        },
+                        anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
+                          label: busy === 'import' ? '导入中…' : '导入…',
+                          open: importOpen,
+                          disabled: !hasDir || busy !== void 0,
+                          onToggle: openImport,
+                        }),
+                      },
+                    ),
+                confirming === 'import' && archives?.[0] !== void 0
+                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      onClick: () => {
+                        const file = archives[0];
+                        if (file !== void 0) runImport(file);
+                      },
+                      children: ['授权并导入 ', archives[0]],
+                    })
+                  : null,
+              ],
+            }),
+          }),
+          snapshot.status === 'unavailable'
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                children: '设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。',
+              })
+            : null,
+          note === void 0
+            ? null
+            : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                children: note,
+              }),
+        ],
+      });
+    }
+    //#endregion
     //#region packages/computer/src/client/index.tsx
     const name = 'botharness-computer-client';
     /**
@@ -15,7 +413,7 @@ window.__ModuleLoader__.load({
      * bundle stays self-contained (importing that package at runtime would inline
      * its client code into ours).
      */
-    const inject = ['channelSidebar', 'connection'];
+    const inject = ['slots', 'channelSidebar', 'connection'];
     const STATUS_ENDPOINT = '/api/computer/status';
     const START_ENDPOINT = '/api/computer/start';
     const STOP_ENDPOINT = '/api/computer/stop';
@@ -861,6 +1259,32 @@ window.__ModuleLoader__.load({
       });
     }
     function apply(ctx) {
+      const settingsPrefs = new ComputerSettingsPrefs();
+      ctx.inject(['settingsScope'], (settingsCtx) => {
+        const scope = settingsCtx.settingsScope.bind({ namespace: COMPUTER_SETTINGS_NAMESPACE });
+        const release = settingsPrefs.attach(scope);
+        return () => {
+          release();
+        };
+      });
+      ctx.inject(['uiWorkspace', 'slots'], (workspaceCtx) => {
+        const workspace = workspaceCtx.uiWorkspace;
+        const face = createComputerSettingsFace({
+          prefs: settingsPrefs,
+          pickDirectory: workspace?.pickDirectory,
+        });
+        workspaceCtx.slots.inject('botharness.settings.item', () =>
+          workspaceCtx.slots.register(
+            {
+              name: 'botharness.settings.item',
+              id: 'computer',
+              order: 10,
+              inject: () => face,
+            },
+            ComputerSettingsRows,
+          ),
+        );
+      });
       ctx.effect(() => {
         if (typeof document === 'undefined') return () => {};
         const style = document.createElement('style');

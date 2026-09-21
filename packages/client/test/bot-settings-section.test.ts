@@ -45,6 +45,7 @@ function renderSection(
   return renderToStaticMarkup(
     createElement(BotSettingsSection, {
       t,
+      renderSlot: () => null,
       useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
         selector(prefs)) as never,
       setSortMode: setSortMode as never,

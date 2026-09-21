@@ -10,6 +10,15 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
+import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
+
+import { COMPUTER_SETTINGS_NAMESPACE, type ComputerSettings } from '../settings.js';
+import {
+  ComputerSettingsPrefs,
+  ComputerSettingsRows,
+  createComputerSettingsFace,
+  type ComputerSettingsScope,
+} from './settings-rows.js';
 
 export const name = 'botharness-computer-client';
 
@@ -19,7 +28,7 @@ export const name = 'botharness-computer-client';
  * bundle stays self-contained (importing that package at runtime would inline
  * its client code into ours).
  */
-export const inject = ['channelSidebar', 'connection'];
+export const inject = ['slots', 'channelSidebar', 'connection'];
 
 const STATUS_ENDPOINT = '/api/computer/status';
 const START_ENDPOINT = '/api/computer/start';
@@ -873,6 +882,36 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
 }
 
 export function apply(ctx: ClientContext): void {
+  const settingsPrefs = new ComputerSettingsPrefs();
+  ctx.inject(['settingsScope'], (settingsCtx) => {
+    const scope = settingsCtx.settingsScope.bind<ComputerSettings>({
+      namespace: COMPUTER_SETTINGS_NAMESPACE,
+    }) as unknown as ComputerSettingsScope;
+    const release = settingsPrefs.attach(scope);
+    return () => {
+      release();
+    };
+  });
+  ctx.inject(['uiWorkspace', 'slots'], (workspaceCtx) => {
+    const workspace = (
+      workspaceCtx as unknown as { uiWorkspace?: { pickDirectory?: () => Promise<string | null> } }
+    ).uiWorkspace;
+    const face = createComputerSettingsFace({
+      prefs: settingsPrefs,
+      pickDirectory: workspace?.pickDirectory,
+    });
+    workspaceCtx.slots.inject('botharness.settings.item', () =>
+      workspaceCtx.slots.register(
+        {
+          name: 'botharness.settings.item',
+          id: 'computer',
+          order: 10,
+          inject: () => face,
+        },
+        ComputerSettingsRows,
+      ),
+    );
+  });
   ctx.effect(() => {
     if (typeof document === 'undefined') return () => {};
     const style = document.createElement('style');

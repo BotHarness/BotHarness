@@ -38,6 +38,7 @@ interface Spec {
   order?: number;
   label?: string;
   inject?: () => unknown;
+  children?: Record<string, unknown>;
 }
 
 interface FakeScope {
@@ -159,6 +160,9 @@ describe('client apply', () => {
     expect(section).toMatchObject({ id: 'botharness', order: 25, locale: 'botharness' });
     expect(section?.inject).toBeTypeOf('function');
     expect(section?.label).toBeTypeOf('function');
+    expect(section?.children).toEqual({
+      'botharness.settings.item': { kind: 'list', scope: 'root' },
+    });
 
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);

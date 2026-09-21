@@ -1,6 +1,17 @@
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
+  const stub = () => null;
+  return {
+    IconChevronDownOutline14: stub,
+    IconCloseFill14: stub,
+    IconFolderOpenOutline16: stub,
+    IconSettingsOutline16: stub,
+    Menu: stub,
+  };
+});
 
 import { apply, ComputerEntryView, type ComputerEntryViewProps } from '../src/client/index.js';
 
@@ -35,8 +46,35 @@ describe('Computer channel sidebar entry registration', () => {
         };
       },
     };
+    const rows: { id?: string; order?: number }[] = [];
+    const settings = {
+      bind: () => ({
+        getSnapshot: () => ({ status: 'ready' as const, value: undefined, writable: true }),
+        subscribe: () => () => {},
+        set: async () => {},
+      }),
+    };
     const ctx = {
-      inject: (_deps: string[], callback: (context: unknown) => void) => {
+      inject: (deps: string[], callback: (context: unknown) => void) => {
+        if (deps.includes('settingsScope')) {
+          callback({ settingsScope: settings });
+          return;
+        }
+        if (deps.includes('uiWorkspace')) {
+          callback({
+            uiWorkspace: { pickDirectory: async () => null },
+            slots: {
+              inject: (_name: string, register: () => void) => {
+                register();
+              },
+              register: (options: { id?: string; order?: number }) => {
+                rows.push(options);
+                return () => {};
+              },
+            },
+          });
+          return;
+        }
         callback({ channelSidebar: registry });
       },
       effect: (callback: () => () => void) => {
@@ -46,6 +84,8 @@ describe('Computer channel sidebar entry registration', () => {
 
     apply(ctx as unknown as Parameters<typeof apply>[0]);
 
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: 'computer', order: 10 });
     expect(registered).toHaveLength(1);
     expect(registered[0]?.id).toBe('botharness-computer');
     expect(registered[0]?.label).toBe('电脑');

@@ -1,7 +1,12 @@
 import { useState, type ReactElement } from 'react';
 
 import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
-import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
+import type {
+  InjectFace,
+  PropsLocale,
+  PropsRenderSlots,
+  PropsRuntime,
+} from '@deepseek-ai/dsh-client-ui-slots';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
 import {
@@ -18,6 +23,7 @@ import type { BotHarnessKey } from './locale.js';
 
 /** Full Settings-section props. */
 export type BotSettingsSectionProps = PropsRuntime<'settings.section'> &
+  PropsRenderSlots<'botharness.settings.item'> &
   PropsLocale<'botharness'> &
   InjectFace<BotModePrefsFace>;
 
@@ -48,6 +54,7 @@ const MOTION_OPTIONS: readonly { id: BotModeMotionPreference; label: BotHarnessK
  */
 export function BotSettingsSection({
   t,
+  renderSlot,
   useBotModePrefs,
   setMotionPreference,
   setSortMode,
@@ -200,6 +207,7 @@ export function BotSettingsSection({
           }
         />
       </div>
+      {renderSlot('botharness.settings.item', {})}
     </div>
   );
 }
