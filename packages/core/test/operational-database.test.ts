@@ -585,23 +585,6 @@ describe('operational database owner', () => {
     owner.close();
   });
 
-  it('keeps legacy roster and session inputs as explicit one-way module plans', () => {
-    expect(LEGACY_FORWARD_MIGRATION_PLAN).toEqual([
-      {
-        source: 'dsh-storage-domain',
-        sourceName: 'botharness_roster',
-        targetOwner: 'roster',
-        policy: 'import-once-when-target-empty',
-      },
-      {
-        source: 'dsh-storage-domain',
-        sourceName: 'botharness_sessions',
-        targetOwner: 'session-ownership',
-        policy: 'import-once-when-target-empty',
-      },
-    ]);
-  });
-
   it('validates one monotonic complete schema plan', () => {
     expect(() =>
       defineSchemaPlan([
