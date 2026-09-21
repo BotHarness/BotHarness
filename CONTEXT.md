@@ -150,6 +150,10 @@ _Avoid_: driver, backend, sandbox
 A human session on a Computer that pauses every PersonaBot acting there and disables model-facing screenshots for its duration. It is initiated from one Bot Screen but always applies to the whole Computer.
 _Avoid_: handoff, screen sharing, per-bot takeover
 
+**Computer Export**:
+A portable archive of one Computer's persistent volume, produced by an explicit export action and restorable on another Host. It is a profile-scoped facet, never part of a PersonaBot export.
+_Avoid_: PersonaBot export, backup file, disk image
+
 ### Memory
 
 **Memory**:
