@@ -1,3 +1,5 @@
+import { DEEPSEEKBOT_TRANSPARENT_DATA_URI } from './bot-icon-assets.js';
+
 export const CSS =
   `
 .bh-root {
@@ -331,15 +333,84 @@ export const CSS =
    horizontal insets；active 时同一条行内命中层把再次点击变成退出模式。 */
 button:has(.bh-panel-glyph) {
   position: relative;
+  overflow: hidden;
   width: auto;
   margin-inline: 2px;
 }
+
+/* The Bot row keeps its native shape and simply stands taller than the other
+   sidebar rows, with a larger mark and label to match. */
+button:has(.bh-panel-glyph[data-wide='true']) {
+  min-height: 44px;
+}
+
+button:has(.bh-panel-glyph[data-wide='true']) .bh-panel-glyph > .bh-bot-icon {
+  width: 24px;
+  height: 24px;
+}
+
+button:has(.bh-panel-glyph[data-wide='true']) > span:not(.bh-panel-glyph):not(.bh-panel-glyph-hit):not(.bh-panel-gear) {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+/* The Bot mode switch: the button keeps its own background, the transparent
+   mascot is scaled to twice the fitted size and anchored bottom-left as a
+   texture layer, and the chosen mark sits above it. */
+button:has(.bh-panel-glyph)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 200%;
+  background: var(--bh-bot-texture, url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI})) left bottom / contain
+    no-repeat;
+  opacity: 0.1;
+  pointer-events: none;
+}
+
 .bh-panel-glyph {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .bh-panel-glyph-hit {
   position: absolute;
   inset: 0;
+}
+
+/* Settings gear on the active Bot row: hidden until the row is hovered, then
+   it opens the Bot section of the Settings dialog. */
+.bh-panel-gear {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  color: var(--dsw-alias-label-secondary);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition:
+    opacity 120ms var(--ds-ease-in-out),
+    background 120ms var(--ds-ease-in-out);
+}
+
+button:has(.bh-panel-glyph):hover .bh-panel-gear {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.bh-panel-gear:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
 }
 
 .bh-pin-zone {
@@ -1517,12 +1588,25 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 }
 
 .bh-channel-sidebar {
+  position: relative;
   width: 320px;
   flex: 0 0 320px;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-channel-sidebar-resize {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.bh-channel-sidebar-resize:hover {
+  background: var(--dsw-alias-border-l2);
 }
 .bh-channel-sidebar-head {
   display: flex;
@@ -1719,6 +1803,46 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */
+/* The Bot mark: one box sized by the caller, artwork resolved per palette. */
+.bh-bot-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--bh-bot-icon-size, 16px);
+  height: var(--bh-bot-icon-size, 16px);
+}
+
+.bh-bot-icon > svg,
+.bh-bot-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Settings nav cell tagged by bot-icon-nav: hide the shell glyph, show ours. */
+button.bh-bot-nav > svg {
+  display: none;
+}
+
+.bh-bot-nav-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.bh-bot-nav-icon > svg,
+.bh-bot-nav-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .bh-settings-rows {
   display: flex;
   flex-direction: column;

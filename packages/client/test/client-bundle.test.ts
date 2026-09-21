@@ -177,7 +177,14 @@ describe('@botharness/client browser bundle', () => {
     (plugin['apply'] as (ctx: unknown) => void)(scoped);
 
     expect(registered).toEqual([
-      { name: 'sidebar.panellist', id: 'botharness', order: 10, label: 'BOT 模式' },
+      {
+        name: 'sidebar.panellist',
+        id: 'botharness',
+        order: 10,
+        label: expect.any(Function),
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
       {
         name: 'main',
         key: 'botharness',

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { createPortal } from 'react-dom';
 
 import {
   Button,
@@ -10,6 +11,7 @@ import {
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
+  IconSettingsOutline16,
   HoverCard,
   Menu,
   StateDot,
@@ -23,6 +25,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store';
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
+import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
 import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
@@ -82,37 +85,99 @@ export function useClientState(): ClientState {
 export interface BotPanelEntryProps {
   size: number;
   active: boolean;
+  /** Live preference hook injected by the panellist registration. */
+  useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
+  /** Open Settings on the Bot section; injected by the panellist registration. */
+  openSettings: () => void;
+  /** Slot-provided translator for the BotHarness namespace. */
+  t: BotHarnessTranslate;
 }
 
 /**
- * Sidebar panel glyph for the selected panel. While active, an absolutely
- * positioned hit target covers the whole shell row (see the
- * `button:has(.bh-panel-glyph)` rule in styles.ts) and turns the shell's
- * re-selection click into a mode exit; the capture handler stops React's
- * propagation so the shell's own `selectPanel(id)` never runs.
+ * Sidebar panel glyph for the selected panel. While the panel is active the
+ * whole shell row becomes the exit target (a hit layer portaled into the row
+ * button) and, in the wide sidebar, a settings gear fades in on hover that
+ * opens the Bot section of the Settings dialog. The shell's row is a button,
+ * so the overlay is a span with a button role — nesting a real button inside
+ * it would be invalid.
  */
 export function BotPanelIcon({
   size,
   active,
   onExit,
-}: {
-  size: number;
-  active: boolean;
-  onExit: () => void;
-}): ReactElement {
+  useBotModePrefs,
+  openSettings,
+  t,
+}: BotPanelEntryProps & { onExit: () => void }): ReactElement {
+  const icon = useBotModePrefs((prefs) => prefs.botIcon);
+  const glyph = useRef<HTMLSpanElement>(null);
+  const [row, setRow] = useState<HTMLElement | null>(null);
+  const wide = size === 16;
+
+  useEffect(() => {
+    const button = glyph.current?.closest('button') ?? null;
+    setRow(button);
+    // The switch's texture layer is the chosen variant's transparent artwork.
+    button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
+  }, [size, icon]);
+
+  // The shell row is a button, so keyboard activation would re-select the
+  // panel; while Bot mode is on, Enter and Space leave it instead. The gear
+  // handles its own keys, so events originating there are left alone.
+  useEffect(() => {
+    if (row === null || !active) return () => {};
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onExit();
+    };
+    row.addEventListener('keydown', onKeyDown);
+    return () => {
+      row.removeEventListener('keydown', onKeyDown);
+    };
+  }, [row, active, onExit]);
+
   return (
-    <span className="bh-panel-glyph">
-      <IconAgentPresetOutline16 size={size} />
-      {active ? (
-        <span
-          className="bh-panel-glyph-hit"
-          aria-hidden="true"
-          onClickCapture={(event) => {
-            event.stopPropagation();
-            onExit();
-          }}
-        />
-      ) : null}
+    <span className="bh-panel-glyph" ref={glyph} {...(wide ? { 'data-wide': 'true' } : {})}>
+      <BotIcon icon={icon} size={size} />
+      {active && row !== null
+        ? createPortal(
+            <>
+              <span
+                className="bh-panel-glyph-hit"
+                aria-hidden="true"
+                onClickCapture={(event) => {
+                  event.stopPropagation();
+                  onExit();
+                }}
+              />
+              {wide ? (
+                <span
+                  className="bh-panel-gear"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={t('panel.settings')}
+                  title={t('panel.settings')}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    openSettings();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                    openSettings();
+                  }}
+                >
+                  <IconSettingsOutline16 size={14} />
+                </span>
+              ) : null}
+            </>,
+            row,
+          )
+        : null}
     </span>
   );
 }
@@ -120,8 +185,17 @@ export function BotPanelIcon({
 export function createBotPanelEntry(
   onExit: () => void,
 ): (props: BotPanelEntryProps) => ReactElement {
-  return function BotPanelEntry({ size, active }) {
-    return <BotPanelIcon size={size} active={active} onExit={onExit} />;
+  return function BotPanelEntry({ size, active, useBotModePrefs, openSettings, t }) {
+    return (
+      <BotPanelIcon
+        size={size}
+        active={active}
+        onExit={onExit}
+        useBotModePrefs={useBotModePrefs}
+        openSettings={openSettings}
+        t={t}
+      />
+    );
   };
 }
 
@@ -1116,7 +1190,7 @@ export function BotSidebar({
               ref={searchInput}
               className="bh-search-input"
               type="text"
-              placeholder="搜索 BOT 或频道"
+              placeholder="搜索 Bot 或频道"
               value={state.query}
               tabIndex={searchOpen ? 0 : -1}
               onChange={(event) => store.setQuery(event.target.value)}
@@ -1198,7 +1272,7 @@ export function BotSidebar({
       </div>
 
       {state.status === 'loading' && state.bots.length === 0 ? (
-        <div className="bh-note">正在加载 BOT…</div>
+        <div className="bh-note">正在加载 Bot…</div>
       ) : null}
       {state.status === 'error' && state.error !== undefined ? (
         <div className="bh-error">名册加载失败：{state.error}</div>
@@ -1214,7 +1288,7 @@ export function BotSidebar({
       ) : null}
       {visibleCount === 0 && (state.bots.length > 0 || state.channels.length > 0) ? (
         <div className="bh-note">
-          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 BOT 或频道'}
+          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 Bot 或频道'}
         </div>
       ) : null}
 

@@ -1,12 +1,16 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store';
 
 import {
+  BOT_MODE_ICON_FIELD,
   BOT_MODE_MOTION_FIELD,
   BOT_MODE_SORT_FIELD,
   BOT_MODE_SORT_MODES_FIELD,
+  DEFAULT_BOT_MODE_ICON,
   DEFAULT_BOT_MODE_MOTION,
   DEFAULT_BOT_MODE_SORT,
+  isBotModeIcon,
   isBotModeMotionPreference,
+  type BotModeIcon,
   type BotModeSettings,
   type BotModeMotionPreference,
   type BotModeSortMode,
@@ -54,6 +58,8 @@ export interface BotModeScope {
 export interface BotModePrefsSnapshot {
   /** Human-owned preference persisted in the shared settings namespace. */
   motionPreference: BotModeMotionPreference;
+  /** Human-owned Bot mark used by the app sidebar and the Settings navigation. */
+  botIcon: BotModeIcon;
   /** Resolved policy every BotHarness motion consumer uses. */
   effectiveMotion: EffectiveMotion;
   /** Current global sort mode; the default before Host settings arrive. */
@@ -85,6 +91,8 @@ export interface BotModePrefsFace {
   };
   /** Change the product-level motion preference. */
   setMotionPreference: (preference: BotModeMotionPreference) => void;
+  /** Change the Bot mark used across BotHarness surfaces. */
+  setBotIcon: (icon: BotModeIcon) => void;
   /** Change the global BOT-mode list sort mode. */
   setSortMode: (mode: BotModeSortMode) => void;
   /** Override one section's sort mode; `undefined` returns it to `inherit`. */
@@ -100,6 +108,9 @@ export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
     hooks: { botModePrefs: prefs.source },
     setMotionPreference: (preference) => {
       prefs.setMotionPreference(preference);
+    },
+    setBotIcon: (icon) => {
+      prefs.setBotIcon(icon);
     },
     setSortMode: (mode) => {
       prefs.setSortMode(mode);
@@ -165,6 +176,7 @@ export class BotModePrefs {
     this.storage = storage;
     this.source = createSnapshotStore<BotModePrefsSnapshot>({
       motionPreference: DEFAULT_BOT_MODE_MOTION,
+      botIcon: DEFAULT_BOT_MODE_ICON,
       effectiveMotion: resolveEffectiveMotion(DEFAULT_BOT_MODE_MOTION, this.systemReduced),
       sortMode: DEFAULT_BOT_MODE_SORT,
       sortModes: {},
@@ -232,6 +244,18 @@ export class BotModePrefs {
     if (this.host !== undefined) {
       this.persist(this.host.set(BOT_MODE_MOTION_FIELD, preference));
     }
+  }
+
+  /**
+   * Publish and persist the Bot mark.
+   * @param icon - Mascot artwork, a generated blob, or the generic bot glyph.
+   */
+  setBotIcon(icon: BotModeIcon): void {
+    if (this.source.getSnapshot().botIcon === icon) return;
+    this.source.update((draft) => {
+      draft.botIcon = icon;
+    });
+    if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_ICON_FIELD, icon));
   }
 
   /**
@@ -329,6 +353,7 @@ export class BotModePrefs {
         draft.effectiveMotion = resolveEffectiveMotion(motionPreference, this.systemReduced);
         draft.sortMode = section.sortMode;
         draft.sortModes = { ...section.sortModes };
+        draft.botIcon = isBotModeIcon(section.botIcon) ? section.botIcon : DEFAULT_BOT_MODE_ICON;
       }
     });
     this.migrate(scope);

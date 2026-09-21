@@ -78,7 +78,7 @@
 BotHarness ComputerRegistry（application-defined 全局服务；durable 分配表落 storage domain 或 workspace 文件）
   → provider 实现：local-docker / cloud-desktop / browser-cloud / local-host
   → 观看：同源认证 route 提供 viewer HTML/JS + iframe；或 canvas + 插件自有 WS（VNC/RFB 二进制，registerUpgrade + requestRejection）
-  → 控制面 JSON（状态/活动/输入 ack）：Typert Remote stream（注意改 descriptor 要重启 DSH，pitfall #11）
+  → 控制面 JSON（状态/活动/输入 ack）：Typert Remote stream（注意改 descriptor 要重启 DSH，pitfall #12）
   → UI：右栏 keyed tab（推荐）或 main 面板；人类接管按钮走同一条认证 route
 ```
 

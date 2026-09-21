@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from '../src/provider.js';
-import { createDockerComputerProvider, createPullTracker } from '../src/providers/docker.js';
+import {
+  DEFAULT_DOCKER_CONFIG,
+  createDockerComputerProvider,
+  createPullTracker,
+  parseDockerSize,
+} from '../src/providers/docker.js';
 
 function runnerWith(
   handler: (argv: readonly string[]) => ComputerRuntimeResult,
@@ -17,6 +22,28 @@ function runnerWith(
 
 const ok = (stdout = ''): ComputerRuntimeResult => ({ code: 0, stdout, stderr: '' });
 const fail = (stderr: string, code = 1): ComputerRuntimeResult => ({ code, stdout: '', stderr });
+
+/** One `docker inspect` spec line: image | memory | swap | nanoCpus | shm | pids | env. */
+function specLine(
+  patch: {
+    image?: string;
+    memory?: string;
+    swap?: string;
+    nanoCpus?: string;
+    shm?: string;
+    pids?: string;
+    env?: readonly string[];
+  } = {},
+): ComputerRuntimeResult {
+  const image = patch.image ?? 'lscr.io/linuxserver/webtop:ubuntu-xfce';
+  const memory = patch.memory ?? String(2 * 1024 ** 3);
+  const swap = patch.swap ?? memory;
+  const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
+  const shm = patch.shm ?? String(512 * 1024 ** 2);
+  const pids = patch.pids ?? '4096';
+  const env = patch.env ?? ['HARDEN_DESKTOP=true', 'PIXELFLUX_WAYLAND=false'];
+  return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
+}
 
 describe('Docker computer provider', () => {
   it('reports an unavailable runtime without throwing', async () => {
@@ -112,13 +139,54 @@ describe('Docker computer provider', () => {
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
         if (argv[1] === 'info') return ok('27.0.0');
-        if (argv[1] === 'inspect') return ok('exited\n');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
         return ok('ok');
       }, calls),
     });
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
     expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+  });
+
+  it('recreates a running container whose spec no longer matches', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine({ image: 'old-image:latest' });
+          return ok('running\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+  });
+
+  it('recreates the container when its spec no longer matches', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine({ image: 'old-image:latest' });
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(false);
   });
 
   it('surfaces a failed pull as a failed status with detail', async () => {
@@ -191,6 +259,170 @@ describe('Docker computer provider', () => {
     expect(verbs).toContain('run');
     const untar = calls.find((argv) => argv[1] === 'run');
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
+  });
+
+  it('recreates when a managed resource setting changed', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory'))
+            return specLine({ memory: String(4 * 1024 ** 3) });
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+  });
+
+  it('prepares the shortcut for a container that was already running', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('running\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(false);
+    expect((calls.find((argv) => argv[1] === 'exec') ?? []).join(' ')).toContain(
+      'chromium.desktop',
+    );
+  });
+
+  it('parses docker size strings', () => {
+    expect(parseDockerSize('2g')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('2gb')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('2G')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('512m')).toBe(512 * 1024 ** 2);
+    expect(parseDockerSize('512mb')).toBe(512 * 1024 ** 2);
+    expect(parseDockerSize('1024k')).toBe(1024 * 1024);
+    expect(parseDockerSize('1048576b')).toBe(1_048_576);
+    expect(parseDockerSize('1048576')).toBe(1_048_576);
+    expect(parseDockerSize('')).toBeUndefined();
+    expect(parseDockerSize('lots')).toBeUndefined();
+  });
+
+  it('never recreates for a size it cannot verify', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+      config: { memory: '2 gibibytes' },
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
+  });
+
+  it('bounds memory, swap and process count on the container', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('--memory 2g');
+    expect(run).toContain('--memory-swap 2g');
+    expect(run).toContain('--pids-limit 4096');
+    expect(run).toContain('--shm-size 512m');
+  });
+
+  it('ships 2C2G defaults that stay overridable per Host', async () => {
+    expect(DEFAULT_DOCKER_CONFIG).toMatchObject({
+      cpus: 2,
+      memory: '2g',
+      shmSize: '512m',
+      pidsLimit: 4096,
+      idleStopMinutes: 30,
+    });
+
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('Error: No such container');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+      config: { cpus: 4, memory: '4g', shmSize: '1g', pidsLimit: 8192 },
+    });
+    await provider.start();
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('--cpus 4');
+    expect(run).toContain('--memory 4g');
+    expect(run).toContain('--memory-swap 4g');
+    expect(run).toContain('--shm-size 1g');
+    expect(run).toContain('--pids-limit 8192');
+  });
+
+  it('prepares the Chromium shortcut in the volume after start', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const exec = (calls.find((argv) => argv[1] === 'exec') ?? []).join(' ');
+    expect(exec).toContain('chromium.desktop');
+  });
+
+  it('passes the requested desktop locale into the container', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        return ok('ok');
+      }, calls),
+      getLanguage: () => 'zh_CN.UTF-8',
+    });
+    await provider.start();
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('LANG=zh_CN.UTF-8');
+    expect(run).toContain('LC_ALL=zh_CN.UTF-8');
+  });
+
+  it('honors the hardening switch in the container environment', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        return ok('ok');
+      }, calls),
+      config: { hardenDesktop: false },
+    });
+    await provider.start();
+    const run = calls.find((argv) => argv[1] === 'run');
+    expect((run ?? []).join(' ')).toContain('HARDEN_DESKTOP=false');
   });
 
   it('restarts the Computer when export fails after stopping it', async () => {

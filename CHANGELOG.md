@@ -19,6 +19,14 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- The app sidebar's Bot mode switch stands taller with a larger mark and label: clicking the row again leaves Bot mode, and hovering reveals a settings gear that opens the Settings dialog on the Bot section ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
+
+- BotHarness now has its own Bot mark: the app sidebar's BOT-mode entry and the Bot settings section's navigation show the DeepSeekBot mascot (light and dark artwork), and the new Bot icon row switches it between the mascot, its simplified variant, a generated blob, or a generic bot glyph ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
+
+- BotHarness preferences now live in their own Bot settings section in the Settings dialog — the motion and BOT list sorting rows moved out of the native General page, and the Computer's settings, export/import, and resource bounds will follow there ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
+
+- The Computer now pulls the upstream webtop image (XFCE with Chromium) instead of a BotHarness-built Chrome image, and runs under explicit resource bounds — 2 CPUs and 2 GiB memory by default, swap pinned to the limit, 512 MB shared memory, 4096 processes, and a 30-minute idle stop, all overridable per Host: the image shrank by ~470 MB and resting memory fell from ~2.4 GiB to ~1.15 GiB ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
+
 - PersonaBot creation now provisions a real Git-backed Memory Repository and the Orchestrator Session runs inside it; reopening a repository never auto-commits a provisional working-tree edit ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 - Removed the model-visible `memory_read`, `memory_search`, `memory_write`, and `memory_list` tools; V1 works through ordinary file, Shell, grep, and git capabilities ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 

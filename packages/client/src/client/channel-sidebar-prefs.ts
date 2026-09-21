@@ -2,6 +2,19 @@ import { defaultStorage, type ConfigStorage } from './roster-config.js';
 
 const STORAGE_KEY = 'botharness.channel-sidebar';
 
+/** Docked Channel sidebar width, in CSS pixels. */
+export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 320;
+export const MIN_CHANNEL_SIDEBAR_WIDTH = 260;
+export const MAX_CHANNEL_SIDEBAR_WIDTH = 560;
+
+export function clampChannelSidebarWidth(width: number): number {
+  if (!Number.isFinite(width)) return DEFAULT_CHANNEL_SIDEBAR_WIDTH;
+  return Math.min(
+    MAX_CHANNEL_SIDEBAR_WIDTH,
+    Math.max(MIN_CHANNEL_SIDEBAR_WIDTH, Math.round(width)),
+  );
+}
+
 /**
  * Per-scope presentation preferences for the Channel sidebar. Expanded and
  * collapsed state is client-local, exactly like the left roster's section
@@ -12,6 +25,8 @@ export interface ChannelSidebarPrefsSnapshot {
   collapsedSidebars: readonly string[];
   /** `scopeKey/entryId` keys expanded by the Human. */
   expandedEntries: readonly string[];
+  /** Docked panel width in CSS pixels. */
+  width: number;
 }
 
 export interface ChannelSidebarPrefs {
@@ -21,11 +36,14 @@ export interface ChannelSidebarPrefs {
   setSidebarCollapsed(scopeKey: string, collapsed: boolean): void;
   isEntryExpanded(scopeKey: string, entryId: string): boolean;
   setEntryExpanded(scopeKey: string, entryId: string, expanded: boolean): void;
+  /** Sets the docked width, clamped to the supported range. */
+  setWidth(width: number): void;
 }
 
 const EMPTY: ChannelSidebarPrefsSnapshot = Object.freeze({
   collapsedSidebars: Object.freeze([]),
   expandedEntries: Object.freeze([]),
+  width: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
 });
 
 function stringList(value: unknown): readonly string[] {
@@ -57,9 +75,14 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       const raw = storage.getItem(STORAGE_KEY);
       if (raw === null) return EMPTY;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
+      const width = parsed['width'];
       return {
         collapsedSidebars: Object.freeze(stringList(parsed['collapsedSidebars'])),
         expandedEntries: Object.freeze(stringList(parsed['expandedEntries'])),
+        width:
+          typeof width === 'number'
+            ? clampChannelSidebarWidth(width)
+            : DEFAULT_CHANNEL_SIDEBAR_WIDTH,
       };
     } catch {
       return EMPTY;
@@ -75,6 +98,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
           JSON.stringify({
             collapsedSidebars: next.collapsedSidebars,
             expandedEntries: next.expandedEntries,
+            width: next.width,
           }),
         );
       } catch {
@@ -119,6 +143,11 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
         ...snapshot,
         expandedEntries: toggleIn(snapshot.expandedEntries, key, expanded),
       });
+    },
+    setWidth(width) {
+      const next = clampChannelSidebarWidth(width);
+      if (next === snapshot.width) return;
+      publish({ ...snapshot, width: next });
     },
   };
 }

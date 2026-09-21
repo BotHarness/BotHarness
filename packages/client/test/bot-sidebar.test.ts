@@ -150,6 +150,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
+  botIcon: 'mascot' as const,
   effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
@@ -207,6 +208,7 @@ beforeEach(() => {
   setRoster();
   prefs = {
     motionPreference: 'system',
+    botIcon: 'mascot' as const,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -450,12 +452,13 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('还没有 PersonaBot');
     expect(markup).toContain('创建第一个 PersonaBot');
     expect(markup).toContain('散装渠道');
-    expect(markup).toContain('placeholder="搜索 BOT 或频道"');
+    expect(markup).toContain('placeholder="搜索 Bot 或频道"');
   });
 
   it('renders the global sort menu from the shared policy store', () => {
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -496,6 +499,7 @@ describe('bot sidebar rows', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -577,6 +581,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -588,6 +593,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -615,6 +621,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -627,6 +634,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},

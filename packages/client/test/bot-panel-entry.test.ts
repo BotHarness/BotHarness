@@ -29,15 +29,39 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   };
 });
 
+import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { createBotPanelEntry } from '../src/client/bot-sidebar.js';
+import { zh, type BotHarnessKey, type BotHarnessTranslate } from '../src/client/locale.js';
+
+const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
+  selector({
+    motionPreference: 'system',
+    botIcon: 'mascot' as const,
+    effectiveMotion: 'full',
+    sortMode: 'updated',
+    sortModes: {},
+    mode: 'host',
+    status: 'ready',
+  })) as never;
+
+const t = ((key: BotHarnessKey): string => zh[key]) as unknown as BotHarnessTranslate;
+const openSettings = () => undefined;
 
 describe('bot panel entry', () => {
-  it('arms the row-wide exit target only while the panel is active', () => {
+  it('renders the chosen mark in both states', () => {
     const entry = createBotPanelEntry(() => undefined);
-    const inactive = renderToStaticMarkup(createElement(entry, { size: 16, active: false }));
-    const active = renderToStaticMarkup(createElement(entry, { size: 16, active: true }));
+    const inactive = renderToStaticMarkup(
+      createElement(entry, { size: 16, active: false, useBotModePrefs, openSettings, t }),
+    );
+    const active = renderToStaticMarkup(
+      createElement(entry, { size: 16, active: true, useBotModePrefs, openSettings, t }),
+    );
 
+    // The exit hit layer and the gear live in a portal into the shell row,
+    // which only exists in the browser; server rendering shows the mark.
+    expect(inactive).toContain('bh-bot-icon');
+    expect(active).toContain('bh-bot-icon');
+    expect(inactive).toContain('data-wide="true"');
     expect(inactive).not.toContain('bh-panel-glyph-hit');
-    expect(active).toContain('bh-panel-glyph-hit');
   });
 });

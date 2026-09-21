@@ -18,7 +18,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { BotModeRow } from '../src/client/bot-mode-row.js';
+import { BotSettingsSection } from '../src/client/bot-settings-section.js';
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
 
 const t = (key: BotHarnessKey): string => zh[key];
@@ -26,6 +26,7 @@ const t = (key: BotHarnessKey): string => zh[key];
 function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {
     motionPreference: 'system',
+    botIcon: 'mascot' as const,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -35,18 +36,20 @@ function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   };
 }
 
-function renderRow(
+function renderSection(
   prefs: BotModePrefsSnapshot,
   setSortMode: (mode: string) => void = () => undefined,
   setMotionPreference: (preference: string) => void = () => undefined,
+  setBotIcon: (icon: string) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
-    createElement(BotModeRow, {
+    createElement(BotSettingsSection, {
       t,
       useBotModePrefs: ((selector: (value: BotModePrefsSnapshot) => unknown) =>
         selector(prefs)) as never,
       setSortMode: setSortMode as never,
       setMotionPreference: setMotionPreference as never,
+      setBotIcon: setBotIcon as never,
     } as never),
   );
 }
@@ -57,22 +60,34 @@ function lastMenu(): Record<string, unknown> {
   return found;
 }
 
-function motionMenu(): Record<string, unknown> {
-  const found = captured.menus[0];
-  if (found === undefined) throw new Error('motion menu not rendered');
+function menuWithItem(id: string): Record<string, unknown> {
+  const found = captured.menus.find((menu) =>
+    ((menu['items'] as readonly Record<string, unknown>[] | undefined) ?? []).some(
+      (item) => item['id'] === id,
+    ),
+  );
+  if (found === undefined) throw new Error(`menu with ${id} not rendered`);
   return found;
+}
+
+function motionMenu(): Record<string, unknown> {
+  return menuWithItem('system');
+}
+
+function iconMenu(): Record<string, unknown> {
+  return menuWithItem('mascot');
 }
 
 beforeEach(() => {
   captured.menus.length = 0;
 });
 
-describe('BOT-mode General settings row', () => {
+describe('BotHarness settings section', () => {
   it('renders the row copy and the selected mode from the shared store', () => {
-    const markup = renderRow(snapshot({ sortMode: 'manual' }));
+    const markup = renderSection(snapshot({ sortMode: 'manual' }));
 
-    expect(markup).toContain('BOT 列表排序');
-    expect(markup).toContain('设置 BOT 模式列表的默认排序方式');
+    expect(markup).toContain('Bot 列表排序');
+    expect(markup).toContain('设置 Bot 模式列表的默认排序方式');
     expect(markup).toContain('手动排序');
     expect(markup).toContain('bh-settings-selector');
     expect(lastMenu()['selectedId']).toBe('manual');
@@ -83,7 +98,7 @@ describe('BOT-mode General settings row', () => {
 
   it('renders and writes the three-state motion preference with its effective preview', () => {
     const setMotionPreference = vi.fn();
-    const markup = renderRow(
+    const markup = renderSection(
       snapshot({ motionPreference: 'system', effectiveMotion: 'reduce' }),
       () => undefined,
       setMotionPreference,
@@ -108,7 +123,7 @@ describe('BOT-mode General settings row', () => {
 
   it('writes through the shared policy when an option is picked', () => {
     const setSortMode = vi.fn();
-    renderRow(snapshot(), setSortMode);
+    renderSection(snapshot(), setSortMode);
 
     const onSelect = lastMenu()['onSelect'] as (id: string) => void;
     onSelect('manual');
@@ -120,9 +135,22 @@ describe('BOT-mode General settings row', () => {
   });
 
   it('surfaces the memory-mode caveat instead of pretending persistence', () => {
-    const markup = renderRow(snapshot({ status: 'unavailable', mode: 'memory' }));
+    const markup = renderSection(snapshot({ status: 'unavailable', mode: 'memory' }));
 
     expect(markup).toContain('仅当前会话生效，不会保存');
-    expect(markup).not.toContain('设置 BOT 模式列表的默认排序方式');
+    expect(markup).not.toContain('设置 Bot 模式列表的默认排序方式');
+  });
+  it('renders the Bot icon choice and writes the picked mark', () => {
+    const setBotIcon = vi.fn();
+    const markup = renderSection(snapshot({ botIcon: 'blob' }), undefined, undefined, setBotIcon);
+    expect(markup).toContain('Bot 图标');
+    expect(markup).toContain('生成形象');
+    expect(iconMenu()['selectedId']).toBe('blob');
+    expect(
+      (iconMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
+    ).toEqual(['mascot', 'simple', 'blob', 'bot']);
+
+    (iconMenu()['onSelect'] as (id: string) => void)('bot');
+    expect(setBotIcon).toHaveBeenCalledWith('bot');
   });
 });

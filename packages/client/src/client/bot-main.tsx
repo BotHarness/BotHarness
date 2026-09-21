@@ -54,7 +54,7 @@ function Welcome({ state }: { state: ClientState }): ReactElement {
         <div className="bh-placeholder">
           <IconAgentPresetOutline16 size={32} />
           <div className="bh-big">与 PersonaBot 对话</div>
-          <div>从左侧选择一个 BOT 或频道开始</div>
+          <div>从左侧选择一个 Bot 或频道开始</div>
           {state.bots.length === 0 ? (
             <div className="bh-dim">还没有 PersonaBot；可从左侧「+」或空态按钮创建。</div>
           ) : null}
@@ -126,7 +126,7 @@ function EmptyConversation({
           #
         </span>
         <div className="bh-big">{channel.name}</div>
-        <div>群聊消息保存在本地；BOT 参与随 v1.1 到来。</div>
+        <div>群聊消息保存在本地；Bot 参与随 v1.1 到来。</div>
       </div>
     );
   }
@@ -144,7 +144,7 @@ function EmptyConversation({
       <div className="bh-big">
         {bot === undefined ? '本地对话' : `这是与 ${bot.displayName} 的本地对话`}
       </div>
-      <div>直接发消息即可；BOT 会自行安排事项，并在这里回复结果。</div>
+      <div>直接发消息即可；Bot 会自行安排事项，并在这里回复结果。</div>
     </div>
   );
 }

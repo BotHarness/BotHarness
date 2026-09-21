@@ -7,6 +7,7 @@ import type { Duplex } from 'node:stream';
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 
+import { createComputerDiagnostics } from './diagnostics.js';
 import { createIdleWatcher } from './idle.js';
 import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers/docker.js';
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
@@ -21,12 +22,27 @@ export interface ComputerConfig {
   containerName: string;
   volumeName: string;
   hostPort: number;
+  /** CPU cores the container may use. */
   cpus: number;
+  /** Hard memory ceiling, e.g. 2g; swap is pinned to the same value. */
   memory: string;
+  /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
+  /** Process-count ceiling so a runaway app cannot fork-bomb the host. */
+  pidsLimit: number;
+  /** Minutes without viewers before the Computer stops itself. */
   idleStopMinutes: number;
+  /** Removes terminals and sudo inside the Computer; off for a full desktop. */
+  hardenDesktop: boolean;
+  /** Desktop locale, e.g. zh_CN.UTF-8; defaults to the DSH locale preference. */
+  language: string;
   /** Human-chosen directory that holds Computer exports; empty disables export/import. */
   exportDir: string;
+}
+
+/** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
+export function desktopLocale(language: string): string {
+  return /^zh([-_]|$)/i.test(language) ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
 }
 
 export const DEFAULT_CONFIG: ComputerConfig = {
@@ -38,7 +54,10 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   cpus: DEFAULT_DOCKER_CONFIG.cpus,
   memory: DEFAULT_DOCKER_CONFIG.memory,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
+  pidsLimit: DEFAULT_DOCKER_CONFIG.pidsLimit,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
+  hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
+  language: DEFAULT_DOCKER_CONFIG.language,
   exportDir: '',
 };
 
@@ -51,7 +70,10 @@ export const Config = Schema.object({
   cpus: Schema.number().default(DEFAULT_CONFIG.cpus),
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
+  pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
+  hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
+  language: Schema.string().default(DEFAULT_CONFIG.language),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description('导出目录；为空时禁用导出/导入'),
@@ -128,9 +150,13 @@ export const VIEWER_PREFIX = '/botharness-computer/viewer';
 export function apply(ctx: Context, config: ComputerConfig): void {
   if (!config.enabled) return;
 
+  const diagnostics = createComputerDiagnostics();
   const service: ComputerService = createComputerService();
+  let requestedLanguage = '';
   const provider = createDockerComputerProvider({
     runner: createProcessRunner(),
+    onEvent: (detail) => diagnostics.record('container', detail),
+    getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
     config: {
       image: config.image,
       containerName: config.containerName,
@@ -139,7 +165,10 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       cpus: config.cpus,
       memory: config.memory,
       shmSize: config.shmSize,
+      pidsLimit: config.pidsLimit,
       idleStopMinutes: config.idleStopMinutes,
+      hardenDesktop: config.hardenDesktop,
+      language: config.language,
     },
   });
 
@@ -149,6 +178,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
 
   const log = (message: string): void => {
     ctx.logger.info(`botharness-computer: ${message}`);
+    diagnostics.record('lifecycle', message);
   };
 
   const watcher = createIdleWatcher({
@@ -205,8 +235,9 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
         let authorize = false;
+        let body: { authorize?: unknown; language?: unknown } = {};
         try {
-          const body = (await request.json()) as { authorize?: unknown };
+          body = (await request.json()) as { authorize?: unknown; language?: unknown };
           authorize = body.authorize === true;
         } catch {
           // An empty or non-JSON body never authorizes a start.
@@ -217,7 +248,13 @@ export function apply(ctx: Context, config: ComputerConfig): void {
             400,
           );
         }
-        log('start requested (panel)');
+        requestedLanguage =
+          typeof body.language === 'string' && body.language !== ''
+            ? desktopLocale(body.language)
+            : '';
+        log(
+          `start requested (panel)${requestedLanguage === '' ? '' : ` locale=${requestedLanguage}`}`,
+        );
         watcher.touch();
         void service.start().catch(() => undefined);
         return json({ ok: true, started: true });
@@ -295,6 +332,33 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(exportRoute),
       'botharness-computer: export route',
+    );
+
+    const diagnosticsRoute = {
+      path: '/api/computer/diagnostics',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (): Promise<Response> => json({ ok: true, events: diagnostics.tail() }),
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(diagnosticsRoute),
+      'botharness-computer: diagnostics route',
+    );
+
+    const viewerEventRoute = {
+      path: '/api/computer/diagnostics/viewer',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        const detail = typeof body.detail === 'string' ? body.detail.slice(0, 300) : '';
+        diagnostics.record('viewer', detail === '' ? 'viewer event' : detail);
+        return json({ ok: true });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(viewerEventRoute),
+      'botharness-computer: viewer diagnostics route',
     );
 
     const exportsRoute = {

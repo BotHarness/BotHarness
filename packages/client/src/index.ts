@@ -3,12 +3,15 @@ import type {} from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
 import {
+  BOT_MODE_ICON_FIELD,
+  BOT_MODE_ICONS,
   BOT_MODE_MOTION_FIELD,
   BOT_MODE_MOTION_PREFERENCES,
   BOT_MODE_NAMESPACE,
   BOT_MODE_SORT_FIELD,
   BOT_MODE_SORT_MODES,
   BOT_MODE_SORT_MODES_FIELD,
+  DEFAULT_BOT_MODE_ICON,
   DEFAULT_BOT_MODE_MOTION,
   DEFAULT_BOT_MODE_SORT,
   type BotModeSettings,
@@ -21,6 +24,7 @@ export const BotModeSettingsSchema: Schema<
   Partial<BotModeSettings>,
   BotModeSettings
 > = Schema.object({
+  [BOT_MODE_ICON_FIELD]: Schema.union([...BOT_MODE_ICONS]).default(DEFAULT_BOT_MODE_ICON),
   [BOT_MODE_MOTION_FIELD]: Schema.union([...BOT_MODE_MOTION_PREFERENCES]).default(
     DEFAULT_BOT_MODE_MOTION,
   ),

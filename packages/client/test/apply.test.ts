@@ -61,7 +61,12 @@ function fakeScope(): FakeScope {
   return {
     getSnapshot: () => ({
       status: 'ready',
-      value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: {},
+      },
       user: {},
       writable: true,
       mode: 'host',
@@ -118,7 +123,12 @@ describe('client apply', () => {
     apply(createScoped(specs, disposed) as never);
 
     expect(specs.map((spec) => spec.name)).toEqual(['sidebar.panellist', 'main']);
-    expect(specs[0]).toMatchObject({ id: PANEL_ID, order: 10, label: 'BOT 模式' });
+    expect(specs[0]).toMatchObject({
+      id: PANEL_ID,
+      order: 10,
+      label: expect.any(Function),
+      locale: 'botharness',
+    });
     expect(specs[1]).toMatchObject({ key: PANEL_ID });
 
     store.setMode('bot');
@@ -139,18 +149,19 @@ describe('client apply', () => {
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 
-  it('registers the General settings row only while settingsScope is served', () => {
+  it('registers the BotHarness settings section only while settingsScope is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];
     apply(createScoped(specs, disposed, true) as never);
 
-    const row = specs.find((spec) => spec.name === 'settings.general.item');
-    expect(row).toMatchObject({ id: 'bot-mode-sort', order: 30, locale: 'botharness' });
-    expect(row?.inject).toBeTypeOf('function');
+    const section = specs.find((spec) => spec.name === 'settings.section');
+    expect(section).toMatchObject({ id: 'botharness', order: 25, locale: 'botharness' });
+    expect(section?.inject).toBeTypeOf('function');
+    expect(section?.label).toBeTypeOf('function');
 
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);
-    expect(withoutSettings.some((spec) => spec.name === 'settings.general.item')).toBe(false);
+    expect(withoutSettings.some((spec) => spec.name === 'settings.section')).toBe(false);
   });
 });

@@ -30,24 +30,39 @@ export interface DockerComputerConfig {
   readonly cpus: number;
   readonly memory: string;
   readonly shmSize: string;
+  /** Caps the container's process count so a runaway app cannot fork-bomb the host. */
+  readonly pidsLimit: number;
   readonly idleStopMinutes: number;
+  /** HARDEN_DESKTOP removes terminals/sudo; a full desktop usually wants it off. */
+  readonly hardenDesktop: boolean;
+  /** Locale the desktop runs in, e.g. zh_CN.UTF-8. */
+  readonly language: string;
 }
 
 export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
-  image: 'lscr.io/linuxserver/chrome:latest',
+  // The upstream webtop image already ships an XFCE desktop, Chromium and the
+  // en_US/zh_CN locales, so BotHarness pulls it instead of building its own.
+  image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
   hostPort: 39_001,
   containerPort: 3000,
   cpus: 2,
-  memory: '4g',
-  shmSize: '1g',
+  memory: '2g',
+  shmSize: '512m',
+  pidsLimit: 4096,
   idleStopMinutes: 30,
+  hardenDesktop: true,
+  language: 'en_US.UTF-8',
 };
 
 interface DockerComputerProviderOptions {
   readonly runner: ComputerRuntimeRunner;
   readonly config?: Partial<DockerComputerConfig>;
+  /** Receives container state transitions for the plugin diagnostics stream. */
+  readonly onEvent?: (detail: string) => void;
+  /** Resolved at start time so a viewer can choose the desktop language. */
+  readonly getLanguage?: () => string;
 }
 
 function combine(config: Partial<DockerComputerConfig> | undefined): DockerComputerConfig {
@@ -101,11 +116,28 @@ export function createPullTracker(now: () => number = Date.now): {
   };
 }
 
+/** Parses a docker size string (`2g`, `2gb`, `512m`, `1048576`) into bytes. */
+export function parseDockerSize(value: string): number | undefined {
+  const match = /^(\d+(?:\.\d+)?)\s*([kmg]?b?)$/i.exec(value.trim());
+  if (match === null) return undefined;
+  const amount = Number(match[1] ?? '');
+  if (!Number.isFinite(amount)) return undefined;
+  const unit = (match[2] ?? '').toLowerCase();
+  const factor = unit.startsWith('g')
+    ? 1024 ** 3
+    : unit.startsWith('m')
+      ? 1024 ** 2
+      : unit.startsWith('k')
+        ? 1024
+        : 1;
+  return Math.round(amount * factor);
+}
+
 export function createDockerComputerProvider(
   options: DockerComputerProviderOptions,
 ): ComputerProvider {
   const config = combine(options.config);
-  const { runner } = options;
+  const { runner, onEvent, getLanguage } = options;
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
@@ -113,6 +145,7 @@ export function createDockerComputerProvider(
   let pullProgress: ComputerProgress | undefined;
   let lifecycle: Promise<unknown> = Promise.resolve();
   let cancelRequested = false;
+  let lastObservedState: string | undefined;
 
   /** Serializes lifecycle operations so a stop cannot race an in-flight start. */
   const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
@@ -144,28 +177,116 @@ export function createDockerComputerProvider(
     return { available: true };
   };
 
+  const observe = (state: string, detail: string | undefined): void => {
+    if (lastObservedState === state) return;
+    const from = lastObservedState ?? 'unknown';
+    lastObservedState = state;
+    onEvent?.(`container ${from} → ${state}${detail === undefined ? '' : ` (${detail})`}`);
+  };
+
   const inspect = async (): Promise<ComputerStatus> => {
     const result = await runner.run([
       'docker',
       'inspect',
       '--format',
-      '{{.State.Status}}',
+      '{{.State.Status}} {{.State.ExitCode}}',
       config.containerName,
     ]);
     if (result.code !== 0) {
       running = false;
+      observe('absent', undefined);
       return { state: 'absent' };
     }
-    const status = result.stdout.trim();
+    const [status = '', exitCode = ''] = result.stdout.trim().split(/\s+/);
     running = status === 'running';
-    if (running) return { state: 'running' };
-    return status === '' ? { state: 'stopped' } : { state: 'stopped', detail: status };
+    if (running) {
+      observe('running', undefined);
+      return { state: 'running' };
+    }
+    const detail = status === '' ? undefined : `${status} code=${exitCode}`;
+    observe(status === '' ? 'stopped' : status, detail);
+    return detail === undefined ? { state: 'stopped' } : { state: 'stopped', detail };
   };
 
   const fail = (message: string): never => {
     phase = 'failed';
     detail = message;
     throw failure(message);
+  };
+
+  /** The image the existing container was created from, if it still exists. */
+  const containerImage = async (): Promise<string | undefined> => {
+    const result = await runner.run([
+      'docker',
+      'inspect',
+      '--format',
+      '{{.Config.Image}}',
+      config.containerName,
+    ]);
+    return result.code === 0 ? result.stdout.trim() : undefined;
+  };
+
+  /**
+   * `docker start` applies none of the `docker run` arguments, so a container
+   * whose image or managed settings changed must be recreated — the named
+   * volume keeps the desktop. The locale is deliberately excluded: it follows
+   * the viewer's language, and recreating a live desktop to change its locale
+   * would destroy work in progress, so it applies on the next creation.
+   * Returns true when the container was removed.
+   */
+  const recreateIfSpecChanged = async (): Promise<boolean> => {
+    const spec = await runner.run([
+      'docker',
+      'inspect',
+      '--format',
+      '{{.Config.Image}}|{{.HostConfig.Memory}}|{{.HostConfig.MemorySwap}}|{{.HostConfig.NanoCpus}}|{{.HostConfig.ShmSize}}|{{.HostConfig.PidsLimit}}|{{range .Config.Env}}{{println .}}{{end}}',
+      config.containerName,
+    ]);
+    if (spec.code !== 0) return false;
+    const [image = '', memory = '', swap = '', nanoCpus = '', shmSize = '', pids = '', ...env] =
+      spec.stdout.split('|');
+    const expectedMemory = parseDockerSize(config.memory);
+    const expectedShm = parseDockerSize(config.shmSize);
+    const envText = env.join('|');
+    const managedEnv = [
+      `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
+      'PIXELFLUX_WAYLAND=false',
+    ];
+    // An unparseable configured size cannot be verified, so it never forces a
+    // recreate: an unknown value must not restart the desktop on every start.
+    const matches =
+      image.trim() === config.image &&
+      (expectedMemory === undefined || memory.trim() === String(expectedMemory)) &&
+      (expectedMemory === undefined || swap.trim() === String(expectedMemory)) &&
+      nanoCpus.trim() === String(Math.round(config.cpus * 1_000_000_000)) &&
+      (expectedShm === undefined || shmSize.trim() === String(expectedShm)) &&
+      pids.trim() === String(config.pidsLimit) &&
+      managedEnv.every((entry) => envText.includes(entry));
+    if (matches) return false;
+    const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
+    if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
+    running = false;
+    observe('absent', `spec changed (${image.trim()} → ${config.image})`);
+    return true;
+  };
+
+  /**
+   * The base image ships Chromium, but a shortcut inside the volume is only
+   * created at start: build-time writes under /config are shadowed by the
+   * mounted volume, and the volume may predate this version. Best effort.
+   */
+  const ensureDesktopShortcut = async (): Promise<void> => {
+    const result = await runner.run([
+      'docker',
+      'exec',
+      config.containerName,
+      'sh',
+      '-c',
+      'test -f /config/Desktop/chromium.desktop || { mkdir -p /config/Desktop && cp -f /usr/share/applications/chromium.desktop /config/Desktop/chromium.desktop && chmod +x /config/Desktop/chromium.desktop && chown abc:abc /config/Desktop /config/Desktop/chromium.desktop; }; command -v google-chrome-stable >/dev/null 2>&1 || rm -f /config/Desktop/google-chrome.desktop',
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('desktop shortcut could not be prepared');
+    }
   };
 
   const runStart = async (): Promise<void> => {
@@ -177,12 +298,13 @@ export function createDockerComputerProvider(
     }
     const existing = await inspect();
     throwIfCancelled();
-    if (existing.state === 'running') {
+    if (existing.state === 'running' && !(await recreateIfSpecChanged())) {
       phase = 'running';
       detail = undefined;
+      await ensureDesktopShortcut();
       return;
     }
-    if (existing.state === 'stopped') {
+    if (existing.state === 'stopped' && !(await recreateIfSpecChanged())) {
       phase = 'starting';
       detail = '正在启动已有容器…';
       throwIfCancelled();
@@ -193,13 +315,14 @@ export function createDockerComputerProvider(
       phase = 'running';
       detail = undefined;
       running = true;
+      await ensureDesktopShortcut();
       return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
     throwIfCancelled();
     if (image.code !== 0) {
       phase = 'pulling';
-      detail = '正在拉取镜像（首次约 1.2 GB，请耐心等待）…';
+      detail = '正在拉取镜像（首次约 1.5 GB，请耐心等待）…';
       const tracker = createPullTracker();
       pullProgress = tracker.snapshot();
       const pull: ComputerRuntimeResult =
@@ -234,12 +357,20 @@ export function createDockerComputerProvider(
       String(config.cpus),
       '--memory',
       config.memory,
+      '--memory-swap',
+      config.memory,
+      '--pids-limit',
+      String(config.pidsLimit),
       '--shm-size',
       config.shmSize,
       '-p',
       `127.0.0.1:${config.hostPort}:${config.containerPort}`,
       '-e',
-      'HARDEN_DESKTOP=true',
+      `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
+      '-e',
+      `LANG=${getLanguage?.() ?? config.language}`,
+      '-e',
+      `LC_ALL=${getLanguage?.() ?? config.language}`,
       '-e',
       'PIXELFLUX_WAYLAND=false',
       '-v',
@@ -260,6 +391,7 @@ export function createDockerComputerProvider(
     phase = 'running';
     detail = undefined;
     running = true;
+    await ensureDesktopShortcut();
   };
 
   const withDetail = (status: ComputerStatus): ComputerStatus => {
