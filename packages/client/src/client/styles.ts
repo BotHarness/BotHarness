@@ -333,29 +333,32 @@ export const CSS =
    horizontal insets；active 时同一条行内命中层把再次点击变成退出模式。 */
 button:has(.bh-panel-glyph) {
   position: relative;
+  overflow: hidden;
   width: auto;
   margin-inline: 2px;
 }
-.bh-panel-glyph {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
-/* The Bot mode switch wears the mascot as a 10%-opacity backdrop. */
-.bh-panel-glyph::before {
+/* The Bot mode switch: the button keeps its own background, the transparent
+   mascot is scaled to twice the fitted size and anchored bottom-left as a
+   texture layer, and the chosen mark sits above it. */
+button:has(.bh-panel-glyph)::before {
   content: '';
   position: absolute;
-  inset: -2px;
-  background: url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI}) center / contain no-repeat;
+  left: 0;
+  bottom: 0;
+  width: 200%;
+  height: 200%;
+  background: url(${DEEPSEEKBOT_TRANSPARENT_DATA_URI}) left bottom / contain no-repeat;
   opacity: 0.1;
   pointer-events: none;
 }
 
-.bh-panel-glyph > .bh-bot-icon {
+.bh-panel-glyph {
   position: relative;
   z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 .bh-panel-glyph-hit {
   position: absolute;
