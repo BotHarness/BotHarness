@@ -29,7 +29,11 @@ export interface CreatePersonaBotInput {
 
 export type CreatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
-  | { ok: false; reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' };
+  | {
+      ok: false;
+      reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' | 'memory-unavailable';
+      detail?: string;
+    };
 
 export interface PersonaBotPatch {
   displayName?: string;

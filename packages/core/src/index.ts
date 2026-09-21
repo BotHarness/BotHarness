@@ -148,8 +148,12 @@ export type {
   MemoryTreeOverflow,
 } from './memory/tree.js';
 export type { MemorySearchHit } from './memory/search.js';
-export { createMemoryTools } from './memory/tools.js';
-export type { MemoryToolsOptions } from './memory/tools.js';
+export { ensureMemoryRepository, inspectMemoryRepository } from './memory/repository.js';
+export type {
+  MemoryRepositoryFailureCode,
+  MemoryRepositoryInspection,
+  MemoryRepositoryResult,
+} from './memory/repository.js';
 export { createMemoryService } from './memory/service.js';
 export type { MemoryAgentRef, MemoryService, MemoryServiceOptions } from './memory/service.js';
 export {

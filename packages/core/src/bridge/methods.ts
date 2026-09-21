@@ -223,9 +223,9 @@ function asNonBlank(source: Record<string, unknown>, key: string): string | unde
 
 function createFailure(
   slug: string,
-  reason: Extract<CreatePersonaBotResult, { ok: false }>['reason'],
+  failure: Extract<CreatePersonaBotResult, { ok: false }>,
 ): BridgeResult<never> {
-  switch (reason) {
+  switch (failure.reason) {
     case 'duplicate':
       return {
         ok: false,
@@ -235,6 +235,14 @@ function createFailure(
       return { ok: false, error: { code: 'invalid-slug', message: `invalid slug: ${slug}` } };
     case 'invalid-memory-dir':
       return invalidInput('memoryDir must be an absolute path');
+    case 'memory-unavailable':
+      return {
+        ok: false,
+        error: {
+          code: 'memory-unavailable',
+          message: `Memory Repository is unavailable: ${failure.detail ?? 'unknown reason'}`,
+        },
+      };
   }
 }
 
@@ -350,7 +358,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(workspaces.value === undefined ? {} : { workspaces: workspaces.value }),
         ...(avatarSeed.value === undefined ? {} : { avatar: avatarSeed.value }),
       });
-      if (!result.ok) return createFailure(slug, result.reason);
+      if (!result.ok) return createFailure(slug, result);
       return { ok: true, value: detailOf(result.record) };
     },
     update(payload) {

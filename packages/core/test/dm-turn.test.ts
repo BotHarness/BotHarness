@@ -93,7 +93,7 @@ describe('DM turn end to end', () => {
       botSlug: 'ada',
       provenance: 'created',
       parentSessionId: undefined,
-      cwdReference: `${dshHome}/botharness/runtime-workspaces/ada`,
+      cwdReference: `${dshHome}/botharness/bots/ada/memory`,
     });
     expect(assignment).toMatchObject({
       botSlug: 'ada',

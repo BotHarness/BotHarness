@@ -3,7 +3,6 @@ import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
 import { remoteMethods } from '@deepseek-ai/dsh-typert-protocol';
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import {
@@ -17,7 +16,7 @@ import {
 import { attachOperationalModule } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createSessionOwnership } from '../src/sessions/ownership.js';
-import { createTempRoot } from './helpers.js';
+import { createTempRoot, remember } from './helpers.js';
 import { createFakeRosterDomain } from './roster-fixture.js';
 
 interface Stubs {
@@ -74,7 +73,7 @@ describe('plugin entry', () => {
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
   });
 
-  it('provides the core and registers memory tools', () => {
+  it('provides the core without model-visible memory tools', () => {
     const { ctx, stubs } = createStubContext();
 
     apply(ctx, { enabled: true });
@@ -89,13 +88,7 @@ describe('plugin entry', () => {
       roster: expect.anything(),
       runtime: expect.anything(),
     });
-    expect(stubs.tools.register).toHaveBeenCalledTimes(4);
-    expect(stubs.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([
-      'memory_list',
-      'memory_read',
-      'memory_search',
-      'memory_write',
-    ]);
+    expect(stubs.tools.register).not.toHaveBeenCalled();
   });
 
   it('rebuilds the activity projection from owned Session logs and follows live events', () => {
@@ -194,7 +187,7 @@ describe('plugin entry', () => {
           at: '2026-09-21T00:00:00.000Z',
         }),
       ).toThrow(/recovery mode/);
-      expect(stubs.tools.register).toHaveBeenCalledTimes(4);
+      expect(stubs.tools.register).not.toHaveBeenCalled();
       expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
       expect(ctx.get('botharnessBridge')).toBeDefined();
     } finally {
@@ -303,43 +296,38 @@ describe('plugin entry', () => {
     }
   });
 
-  it('wires the memory store into the registered memory tools and tree section', async () => {
+  it('resolves memory by Session ownership and feeds the tree prompt section', async () => {
     const home = createTempRoot('botharness-plugin-');
-    const workspace = join(home, 'workspace');
-    mkdirSync(workspace);
     vi.stubEnv('DSH_HOME', home);
     try {
       const { ctx, stubs } = createStubContext();
       apply(ctx, { enabled: true });
 
-      const core = ctx.get('botharness') as { registry: PersonaBotRegistry } | undefined;
+      const core = ctx.get('botharness') as BotHarnessCore | undefined;
       expect(core).toBeDefined();
-      core?.registry.create({ slug: 'local-bot', displayName: 'Local', workspaces: [workspace] });
+      const created = core?.registry.create({ slug: 'local-bot', displayName: 'Local' });
+      expect(created?.ok).toBe(true);
+      core?.ownership.claim({
+        sessionId: 'orchestrator-local',
+        botSlug: 'local-bot',
+        rootRole: 'orchestrator',
+        at: '2026-09-21T00:00:00.000Z',
+      });
 
-      const tools = stubs.tools.register.mock.calls.map(
-        (call) => call[0] as ToolDefinition | undefined,
-      );
-      const write = tools.find((tool) => tool?.name === 'memory_write');
-      const read = tools.find((tool) => tool?.name === 'memory_read');
-      expect(write).toBeDefined();
-      expect(read).toBeDefined();
-      const exec = {
-        agent: { session: { header: { cwd: workspace } } },
-      } as unknown as ToolRunContext;
-
-      await write?.execute(
-        {
-          path: 'confidences.md',
-          body: 'tea over coffee\n',
-          summary: 'Preference',
-        },
-        exec,
-      );
-      expect(await read?.execute({ path: 'confidences.md' }, exec)).toBe('tea over coffee\n');
+      const store = core?.memory.storeForSession('orchestrator-local');
+      expect(store).toBeDefined();
+      await remember(store!, {
+        path: 'confidences.md',
+        body: 'tea over coffee\n',
+        summary: 'Preference',
+      });
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
       const tree = sections.find((section) => section?.name === 'botharness:memory-tree');
-      expect(tree?.text({ agent: exec.agent })).toContain('confidences.md — Preference');
+      expect(tree?.text({ agent: { session: { id: 'orchestrator-local' } } })).toContain(
+        'confidences.md — Preference',
+      );
+      expect(core?.memory.storeForSession('unowned-session')).toBeUndefined();
     } finally {
       vi.unstubAllEnvs();
     }
