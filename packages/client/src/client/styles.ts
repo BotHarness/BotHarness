@@ -338,45 +338,10 @@ button:has(.bh-panel-glyph) {
   margin-inline: 2px;
 }
 
-/* Wide Bot row: the row itself goes transparent and its shape splits into two
-   blocks — a full-height mark on the left, and the rounded label block that
-   carries the settings gear on the right — with a gap between them. */
+/* The Bot row keeps its native shape and simply stands taller than the other
+   sidebar rows, so the mark and label sit in a roomier pill. */
 button:has(.bh-panel-glyph[data-wide='true']) {
-  min-height: 40px;
-  gap: 6px;
-  padding: 0;
-  background: transparent;
-}
-
-button:has(.bh-panel-glyph[data-wide='true']):hover {
-  background: transparent;
-}
-
-button:has(.bh-panel-glyph[data-wide='true']) .bh-panel-glyph {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-}
-
-button:has(.bh-panel-glyph[data-wide='true']) .bh-panel-glyph > .bh-bot-icon {
-  width: 100%;
-  height: 100%;
-}
-
-button:has(.bh-panel-glyph[data-wide='true']) .bh-panel-title {
-  display: block;
-  flex: 1;
-  min-width: 0;
-  margin: 4px 4px 4px 0;
-  padding: 0 30px 0 10px;
-  border-radius: 10px;
-  line-height: 32px;
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-
-button:has(.bh-panel-glyph[data-wide='true']):hover .bh-panel-title,
-button:has(.bh-panel-glyph[data-wide='true']):has(.bh-panel-gear) .bh-panel-title {
-  background: var(--dsw-alias-interactive-bg-active);
+  min-height: 44px;
 }
 
 /* The Bot mode switch: the button keeps its own background, the transparent

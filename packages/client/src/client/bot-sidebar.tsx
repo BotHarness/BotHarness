@@ -115,15 +115,7 @@ export function BotPanelIcon({
   const wide = size === 16;
 
   useEffect(() => {
-    const button = glyph.current?.closest('button') ?? null;
-    setRow(button);
-    // Mark the shell's own label block so the wide-mode shape can style it
-    // (the shell renders it only while the sidebar is wide).
-    const title = button?.querySelector(':scope > span:not(.bh-panel-glyph)') as HTMLElement | null;
-    title?.classList.add('bh-panel-title');
-    return () => {
-      title?.classList.remove('bh-panel-title');
-    };
+    setRow(glyph.current?.closest('button') ?? null);
   }, [size]);
 
   return (
