@@ -88,15 +88,19 @@ describe('Channel composer', () => {
     expect(key({ key: 'a' })).toBe(false);
   });
 
-  it('grows to a bounded height and switches to internal scrolling', () => {
+  it('grows, shrinks back to one line, and switches to bounded scrolling', () => {
     const style = { height: '', overflowY: '' };
-    expect(fitComposerTextarea({ scrollHeight: 34, style } as never)).toBe(false);
-    expect(style).toEqual({ height: '34px', overflowY: 'hidden' });
+    const element = { scrollHeight: 88, style };
 
-    expect(fitComposerTextarea({ scrollHeight: 88, style } as never)).toBe(true);
+    expect(fitComposerTextarea(element as never)).toBe(true);
     expect(style).toEqual({ height: '88px', overflowY: 'hidden' });
 
-    expect(fitComposerTextarea({ scrollHeight: 220, style } as never)).toBe(true);
+    element.scrollHeight = 34;
+    expect(fitComposerTextarea(element as never)).toBe(false);
+    expect(style).toEqual({ height: '34px', overflowY: 'hidden' });
+
+    element.scrollHeight = 220;
+    expect(fitComposerTextarea(element as never)).toBe(true);
     expect(style).toEqual({ height: '144px', overflowY: 'auto' });
   });
 });

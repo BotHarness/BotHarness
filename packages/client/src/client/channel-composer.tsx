@@ -92,6 +92,22 @@ export function ChannelComposer({
     setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
   }, [value]);
 
+  useEffect(() => {
+    const element = inputRef.current;
+    if (element === null || typeof ResizeObserver === 'undefined') return;
+
+    let width = element.clientWidth;
+    const observer = new ResizeObserver(([entry]) => {
+      const nextWidth = entry?.contentRect.width;
+      if (nextWidth === undefined || nextWidth === width) return;
+      width = nextWidth;
+      const nextExpanded = fitComposerTextarea(element);
+      setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} />
@@ -108,6 +124,8 @@ export function ChannelComposer({
             value={value}
             disabled={sending}
             onChange={(event) => {
+              const nextExpanded = fitComposerTextarea(event.currentTarget);
+              setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
               onChange(event.target.value);
             }}
             onKeyDown={(event) => {

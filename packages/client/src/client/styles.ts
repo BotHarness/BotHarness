@@ -1177,12 +1177,11 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border: 0;
   outline: none;
   resize: none;
-  padding: 6px 8px;
+  padding: 7px 8px 5px;
   background: transparent;
   color: var(--dsw-alias-label-primary);
   line-height: 22px;
   overflow-wrap: anywhere;
-  transition: height 180ms var(--ds-ease-in-out);
 }
 .bh-composer-input::placeholder {
   color: var(--dsw-alias-label-dimmed);
@@ -1215,7 +1214,6 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-radius: 50%;
 }
 html[data-botharness-motion='reduce'] .bh-composer,
-html[data-botharness-motion='reduce'] .bh-composer-input,
 html[data-botharness-motion='reduce'] .bh-composer-footer {
   transition: none;
 }

@@ -125,6 +125,8 @@ describe('client styles', () => {
       /\.bh-composer-activity-facepile \.bh-persona-avatar::before \{[^}]*display: none/,
     );
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
+    expect(source).toMatch(/\.bh-composer-input \{[^}]*padding: 7px 8px 5px/);
+    expect(source).not.toMatch(/\.bh-composer-input \{[^}]*transition:/);
     expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
     expect(source).toMatch(/\.bh-composer-expanded \.bh-composer-footer \{[^}]*bottom: 8px/);
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
