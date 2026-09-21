@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
+import { readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
+import { join } from 'node:path';
 import type { Duplex } from 'node:stream';
 
 import type { Context } from '@deepseek-ai/cordis';
@@ -23,6 +25,8 @@ export interface ComputerConfig {
   memory: string;
   shmSize: string;
   idleStopMinutes: number;
+  /** Human-chosen directory that holds Computer exports; empty disables export/import. */
+  exportDir: string;
 }
 
 export const DEFAULT_CONFIG: ComputerConfig = {
@@ -35,6 +39,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   memory: DEFAULT_DOCKER_CONFIG.memory,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
+  exportDir: '',
 };
 
 export const Config = Schema.object({
@@ -47,7 +52,15 @@ export const Config = Schema.object({
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
+  exportDir: Schema.string()
+    .default(DEFAULT_CONFIG.exportDir)
+    .description('导出目录；为空时禁用导出/导入'),
 });
+
+/** Rejects archive names that could escape the configured export directory. */
+export function isSafeArchiveName(name: string): boolean {
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*\.tar$/.test(name) && !name.includes('..');
+}
 
 /** Runs one argv array through `node:child_process` without a shell. */
 export function createProcessRunner(): ComputerRuntimeRunner {
@@ -134,12 +147,19 @@ export function apply(ctx: Context, config: ComputerConfig): void {
   ctx.effect(() => release, 'botharness-computer: provider registration');
   ctx.provide('botharnessComputer', service);
 
+  const log = (message: string): void => {
+    ctx.logger.info(`botharness-computer: ${message}`);
+  };
+
   const watcher = createIdleWatcher({
     idleMs: Math.max(1, config.idleStopMinutes) * 60_000,
     onIdle: async () => {
       try {
         const status = await service.status();
-        if (status.state === 'running') await service.stop();
+        if (status.state === 'running') {
+          log(`idle stop after ${String(config.idleStopMinutes)} min without activity`);
+          await service.stop();
+        }
       } catch {
         // A provider that cannot answer is already unavailable; idle stop is best effort.
       }
@@ -169,7 +189,12 @@ export function apply(ctx: Context, config: ComputerConfig): void {
           .status()
           .catch((error: unknown) => ({ state: 'failed' as const, detail: String(error) }));
         if (status.state === 'running') watcher.touch();
-        return json({ provider: service.providerName ?? null, probe, status });
+        return json({
+          provider: service.providerName ?? null,
+          probe,
+          status,
+          exportDir: config.exportDir,
+        });
       },
     };
     connectionCtx.effect(
@@ -195,6 +220,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
             400,
           );
         }
+        log('start requested (panel)');
         watcher.touch();
         void service.start().catch(() => undefined);
         return json({ ok: true, started: true });
@@ -209,7 +235,21 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       path: '/api/computer/stop',
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
-      fetch: async (): Promise<Response> => {
+      fetch: async (request: Request): Promise<Response> => {
+        let authorize = false;
+        try {
+          const body = (await request.json()) as { authorize?: unknown };
+          authorize = body.authorize === true;
+        } catch {
+          // An empty or non-JSON body never authorizes a stop.
+        }
+        if (!authorize) {
+          return json(
+            { ok: false, code: 'authorize-required', error: 'explicit authorization required' },
+            400,
+          );
+        }
+        log('stop requested (panel)');
         try {
           await service.stop();
           return json({ ok: true });
@@ -221,6 +261,88 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(stopRoute),
       'botharness-computer: stop route',
+    );
+
+    const parseBody = async (request: Request): Promise<Record<string, unknown>> => {
+      try {
+        return (await request.json()) as Record<string, unknown>;
+      } catch {
+        return {};
+      }
+    };
+    const unauthorized = (): Response =>
+      json(
+        { ok: false, code: 'authorize-required', error: 'explicit authorization required' },
+        400,
+      );
+    const missingExportDir = (): Response =>
+      json({ ok: false, code: 'export-dir-missing', error: 'exportDir is not configured' }, 400);
+
+    const exportRoute = {
+      path: '/api/computer/export',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        if (body.authorize !== true) return unauthorized();
+        if (config.exportDir === '') return missingExportDir();
+        log('export requested (panel)');
+        try {
+          const archive = await service.exportTo(config.exportDir);
+          return json({ ok: true, archive });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(exportRoute),
+      'botharness-computer: export route',
+    );
+
+    const exportsRoute = {
+      path: '/api/computer/exports',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (): Promise<Response> => {
+        if (config.exportDir === '') return json({ ok: true, files: [] });
+        try {
+          const entries = await readdir(config.exportDir);
+          return json({ ok: true, files: entries.filter(isSafeArchiveName).sort() });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(exportsRoute),
+      'botharness-computer: exports route',
+    );
+
+    const importRoute = {
+      path: '/api/computer/import',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        if (body.authorize !== true) return unauthorized();
+        if (config.exportDir === '') return missingExportDir();
+        const file = typeof body.file === 'string' ? body.file : '';
+        if (!isSafeArchiveName(file)) {
+          return json({ ok: false, code: 'invalid-archive', error: 'invalid archive name' }, 400);
+        }
+        log(`import requested (panel): ${file}`);
+        try {
+          await service.importFrom(join(config.exportDir, file));
+          return json({ ok: true });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(importRoute),
+      'botharness-computer: import route',
     );
   });
 
@@ -249,7 +371,6 @@ export function apply(ctx: Context, config: ComputerConfig): void {
               writeHead(status: number, headers?: Record<string, string>): void;
               end(body?: Uint8Array | string): void;
             };
-            console.error('[bc] viewer hit', nodeRequest.url);
             const requestHeaders = new Headers();
             for (const [key, value] of Object.entries(nodeRequest.headers)) {
               if (Array.isArray(value)) for (const item of value) requestHeaders.append(key, item);
@@ -287,29 +408,33 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     );
 
     if (webServer.registerUpgrade !== undefined) {
-      ctx.effect(
-        () =>
-          webServer.registerUpgrade?.({
-            path: VIEWER_PREFIX,
-            handler: (request, socket, head) => {
-              const rejection = hostConnection?.requestRejection({
-                headers: request.headers as unknown as Headers,
-              });
-              if (rejection !== undefined) {
-                socket.destroy();
-                return;
-              }
-              const upstream = service.upstream();
-              if (upstream === undefined) {
-                socket.destroy();
-                return;
-              }
-              watcher.touch();
-              proxyUpgrade({ upstream, prefix: VIEWER_PREFIX, request, socket, head });
-            },
-          }) ?? (() => undefined),
-        'botharness-computer: viewer upgrade',
-      );
+      // Upgrades are exact-path in this DSH version, so register every socket
+      // path the upstream web VNC uses (Selkies serves its data socket there).
+      for (const socketPath of [`${VIEWER_PREFIX}/websockets`, `${VIEWER_PREFIX}/websocket`]) {
+        ctx.effect(
+          () =>
+            webServer.registerUpgrade?.({
+              path: socketPath,
+              handler: (request, socket, head) => {
+                const rejection = hostConnection?.requestRejection({
+                  headers: request.headers as unknown as Headers,
+                });
+                if (rejection !== undefined) {
+                  socket.destroy();
+                  return;
+                }
+                const upstream = service.upstream();
+                if (upstream === undefined) {
+                  socket.destroy();
+                  return;
+                }
+                watcher.touch();
+                proxyUpgrade({ upstream, prefix: VIEWER_PREFIX, request, socket, head });
+              },
+            }) ?? (() => undefined),
+          `botharness-computer: viewer upgrade ${socketPath}`,
+        );
+      }
     }
   });
 }

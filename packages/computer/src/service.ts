@@ -21,6 +21,10 @@ export interface ComputerService {
   start(): Promise<void>;
   stop(): Promise<void>;
   upstream(): URL | undefined;
+  /** Archives the Computer store into destDir; fails closed when unsupported. */
+  exportTo(destDir: string): Promise<string>;
+  /** Restores the Computer store from an archive; fails closed when unsupported. */
+  importFrom(archive: string): Promise<void>;
 }
 
 export function createComputerService(): ComputerService {
@@ -58,5 +62,19 @@ export function createComputerService(): ComputerService {
       await requireProvider().stop();
     },
     upstream: () => registration?.provider.upstream(),
+    exportTo: async (destDir: string) => {
+      const provider = requireProvider();
+      if (provider.exportTo === undefined) {
+        throw new Error(`botharness computer: provider "${provider.name}" cannot export`);
+      }
+      return provider.exportTo(destDir);
+    },
+    importFrom: async (archive: string) => {
+      const provider = requireProvider();
+      if (provider.importFrom === undefined) {
+        throw new Error(`botharness computer: provider "${provider.name}" cannot import`);
+      }
+      await provider.importFrom(archive);
+    },
   };
 }

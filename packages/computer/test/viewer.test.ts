@@ -16,6 +16,20 @@ describe('viewer header scrubbing', () => {
     expect(scrubbed.get('content-security-policy')).toBeNull();
     expect(scrubbed.get('content-type')).toBe('text/html');
   });
+
+  it('strips encoding headers that fetch already decoded', () => {
+    const headers = new Headers({
+      'content-encoding': 'br',
+      'content-length': '1234',
+      'transfer-encoding': 'chunked',
+      'content-type': 'text/html',
+    });
+    const scrubbed = scrubFramingHeaders(headers);
+    expect(scrubbed.get('content-encoding')).toBeNull();
+    expect(scrubbed.get('content-length')).toBeNull();
+    expect(scrubbed.get('transfer-encoding')).toBeNull();
+    expect(scrubbed.get('content-type')).toBe('text/html');
+  });
 });
 
 describe('upstream URL joining', () => {

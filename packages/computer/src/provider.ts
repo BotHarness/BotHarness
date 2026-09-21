@@ -31,7 +31,15 @@ export interface ComputerRuntimeProbe {
 export type ComputerState = 'absent' | 'stopped' | 'running' | 'failed';
 
 /** In-flight lifecycle phase for progress reporting; `idle` means nothing is running. */
-export type ComputerPhase = 'idle' | 'pulling' | 'starting' | 'running' | 'stopping' | 'failed';
+export type ComputerPhase =
+  | 'idle'
+  | 'pulling'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'exporting'
+  | 'importing'
+  | 'failed';
 
 /** Best-effort progress for a long-running operation. */
 export interface ComputerProgress {
@@ -62,4 +70,11 @@ export interface ComputerProvider {
   stop(): Promise<void>;
   /** Same-origin path the viewer proxies to, when the Computer is running. */
   upstream(): URL | undefined;
+  /**
+   * Archives the persistent store into `destDir` (stopping the Computer first)
+   * and returns the archive path. Optional: not every Execution World can.
+   */
+  exportTo?(destDir: string): Promise<string>;
+  /** Restores the persistent store from an archive and ensures the Computer runs. */
+  importFrom?(archive: string): Promise<void>;
 }

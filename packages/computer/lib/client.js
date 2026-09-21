@@ -12,6 +12,9 @@ window.__ModuleLoader__.load({
 		const STATUS_ENDPOINT = "/api/computer/status";
 		const START_ENDPOINT = "/api/computer/start";
 		const STOP_ENDPOINT = "/api/computer/stop";
+		const EXPORT_ENDPOINT = "/api/computer/export";
+		const EXPORTS_ENDPOINT = "/api/computer/exports";
+		const IMPORT_ENDPOINT = "/api/computer/import";
 		const VIEWER_SRC = "/botharness-computer/viewer/";
 		const APPROVED_KEY = "botharness-computer-start-approved";
 		async function requestJson(url, init) {
@@ -31,7 +34,9 @@ window.__ModuleLoader__.load({
 		const PHASE_LABEL = {
 			pulling: "正在拉取镜像",
 			starting: "正在启动容器",
-			stopping: "正在停止"
+			stopping: "正在停止",
+			exporting: "正在导出",
+			importing: "正在导入"
 		};
 		const AUTHORIZATION_POINTS = [
 			"检测本机容器运行时；缺失时只给出安装引导，不会自动安装",
@@ -121,6 +126,14 @@ window.__ModuleLoader__.load({
 			color: "inherit",
 			cursor: "pointer"
 		};
+		const footerStyle = {
+			display: "flex",
+			alignItems: "center",
+			gap: 8,
+			padding: "6px 12px",
+			borderTop: "1px solid var(--dsh-border, #3a3a3a)",
+			fontSize: 12
+		};
 		const primaryButtonStyle = {
 			...buttonStyle,
 			borderColor: "var(--dsh-accent, #4d6bfe)",
@@ -143,9 +156,12 @@ window.__ModuleLoader__.load({
 			const [busy, setBusy] = (0, react.useState)(false);
 			const [confirming, setConfirming] = (0, react.useState)(false);
 			const [approved, setApproved] = (0, react.useState)(() => globalThis.sessionStorage?.getItem(APPROVED_KEY) === "1");
-			const busySince = (0, react.useRef)(void 0);
+			const [busySince, setBusySince] = (0, react.useState)(void 0);
 			const [elapsed, setElapsed] = (0, react.useState)(0);
 			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
+			const [archives, setArchives] = (0, react.useState)([]);
+			const [showImport, setShowImport] = (0, react.useState)(false);
+			const [notice, setNotice] = (0, react.useState)();
 			const refresh = (0, react.useCallback)(async () => {
 				try {
 					setPayload(await requestJson(STATUS_ENDPOINT));
@@ -161,17 +177,20 @@ window.__ModuleLoader__.load({
 			}, [refresh]);
 			const phase = payload?.status.phase;
 			const progress = payload?.status.progress;
-			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping";
+			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
 			(0, react.useEffect)(() => {
 				if (!inProgress) {
-					busySince.current = void 0;
+					setBusySince(void 0);
 					setElapsed(0);
 					return;
 				}
-				busySince.current ??= Date.now();
+				setBusySince((current) => current ?? Date.now());
 				const timer = setInterval(() => {
 					setNowTs(Date.now());
-					if (busySince.current !== void 0) setElapsed(Math.round((Date.now() - busySince.current) / 1e3));
+					setBusySince((current) => {
+						if (current !== void 0) setElapsed(Math.round((Date.now() - current) / 1e3));
+						return current;
+					});
 				}, 1e3);
 				return () => clearInterval(timer);
 			}, [inProgress]);
@@ -198,6 +217,54 @@ window.__ModuleLoader__.load({
 				setConfirming(false);
 				post(START_ENDPOINT, { authorize: true });
 			}, [post]);
+			const exportNow = (0, react.useCallback)(async () => {
+				setNotice(void 0);
+				setBusy(true);
+				try {
+					const result = await requestJson(EXPORT_ENDPOINT, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({ authorize: true })
+					});
+					setNotice(result.archive === void 0 ? "已导出" : `已导出：${result.archive}`);
+					await refresh();
+				} catch (cause) {
+					setNotice(String(cause));
+				} finally {
+					setBusy(false);
+				}
+			}, [refresh]);
+			const openImport = (0, react.useCallback)(async () => {
+				setNotice(void 0);
+				try {
+					const result = await requestJson(EXPORTS_ENDPOINT);
+					setArchives(result.files ?? []);
+					setShowImport(true);
+					if ((result.files ?? []).length === 0) setNotice("导出目录里还没有归档文件");
+				} catch (cause) {
+					setNotice(String(cause));
+				}
+			}, []);
+			const importNow = (0, react.useCallback)(async (file) => {
+				setShowImport(false);
+				setBusy(true);
+				try {
+					await requestJson(IMPORT_ENDPOINT, {
+						method: "POST",
+						headers: { "content-type": "application/json" },
+						body: JSON.stringify({
+							authorize: true,
+							file
+						})
+					});
+					setNotice(`已从 ${file} 导入`);
+					await refresh();
+				} catch (cause) {
+					setNotice(String(cause));
+				} finally {
+					setBusy(false);
+				}
+			}, [refresh]);
 			if (!open) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 				type: "button",
 				style: launcherStyle,
@@ -208,135 +275,183 @@ window.__ModuleLoader__.load({
 			const unavailable = payload !== void 0 && !payload.probe.available;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: panelStyle,
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: barStyle,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Computer" }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: inProgress ? PHASE_LABEL[phase] ?? "处理中" : STATE_LABEL[state] }),
-						payload?.provider !== null && payload?.provider !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							style: { opacity: .6 },
-							children: payload.provider
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-						state === "running" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
-							disabled: busy || inProgress,
-							onClick: () => void post(STOP_ENDPOINT),
-							children: "停止"
-						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
-							disabled: busy || inProgress,
-							onClick: () => approved ? void post(START_ENDPOINT, { authorize: true }) : setConfirming(true),
-							children: "启动"
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
-							onClick: () => setOpen(false),
-							children: "关闭"
-						})
-					]
-				}), confirming ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: confirmStyle,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "授权启动 Computer" }),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							style: { opacity: .75 },
-							children: "启动会在你的机器上执行以下操作："
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
-							style: {
-								margin: 0,
-								paddingLeft: 18,
-								lineHeight: 1.7,
-								opacity: .85
-							},
-							children: AUTHORIZATION_POINTS.map((point) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: point }, point))
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
-							style: {
-								display: "flex",
-								gap: 6,
-								alignItems: "center",
-								opacity: .85
-							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-								type: "checkbox",
-								onChange: (event) => {
-									if (event.target.checked) {
-										globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
-										setApproved(true);
-									}
-								}
-							}), "本次会话内不再询问"]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								gap: 8,
-								justifyContent: "flex-end"
-							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: barStyle,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "Computer" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { children: inProgress ? PHASE_LABEL[phase] ?? "处理中" : STATE_LABEL[state] }),
+							payload?.provider !== null && payload?.provider !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: { opacity: .6 },
+								children: payload.provider
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+							state === "running" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
-								onClick: () => setConfirming(false),
-								children: "取消"
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								disabled: busy || inProgress,
+								onClick: () => void post(STOP_ENDPOINT, { authorize: true }),
+								children: busy || phase === "stopping" ? "停止中…" : "停止"
+							}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
-								style: primaryButtonStyle,
-								onClick: () => approve(true),
-								children: "授权并启动"
-							})]
-						})
-					]
-				}) : state === "running" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
-					title: "PersonaBot Computer",
-					src: VIEWER_SRC,
-					style: {
-						flex: 1,
-						width: "100%",
-						border: "none"
-					}
-				}) : inProgress ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-					style: progressStyle,
-					children: [
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								display: "flex",
-								justifyContent: "space-between"
-							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [PHASE_LABEL[phase] ?? "处理中", "…"] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-								style: { opacity: .8 },
-								children: progress?.percent === void 0 ? "" : `${String(progress.percent)}%`
-							})]
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bc-progress-track",
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-								className: progress?.percent === void 0 ? "bc-progress-bar" : "bc-progress-bar bc-progress-bar--determinate",
-								style: progress?.percent === void 0 ? void 0 : { width: `${String(progress.percent)}%` }
+								style: buttonStyle,
+								disabled: busy || inProgress,
+								onClick: () => approved ? void post(START_ENDPOINT, { authorize: true }) : setConfirming(true),
+								children: busy || phase === "starting" || phase === "pulling" ? "启动中…" : "启动"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								onClick: () => setOpen(false),
+								children: "关闭"
 							})
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-							className: "bc-terminal",
-							children: progress?.text ?? payload?.status.detail ?? "请稍候"
-						}),
-						/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: { opacity: .5 },
-							children: [
-								"已用时 ",
-								elapsed,
-								"s",
-								progress?.updatedAt === void 0 ? "" : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1e3)))}s 前`
-							]
-						})
-					]
-				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-					style: bodyStyle,
-					children: unavailable ? SETUP_GUIDANCE : error ?? payload?.status.detail ?? "点击「启动」创建并启动这台电脑。"
-				})]
+						]
+					}),
+					confirming ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: confirmStyle,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", { children: "授权启动 Computer" }),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: { opacity: .75 },
+								children: "启动会在你的机器上执行以下操作："
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("ul", {
+								style: {
+									margin: 0,
+									paddingLeft: 18,
+									lineHeight: 1.7,
+									opacity: .85
+								},
+								children: AUTHORIZATION_POINTS.map((point) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("li", { children: point }, point))
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("label", {
+								style: {
+									display: "flex",
+									gap: 6,
+									alignItems: "center",
+									opacity: .85
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+									type: "checkbox",
+									onChange: (event) => {
+										if (event.target.checked) {
+											globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
+											setApproved(true);
+										}
+									}
+								}), "本次会话内不再询问"]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									gap: 8,
+									justifyContent: "flex-end"
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									style: buttonStyle,
+									onClick: () => setConfirming(false),
+									children: "取消"
+								}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									style: primaryButtonStyle,
+									onClick: () => approve(true),
+									children: "授权并启动"
+								})]
+							})
+						]
+					}) : state === "running" ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+						title: "PersonaBot Computer",
+						src: VIEWER_SRC,
+						style: {
+							flex: 1,
+							width: "100%",
+							border: "none"
+						}
+					}) : inProgress ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: progressStyle,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									justifyContent: "space-between"
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("span", { children: [PHASE_LABEL[phase] ?? "处理中", "…"] }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+									style: { opacity: .8 },
+									children: progress?.percent === void 0 ? "" : `${String(progress.percent)}%`
+								})]
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: "bc-progress-track",
+								children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+									className: progress?.percent === void 0 ? "bc-progress-bar" : "bc-progress-bar bc-progress-bar--determinate",
+									style: progress?.percent === void 0 ? void 0 : { width: `${String(progress.percent)}%` }
+								})
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								className: "bc-terminal",
+								children: progress?.text ?? payload?.status.detail ?? "请稍候"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: { opacity: .5 },
+								children: [
+									"已用时 ",
+									elapsed,
+									"s",
+									progress?.updatedAt === void 0 ? "" : ` · 最后更新 ${String(Math.max(0, Math.round((nowTs - progress.updatedAt) / 1e3)))}s 前`
+								]
+							})
+						]
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: bodyStyle,
+						children: unavailable ? SETUP_GUIDANCE : error ?? payload?.status.detail ?? "点击「启动」创建并启动这台电脑。"
+					}),
+					payload?.exportDir !== void 0 && payload.exportDir !== "" && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: footerStyle,
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: busy || inProgress,
+								onClick: () => void exportNow(),
+								children: busy || phase === "exporting" ? "导出中…" : "导出"
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: busy || inProgress,
+								onClick: () => void openImport(),
+								children: busy || phase === "importing" ? "导入中…" : "导入"
+							}),
+							notice !== void 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								title: notice,
+								style: {
+									opacity: .7,
+									flex: 1,
+									overflow: "hidden",
+									textOverflow: "ellipsis",
+									whiteSpace: "nowrap"
+								},
+								children: notice
+							}),
+							showImport && archives.length > 0 && /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("select", {
+								defaultValue: "",
+								onChange: (event) => {
+									const file = event.target.value;
+									if (file !== "") importNow(file);
+								},
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+									value: "",
+									disabled: true,
+									children: "选择归档…"
+								}), archives.map((file) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", {
+									value: file,
+									children: file
+								}, file))]
+							})
+						]
+					})
+				]
 			});
 		}
 		function apply(ctx) {

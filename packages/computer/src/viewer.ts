@@ -10,16 +10,21 @@ import type { Duplex } from 'node:stream';
  * @module @botharness/computer/viewer
  */
 
-const FRAMING_HEADERS = [
+const SCRUBBED_HEADERS = [
   'x-frame-options',
   'content-security-policy',
   'content-security-policy-report-only',
+  // `fetch` already decodes the body, so forwarding the upstream encoding or
+  // its compressed length makes the browser fail with a content-encoding error.
+  'content-encoding',
+  'content-length',
+  'transfer-encoding',
 ] as const;
 
 /** Removes headers that would stop the DSH panel from embedding the upstream page. */
 export function scrubFramingHeaders(headers: Headers): Headers {
   const scrubbed = new Headers(headers);
-  for (const name of FRAMING_HEADERS) scrubbed.delete(name);
+  for (const name of SCRUBBED_HEADERS) scrubbed.delete(name);
   return scrubbed;
 }
 
@@ -58,7 +63,11 @@ export class ViewerProxy {
     }
     const target = joinUpstream(upstream, new URL(request.url), this.options.prefix);
     const fetchImpl = this.options.fetchImpl ?? fetch;
-    const response = await fetchImpl(target, { method: request.method, redirect: 'manual' });
+    const response = await fetchImpl(target, {
+      method: request.method,
+      redirect: 'manual',
+      headers: { 'accept-encoding': 'identity' },
+    });
     return new Response(request.method === 'HEAD' ? null : response.body, {
       status: response.status,
       statusText: response.statusText,

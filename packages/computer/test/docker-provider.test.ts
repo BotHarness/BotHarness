@@ -156,6 +156,43 @@ describe('Docker computer provider', () => {
     expect(complete.updatedAt).toBe(4000);
   });
 
+  it('exports by stopping, tarring, and restarting', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return ok('running\n');
+        return ok('ok');
+      }, calls),
+    });
+    const archive = await provider.exportTo?.('/tmp/exports');
+    expect(archive).toMatch(/botharness-computer-config-.*\.tar$/);
+    const verbs = calls.map((argv) => argv[1]);
+    expect(verbs).toContain('stop');
+    expect(verbs).toContain('run');
+    expect(verbs).toContain('start');
+    expect(verbs.indexOf('stop')).toBeLessThan(verbs.indexOf('run'));
+    const tar = calls.find((argv) => argv[1] === 'run');
+    expect((tar ?? []).join(' ')).toContain('tar cf /backup/');
+  });
+
+  it('imports by creating the volume, untarring, and starting', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.importFrom?.('/tmp/exports/botharness-computer-config-2026.tar');
+    const verbs = calls.map((argv) => argv[1]);
+    expect(verbs).toContain('volume');
+    expect(verbs).toContain('run');
+    const untar = calls.find((argv) => argv[1] === 'run');
+    expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
+  });
+
   it('streams pull output into status progress while starting', async () => {
     let release = (): void => undefined;
     const gate = new Promise<void>((resolve) => {

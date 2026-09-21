@@ -8,6 +8,8 @@
  * @module @botharness/computer/providers/docker
  */
 
+import { basename, dirname, join } from 'node:path';
+
 import type {
   ComputerPhase,
   ComputerProgress,
@@ -229,6 +231,73 @@ export function createDockerComputerProvider(
     return { ...status, detail };
   };
 
+  const ensureStopped = async (reason: string): Promise<boolean> => {
+    const current = await inspect();
+    if (current.state !== 'running') return false;
+    phase = 'stopping';
+    detail = reason;
+    const stop = await runner.run(['docker', 'stop', config.containerName]);
+    if (stop.code !== 0) fail(stop.stderr.trim() || 'docker stop failed');
+    running = false;
+    return true;
+  };
+
+  const exportTo = async (destDir: string): Promise<string> => {
+    const wasRunning = await ensureStopped('正在停止容器以导出…');
+    phase = 'exporting';
+    detail = '正在打包 Computer 数据…';
+    const archive = `${config.volumeName}-${new Date().toISOString().replace(/[:.]/g, '-')}.tar`;
+    const tar = await runner.run([
+      'docker',
+      'run',
+      '--rm',
+      '--entrypoint',
+      '/bin/sh',
+      '-v',
+      `${config.volumeName}:/data`,
+      '-v',
+      `${destDir}:/backup`,
+      config.image,
+      '-c',
+      `tar cf /backup/${archive} -C /data .`,
+    ]);
+    if (tar.code !== 0) fail(tar.stderr.trim() || 'computer export failed');
+    if (wasRunning) {
+      const start = await runner.run(['docker', 'start', config.containerName]);
+      if (start.code !== 0) fail(start.stderr.trim() || 'docker start failed');
+      running = true;
+    }
+    phase = 'idle';
+    detail = undefined;
+    return join(destDir, archive);
+  };
+
+  const importFrom = async (archive: string): Promise<void> => {
+    await ensureStopped('正在停止容器以导入…');
+    phase = 'importing';
+    detail = '正在恢复 Computer 数据…';
+    const volume = await runner.run(['docker', 'volume', 'create', config.volumeName]);
+    if (volume.code !== 0) fail(volume.stderr.trim() || 'docker volume create failed');
+    const untar = await runner.run([
+      'docker',
+      'run',
+      '--rm',
+      '--entrypoint',
+      '/bin/sh',
+      '-v',
+      `${config.volumeName}:/data`,
+      '-v',
+      `${dirname(archive)}:/backup`,
+      config.image,
+      '-c',
+      `tar xf /backup/${basename(archive)} -C /data`,
+    ]);
+    if (untar.code !== 0) fail(untar.stderr.trim() || 'computer import failed');
+    phase = 'idle';
+    detail = undefined;
+    await runStart();
+  };
+
   return {
     name: 'docker',
     probe: probeRuntime,
@@ -274,5 +343,7 @@ export function createDockerComputerProvider(
     upstream(): URL | undefined {
       return running ? new URL(`http://127.0.0.1:${config.hostPort}/`) : undefined;
     },
+    exportTo,
+    importFrom,
   };
 }

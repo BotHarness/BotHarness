@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type CSSProperties,
-  type ReactElement,
-} from 'react';
+import { useCallback, useEffect, useState, type CSSProperties, type ReactElement } from 'react';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 // Type-only: the `shell.overlay` slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client';
@@ -18,15 +11,27 @@ export const inject = ['slots'];
 const STATUS_ENDPOINT = '/api/computer/status';
 const START_ENDPOINT = '/api/computer/start';
 const STOP_ENDPOINT = '/api/computer/stop';
+const EXPORT_ENDPOINT = '/api/computer/export';
+const EXPORTS_ENDPOINT = '/api/computer/exports';
+const IMPORT_ENDPOINT = '/api/computer/import';
 const VIEWER_SRC = '/botharness-computer/viewer/';
 const APPROVED_KEY = 'botharness-computer-start-approved';
 
 type ComputerState = 'absent' | 'stopped' | 'running' | 'failed';
-type ComputerPhase = 'idle' | 'pulling' | 'starting' | 'running' | 'stopping' | 'failed';
+type ComputerPhase =
+  | 'idle'
+  | 'pulling'
+  | 'starting'
+  | 'running'
+  | 'stopping'
+  | 'exporting'
+  | 'importing'
+  | 'failed';
 
 interface ComputerStatusPayload {
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
+  readonly exportDir?: string;
   readonly status: {
     readonly state: ComputerState;
     readonly phase?: ComputerPhase;
@@ -56,6 +61,8 @@ const PHASE_LABEL: Partial<Record<ComputerPhase, string>> = {
   pulling: '正在拉取镜像',
   starting: '正在启动容器',
   stopping: '正在停止',
+  exporting: '正在导出',
+  importing: '正在导入',
 };
 
 const AUTHORIZATION_POINTS = [
@@ -155,6 +162,15 @@ const buttonStyle: CSSProperties = {
   cursor: 'pointer',
 };
 
+const footerStyle: CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  padding: '6px 12px',
+  borderTop: '1px solid var(--dsh-border, #3a3a3a)',
+  fontSize: 12,
+};
+
 const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
   borderColor: 'var(--dsh-accent, #4d6bfe)',
@@ -181,9 +197,12 @@ function ComputerPanel(): ReactElement {
   const [approved, setApproved] = useState(
     () => globalThis.sessionStorage?.getItem(APPROVED_KEY) === '1',
   );
-  const busySince = useRef<number | undefined>(undefined);
+  const [busySince, setBusySince] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const [archives, setArchives] = useState<string[]>([]);
+  const [showImport, setShowImport] = useState(false);
+  const [notice, setNotice] = useState<string | undefined>();
 
   const refresh = useCallback(async () => {
     try {
@@ -202,20 +221,26 @@ function ComputerPanel(): ReactElement {
 
   const phase = payload?.status.phase;
   const progress = payload?.status.progress;
-  const inProgress = phase === 'pulling' || phase === 'starting' || phase === 'stopping';
+  const inProgress =
+    phase === 'pulling' ||
+    phase === 'starting' ||
+    phase === 'stopping' ||
+    phase === 'exporting' ||
+    phase === 'importing';
 
   useEffect(() => {
     if (!inProgress) {
-      busySince.current = undefined;
+      setBusySince(undefined);
       setElapsed(0);
       return;
     }
-    busySince.current ??= Date.now();
+    setBusySince((current) => current ?? Date.now());
     const timer = setInterval(() => {
       setNowTs(Date.now());
-      if (busySince.current !== undefined) {
-        setElapsed(Math.round((Date.now() - busySince.current) / 1000));
-      }
+      setBusySince((current) => {
+        if (current !== undefined) setElapsed(Math.round((Date.now() - current) / 1000));
+        return current;
+      });
     }, 1000);
     return () => clearInterval(timer);
   }, [inProgress]);
@@ -251,6 +276,57 @@ function ComputerPanel(): ReactElement {
     [post],
   );
 
+  const exportNow = useCallback(async () => {
+    setNotice(undefined);
+    setBusy(true);
+    try {
+      const result = await requestJson<{ archive?: string }>(EXPORT_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ authorize: true }),
+      });
+      setNotice(result.archive === undefined ? '已导出' : `已导出：${result.archive}`);
+      await refresh();
+    } catch (cause) {
+      setNotice(String(cause));
+    } finally {
+      setBusy(false);
+    }
+  }, [refresh]);
+
+  const openImport = useCallback(async () => {
+    setNotice(undefined);
+    try {
+      const result = await requestJson<{ files?: string[] }>(EXPORTS_ENDPOINT);
+      setArchives(result.files ?? []);
+      setShowImport(true);
+      if ((result.files ?? []).length === 0) setNotice('导出目录里还没有归档文件');
+    } catch (cause) {
+      setNotice(String(cause));
+    }
+  }, []);
+
+  const importNow = useCallback(
+    async (file: string) => {
+      setShowImport(false);
+      setBusy(true);
+      try {
+        await requestJson(IMPORT_ENDPOINT, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ authorize: true, file }),
+        });
+        setNotice(`已从 ${file} 导入`);
+        await refresh();
+      } catch (cause) {
+        setNotice(String(cause));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [refresh],
+  );
+
   if (!open) {
     return (
       <button type="button" style={launcherStyle} onClick={() => setOpen(true)}>
@@ -276,9 +352,9 @@ function ComputerPanel(): ReactElement {
             type="button"
             style={buttonStyle}
             disabled={busy || inProgress}
-            onClick={() => void post(STOP_ENDPOINT)}
+            onClick={() => void post(STOP_ENDPOINT, { authorize: true })}
           >
-            停止
+            {busy || phase === 'stopping' ? '停止中…' : '停止'}
           </button>
         ) : (
           <button
@@ -289,7 +365,7 @@ function ComputerPanel(): ReactElement {
               approved ? void post(START_ENDPOINT, { authorize: true }) : setConfirming(true)
             }
           >
-            启动
+            {busy || phase === 'starting' || phase === 'pulling' ? '启动中…' : '启动'}
           </button>
         )}
         <button type="button" style={buttonStyle} onClick={() => setOpen(false)}>
@@ -367,6 +443,58 @@ function ComputerPanel(): ReactElement {
           {unavailable
             ? SETUP_GUIDANCE
             : (error ?? payload?.status.detail ?? '点击「启动」创建并启动这台电脑。')}
+        </div>
+      )}
+      {payload?.exportDir !== undefined && payload.exportDir !== '' && (
+        <div style={footerStyle}>
+          <button
+            type="button"
+            style={buttonStyle}
+            disabled={busy || inProgress}
+            onClick={() => void exportNow()}
+          >
+            {busy || phase === 'exporting' ? '导出中…' : '导出'}
+          </button>
+          <button
+            type="button"
+            style={buttonStyle}
+            disabled={busy || inProgress}
+            onClick={() => void openImport()}
+          >
+            {busy || phase === 'importing' ? '导入中…' : '导入'}
+          </button>
+          {notice !== undefined && (
+            <span
+              title={notice}
+              style={{
+                opacity: 0.7,
+                flex: 1,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {notice}
+            </span>
+          )}
+          {showImport && archives.length > 0 && (
+            <select
+              defaultValue=""
+              onChange={(event) => {
+                const file = event.target.value;
+                if (file !== '') void importNow(file);
+              }}
+            >
+              <option value="" disabled>
+                选择归档…
+              </option>
+              {archives.map((file) => (
+                <option key={file} value={file}>
+                  {file}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
     </div>
