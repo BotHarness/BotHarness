@@ -49,6 +49,8 @@ A PersonaBot DM is a first-class `dm` Channel and follows the same section membe
 
 Pinning is a PersonaBot presentation action, not Channel membership. An unpinned PersonaBot DM exposes `置顶 PersonaBot` beside its existing `移动到` context-menu action; a pinned card exposes `取消置顶`. Pinning adds the PersonaBot slug to the Host-owned manual pin order without rewriting the DM Channel's section membership or flat placement. Unpinning therefore restores that same DM row to its previous section and position. Group Channels are not eligible for this PersonaBot grid.
 
+The pinned grid is also a drag boundary. With no pins it remains mounted as a dashed `拖到此处置顶` target, so beginning a drag never inserts layout and cannot abort the native gesture. Dropping an ordinary PersonaBot DM there pins it; dropping a pinned card anywhere in the ordinary roster surface unpins it and restores its preserved Channel placement. Eligible targets change only background, border, or inset outline while hovered, and both source forms remain in place at 40% opacity. Context-menu actions remain the keyboard-accessible equivalent.
+
 ## Update (2026-09-21) — section-scoped creation and newest-first placement
 
 The `+` action on a section header opens a small creation menu for either a group Channel or a PersonaBot DM; both are created directly into that section as its first Channel. Creation defaults are newest-first at every roster level: a new section is prepended to the absolute top-level order, while a new loose group Channel or PersonaBot DM is prepended ahead of every existing top-level entry. These are durable Host arrangement writes, not temporary optimistic rendering, so the first position survives refresh and remains the starting point for later manual drag ordering.

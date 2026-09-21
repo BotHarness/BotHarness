@@ -136,6 +136,12 @@ interface ChannelMenuRequest {
   y: number;
 }
 
+/** One PersonaBot moving between the ordinary roster and the pinned grid. */
+interface PinDragState {
+  slug: string;
+  source: 'roster' | 'pinned';
+}
+
 function matchesQuery(query: string, ...values: (string | undefined)[]): boolean {
   if (query.length === 0) return true;
   return values.some((value) => (value ?? '').toLowerCase().includes(query));
@@ -162,6 +168,8 @@ function BotRow({
   actions,
   drag,
   onMenu,
+  onPinDragStart,
+  onPinDragEnd,
 }: {
   bot: BotSummary;
   channel: ChannelSummary;
@@ -170,6 +178,8 @@ function BotRow({
   actions: BridgeActions;
   drag: ChannelDragProps;
   onMenu: (request: ChannelMenuRequest) => void;
+  onPinDragStart: (slug: string) => void;
+  onPinDragEnd: () => void;
 }): ReactElement {
   const botState = toBotState(bot.aggregateState);
   const markerClass =
@@ -186,8 +196,12 @@ function BotRow({
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', channel.id);
         drag.start();
+        onPinDragStart(bot.slug);
       }}
-      onDragEnd={drag.end}
+      onDragEnd={() => {
+        drag.end();
+        onPinDragEnd();
+      }}
       onDragOver={(event) => {
         if (!drag.active) return;
         event.preventDefault();
@@ -333,6 +347,9 @@ export function BotSidebar({
   const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
+  const [pinDrag, setPinDrag] = useState<PinDragState | undefined>(undefined);
+  const [pinZoneHovered, setPinZoneHovered] = useState(false);
+  const [rosterDropHovered, setRosterDropHovered] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
@@ -644,6 +661,20 @@ export function BotSidebar({
     setChannelMenu(request);
   };
 
+  /** End either pin gesture and clear every non-layout-taking drop highlight. */
+  const endPinDrag = (): void => {
+    setPinDrag(undefined);
+    setPinZoneHovered(false);
+    setRosterDropHovered(false);
+  };
+
+  const commitPinDrop = (pinned: boolean): void => {
+    if (pinDrag === undefined) return;
+    if (pinned ? pinDrag.source !== 'roster' : pinDrag.source !== 'pinned') return;
+    void actions.setBotPinned(pinDrag.slug, pinned);
+    endPinDrag();
+  };
+
   const {
     active: channelDragActive,
     propsFor: channelDragProps,
@@ -667,6 +698,8 @@ export function BotSidebar({
           actions={actions}
           drag={drag}
           onMenu={openChannelMenu}
+          onPinDragStart={(slug) => setPinDrag({ slug, source: 'roster' })}
+          onPinDragEnd={endPinDrag}
         />
       );
     }
@@ -882,297 +915,368 @@ export function BotSidebar({
         <div className="bh-note">没有匹配的 BOT 或频道</div>
       ) : null}
 
-      {pinnedBots.length > 0 ? (
-        <div className="bh-pinned-grid">
-          {pinnedBots.map((bot) => {
-            const selected = selectedBot === bot.slug;
-            const channel = dmByBotSlug.get(bot.slug);
-            return (
-              <button
-                key={bot.slug}
-                type="button"
-                className={`bh-pinned${selected ? ' bh-selected' : ''}`}
-                onClick={() => void actions.openBot(bot.slug)}
-                onContextMenu={
-                  channel === undefined
-                    ? undefined
-                    : (event) => {
-                        event.preventDefault();
-                        openChannelMenu({
-                          channelId: channel.id,
-                          pinnedView: true,
-                          x: event.clientX,
-                          y: event.clientY,
-                        });
-                      }
-                }
-                onKeyDown={
-                  channel === undefined
-                    ? undefined
-                    : (event) => {
-                        const keyboardMenu =
-                          event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
-                        if (!keyboardMenu) return;
-                        event.preventDefault();
-                        const rect = event.currentTarget.getBoundingClientRect();
-                        openChannelMenu({
-                          channelId: channel.id,
-                          pinnedView: true,
-                          x: rect.left + 8,
-                          y: rect.bottom,
-                        });
-                      }
-                }
-              >
-                <PersonaBotAvatar
-                  personaBotId={bot.slug}
-                  name={bot.displayName}
-                  src={bot.avatar}
-                  state={personaBotActivity(state, bot)}
-                  size={54}
-                />
-                <span className="bh-name">{bot.displayName}</span>
-                <RoleBadges roles={bot.roles} />
-              </button>
-            );
-          })}
+      {state.bots.length > 0 ? (
+        <div
+          className={`bh-pin-zone${pinnedBots.length === 0 ? ' bh-pin-zone-empty' : ' bh-pin-zone-filled'}${pinZoneHovered ? ' bh-pin-zone-active' : ''}`}
+          role="region"
+          aria-label={t('pin.zone.label')}
+          onDragOver={(event) => {
+            if (pinDrag?.source !== 'roster') return;
+            event.preventDefault();
+            event.stopPropagation();
+            event.dataTransfer.dropEffect = 'move';
+            setPinZoneHovered(true);
+          }}
+          onDragLeave={(event) => {
+            if (
+              event.relatedTarget instanceof Node &&
+              event.currentTarget.contains(event.relatedTarget)
+            ) {
+              return;
+            }
+            setPinZoneHovered(false);
+          }}
+          onDrop={(event) => {
+            if (pinDrag?.source !== 'roster') return;
+            event.preventDefault();
+            event.stopPropagation();
+            commitPinDrop(true);
+          }}
+        >
+          {pinnedBots.length === 0 ? (
+            <span className="bh-pin-zone-hint">{t('pin.drop')}</span>
+          ) : (
+            <div className="bh-pinned-grid">
+              {pinnedBots.map((bot) => {
+                const selected = selectedBot === bot.slug;
+                const channel = dmByBotSlug.get(bot.slug);
+                const dragSource = pinDrag?.source === 'pinned' && pinDrag.slug === bot.slug;
+                return (
+                  <button
+                    key={bot.slug}
+                    type="button"
+                    className={`bh-pinned${selected ? ' bh-selected' : ''}${dragSource ? ' bh-drag-source' : ''}`}
+                    onClick={() => void actions.openBot(bot.slug)}
+                    draggable={channel !== undefined}
+                    onDragStart={
+                      channel === undefined
+                        ? undefined
+                        : (event) => {
+                            event.dataTransfer.effectAllowed = 'move';
+                            event.dataTransfer.setData('text/plain', channel.id);
+                            setPinDrag({ slug: bot.slug, source: 'pinned' });
+                          }
+                    }
+                    onDragEnd={endPinDrag}
+                    onContextMenu={
+                      channel === undefined
+                        ? undefined
+                        : (event) => {
+                            event.preventDefault();
+                            openChannelMenu({
+                              channelId: channel.id,
+                              pinnedView: true,
+                              x: event.clientX,
+                              y: event.clientY,
+                            });
+                          }
+                    }
+                    onKeyDown={
+                      channel === undefined
+                        ? undefined
+                        : (event) => {
+                            const keyboardMenu =
+                              event.key === 'ContextMenu' ||
+                              (event.shiftKey && event.key === 'F10');
+                            if (!keyboardMenu) return;
+                            event.preventDefault();
+                            const rect = event.currentTarget.getBoundingClientRect();
+                            openChannelMenu({
+                              channelId: channel.id,
+                              pinnedView: true,
+                              x: rect.left + 8,
+                              y: rect.bottom,
+                            });
+                          }
+                    }
+                  >
+                    <PersonaBotAvatar
+                      personaBotId={bot.slug}
+                      name={bot.displayName}
+                      src={bot.avatar}
+                      state={personaBotActivity(state, bot)}
+                      size={54}
+                    />
+                    <span className="bh-name">{bot.displayName}</span>
+                    <RoleBadges roles={bot.roles} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       ) : null}
 
-      {flatBlocks.map((block) => {
-        if (block.kind === 'loose') {
-          const key = `loose:${block.channels.map((channel) => channel.id).join(',')}`;
+      <div
+        className={`bh-roster-list${rosterDropHovered ? ' bh-roster-list-drop-active' : ''}`}
+        onDragOver={(event) => {
+          if (pinDrag?.source !== 'pinned') return;
+          event.preventDefault();
+          event.stopPropagation();
+          event.dataTransfer.dropEffect = 'move';
+          setRosterDropHovered(true);
+        }}
+        onDragLeave={(event) => {
+          if (
+            event.relatedTarget instanceof Node &&
+            event.currentTarget.contains(event.relatedTarget)
+          ) {
+            return;
+          }
+          setRosterDropHovered(false);
+        }}
+        onDrop={(event) => {
+          if (pinDrag?.source !== 'pinned') return;
+          event.preventDefault();
+          event.stopPropagation();
+          commitPinDrop(false);
+        }}
+      >
+        {flatBlocks.map((block) => {
+          if (block.kind === 'loose') {
+            const key = `loose:${block.channels.map((channel) => channel.id).join(',')}`;
+            return (
+              <div key={key} className="bh-section bh-loose">
+                <div
+                  className="bh-list-area"
+                  onDragOver={(event) => {
+                    if (!channelDragActive) return;
+                    const target = event.target as HTMLElement | null;
+                    if (target !== null && target.closest('[data-channel-id]') !== null) return;
+                    event.preventDefault();
+                    event.dataTransfer.dropEffect = 'move';
+                    const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
+                      (element, index) => {
+                        const rect = element.getBoundingClientRect();
+                        return {
+                          id: block.channels[index]?.id ?? '',
+                          top: rect.top,
+                          height: rect.height,
+                        };
+                      },
+                    );
+                    const resolution = resolveBlockDropTarget(
+                      rows.filter((row) => row.id !== ''),
+                      Number.NEGATIVE_INFINITY,
+                      event.clientY,
+                    );
+                    if (resolution.kind === 'row') {
+                      channelDragProps(undefined, resolution.channelId).hover(resolution.half);
+                    }
+                  }}
+                  onDrop={(event) => {
+                    if (!channelDragActive) return;
+                    const target = event.target as HTMLElement | null;
+                    if (target !== null && target.closest('[data-channel-id]') !== null) return;
+                    event.preventDefault();
+                    const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
+                      (element, index) => {
+                        const rect = element.getBoundingClientRect();
+                        return {
+                          id: block.channels[index]?.id ?? '',
+                          top: rect.top,
+                          height: rect.height,
+                        };
+                      },
+                    );
+                    const resolution = resolveBlockDropTarget(
+                      rows.filter((row) => row.id !== ''),
+                      Number.NEGATIVE_INFINITY,
+                      event.clientY,
+                    );
+                    if (resolution.kind === 'row') {
+                      channelDragProps(undefined, resolution.channelId).drop(resolution.half);
+                    }
+                  }}
+                >
+                  {block.channels.map((channel) => renderChannelRow(channel, undefined))}
+                </div>
+              </div>
+            );
+          }
+          const { section, channels: sectionChannels } = block;
+          const collapsed = state.config.collapsed[section.id] === true;
+          const menuOpenForSection = sectionMenuId === section.id;
+          const createMenuOpenForSection = sectionCreateMenuId === section.id;
+          const sectionDrag = sectionDragProps(section.id);
+          const channelGap = channelGapDropProps(section.id);
+          const channelScope = channelScopeDropProps(section.id);
+          const before = sectionDrag.marker === 'before' || channelGap.marker === 'before';
+          const after = sectionDrag.marker === 'after' || channelGap.marker === 'after';
+          const blockMarkerClass = `${before ? ' bh-drop-before' : ''}${after ? ' bh-drop-after' : ''}${channelScope.hovered ? ' bh-drop-scope' : ''}`;
+          /**
+           * Resolve a channel drag anywhere inside this block that is not on a
+           * row — header area, body padding, inter-row gaps — to a row anchor
+           * (header inserts at the first index). Row-less bodies (empty,
+           * collapsed, filtered out) resolve to the scope itself at index 0.
+           */
+          const resolveBlockTarget = (element: HTMLElement, clientY: number) => {
+            const rows = [...element.querySelectorAll('[data-channel-id]')].map((row, index) => {
+              const rect = row.getBoundingClientRect();
+              return { id: sectionChannels[index]?.id ?? '', top: rect.top, height: rect.height };
+            });
+            const headBottom =
+              element.querySelector('.bh-section-head')?.getBoundingClientRect().bottom ?? clientY;
+            return resolveBlockDropTarget(
+              rows.filter((row) => row.id !== ''),
+              headBottom,
+              clientY,
+            );
+          };
           return (
-            <div key={key} className="bh-section bh-loose">
-              <div
-                className="bh-list-area"
-                onDragOver={(event) => {
-                  if (!channelDragActive) return;
-                  const target = event.target as HTMLElement | null;
-                  if (target !== null && target.closest('[data-channel-id]') !== null) return;
+            <div
+              key={section.id}
+              data-section-id={section.id}
+              className={`bh-section${blockMarkerClass}`}
+              onDragOver={(event) => {
+                if (sectionDrag.active) {
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
-                  const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
-                    (element, index) => {
-                      const rect = element.getBoundingClientRect();
-                      return {
-                        id: block.channels[index]?.id ?? '',
-                        top: rect.top,
-                        height: rect.height,
-                      };
-                    },
+                  sectionDrag.hover(
+                    rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
                   );
-                  const resolution = resolveBlockDropTarget(
-                    rows.filter((row) => row.id !== ''),
-                    Number.NEGATIVE_INFINITY,
-                    event.clientY,
-                  );
-                  if (resolution.kind === 'row') {
-                    channelDragProps(undefined, resolution.channelId).hover(resolution.half);
-                  }
-                }}
-                onDrop={(event) => {
-                  if (!channelDragActive) return;
-                  const target = event.target as HTMLElement | null;
-                  if (target !== null && target.closest('[data-channel-id]') !== null) return;
-                  event.preventDefault();
-                  const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
-                    (element, index) => {
-                      const rect = element.getBoundingClientRect();
-                      return {
-                        id: block.channels[index]?.id ?? '',
-                        top: rect.top,
-                        height: rect.height,
-                      };
-                    },
-                  );
-                  const resolution = resolveBlockDropTarget(
-                    rows.filter((row) => row.id !== ''),
-                    Number.NEGATIVE_INFINITY,
-                    event.clientY,
-                  );
-                  if (resolution.kind === 'row') {
-                    channelDragProps(undefined, resolution.channelId).drop(resolution.half);
-                  }
-                }}
-              >
-                {block.channels.map((channel) => renderChannelRow(channel, undefined))}
-              </div>
-            </div>
-          );
-        }
-        const { section, channels: sectionChannels } = block;
-        const collapsed = state.config.collapsed[section.id] === true;
-        const menuOpenForSection = sectionMenuId === section.id;
-        const createMenuOpenForSection = sectionCreateMenuId === section.id;
-        const sectionDrag = sectionDragProps(section.id);
-        const channelGap = channelGapDropProps(section.id);
-        const channelScope = channelScopeDropProps(section.id);
-        const before = sectionDrag.marker === 'before' || channelGap.marker === 'before';
-        const after = sectionDrag.marker === 'after' || channelGap.marker === 'after';
-        const blockMarkerClass = `${before ? ' bh-drop-before' : ''}${after ? ' bh-drop-after' : ''}${channelScope.hovered ? ' bh-drop-scope' : ''}`;
-        /**
-         * Resolve a channel drag anywhere inside this block that is not on a
-         * row — header area, body padding, inter-row gaps — to a row anchor
-         * (header inserts at the first index). Row-less bodies (empty,
-         * collapsed, filtered out) resolve to the scope itself at index 0.
-         */
-        const resolveBlockTarget = (element: HTMLElement, clientY: number) => {
-          const rows = [...element.querySelectorAll('[data-channel-id]')].map((row, index) => {
-            const rect = row.getBoundingClientRect();
-            return { id: sectionChannels[index]?.id ?? '', top: rect.top, height: rect.height };
-          });
-          const headBottom =
-            element.querySelector('.bh-section-head')?.getBoundingClientRect().bottom ?? clientY;
-          return resolveBlockDropTarget(
-            rows.filter((row) => row.id !== ''),
-            headBottom,
-            clientY,
-          );
-        };
-        return (
-          <div
-            key={section.id}
-            data-section-id={section.id}
-            className={`bh-section${blockMarkerClass}`}
-            onDragOver={(event) => {
-              if (sectionDrag.active) {
+                  return;
+                }
+                if (!channelDragActive) return;
+                const target = event.target as HTMLElement | null;
+                if (target !== null && target.closest('[data-channel-id]') !== null) return;
                 event.preventDefault();
                 event.dataTransfer.dropEffect = 'move';
-                sectionDrag.hover(
-                  rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
-                );
-                return;
-              }
-              if (!channelDragActive) return;
-              const target = event.target as HTMLElement | null;
-              if (target !== null && target.closest('[data-channel-id]') !== null) return;
-              event.preventDefault();
-              event.dataTransfer.dropEffect = 'move';
-              const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
-              if (resolution.kind === 'scope') channelScope.hover();
-              else channelDragProps(section.id, resolution.channelId).hover(resolution.half);
-            }}
-            onDrop={(event) => {
-              if (sectionDrag.active) {
-                event.preventDefault();
-                sectionDrag.drop(
-                  rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
-                );
-                return;
-              }
-              if (!channelDragActive) return;
-              const target = event.target as HTMLElement | null;
-              if (target !== null && target.closest('[data-channel-id]') !== null) return;
-              event.preventDefault();
-              const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
-              if (resolution.kind === 'scope') channelScope.drop();
-              else channelDragProps(section.id, resolution.channelId).drop(resolution.half);
-            }}
-          >
-            <div className="bh-list-area">
-              <div
-                className={`bh-section-head${menuOpenForSection || createMenuOpenForSection ? ' bh-menu-open' : ''}`}
-                role="button"
-                tabIndex={0}
-                aria-expanded={!collapsed}
-                draggable
-                onDragStart={(event) => {
-                  event.dataTransfer.effectAllowed = 'move';
-                  event.dataTransfer.setData('text/plain', section.id);
-                  sectionDrag.start();
-                }}
-                onDragEnd={sectionDrag.end}
-                onClick={() => toggleSection(section.id)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'Enter' && event.key !== ' ') return;
+                const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
+                if (resolution.kind === 'scope') channelScope.hover();
+                else channelDragProps(section.id, resolution.channelId).hover(resolution.half);
+              }}
+              onDrop={(event) => {
+                if (sectionDrag.active) {
                   event.preventDefault();
-                  toggleSection(section.id);
-                }}
-              >
-                <span className="bh-section-name">{section.name}</span>
-                <IconChevronDownOutline14
-                  size={14}
-                  className={
-                    collapsed ? 'bh-section-chevron bh-chevron-collapsed' : 'bh-section-chevron'
-                  }
-                />
-                <span className="bh-section-count">{sectionChannels.length}</span>
-                <span className="bh-row-actions">
-                  <Menu
-                    open={menuOpenForSection}
-                    portal
-                    dense
-                    align="end"
-                    closeOnPointerLeave
-                    anchor={
-                      <button
-                        type="button"
-                        className="bh-row-action"
-                        aria-label={`「${section.name}」排序方式`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSectionMenuId((value) =>
-                            value === section.id ? undefined : section.id,
-                          );
-                          setSectionCreateMenuId(undefined);
-                        }}
-                      >
-                        <IconEllipsisOutline16 />
-                      </button>
+                  sectionDrag.drop(
+                    rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
+                  );
+                  return;
+                }
+                if (!channelDragActive) return;
+                const target = event.target as HTMLElement | null;
+                if (target !== null && target.closest('[data-channel-id]') !== null) return;
+                event.preventDefault();
+                const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
+                if (resolution.kind === 'scope') channelScope.drop();
+                else channelDragProps(section.id, resolution.channelId).drop(resolution.half);
+              }}
+            >
+              <div className="bh-list-area">
+                <div
+                  className={`bh-section-head${menuOpenForSection || createMenuOpenForSection ? ' bh-menu-open' : ''}`}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={!collapsed}
+                  draggable
+                  onDragStart={(event) => {
+                    event.dataTransfer.effectAllowed = 'move';
+                    event.dataTransfer.setData('text/plain', section.id);
+                    sectionDrag.start();
+                  }}
+                  onDragEnd={sectionDrag.end}
+                  onClick={() => toggleSection(section.id)}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
+                    toggleSection(section.id);
+                  }}
+                >
+                  <span className="bh-section-name">{section.name}</span>
+                  <IconChevronDownOutline14
+                    size={14}
+                    className={
+                      collapsed ? 'bh-section-chevron bh-chevron-collapsed' : 'bh-section-chevron'
                     }
-                    items={sectionMenuItems(t)}
-                    selectedId={sectionSortMode(prefs, section.id)}
-                    onSelect={(id) => selectSectionMenu(section, id)}
-                    onClose={() => {
-                      setSectionMenuId(undefined);
-                    }}
                   />
-                  <Menu
-                    open={createMenuOpenForSection}
-                    portal
-                    dense
-                    align="end"
-                    closeOnPointerLeave
-                    anchor={
-                      <button
-                        type="button"
-                        className="bh-row-action"
-                        aria-label={`在「${section.name}」中新建`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          setSectionMenuId(undefined);
-                          setSectionCreateMenuId((value) =>
-                            value === section.id ? undefined : section.id,
-                          );
-                        }}
-                      >
-                        <IconPlusOutline16 />
-                      </button>
-                    }
-                    items={sectionCreateMenuItems()}
-                    onSelect={(id) => {
-                      setSectionCreateMenuId(undefined);
-                      if (id === 'bot') {
-                        setCreateRequest({ kind: 'bot', sectionId: section.id });
+                  <span className="bh-section-count">{sectionChannels.length}</span>
+                  <span className="bh-row-actions">
+                    <Menu
+                      open={menuOpenForSection}
+                      portal
+                      dense
+                      align="end"
+                      closeOnPointerLeave
+                      anchor={
+                        <button
+                          type="button"
+                          className="bh-row-action"
+                          aria-label={`「${section.name}」排序方式`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSectionMenuId((value) =>
+                              value === section.id ? undefined : section.id,
+                            );
+                            setSectionCreateMenuId(undefined);
+                          }}
+                        >
+                          <IconEllipsisOutline16 />
+                        </button>
                       }
-                      if (id === 'channel') {
-                        setCreateRequest({ kind: 'channel', sectionId: section.id });
+                      items={sectionMenuItems(t)}
+                      selectedId={sectionSortMode(prefs, section.id)}
+                      onSelect={(id) => selectSectionMenu(section, id)}
+                      onClose={() => {
+                        setSectionMenuId(undefined);
+                      }}
+                    />
+                    <Menu
+                      open={createMenuOpenForSection}
+                      portal
+                      dense
+                      align="end"
+                      closeOnPointerLeave
+                      anchor={
+                        <button
+                          type="button"
+                          className="bh-row-action"
+                          aria-label={`在「${section.name}」中新建`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            setSectionMenuId(undefined);
+                            setSectionCreateMenuId((value) =>
+                              value === section.id ? undefined : section.id,
+                            );
+                          }}
+                        >
+                          <IconPlusOutline16 />
+                        </button>
                       }
-                    }}
-                    onClose={() => {
-                      setSectionCreateMenuId(undefined);
-                    }}
-                  />
-                </span>
+                      items={sectionCreateMenuItems()}
+                      onSelect={(id) => {
+                        setSectionCreateMenuId(undefined);
+                        if (id === 'bot') {
+                          setCreateRequest({ kind: 'bot', sectionId: section.id });
+                        }
+                        if (id === 'channel') {
+                          setCreateRequest({ kind: 'channel', sectionId: section.id });
+                        }
+                      }}
+                      onClose={() => {
+                        setSectionCreateMenuId(undefined);
+                      }}
+                    />
+                  </span>
+                </div>
+                {collapsed
+                  ? null
+                  : sectionChannels.map((channel) => renderChannelRow(channel, section.id))}
               </div>
-              {collapsed
-                ? null
-                : sectionChannels.map((channel) => renderChannelRow(channel, section.id))}
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
       {createRequest?.kind === 'bot' ? (
         <CreatePersonaBotModal

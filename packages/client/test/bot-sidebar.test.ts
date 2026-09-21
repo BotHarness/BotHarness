@@ -280,6 +280,26 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('文件研究助手');
   });
 
+  it('keeps an empty pin drop indicator mounted before the ordinary roster', () => {
+    store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup).toContain('bh-pin-zone bh-pin-zone-empty');
+    expect(markup).toContain('拖到此处置顶');
+    expect(markup.indexOf('bh-pin-zone')).toBeLessThan(markup.indexOf('bh-roster-list'));
+  });
+
+  it('renders pinned PersonaBots as draggable cards inside the pin drop zone', () => {
+    setRoster({ pins: [BOT.slug] });
+    store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup).toContain('bh-pin-zone bh-pin-zone-filled');
+    expect(markup).toContain('bh-pinned-grid');
+    expect(markup).toMatch(/class="bh-pinned[^"]*"[^>]*draggable="true"/);
+    expect(markup).not.toContain('拖到此处置顶');
+  });
+
   it('renders a PersonaBot DM inside a section with the same channel drag lifecycle', () => {
     setRoster({ sections: [section('s1', '工作流', ['dm-atlas'])] });
     store.setRoster([BOT], [DM_CHANNEL]);
