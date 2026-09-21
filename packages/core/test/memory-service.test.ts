@@ -1,64 +1,82 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { rmSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
-import { createMemoryService, createPersonaBotRegistry } from '../src/index.js';
-import { FIXED_NOW, createTempRoot, remember } from './helpers.js';
+import { createMemoryService, createPersonaBotRegistry, type MemoryService } from '../src/index.js';
+import { ensureMemoryRepository } from '../src/memory/repository.js';
+import { createTestOwnership, FIXED_NOW, createTempRoot, remember } from './helpers.js';
+
+function initializeMemory(memoryDir: string) {
+  const repository = ensureMemoryRepository({ memoryDir });
+  return repository.ok ? { ok: true } : { ok: false, message: repository.code };
+}
+
+function setup(options: { memoryDir?: string } = {}): {
+  registry: ReturnType<typeof createPersonaBotRegistry>;
+  service: MemoryService;
+} {
+  const root = createTempRoot();
+  const registry = createPersonaBotRegistry({
+    rootDir: join(root, 'bots'),
+    initializeMemory,
+  });
+  const ownership = createTestOwnership();
+  const created = registry.create({
+    slug: 'research',
+    displayName: 'Research',
+    ...(options.memoryDir === undefined ? {} : { memoryDir: options.memoryDir }),
+  });
+  expect(created.ok).toBe(true);
+  ownership.claim({
+    sessionId: 'session-research',
+    botSlug: 'research',
+    rootRole: 'orchestrator',
+    at: FIXED_NOW().toISOString(),
+  });
+  return { registry, service: createMemoryService({ registry, ownership, now: FIXED_NOW }) };
+}
 
 describe('createMemoryService', () => {
-  it('maps an agent cwd to the bot whose workspaces contain it', () => {
-    const root = createTempRoot();
-    const workspace = join(root, 'ws-a');
-    mkdirSync(workspace);
-    const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
-    registry.create({ slug: 'research', displayName: 'Research', workspaces: [workspace] });
-    const service = createMemoryService({ registry });
+  it('resolves a store from explicit Session ownership, never from cwd', () => {
+    const { registry, service } = setup();
 
-    const agent = { session: { header: { cwd: workspace } } };
-    const store = service.storeForAgent(agent);
+    const store = service.storeForSession('session-research');
     expect(store).toBeDefined();
     expect(store?.memoryDir).toBe(registry.memoryDirFor('research'));
-    expect(service.storeForAgent(agent)).toBe(store);
-    expect(service.storeForCwd(`${workspace}/`)).toBe(store);
-    expect(service.storeForCwd(join(root, 'elsewhere'))).toBeUndefined();
+    expect(service.storeForSession('session-research')).toBe(store);
+    expect(service.storeForAgent({ session: { id: 'session-research' } })).toBe(store);
+    expect(service.memoryDirFor('session-research')).toBe(registry.memoryDirFor('research'));
+    expect(service.repositoryFor('session-research')?.state).toBe('ready');
+
+    expect(service.storeForSession('unowned-session')).toBeUndefined();
+    expect(service.storeForSession(undefined)).toBeUndefined();
     expect(service.storeForAgent(undefined)).toBeUndefined();
     expect(service.storeForAgent({})).toBeUndefined();
-    expect(service.storeForCwd(undefined)).toBeUndefined();
+    expect(service.repositoryFor('unowned-session')).toBeUndefined();
   });
 
-  it('honours a custom memory dir and refuses bots without a workspace match', () => {
+  it('fails closed when the repository is missing instead of pretending Memory works', () => {
+    const { registry, service } = setup();
+    const memoryDir = registry.memoryDirFor('research');
+    if (memoryDir === undefined) throw new Error('memory dir missing');
+    rmSync(memoryDir, { recursive: true, force: true });
+
+    expect(service.repositoryFor('session-research')).toEqual({ state: 'missing' });
+    expect(service.storeForSession('session-research')).toBeUndefined();
+  });
+
+  it('honours a custom memory dir and keeps one store per dir', async () => {
     const root = createTempRoot();
-    const workspace = join(root, 'ws-b');
     const memoryDir = join(root, 'custom-memory');
-    const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
-    registry.create({
-      slug: 'sales',
-      displayName: 'Sales',
-      workspaces: [workspace],
-      memoryDir,
-    });
-    const service = createMemoryService({ registry });
+    const { registry, service } = setup({ memoryDir });
 
-    expect(service.storeForCwd(workspace)?.memoryDir).toBe(memoryDir);
-    expect(service.storeForCwd(join(root, 'ws-b-nope'))).toBeUndefined();
-  });
-
-  it('keeps one store per memory dir so writes stay serialized', async () => {
-    const root = createTempRoot();
-    const workspace = join(root, 'ws-c');
-    mkdirSync(workspace);
-    const registry = createPersonaBotRegistry({ rootDir: join(root, 'bots') });
-    registry.create({ slug: 'one', displayName: 'One', workspaces: [workspace] });
-    const service = createMemoryService({ registry, now: FIXED_NOW });
-
-    const store = service.storeForCwd(workspace);
+    expect(service.storeForSession('session-research')?.memoryDir).toBe(memoryDir);
+    const store = service.storeForSession('session-research');
     expect(store).toBeDefined();
     if (store === undefined) return;
     await remember(store, { path: 'note.md', body: 'hello\n', summary: 'Note' });
-    expect(service.storeForCwd(workspace)?.read('note.md')?.body).toBe('hello\n');
-
-    writeFileSync(join(store.memoryDir, 'PERSONA.md'), '# Persona\n\nCalm.\n');
-    expect(service.storeForCwd(workspace)?.persona()).toBe('# Persona\n\nCalm.\n');
+    expect(service.storeForSession('session-research')?.read('note.md')?.body).toBe('hello\n');
+    expect(registry.memoryDirFor('research')).toBe(memoryDir);
   });
 });

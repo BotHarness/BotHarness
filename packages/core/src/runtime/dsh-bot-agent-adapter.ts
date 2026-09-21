@@ -12,6 +12,7 @@ import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 
+import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type {
   AssignmentAgentRun,
   AssignmentReportState,
@@ -37,6 +38,11 @@ export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
   defaultWorkspaceRoot: string;
+  /**
+   * Explicit Orchestrator working directory (the PersonaBot's Memory
+   * Repository). Absent falls back to the legacy workspace resolution.
+   */
+  orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   ensureWorkspace?: (path: string) => void;
 }
 
@@ -59,10 +65,9 @@ function agentOptions(
 
 function createMeta(
   run: OrchestratorAgentRun | AssignmentAgentRun,
-  defaultWorkspaceRoot: string,
+  cwd: string,
   ensureWorkspace: (path: string) => void,
 ) {
-  const cwd = run.bot.workspaces[0] ?? join(defaultWorkspaceRoot, run.bot.slug);
   ensureWorkspace(cwd);
   return {
     cwd,
@@ -95,6 +100,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
   readonly #defaultWorkspaceRoot: string;
+  readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
   readonly #runs = new Map<string, ActiveRun>();
@@ -104,6 +110,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
     this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
+    this.#orchestratorCwd = options.orchestratorCwd;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
   }
@@ -280,7 +287,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
     };
     const options = { agentOptions: resolvedAgentOptions, setup };
-    const meta = createMeta(run, this.#defaultWorkspaceRoot, this.#ensureWorkspace);
+    const meta = createMeta(run, this.#resolveCwd(run.bot, 'orchestrator'), this.#ensureWorkspace);
     const handle = run.resume
       ? await this.#agents.resume({
           resumeSessionId: SessionId(run.sessionId),
@@ -295,10 +302,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     return handle;
   }
 
+  #resolveCwd(bot: PersonaBotRecord, role: 'orchestrator' | 'assignment'): string {
+    if (role === 'orchestrator') {
+      const explicit = this.#orchestratorCwd?.(bot);
+      if (explicit !== undefined) return explicit;
+    }
+    return bot.workspaces[0] ?? join(this.#defaultWorkspaceRoot, bot.slug);
+  }
+
   async #assignmentHandle(run: AssignmentAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const meta = createMeta(run, this.#defaultWorkspaceRoot, this.#ensureWorkspace);
+    const meta = createMeta(run, this.#resolveCwd(run.bot, 'assignment'), this.#ensureWorkspace);
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
     const handle = await this.#agents.create({
       sessionId: SessionId(run.sessionId),

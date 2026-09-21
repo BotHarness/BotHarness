@@ -199,11 +199,12 @@ describe('bridge methods', () => {
     );
   });
 
-  it('creates a name-only bot without provisioning Memory or Persona', () => {
+  it('creates a name-only bot with its Memory directory and no Persona file', () => {
     const { root, methods } = setup([], ['plain']);
 
     expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
-    expect(existsSync(join(root, 'plain', 'memory'))).toBe(false);
+    expect(existsSync(join(root, 'plain', 'memory'))).toBe(true);
+    expect(existsSync(join(root, 'plain', 'memory', 'PERSONA.md'))).toBe(false);
   });
 
   it('owns ID generation and reports malformed Human-facing fields', () => {

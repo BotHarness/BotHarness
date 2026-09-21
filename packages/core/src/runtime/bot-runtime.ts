@@ -114,6 +114,12 @@ export interface BotRuntimeOptions {
   ownership?: SessionOwnership;
   /** Explicit run-configuration root recorded as each Session's cwd reference. */
   workspaceRoot?: string;
+  /**
+   * Explicit Orchestrator working directory (the PersonaBot's Memory
+   * Repository). Assignments keep the legacy workspace resolution until
+   * Workspace Grants land.
+   */
+  orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   now?: () => Date;
   createSessionId?: () => string;
   createEventId?: () => string;
@@ -182,6 +188,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
   readonly #workspaceRoot: string | undefined;
+  readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #agents: BotAgentAdapter;
@@ -198,6 +205,7 @@ class BotRuntimeImplementation implements BotRuntime {
       options.ownership ??
       createSessionOwnership(attachOperationalModule(options.database, 'session-ownership'));
     this.#workspaceRoot = options.workspaceRoot;
+    this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
     this.#channels = options.channels;
     this.#agents = options.agents;
@@ -497,7 +505,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const existing = this.#ownership.rootsFor(bot.slug, 'orchestrator')[0];
     if (existing !== undefined) return { sessionId: existing.sessionId, resume: true };
     const sessionId = this.#createSessionId();
-    const cwdReference = this.#cwdReference(bot);
+    const cwdReference = this.#orchestratorCwdReference(bot);
     this.#ownership.claim({
       sessionId,
       botSlug: bot.slug,
@@ -506,6 +514,10 @@ class BotRuntimeImplementation implements BotRuntime {
       at,
     });
     return { sessionId, resume: false };
+  }
+
+  #orchestratorCwdReference(bot: PersonaBotRecord): string | undefined {
+    return this.#orchestratorCwd?.(bot) ?? this.#cwdReference(bot);
   }
 
   #cwdReference(bot: PersonaBotRecord): string | undefined {

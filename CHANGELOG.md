@@ -19,6 +19,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- PersonaBot creation now provisions a real Git-backed Memory Repository and the Orchestrator Session runs inside it; reopening a repository never auto-commits a provisional working-tree edit ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
+- Removed the model-visible `memory_read`, `memory_search`, `memory_write`, and `memory_list` tools; V1 works through ordinary file, Shell, grep, and git capabilities ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
+
 - PersonaBot DM and group Channels can now be hidden from every roster navigation surface and restored from a searchable `More → Hidden channels` modal without changing their pin, section, order, messages, PersonaBot, or Memory state ([#137](https://github.com/BotHarness/BotHarness/issues/137)).
 - Channel and section context menus now expose the same organization controls as drag-and-drop: sections can move up/down, rename, or be safely removed; every group or PersonaBot DM Channel can pin/unpin, move to an existing or newly created section, rename, or hide. Renaming a DM updates the PersonaBot display name while stable internal identifiers remain unchanged; true Channel/PersonaBot deletion remains deferred to [#138](https://github.com/BotHarness/BotHarness/issues/138) ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 - Group Channels and PersonaBot DMs can now be pinned by context menu or drag. An empty pin target stays hidden until a Channel drag begins, then transitions open; dragging a pinned card reveals a dedicated dashed target that unpins and restores its prior placement, while dropping on a specific Channel, section, or section gap unpins it at that predicted position. Ordinary roster whitespace is not a drop target. Legacy PersonaBot-slug pins migrate to Channel ids ([#10](https://github.com/BotHarness/BotHarness/issues/10)).

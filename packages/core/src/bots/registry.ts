@@ -22,9 +22,20 @@ import {
 } from './persona-bot.js';
 import { isValidSlug } from './slug.js';
 
+export interface MemoryRepositoryInitialization {
+  ok: boolean;
+  message?: string;
+}
+
 export interface PersonaBotRegistryOptions {
   rootDir: string;
   now?: () => Date;
+  /**
+   * Create or open the PersonaBot's Git-backed Memory Repository. Creation
+   * fails closed: without it the registry refuses to create the PersonaBot
+   * rather than pretending it is fully executable.
+   */
+  initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
 }
 
 export interface PersonaBotRegistry {
@@ -161,12 +172,20 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ...(preset ? { preset } : {}),
         ...(memoryDir ? { memoryDir } : {}),
       };
+      const targetMemoryDir = memoryDirOf(record);
+      mkdirSync(targetMemoryDir, { recursive: true });
+      const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
+      if (!initialized.ok) {
+        return {
+          ok: false,
+          reason: 'memory-unavailable',
+          ...(initialized.message === undefined ? {} : { detail: initialized.message }),
+        };
+      }
       write(record);
       const persona = input.persona;
       if (persona !== undefined && persona.trim().length > 0) {
-        ensurePersonaFile(memoryDirOf(record), persona);
-      } else if (memoryDir) {
-        mkdirSync(memoryDir, { recursive: true });
+        ensurePersonaFile(targetMemoryDir, persona);
       }
       return { ok: true, record };
     },

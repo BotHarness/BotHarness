@@ -18,8 +18,8 @@ import {
 } from './database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
+import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
-import { createMemoryTools } from './memory/tools.js';
 import { formatMemoryTree } from './memory/tree.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
@@ -82,9 +82,16 @@ export function createCore(
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
-  const registry = createPersonaBotRegistry({ rootDir });
+  const registry = createPersonaBotRegistry({
+    rootDir,
+    initializeMemory: (memoryDir) => {
+      const repository = ensureMemoryRepository({ memoryDir });
+      return repository.ok
+        ? { ok: true }
+        : { ok: false, message: `${repository.code}: ${repository.message}` };
+    },
+  });
   const states = createBotStateTracker();
-  const memory = createMemoryService({ registry });
   const channels = createChannelStore({ rootDir: join(dshHome, 'botharness', 'channels') });
   const operationalDatabase = mountOperationalDatabase({
     dshHome,
@@ -93,6 +100,9 @@ export function createCore(
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
+  const memory = createMemoryService({ registry, ownership });
+  const orchestratorCwd = (bot: { slug: string }): string | undefined =>
+    registry.memoryDirFor(bot.slug);
   return {
     rootDir,
     operationalDatabase,
@@ -109,6 +119,7 @@ export function createCore(
       agents: options.agents ?? unavailableAgentAdapter(),
       ownership,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+      orchestratorCwd,
     }),
   };
 }
@@ -124,17 +135,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost })
         .agentDefaultModel,
       defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+      orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     }),
   });
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.provide('botharness', core);
-
-  for (const tool of createMemoryTools({
-    resolveStore: (exec) => core.memory.storeForAgent(exec.agent),
-  })) {
-    ctx.tools.register(tool);
-  }
 
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
   registerBridge(

@@ -59,13 +59,29 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
-  it('does not provision Memory or Persona for a name-only bot', () => {
+  it('provisions the Memory directory for a name-only bot but writes no Persona', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
     registry.create({ slug: 'research', displayName: '研究助手' });
 
-    expect(existsSync(join(root, 'research', 'memory'))).toBe(false);
+    expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
+    expect(existsSync(join(root, 'research', 'memory', 'PERSONA.md'))).toBe(false);
     expect(registry.memoryDirFor('research')).toBe(join(root, 'research', 'memory'));
+  });
+
+  it('fails closed when the Memory Repository cannot be initialized', () => {
+    const root = createRoot();
+    const registry = createPersonaBotRegistry({
+      rootDir: root,
+      initializeMemory: () => ({ ok: false, message: 'git-init-failed' }),
+    });
+
+    expect(registry.create({ slug: 'broken', displayName: 'Broken' })).toEqual({
+      ok: false,
+      reason: 'memory-unavailable',
+      detail: 'git-init-failed',
+    });
+    expect(registry.get('broken')).toBeUndefined();
   });
 
   it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {
