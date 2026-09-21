@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from '../src/provider.js';
-import { createDockerComputerProvider, createPullTracker } from '../src/providers/docker.js';
+import {
+  DEFAULT_DOCKER_CONFIG,
+  createDockerComputerProvider,
+  createPullTracker,
+} from '../src/providers/docker.js';
 
 function runnerWith(
   handler: (argv: readonly string[]) => ComputerRuntimeResult,
@@ -250,6 +254,34 @@ describe('Docker computer provider', () => {
     expect(run).toContain('--memory-swap 2g');
     expect(run).toContain('--pids-limit 4096');
     expect(run).toContain('--shm-size 512m');
+  });
+
+  it('ships 2C2G defaults that stay overridable per Host', async () => {
+    expect(DEFAULT_DOCKER_CONFIG).toMatchObject({
+      cpus: 2,
+      memory: '2g',
+      shmSize: '512m',
+      pidsLimit: 4096,
+      idleStopMinutes: 30,
+    });
+
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('Error: No such container');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+      config: { cpus: 4, memory: '4g', shmSize: '1g', pidsLimit: 8192 },
+    });
+    await provider.start();
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('--cpus 4');
+    expect(run).toContain('--memory 4g');
+    expect(run).toContain('--memory-swap 4g');
+    expect(run).toContain('--shm-size 1g');
+    expect(run).toContain('--pids-limit 8192');
   });
 
   it('prepares the Chromium shortcut in the volume after start', async () => {

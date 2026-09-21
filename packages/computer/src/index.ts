@@ -22,9 +22,15 @@ export interface ComputerConfig {
   containerName: string;
   volumeName: string;
   hostPort: number;
+  /** CPU cores the container may use. */
   cpus: number;
+  /** Hard memory ceiling, e.g. 2g; swap is pinned to the same value. */
   memory: string;
+  /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
+  /** Process-count ceiling so a runaway app cannot fork-bomb the host. */
+  pidsLimit: number;
+  /** Minutes without viewers before the Computer stops itself. */
   idleStopMinutes: number;
   /** Removes terminals and sudo inside the Computer; off for a full desktop. */
   hardenDesktop: boolean;
@@ -48,6 +54,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   cpus: DEFAULT_DOCKER_CONFIG.cpus,
   memory: DEFAULT_DOCKER_CONFIG.memory,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
+  pidsLimit: DEFAULT_DOCKER_CONFIG.pidsLimit,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   language: DEFAULT_DOCKER_CONFIG.language,
@@ -63,6 +70,7 @@ export const Config = Schema.object({
   cpus: Schema.number().default(DEFAULT_CONFIG.cpus),
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
+  pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
   hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
   language: Schema.string().default(DEFAULT_CONFIG.language),
@@ -157,6 +165,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       cpus: config.cpus,
       memory: config.memory,
       shmSize: config.shmSize,
+      pidsLimit: config.pidsLimit,
       idleStopMinutes: config.idleStopMinutes,
       hardenDesktop: config.hardenDesktop,
       language: config.language,
