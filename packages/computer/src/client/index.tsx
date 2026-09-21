@@ -153,7 +153,11 @@ const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
-/** Watches the same-origin viewer document until its stream surface is live. */
+/**
+ * Watches the same-origin viewer document: reports when its stream surface is
+ * live and, after a loss (e.g. the Selkies session was closed from its own UI),
+ * reports the loss again so the caller can reconnect.
+ */
 function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean): boolean {
   const [ready, setReady] = useState(false);
 
@@ -163,9 +167,11 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean)
       return () => {};
     }
     let cancelled = false;
+    let misses = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = (): void => {
       if (cancelled) return;
+      let live = false;
       try {
         const doc = iframeRef.current?.contentDocument ?? null;
         const surface = doc?.getElementById('videoCanvas') as
@@ -174,15 +180,19 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean)
           | null;
         if (surface !== null) {
           const width = surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width;
-          if (width > 0) {
-            setReady(true);
-            return;
-          }
+          live = width > 0;
         }
       } catch {
-        // A cross-origin or not-yet-loaded document simply keeps waiting.
+        live = false;
       }
-      timer = setTimeout(check, 500);
+      if (live) {
+        misses = 0;
+        setReady(true);
+      } else {
+        misses += 1;
+        if (misses >= 3) setReady(false);
+      }
+      timer = setTimeout(check, 1000);
     };
     timer = setTimeout(check, 300);
     return () => {
@@ -359,7 +369,22 @@ function RunningCard({
   const ready = useFrameReady(iframeRef, true);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const wasReady = useRef(false);
   const title = `${botSlug ?? 'PersonaBot'} 的屏幕`;
+
+  // A stream that disappears after being live (closed session, dropped socket)
+  // remounts the viewer so it reconnects on its own.
+  useEffect(() => {
+    if (ready) {
+      wasReady.current = true;
+      return;
+    }
+    if (wasReady.current) {
+      wasReady.current = false;
+      setReloadKey((key) => key + 1);
+    }
+  }, [ready]);
 
   useEffect(() => {
     if (!expanded) return () => {};
@@ -386,7 +411,7 @@ function RunningCard({
         }}
         style={{ position: 'relative', cursor: ready ? 'pointer' : 'default' }}
       >
-        <ScaledFrame title={title} interactive={false} iframeRef={iframeRef} />
+        <ScaledFrame key={reloadKey} title={title} interactive={false} iframeRef={iframeRef} />
         {!ready ? (
           <LoadingOverlay />
         ) : hovered ? (
@@ -419,9 +444,19 @@ function RunningCard({
         ) : null}
       </div>
       <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{title}</div>
-      <button type="button" style={buttonStyle} disabled={busy || stopping} onClick={onStop}>
-        {busy || stopping ? '停止中…' : '停止'}
-      </button>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" style={buttonStyle} disabled={busy || stopping} onClick={onStop}>
+          {busy || stopping ? '停止中…' : '停止'}
+        </button>
+        <button
+          type="button"
+          style={buttonStyle}
+          onClick={() => setReloadKey((key) => key + 1)}
+          title="重新连接画面"
+        >
+          重新连接
+        </button>
+      </div>
 
       {expanded
         ? createPortal(
@@ -463,7 +498,7 @@ function RunningCard({
                 </button>
               </div>
               <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-                <ScaledFrame title={title} interactive fit="contain" />
+                <ScaledFrame key={reloadKey} title={title} interactive fit="contain" />
               </div>
             </div>,
             document.body,

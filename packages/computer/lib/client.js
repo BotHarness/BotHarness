@@ -86,7 +86,11 @@ window.__ModuleLoader__.load({
 		const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
-		/** Watches the same-origin viewer document until its stream surface is live. */
+		/**
+		* Watches the same-origin viewer document: reports when its stream surface is
+		* live and, after a loss (e.g. the Selkies session was closed from its own UI),
+		* reports the loss again so the caller can reconnect.
+		*/
 		function useFrameReady(iframeRef, active) {
 			const [ready, setReady] = (0, react.useState)(false);
 			(0, react.useEffect)(() => {
@@ -95,19 +99,25 @@ window.__ModuleLoader__.load({
 					return () => {};
 				}
 				let cancelled = false;
+				let misses = 0;
 				let timer;
 				const check = () => {
 					if (cancelled) return;
+					let live = false;
 					try {
 						const surface = (iframeRef.current?.contentDocument ?? null)?.getElementById("videoCanvas");
-						if (surface !== null) {
-							if ((surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width) > 0) {
-								setReady(true);
-								return;
-							}
-						}
-					} catch {}
-					timer = setTimeout(check, 500);
+						if (surface !== null) live = (surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width) > 0;
+					} catch {
+						live = false;
+					}
+					if (live) {
+						misses = 0;
+						setReady(true);
+					} else {
+						misses += 1;
+						if (misses >= 3) setReady(false);
+					}
+					timer = setTimeout(check, 1e3);
 				};
 				timer = setTimeout(check, 300);
 				return () => {
@@ -265,7 +275,19 @@ window.__ModuleLoader__.load({
 			const ready = useFrameReady(iframeRef, true);
 			const [hovered, setHovered] = (0, react.useState)(false);
 			const [expanded, setExpanded] = (0, react.useState)(false);
+			const [reloadKey, setReloadKey] = (0, react.useState)(0);
+			const wasReady = (0, react.useRef)(false);
 			const title = `${botSlug ?? "PersonaBot"} 的屏幕`;
+			(0, react.useEffect)(() => {
+				if (ready) {
+					wasReady.current = true;
+					return;
+				}
+				if (wasReady.current) {
+					wasReady.current = false;
+					setReloadKey((key) => key + 1);
+				}
+			}, [ready]);
 			(0, react.useEffect)(() => {
 				if (!expanded) return () => {};
 				const onKey = (event) => {
@@ -301,7 +323,7 @@ window.__ModuleLoader__.load({
 							title,
 							interactive: false,
 							iframeRef
-						}), !ready ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LoadingOverlay, {}) : hovered ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						}, reloadKey), !ready ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LoadingOverlay, {}) : hovered ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							style: {
 								position: "absolute",
 								inset: 0,
@@ -334,12 +356,24 @@ window.__ModuleLoader__.load({
 						},
 						children: title
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-						type: "button",
-						style: buttonStyle,
-						disabled: busy || stopping,
-						onClick: onStop,
-						children: busy || stopping ? "停止中…" : "停止"
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "flex",
+							gap: 8
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: buttonStyle,
+							disabled: busy || stopping,
+							onClick: onStop,
+							children: busy || stopping ? "停止中…" : "停止"
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: buttonStyle,
+							onClick: () => setReloadKey((key) => key + 1),
+							title: "重新连接画面",
+							children: "重新连接"
+						})]
 					}),
 					expanded ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						role: "dialog",
@@ -397,7 +431,7 @@ window.__ModuleLoader__.load({
 								title,
 								interactive: true,
 								fit: "contain"
-							})
+							}, reloadKey)
 						})]
 					}), document.body) : null
 				]
