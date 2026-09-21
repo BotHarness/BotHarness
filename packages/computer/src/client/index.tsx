@@ -204,8 +204,8 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean)
   return ready;
 }
 
-/** Centered spinner over black, used while the viewer connects. */
-function LoadingOverlay(): ReactElement {
+/** Centered spinner over black; the shared connecting/retrying indicator. */
+export function ScreenIndicator({ label = '连接中' }: { readonly label?: string }): ReactElement {
   const size = 26;
   const stroke = 2;
   const radius = (size - stroke) / 2;
@@ -247,7 +247,7 @@ function LoadingOverlay(): ReactElement {
             strokeDasharray={`${String(circumference * 0.28)} ${String(circumference * 0.72)}`}
           />
         </svg>
-        <span style={{ fontSize: 12.5, opacity: 0.7 }}>连接中</span>
+        <span style={{ fontSize: 12.5, opacity: 0.7 }}>{label}</span>
       </div>
     </div>
   );
@@ -351,8 +351,9 @@ function CollapseIcon(): ReactElement {
 
 /**
  * Running state: an AgentScreen-style resting card. While the stream connects
- * it shows the loading overlay; once live, a hover mask blocks input and
- * offers 「打开」, which expands to the fullscreen viewer.
+ * (or reconnects) it shows the shared indicator; once live, a hover mask blocks
+ * input and offers 「打开」, which expands to the fullscreen viewer. Only one
+ * viewer iframe is mounted at a time.
  */
 function RunningCard({
   botSlug,
@@ -365,23 +366,30 @@ function RunningCard({
   readonly stopping: boolean;
   readonly onStop: () => void;
 }): ReactElement {
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const ready = useFrameReady(iframeRef, true);
+  const inlineRef = useRef<HTMLIFrameElement>(null);
+  const fullRef = useRef<HTMLIFrameElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
   const title = `${botSlug ?? 'PersonaBot'} 的屏幕`;
+
+  const inlineReady = useFrameReady(inlineRef, !expanded);
+  const fullReady = useFrameReady(fullRef, expanded);
+  const ready = expanded ? fullReady : inlineReady;
 
   // A stream that disappears after being live (closed session, dropped socket)
   // remounts the viewer so it reconnects on its own.
   useEffect(() => {
     if (ready) {
       wasReady.current = true;
+      setReconnecting(false);
       return;
     }
     if (wasReady.current) {
       wasReady.current = false;
+      setReconnecting(true);
       setReloadKey((key) => key + 1);
     }
   }, [ready]);
@@ -399,49 +407,73 @@ function RunningCard({
     };
   }, [expanded]);
 
+  const indicatorLabel = reconnecting ? '正在重新连接' : '连接中';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
-        role={ready ? 'button' : undefined}
-        aria-label={ready ? '打开大屏' : '正在连接'}
+        role={ready && !expanded ? 'button' : undefined}
+        aria-label={ready ? '打开大屏' : indicatorLabel}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          if (ready) setExpanded(true);
+          if (ready && !expanded) setExpanded(true);
         }}
-        style={{ position: 'relative', cursor: ready ? 'pointer' : 'default' }}
+        style={{ position: 'relative', cursor: ready && !expanded ? 'pointer' : 'default' }}
       >
-        <ScaledFrame key={reloadKey} title={title} interactive={false} iframeRef={iframeRef} />
-        {!ready ? (
-          <LoadingOverlay />
-        ) : hovered ? (
+        {expanded ? (
           <div
             style={{
-              position: 'absolute',
-              inset: 0,
+              position: 'relative',
+              width: '100%',
+              aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
               display: 'grid',
               placeItems: 'center',
-              background: 'rgba(17,19,24,0.18)',
+              border: '1px solid var(--dsh-border, #3a3a3a)',
               borderRadius: 8,
+              background: '#000',
+              color: '#fff',
+              fontSize: 12.5,
+              opacity: 0.8,
             }}
           >
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-                padding: '6px 12px',
-                borderRadius: 999,
-                background: 'var(--dsh-accent, #4d6bfe)',
-                color: '#fff',
-                fontSize: 12.5,
-                fontWeight: 500,
-              }}
-            >
-              ⤢ 打开
-            </span>
+            已在大屏打开
           </div>
-        ) : null}
+        ) : (
+          <>
+            <ScaledFrame key={reloadKey} title={title} interactive={false} iframeRef={inlineRef} />
+            {!inlineReady ? (
+              <ScreenIndicator label={indicatorLabel} />
+            ) : hovered ? (
+              <div
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  display: 'grid',
+                  placeItems: 'center',
+                  background: 'rgba(17,19,24,0.18)',
+                  borderRadius: 8,
+                }}
+              >
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 12px',
+                    borderRadius: 999,
+                    background: 'var(--dsh-accent, #4d6bfe)',
+                    color: '#fff',
+                    fontSize: 12.5,
+                    fontWeight: 500,
+                  }}
+                >
+                  ⤢ 打开
+                </span>
+              </div>
+            ) : null}
+          </>
+        )}
       </div>
       <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{title}</div>
       <div style={{ display: 'flex', gap: 8 }}>
@@ -451,7 +483,10 @@ function RunningCard({
         <button
           type="button"
           style={buttonStyle}
-          onClick={() => setReloadKey((key) => key + 1)}
+          onClick={() => {
+            setReconnecting(true);
+            setReloadKey((key) => key + 1);
+          }}
           title="重新连接画面"
         >
           重新连接
@@ -498,7 +533,14 @@ function RunningCard({
                 </button>
               </div>
               <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-                <ScaledFrame key={reloadKey} title={title} interactive fit="contain" />
+                <ScaledFrame
+                  key={reloadKey}
+                  title={title}
+                  interactive
+                  fit="contain"
+                  iframeRef={fullRef}
+                />
+                {!fullReady ? <ScreenIndicator label={indicatorLabel} /> : null}
               </div>
             </div>,
             document.body,

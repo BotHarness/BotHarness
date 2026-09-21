@@ -127,8 +127,8 @@ window.__ModuleLoader__.load({
 			}, [iframeRef, active]);
 			return ready;
 		}
-		/** Centered spinner over black, used while the viewer connects. */
-		function LoadingOverlay() {
+		/** Centered spinner over black; the shared connecting/retrying indicator. */
+		function ScreenIndicator({ label = "连接中" }) {
 			const size = 26;
 			const stroke = 2;
 			const radius = 12;
@@ -176,7 +176,7 @@ window.__ModuleLoader__.load({
 							fontSize: 12.5,
 							opacity: .7
 						},
-						children: "连接中"
+						children: label
 					})]
 				})
 			});
@@ -267,24 +267,31 @@ window.__ModuleLoader__.load({
 		}
 		/**
 		* Running state: an AgentScreen-style resting card. While the stream connects
-		* it shows the loading overlay; once live, a hover mask blocks input and
-		* offers 「打开」, which expands to the fullscreen viewer.
+		* (or reconnects) it shows the shared indicator; once live, a hover mask blocks
+		* input and offers 「打开」, which expands to the fullscreen viewer. Only one
+		* viewer iframe is mounted at a time.
 		*/
 		function RunningCard({ botSlug, busy, stopping, onStop }) {
-			const iframeRef = (0, react.useRef)(null);
-			const ready = useFrameReady(iframeRef, true);
+			const inlineRef = (0, react.useRef)(null);
+			const fullRef = (0, react.useRef)(null);
 			const [hovered, setHovered] = (0, react.useState)(false);
 			const [expanded, setExpanded] = (0, react.useState)(false);
 			const [reloadKey, setReloadKey] = (0, react.useState)(0);
+			const [reconnecting, setReconnecting] = (0, react.useState)(false);
 			const wasReady = (0, react.useRef)(false);
 			const title = `${botSlug ?? "PersonaBot"} 的屏幕`;
+			const inlineReady = useFrameReady(inlineRef, !expanded);
+			const fullReady = useFrameReady(fullRef, expanded);
+			const ready = expanded ? fullReady : inlineReady;
 			(0, react.useEffect)(() => {
 				if (ready) {
 					wasReady.current = true;
+					setReconnecting(false);
 					return;
 				}
 				if (wasReady.current) {
 					wasReady.current = false;
+					setReconnecting(true);
 					setReloadKey((key) => key + 1);
 				}
 			}, [ready]);
@@ -300,6 +307,7 @@ window.__ModuleLoader__.load({
 					document.body.style.overflow = "";
 				};
 			}, [expanded]);
+			const indicatorLabel = reconnecting ? "正在重新连接" : "连接中";
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -307,23 +315,38 @@ window.__ModuleLoader__.load({
 					gap: 8
 				},
 				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						role: ready ? "button" : void 0,
-						"aria-label": ready ? "打开大屏" : "正在连接",
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						role: ready && !expanded ? "button" : void 0,
+						"aria-label": ready ? "打开大屏" : indicatorLabel,
 						onMouseEnter: () => setHovered(true),
 						onMouseLeave: () => setHovered(false),
 						onClick: () => {
-							if (ready) setExpanded(true);
+							if (ready && !expanded) setExpanded(true);
 						},
 						style: {
 							position: "relative",
-							cursor: ready ? "pointer" : "default"
+							cursor: ready && !expanded ? "pointer" : "default"
 						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+						children: expanded ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							style: {
+								position: "relative",
+								width: "100%",
+								aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+								display: "grid",
+								placeItems: "center",
+								border: "1px solid var(--dsh-border, #3a3a3a)",
+								borderRadius: 8,
+								background: "#000",
+								color: "#fff",
+								fontSize: 12.5,
+								opacity: .8
+							},
+							children: "已在大屏打开"
+						}) : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 							title,
 							interactive: false,
-							iframeRef
-						}, reloadKey), !ready ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LoadingOverlay, {}) : hovered ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							iframeRef: inlineRef
+						}, reloadKey), !inlineReady ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: indicatorLabel }) : hovered ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							style: {
 								position: "absolute",
 								inset: 0,
@@ -346,7 +369,7 @@ window.__ModuleLoader__.load({
 								},
 								children: "⤢ 打开"
 							})
-						}) : null]
+						}) : null] })
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: {
@@ -370,7 +393,10 @@ window.__ModuleLoader__.load({
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
 							style: buttonStyle,
-							onClick: () => setReloadKey((key) => key + 1),
+							onClick: () => {
+								setReconnecting(true);
+								setReloadKey((key) => key + 1);
+							},
 							title: "重新连接画面",
 							children: "重新连接"
 						})]
@@ -421,17 +447,18 @@ window.__ModuleLoader__.load({
 									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {})
 								})
 							]
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							style: {
 								position: "relative",
 								flex: 1,
 								minHeight: 0
 							},
-							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 								title,
 								interactive: true,
-								fit: "contain"
-							}, reloadKey)
+								fit: "contain",
+								iframeRef: fullRef
+							}, reloadKey), !fullReady ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: indicatorLabel }) : null]
 						})]
 					}), document.body) : null
 				]
@@ -708,6 +735,7 @@ window.__ModuleLoader__.load({
 		//#endregion
 		exports.ComputerEntry = ComputerEntry;
 		exports.ComputerEntryView = ComputerEntryView;
+		exports.ScreenIndicator = ScreenIndicator;
 		exports.apply = apply;
 		exports.inject = inject;
 		exports.name = name;
