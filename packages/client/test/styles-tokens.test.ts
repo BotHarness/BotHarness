@@ -113,7 +113,8 @@ describe('client styles', () => {
   });
 
   it('keeps the composer island token-driven and clear of the message scroll area', () => {
-    expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 999px/);
+    expect(source).toMatch(/\.bh-composer \{[^}]*min-height: 50px/);
+    expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 25px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*padding-bottom: 48px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*border-radius: 20px/);
     expect(source).toMatch(
@@ -127,8 +128,12 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
     expect(source).toMatch(/\.bh-composer-input \{[^}]*padding: 7px 8px 5px/);
     expect(source).not.toMatch(/\.bh-composer-input \{[^}]*transition:/);
+    expect(source).toMatch(
+      /\.bh-composer-body \{[^}]*height: var\(--bh-composer-body-height\)[^}]*transition: height 220ms/,
+    );
     expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
     expect(source).toMatch(/\.bh-composer-expanded \.bh-composer-footer \{[^}]*bottom: 8px/);
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
+    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-body");
   });
 });

@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState, type KeyboardEvent, type ReactElement } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type KeyboardEvent,
+  type ReactElement,
+} from 'react';
 
 import { Button, IconSendOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -34,17 +42,23 @@ export function shouldSubmitComposerKey(
   );
 }
 
+export interface ComposerTextareaFit {
+  expanded: boolean;
+  height: number;
+}
+
 /** Keep the draft compact until content needs the bounded scrolling region. */
 export function fitComposerTextarea(
   element: Pick<HTMLTextAreaElement, 'scrollHeight' | 'style'>,
   maxHeight = 144,
   singleLineHeight = 34,
-): boolean {
+): ComposerTextareaFit {
   element.style.height = '0px';
-  const height = Math.min(element.scrollHeight, maxHeight);
+  const scrollHeight = element.scrollHeight;
+  const height = Math.min(scrollHeight, maxHeight);
   element.style.height = `${height}px`;
-  element.style.overflowY = element.scrollHeight > maxHeight ? 'auto' : 'hidden';
-  return element.scrollHeight > singleLineHeight;
+  element.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
+  return { expanded: scrollHeight > singleLineHeight, height };
 }
 
 function PersonaBotActivityStatus({
@@ -84,13 +98,21 @@ export function ChannelComposer({
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  const [expanded, setExpanded] = useState(false);
+  const [fit, setFit] = useState<ComposerTextareaFit>({ expanded: false, height: 34 });
+
+  const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
+    const nextFit = fitComposerTextarea(element);
+    setFit((current) =>
+      current.expanded === nextFit.expanded && current.height === nextFit.height
+        ? current
+        : nextFit,
+    );
+  }, []);
 
   useEffect(() => {
     if (inputRef.current === null) return;
-    const nextExpanded = fitComposerTextarea(inputRef.current);
-    setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
-  }, [value]);
+    syncTextarea(inputRef.current);
+  }, [syncTextarea, value]);
 
   useEffect(() => {
     const element = inputRef.current;
@@ -101,19 +123,19 @@ export function ChannelComposer({
       const nextWidth = entry?.contentRect.width;
       if (nextWidth === undefined || nextWidth === width) return;
       width = nextWidth;
-      const nextExpanded = fitComposerTextarea(element);
-      setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
+      syncTextarea(element);
     });
     observer.observe(element);
     return () => observer.disconnect();
-  }, []);
+  }, [syncTextarea]);
 
   return (
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} />
       <div
-        className={`bh-composer ${expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
-        data-layout={expanded ? 'expanded' : 'compact'}
+        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
+        data-layout={fit.expanded ? 'expanded' : 'compact'}
+        style={{ '--bh-composer-body-height': `${fit.height}px` } as CSSProperties}
       >
         <div className="bh-composer-body">
           <textarea
@@ -124,8 +146,7 @@ export function ChannelComposer({
             value={value}
             disabled={sending}
             onChange={(event) => {
-              const nextExpanded = fitComposerTextarea(event.currentTarget);
-              setExpanded((current) => (current === nextExpanded ? current : nextExpanded));
+              syncTextarea(event.currentTarget);
               onChange(event.target.value);
             }}
             onKeyDown={(event) => {

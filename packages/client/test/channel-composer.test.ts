@@ -92,15 +92,15 @@ describe('Channel composer', () => {
     const style = { height: '', overflowY: '' };
     const element = { scrollHeight: 88, style };
 
-    expect(fitComposerTextarea(element as never)).toBe(true);
+    expect(fitComposerTextarea(element as never)).toEqual({ expanded: true, height: 88 });
     expect(style).toEqual({ height: '88px', overflowY: 'hidden' });
 
     element.scrollHeight = 34;
-    expect(fitComposerTextarea(element as never)).toBe(false);
+    expect(fitComposerTextarea(element as never)).toEqual({ expanded: false, height: 34 });
     expect(style).toEqual({ height: '34px', overflowY: 'hidden' });
 
     element.scrollHeight = 220;
-    expect(fitComposerTextarea(element as never)).toBe(true);
+    expect(fitComposerTextarea(element as never)).toEqual({ expanded: true, height: 144 });
     expect(style).toEqual({ height: '144px', overflowY: 'auto' });
   });
 });

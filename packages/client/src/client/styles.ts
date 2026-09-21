@@ -1120,19 +1120,20 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   flex: 0 0 auto;
 }
 .bh-composer {
+  --bh-composer-body-height: 34px;
   position: relative;
   min-height: 50px;
   box-sizing: border-box;
   overflow: hidden;
   padding: 7px 54px 7px 10px;
   border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
+  border-radius: 25px;
   background: var(--dsw-alias-bg-module-platform);
   box-shadow: 0 8px 24px
     color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
   transition:
-    padding 180ms var(--ds-ease-in-out),
-    border-radius 180ms var(--ds-ease-in-out);
+    padding 220ms var(--ds-ease-in-out),
+    border-radius 220ms var(--ds-ease-in-out);
 }
 .bh-composer-expanded {
   padding-top: 10px;
@@ -1166,6 +1167,9 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-composer-body {
   display: flex;
   min-width: 0;
+  height: var(--bh-composer-body-height);
+  overflow: hidden;
+  transition: height 220ms var(--ds-ease-in-out);
 }
 .bh-composer-input {
   display: block;
@@ -1199,8 +1203,8 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   justify-content: flex-end;
   transform: translateY(50%);
   transition:
-    bottom 180ms var(--ds-ease-in-out),
-    transform 180ms var(--ds-ease-in-out);
+    bottom 220ms var(--ds-ease-in-out),
+    transform 220ms var(--ds-ease-in-out);
 }
 .bh-composer-expanded .bh-composer-footer {
   bottom: 8px;
@@ -1214,6 +1218,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-radius: 50%;
 }
 html[data-botharness-motion='reduce'] .bh-composer,
+html[data-botharness-motion='reduce'] .bh-composer-body,
 html[data-botharness-motion='reduce'] .bh-composer-footer {
   transition: none;
 }
