@@ -36,6 +36,10 @@ Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` 
 - Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`). First-party skills live in the same tree and are ours to edit — `dsh-plugin-dev` (stable DSH/Cordis Context and Decision Tree), `dsh-dev`, and `dsh-ui` (all symlinked into `.claude/skills/`, not in the lock file).
 - Local docs dev: `pnpm dev` (portless from `apps/docs` → https://docs.botharness.localhost; no-sudo variant `PORTLESS_PORT=8788 PORTLESS_HTTPS=0`) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
 
+### Developer diagnostics (AX)
+
+Agent-facing debugging is a first-class concern. A plugin that owns long-running or external resources (containers, adapters, schedulers, external commands) records structured, bounded developer logs for its lifecycle transitions — initiator, phase, duration, external command summary, refusal reason — on a log surface that both Humans and agents can read, instead of ad-hoc `console` output. Messages stay stable and machine-parseable, never contain secrets, and remain process evidence rather than a second durable authority. The long-term tracing plan lives in [#160](https://github.com/BotHarness/BotHarness/issues/160); `CLAUDE.md` inherits this section because it delegates to `AGENTS.md`.
+
 ## Delivery workflow — tracer bullets
 
 For a feature that crosses layers, deliver a sequence of **tracer bullets**: the smallest production-shaped end-to-end slice that reaches the owning Host module, durable authority, adapter/RPC, Client surface, and a Human-testable runtime path. Validate that slice before expanding the next one. This follows the [tracer-bullet practice](https://www.aihero.dev/tracer-bullets): build one narrow vertical path, test it immediately, get feedback, then extend it.
