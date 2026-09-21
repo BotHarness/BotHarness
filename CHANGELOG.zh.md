@@ -14,7 +14,7 @@
 
 ### Changed
 
-- PersonaBot DM 行现在可从右键菜单置顶，并可从置顶网格取消置顶；持久化 pin 顺序发生变化时，不会丢失 DM 原有的 section 或未分组位置（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
+- PersonaBot DM 行现在既可通过右键菜单置顶，也可拖入常驻置顶区；置顶卡片可拖回高亮的普通列表以取消置顶，两条路径都不会丢失 DM 原有的 section 或未分组位置（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed

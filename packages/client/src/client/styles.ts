@@ -235,12 +235,43 @@ button:has(.bh-panel-glyph) {
   inset: 0;
 }
 
+.bh-pin-zone {
+  flex: none;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  transition:
+    background 120ms var(--ds-ease-in-out),
+    border-color 120ms var(--ds-ease-in-out),
+    box-shadow 120ms var(--ds-ease-in-out);
+}
+.bh-pin-zone-empty {
+  display: grid;
+  place-items: center;
+  min-height: 96px;
+  margin-inline: 4px;
+  border: 1px dashed var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-button-elevated-fill);
+}
+.bh-pin-zone-filled {
+  padding: 4px;
+}
+.bh-pin-zone-active {
+  background: var(--bh-hover);
+  box-shadow: inset 0 0 0 1px var(--bh-accent);
+}
+.bh-pin-zone-empty.bh-pin-zone-active {
+  border-color: var(--bh-accent);
+}
+.bh-pin-zone-hint {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  pointer-events: none;
+}
 .bh-pinned-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
   gap: 6px 8px;
-  margin-bottom: 12px;
-  padding: 0 4px;
 }
 .bh-pinned {
   display: flex;
@@ -261,6 +292,9 @@ button:has(.bh-panel-glyph) {
 }
 .bh-pinned.bh-selected {
   background: var(--bh-selected);
+}
+.bh-pinned.bh-drag-source {
+  opacity: 0.4;
 }
 .bh-pinned .bh-name {
   font-size: 12px;
@@ -470,6 +504,18 @@ button:has(.bh-panel-glyph) {
 /* 原生 .flatList/.groupSection 行距：同一 scope 内相邻行 2px。 */
 .bh-list-area > * + * {
   margin-top: 2px;
+}
+.bh-roster-list {
+  flex: 1 0 auto;
+  min-height: 72px;
+  border-radius: 10px;
+  transition:
+    background 120ms var(--ds-ease-in-out),
+    box-shadow 120ms var(--ds-ease-in-out);
+}
+.bh-roster-list-drop-active {
+  background: var(--bh-hover);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l3);
 }
 /* 区块距（PM 定稿）：section 之间、平铺列表与首个 section 之间 12px ——
    外壳自身的块节奏（logoRow / panelList 的 margin-bottom 8px，收起态 12px）

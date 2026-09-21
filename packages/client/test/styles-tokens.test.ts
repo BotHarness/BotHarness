@@ -93,6 +93,16 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-contact\.bh-drag-source \{\s*opacity: 0\.4/);
   });
 
+  it('keeps pin and unpin drop feedback token-based and layout-stable', () => {
+    expect(source).toMatch(/\.bh-pin-zone-empty \{[^}]*min-height: 96px/);
+    expect(source).toMatch(
+      /\.bh-pin-zone-empty \{[^}]*border: 1px dashed var\(--dsw-alias-border-l3\)/,
+    );
+    expect(source).toMatch(/\.bh-pin-zone-active \{[^}]*background: var\(--bh-hover\)/);
+    expect(source).toMatch(/\.bh-roster-list-drop-active \{[^}]*background: var\(--bh-hover\)/);
+    expect(source).toMatch(/\.bh-pinned\.bh-drag-source \{\s*opacity: 0\.4/);
+  });
+
   it('anchors the channel move menu at the cursor proxy', () => {
     expect(source).toMatch(/\.bh-menu-anchor \{\s*position: fixed/);
     expect(source).toMatch(/\.bh-move-checked \{\s*display: flex/);
