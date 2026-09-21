@@ -157,6 +157,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
+  botIcon: 'mascot' as const,
   effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
@@ -214,6 +215,7 @@ beforeEach(() => {
   setRoster();
   prefs = {
     motionPreference: 'system',
+    botIcon: 'mascot' as const,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -477,6 +479,7 @@ describe('bot sidebar rows', () => {
   it('renders the global sort menu from the shared policy store', () => {
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -525,6 +528,7 @@ describe('bot sidebar rows', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -606,6 +610,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -617,6 +622,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -644,6 +650,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -656,6 +663,7 @@ describe('bot sidebar rows', () => {
 
     prefs = {
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},

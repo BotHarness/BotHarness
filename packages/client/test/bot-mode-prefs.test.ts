@@ -28,7 +28,12 @@ function stored(storage: ConfigStorage): unknown {
 function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
   let snapshot: BotModeScopeSnapshot = {
     status: 'ready',
-    value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
+    value: {
+      botIcon: 'mascot' as const,
+      motionPreference: 'system',
+      sortMode: 'updated',
+      sortModes: {},
+    },
     user: {},
     writable: true,
     mode: 'host',
@@ -65,6 +70,7 @@ describe('BOT-mode policy store', () => {
 
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'system',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -75,7 +81,12 @@ describe('BOT-mode policy store', () => {
 
   it('adopts the accepted Host global and per-section values on every accepted change', () => {
     const scope = fakeHost({
-      value: { motionPreference: 'reduce', sortMode: 'manual', sortModes: { s1: 'updated' } },
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'reduce',
+        sortMode: 'manual',
+        sortModes: { s1: 'updated' },
+      },
       user: { sortMode: 'manual', sortModes: { s1: 'updated' } },
     });
     const prefs = new BotModePrefs();
@@ -83,6 +94,7 @@ describe('BOT-mode policy store', () => {
 
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'reduce',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'reduce',
       sortMode: 'manual',
       sortModes: { s1: 'updated' },
@@ -91,7 +103,12 @@ describe('BOT-mode policy store', () => {
     });
 
     scope.push({
-      value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: {},
+      },
       user: {},
     });
     expect(prefs.source.getSnapshot()).toMatchObject({ sortMode: 'updated', sortModes: {} });
@@ -119,6 +136,7 @@ describe('BOT-mode policy store', () => {
     prefs.setMotionPreference('reduce');
     expect(prefs.source.getSnapshot()).toMatchObject({
       motionPreference: 'reduce',
+      botIcon: 'mascot' as const,
       effectiveMotion: 'reduce',
     });
     expect(scope.set).toHaveBeenCalledWith('motionPreference', 'reduce');
@@ -151,6 +169,7 @@ describe('BOT-mode policy store', () => {
   it('resolves a section without an override to inherit', () => {
     const snapshot = {
       motionPreference: 'system' as const,
+      botIcon: 'mascot' as const,
       effectiveMotion: 'full' as const,
       sortMode: 'updated' as const,
       sortModes: { s1: 'manual' as const },
@@ -215,7 +234,14 @@ describe('BOT-mode policy store', () => {
     prefs.setSortMode('manual');
     prefs.detach();
 
-    scope.push({ value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} } });
+    scope.push({
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: {},
+      },
+    });
     expect(prefs.source.getSnapshot().sortMode).toBe('manual');
   });
 
@@ -292,7 +318,12 @@ describe('legacy roster.json sort migration', () => {
       }),
     );
     const scope = fakeHost({
-      value: { motionPreference: 'system', sortMode: 'updated', sortModes: { s1: 'updated' } },
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: { s1: 'updated' },
+      },
       user: { sortMode: 'updated', sortModes: { s1: 'updated' } },
     });
     const prefs = new BotModePrefs(storage);
@@ -347,6 +378,7 @@ describe('roster migration sort-mode remap', () => {
     const scope = fakeHost({
       value: {
         motionPreference: 'system',
+        botIcon: 'mascot' as const,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
       },
@@ -418,6 +450,7 @@ describe('roster migration sort-mode remap', () => {
     const scope = fakeHost({
       value: {
         motionPreference: 'system',
+        botIcon: 'mascot' as const,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
       },

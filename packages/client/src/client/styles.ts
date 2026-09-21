@@ -1732,6 +1732,44 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */
+/* The Bot mark: one box sized by the caller, artwork resolved per palette. */
+.bh-bot-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+}
+
+.bh-bot-icon > svg,
+.bh-bot-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* Settings nav cell tagged by bot-icon-nav: hide the shell glyph, show ours. */
+button.bh-bot-nav > svg {
+  display: none;
+}
+
+.bh-bot-nav-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+}
+
+.bh-bot-nav-icon > svg,
+.bh-bot-nav-icon > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .bh-settings-rows {
   display: flex;
   flex-direction: column;

@@ -5,11 +5,14 @@ import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-cli
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
 import {
+  isBotModeIcon,
   isBotModeMotionPreference,
   isBotModeSortMode,
+  type BotModeIcon,
   type BotModeMotionPreference,
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
+import { BotIcon } from './bot-icon.js';
 import type { BotModePrefsFace } from './bot-mode-prefs.js';
 import type { BotHarnessKey } from './locale.js';
 
@@ -21,6 +24,12 @@ export type BotSettingsSectionProps = PropsRuntime<'settings.section'> &
 const SORT_OPTIONS: readonly { id: BotModeSortMode; label: BotHarnessKey }[] = [
   { id: 'updated', label: 'sort.updated' },
   { id: 'manual', label: 'sort.manual' },
+];
+
+const ICON_OPTIONS: readonly { id: BotModeIcon; label: BotHarnessKey }[] = [
+  { id: 'mascot', label: 'icon.mascot' },
+  { id: 'blob', label: 'icon.blob' },
+  { id: 'bot', label: 'icon.bot' },
 ];
 
 const MOTION_OPTIONS: readonly { id: BotModeMotionPreference; label: BotHarnessKey }[] = [
@@ -41,10 +50,14 @@ export function BotSettingsSection({
   useBotModePrefs,
   setMotionPreference,
   setSortMode,
+  setBotIcon,
 }: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [iconOpen, setIconOpen] = useState(false);
+  const iconLabel: BotHarnessKey =
+    prefs.botIcon === 'blob' ? 'icon.blob' : prefs.botIcon === 'bot' ? 'icon.bot' : 'icon.mascot';
   const sortLabel: BotHarnessKey = prefs.sortMode === 'manual' ? 'sort.manual' : 'sort.updated';
   const motionLabel: BotHarnessKey =
     prefs.motionPreference === 'reduce'
@@ -57,6 +70,45 @@ export function BotSettingsSection({
   const memoryOnly = prefs.status === 'unavailable' && prefs.mode === 'memory';
   return (
     <div className="bh-settings-rows">
+      <div className="bh-settings-row bh-icon-row">
+        <div className="bh-settings-row-text">
+          <div className="bh-settings-row-title">{t('icon.row.title')}</div>
+          <div className="bh-settings-row-desc">{t('icon.row.description')}</div>
+          <div className="bh-motion-preview" role="status" aria-live="polite">
+            <BotIcon icon={prefs.botIcon} size={16} className="bh-bot-icon-chip" />
+            <span>{t(iconLabel)}</span>
+          </div>
+        </div>
+        <Menu
+          open={iconOpen}
+          portal
+          align="end"
+          items={ICON_OPTIONS.map((option) => ({ id: option.id, label: t(option.label) }))}
+          selectedId={prefs.botIcon}
+          onSelect={(id) => {
+            setIconOpen(false);
+            if (isBotModeIcon(id)) setBotIcon(id);
+          }}
+          onClose={() => {
+            setIconOpen(false);
+          }}
+          anchor={
+            <button
+              type="button"
+              className="bh-settings-selector"
+              aria-label={t('icon.menu.label')}
+              aria-haspopup="menu"
+              aria-expanded={iconOpen}
+              onClick={() => {
+                setIconOpen((value) => !value);
+              }}
+            >
+              {t(iconLabel)}
+              <IconChevronDownOutline14 className="bh-settings-chevron" />
+            </button>
+          }
+        />
+      </div>
       <div className="bh-settings-row bh-motion-row">
         <div className="bh-settings-row-text">
           <div className="bh-settings-row-title">{t('motion.row.title')}</div>

@@ -10,6 +10,9 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
 import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
+import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
+import { botIconMarkup } from './bot-icon.js';
+import { installBotNavIcon } from './bot-icon-nav.js';
 import { BotSettingsSection } from './bot-settings-section.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
@@ -92,6 +95,20 @@ export function apply(ctx: ClientContext): void {
     });
     prefs.attach(scope);
     const t = settingsCtx.locale.bind(LOCALE_NS);
+    // The shell owns the Settings nav glyph; tag our cell and wear the chosen
+    // mark instead of its gear fallback (see bot-icon-nav).
+    const releaseNavIcon = installBotNavIcon({
+      labels: () => [t('settings.nav')],
+      markup: () => botIconMarkup(prefs.source.getSnapshot().botIcon, readBotColorScheme()),
+      subscribe: (listener) => {
+        const offPrefs = prefs.source.subscribe(listener);
+        const offScheme = subscribeBotColorScheme(listener);
+        return () => {
+          offPrefs();
+          offScheme();
+        };
+      },
+    });
     settingsCtx.slots.inject('settings.section', () =>
       settingsCtx.slots.register(
         {
@@ -106,6 +123,7 @@ export function apply(ctx: ClientContext): void {
       ),
     );
     return () => {
+      releaseNavIcon();
       prefs.detach();
     };
   });
@@ -117,6 +135,7 @@ export function apply(ctx: ClientContext): void {
         id: PANEL_ID,
         order: 10,
         label: 'BOT 模式',
+        inject: () => ({ ...botModePrefsFace(prefs) }),
       },
       createBotPanelEntry(() => {
         ctx.layout.selectPanel(null);

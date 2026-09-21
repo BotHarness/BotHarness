@@ -29,13 +29,29 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   };
 });
 
+import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { createBotPanelEntry } from '../src/client/bot-sidebar.js';
+
+const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
+  selector({
+    motionPreference: 'system',
+    botIcon: 'mascot' as const,
+    effectiveMotion: 'full',
+    sortMode: 'updated',
+    sortModes: {},
+    mode: 'host',
+    status: 'ready',
+  })) as never;
 
 describe('bot panel entry', () => {
   it('arms the row-wide exit target only while the panel is active', () => {
     const entry = createBotPanelEntry(() => undefined);
-    const inactive = renderToStaticMarkup(createElement(entry, { size: 16, active: false }));
-    const active = renderToStaticMarkup(createElement(entry, { size: 16, active: true }));
+    const inactive = renderToStaticMarkup(
+      createElement(entry, { size: 16, active: false, useBotModePrefs }),
+    );
+    const active = renderToStaticMarkup(
+      createElement(entry, { size: 16, active: true, useBotModePrefs }),
+    );
 
     expect(inactive).not.toContain('bh-panel-glyph-hit');
     expect(active).toContain('bh-panel-glyph-hit');

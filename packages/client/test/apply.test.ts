@@ -61,7 +61,12 @@ function fakeScope(): FakeScope {
   return {
     getSnapshot: () => ({
       status: 'ready',
-      value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
+      value: {
+        botIcon: 'mascot' as const,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: {},
+      },
       user: {},
       writable: true,
       mode: 'host',

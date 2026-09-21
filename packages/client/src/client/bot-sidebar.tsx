@@ -23,6 +23,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store';
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
+import { BotIcon } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
 import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
@@ -82,6 +83,8 @@ export function useClientState(): ClientState {
 export interface BotPanelEntryProps {
   size: number;
   active: boolean;
+  /** Live preference hook injected by the panellist registration. */
+  useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
 }
 
 /**
@@ -95,14 +98,17 @@ export function BotPanelIcon({
   size,
   active,
   onExit,
+  useBotModePrefs,
 }: {
   size: number;
   active: boolean;
   onExit: () => void;
+  useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
 }): ReactElement {
+  const icon = useBotModePrefs((prefs) => prefs.botIcon);
   return (
     <span className="bh-panel-glyph">
-      <IconAgentPresetOutline16 size={size} />
+      <BotIcon icon={icon} size={size} />
       {active ? (
         <span
           className="bh-panel-glyph-hit"
@@ -120,8 +126,10 @@ export function BotPanelIcon({
 export function createBotPanelEntry(
   onExit: () => void,
 ): (props: BotPanelEntryProps) => ReactElement {
-  return function BotPanelEntry({ size, active }) {
-    return <BotPanelIcon size={size} active={active} onExit={onExit} />;
+  return function BotPanelEntry({ size, active, useBotModePrefs }) {
+    return (
+      <BotPanelIcon size={size} active={active} onExit={onExit} useBotModePrefs={useBotModePrefs} />
+    );
   };
 }
 

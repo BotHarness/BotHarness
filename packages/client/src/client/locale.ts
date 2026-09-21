@@ -6,6 +6,12 @@ export const LOCALE_NS = 'botharness';
 /** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
   'settings.nav': 'Bot 设置',
+  'icon.row.title': 'Bot 图标',
+  'icon.row.description': '选择 Bot 在应用侧边栏与设置导航中使用的标记',
+  'icon.menu.label': 'Bot 图标',
+  'icon.mascot': 'DeepSeekBot 吉祥物',
+  'icon.blob': '生成形象',
+  'icon.bot': '通用机器人',
   'motion.menu.label': '动效偏好',
   'motion.system': '跟随系统',
   'motion.reduce': '减少动效',
@@ -64,6 +70,12 @@ export type BotHarnessKey = keyof typeof zh;
 /** English dictionary, checked against the Chinese key set. */
 export const en = {
   'settings.nav': 'Bot settings',
+  'icon.row.title': 'Bot icon',
+  'icon.row.description': 'Choose the mark for the Bot in the app sidebar and Settings navigation',
+  'icon.menu.label': 'Bot icon',
+  'icon.mascot': 'DeepSeekBot mascot',
+  'icon.blob': 'Generated blob',
+  'icon.bot': 'Generic bot',
   'motion.menu.label': 'Motion preference',
   'motion.system': 'Follow system',
   'motion.reduce': 'Reduce motion',

@@ -26,6 +26,7 @@ const t = (key: BotHarnessKey): string => zh[key];
 function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {
     motionPreference: 'system',
+    botIcon: 'mascot' as const,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -39,6 +40,7 @@ function renderSection(
   prefs: BotModePrefsSnapshot,
   setSortMode: (mode: string) => void = () => undefined,
   setMotionPreference: (preference: string) => void = () => undefined,
+  setBotIcon: (icon: string) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
     createElement(BotSettingsSection, {
@@ -47,6 +49,7 @@ function renderSection(
         selector(prefs)) as never,
       setSortMode: setSortMode as never,
       setMotionPreference: setMotionPreference as never,
+      setBotIcon: setBotIcon as never,
     } as never),
   );
 }
@@ -57,17 +60,29 @@ function lastMenu(): Record<string, unknown> {
   return found;
 }
 
-function motionMenu(): Record<string, unknown> {
-  const found = captured.menus[0];
-  if (found === undefined) throw new Error('motion menu not rendered');
+function menuWithItem(id: string): Record<string, unknown> {
+  const found = captured.menus.find((menu) =>
+    ((menu['items'] as readonly Record<string, unknown>[] | undefined) ?? []).some(
+      (item) => item['id'] === id,
+    ),
+  );
+  if (found === undefined) throw new Error(`menu with ${id} not rendered`);
   return found;
+}
+
+function motionMenu(): Record<string, unknown> {
+  return menuWithItem('system');
+}
+
+function iconMenu(): Record<string, unknown> {
+  return menuWithItem('mascot');
 }
 
 beforeEach(() => {
   captured.menus.length = 0;
 });
 
-describe('BOT-mode General settings row', () => {
+describe('BotHarness settings section', () => {
   it('renders the row copy and the selected mode from the shared store', () => {
     const markup = renderSection(snapshot({ sortMode: 'manual' }));
 
@@ -124,5 +139,18 @@ describe('BOT-mode General settings row', () => {
 
     expect(markup).toContain('仅当前会话生效，不会保存');
     expect(markup).not.toContain('设置 BOT 模式列表的默认排序方式');
+  });
+  it('renders the Bot icon choice and writes the picked mark', () => {
+    const setBotIcon = vi.fn();
+    const markup = renderSection(snapshot({ botIcon: 'blob' }), undefined, undefined, setBotIcon);
+    expect(markup).toContain('Bot 图标');
+    expect(markup).toContain('生成形象');
+    expect(iconMenu()['selectedId']).toBe('blob');
+    expect(
+      (iconMenu()['items'] as readonly Record<string, unknown>[]).map((item) => item['id']),
+    ).toEqual(['mascot', 'blob', 'bot']);
+
+    (iconMenu()['onSelect'] as (id: string) => void)('bot');
+    expect(setBotIcon).toHaveBeenCalledWith('bot');
   });
 });
