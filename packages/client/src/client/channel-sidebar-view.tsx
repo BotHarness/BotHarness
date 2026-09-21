@@ -25,6 +25,8 @@ import {
 import {
   channelSidebarPrefs,
   channelSidebarScopeKey,
+  clampChannelSidebarWidth,
+  DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   type ChannelSidebarPrefs,
 } from './channel-sidebar-prefs.js';
 import type { ClientState } from './store.js';
@@ -55,6 +57,9 @@ export interface ChannelSidebarController {
   mode: ChannelSidebarMode;
   narrow: boolean;
   scopeKey: string | undefined;
+  /** Docked width in CSS pixels. */
+  width: number;
+  setWidth(width: number): void;
   isEntryExpanded(entryId: string): boolean;
   toggleEntry(entryId: string): void;
   toggle(): void;
@@ -98,6 +103,8 @@ export function useChannelSidebar(
     mode: resolveChannelSidebarMode({ narrow, docked, overlayOpen }),
     narrow,
     scopeKey,
+    width: snapshot.width,
+    setWidth: (width) => prefs.setWidth(width),
     isEntryExpanded: (entryId) =>
       scopeKey !== undefined && prefs.isEntryExpanded(scopeKey, entryId),
     toggleEntry: (entryId) => {
@@ -203,13 +210,42 @@ export function ChannelSidebar({
     botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
     actions,
   };
+  const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (
     <div
       id="bh-channel-sidebar"
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
       role="complementary"
       aria-label="Channel sidebar"
+      style={
+        controller.mode === 'overlay'
+          ? undefined
+          : { width: `${String(dockedWidth)}px`, flexBasis: `${String(dockedWidth)}px` }
+      }
     >
+      {controller.mode === 'overlay' ? null : (
+        <div
+          className="bh-channel-sidebar-resize"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="调整 Channel sidebar 宽度"
+          onPointerDown={(event) => {
+            const startX = event.clientX;
+            const startWidth = dockedWidth;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            const onMove = (move: PointerEvent): void => {
+              controller.setWidth(startWidth - (move.clientX - startX));
+            };
+            const onUp = (): void => {
+              window.removeEventListener('pointermove', onMove);
+              window.removeEventListener('pointerup', onUp);
+            };
+            window.addEventListener('pointermove', onMove);
+            window.addEventListener('pointerup', onUp);
+          }}
+          onDoubleClick={() => controller.setWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH)}
+        />
+      )}
       <div className="bh-channel-sidebar-head">
         <span className="bh-channel-sidebar-title">{channel.name}</span>
       </div>

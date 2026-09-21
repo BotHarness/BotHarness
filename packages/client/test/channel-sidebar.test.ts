@@ -81,7 +81,11 @@ function fakeStorage() {
 describe('Channel sidebar preferences', () => {
   it('defaults to nothing collapsed and nothing expanded', () => {
     const prefs = createChannelSidebarPrefs(undefined);
-    expect(prefs.getSnapshot()).toEqual({ collapsedSidebars: [], expandedEntries: [] });
+    expect(prefs.getSnapshot()).toEqual({
+      collapsedSidebars: [],
+      expandedEntries: [],
+      width: 320,
+    });
     expect(prefs.isSidebarCollapsed('personabot:ada')).toBe(false);
     expect(prefs.isEntryExpanded('personabot:ada', 'assignments')).toBe(false);
   });
@@ -120,7 +124,11 @@ describe('Channel sidebar preferences', () => {
       getItem: () => '{not json',
       setItem: () => undefined,
     });
-    expect(prefs.getSnapshot()).toEqual({ collapsedSidebars: [], expandedEntries: [] });
+    expect(prefs.getSnapshot()).toEqual({
+      collapsedSidebars: [],
+      expandedEntries: [],
+      width: 320,
+    });
   });
 
   it('keys scopes by PersonaBot and by Channel', () => {

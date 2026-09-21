@@ -19,7 +19,7 @@ export const name = 'botharness-computer-client';
  * bundle stays self-contained (importing that package at runtime would inline
  * its client code into ours).
  */
-export const inject = ['channelSidebar'];
+export const inject = ['channelSidebar', 'connection'];
 
 const STATUS_ENDPOINT = '/api/computer/status';
 const START_ENDPOINT = '/api/computer/start';
@@ -63,6 +63,21 @@ interface ChannelSidebarEntryProps {
   readonly botSlug: string | undefined;
   readonly actions: unknown;
 }
+
+interface ConnectionRpcLike {
+  call(
+    channel: string,
+    endpoint: string,
+    payload: unknown,
+    signal?: AbortSignal,
+  ): Promise<
+    | { readonly ok: true; readonly value: unknown }
+    | { readonly ok: false; readonly error: { readonly message?: string } }
+  >;
+}
+
+/** Captured from the client connection service so entries can read PersonaBot names. */
+let connectionRpc: ConnectionRpcLike | undefined;
 
 interface ChannelSidebarRegistryLike {
   register(entry: {
@@ -232,25 +247,37 @@ interface ScaledFrameProps {
   readonly title: string;
   /** Interactive frames forward input; the inline card keeps a hover mask. */
   readonly interactive: boolean;
+  /** `width` keeps a fixed aspect card; `contain` fits the whole box (fullscreen). */
+  readonly fit?: 'width' | 'contain';
   readonly iframeRef?: RefObject<HTMLIFrameElement>;
 }
 
-/** Fixed-aspect card that scales the viewer to the container width. */
-function ScaledFrame({ title, interactive, iframeRef }: ScaledFrameProps): ReactElement {
+/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
+function ScaledFrame({
+  title,
+  interactive,
+  fit = 'width',
+  iframeRef,
+}: ScaledFrameProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  const [box, setBox] = useState({ width: DESIGN_WIDTH, height: DESIGN_HEIGHT });
 
   useEffect(() => {
     const element = ref.current;
     if (element === null) return () => {};
-    const update = (): void => {
-      if (element.clientWidth > 0) setScale(element.clientWidth / DESIGN_WIDTH);
-    };
+    const update = (): void => setBox({ width: element.clientWidth, height: element.clientHeight });
     update();
     const observer = new ResizeObserver(update);
     observer.observe(element);
     return () => observer.disconnect();
   }, []);
+
+  const scale =
+    fit === 'contain'
+      ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT)
+      : box.width / DESIGN_WIDTH;
+  const offsetX = fit === 'contain' ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
+  const offsetY = fit === 'contain' ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
 
   return (
     <div
@@ -258,10 +285,14 @@ function ScaledFrame({ title, interactive, iframeRef }: ScaledFrameProps): React
       style={{
         position: 'relative',
         width: '100%',
-        aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+        ...(fit === 'width'
+          ? {
+              aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+              border: '1px solid var(--dsh-border, #3a3a3a)',
+              borderRadius: 8,
+            }
+          : { height: '100%' }),
         overflow: 'hidden',
-        border: '1px solid var(--dsh-border, #3a3a3a)',
-        borderRadius: 8,
         background: '#000',
       }}
     >
@@ -277,12 +308,34 @@ function ScaledFrame({ title, interactive, iframeRef }: ScaledFrameProps): React
           width: DESIGN_WIDTH,
           height: DESIGN_HEIGHT,
           border: 'none',
-          transform: `scale(${String(scale)})`,
+          transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
           transformOrigin: 'top left',
           pointerEvents: interactive ? 'auto' : 'none',
         }}
       />
     </div>
+  );
+}
+
+/** minimize-2: two arrows converging, used to collapse the fullscreen viewer. */
+function CollapseIcon(): ReactElement {
+  return (
+    <svg
+      width={15}
+      height={15}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <polyline points="4 14 10 14 10 20" />
+      <polyline points="20 10 14 10 14 4" />
+      <line x1="14" y1="10" x2="21" y2="3" />
+      <line x1="3" y1="21" x2="10" y2="14" />
+    </svg>
   );
 }
 
@@ -381,37 +434,36 @@ function RunningCard({
                 inset: 0,
                 zIndex: 100,
                 display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: 24,
+                flexDirection: 'column',
+                background: '#000',
+                color: '#fff',
               }}
             >
               <div
-                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)' }}
-                onClick={() => setExpanded(false)}
-              />
-              <div
                 style={{
-                  position: 'relative',
                   display: 'flex',
-                  flexDirection: 'column',
+                  alignItems: 'center',
                   gap: 8,
-                  width: 'min(1200px, 94vw)',
+                  height: 44,
+                  flex: '0 0 auto',
+                  padding: '0 8px 0 14px',
+                  borderBottom: '1px solid var(--dsh-border, #2c2c2c)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fff' }}>
-                  <strong style={{ fontSize: 13 }}>{title}</strong>
-                  <span style={{ flex: 1 }} />
-                  <button
-                    type="button"
-                    style={buttonStyle}
-                    onClick={() => setExpanded(false)}
-                    aria-label="收起"
-                  >
-                    收起
-                  </button>
-                </div>
-                <ScaledFrame title={title} interactive />
+                <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
+                <span style={{ flex: 1 }} />
+                <button
+                  type="button"
+                  onClick={() => setExpanded(false)}
+                  aria-label="收起全屏"
+                  title="收起全屏"
+                  style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                >
+                  <CollapseIcon />
+                </button>
+              </div>
+              <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
+                <ScaledFrame title={title} interactive fit="contain" />
               </div>
             </div>,
             document.body,
@@ -552,8 +604,38 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   );
 }
 
+/** Resolves the PersonaBot's display name through the BotHarness bridge. */
+function useBotDisplayName(botSlug: string | undefined): string | undefined {
+  const [name, setName] = useState<string | undefined>(undefined);
+
+  useEffect(() => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined) return () => {};
+    let cancelled = false;
+    void rpc
+      .call('/api', 'botharness/list', { args: {} })
+      .then((result) => {
+        if (cancelled || !result.ok) return;
+        const value = result.value as {
+          bots?: readonly { slug?: unknown; displayName?: unknown }[];
+        };
+        const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
+        if (typeof match?.displayName === 'string' && match.displayName.length > 0) {
+          setName(match.displayName);
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, [botSlug]);
+
+  return name ?? botSlug;
+}
+
 /** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
 export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactElement {
+  const displayName = useBotDisplayName(botSlug);
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -656,7 +738,7 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
       elapsed={elapsed}
       nowTs={nowTs}
       {...(error === undefined ? {} : { error })}
-      {...(botSlug === undefined ? {} : { botSlug })}
+      {...(displayName === undefined ? {} : { botSlug: displayName })}
       onStart={onStart}
       onConfirmStart={onConfirmStart}
       onStop={() => void act(STOP_ENDPOINT)}
@@ -677,9 +759,11 @@ export function apply(ctx: ClientContext): void {
       style.remove();
     };
   }, 'botharness-computer: client styles');
-  ctx.inject(['channelSidebar'], (sidebarCtx) => {
+  ctx.inject(['channelSidebar', 'connection'], (sidebarCtx) => {
     const registry = (sidebarCtx as unknown as { channelSidebar?: ChannelSidebarRegistryLike })
       .channelSidebar;
+    connectionRpc = (sidebarCtx as unknown as { connection?: { rpc?: ConnectionRpcLike } })
+      .connection?.rpc;
     if (registry === undefined) return;
     ctx.effect(
       () =>

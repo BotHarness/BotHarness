@@ -15,13 +15,15 @@ window.__ModuleLoader__.load({
 		* bundle stays self-contained (importing that package at runtime would inline
 		* its client code into ours).
 		*/
-		const inject = ["channelSidebar"];
+		const inject = ["channelSidebar", "connection"];
 		const STATUS_ENDPOINT = "/api/computer/status";
 		const START_ENDPOINT = "/api/computer/start";
 		const STOP_ENDPOINT = "/api/computer/stop";
 		const VIEWER_SRC = "/botharness-computer/viewer/";
 		const APPROVED_KEY = "botharness-computer-start-approved";
 		const ENTRY_ID = "botharness-computer";
+		/** Captured from the client connection service so entries can read PersonaBot names. */
+		let connectionRpc;
 		async function requestJson(url, init) {
 			const response = await fetch(url, {
 				credentials: "same-origin",
@@ -169,30 +171,39 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/** Fixed-aspect card that scales the viewer to the container width. */
-		function ScaledFrame({ title, interactive, iframeRef }) {
+		/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
+		function ScaledFrame({ title, interactive, fit = "width", iframeRef }) {
 			const ref = (0, react.useRef)(null);
-			const [scale, setScale] = (0, react.useState)(1);
+			const [box, setBox] = (0, react.useState)({
+				width: DESIGN_WIDTH,
+				height: DESIGN_HEIGHT
+			});
 			(0, react.useEffect)(() => {
 				const element = ref.current;
 				if (element === null) return () => {};
-				const update = () => {
-					if (element.clientWidth > 0) setScale(element.clientWidth / DESIGN_WIDTH);
-				};
+				const update = () => setBox({
+					width: element.clientWidth,
+					height: element.clientHeight
+				});
 				update();
 				const observer = new ResizeObserver(update);
 				observer.observe(element);
 				return () => observer.disconnect();
 			}, []);
+			const scale = fit === "contain" ? Math.min(box.width / DESIGN_WIDTH, box.height / DESIGN_HEIGHT) : box.width / DESIGN_WIDTH;
+			const offsetX = fit === "contain" ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
+			const offsetY = fit === "contain" ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				ref,
 				style: {
 					position: "relative",
 					width: "100%",
-					aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+					...fit === "width" ? {
+						aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+						border: "1px solid var(--dsh-border, #3a3a3a)",
+						borderRadius: 8
+					} : { height: "100%" },
 					overflow: "hidden",
-					border: "1px solid var(--dsh-border, #3a3a3a)",
-					borderRadius: 8,
 					background: "#000"
 				},
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
@@ -207,11 +218,41 @@ window.__ModuleLoader__.load({
 						width: DESIGN_WIDTH,
 						height: DESIGN_HEIGHT,
 						border: "none",
-						transform: `scale(${String(scale)})`,
+						transform: `translate(${String(offsetX)}px, ${String(offsetY)}px) scale(${String(scale)})`,
 						transformOrigin: "top left",
 						pointerEvents: interactive ? "auto" : "none"
 					}
 				})
+			});
+		}
+		/** minimize-2: two arrows converging, used to collapse the fullscreen viewer. */
+		function CollapseIcon() {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+				width: 15,
+				height: 15,
+				viewBox: "0 0 24 24",
+				fill: "none",
+				stroke: "currentColor",
+				strokeWidth: 2,
+				strokeLinecap: "round",
+				strokeLinejoin: "round",
+				"aria-hidden": "true",
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "4 14 10 14 10 20" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("polyline", { points: "20 10 14 10 14 4" }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "14",
+						y1: "10",
+						x2: "21",
+						y2: "3"
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("line", {
+						x1: "3",
+						y1: "21",
+						x2: "10",
+						y2: "14"
+					})
+				]
 			});
 		}
 		/**
@@ -309,50 +350,54 @@ window.__ModuleLoader__.load({
 							inset: 0,
 							zIndex: 100,
 							display: "flex",
-							alignItems: "center",
-							justifyContent: "center",
-							padding: 24
+							flexDirection: "column",
+							background: "#000",
+							color: "#fff"
 						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 							style: {
-								position: "absolute",
-								inset: 0,
-								background: "rgba(0,0,0,0.75)"
+								display: "flex",
+								alignItems: "center",
+								gap: 8,
+								height: 44,
+								flex: "0 0 auto",
+								padding: "0 8px 0 14px",
+								borderBottom: "1px solid var(--dsh-border, #2c2c2c)"
 							},
-							onClick: () => setExpanded(false)
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							children: [
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+									style: {
+										fontSize: 13,
+										fontWeight: 600
+									},
+									children: title
+								}),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+									type: "button",
+									onClick: () => setExpanded(false),
+									"aria-label": "收起全屏",
+									title: "收起全屏",
+									style: {
+										...buttonStyle,
+										display: "inline-flex",
+										alignItems: "center",
+										gap: 6
+									},
+									children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {})
+								})
+							]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 							style: {
 								position: "relative",
-								display: "flex",
-								flexDirection: "column",
-								gap: 8,
-								width: "min(1200px, 94vw)"
+								flex: 1,
+								minHeight: 0
 							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-								style: {
-									display: "flex",
-									alignItems: "center",
-									gap: 8,
-									color: "#fff"
-								},
-								children: [
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
-										style: { fontSize: 13 },
-										children: title
-									}),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
-									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-										type: "button",
-										style: buttonStyle,
-										onClick: () => setExpanded(false),
-										"aria-label": "收起",
-										children: "收起"
-									})
-								]
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 								title,
-								interactive: true
-							})]
+								interactive: true,
+								fit: "contain"
+							})
 						})]
 					}), document.body) : null
 				]
@@ -488,8 +533,27 @@ window.__ModuleLoader__.load({
 				})]
 			});
 		}
+		/** Resolves the PersonaBot's display name through the BotHarness bridge. */
+		function useBotDisplayName(botSlug) {
+			const [name, setName] = (0, react.useState)(void 0);
+			(0, react.useEffect)(() => {
+				const rpc = connectionRpc;
+				if (rpc === void 0 || botSlug === void 0) return () => {};
+				let cancelled = false;
+				rpc.call("/api", "botharness/list", { args: {} }).then((result) => {
+					if (cancelled || !result.ok) return;
+					const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
+					if (typeof match?.displayName === "string" && match.displayName.length > 0) setName(match.displayName);
+				}).catch(() => void 0);
+				return () => {
+					cancelled = true;
+				};
+			}, [botSlug]);
+			return name ?? botSlug;
+		}
 		/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
 		function ComputerEntry({ botSlug }) {
+			const displayName = useBotDisplayName(botSlug);
 			const [payload, setPayload] = (0, react.useState)();
 			const [error, setError] = (0, react.useState)();
 			const [busy, setBusy] = (0, react.useState)(false);
@@ -572,7 +636,7 @@ window.__ModuleLoader__.load({
 				elapsed,
 				nowTs,
 				...error === void 0 ? {} : { error },
-				...botSlug === void 0 ? {} : { botSlug },
+				...displayName === void 0 ? {} : { botSlug: displayName },
 				onStart,
 				onConfirmStart,
 				onStop: () => void act(STOP_ENDPOINT),
@@ -591,8 +655,9 @@ window.__ModuleLoader__.load({
 					style.remove();
 				};
 			}, "botharness-computer: client styles");
-			ctx.inject(["channelSidebar"], (sidebarCtx) => {
+			ctx.inject(["channelSidebar", "connection"], (sidebarCtx) => {
 				const registry = sidebarCtx.channelSidebar;
+				connectionRpc = sidebarCtx.connection?.rpc;
 				if (registry === void 0) return;
 				ctx.effect(() => registry.register({
 					id: ENTRY_ID,

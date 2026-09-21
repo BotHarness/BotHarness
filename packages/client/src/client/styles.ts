@@ -1517,12 +1517,25 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 }
 
 .bh-channel-sidebar {
+  position: relative;
   width: 320px;
   flex: 0 0 320px;
   min-height: 0;
   display: flex;
   flex-direction: column;
   border-left: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-channel-sidebar-resize {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 2;
+}
+.bh-channel-sidebar-resize:hover {
+  background: var(--dsw-alias-border-l2);
 }
 .bh-channel-sidebar-head {
   display: flex;
