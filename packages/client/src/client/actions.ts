@@ -5,11 +5,12 @@ import {
   createPersonaBot,
   createRosterSection,
   errorMessage,
+  loadAssignment,
+  loadAssignments,
   loadBots,
   loadChannelMessages,
   loadChannels,
   loadRoster,
-  loadSessions,
   openDmChannel,
   removeRosterSection,
   renameRosterSection,
@@ -21,19 +22,14 @@ import {
 } from './bridge.js';
 import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
 import { completeFlatEntries } from './roster-order.js';
-import type {
-  BotSummary,
-  ChannelSummary,
-  ClientStore,
-  ConversationSelection,
-  SessionSummary,
-} from './store.js';
+import type { BotSummary, ChannelSummary, ClientStore, ConversationSelection } from './store.js';
 
 export interface BridgeActions {
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
+  openAssignment(sessionId: string): Promise<void>;
   send(body: string): Promise<boolean>;
   createBot(input: CreatePersonaBotInput): Promise<BotSummary>;
   createGroup(name: string): Promise<ChannelSummary | undefined>;
@@ -110,15 +106,28 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     }
   };
 
-  const loadSessionsFor = async (slug: string, selection: ConversationSelection): Promise<void> => {
-    clientStore.setSessions({ status: 'loading', items: [], error: undefined });
+  const loadAssignmentsFor = async (
+    slug: string,
+    selection: ConversationSelection,
+  ): Promise<void> => {
+    clientStore.setAssignments({
+      status: 'loading',
+      items: [],
+      selected: undefined,
+      error: undefined,
+    });
     try {
-      const items: readonly SessionSummary[] = await loadSessions(call, slug);
+      const items = await loadAssignments(call, slug);
       if (currentSelection() !== selection) return;
-      clientStore.setSessions({ status: 'ready', items, error: undefined });
+      clientStore.setAssignments({ status: 'ready', items, error: undefined });
     } catch (error) {
       if (currentSelection() !== selection) return;
-      clientStore.setSessions({ status: 'error', items: [], error: errorMessage(error) });
+      clientStore.setAssignments({
+        status: 'error',
+        items: [],
+        selected: undefined,
+        error: errorMessage(error),
+      });
     }
   };
 
@@ -202,10 +211,22 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           sending: false,
         });
       }
-      await loadSessionsFor(slug, selection);
+      await loadAssignmentsFor(slug, selection);
     },
     openChannel(channelId) {
       return openChannelById(channelId);
+    },
+    async openAssignment(sessionId) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'bot') return;
+      try {
+        const assignment = await loadAssignment(call, selection.slug, sessionId);
+        if (currentSelection() !== selection) return;
+        clientStore.setAssignments({ selected: assignment, error: undefined });
+      } catch (error) {
+        if (currentSelection() !== selection) return;
+        clientStore.setAssignments({ error: errorMessage(error) });
+      }
     },
     async send(body) {
       const snapshot = clientStore.getSnapshot();
@@ -215,15 +236,28 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       clientStore.setConversation({ sending: true, error: undefined });
       try {
         const message = await sendChannelMessage(call, channel.id, text);
-        const latest = clientStore.getSnapshot().conversation;
-        if (latest.channel?.id !== channel.id) return false;
-        // The host writes the channel's updatedAt on append; mirror it so
-        // recency sorting re-renders without a reload.
-        clientStore.upsertChannel({ ...channel, updatedAt: message.at });
+        const selection = currentSelection();
+        const [messages, assignments] = await Promise.all([
+          loadChannelMessages(call, channel.id),
+          selection?.kind === 'bot'
+            ? loadAssignments(call, selection.slug)
+            : Promise.resolve(undefined),
+        ]);
+        const latest = clientStore.getSnapshot();
+        if (latest.conversation.channel?.id !== channel.id) return false;
+        const updatedAt = messages.at(-1)?.at ?? message.at;
+        clientStore.upsertChannel({ ...channel, updatedAt });
         clientStore.setConversation({
           sending: false,
-          messages: [...latest.messages, message],
+          messages,
         });
+        if (selection?.kind === 'bot' && currentSelection() === selection) {
+          clientStore.setAssignments({
+            status: 'ready',
+            items: assignments ?? [],
+            error: undefined,
+          });
+        }
         return true;
       } catch (error) {
         if (clientStore.getSnapshot().conversation.channel?.id === channel.id) {
@@ -234,7 +268,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     },
     async createBot(input) {
       const bot = await createPersonaBot(call, input);
+      const channel = await openDmChannel(call, bot.slug, bot.displayName);
       clientStore.upsertBot(bot);
+      clientStore.upsertChannel(channel);
       clientStore.select({ kind: 'bot', slug: bot.slug });
       return bot;
     },
@@ -313,7 +349,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         undefined,
         snapshot.roster.sections.map((section) => section.id),
         snapshot.channels
-          .filter((channel) => channel.type === 'group')
+          .filter(
+            (channel) =>
+              channel.type === 'group' ||
+              (channel.botSlug !== undefined && !snapshot.roster.pins.includes(channel.botSlug)),
+          )
           .map((channel) => channel.id),
         sectioned,
       );

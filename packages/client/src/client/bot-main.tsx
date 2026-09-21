@@ -9,9 +9,15 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import { Blobatar } from './avatar.js';
+import {
+  PersonaBotAvatar,
+  PersonaBotFacepile,
+  personaBotActivityLabel,
+  type PersonaBotFacepileItem,
+} from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import { formatRelativeTime } from './labels.js';
+import { personaBotActivity } from './persona-activity.js';
 import {
   store,
   type BotSummary,
@@ -19,12 +25,6 @@ import {
   type ChannelSummary,
   type ClientState,
 } from './store.js';
-
-function baseName(path: string): string {
-  const trimmed = path.replace(/[\\/]+$/u, '');
-  const parts = trimmed.split(/[\\/]/u);
-  return parts[parts.length - 1] ?? trimmed;
-}
 
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
@@ -67,16 +67,36 @@ function Welcome({ state }: { state: ClientState }): ReactElement {
 function MessageBubble({
   message,
   bots,
+  continuation,
 }: {
   message: ChannelMessage;
   bots: readonly BotSummary[];
+  continuation: boolean;
 }): ReactElement {
   const human = message.author.kind === 'human';
+  const authorSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
+  const authorBot = bots.find((candidate) => candidate.slug === authorSlug);
   return (
-    <div className={`bh-bubble-row${human ? ' bh-bubble-row-me' : ''}`}>
-      {message.author.kind === 'bot' ? <Blobatar seed={message.author.slug} size={26} /> : null}
+    <div
+      className={`bh-bubble-row${human ? ' bh-bubble-row-me' : ''}${continuation ? ' bh-bubble-row-continuation' : ''}`}
+    >
+      {message.author.kind === 'bot' ? (
+        continuation ? (
+          <span className="bh-bubble-avatar-spacer" aria-hidden="true" />
+        ) : (
+          <PersonaBotAvatar
+            personaBotId={message.author.slug}
+            name={authorBot?.displayName ?? message.author.slug}
+            src={authorBot?.avatar}
+            size={26}
+            indicator={false}
+          />
+        )
+      ) : null}
       <div className={`bh-bubble${human ? ' bh-bubble-me' : ''}`}>
-        {human ? null : <div className="bh-bubble-author">{authorLabel(message, bots)}</div>}
+        {human || continuation ? null : (
+          <div className="bh-bubble-author">{authorLabel(message, bots)}</div>
+        )}
         <div className="bh-bubble-body">{message.body}</div>
         <div className="bh-bubble-time">{clockTime(message.at)}</div>
       </div>
@@ -104,45 +124,101 @@ function EmptyConversation({
   }
   return (
     <div className="bh-placeholder bh-chat-empty">
-      {bot !== undefined ? <Blobatar seed={bot.slug} size={56} /> : null}
+      {bot !== undefined ? (
+        <PersonaBotAvatar
+          personaBotId={bot.slug}
+          name={bot.displayName}
+          src={bot.avatar}
+          size={56}
+          indicator={false}
+        />
+      ) : null}
       <div className="bh-big">
         {bot === undefined ? '本地对话' : `这是与 ${bot.displayName} 的本地对话`}
       </div>
-      <div>你的消息保存在本地；BOT 回复与 Builder 对话式创建随 v1.1 到来。</div>
+      <div>直接发消息即可；BOT 会自行安排事项，并在这里回复结果。</div>
     </div>
   );
 }
 
-function SessionsPane({ state }: { state: ClientState }): ReactElement {
-  const sessions = state.sessions;
+function assignmentStatus(activity: 'working' | 'idle' | 'error'): string {
+  switch (activity) {
+    case 'working':
+      return '进行中';
+    case 'idle':
+      return '已报告';
+    case 'error':
+      return '出错';
+  }
+}
+
+function AssignmentsPane({
+  state,
+  actions,
+}: {
+  state: ClientState;
+  actions: BridgeActions;
+}): ReactElement {
+  const assignments = state.assignments;
+  const selected = assignments.selected;
   return (
     <div className="bh-side-pane-inner">
       <div className="bh-side-pane-head">
-        <span>会话</span>
-        <Tag tone="neutral">{sessions.items.length}</Tag>
+        <span>事项</span>
+        <Tag tone="neutral">{assignments.items.length}</Tag>
       </div>
       <div className="bh-side-pane-body">
-        {sessions.status === 'loading' ? <div className="bh-note">正在加载会话…</div> : null}
-        {sessions.status === 'error' && sessions.error !== undefined ? (
-          <div className="bh-error">会话加载失败：{sessions.error}</div>
+        {assignments.status === 'loading' ? <div className="bh-note">正在加载事项…</div> : null}
+        {assignments.status === 'error' && assignments.error !== undefined ? (
+          <div className="bh-error">事项加载失败：{assignments.error}</div>
         ) : null}
-        {sessions.status === 'ready' && sessions.items.length === 0 ? (
-          <div className="bh-note">还没有会话。BOT 开始工作后，它的 Session 会列在这里。</div>
+        {assignments.status === 'ready' && assignments.items.length === 0 ? (
+          <div className="bh-note">还没有事项。直接在左侧聊天，BOT 会按需自行安排。</div>
         ) : null}
-        {sessions.items.map((session) => (
-          <div className="bh-session-row" key={session.id}>
-            <div className="bh-session-title">
-              {session.title.length > 0 ? session.title : '新会话'}
+        {assignments.items.map((assignment) => (
+          <button
+            type="button"
+            className={
+              assignment.sessionId === selected?.sessionId
+                ? 'bh-assignment-row bh-assignment-row-selected'
+                : 'bh-assignment-row'
+            }
+            key={assignment.sessionId}
+            aria-pressed={assignment.sessionId === selected?.sessionId}
+            onClick={() => void actions.openAssignment(assignment.sessionId)}
+          >
+            <div className="bh-assignment-title">{assignment.purpose}</div>
+            <div className="bh-assignment-meta">
+              <span>{assignmentStatus(assignment.activity)}</span>
+              <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now())}</span>
             </div>
-            <div className="bh-session-meta">
-              <span className="bh-session-cwd" title={session.cwd}>
-                {baseName(session.cwd)}
-              </span>
-              <span>{formatRelativeTime(Date.parse(session.updatedAt), Date.now())}</span>
-            </div>
-          </div>
+            {assignment.latestReport === undefined ? null : (
+              <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
+            )}
+          </button>
         ))}
-        <div className="bh-note">只读列表；打开与切换会话随 v1.1 接入。</div>
+        {selected === undefined ? null : (
+          <section className="bh-assignment-detail" aria-label="事项详情">
+            <div className="bh-assignment-detail-label">事项详情</div>
+            <div className="bh-assignment-detail-purpose">{selected.purpose}</div>
+            <dl>
+              <div>
+                <dt>状态</dt>
+                <dd>{assignmentStatus(selected.activity)}</dd>
+              </div>
+              <div>
+                <dt>最近报告</dt>
+                <dd>{selected.latestReport?.summary ?? '尚未报告'}</dd>
+              </div>
+              <div>
+                <dt>Assignment Session</dt>
+                <dd className="bh-assignment-id" title={selected.sessionId}>
+                  {selected.sessionId}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        )}
       </div>
     </div>
   );
@@ -168,7 +244,18 @@ function MembersPane({
         ) : (
           members.map((slug) => (
             <div className="bh-member-row" key={slug}>
-              <Blobatar seed={slug} size={26} />
+              {(() => {
+                const member = state.bots.find((candidate) => candidate.slug === slug);
+                return (
+                  <PersonaBotAvatar
+                    personaBotId={slug}
+                    name={member?.displayName ?? slug}
+                    src={member?.avatar}
+                    state={member === undefined ? 'idle' : personaBotActivity(state, member)}
+                    size={26}
+                  />
+                );
+              })()}
               <span className="bh-name">{memberName(state.bots, slug)}</span>
             </div>
           ))
@@ -197,6 +284,34 @@ function ConversationView({
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
   const title = channel?.name ?? bot?.displayName ?? '群聊';
+  const botActivity = bot === undefined ? undefined : personaBotActivity(state, bot);
+  const channelBots =
+    channel?.type === 'group'
+      ? channel.members.flatMap((slug) => {
+          const member = state.bots.find((candidate) => candidate.slug === slug);
+          return member === undefined ? [] : [member];
+        })
+      : [];
+  const channelFacepile: PersonaBotFacepileItem[] = channelBots.map((member) => ({
+    personaBotId: member.slug,
+    name: member.displayName,
+    src: member.avatar,
+    state: personaBotActivity(state, member),
+  }));
+  const activeFacepile = channelFacepile.filter((item) => item.state !== 'idle');
+  const composerFacepile: PersonaBotFacepileItem[] =
+    bot === undefined
+      ? activeFacepile
+      : botActivity === undefined || botActivity === 'idle'
+        ? []
+        : [
+            {
+              personaBotId: bot.slug,
+              name: bot.displayName,
+              src: bot.avatar,
+              state: botActivity,
+            },
+          ];
   const channelId = channel?.id;
   const currentChannel = useRef(channelId);
 
@@ -233,7 +348,15 @@ function ConversationView({
         <section className="bh-chat-pane">
           <div className="bh-topbar">
             {bot !== undefined ? (
-              <Blobatar seed={bot.slug} size={22} />
+              <PersonaBotAvatar
+                personaBotId={bot.slug}
+                name={bot.displayName}
+                src={bot.avatar}
+                state={botActivity}
+                size={22}
+              />
+            ) : channelFacepile.length > 0 ? (
+              <PersonaBotFacepile items={channelFacepile} size={22} />
             ) : (
               <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
                 #
@@ -263,38 +386,67 @@ function ConversationView({
             {messages.length === 0 && conversation.status !== 'loading' ? (
               <EmptyConversation channel={channel} bot={bot} />
             ) : null}
-            {messages.map((message) => (
-              <MessageBubble key={message.id} message={message} bots={state.bots} />
-            ))}
+            {messages.map((message, index) => {
+              const previous = messages[index - 1];
+              const continuation =
+                previous !== undefined &&
+                previous.author.kind === message.author.kind &&
+                ((message.author.kind === 'bot' &&
+                  previous.author.kind === 'bot' &&
+                  previous.author.slug === message.author.slug) ||
+                  (message.author.kind === 'bridged' &&
+                    previous.author.kind === 'bridged' &&
+                    previous.author.source === message.author.source));
+              return (
+                <MessageBubble
+                  key={message.id}
+                  message={message}
+                  bots={state.bots}
+                  continuation={continuation}
+                />
+              );
+            })}
           </div>
           <div className="bh-composer">
-            <Input
-              className="bh-composer-input"
-              placeholder={`发消息给 ${title}`}
-              value={draft}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                  event.preventDefault();
-                  void submit();
-                }
-              }}
-            />
-            <Button
-              variant="primary"
-              size="sm"
-              icon={<IconSendOutline16 size={16} />}
-              aria-label="发送"
-              disabled={draft.trim().length === 0 || conversation.sending}
-              onClick={() => void submit()}
-            >
-              {conversation.sending ? '发送中' : '发送'}
-            </Button>
+            {composerFacepile.length > 0 ? (
+              <div className="bh-composer-activity" aria-live="polite">
+                <PersonaBotFacepile items={composerFacepile} size={24} />
+                <span>
+                  {composerFacepile.length === 1
+                    ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'working')}`
+                    : `${composerFacepile.length} 个 PersonaBot 正在工作`}
+                </span>
+              </div>
+            ) : null}
+            <div className="bh-composer-controls">
+              <Input
+                className="bh-composer-input"
+                placeholder={`发消息给 ${title}`}
+                value={draft}
+                onChange={(event) => setDraft(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault();
+                    void submit();
+                  }
+                }}
+              />
+              <Button
+                variant="primary"
+                size="sm"
+                icon={<IconSendOutline16 size={16} />}
+                aria-label="发送"
+                disabled={draft.trim().length === 0 || conversation.sending}
+                onClick={() => void submit()}
+              >
+                {conversation.sending ? '发送中' : '发送'}
+              </Button>
+            </div>
           </div>
         </section>
         <aside className="bh-side-pane">
           {state.selection?.kind === 'bot' ? (
-            <SessionsPane state={state} />
+            <AssignmentsPane state={state} actions={actions} />
           ) : (
             <MembersPane state={state} channel={channel} />
           )}

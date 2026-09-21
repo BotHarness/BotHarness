@@ -1,13 +1,13 @@
 # BotHarness Product Context
 
-A DeepSeek Harness plugin layer that gives LLM agents a persistent product identity: PersonaBots — bots whose identity and execution ownership outlive any session, chat, or workspace, with optional Persona content supplied by an optional Memory capability.
+A DeepSeek Harness plugin layer that gives LLM agents a persistent product identity: PersonaBots — bots whose identity, Git-backed Memory, and execution ownership outlive any Session, Chat, or Workspace.
 
 ## Language
 
 ### PersonaBots
 
 **PersonaBot**:
-A first-class bot entity owned by the Host: a durable identity that spans sessions, chats, and workspaces and can hold several sessions at once. Memory is an optional attachment and Persona is optional content within it; neither is a prerequisite for chat or execution.
+A first-class bot entity owned by the Host: a durable identity with a Git-backed Memory Repository that spans Sessions, Chats, and Workspaces and can hold several Sessions at once. Persona is optional content within Memory, not the identity itself.
 _Avoid_: bot (bare), agent, assistant, robot
 
 **Archived PersonaBot**:
@@ -15,7 +15,7 @@ A PersonaBot whose new admissions, wakes, Session execution, and external action
 _Avoid_: deleted bot, paused UI, purged bot
 
 **Bot as a Person**:
-The principle that a PersonaBot remains one product identity across Sessions; when Memory is attached, durable learned continuity comes from its Memory Repository rather than Session history.
+The principle that a PersonaBot remains one product identity across Sessions, with durable learned continuity coming from its Memory Repository rather than Session history.
 _Avoid_: session-scoped identity
 
 **PersonaBot ID**:
@@ -35,21 +35,21 @@ An optional, brief Human-authored self-introduction that explains who a PersonaB
 _Avoid_: Persona, role badge, system prompt
 
 **Persona**:
-Optional Memory content that describes character, voice, or standing instructions and is usually pinned into the system prompt. It has no special file type or write protection: an authorized Agent or Human may create, revise, unpin, rename, or remove it.
+Conventional Memory content that describes character, voice, or standing instructions and is usually pinned into the system prompt. It has no special file type or write protection: an authorized Agent or Human may create, revise, unpin, rename, or remove it.
 _Avoid_: system prompt, character sheet, profile
 
 **Bot state**:
-The activity model in two levels: a session carries the detail (`thinking`, `working`, `waiting`, `blocked`, `done`), and the PersonaBot aggregates it (`blocked` > `waiting` > `working` > `thinking` > `idle`; `done` is a session event).
+The current presentation of one PersonaBot, projected from its owned Orchestrator and Assignment Session activity. Active Orchestrator work is shown unless it is waiting on Assignments; concurrent Assignment tool kinds collapse to one matching effect or generic `working`, while waiting and blocked attention remain independent indicators rather than configurable priorities.
 _Avoid_: status, mood, presence
 
 **Avatar**:
-A PersonaBot's visual representation; the default is a deterministic blobatar generated from its PersonaBot ID (DM Channel rows show the bot's avatar, group Channels show a glyph), and Live2D is a later renderer.
+A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media or Human-supplied image media inside one Bot-state Activity Frame. Blobatar media may animate while working or thinking; custom images remain still while the frame carries activity, and later renderers such as Live2D consume the same state.
 _Avoid_: profile picture, skin
 
 ### Support and execution
 
 **Harness**:
-The platform layer — BotHarness — that owns PersonaBot identity, execution state, and workspaces and consumes optional capabilities such as Memory, exposing its own product capabilities to other plugins.
+The platform layer — BotHarness — that owns PersonaBot identity, Memory lifecycle, execution state, and Workspace authorization, exposing product capabilities to other Plugins.
 _Avoid_: framework, runtime, kernel
 
 **Host**:
@@ -77,11 +77,11 @@ A Human-meaningful continuing line of activity that a PersonaBot's Orchestrator 
 _Avoid_: Work, work item, task entity, job entity, worker
 
 **Assignment Session**:
-A PersonaBot-owned independent root Session that executes exactly one Assignment, created and managed by its Orchestrator without requiring the Human to open another Conversation. A PersonaBot may have several at once, and a DSH Subagent never counts as one.
+A PersonaBot-owned independent root Session that executes exactly one Assignment in exactly one working directory in v1, created and managed by its Orchestrator without requiring the Human to open another Conversation. A PersonaBot may have several at once, and a DSH Subagent never counts as one.
 _Avoid_: Work Session, Worker Session, Executor Session, task Session, child Session
 
 **Assignment Agent**:
-The DSH Agent executing inside one Assignment Session. It reports through that Session but is neither a durable identity nor a PersonaBot.
+The DSH Agent executing inside one Assignment Session. It reports only to its PersonaBot's Orchestrator through that Session, has no Channel messaging capability, and is neither a durable identity nor a PersonaBot.
 _Avoid_: worker, PersonaBot, Orchestrator, Assignment Session
 
 **Assignment Directory**:
@@ -116,6 +116,10 @@ _Avoid_: dispatch queue, per-Bot quota, hidden model budget, total Session count
 A single host directory a Session works in; it maps one-to-one to a DSH workspace. Several workspaces may be grouped in the UI, but a workspace never spans directories.
 _Avoid_: project, multi-root folder, group
 
+**Workspace Grant**:
+A durable, revocable, application-defined authorization that lets one PersonaBot use one resolved Workspace across Assignments. It is reusable after one Human approval and is neither a DSH Workspace nor a per-Assignment prompt.
+_Avoid_: Service Grant, Workspace, one-time approval, cwd inference
+
 **Delegation**:
 Handing responsibility to a PersonaBot from a Chat or the Roster. Its Orchestrator may answer directly or create or reuse one or more Assignment Sessions.
 _Avoid_: direct Session creation, task entity, job entity
@@ -125,18 +129,18 @@ A PersonaBot's connection to a surface it takes part in — a Channel, a Chat, t
 _Avoid_: integration, connector, channel binding
 
 **Orchestrator Session**:
-The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. It is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row.
+The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. Its working directory is always the PersonaBot's Memory Repository; it is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row. Ordinary Session output remains execution history; only an explicit Channel messaging command authorized from trusted Session ownership and Channel membership speaks to a Human-facing Channel.
 _Avoid_: main agent, brain, supervisor
 
 ### Memory
 
 **Memory**:
-Optional persistent knowledge held as ordinary human-readable Markdown files in a Memory Repository. A PersonaBot can chat and run Assignments without it; when attached, the same repository is available across its Sessions, Chats, and Workspaces subject to explicit runtime grants.
+Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. Agents work with those files through ordinary filesystem, Shell, search, and Git capabilities; an accepted Memory Commit makes changes effective.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **Memory Repository**:
-An independently durable, Git-backed collection of Memory files with its own identity and lifecycle. It may attach to a PersonaBot or another owner, and detach, archive, or delete remain distinct operations.
-_Avoid_: PersonaBot directory, Session memory, generated index
+A PersonaBot-owned Git repository of Memory files, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Its lifecycle follows the PersonaBot while archive, export, restore, and purge remain explicit operations.
+_Avoid_: optional attachment, Session memory, generated index, project Workspace
 
 **Pinned Memory**:
 A Memory file whose versioned metadata requests full-body injection into the system prompt, within a Human-configurable repository budget and the active model's final context preflight. Persona is an ordinary Memory file that is pinned by default when created.
@@ -150,13 +154,17 @@ _Avoid_: note, document, page, record
 The north-star topic file: one per customer, holding timeline, key facts, commitments, and links to related Attachments.
 _Avoid_: CRM record, account, contact sheet
 
-**Memory tool**:
-A model-callable Consumer of the Memory Service that reads, searches, mutates, pins, or unpins Memory for the calling Agent's granted repository.
-_Avoid_: Memory Service, background distillation, direct filesystem access
+**Memory Service**:
+The application-defined capability that owns Memory Repository lifecycle, validation, pin-budget enforcement, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
+_Avoid_: Memory tool, filesystem watcher, Git event source, generic repository
 
-**Memory operation**:
-A command or query performed through the Memory Service by a Tool, Human UI, or another trusted Plugin. Every mutation is optimistic-concurrency checked, recorded as one semantic Git commit with actor and cause, and surrounded by before/after Cordis Events.
-_Avoid_: direct file write, background distillation, unversioned edit
+**Memory Commit**:
+An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change pinned context, history projections, or Memory events.
+_Avoid_: file save, filesystem event, raw Git commit, auto-save
+
+**Memory Reconciliation**:
+The Memory Service process that validates repository state and accepts or rejects candidate Git commits against Memory invariants. Live Cordis Events describe reconciliation and accepted Memory Commits; they never treat `.git` filesystem activity as durable fact.
+_Avoid_: filesystem watch, background distillation, event-sourced Git
 
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.
@@ -165,7 +173,7 @@ _Avoid_: upload, provider URL, per-Bot inbox copy, database blob
 ### Soul and sharing
 
 **Soul**:
-The optional selected Memory content attached to a PersonaBot that may freeze into a SoulSnapshot, including Persona content when present.
+The selected Memory content of a PersonaBot that may freeze into a SoulSnapshot, including Persona content when present.
 _Avoid_: character, profile, data
 
 **SoulSnapshot**:
@@ -251,7 +259,7 @@ A PersonaBot's current consideration of one Source Event revision chain; unobser
 _Avoid_: mailbox item, message copy, delivery attempt
 
 **Channel**:
-A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally.
+A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a DM keeps its PersonaBot avatar presentation.
 _Avoid_: room, server, board
 
 **Channel section**:
@@ -351,8 +359,16 @@ The Host policy that maps a Wake Policy decision and Orchestrator liveness to th
 _Avoid_: wake policy, inferred step state, message priority
 
 **Human Inbox**:
-The dashboard aggregate of every Bot Inbox: what currently needs the human.
+A Human-level attention projection that classifies Channel Attention and PersonaBot Attention as either action-required or informational. It references their owning facts and does not copy Channel content or flatten every Bot Inbox item into Human work.
 _Avoid_: notifications, dashboard list
+
+**Channel Attention**:
+A Human Inbox item caused by Channel activity such as an unread message, mention, or reply; it references the owning Source Event and may be ignored unless classified action-required.
+_Avoid_: Channel Inbox, copied message, Bot Inbox Admission
+
+**PersonaBot Attention**:
+A Human Inbox item caused by a PersonaBot waiting for the Human, becoming blocked, requiring approval, or issuing an informational report.
+_Avoid_: personal attention, Bot state, notification
 
 **Channel membership**:
 An Actor's participation in a Channel, carrying its owner/member role and authority to read or send there.
@@ -479,7 +495,7 @@ The bot-mode sidebar list of PersonaBots and Channels, with their state.
 _Avoid_: dashboard, bot list
 
 **PersonaBot navigation**:
-The DM-only contextual navigation for one PersonaBot: Chat is always present, Memory appears only when a Memory Provider is attached, and owned Assignments form a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
+The DM-only contextual navigation for one PersonaBot: Chat and Memory are always present, and owned Assignments form a subordinate list. It is absent from group Channels and never presents the Orchestrator Session as an Assignment.
 _Avoid_: session panel, bot workspace, inspector
 
 **Client bridge**:
@@ -487,7 +503,7 @@ The RPC surface through which the Web Client reads PersonaBots and invokes separ
 _Avoid_: remote, IPC, gateway
 
 **Settings UI**:
-The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory-provider availability and diagnostics, and links into attached Memory. Ordinary Memory use belongs to PersonaBot navigation when that capability exists.
+The in-harness DSH settings surface for setup, global/plugin settings, PersonaBot administration, Memory diagnostics, and links into Memory. Ordinary Memory use belongs to PersonaBot navigation.
 _Avoid_: admin panel, dashboard, web console
 
 **Access policy**:

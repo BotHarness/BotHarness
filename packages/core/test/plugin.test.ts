@@ -14,6 +14,7 @@ import {
   type BotHarnessCore,
   type PersonaBotRegistry,
 } from '../src/index.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createTempRoot } from './helpers.js';
 import { createFakeRosterDomain } from './roster-fixture.js';
 
@@ -21,6 +22,7 @@ interface Stubs {
   tools: { register: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
   sessions: { list: ReturnType<typeof vi.fn> };
+  agents: { create: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
 }
 
 const contexts: Context[] = [];
@@ -44,17 +46,19 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
     tools: { register: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
     sessions: { list: vi.fn(() => []) },
+    agents: { create: vi.fn(), resume: vi.fn() },
   };
   ctx.provide('tools', stubs.tools);
   ctx.provide('systemPrompt', stubs.systemPrompt);
   ctx.provide('sessions', stubs.sessions);
+  ctx.provide('agents', stubs.agents as never);
   return { ctx, stubs };
 }
 
 describe('plugin entry', () => {
   it('declares its identity', () => {
     expect(name).toBe('botharness-core');
-    expect(inject).toEqual(['tools', 'systemPrompt', 'sessions']);
+    expect(inject).toEqual(['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel']);
   });
 
   it('registers nothing when disabled', () => {
@@ -81,6 +85,7 @@ describe('plugin entry', () => {
       memory: expect.anything(),
       channels: expect.anything(),
       roster: expect.anything(),
+      runtime: expect.anything(),
     });
     expect(stubs.tools.register).toHaveBeenCalledTimes(4);
     expect(stubs.tools.register.mock.calls.map((call) => call[0]?.name).sort()).toEqual([
@@ -104,7 +109,10 @@ describe('plugin entry', () => {
     await ctx.fiber.dispose();
     expect(core?.operationalDatabase.mode).toBe('closed');
 
-    const nextHost = mountOperationalDatabase({ dshHome: home });
+    const nextHost = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
     expect(nextHost.mode).toBe('ready');
     nextHost.close();
   });
@@ -176,6 +184,8 @@ describe('plugin entry', () => {
       'channelCreate',
       'channelMessages',
       'channelSend',
+      'assignments',
+      'assignment',
       'sessions',
       'rosterGet',
       'sectionCreate',

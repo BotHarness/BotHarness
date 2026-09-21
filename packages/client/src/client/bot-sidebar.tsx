@@ -21,7 +21,7 @@ import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-store';
 
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import type { BridgeActions } from './actions.js';
-import { Blobatar } from './avatar.js';
+import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
 import {
@@ -34,6 +34,7 @@ import {
 } from './channel-drag.js';
 import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
 import {
   defaultStorage,
@@ -153,21 +154,68 @@ function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | nul
 
 function BotRow({
   bot,
+  channel,
+  activity,
   selected,
   actions,
+  drag,
+  onMenu,
 }: {
   bot: BotSummary;
+  channel: ChannelSummary;
+  activity: PersonaBotActivityState;
   selected: boolean;
   actions: BridgeActions;
+  drag: ChannelDragProps;
+  onMenu: (request: ChannelMenuRequest) => void;
 }): ReactElement {
   const botState = toBotState(bot.aggregateState);
+  const markerClass =
+    drag.marker === 'before' ? ' bh-drop-before' : drag.marker === 'after' ? ' bh-drop-after' : '';
+  const sourceClass = drag.source ? ' bh-drag-source' : '';
   return (
     <button
       type="button"
-      className={`bh-contact${selected ? ' bh-selected' : ''}`}
+      data-channel-id={channel.id}
+      className={`bh-contact${selected ? ' bh-selected' : ''}${markerClass}${sourceClass}`}
       onClick={() => void actions.openBot(bot.slug)}
+      draggable
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', channel.id);
+        drag.start();
+      }}
+      onDragEnd={drag.end}
+      onDragOver={(event) => {
+        if (!drag.active) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        drag.hover(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+      }}
+      onDrop={(event) => {
+        if (!drag.active) return;
+        event.preventDefault();
+        drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
+      }}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        onMenu({ channelId: channel.id, x: event.clientX, y: event.clientY });
+      }}
+      onKeyDown={(event) => {
+        const keyboardMenu = event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+        if (!keyboardMenu) return;
+        event.preventDefault();
+        const rect = event.currentTarget.getBoundingClientRect();
+        onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
+      }}
     >
-      <Blobatar seed={bot.slug} size={34} />
+      <PersonaBotAvatar
+        personaBotId={bot.slug}
+        name={bot.displayName}
+        src={bot.avatar}
+        state={activity}
+        size={34}
+      />
       <span className="bh-body">
         <span className="bh-top">
           <span className="bh-name">{bot.displayName}</span>
@@ -200,6 +248,7 @@ function ChannelRow({
   return (
     <button
       type="button"
+      data-channel-id={channel.id}
       className={`bh-channel-row${selected ? ' bh-selected' : ''}${markerClass}${sourceClass}`}
       onClick={() => void actions.openChannel(channel.id)}
       draggable={drag !== undefined}
@@ -309,16 +358,23 @@ export function BotSidebar({
 
   const query = state.query.trim().toLowerCase();
   const bots = state.bots.filter((bot) => matchesQuery(query, bot.displayName, ...bot.roles));
-  const groupChannels = state.channels.filter((channel) => channel.type === 'group');
-  const channels = groupChannels.filter((channel) => matchesQuery(query, channel.name));
+  const botBySlug = new Map(state.bots.map((bot) => [bot.slug, bot]));
   const pinned = new Set(state.roster.pins);
   const pinnedBots = state.roster.pins.flatMap((slug) => {
     const bot = bots.find((candidate) => candidate.slug === slug);
     return bot === undefined ? [] : [bot];
   });
+  const rosterChannels = state.channels.filter(
+    (channel) =>
+      channel.type === 'group' || (channel.botSlug !== undefined && !pinned.has(channel.botSlug)),
+  );
+  const channels = rosterChannels.filter((channel) => {
+    if (channel.type === 'group') return matchesQuery(query, channel.name);
+    const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    return bot !== undefined && matchesQuery(query, bot.displayName, ...bot.roles);
+  });
   const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
-  const flatBots = bots.filter((bot) => !pinned.has(bot.slug));
-  const groupChannelIds = groupChannels.map((channel) => channel.id);
+  const rosterChannelIds = rosterChannels.map((channel) => channel.id);
   /**
    * Flat top-level entries in display order: the host `topOrder` completed
    * with channels the flat list does not know yet (appended at the end), or —
@@ -329,7 +385,7 @@ export function BotSidebar({
   const flatEntries = completeFlatEntries(
     state.roster.topOrder,
     state.roster.sections.map((section) => section.id),
-    groupChannelIds,
+    rosterChannelIds,
     sectionedIds,
   );
   /**
@@ -355,14 +411,14 @@ export function BotSidebar({
       const snapshot = store.getSnapshot();
       const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
       return orderScopeChannels(
-        groupChannels.filter((channel) => !sectioned.has(channel.id)),
+        rosterChannels.filter((channel) => !sectioned.has(channel.id)),
         prefs.sortMode,
       );
     }
     const section = store
       .getSnapshot()
       .roster.sections.find((candidate) => candidate.id === scopeId);
-    return section === undefined ? [] : sectionOrder(section, groupChannels);
+    return section === undefined ? [] : sectionOrder(section, rosterChannels);
   };
   const sectionOfChannel = (channelId: string): string | undefined =>
     store.getSnapshot().roster.sections.find((section) => section.channelIds.includes(channelId))
@@ -402,9 +458,7 @@ export function BotSidebar({
     return blocks;
   })();
   const visibleCount =
-    pinnedBots.length +
-    flatBots.length +
-    flatBlocks.reduce((total, block) => total + block.channels.length, 0);
+    pinnedBots.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
   const selectedBot = state.selection?.kind === 'bot' ? state.selection.slug : undefined;
   const selectedChannel =
     state.selection?.kind === 'channel' ? state.selection.channelId : undefined;
@@ -586,6 +640,35 @@ export function BotSidebar({
   } = useChannelDrag(commitChannelDrag, commitChannelScopeDrop, commitChannelGapDrop);
   const { propsFor: sectionDragProps } = useSectionDrag(commitSectionDrag);
 
+  const renderChannelRow = (channel: ChannelSummary, scopeId: ScopeId): ReactElement => {
+    const drag = channelDragProps(scopeId, channel.id);
+    const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    if (channel.type === 'dm' && bot !== undefined) {
+      return (
+        <BotRow
+          key={channel.id}
+          bot={bot}
+          channel={channel}
+          activity={personaBotActivity(state, bot)}
+          selected={selectedBot === bot.slug || selectedChannel === channel.id}
+          actions={actions}
+          drag={drag}
+          onMenu={openChannelMenu}
+        />
+      );
+    }
+    return (
+      <ChannelRow
+        key={channel.id}
+        channel={channel}
+        selected={selectedChannel === channel.id}
+        actions={actions}
+        drag={drag}
+        onMenu={openChannelMenu}
+      />
+    );
+  };
+
   if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
 
   const createSectionId = createRequest?.kind === 'channel' ? createRequest.sectionId : undefined;
@@ -629,7 +712,7 @@ export function BotSidebar({
       onDragOver={(event) => {
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;
-        if (target !== null && target.closest('.bh-section, .bh-channel-row') !== null) return;
+        if (target !== null && target.closest('.bh-section, [data-channel-id]') !== null) return;
         event.preventDefault();
         event.dataTransfer.dropEffect = 'move';
         const resolved = resolveGapTarget(event.currentTarget, event.clientY);
@@ -642,7 +725,7 @@ export function BotSidebar({
       onDrop={(event) => {
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;
-        if (target !== null && target.closest('.bh-section, .bh-channel-row') !== null) return;
+        if (target !== null && target.closest('.bh-section, [data-channel-id]') !== null) return;
         event.preventDefault();
         const resolved = resolveGapTarget(event.currentTarget, event.clientY);
         if (resolved === null) return;
@@ -779,7 +862,7 @@ export function BotSidebar({
           </Button>
         </div>
       ) : null}
-      {visibleCount === 0 && (state.bots.length > 0 || groupChannels.length > 0) ? (
+      {visibleCount === 0 && (state.bots.length > 0 || state.channels.length > 0) ? (
         <div className="bh-note">没有匹配的 BOT 或频道</div>
       ) : null}
 
@@ -794,25 +877,18 @@ export function BotSidebar({
                 className={`bh-pinned${selected ? ' bh-selected' : ''}`}
                 onClick={() => void actions.openBot(bot.slug)}
               >
-                <Blobatar seed={bot.slug} size={54} />
+                <PersonaBotAvatar
+                  personaBotId={bot.slug}
+                  name={bot.displayName}
+                  src={bot.avatar}
+                  state={personaBotActivity(state, bot)}
+                  size={54}
+                />
                 <span className="bh-name">{bot.displayName}</span>
                 <RoleBadges roles={bot.roles} />
               </button>
             );
           })}
-        </div>
-      ) : null}
-
-      {flatBots.length > 0 ? (
-        <div className="bh-list-area">
-          {flatBots.map((bot) => (
-            <BotRow
-              key={bot.slug}
-              bot={bot}
-              selected={selectedBot === bot.slug}
-              actions={actions}
-            />
-          ))}
         </div>
       ) : null}
 
@@ -826,10 +902,10 @@ export function BotSidebar({
                 onDragOver={(event) => {
                   if (!channelDragActive) return;
                   const target = event.target as HTMLElement | null;
-                  if (target !== null && target.closest('.bh-channel-row') !== null) return;
+                  if (target !== null && target.closest('[data-channel-id]') !== null) return;
                   event.preventDefault();
                   event.dataTransfer.dropEffect = 'move';
-                  const rows = [...event.currentTarget.querySelectorAll('.bh-channel-row')].map(
+                  const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
                     (element, index) => {
                       const rect = element.getBoundingClientRect();
                       return {
@@ -851,9 +927,9 @@ export function BotSidebar({
                 onDrop={(event) => {
                   if (!channelDragActive) return;
                   const target = event.target as HTMLElement | null;
-                  if (target !== null && target.closest('.bh-channel-row') !== null) return;
+                  if (target !== null && target.closest('[data-channel-id]') !== null) return;
                   event.preventDefault();
-                  const rows = [...event.currentTarget.querySelectorAll('.bh-channel-row')].map(
+                  const rows = [...event.currentTarget.querySelectorAll('[data-channel-id]')].map(
                     (element, index) => {
                       const rect = element.getBoundingClientRect();
                       return {
@@ -873,16 +949,7 @@ export function BotSidebar({
                   }
                 }}
               >
-                {block.channels.map((channel) => (
-                  <ChannelRow
-                    key={channel.id}
-                    channel={channel}
-                    selected={selectedChannel === channel.id}
-                    actions={actions}
-                    drag={channelDragProps(undefined, channel.id)}
-                    onMenu={openChannelMenu}
-                  />
-                ))}
+                {block.channels.map((channel) => renderChannelRow(channel, undefined))}
               </div>
             </div>
           );
@@ -903,7 +970,7 @@ export function BotSidebar({
          * collapsed, filtered out) resolve to the scope itself at index 0.
          */
         const resolveBlockTarget = (element: HTMLElement, clientY: number) => {
-          const rows = [...element.querySelectorAll('.bh-channel-row')].map((row, index) => {
+          const rows = [...element.querySelectorAll('[data-channel-id]')].map((row, index) => {
             const rect = row.getBoundingClientRect();
             return { id: sectionChannels[index]?.id ?? '', top: rect.top, height: rect.height };
           });
@@ -931,7 +998,7 @@ export function BotSidebar({
               }
               if (!channelDragActive) return;
               const target = event.target as HTMLElement | null;
-              if (target !== null && target.closest('.bh-channel-row') !== null) return;
+              if (target !== null && target.closest('[data-channel-id]') !== null) return;
               event.preventDefault();
               event.dataTransfer.dropEffect = 'move';
               const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
@@ -948,7 +1015,7 @@ export function BotSidebar({
               }
               if (!channelDragActive) return;
               const target = event.target as HTMLElement | null;
-              if (target !== null && target.closest('.bh-channel-row') !== null) return;
+              if (target !== null && target.closest('[data-channel-id]') !== null) return;
               event.preventDefault();
               const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
               if (resolution.kind === 'scope') channelScope.drop();
@@ -1027,16 +1094,7 @@ export function BotSidebar({
               </div>
               {collapsed
                 ? null
-                : sectionChannels.map((channel) => (
-                    <ChannelRow
-                      key={channel.id}
-                      channel={channel}
-                      selected={selectedChannel === channel.id}
-                      actions={actions}
-                      drag={channelDragProps(section.id, channel.id)}
-                      onMenu={openChannelMenu}
-                    />
-                  ))}
+                : sectionChannels.map((channel) => renderChannelRow(channel, section.id))}
             </div>
           </div>
         );

@@ -24,6 +24,7 @@ import {
   type BotSessionSource,
   type SessionSummary,
 } from '../sessions/source.js';
+import type { AssignmentDetail, AssignmentSummary, BotRuntime } from '../runtime/bot-runtime.js';
 import type {
   AggregatedState,
   BotStateSnapshot,
@@ -69,6 +70,8 @@ export interface BridgeMethods {
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
+  assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
+  assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -86,6 +89,7 @@ export interface BridgeMethodsDeps {
   channels: ChannelStore;
   sessions: BotSessionSource;
   roster: RosterStore;
+  runtime?: BotRuntime;
   createBotId?: () => string;
 }
 
@@ -137,6 +141,13 @@ function unknownBot(slug: string): BridgeResult<never> {
 
 function unknownChannel(id: string): BridgeResult<never> {
   return { ok: false, error: { code: 'not-found', message: `unknown Channel: ${id}` } };
+}
+
+function unknownAssignment(sessionId: string): BridgeResult<never> {
+  return {
+    ok: false,
+    error: { code: 'not-found', message: `unknown Assignment: ${sessionId}` },
+  };
 }
 
 function unavailable(): BridgeResult<never> {
@@ -354,6 +365,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return setPaused(payload, false);
     },
     channels() {
+      // A PersonaBot's DM is a first-class Channel, not a UI-only contact.
+      // Reconcile older profiles on read so every Bot can participate in the
+      // same durable section membership and top-level order as group Channels.
+      for (const bot of deps.registry.list()) {
+        deps.channels.getOrCreateDm(bot.slug, bot.displayName);
+      }
       return { ok: true, value: { channels: deps.channels.list() } };
     },
     channelDm(payload) {
@@ -417,9 +434,38 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         author: { kind: 'human' },
         body,
       };
+      const channel = deps.channels.get(channelId);
+      if (channel === undefined) return unknownChannel(channelId);
       const appended = await deps.channels.appendMessage(channelId, message);
       if (appended === undefined) return unknownChannel(channelId);
+      if (channel.type === 'dm' && deps.runtime !== undefined) {
+        await deps.runtime.handleDmMessage({
+          channelId,
+          messageId: appended.id,
+          body: appended.body,
+        });
+      }
       return { ok: true, value: { message: appended } };
+    },
+    assignments(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return {
+        ok: true,
+        value: { assignments: deps.runtime?.listAssignments(slug) ?? [] },
+      };
+    },
+    assignment(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const sessionId = asNonBlank(source, 'sessionId');
+      if (slug === undefined) return invalidInput('slug is required');
+      if (sessionId === undefined) return invalidInput('sessionId is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const assignment = deps.runtime?.getAssignment(slug, sessionId);
+      if (assignment === undefined) return unknownAssignment(sessionId);
+      return { ok: true, value: { assignment } };
     },
     sessions(payload) {
       const slug = asSlug(payload);

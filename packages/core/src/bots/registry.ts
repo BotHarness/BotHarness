@@ -163,10 +163,11 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       };
       write(record);
       const persona = input.persona;
-      ensurePersonaFile(
-        memoryDirOf(record),
-        persona !== undefined && persona.trim().length > 0 ? persona : `# ${record.displayName}\n`,
-      );
+      if (persona !== undefined && persona.trim().length > 0) {
+        ensurePersonaFile(memoryDirOf(record), persona);
+      } else if (memoryDir) {
+        mkdirSync(memoryDir, { recursive: true });
+      }
       return { ok: true, record };
     },
     get(slug) {
