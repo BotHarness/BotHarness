@@ -77,6 +77,54 @@ window.__ModuleLoader__.load({
 			whiteSpace: "pre-wrap",
 			wordBreak: "break-all"
 		};
+		/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+		const DESIGN_WIDTH = 1280;
+		const DESIGN_HEIGHT = 800;
+		/**
+		* A fixed-aspect card that scales the viewer iframe down to the container
+		* width, so the whole remote screen is visible instead of its top-left corner.
+		*/
+		function ScaledFrame({ title }) {
+			const ref = (0, react.useRef)(null);
+			const [scale, setScale] = (0, react.useState)(1);
+			(0, react.useEffect)(() => {
+				const element = ref.current;
+				if (element === null) return () => {};
+				const update = () => {
+					if (element.clientWidth > 0) setScale(element.clientWidth / DESIGN_WIDTH);
+				};
+				update();
+				const observer = new ResizeObserver(update);
+				observer.observe(element);
+				return () => observer.disconnect();
+			}, []);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				ref,
+				style: {
+					position: "relative",
+					width: "100%",
+					aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+					overflow: "hidden",
+					border: "1px solid var(--dsh-border, #3a3a3a)",
+					borderRadius: 8,
+					background: "#000"
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+					title,
+					src: VIEWER_SRC,
+					style: {
+						position: "absolute",
+						top: 0,
+						left: 0,
+						width: DESIGN_WIDTH,
+						height: DESIGN_HEIGHT,
+						border: "none",
+						transform: `scale(${String(scale)})`,
+						transformOrigin: "top left"
+					}
+				})
+			});
+		}
 		/** Pure three-state view; the container component supplies data and handlers. */
 		function ComputerEntryView(props) {
 			const { state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
@@ -143,17 +191,7 @@ window.__ModuleLoader__.load({
 					flexDirection: "column",
 					gap: 8
 				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
-					title: `${botSlug ?? "PersonaBot"} 的电脑`,
-					src: VIEWER_SRC,
-					style: {
-						width: "100%",
-						aspectRatio: "16 / 10",
-						border: "1px solid var(--dsh-border, #3a3a3a)",
-						borderRadius: 8,
-						background: "#000"
-					}
-				}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, { title: `${botSlug ?? "PersonaBot"} 的电脑` }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 					type: "button",
 					style: buttonStyle,
 					disabled: busy || inProgress,

@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   type CSSProperties,
   type ComponentType,
@@ -127,6 +128,61 @@ const terminalStyle: CSSProperties = {
   wordBreak: 'break-all',
 };
 
+/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+const DESIGN_WIDTH = 1280;
+const DESIGN_HEIGHT = 800;
+
+/**
+ * A fixed-aspect card that scales the viewer iframe down to the container
+ * width, so the whole remote screen is visible instead of its top-left corner.
+ */
+function ScaledFrame({ title }: { title: string }): ReactElement {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (element === null) return () => {};
+    const update = (): void => {
+      if (element.clientWidth > 0) setScale(element.clientWidth / DESIGN_WIDTH);
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        position: 'relative',
+        width: '100%',
+        aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
+        overflow: 'hidden',
+        border: '1px solid var(--dsh-border, #3a3a3a)',
+        borderRadius: 8,
+        background: '#000',
+      }}
+    >
+      <iframe
+        title={title}
+        src={VIEWER_SRC}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: DESIGN_WIDTH,
+          height: DESIGN_HEIGHT,
+          border: 'none',
+          transform: `scale(${String(scale)})`,
+          transformOrigin: 'top left',
+        }}
+      />
+    </div>
+  );
+}
+
 export interface ComputerEntryViewProps {
   readonly state: ComputerState;
   readonly phase?: ComputerPhase;
@@ -206,17 +262,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   if (state === 'running') {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <iframe
-          title={`${botSlug ?? 'PersonaBot'} 的电脑`}
-          src={VIEWER_SRC}
-          style={{
-            width: '100%',
-            aspectRatio: '16 / 10',
-            border: '1px solid var(--dsh-border, #3a3a3a)',
-            borderRadius: 8,
-            background: '#000',
-          }}
-        />
+        <ScaledFrame title={`${botSlug ?? 'PersonaBot'} 的电脑`} />
         <button type="button" style={buttonStyle} disabled={busy || inProgress} onClick={onStop}>
           {busy || phase === 'stopping' ? '停止中…' : '停止'}
         </button>
