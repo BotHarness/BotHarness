@@ -177,6 +177,7 @@ describe('bridge parsers', () => {
 describe('bridge actions', () => {
   function setup(extra: Record<string, Handler> = {}) {
     const clientStore = createStore();
+    let topOrder: Array<{ kind: 'section' | 'channel'; id: string }> = [];
     const call = bridgeCall({
       list: () => ({ bots: [BOT] }),
       channels: () => ({ channels: [GROUP, DM] }),
@@ -230,7 +231,12 @@ describe('bridge actions', () => {
           updatedAt: '2026-09-19T00:04:00.000Z',
         },
       }),
-      rosterGet: () => ({ pins: [], sections: [] }),
+      rosterGet: () => ({ pins: [], sections: [], topOrder }),
+      channelAssign: () => ({}),
+      topReorder: (payload) => {
+        topOrder = payload['order'] as typeof topOrder;
+        return { topOrder };
+      },
       ...extra,
     });
     return { clientStore, actions: createActions(call, clientStore) };
@@ -336,6 +342,7 @@ describe('bridge actions', () => {
     expect(state.channels[0]?.id).toBe('group-team');
     expect(state.selection).toEqual({ kind: 'channel', channelId: 'group-team' });
     expect(state.conversation.status).toBe('ready');
+    expect(state.roster.topOrder?.[0]).toEqual({ kind: 'channel', id: 'group-team' });
 
     const failing = createActions(
       bridgeCall({
@@ -348,6 +355,21 @@ describe('bridge actions', () => {
       clientStore,
     );
     await expect(failing.createGroup('Nope')).rejects.toThrow('bridge down');
+  });
+
+  it('creates a group channel as the first row of a target section', async () => {
+    const assignments: Array<Record<string, unknown>> = [];
+    const { actions } = setup({
+      channelAssign: (payload) => {
+        assignments.push(payload);
+        return {};
+      },
+    });
+    await actions.load();
+
+    await actions.createGroup('Team', 'section-work');
+
+    expect(assignments).toEqual([{ channelId: 'group-team', sectionId: 'section-work', index: 0 }]);
   });
 
   it('creates a PersonaBot through the Host, adds it to the roster, and selects it', async () => {
@@ -367,6 +389,7 @@ describe('bridge actions', () => {
           },
         };
       },
+      channelDm: () => ({ channel: { ...DM, id: 'dm-bot-generated', botSlug: 'bot-generated' } }),
     });
     await actions.load();
 
@@ -395,6 +418,29 @@ describe('bridge actions', () => {
       slug: 'bot-generated',
     });
     expect(clientStore.getSnapshot().conversation.status).toBe('idle');
+    expect(clientStore.getSnapshot().roster.topOrder?.[0]).toEqual({
+      kind: 'channel',
+      id: 'dm-bot-generated',
+    });
+  });
+
+  it('creates a PersonaBot DM as the first row of a target section', async () => {
+    const assignments: Array<Record<string, unknown>> = [];
+    const { actions } = setup({
+      create: () => ({ bot: { ...BOT, slug: 'bot-generated' } }),
+      channelDm: () => ({ channel: { ...DM, id: 'dm-bot-generated', botSlug: 'bot-generated' } }),
+      channelAssign: (payload) => {
+        assignments.push(payload);
+        return {};
+      },
+    });
+    await actions.load();
+
+    await actions.createBot({ displayName: '小研', roles: [] }, 'section-work');
+
+    expect(assignments).toEqual([
+      { channelId: 'dm-bot-generated', sectionId: 'section-work', index: 0 },
+    ]);
   });
 
   it('reports roster failures without throwing', async () => {

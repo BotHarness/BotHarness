@@ -238,9 +238,16 @@ describe('bot sidebar rows', () => {
     expect(markup).not.toContain('bh-chevron-collapsed');
     expect(markup).toContain('bh-row-actions');
     expect(markup).toContain('aria-label="「工作流」排序方式"');
-    expect(markup).toContain('aria-label="在「工作流」中创建频道"');
+    expect(markup).toContain('aria-label="在「工作流」中新建"');
     expect(markup.match(/class="bh-row-action"/g)).toHaveLength(2);
     expect(markup).not.toMatch(/class="bh-row-action"[^>]*disabled/);
+    const createMenu = captured.menus.find(
+      (menu) =>
+        menu.items.some((item) => item['id'] === 'bot') &&
+        menu.items.some((item) => item['id'] === 'channel') &&
+        !menu.items.some((item) => item['id'] === 'section'),
+    );
+    expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 PersonaBot', '创建频道']);
   });
 
   it('renders channels as one-line native session rows without extra indentation', () => {

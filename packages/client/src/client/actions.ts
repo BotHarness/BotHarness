@@ -21,7 +21,7 @@ import {
   type CreatePersonaBotInput,
 } from './bridge.js';
 import { planSectionChannelOrder, type RosterSection, type TopOrderEntry } from './roster.js';
-import { completeFlatEntries } from './roster-order.js';
+import { completeFlatEntries, flatRosterChannelIds } from './roster-order.js';
 import type { BotSummary, ChannelSummary, ClientStore, ConversationSelection } from './store.js';
 
 export interface BridgeActions {
@@ -31,8 +31,8 @@ export interface BridgeActions {
   openChannel(channelId: string): Promise<void>;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string): Promise<boolean>;
-  createBot(input: CreatePersonaBotInput): Promise<BotSummary>;
-  createGroup(name: string): Promise<ChannelSummary | undefined>;
+  createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
+  createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -104,6 +104,33 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       reportRosterFailure(error);
       return false;
     }
+  };
+
+  /** Place a newly created Channel first in its requested roster scope. */
+  const placeCreatedChannelFirst = async (
+    channelId: string,
+    sectionId: string | undefined,
+  ): Promise<boolean> => {
+    if (sectionId !== undefined) {
+      return rosterMutate(async () => {
+        await assignRosterChannel(call, channelId, sectionId, 0);
+      });
+    }
+    const snapshot = clientStore.getSnapshot();
+    const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+    const flat = completeFlatEntries(
+      snapshot.roster.topOrder,
+      snapshot.roster.sections.map((section) => section.id),
+      flatRosterChannelIds(snapshot.channels, new Set(snapshot.roster.pins)),
+      sectioned,
+    );
+    const order: TopOrderEntry[] = [
+      { kind: 'channel', id: channelId },
+      ...flat.filter((entry) => entry.kind !== 'channel' || entry.id !== channelId),
+    ];
+    return rosterMutate(async () => {
+      await reorderTopOrder(call, order);
+    });
   };
 
   const loadAssignmentsFor = async (
@@ -266,17 +293,19 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         return false;
       }
     },
-    async createBot(input) {
+    async createBot(input, sectionId) {
       const bot = await createPersonaBot(call, input);
       const channel = await openDmChannel(call, bot.slug, bot.displayName);
       clientStore.upsertBot(bot);
       clientStore.upsertChannel(channel);
+      await placeCreatedChannelFirst(channel.id, sectionId);
       clientStore.select({ kind: 'bot', slug: bot.slug });
       return bot;
     },
-    async createGroup(name) {
+    async createGroup(name, sectionId) {
       const channel = await createGroupChannel(call, name);
       clientStore.upsertChannel(channel);
+      await placeCreatedChannelFirst(channel.id, sectionId);
       await openChannelById(channel.id);
       return channel;
     },
@@ -348,13 +377,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       const order = completeFlatEntries(
         undefined,
         snapshot.roster.sections.map((section) => section.id),
-        snapshot.channels
-          .filter(
-            (channel) =>
-              channel.type === 'group' ||
-              (channel.botSlug !== undefined && !snapshot.roster.pins.includes(channel.botSlug)),
-          )
-          .map((channel) => channel.id),
+        flatRosterChannelIds(snapshot.channels, new Set(snapshot.roster.pins)),
         sectioned,
       );
       if (order.length === 0) return true;

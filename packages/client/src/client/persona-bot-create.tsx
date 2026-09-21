@@ -49,10 +49,14 @@ function Field({
 
 export function CreatePersonaBotModal({
   actions,
+  sectionId,
+  sectionName,
   onCancel,
   onCreated,
 }: {
   actions: BridgeActions;
+  sectionId?: string;
+  sectionName?: string;
   onCancel: () => void;
   onCreated: () => void;
 }): ReactElement {
@@ -84,11 +88,14 @@ export function CreatePersonaBotModal({
     setCreating(true);
     setError(undefined);
     void actions
-      .createBot({
-        displayName: displayName.trim(),
-        roles: submittedRoles,
-        ...(submittedDescription.length === 0 ? {} : { description: submittedDescription }),
-      })
+      .createBot(
+        {
+          displayName: displayName.trim(),
+          roles: submittedRoles,
+          ...(submittedDescription.length === 0 ? {} : { description: submittedDescription }),
+        },
+        sectionId,
+      )
       .then(
         () => {
           setCreating(false);
@@ -108,7 +115,9 @@ export function CreatePersonaBotModal({
         if (!creating) onCancel();
       }}
       closeLabel="关闭"
-      title="创建 PersonaBot"
+      title={
+        sectionName === undefined ? '创建 PersonaBot' : `在「${sectionName}」中创建 PersonaBot`
+      }
       description="名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。"
       footer={
         <>

@@ -225,9 +225,9 @@ export class RosterStore {
   }
 
   /**
-   * Create one section with a host-generated id and append it to the order —
+   * Create one section with a host-generated id and prepend it to the order —
    * both the legacy section order and, when the domain already carries one,
-   * the flat order (new sections land at the end).
+   * the flat order (new sections land at the top).
    * @param name - Trimmed display name.
    * @returns the created section record.
    */
@@ -241,11 +241,11 @@ export class RosterStore {
       try {
         await global.set(
           nextGlobalState(state, {
-            sectionOrder: [...state.sectionOrder, id],
+            sectionOrder: [id, ...state.sectionOrder],
             topOrder:
               state.topOrder === undefined
                 ? undefined
-                : [...state.topOrder, { kind: 'section', id }],
+                : [{ kind: 'section', id }, ...state.topOrder],
           }),
         );
       } catch (error) {
