@@ -290,6 +290,7 @@ window.__ModuleLoader__.load({
     function RunningCard({ botSlug, busy, stopping, onStop }) {
       const inlineRef = (0, react.useRef)(null);
       const fullRef = (0, react.useRef)(null);
+      const dialogRef = (0, react.useRef)(null);
       const [hovered, setHovered] = (0, react.useState)(false);
       const [expanded, setExpanded] = (0, react.useState)(false);
       const [reloadKey, setReloadKey] = (0, react.useState)(0);
@@ -318,10 +319,31 @@ window.__ModuleLoader__.load({
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {
-          if (event.key === 'Escape') setExpanded(false);
+          if (event.key === 'Escape') {
+            setExpanded(false);
+            return;
+          }
+          if (event.key !== 'Tab') return;
+          const dialog = dialogRef.current;
+          if (dialog === null) return;
+          const focusable = [
+            ...dialog.querySelectorAll('button, [href], iframe, [tabindex]:not([tabindex="-1"])'),
+          ].filter((element) => element.tabIndex !== -1);
+          const first = focusable[0];
+          const last = focusable.at(-1);
+          if (first === void 0 || last === void 0) return;
+          const active = document.activeElement;
+          if (event.shiftKey && (active === first || active === dialog)) {
+            event.preventDefault();
+            last.focus();
+          } else if (!event.shiftKey && active === last) {
+            event.preventDefault();
+            first.focus();
+          }
         };
         document.addEventListener('keydown', onKey);
         document.body.style.overflow = 'hidden';
+        dialogRef.current?.focus();
         return () => {
           document.removeEventListener('keydown', onKey);
           document.body.style.overflow = '';
@@ -451,9 +473,11 @@ window.__ModuleLoader__.load({
           expanded
             ? (0, react_dom.createPortal)(
                 /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+                  ref: dialogRef,
                   role: 'dialog',
                   'aria-modal': 'true',
                   'aria-label': title,
+                  tabIndex: -1,
                   style: {
                     position: 'fixed',
                     inset: 0,

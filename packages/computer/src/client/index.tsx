@@ -368,6 +368,7 @@ function RunningCard({
 }): ReactElement {
   const inlineRef = useRef<HTMLIFrameElement>(null);
   const fullRef = useRef<HTMLIFrameElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
@@ -404,10 +405,35 @@ function RunningCard({
   useEffect(() => {
     if (!expanded) return () => {};
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') setExpanded(false);
+      if (event.key === 'Escape') {
+        setExpanded(false);
+        return;
+      }
+      // The viewer is a modal: keep Tab inside it instead of letting focus
+      // walk into the shell behind the overlay.
+      if (event.key !== 'Tab') return;
+      const dialog = dialogRef.current;
+      if (dialog === null) return;
+      const focusable = [
+        ...dialog.querySelectorAll<HTMLElement>(
+          'button, [href], iframe, [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((element) => element.tabIndex !== -1);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      if (first === undefined || last === undefined) return;
+      const active = document.activeElement;
+      if (event.shiftKey && (active === first || active === dialog)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKey);
     document.body.style.overflow = 'hidden';
+    dialogRef.current?.focus();
     return () => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = '';
@@ -510,9 +536,11 @@ function RunningCard({
       {expanded
         ? createPortal(
             <div
+              ref={dialogRef}
               role="dialog"
               aria-modal="true"
               aria-label={title}
+              tabIndex={-1}
               style={{
                 position: 'fixed',
                 inset: 0,

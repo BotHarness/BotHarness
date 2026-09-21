@@ -303,11 +303,34 @@ describe('Docker computer provider', () => {
 
   it('parses docker size strings', () => {
     expect(parseDockerSize('2g')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('2gb')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('2G')).toBe(2 * 1024 ** 3);
     expect(parseDockerSize('512m')).toBe(512 * 1024 ** 2);
+    expect(parseDockerSize('512mb')).toBe(512 * 1024 ** 2);
     expect(parseDockerSize('1024k')).toBe(1024 * 1024);
+    expect(parseDockerSize('1048576b')).toBe(1_048_576);
     expect(parseDockerSize('1048576')).toBe(1_048_576);
     expect(parseDockerSize('')).toBeUndefined();
     expect(parseDockerSize('lots')).toBeUndefined();
+  });
+
+  it('never recreates for a size it cannot verify', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+      config: { memory: '2 gibibytes' },
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
   });
 
   it('bounds memory, swap and process count on the container', async () => {

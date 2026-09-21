@@ -116,14 +116,20 @@ export function createPullTracker(now: () => number = Date.now): {
   };
 }
 
-/** Parses a docker size string (`2g`, `512m`, `1048576`) into bytes. */
+/** Parses a docker size string (`2g`, `2gb`, `512m`, `1048576`) into bytes. */
 export function parseDockerSize(value: string): number | undefined {
-  const match = /^(\d+(?:\.\d+)?)\s*([kmg])?$/i.exec(value.trim());
+  const match = /^(\d+(?:\.\d+)?)\s*([kmg]?b?)$/i.exec(value.trim());
   if (match === null) return undefined;
   const amount = Number(match[1] ?? '');
   if (!Number.isFinite(amount)) return undefined;
   const unit = (match[2] ?? '').toLowerCase();
-  const factor = unit === 'g' ? 1024 ** 3 : unit === 'm' ? 1024 ** 2 : unit === 'k' ? 1024 : 1;
+  const factor = unit.startsWith('g')
+    ? 1024 ** 3
+    : unit.startsWith('m')
+      ? 1024 ** 2
+      : unit.startsWith('k')
+        ? 1024
+        : 1;
   return Math.round(amount * factor);
 }
 
@@ -246,12 +252,14 @@ export function createDockerComputerProvider(
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
       'PIXELFLUX_WAYLAND=false',
     ];
+    // An unparseable configured size cannot be verified, so it never forces a
+    // recreate: an unknown value must not restart the desktop on every start.
     const matches =
       image.trim() === config.image &&
-      memory.trim() === String(expectedMemory ?? '') &&
-      swap.trim() === String(expectedMemory ?? '') &&
+      (expectedMemory === undefined || memory.trim() === String(expectedMemory)) &&
+      (expectedMemory === undefined || swap.trim() === String(expectedMemory)) &&
       nanoCpus.trim() === String(Math.round(config.cpus * 1_000_000_000)) &&
-      shmSize.trim() === String(expectedShm ?? '') &&
+      (expectedShm === undefined || shmSize.trim() === String(expectedShm)) &&
       pids.trim() === String(config.pidsLimit) &&
       managedEnv.every((entry) => envText.includes(entry));
     if (matches) return false;
