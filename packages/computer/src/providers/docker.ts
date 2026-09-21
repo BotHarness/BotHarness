@@ -116,6 +116,17 @@ export function createPullTracker(now: () => number = Date.now): {
   };
 }
 
+/** Parses a docker size string (`2g`, `512m`, `1048576`) into bytes. */
+export function parseDockerSize(value: string): number | undefined {
+  const match = /^(\d+(?:\.\d+)?)\s*([kmg])?$/i.exec(value.trim());
+  if (match === null) return undefined;
+  const amount = Number(match[1] ?? '');
+  if (!Number.isFinite(amount)) return undefined;
+  const unit = (match[2] ?? '').toLowerCase();
+  const factor = unit === 'g' ? 1024 ** 3 : unit === 'm' ? 1024 ** 2 : unit === 'k' ? 1024 : 1;
+  return Math.round(amount * factor);
+}
+
 export function createDockerComputerProvider(
   options: DockerComputerProviderOptions,
 ): ComputerProvider {
@@ -210,17 +221,44 @@ export function createDockerComputerProvider(
   };
 
   /**
-   * A container keeps the image it was created from; when the configured image
-   * changed (an upgrade), recreate it on the next start while keeping the
-   * volume. Returns true when the container was removed.
+   * `docker start` applies none of the `docker run` arguments, so a container
+   * whose image or managed settings changed must be recreated — the named
+   * volume keeps the desktop. The locale is deliberately excluded: it follows
+   * the viewer's language, and recreating a live desktop to change its locale
+   * would destroy work in progress, so it applies on the next creation.
+   * Returns true when the container was removed.
    */
-  const recreateIfImageChanged = async (): Promise<boolean> => {
-    const image = await containerImage();
-    if (image === undefined || image === config.image) return false;
+  const recreateIfSpecChanged = async (): Promise<boolean> => {
+    const spec = await runner.run([
+      'docker',
+      'inspect',
+      '--format',
+      '{{.Config.Image}}|{{.HostConfig.Memory}}|{{.HostConfig.MemorySwap}}|{{.HostConfig.NanoCpus}}|{{.HostConfig.ShmSize}}|{{.HostConfig.PidsLimit}}|{{range .Config.Env}}{{println .}}{{end}}',
+      config.containerName,
+    ]);
+    if (spec.code !== 0) return false;
+    const [image = '', memory = '', swap = '', nanoCpus = '', shmSize = '', pids = '', ...env] =
+      spec.stdout.split('|');
+    const expectedMemory = parseDockerSize(config.memory);
+    const expectedShm = parseDockerSize(config.shmSize);
+    const envText = env.join('|');
+    const managedEnv = [
+      `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
+      'PIXELFLUX_WAYLAND=false',
+    ];
+    const matches =
+      image.trim() === config.image &&
+      memory.trim() === String(expectedMemory ?? '') &&
+      swap.trim() === String(expectedMemory ?? '') &&
+      nanoCpus.trim() === String(Math.round(config.cpus * 1_000_000_000)) &&
+      shmSize.trim() === String(expectedShm ?? '') &&
+      pids.trim() === String(config.pidsLimit) &&
+      managedEnv.every((entry) => envText.includes(entry));
+    if (matches) return false;
     const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
     if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
     running = false;
-    observe('absent', `image changed: ${image} → ${config.image}`);
+    observe('absent', `spec changed (${image.trim()} → ${config.image})`);
     return true;
   };
 
@@ -252,12 +290,13 @@ export function createDockerComputerProvider(
     }
     const existing = await inspect();
     throwIfCancelled();
-    if (existing.state === 'running' && !(await recreateIfImageChanged())) {
+    if (existing.state === 'running' && !(await recreateIfSpecChanged())) {
       phase = 'running';
       detail = undefined;
+      await ensureDesktopShortcut();
       return;
     }
-    if (existing.state === 'stopped' && !(await recreateIfImageChanged())) {
+    if (existing.state === 'stopped' && !(await recreateIfSpecChanged())) {
       phase = 'starting';
       detail = '正在启动已有容器…';
       throwIfCancelled();

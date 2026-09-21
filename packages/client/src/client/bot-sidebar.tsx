@@ -118,6 +118,24 @@ export function BotPanelIcon({
     setRow(glyph.current?.closest('button') ?? null);
   }, [size]);
 
+  // The shell row is a button, so keyboard activation would re-select the
+  // panel; while Bot mode is on, Enter and Space leave it instead. The gear
+  // handles its own keys, so events originating there are left alone.
+  useEffect(() => {
+    if (row === null || !active) return () => {};
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Enter' && event.key !== ' ') return;
+      if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
+      event.preventDefault();
+      event.stopPropagation();
+      onExit();
+    };
+    row.addEventListener('keydown', onKeyDown);
+    return () => {
+      row.removeEventListener('keydown', onKeyDown);
+    };
+  }, [row, active, onExit]);
+
   return (
     <span className="bh-panel-glyph" ref={glyph} {...(wide ? { 'data-wide': 'true' } : {})}>
       <BotIcon icon={icon} size={size} />
@@ -136,9 +154,16 @@ export function BotPanelIcon({
                 <span
                   className="bh-panel-gear"
                   role="button"
+                  tabIndex={0}
                   aria-label={t('panel.settings')}
                   title={t('panel.settings')}
                   onClick={(event) => {
+                    event.stopPropagation();
+                    openSettings();
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== 'Enter' && event.key !== ' ') return;
+                    event.preventDefault();
                     event.stopPropagation();
                     openSettings();
                   }}

@@ -62,6 +62,7 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
   const doc = options.root ?? (typeof document === 'undefined' ? undefined : document);
   if (doc === undefined) return () => {};
   const touched = new Set<HTMLElement>();
+  const hiddenGlyphs = new Map<HTMLElement, string>();
   let scheduled = false;
 
   const apply = (): void => {
@@ -77,7 +78,9 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
       // but React never touches inline styles it did not set.
       for (const child of cell.children) {
         if (child === label || child.classList.contains(BOT_NAV_ICON_CLASS)) continue;
-        (child as HTMLElement).style.display = 'none';
+        const glyph = child as HTMLElement;
+        if (!hiddenGlyphs.has(glyph)) hiddenGlyphs.set(glyph, glyph.style.display);
+        glyph.style.display = 'none';
       }
       let box = cell.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`) as HTMLElement | null;
       if (box === null) {
@@ -121,6 +124,8 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
   return () => {
     observer?.disconnect();
     unsubscribe?.();
+    for (const [glyph, display] of hiddenGlyphs) glyph.style.display = display;
+    hiddenGlyphs.clear();
     for (const cell of touched) {
       cell.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`)?.remove();
       cell.classList.remove(BOT_NAV_MARKER);

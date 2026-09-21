@@ -220,6 +220,8 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     if (channel === undefined) return;
     const selection: ConversationSelection = { kind: 'channel', channelId };
     clientStore.select(selection);
+    const active = currentSelection();
+    if (active === undefined) return;
     clientStore.setConversation({
       status: 'loading',
       channel,
@@ -230,7 +232,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     });
     try {
       const { messages, revision } = await loadChannelMessages(call, channelId);
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== active) return;
       clientStore.setConversation({
         status: 'ready',
         channel,
@@ -240,7 +242,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         sending: false,
       });
     } catch (error) {
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== active) return;
       clientStore.setConversation({ status: 'error', error: errorMessage(error), sending: false });
     }
   };
@@ -251,6 +253,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     if (bot === undefined) return;
     const selection: ConversationSelection = { kind: 'bot', slug };
     clientStore.select(selection);
+    // `select` keeps the existing object when the selection is unchanged, so
+    // the request token must come from the store, never from the object we
+    // just built: a fresh object would never compare equal again.
+    const active = currentSelection();
+    if (active === undefined) return;
     clientStore.setConversation({
       status: 'loading',
       channel: undefined,
@@ -262,7 +269,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     try {
       const channel = await openDmChannel(call, slug, bot.displayName);
       const { messages, revision } = await loadChannelMessages(call, channel.id);
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== active) return;
       const latestMessage = messages.at(-1);
       const projectedChannel =
         latestMessage === undefined
@@ -278,14 +285,14 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         sending: false,
       });
     } catch (error) {
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== active) return;
       clientStore.setConversation({
         status: 'error',
         error: errorMessage(error),
         sending: false,
       });
     }
-    await loadAssignmentsFor(slug, selection);
+    await loadAssignmentsFor(slug, active);
   };
 
   return {

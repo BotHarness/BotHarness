@@ -5,6 +5,7 @@ import {
   DEFAULT_DOCKER_CONFIG,
   createDockerComputerProvider,
   createPullTracker,
+  parseDockerSize,
 } from '../src/providers/docker.js';
 
 function runnerWith(
@@ -21,6 +22,28 @@ function runnerWith(
 
 const ok = (stdout = ''): ComputerRuntimeResult => ({ code: 0, stdout, stderr: '' });
 const fail = (stderr: string, code = 1): ComputerRuntimeResult => ({ code, stdout: '', stderr });
+
+/** One `docker inspect` spec line: image | memory | swap | nanoCpus | shm | pids | env. */
+function specLine(
+  patch: {
+    image?: string;
+    memory?: string;
+    swap?: string;
+    nanoCpus?: string;
+    shm?: string;
+    pids?: string;
+    env?: readonly string[];
+  } = {},
+): ComputerRuntimeResult {
+  const image = patch.image ?? 'lscr.io/linuxserver/webtop:ubuntu-xfce';
+  const memory = patch.memory ?? String(2 * 1024 ** 3);
+  const swap = patch.swap ?? memory;
+  const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
+  const shm = patch.shm ?? String(512 * 1024 ** 2);
+  const pids = patch.pids ?? '4096';
+  const env = patch.env ?? ['HARDEN_DESKTOP=true', 'PIXELFLUX_WAYLAND=false'];
+  return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
+}
 
 describe('Docker computer provider', () => {
   it('reports an unavailable runtime without throwing', async () => {
@@ -118,7 +141,7 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'info') return ok('27.0.0');
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
-          if (format.includes('Config.Image')) return ok('lscr.io/linuxserver/webtop:ubuntu-xfce');
+          if (format.includes('HostConfig.Memory')) return specLine();
           return ok('exited\n');
         }
         return ok('ok');
@@ -129,14 +152,14 @@ describe('Docker computer provider', () => {
     expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
   });
 
-  it('recreates a running container whose image no longer matches', async () => {
+  it('recreates a running container whose spec no longer matches', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
         if (argv[1] === 'info') return ok('27.0.0');
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
-          if (format.includes('Config.Image')) return ok('old-image:latest');
+          if (format.includes('HostConfig.Memory')) return specLine({ image: 'old-image:latest' });
           return ok('running\n');
         }
         return ok('ok');
@@ -147,14 +170,14 @@ describe('Docker computer provider', () => {
     expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
   });
 
-  it('recreates the container when its image no longer matches', async () => {
+  it('recreates the container when its spec no longer matches', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
         if (argv[1] === 'info') return ok('27.0.0');
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
-          if (format.includes('Config.Image')) return ok('old-image:latest');
+          if (format.includes('HostConfig.Memory')) return specLine({ image: 'old-image:latest' });
           return ok('exited\n');
         }
         return ok('ok');
@@ -236,6 +259,55 @@ describe('Docker computer provider', () => {
     expect(verbs).toContain('run');
     const untar = calls.find((argv) => argv[1] === 'run');
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
+  });
+
+  it('recreates when a managed resource setting changed', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory'))
+            return specLine({ memory: String(4 * 1024 ** 3) });
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+  });
+
+  it('prepares the shortcut for a container that was already running', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('running\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(false);
+    expect((calls.find((argv) => argv[1] === 'exec') ?? []).join(' ')).toContain(
+      'chromium.desktop',
+    );
+  });
+
+  it('parses docker size strings', () => {
+    expect(parseDockerSize('2g')).toBe(2 * 1024 ** 3);
+    expect(parseDockerSize('512m')).toBe(512 * 1024 ** 2);
+    expect(parseDockerSize('1024k')).toBe(1024 * 1024);
+    expect(parseDockerSize('1048576')).toBe(1_048_576);
+    expect(parseDockerSize('')).toBeUndefined();
+    expect(parseDockerSize('lots')).toBeUndefined();
   });
 
   it('bounds memory, swap and process count on the container', async () => {

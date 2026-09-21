@@ -17,6 +17,6 @@ BotHarness keeps accumulating preferences that belong to the product, not to DSH
 
 ## Consequences
 
-- The nav glyph falls back to DSH's settings gear, because the shell picks nav icons from a hardcoded map keyed by section id and unknown ids get the gear. A distinct BotHarness glyph needs an upstream affordance; we accept the gear until then.
+- The nav glyph is ours at runtime: the shell picks nav icons from a hardcoded map keyed by section id and offers no icon option on `settings.section`, so the client tags the Bot section's nav cell (matched by its localized label), hides the shell glyph and inserts the chosen Bot mark (ADR-0057). DSH's gear remains only as the fallback when the cell cannot be matched; a first-class icon affordance upstream would let us delete the patch.
 - Section ordering is ours to keep sensible as more BotHarness preferences appear; the section renders as one page, so a row that needs a page of its own would become a child surface or a second section.
 - DSH's shell resolves the nav label from the registration's `label` option, so the registration carries localized text; any future copy change re-registers with fresh text rather than reaching into the shell.

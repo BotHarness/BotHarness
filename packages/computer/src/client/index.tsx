@@ -379,6 +379,13 @@ function RunningCard({
   const fullReady = useFrameReady(fullRef, expanded);
   const ready = expanded ? fullReady : inlineReady;
 
+  // Switching which frame is active is not a stream loss: reset the tracker so
+  // the newly active frame's first mount is not read as a reconnect.
+  useEffect(() => {
+    wasReady.current = false;
+    setReconnecting(false);
+  }, [expanded]);
+
   // A stream that disappears after being live (closed session, dropped socket)
   // remounts the viewer so it reconnects on its own.
   useEffect(() => {
@@ -413,11 +420,18 @@ function RunningCard({
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
         role={ready && !expanded ? 'button' : undefined}
+        tabIndex={ready && !expanded ? 0 : undefined}
         aria-label={ready ? '打开大屏' : indicatorLabel}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
           if (ready && !expanded) setExpanded(true);
+        }}
+        onKeyDown={(event) => {
+          if (!ready || expanded) return;
+          if (event.key !== 'Enter' && event.key !== ' ') return;
+          event.preventDefault();
+          setExpanded(true);
         }}
         style={{ position: 'relative', cursor: ready && !expanded ? 'pointer' : 'default' }}
       >

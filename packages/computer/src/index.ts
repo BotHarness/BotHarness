@@ -248,9 +248,10 @@ export function apply(ctx: Context, config: ComputerConfig): void {
             400,
           );
         }
-        if (typeof body.language === 'string' && body.language !== '') {
-          requestedLanguage = desktopLocale(body.language);
-        }
+        requestedLanguage =
+          typeof body.language === 'string' && body.language !== ''
+            ? desktopLocale(body.language)
+            : '';
         log(
           `start requested (panel)${requestedLanguage === '' ? '' : ` locale=${requestedLanguage}`}`,
         );

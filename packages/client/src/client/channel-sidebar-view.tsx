@@ -28,6 +28,8 @@ import {
   clampChannelSidebarWidth,
   DEFAULT_CHANNEL_SIDEBAR_WIDTH,
   type ChannelSidebarPrefs,
+  MAX_CHANNEL_SIDEBAR_WIDTH,
+  MIN_CHANNEL_SIDEBAR_WIDTH,
 } from './channel-sidebar-prefs.js';
 import type { ClientState } from './store.js';
 
@@ -227,8 +229,28 @@ export function ChannelSidebar({
         <div
           className="bh-channel-sidebar-resize"
           role="separator"
+          tabIndex={0}
           aria-orientation="vertical"
           aria-label="调整 Channel sidebar 宽度"
+          aria-valuenow={dockedWidth}
+          aria-valuemin={MIN_CHANNEL_SIDEBAR_WIDTH}
+          aria-valuemax={MAX_CHANNEL_SIDEBAR_WIDTH}
+          onKeyDown={(event) => {
+            const step = event.shiftKey ? 40 : 10;
+            if (event.key === 'ArrowLeft') {
+              event.preventDefault();
+              controller.setWidth(dockedWidth + step);
+            } else if (event.key === 'ArrowRight') {
+              event.preventDefault();
+              controller.setWidth(dockedWidth - step);
+            } else if (event.key === 'Home') {
+              event.preventDefault();
+              controller.setWidth(MIN_CHANNEL_SIDEBAR_WIDTH);
+            } else if (event.key === 'End') {
+              event.preventDefault();
+              controller.setWidth(MAX_CHANNEL_SIDEBAR_WIDTH);
+            }
+          }}
           onPointerDown={(event) => {
             const startX = event.clientX;
             const startWidth = dockedWidth;
