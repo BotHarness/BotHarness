@@ -16,7 +16,8 @@ export const CSS =
   box-sizing: border-box;
 }
 .bh-root button,
-.bh-root input {
+.bh-root input,
+.bh-root textarea {
   font: inherit;
 }
 
@@ -493,12 +494,10 @@ button:has(.bh-panel-glyph) {
     transform: translateY(-1.5px);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .bh-persona-avatar::before,
-  .bh-avatar-media,
-  .bh-avatar-thinking i {
-    animation: none !important;
-  }
+html[data-botharness-motion='reduce'] .bh-persona-avatar::before,
+html[data-botharness-motion='reduce'] .bh-avatar-media,
+html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
+  animation: none !important;
 }
 
 /* 原生 .flatList/.groupSection 行距：同一 scope 内相邻行 2px。 */
@@ -882,10 +881,8 @@ button:has(.bh-panel-glyph) {
   cursor: default;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .bh-section-chevron {
-    transition: none;
-  }
+html[data-botharness-motion='reduce'] .bh-section-chevron {
+  transition: none;
 }
 
 /* 右键「移动到」菜单的锚点：JsonTree 的 proxy-rect 方案 —— fixed 定位的
@@ -1112,7 +1109,7 @@ button:has(.bh-panel-glyph) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 14px 18px;
+  padding: 14px 18px 10px;
 }
 .bh-chat-empty {
   height: 100%;
@@ -1160,31 +1157,116 @@ button:has(.bh-panel-glyph) {
   text-align: right;
 }
 
-.bh-composer {
+.bh-composer-shell {
   display: flex;
   flex-direction: column;
   align-items: stretch;
   gap: 6px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
+  margin: 0 14px calc(12px + env(safe-area-inset-bottom, 0px));
   flex: 0 0 auto;
 }
-.bh-composer-activity {
-  min-height: 24px;
+.bh-composer {
+  --bh-composer-body-height: 34px;
+  position: relative;
+  min-height: 50px;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 7px 54px 7px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 25px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 8px 24px
+    color-mix(in srgb, var(--dsw-alias-label-primary) 9%, transparent);
+  transition:
+    padding 220ms var(--ds-ease-in-out),
+    border-radius 220ms var(--ds-ease-in-out);
+}
+.bh-composer-expanded {
+  padding-top: 10px;
+  padding-bottom: 48px;
+  border-radius: 20px;
+}
+.bh-composer-activity-status {
+  min-height: 40px;
+  min-width: 0;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  padding: 0 6px;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11.5px;
 }
-.bh-composer-controls {
+.bh-composer-activity-facepile .bh-persona-avatar,
+.bh-composer-activity-facepile .bh-avatar-facepile-overflow {
+  border: 0;
+}
+.bh-composer-activity-facepile .bh-persona-avatar::before {
+  display: none;
+}
+.bh-composer-activity-summary {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-composer-body {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  min-width: 0;
+  height: var(--bh-composer-body-height);
+  overflow: hidden;
+  transition: height 220ms var(--ds-ease-in-out);
 }
 .bh-composer-input {
-  flex: 1;
+  display: block;
+  width: 100%;
   min-width: 0;
+  min-height: 34px;
+  max-height: 144px;
+  box-sizing: border-box;
+  border: 0;
+  outline: none;
+  resize: none;
+  padding: 7px 8px 5px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+.bh-composer-input::placeholder {
+  color: var(--dsw-alias-label-dimmed);
+}
+.bh-composer-input:disabled {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
+}
+.bh-composer-footer {
+  position: absolute;
+  right: 10px;
+  bottom: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  transform: translateY(50%);
+  transition:
+    bottom 220ms var(--ds-ease-in-out),
+    transform 220ms var(--ds-ease-in-out);
+}
+.bh-composer-expanded .bh-composer-footer {
+  bottom: 8px;
+  transform: translateY(0);
+}
+.bh-send-btn {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 50%;
+}
+html[data-botharness-motion='reduce'] .bh-composer,
+html[data-botharness-motion='reduce'] .bh-composer-body,
+html[data-botharness-motion='reduce'] .bh-composer-footer {
+  transition: none;
 }
 
 .bh-side-pane {
@@ -1302,14 +1384,18 @@ button:has(.bh-panel-glyph) {
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */
-.bh-sort-row {
+.bh-settings-rows {
+  display: flex;
+  flex-direction: column;
+}
+.bh-settings-row {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 16px 0;
   border-bottom: 0.5px solid var(--dsw-alias-border-l2);
 }
-.bh-sort-row-text {
+.bh-settings-row-text {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -1317,19 +1403,19 @@ button:has(.bh-panel-glyph) {
   gap: 4px;
   padding-right: 48px;
 }
-.bh-sort-row-title {
+.bh-settings-row-title {
   font-size: 14px;
   font-weight: 400;
   line-height: 22px;
   color: var(--dsw-alias-label-primary);
 }
-.bh-sort-row-desc {
+.bh-settings-row-desc {
   font-size: 12px;
   font-weight: 400;
   line-height: 18px;
   color: var(--dsw-alias-label-tertiary);
 }
-.bh-sort-selector {
+.bh-settings-selector {
   display: inline-flex;
   align-items: center;
   gap: 12px;
@@ -1344,10 +1430,73 @@ button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
-.bh-sort-selector:hover {
+.bh-settings-selector:hover {
   background: var(--dsw-alias-interactive-bg-hover);
 }
-.bh-sort-chevron {
+.bh-settings-chevron {
   flex: none;
+}
+.bh-motion-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  min-height: 24px;
+  margin-top: 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  padding: 2px 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+.bh-motion-preview-sample {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  width: 22px;
+  height: 12px;
+}
+.bh-motion-preview-sample i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--dsw-alias-state-business-primary);
+  opacity: 0.45;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i {
+  animation: bh-motion-preview-dot 1100ms var(--ds-ease-in-out) infinite;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(2) {
+  animation-delay: 130ms;
+}
+html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
+  animation-delay: 260ms;
+}
+@keyframes bh-motion-preview-dot {
+  0%,
+  70%,
+  100% {
+    opacity: 0.4;
+    transform: translateY(0);
+  }
+  35% {
+    opacity: 1;
+    transform: translateY(-2px);
+  }
+}
+
+@media (max-width: 720px) {
+  .bh-composer-shell {
+    margin-right: 8px;
+    margin-left: 8px;
+  }
+  .bh-settings-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .bh-settings-row-text {
+    flex-basis: 100%;
+    padding-right: 0;
+  }
 }
 `;

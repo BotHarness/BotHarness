@@ -87,5 +87,7 @@ describe('Bot main Assignment pane', () => {
     expect(markup).toContain('发布状态正常');
     expect(markup).toContain('Assignment Session');
     expect(markup).not.toContain('Orchestrator Session');
+    expect(markup).not.toContain('Ada 空闲');
+    expect(markup).not.toContain('bh-composer-activity-status');
   });
 });

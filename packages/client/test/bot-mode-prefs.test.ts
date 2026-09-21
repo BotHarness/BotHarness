@@ -28,7 +28,7 @@ function stored(storage: ConfigStorage): unknown {
 function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
   let snapshot: BotModeScopeSnapshot = {
     status: 'ready',
-    value: { sortMode: 'updated', sortModes: {} },
+    value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
     user: {},
     writable: true,
     mode: 'host',
@@ -64,6 +64,8 @@ describe('BOT-mode policy store', () => {
     const prefs = new BotModePrefs();
 
     expect(prefs.source.getSnapshot()).toEqual({
+      motionPreference: 'system',
+      effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
       mode: 'memory',
@@ -73,20 +75,25 @@ describe('BOT-mode policy store', () => {
 
   it('adopts the accepted Host global and per-section values on every accepted change', () => {
     const scope = fakeHost({
-      value: { sortMode: 'manual', sortModes: { s1: 'updated' } },
+      value: { motionPreference: 'reduce', sortMode: 'manual', sortModes: { s1: 'updated' } },
       user: { sortMode: 'manual', sortModes: { s1: 'updated' } },
     });
     const prefs = new BotModePrefs();
     prefs.attach(scope.host);
 
     expect(prefs.source.getSnapshot()).toEqual({
+      motionPreference: 'reduce',
+      effectiveMotion: 'reduce',
       sortMode: 'manual',
       sortModes: { s1: 'updated' },
       mode: 'host',
       status: 'ready',
     });
 
-    scope.push({ value: { sortMode: 'updated', sortModes: {} }, user: {} });
+    scope.push({
+      value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} },
+      user: {},
+    });
     expect(prefs.source.getSnapshot()).toMatchObject({ sortMode: 'updated', sortModes: {} });
   });
 
@@ -101,6 +108,23 @@ describe('BOT-mode policy store', () => {
 
     scope.set.mockClear();
     prefs.setSortMode('manual');
+    expect(scope.set).not.toHaveBeenCalled();
+  });
+
+  it('publishes and persists the product-level motion preference through the same scope', () => {
+    const scope = fakeHost();
+    const prefs = new BotModePrefs();
+    prefs.attach(scope.host);
+
+    prefs.setMotionPreference('reduce');
+    expect(prefs.source.getSnapshot()).toMatchObject({
+      motionPreference: 'reduce',
+      effectiveMotion: 'reduce',
+    });
+    expect(scope.set).toHaveBeenCalledWith('motionPreference', 'reduce');
+
+    scope.set.mockClear();
+    prefs.setMotionPreference('reduce');
     expect(scope.set).not.toHaveBeenCalled();
   });
 
@@ -126,6 +150,8 @@ describe('BOT-mode policy store', () => {
 
   it('resolves a section without an override to inherit', () => {
     const snapshot = {
+      motionPreference: 'system' as const,
+      effectiveMotion: 'full' as const,
       sortMode: 'updated' as const,
       sortModes: { s1: 'manual' as const },
       mode: 'host' as const,
@@ -175,7 +201,7 @@ describe('BOT-mode policy store', () => {
 
     await vi.waitFor(() => {
       expect(warn).toHaveBeenCalledWith(
-        'botharness: failed to persist the BOT-mode sort preference',
+        'botharness: failed to persist the BOT-mode preference',
         expect.any(Error),
       );
     });
@@ -189,7 +215,7 @@ describe('BOT-mode policy store', () => {
     prefs.setSortMode('manual');
     prefs.detach();
 
-    scope.push({ value: { sortMode: 'updated', sortModes: {} } });
+    scope.push({ value: { motionPreference: 'system', sortMode: 'updated', sortModes: {} } });
     expect(prefs.source.getSnapshot().sortMode).toBe('manual');
   });
 
@@ -266,7 +292,7 @@ describe('legacy roster.json sort migration', () => {
       }),
     );
     const scope = fakeHost({
-      value: { sortMode: 'updated', sortModes: { s1: 'updated' } },
+      value: { motionPreference: 'system', sortMode: 'updated', sortModes: { s1: 'updated' } },
       user: { sortMode: 'updated', sortModes: { s1: 'updated' } },
     });
     const prefs = new BotModePrefs(storage);
@@ -296,7 +322,7 @@ describe('legacy roster.json sort migration', () => {
 
     await vi.waitFor(() => {
       expect(warn).toHaveBeenCalledWith(
-        'botharness: failed to persist the BOT-mode sort preference',
+        'botharness: failed to persist the BOT-mode preference',
         expect.any(Error),
       );
     });
@@ -319,7 +345,11 @@ describe('legacy roster.json sort migration', () => {
 describe('roster migration sort-mode remap', () => {
   it('re-keys accepted per-section modes onto host-generated ids', async () => {
     const scope = fakeHost({
-      value: { sortMode: 'updated', sortModes: { 'section-1': 'manual' } },
+      value: {
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: { 'section-1': 'manual' },
+      },
       user: { sortModes: { 'section-1': 'manual' } },
     });
     const prefs = new BotModePrefs();
@@ -386,7 +416,11 @@ describe('roster migration sort-mode remap', () => {
   it('restores the published modes when the Host rejects the remap', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const scope = fakeHost({
-      value: { sortMode: 'updated', sortModes: { 'section-1': 'manual' } },
+      value: {
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: { 'section-1': 'manual' },
+      },
       user: { sortModes: { 'section-1': 'manual' } },
     });
     scope.host.mutate = async () => Promise.reject(new Error('offline'));

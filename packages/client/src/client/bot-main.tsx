@@ -1,12 +1,6 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 
-import {
-  Button,
-  IconAgentPresetOutline16,
-  IconSendOutline16,
-  Input,
-  Tag,
-} from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconAgentPresetOutline16, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import {
@@ -16,6 +10,7 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
+import { ChannelComposer, type ChannelComposerActivity } from './channel-composer.js';
 import { formatRelativeTime } from './labels.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
@@ -312,6 +307,16 @@ function ConversationView({
               state: botActivity,
             },
           ];
+  const composerActivity: ChannelComposerActivity | undefined =
+    composerFacepile.length === 0
+      ? undefined
+      : {
+          items: composerFacepile,
+          summary:
+            composerFacepile.length === 1
+              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle')}`
+              : `${composerFacepile.length} 个 PersonaBot 有状态更新`,
+        };
   const channelId = channel?.id;
   const currentChannel = useRef(channelId);
 
@@ -407,42 +412,14 @@ function ConversationView({
               );
             })}
           </div>
-          <div className="bh-composer">
-            {composerFacepile.length > 0 ? (
-              <div className="bh-composer-activity" aria-live="polite">
-                <PersonaBotFacepile items={composerFacepile} size={24} />
-                <span>
-                  {composerFacepile.length === 1
-                    ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'working')}`
-                    : `${composerFacepile.length} 个 PersonaBot 正在工作`}
-                </span>
-              </div>
-            ) : null}
-            <div className="bh-composer-controls">
-              <Input
-                className="bh-composer-input"
-                placeholder={`发消息给 ${title}`}
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
-                    event.preventDefault();
-                    void submit();
-                  }
-                }}
-              />
-              <Button
-                variant="primary"
-                size="sm"
-                icon={<IconSendOutline16 size={16} />}
-                aria-label="发送"
-                disabled={draft.trim().length === 0 || conversation.sending}
-                onClick={() => void submit()}
-              >
-                {conversation.sending ? '发送中' : '发送'}
-              </Button>
-            </div>
-          </div>
+          <ChannelComposer
+            value={draft}
+            placeholder={`发消息给 ${title}`}
+            sending={conversation.sending}
+            activity={composerActivity}
+            onChange={setDraft}
+            onSubmit={submit}
+          />
         </section>
         <aside className="bh-side-pane">
           {state.selection?.kind === 'bot' ? (

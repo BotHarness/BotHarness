@@ -148,6 +148,8 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 }
 
 let prefs: BotModePrefsSnapshot = {
+  motionPreference: 'system',
+  effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
   mode: 'host',
@@ -202,7 +204,14 @@ beforeEach(() => {
   store.setConfig(config());
   store.setRoster([], []);
   setRoster();
-  prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
+  prefs = {
+    motionPreference: 'system',
+    effectiveMotion: 'full',
+    sortMode: 'updated',
+    sortModes: {},
+    mode: 'host',
+    status: 'ready',
+  };
   setSortMode = vi.fn();
   setSectionSortMode = vi.fn();
 });
@@ -376,7 +385,14 @@ describe('bot sidebar rows', () => {
   });
 
   it('renders the global sort menu from the shared policy store', () => {
-    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'manual',
+      sortModes: {},
+      mode: 'host',
+      status: 'ready',
+    };
     renderSidebar();
 
     const menu = menuWithLabel('排序方式');
@@ -401,7 +417,14 @@ describe('bot sidebar rows', () => {
 
   it('renders the section menu in native order with the mode checked and danger last', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
-    prefs = { sortMode: 'updated', sortModes: { s1: 'manual' }, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'updated',
+      sortModes: { s1: 'manual' },
+      mode: 'host',
+      status: 'ready',
+    };
     store.setRoster([], [SECTION_CHANNEL]);
     renderSidebar();
 
@@ -470,11 +493,25 @@ describe('bot sidebar rows', () => {
     const auto = renderSidebar();
     expect(auto.indexOf('新频道')).toBeLessThan(auto.indexOf('旧频道'));
 
-    prefs = { sortMode: 'updated', sortModes: { s1: 'manual' }, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'updated',
+      sortModes: { s1: 'manual' },
+      mode: 'host',
+      status: 'ready',
+    };
     const manual = renderSidebar();
     expect(manual.indexOf('旧频道')).toBeLessThan(manual.indexOf('新频道'));
 
-    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'manual',
+      sortModes: {},
+      mode: 'host',
+      status: 'ready',
+    };
     const inherited = renderSidebar();
     expect(inherited.indexOf('旧频道')).toBeLessThan(inherited.indexOf('新频道'));
   });
@@ -494,12 +531,26 @@ describe('bot sidebar rows', () => {
     };
     store.setRoster([], [older, newer]);
 
-    prefs = { sortMode: 'updated', sortModes: {}, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'updated',
+      sortModes: {},
+      mode: 'host',
+      status: 'ready',
+    };
     const auto = renderSidebar();
     expect(auto).not.toContain('未分组');
     expect(auto.indexOf('旧频道')).toBeLessThan(auto.indexOf('新频道'));
 
-    prefs = { sortMode: 'manual', sortModes: {}, mode: 'host', status: 'ready' };
+    prefs = {
+      motionPreference: 'system',
+      effectiveMotion: 'full',
+      sortMode: 'manual',
+      sortModes: {},
+      mode: 'host',
+      status: 'ready',
+    };
     const manual = renderSidebar();
     expect(manual.indexOf('旧频道')).toBeLessThan(manual.indexOf('新频道'));
   });

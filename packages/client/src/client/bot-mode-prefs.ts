@@ -1,12 +1,21 @@
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store';
 
 import {
+  BOT_MODE_MOTION_FIELD,
   BOT_MODE_SORT_FIELD,
   BOT_MODE_SORT_MODES_FIELD,
+  DEFAULT_BOT_MODE_MOTION,
   DEFAULT_BOT_MODE_SORT,
+  isBotModeMotionPreference,
   type BotModeSettings,
+  type BotModeMotionPreference,
   type BotModeSortMode,
 } from '../bot-mode-settings.js';
+import {
+  resolveEffectiveMotion,
+  type EffectiveMotion,
+  type SystemMotionSource,
+} from './motion-preference.js';
 import {
   clearLegacySortPreference,
   readLegacySortPreference,
@@ -43,6 +52,10 @@ export interface BotModeScope {
 
 /** Live BOT-mode preference published to the sidebar menu and the Settings row. */
 export interface BotModePrefsSnapshot {
+  /** Human-owned preference persisted in the shared settings namespace. */
+  motionPreference: BotModeMotionPreference;
+  /** Resolved policy every BotHarness motion consumer uses. */
+  effectiveMotion: EffectiveMotion;
   /** Current global sort mode; the default before Host settings arrive. */
   sortMode: BotModeSortMode;
   /** Per-section overrides by section id; a missing key follows the global default. */
@@ -70,6 +83,8 @@ export interface BotModePrefsFace {
     /** Live BOT-mode preference bound as useBotModePrefs. */
     botModePrefs: SnapshotStore<BotModePrefsSnapshot>;
   };
+  /** Change the product-level motion preference. */
+  setMotionPreference: (preference: BotModeMotionPreference) => void;
   /** Change the global BOT-mode list sort mode. */
   setSortMode: (mode: BotModeSortMode) => void;
   /** Override one section's sort mode; `undefined` returns it to `inherit`. */
@@ -83,6 +98,9 @@ export interface BotModePrefsFace {
 export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
   return {
     hooks: { botModePrefs: prefs.source },
+    setMotionPreference: (preference) => {
+      prefs.setMotionPreference(preference);
+    },
     setSortMode: (mode) => {
       prefs.setSortMode(mode);
     },
@@ -131,16 +149,13 @@ function legacyApplied(legacy: LegacySortPreference, user: unknown): boolean {
  */
 export class BotModePrefs {
   /** Selector-hook source shared by the sidebar menu and the Settings row. */
-  readonly source: SnapshotStore<BotModePrefsSnapshot> = createSnapshotStore<BotModePrefsSnapshot>({
-    sortMode: DEFAULT_BOT_MODE_SORT,
-    sortModes: {},
-    mode: 'memory',
-    status: 'loading',
-  });
+  readonly source: SnapshotStore<BotModePrefsSnapshot>;
 
   private readonly storage: ConfigStorage | undefined;
   private host: BotModeScope | undefined;
   private detachHost: (() => void) | undefined;
+  private detachSystemMotion: (() => void) | undefined;
+  private systemReduced = false;
   private migration: 'pending' | 'attempted' | 'done' = 'pending';
 
   /**
@@ -148,6 +163,37 @@ export class BotModePrefs {
    */
   constructor(storage?: ConfigStorage | undefined) {
     this.storage = storage;
+    this.source = createSnapshotStore<BotModePrefsSnapshot>({
+      motionPreference: DEFAULT_BOT_MODE_MOTION,
+      effectiveMotion: resolveEffectiveMotion(DEFAULT_BOT_MODE_MOTION, this.systemReduced),
+      sortMode: DEFAULT_BOT_MODE_SORT,
+      sortModes: {},
+      mode: 'memory',
+      status: 'loading',
+    });
+  }
+
+  /**
+   * Attach the one operating-system preference source used by the policy.
+   * @returns cleanup that removes the media-query listener.
+   */
+  attachSystemMotion(source: SystemMotionSource | undefined): () => void {
+    this.detachSystemMotion?.();
+    this.detachSystemMotion = undefined;
+    this.publishSystemMotion(source?.reduced ?? false);
+    if (source === undefined) return () => {};
+    const unsubscribe = source.subscribe((reduced) => {
+      this.publishSystemMotion(reduced);
+    });
+    let active = true;
+    const detach = (): void => {
+      if (!active) return;
+      active = false;
+      unsubscribe();
+      if (this.detachSystemMotion === detach) this.detachSystemMotion = undefined;
+    };
+    this.detachSystemMotion = detach;
+    return detach;
   }
 
   /** Attach a Host scope, adopting its current value and migrating the legacy fields. */
@@ -167,6 +213,25 @@ export class BotModePrefs {
     this.detachHost?.();
     this.detachHost = undefined;
     this.host = undefined;
+  }
+
+  /** Detach every external source owned by this policy. */
+  dispose(): void {
+    this.detach();
+    this.detachSystemMotion?.();
+    this.detachSystemMotion = undefined;
+  }
+
+  /** Publish and persist the Human-owned product motion preference. */
+  setMotionPreference(preference: BotModeMotionPreference): void {
+    if (this.source.getSnapshot().motionPreference === preference) return;
+    this.source.update((draft) => {
+      draft.motionPreference = preference;
+      draft.effectiveMotion = resolveEffectiveMotion(preference, this.systemReduced);
+    });
+    if (this.host !== undefined) {
+      this.persist(this.host.set(BOT_MODE_MOTION_FIELD, preference));
+    }
   }
 
   /**
@@ -257,11 +322,24 @@ export class BotModePrefs {
       draft.status = scope.status;
       draft.mode = scope.mode;
       if (section !== undefined) {
+        const motionPreference = isBotModeMotionPreference(section.motionPreference)
+          ? section.motionPreference
+          : DEFAULT_BOT_MODE_MOTION;
+        draft.motionPreference = motionPreference;
+        draft.effectiveMotion = resolveEffectiveMotion(motionPreference, this.systemReduced);
         draft.sortMode = section.sortMode;
         draft.sortModes = { ...section.sortModes };
       }
     });
     this.migrate(scope);
+  }
+
+  /** Re-resolve a system-following preference after a media-query change. */
+  private publishSystemMotion(reduced: boolean): void {
+    this.systemReduced = reduced;
+    this.source.update((draft) => {
+      draft.effectiveMotion = resolveEffectiveMotion(draft.motionPreference, reduced);
+    });
   }
 
   /**
@@ -297,7 +375,7 @@ export class BotModePrefs {
   /** Report a write failure instead of dropping it silently. */
   private persist(operation: Promise<void>): void {
     operation.catch((error: unknown) => {
-      console.warn('botharness: failed to persist the BOT-mode sort preference', error);
+      console.warn('botharness: failed to persist the BOT-mode preference', error);
     });
   }
 }

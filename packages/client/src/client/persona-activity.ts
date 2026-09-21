@@ -2,19 +2,13 @@ import { normalizePersonaBotActivity, type PersonaBotActivityState } from './ava
 import type { BotSummary, ClientState } from './store.js';
 
 /**
- * Resolve one PersonaBot's current presentation from the mirrored Host
- * projection, with the in-flight DM request as a short-lived local bridge
- * until the next Host activity revision arrives.
+ * Resolve one PersonaBot's current presentation only from the mirrored Host
+ * projection. Local selection and sending state are deliberately not a second
+ * PersonaBot activity authority.
  */
 export function personaBotActivity(
-  state: Pick<ClientState, 'selection' | 'conversation'>,
+  _state: Pick<ClientState, 'selection' | 'conversation'>,
   bot: Pick<BotSummary, 'slug' | 'aggregateState'>,
 ): PersonaBotActivityState {
-  const projected = normalizePersonaBotActivity(bot.aggregateState);
-  if (projected !== 'idle') return projected;
-  return state.selection?.kind === 'bot' &&
-    state.selection.slug === bot.slug &&
-    state.conversation.sending
-    ? 'working'
-    : 'idle';
+  return normalizePersonaBotActivity(bot.aggregateState);
 }
