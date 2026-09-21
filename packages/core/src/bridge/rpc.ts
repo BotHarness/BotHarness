@@ -157,7 +157,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelId: string,
     before?: string,
     limit?: number,
-  ): { messages: ChannelMessage[] } {
+  ): { messages: ChannelMessage[]; revision: number } {
     return unwrap(this.methods.channelMessages({ channelId, before, limit }));
   }
 

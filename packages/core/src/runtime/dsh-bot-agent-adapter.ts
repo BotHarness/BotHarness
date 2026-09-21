@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import {
   installModelSelection,
   type AgentHandle,
+  type AssistantStreamFrame,
   type CreateAgentOptions,
   type ModelSelection,
   type ResumeAgentOptions,
@@ -11,6 +12,8 @@ import {
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+
+import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
 
 import type {
   AssignmentAgentRun,
@@ -38,6 +41,7 @@ export interface DshBotAgentAdapterOptions {
   defaultModel: DshDefaultModelHost;
   defaultWorkspaceRoot: string;
   ensureWorkspace?: (path: string) => void;
+  publishDraft?: (event: ChannelDraftEvent) => void;
 }
 
 export interface DshDefaultModelHost {
@@ -98,6 +102,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
   readonly #runs = new Map<string, ActiveRun>();
+  readonly #drafts: ChannelDraftTracker;
   #closed = false;
 
   constructor(options: DshBotAgentAdapterOptions) {
@@ -106,21 +111,42 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
+    this.#drafts = new ChannelDraftTracker(options.publishDraft ?? (() => undefined));
   }
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.#assertOpen();
     this.#runs.set(run.sessionId, { role: 'orchestrator', run });
-    const handle = await this.#orchestratorHandle(run);
-    const fromSeq = handle.agent.session.seq;
-    handle.agent.followup(
-      createUserMessage({
-        content: [{ type: 'text', text: run.message }],
-        source: { kind: 'user' },
-      }),
-    );
-    await handle.agent.whenIdle();
-    requireCompletedTurn(handle, fromSeq);
+    this.#drafts.begin(run.sessionId, {
+      channelId: run.inboundChannelId,
+      botSlug: run.bot.slug,
+      canAccess: (channelId) => {
+        try {
+          run.channels.read({ channelId, limit: 1 });
+          return true;
+        } catch {
+          return false;
+        }
+      },
+    });
+    try {
+      const handle = await this.#orchestratorHandle(run);
+      const fromSeq = handle.agent.session.seq;
+      handle.agent.followup(
+        createUserMessage({
+          content: [{ type: 'text', text: run.message }],
+          source: { kind: 'user' },
+        }),
+      );
+      await handle.agent.whenIdle();
+      requireCompletedTurn(handle, fromSeq);
+    } finally {
+      this.#drafts.end(run.sessionId);
+    }
+  }
+
+  acceptAssistantStream(sessionId: string, frame: AssistantStreamFrame): void {
+    this.#drafts.accept(sessionId, frame);
   }
 
   async runAssignment(run: AssignmentAgentRun): Promise<void> {
@@ -147,6 +173,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#closed = true;
     const handles = [...this.#handles.values()];
     this.#handles.clear();
+    for (const sessionId of this.#runs.keys()) this.#drafts.end(sessionId);
     this.#runs.clear();
     await Promise.all(handles.map(async (handle) => handle.dispose()));
   }
@@ -359,6 +386,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   }
 }
 
-export function createDshBotAgentAdapter(options: DshBotAgentAdapterOptions): BotAgentAdapter {
+export function createDshBotAgentAdapter(options: DshBotAgentAdapterOptions): BotAgentAdapter & {
+  acceptAssistantStream(sessionId: string, frame: AssistantStreamFrame): void;
+} {
   return new DshBotAgentAdapter(options);
 }

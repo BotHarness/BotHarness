@@ -47,6 +47,7 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
+  refreshChannelMessages(channelId: string): Promise<void>;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
@@ -108,10 +109,12 @@ function reconcileCommittedMessage(
   localId: string,
   committed: ChannelMessage,
 ): ChannelMessage[] {
-  return [
-    ...messages.filter((message) => message.id !== localId && message.id !== committed.id),
-    committed,
-  ];
+  if (messages.some((message) => message.id === committed.id)) {
+    return messages.filter((message) => message.id !== localId);
+  }
+  const index = messages.findIndex((message) => message.id === localId);
+  if (index < 0) return [...messages, committed];
+  return messages.map((message) => (message.id === localId ? committed : message));
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
@@ -221,16 +224,18 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       status: 'loading',
       channel,
       messages: [],
+      revision: 0,
       error: undefined,
       sending: false,
     });
     try {
-      const messages = await loadChannelMessages(call, channelId);
+      const { messages, revision } = await loadChannelMessages(call, channelId);
       if (currentSelection() !== selection) return;
       clientStore.setConversation({
         status: 'ready',
         channel,
         messages,
+        revision,
         error: undefined,
         sending: false,
       });
@@ -268,12 +273,13 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         status: 'loading',
         channel: undefined,
         messages: [],
+        revision: 0,
         error: undefined,
         sending: false,
       });
       try {
         const channel = await openDmChannel(call, slug, bot.displayName);
-        const messages = await loadChannelMessages(call, channel.id);
+        const { messages, revision } = await loadChannelMessages(call, channel.id);
         if (currentSelection() !== selection) return;
         const latestMessage = messages.at(-1);
         const projectedChannel =
@@ -285,6 +291,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           status: 'ready',
           channel: projectedChannel,
           messages,
+          revision,
           error: undefined,
           sending: false,
         });
@@ -300,6 +307,17 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     },
     openChannel(channelId) {
       return openChannelById(channelId);
+    },
+    async refreshChannelMessages(channelId) {
+      const page = await loadChannelMessages(call, channelId);
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id !== channelId) return;
+      if (page.revision < snapshot.conversation.revision) return;
+      const pending = snapshot.conversation.messages.filter((message) => message.pending === true);
+      clientStore.setConversation({
+        messages: [...page.messages, ...pending],
+        revision: page.revision,
+      });
     },
     async openAssignment(sessionId) {
       const selection = currentSelection();
@@ -336,21 +354,33 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       try {
         const message = await sendChannelMessage(call, channel.id, text);
         const selection = currentSelection();
-        const assignments =
-          selection?.kind === 'bot' ? await loadAssignments(call, selection.slug) : undefined;
         const latest = clientStore.getSnapshot();
-        if (latest.conversation.channel?.id !== channel.id) return false;
-        clientStore.upsertChannel({ ...channel, updatedAt: message.at, latestMessage: message });
-        clientStore.setConversation({
-          sending: false,
-          messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
-        });
-        if (selection?.kind === 'bot' && currentSelection() === selection) {
-          clientStore.setAssignments({
-            status: 'ready',
-            items: assignments ?? [],
-            error: undefined,
+        if (latest.conversation.channel?.id === channel.id) {
+          const visibleChannel = latest.conversation.channel;
+          if (
+            visibleChannel.latestMessage === undefined ||
+            visibleChannel.latestMessage.at <= message.at
+          ) {
+            clientStore.upsertChannel({
+              ...visibleChannel,
+              updatedAt: message.at,
+              latestMessage: message,
+            });
+          }
+          clientStore.setConversation({
+            sending: false,
+            messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
           });
+        }
+        if (selection?.kind === 'bot') {
+          void loadAssignments(call, selection.slug)
+            .then((items) => {
+              if (currentSelection() !== selection) return;
+              clientStore.setAssignments({ status: 'ready', items, error: undefined });
+            })
+            .catch((error: unknown) => {
+              console.warn('botharness: assignment refresh failed', error);
+            });
         }
         return true;
       } catch (error) {

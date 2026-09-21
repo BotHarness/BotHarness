@@ -20,6 +20,15 @@ export const MAX_MESSAGE_PAGE = 200;
 export interface ChannelStoreOptions {
   rootDir: string;
   now?: () => Date;
+  onCommitted?: (commit: ChannelMessageCommit) => void;
+  warn?: (message: string) => void;
+}
+
+/** A message accepted by the Channel writer, with its durable per-Channel position. */
+export interface ChannelMessageCommit {
+  channelId: string;
+  message: ChannelMessage;
+  revision: number;
 }
 
 export interface ChannelReadOptions {
@@ -43,6 +52,8 @@ export interface ChannelStore {
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
+  revision(id: string): number;
+  messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
 }
 
 function isMissing(error: unknown): boolean {
@@ -55,6 +66,40 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   const channelDir = (id: string): string => join(rootDir, id);
   const recordFile = (id: string): string => join(channelDir(id), 'channel.json');
   const messagesFile = (id: string): string => join(channelDir(id), 'messages.ndjson');
+  const revisions = new Map<string, number>();
+
+  const readValidMessages = (id: string): ChannelMessage[] => {
+    if (!isValidChannelId(id)) return [];
+    let text: string;
+    try {
+      text = readFileSync(messagesFile(id), 'utf8');
+    } catch (error) {
+      if (isMissing(error)) return [];
+      throw error;
+    }
+    const messages: ChannelMessage[] = [];
+    for (const line of text.split('\n')) {
+      if (line.trim().length === 0) continue;
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (isChannelMessage(parsed)) messages.push(parsed);
+    }
+    return messages;
+  };
+
+  const revisionOf = (id: string): number => {
+    if (!isValidChannelId(id)) return 0;
+    let revision = revisions.get(id);
+    if (revision === undefined) {
+      revision = readValidMessages(id).length;
+      revisions.set(id, revision);
+    }
+    return revision;
+  };
 
   const read = (id: string): ChannelRecord | undefined => {
     if (!isValidChannelId(id)) return undefined;
@@ -193,32 +238,21 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       return enqueue(id, () => {
         const record = read(id);
         if (record === undefined) return undefined;
+        const revision = revisionOf(id) + 1;
         mkdirSync(channelDir(id), { recursive: true });
         appendFileSync(messagesFile(id), `${JSON.stringify(message)}\n`, 'utf8');
+        revisions.set(id, revision);
         write({ ...record, updatedAt: now().toISOString() });
+        try {
+          options.onCommitted?.({ channelId: id, message, revision });
+        } catch (error) {
+          options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+        }
         return message;
       });
     },
     readMessages(id, readOptions) {
-      if (!isValidChannelId(id)) return [];
-      let text: string;
-      try {
-        text = readFileSync(messagesFile(id), 'utf8');
-      } catch (error) {
-        if (isMissing(error)) return [];
-        throw error;
-      }
-      const messages: ChannelMessage[] = [];
-      for (const line of text.split('\n')) {
-        if (line.trim().length === 0) continue;
-        let parsed: unknown;
-        try {
-          parsed = JSON.parse(line);
-        } catch {
-          continue;
-        }
-        if (isChannelMessage(parsed)) messages.push(parsed);
-      }
+      const messages = readValidMessages(id);
       const requested = readOptions?.limit ?? DEFAULT_MESSAGE_PAGE;
       const limit = Math.max(1, Math.min(requested, MAX_MESSAGE_PAGE));
       let end = messages.length;
@@ -229,6 +263,20 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         end = index;
       }
       return messages.slice(Math.max(0, end - limit), end).reverse();
+    },
+    revision: revisionOf,
+    messagesAfter(id, revision) {
+      if (!isValidChannelId(id) || !Number.isSafeInteger(revision) || revision < 0) {
+        return undefined;
+      }
+      const messages = readValidMessages(id);
+      if (revision > messages.length) return undefined;
+      revisions.set(id, messages.length);
+      return messages.slice(revision).map((message, index) => ({
+        channelId: id,
+        message,
+        revision: revision + index + 1,
+      }));
     },
   };
 }

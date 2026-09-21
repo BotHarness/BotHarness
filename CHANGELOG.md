@@ -26,6 +26,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- PersonaBot DM now previews a reply as the Orchestrator streams an explicit `channel_send` call, then replaces it with the committed Channel message; other committed messages appear without refresh, and reconnects replay missed history ([#141](https://github.com/BotHarness/BotHarness/issues/141), [ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)).
+
 - Fixed a pinned Channel drop onto a specific loose position so its preserved pre-pin `topOrder` entry is removed before the predicted position is inserted; unpinning and placement now commit together instead of returning the Channel to its old slot ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 - Aligned the hidden-Channel recovery Modal with the native DeepSeek 380px/24px-inset geometry, tightened its search/list spacing and rows, ordered recoveries most-recently-hidden first, added a 180ms search debounce, and made the whole non-Channel area of a section—including its name label—open the section context menu ([#10](https://github.com/BotHarness/BotHarness/issues/10), [#137](https://github.com/BotHarness/BotHarness/issues/137)).
 - Made PersonaBot DM Channels follow the same section, loose-placement, drag, and move rules as group Channels while retaining their avatar contact rows ([#56](https://github.com/BotHarness/BotHarness/issues/56)).

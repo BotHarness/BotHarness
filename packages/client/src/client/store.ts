@@ -40,6 +40,15 @@ export interface ChannelMessage {
   body: string;
   /** Local echo awaiting the Host's committed message; never sent on the wire. */
   pending?: boolean;
+  /** Local projection of a process-only Orchestrator tool-call draft. */
+  streaming?: boolean;
+}
+
+export interface ChannelDraft {
+  channelId: string;
+  draftId: string;
+  botSlug: string;
+  body: string;
 }
 
 export interface SessionSummary {
@@ -80,6 +89,10 @@ export interface ConversationState {
   status: ClientStatus;
   channel: ChannelSummary | undefined;
   messages: readonly ChannelMessage[];
+  /** Process-local, presentation-only Orchestrator channel_send previews. */
+  drafts: readonly ChannelDraft[];
+  /** Durable per-Channel live-stream watermark. */
+  revision: number;
   error: string | undefined;
   sending: boolean;
 }
@@ -142,6 +155,8 @@ function initialConversation(): ConversationState {
     status: 'idle',
     channel: undefined,
     messages: [],
+    drafts: [],
+    revision: 0,
     error: undefined,
     sending: false,
   };

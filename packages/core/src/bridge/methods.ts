@@ -79,7 +79,7 @@ export interface BridgeMethods {
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
-  channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[] }>;
+  channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
@@ -482,7 +482,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(cursor === undefined || cursor.length === 0 ? {} : { before: cursor }),
         ...(limit === undefined ? {} : { limit }),
       });
-      return { ok: true, value: { messages } };
+      return { ok: true, value: { messages, revision: deps.channels.revision(channelId) } };
     },
     async channelSend(payload) {
       const source = asObject(payload);

@@ -38,7 +38,9 @@ describe("generated developer reference", () => {
     ]);
   });
 
-  it("does not publish the in-process BotStateEvent as a Cordis event", () => {
-    expect(reference.publicEvents).toEqual([]);
+  it("consumes DSH assistant streams without publishing the in-process BotStateEvent", () => {
+    expect(reference.publicEvents.map(({ direction, name, operation }) => ({ direction, name, operation }))).toEqual([
+      { direction: "consumes", name: "agent/assistant-stream", operation: "on" },
+    ]);
   });
 });

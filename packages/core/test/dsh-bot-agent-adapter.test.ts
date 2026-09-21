@@ -140,6 +140,7 @@ describe('DSH Bot Agent adapter', () => {
         sessionId: 'orchestrator-ada',
         resume: false,
         bot: BOT,
+        inboundChannelId: 'dm-test',
         message: '请核对发布状态',
         channels: { read: () => [], search: () => [], send: async () => undefined as never },
         createAssignment: async () => undefined as never,
@@ -165,6 +166,7 @@ describe('DSH Bot Agent adapter', () => {
       sessionId: 'orchestrator-ada',
       resume: false,
       bot: BOT,
+      inboundChannelId: 'dm-test',
       message: '请核对发布状态',
       channels: {
         read: () => [],
