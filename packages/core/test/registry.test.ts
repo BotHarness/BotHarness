@@ -59,30 +59,13 @@ describe('createPersonaBotRegistry', () => {
     });
   });
 
-  it('creates the default memory dir inside the bot home and reports it', () => {
+  it('does not provision Memory or Persona for a name-only bot', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
     registry.create({ slug: 'research', displayName: '研究助手' });
 
-    expect(existsSync(join(root, 'research', 'memory'))).toBe(true);
+    expect(existsSync(join(root, 'research', 'memory'))).toBe(false);
     expect(registry.memoryDirFor('research')).toBe(join(root, 'research', 'memory'));
-  });
-
-  it('writes a placeholder PERSONA.md on create and keeps it on later attempts', () => {
-    const root = createRoot();
-    const registry = createPersonaBotRegistry({ rootDir: root });
-    registry.create({ slug: 'ada', displayName: 'Ada' });
-
-    const personaFile = join(root, 'ada', 'memory', 'PERSONA.md');
-    expect(readFileSync(personaFile, 'utf8')).toBe('# Ada\n');
-
-    expect(registry.create({ slug: 'ada', displayName: 'Ada again', persona: '# Evil\n' })).toEqual(
-      {
-        ok: false,
-        reason: 'duplicate',
-      },
-    );
-    expect(readFileSync(personaFile, 'utf8')).toBe('# Ada\n');
   });
 
   it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {
@@ -104,11 +87,16 @@ describe('createPersonaBotRegistry', () => {
     );
   });
 
-  it('puts PERSONA.md beside a custom memory dir', () => {
+  it('puts an explicitly provided Persona beside a custom memory dir', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
     const custom = join(root, 'outside-memory');
-    registry.create({ slug: 'ada', displayName: 'Ada', memoryDir: custom });
+    registry.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      memoryDir: custom,
+      persona: '# Ada\n',
+    });
     expect(readFileSync(join(custom, 'PERSONA.md'), 'utf8')).toBe('# Ada\n');
   });
 
@@ -328,7 +316,7 @@ describe('createPersonaBotRegistry', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root });
 
-    registry.create({ slug: 'a', displayName: 'A' });
+    registry.create({ slug: 'a', displayName: 'A', persona: '# A\n' });
     expect(registry.remove('a')).toBe(true);
     expect(registry.get('a')).toBeUndefined();
     expect(existsSync(join(root, 'a', 'memory'))).toBe(true);
@@ -351,5 +339,6 @@ describe('createPersonaBotRegistry', () => {
     expect(registry.list()).toEqual([]);
     expect(registry.create({ slug: 'broken', displayName: 'Broken' }).ok).toBe(true);
     expect(existsSync(join(root, 'broken', 'memory'))).toBe(true);
+    expect(existsSync(join(root, 'broken', 'memory', 'PERSONA.md'))).toBe(false);
   });
 });
