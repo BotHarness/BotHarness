@@ -87,7 +87,7 @@ export type ChannelDropCommit = (
 /**
  * Commit one real drop on a section body without visible rows (empty,
  * collapsed, or filtered row-less): the dragged row plus the target scope.
- * The owner resolves it as a scope (append) move.
+ * The owner resolves the visible top prediction line as the first position.
  */
 export type ChannelScopeDropCommit = (
   drag: { scopeId: ScopeId; channelId: string },

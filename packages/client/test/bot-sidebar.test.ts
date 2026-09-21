@@ -32,6 +32,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconSearchOutline16: icon('IconSearchOutline16'),
     IconTrashOutline16: icon('IconTrashOutline16'),
     IconTriangleRightFill14: icon('IconTriangleRightFill14'),
+    HoverCard: (props: { anchor: ReactNode; content: ReactNode }) =>
+      createElement('span', { 'data-hover-card': 'true' }, props.anchor, props.content),
     Input: stub,
     Menu: (props: {
       open: boolean;
@@ -115,16 +117,21 @@ function stubActions(): BridgeActions {
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
+    renameChannel: vi.fn(async () => true),
     createSection: vi.fn(async () => undefined),
     renameSection: vi.fn(async () => true),
     removeSection: vi.fn(async () => true),
-    setBotPinned: vi.fn(async () => true),
+    setChannelPinned: vi.fn(async () => true),
+    setChannelHidden: vi.fn(async () => true),
+    movePinnedChannel: vi.fn(async () => true),
+    movePinnedChannelToFlat: vi.fn(async () => true),
     assignChannel: vi.fn(async () => true),
     setSectionChannelOrder: vi.fn(async () => true),
     moveChannel: vi.fn(async () => true),
     reorderSections: vi.fn(async () => true),
     reorderFlat: vi.fn(async () => true),
     moveToFlat: vi.fn(async () => true),
+    ensureChannelPins: vi.fn(async () => true),
     ensureFlatTopOrder: vi.fn(async () => true),
   };
 }
@@ -140,6 +147,7 @@ function section(id: string, name: string, channelIds: string[]): RosterSection 
 function setRoster(patch?: Partial<RosterSnapshot>): void {
   store.setRosterState({
     pins: [],
+    hidden: [],
     sections: [],
     topOrder: undefined,
     readOnly: false,
@@ -158,10 +166,10 @@ let prefs: BotModePrefsSnapshot = {
 let setSortMode = vi.fn();
 let setSectionSortMode = vi.fn();
 
-function renderSidebar(): string {
+function renderSidebar(wide = true): string {
   return renderToStaticMarkup(
     createElement(BotSidebar, {
-      wide: true,
+      wide,
       actions: stubActions(),
       useBotModePrefs: ((selector: (snapshot: BotModePrefsSnapshot) => unknown) =>
         selector(prefs)) as never,
@@ -289,17 +297,19 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('文件研究助手');
   });
 
-  it('keeps an empty pin drop indicator mounted before the ordinary roster', () => {
+  it('keeps an empty pin target collapsed before a drag begins', () => {
     store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
-    expect(markup).toContain('bh-pin-zone bh-pin-zone-empty');
+    expect(markup).toContain('bh-pin-zone bh-pin-zone-empty bh-pin-zone-hidden');
+    expect(markup).toContain('aria-hidden="true"');
     expect(markup).toContain('拖到此处置顶');
     expect(markup.indexOf('bh-pin-zone')).toBeLessThan(markup.indexOf('bh-roster-list'));
+    expect(sidebarSource).toMatch(/window\.setTimeout\(\(\) => \{[^}]*setPinZoneArmed\(true\)/s);
   });
 
-  it('renders pinned PersonaBots as draggable cards inside the pin drop zone', () => {
-    setRoster({ pins: [BOT.slug] });
+  it('renders pinned PersonaBot DMs as draggable cards inside the pin drop zone', () => {
+    setRoster({ pins: [DM_CHANNEL.id] });
     store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
     const markup = renderSidebar();
 
@@ -307,6 +317,86 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('bh-pinned-grid');
     expect(markup).toMatch(/class="bh-pinned[^"]*"[^>]*draggable="true"/);
     expect(markup).not.toContain('拖到此处置顶');
+    expect(markup).toContain('bh-unpin-zone bh-unpin-zone-hidden');
+    expect(sidebarSource).toContain("t('pin.restore.zone.label')");
+    expect(sidebarSource).not.toContain('bh-roster-list-unpin-target');
+    expect(sidebarSource).not.toContain('拖到空白处取消置顶并回到原位');
+    expect(sidebarSource.match(/commitPinDrop\(false\)/g)).toHaveLength(1);
+    expect(sidebarSource).toMatch(/window\.setTimeout\(\(\) => \{[^}]*setUnpinZoneArmed\(true\)/s);
+    expect(sidebarSource).toContain("{ kind: 'scope', position: 'first' }");
+    expect(sidebarSource).toContain(
+      'actions.movePinnedChannel(channelId, plan.sectionId, plan.order)',
+    );
+  });
+
+  it('renders pinned group Channels with their hash glyph and removes their roster row', () => {
+    setRoster({ pins: [FLAT_CHANNEL.id] });
+    store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
+    const markup = renderSidebar();
+
+    expect(markup).toContain('bh-pin-zone bh-pin-zone-filled');
+    expect(markup).toContain('bh-pinned-channel-icon');
+    expect(markup).toContain('散装渠道');
+    expect(markup.match(/bh-channel-row/g) ?? []).toHaveLength(0);
+  });
+
+  it('projects every ordered Channel into the collapsed rail with a pin divider and previews', () => {
+    setRoster({
+      pins: [DM_CHANNEL.id],
+      sections: [section('s1', '工作流', [SECTION_CHANNEL.id])],
+      topOrder: [
+        { kind: 'section', id: 's1' },
+        { kind: 'channel', id: FLAT_CHANNEL.id },
+      ],
+    });
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...DM_CHANNEL,
+          latestMessage: {
+            id: 'm1',
+            at: AT,
+            author: { kind: 'bot', slug: 'atlas' },
+            body: '已完成调研',
+          },
+        },
+        {
+          ...SECTION_CHANNEL,
+          latestMessage: { id: 'm2', at: AT, author: { kind: 'human' }, body: '继续处理' },
+        },
+        FLAT_CHANNEL,
+      ],
+    );
+
+    const markup = renderSidebar(false);
+
+    expect(markup).toContain('bh-region-rail');
+    expect(markup.match(/class="bh-rail-channel(?: bh-selected)?"/g) ?? []).toHaveLength(3);
+    expect(markup).toContain('bh-rail-divider');
+    expect(markup.indexOf('Atlas')).toBeLessThan(markup.indexOf('bh-rail-divider'));
+    expect(markup.indexOf('一级渠道')).toBeLessThan(markup.indexOf('散装渠道'));
+    expect(markup).toContain('Atlas：已完成调研');
+    expect(markup).toContain('你：继续处理');
+    expect(markup).toContain('暂无消息');
+  });
+
+  it('omits hidden group and DM Channels from the roster, pin grid, and collapsed rail', () => {
+    store.setRoster([BOT], [DM_CHANNEL, FLAT_CHANNEL]);
+    setRoster({
+      pins: [DM_CHANNEL.id],
+      hidden: [DM_CHANNEL.id, FLAT_CHANNEL.id],
+      topOrder: [{ kind: 'channel', id: FLAT_CHANNEL.id }],
+    });
+
+    const wide = renderSidebar();
+    expect(wide).not.toContain('Atlas');
+    expect(wide).not.toContain('散装渠道');
+    expect(wide).toContain(zh['hidden.all']);
+
+    const rail = renderSidebar(false);
+    expect(rail).not.toContain('Atlas');
+    expect(rail).not.toContain('散装渠道');
   });
 
   it('renders a PersonaBot DM inside a section with the same channel drag lifecycle', () => {
@@ -396,10 +486,18 @@ describe('bot sidebar rows', () => {
     renderSidebar();
 
     const menu = menuWithLabel('排序方式');
-    expect(menu.items.map((item) => item['id'])).toEqual(['sort-label', 'updated', 'manual']);
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'sort-label',
+      'updated',
+      'manual',
+      'roster-separator',
+      'hidden',
+    ]);
     expect(menu.items[0]?.['type']).toBe('label');
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
-    expect(menu.items.slice(1).map((item) => item['label'])).toEqual(['最近更新', '手动排序']);
+    expect(
+      menu.items.filter((item) => item['label'] !== undefined).map((item) => item['label']),
+    ).toEqual(['最近更新', '手动排序', '隐藏的频道']);
     expect(menu.selectedId).toBe('manual');
   });
 
@@ -413,6 +511,14 @@ describe('bot sidebar rows', () => {
     setSortMode.mockClear();
     onSelect('unrelated');
     expect(setSortMode).not.toHaveBeenCalled();
+  });
+
+  it('owns right-click across the section block without stealing Channel menus', () => {
+    expect(sidebarSource).toMatch(
+      /className=\{`bh-section\$\{blockMarkerClass\}`\}\s+onContextMenu=\{\(event\) => \{/,
+    );
+    expect(sidebarSource).toContain("target.closest('[data-channel-id]')");
+    expect(sidebarSource).toContain('openSectionContextMenu(event.clientX, event.clientY)');
   });
 
   it('renders the section menu in native order with the mode checked and danger last', () => {
@@ -435,6 +541,9 @@ describe('bot sidebar rows', () => {
       'manual',
       'inherit',
       'section-separator',
+      'move-up',
+      'move-down',
+      'section-action-separator',
       'rename',
       'delete',
     ]);
@@ -444,8 +553,10 @@ describe('bot sidebar rows', () => {
       '恢复自动',
     ]);
     expect(menu.items[4]?.['type']).toBe('separator');
-    expect(menu.items[5]).toMatchObject({ id: 'rename', label: '重命名' });
-    expect(menu.items[6]).toMatchObject({ id: 'delete', label: '删除', danger: true });
+    expect(menu.items[5]).toMatchObject({ id: 'move-up', disabled: true });
+    expect(menu.items[6]).toMatchObject({ id: 'move-down', disabled: true });
+    expect(menu.items[8]).toMatchObject({ id: 'rename', label: '重命名' });
+    expect(menu.items[9]).toMatchObject({ id: 'delete', label: '删除', danger: true });
     expect(menu.items.at(-1)?.['danger']).toBe(true);
     expect(menu.selectedId).toBe('manual');
   });
@@ -597,6 +708,8 @@ describe('bot sidebar rows', () => {
   it('renders the 移动到 menu from every section plus 未分组 and maps picks to scopes', () => {
     const onPick = vi.fn();
     const onClose = vi.fn();
+    const onRename = vi.fn();
+    const onCreateSection = vi.fn();
     renderToStaticMarkup(
       createElement(ChannelMoveMenu, {
         menu: { channelId: 'c-section', x: 40, y: 80 },
@@ -604,6 +717,8 @@ describe('bot sidebar rows', () => {
         currentSectionId: 's1',
         t: ((key: BotHarnessKey) => zh[key]) as never,
         onPick,
+        onRename,
+        onCreateSection,
         onClose,
       }),
     );
@@ -611,18 +726,36 @@ describe('bot sidebar rows', () => {
     const menu = captured.menus.at(-1);
     if (menu === undefined) throw new Error('move menu not rendered');
     const items = menu.items as readonly { id: string; submenu?: readonly { id: string }[] }[];
-    expect(items[0]?.id).toBe('move');
-    expect(items[0]?.submenu?.map((item) => item.id)).toEqual(['s1', 's2', UNGROUPED_MOVE_TARGET]);
+    expect(items.map((item) => item.id)).toEqual([
+      'pin',
+      'pin-separator',
+      'move',
+      'channel-action-separator',
+      'rename',
+      'hide-separator',
+      'hide',
+    ]);
+    expect(items[2]?.submenu?.map((item) => item.id)).toEqual([
+      'new-section',
+      's1',
+      's2',
+      UNGROUPED_MOVE_TARGET,
+    ]);
 
     const onSelect = menu.onSelect as (id: string) => void;
     onSelect('s2');
     expect(onPick).toHaveBeenCalledWith('s2');
     onSelect(UNGROUPED_MOVE_TARGET);
     expect(onPick).toHaveBeenCalledWith(undefined);
+    onSelect('rename');
+    expect(onRename).toHaveBeenCalledWith('c-section');
+    onSelect('new-section');
+    expect(onCreateSection).toHaveBeenCalledWith('c-section');
   });
 
-  it('adds pinning to a PersonaBot DM menu and limits a pinned card to unpinning', () => {
+  it('offers the same organization actions on ordinary and pinned Channel menus', () => {
     const onSetPinned = vi.fn();
+    const onHide = vi.fn();
     const onPick = vi.fn();
     const onClose = vi.fn();
     renderToStaticMarkup(
@@ -630,9 +763,9 @@ describe('bot sidebar rows', () => {
         menu: { channelId: DM_CHANNEL.id, x: 40, y: 80 },
         sections: [section('s1', '工作流', [])],
         currentSectionId: 's1',
-        botSlug: BOT.slug,
         t: ((key: BotHarnessKey) => zh[key]) as never,
         onSetPinned,
+        onHide,
         onPick,
         onClose,
       }),
@@ -640,20 +773,30 @@ describe('bot sidebar rows', () => {
 
     let menu = captured.menus.at(-1);
     if (menu === undefined) throw new Error('PersonaBot menu not rendered');
-    expect(menu.items.map((item) => item['id'])).toEqual(['pin', 'pin-separator', 'move']);
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'pin',
+      'pin-separator',
+      'move',
+      'channel-action-separator',
+      'rename',
+      'hide-separator',
+      'hide',
+    ]);
     menu.onSelect?.('pin');
-    expect(onSetPinned).toHaveBeenCalledWith(BOT.slug, true);
+    expect(onSetPinned).toHaveBeenCalledWith(DM_CHANNEL.id, true);
     expect(onPick).not.toHaveBeenCalled();
+    menu.onSelect?.('hide');
+    expect(onHide).toHaveBeenCalledWith(DM_CHANNEL.id);
 
     renderToStaticMarkup(
       createElement(ChannelMoveMenu, {
         menu: { channelId: DM_CHANNEL.id, pinnedView: true, x: 40, y: 80 },
         sections: [section('s1', '工作流', [])],
         currentSectionId: 's1',
-        botSlug: BOT.slug,
         pinned: true,
         t: ((key: BotHarnessKey) => zh[key]) as never,
         onSetPinned,
+        onHide,
         onPick,
         onClose,
       }),
@@ -661,9 +804,19 @@ describe('bot sidebar rows', () => {
 
     menu = captured.menus.at(-1);
     if (menu === undefined) throw new Error('pinned PersonaBot menu not rendered');
-    expect(menu.items.map((item) => item['id'])).toEqual(['unpin']);
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'unpin',
+      'pin-separator',
+      'move',
+      'channel-action-separator',
+      'rename',
+      'hide-separator',
+      'hide',
+    ]);
     menu.onSelect?.('unpin');
-    expect(onSetPinned).toHaveBeenLastCalledWith(BOT.slug, false);
+    expect(onSetPinned).toHaveBeenLastCalledWith(DM_CHANNEL.id, false);
+    menu.onSelect?.('hide');
+    expect(onHide).toHaveBeenLastCalledWith(DM_CHANNEL.id);
   });
 
   it('renders a deleted section channel as a loose channel with no bucket', () => {

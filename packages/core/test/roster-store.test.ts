@@ -66,11 +66,13 @@ describe('roster store', () => {
     expect(fake.state()).toEqual({ pins: [], sectionOrder: [second.id, first.id] });
     expect(store.snapshot()).toEqual({
       pins: [],
+      hidden: [],
       sectionOrder: [second.id, first.id],
       sections: [
         { id: second.id, name: '工作流', channelIds: [] },
         { id: first.id, name: '研究', channelIds: [] },
       ],
+      topOrder: undefined,
     });
   });
 
@@ -177,6 +179,31 @@ describe('roster store', () => {
 
     const sets = fake.setCount();
     await store.pinsSet(['ada', 'scout']);
+    expect(fake.setCount()).toBe(sets);
+  });
+
+  it('sets hidden Channel ids without changing their placement or writing no-ops', async () => {
+    const fake = createFakeRosterDomain({
+      records: { s1: { name: 'A', channelIds: ['c1'] } },
+      state: { pins: ['c1'], sectionOrder: ['s1'] },
+    });
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    await expect(store.hiddenSet(['c1', 'c1', '', 'c2'])).resolves.toEqual(['c1', 'c2']);
+    expect(fake.state()).toEqual({
+      pins: ['c1'],
+      hidden: ['c1', 'c2'],
+      sectionOrder: ['s1'],
+    });
+    expect(store.snapshot()).toMatchObject({
+      pins: ['c1'],
+      hidden: ['c1', 'c2'],
+      sections: [{ id: 's1', channelIds: ['c1'] }],
+    });
+
+    const sets = fake.setCount();
+    await store.hiddenSet(['c1', 'c2']);
     expect(fake.setCount()).toBe(sets);
   });
 

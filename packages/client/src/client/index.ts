@@ -77,6 +77,8 @@ export function apply(ctx: ClientContext): void {
       });
       if (outcome === 'migrated') await actions.refreshRoster(controller.signal);
       if (controller.signal.aborted) return;
+      await actions.ensureChannelPins();
+      if (controller.signal.aborted) return;
       await actions.ensureFlatTopOrder();
     });
     return () => {

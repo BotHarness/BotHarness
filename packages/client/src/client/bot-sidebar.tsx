@@ -10,6 +10,7 @@ import {
   IconNewChatOutline16,
   IconPlusOutline16,
   IconSearchOutline16,
+  HoverCard,
   Menu,
   StateDot,
   Tag,
@@ -24,6 +25,7 @@ import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
+import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
 import {
   useChannelDrag,
   useSectionDrag,
@@ -51,19 +53,23 @@ import {
   orderScopeChannels,
   planChannelMove,
   planFlatInsert,
+  resolvePinnedChannelIds,
   resolvedSortMode,
   resolveBlockDropTarget,
   rowDropHalf,
   type ChannelMoveSink,
   type FlatAnchor,
+  type ScopeDropTarget,
 } from './roster-order.js';
 import {
+  ChannelRenameModal,
   channelMoveMenuItems,
   CreateChannelModal,
   CreateSectionModal,
   globalSortMenuItems,
   SectionDeleteModal,
   SectionRenameModal,
+  NEW_SECTION_MOVE_TARGET,
   sectionMenuItems,
   UNGROUPED_MOVE_TARGET,
 } from './section-management.js';
@@ -136,9 +142,16 @@ interface ChannelMenuRequest {
   y: number;
 }
 
-/** One PersonaBot moving between the ordinary roster and the pinned grid. */
+/** One section header's request to open the same menu at a viewport point. */
+interface SectionMenuRequest {
+  sectionId: string;
+  x: number;
+  y: number;
+}
+
+/** One Channel moving between the ordinary roster and the pinned grid. */
 interface PinDragState {
-  slug: string;
+  channelId: string;
   source: 'roster' | 'pinned';
 }
 
@@ -178,7 +191,7 @@ function BotRow({
   actions: BridgeActions;
   drag: ChannelDragProps;
   onMenu: (request: ChannelMenuRequest) => void;
-  onPinDragStart: (slug: string) => void;
+  onPinDragStart: (channelId: string) => void;
   onPinDragEnd: () => void;
 }): ReactElement {
   const botState = toBotState(bot.aggregateState);
@@ -196,7 +209,7 @@ function BotRow({
         event.dataTransfer.effectAllowed = 'move';
         event.dataTransfer.setData('text/plain', channel.id);
         drag.start();
-        onPinDragStart(bot.slug);
+        onPinDragStart(channel.id);
       }}
       onDragEnd={() => {
         drag.end();
@@ -211,6 +224,7 @@ function BotRow({
       onDrop={(event) => {
         if (!drag.active) return;
         event.preventDefault();
+        event.stopPropagation();
         drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
       }}
       onContextMenu={(event) => {
@@ -250,12 +264,16 @@ function ChannelRow({
   actions,
   drag,
   onMenu,
+  onPinDragStart,
+  onPinDragEnd,
 }: {
   channel: ChannelSummary;
   selected: boolean;
   actions: BridgeActions;
   drag?: ChannelDragProps | undefined;
   onMenu: (request: ChannelMenuRequest) => void;
+  onPinDragStart?: ((channelId: string) => void) | undefined;
+  onPinDragEnd?: (() => void) | undefined;
 }): ReactElement {
   const marker = drag?.marker ?? null;
   const markerClass =
@@ -275,9 +293,17 @@ function ChannelRow({
               event.dataTransfer.effectAllowed = 'move';
               event.dataTransfer.setData('text/plain', channel.id);
               drag.start();
+              onPinDragStart?.(channel.id);
             }
       }
-      onDragEnd={drag?.end}
+      onDragEnd={
+        drag === undefined
+          ? undefined
+          : () => {
+              drag.end();
+              onPinDragEnd?.();
+            }
+      }
       onDragOver={
         drag === undefined
           ? undefined
@@ -294,6 +320,7 @@ function ChannelRow({
           : (event) => {
               if (!drag.active) return;
               event.preventDefault();
+              event.stopPropagation();
               drag.drop(rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()));
             }
       }
@@ -320,10 +347,91 @@ function ChannelRow({
   );
 }
 
+function RailChannel({
+  channel,
+  bot,
+  activity,
+  selected,
+  summary,
+  actions,
+  t,
+}: {
+  channel: ChannelSummary;
+  bot: BotSummary | undefined;
+  activity: PersonaBotActivityState | undefined;
+  selected: boolean;
+  summary: string;
+  actions: BridgeActions;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const title = bot?.displayName ?? channel.name;
+  const open = (): void => {
+    void (bot === undefined ? actions.openChannel(channel.id) : actions.openBot(bot.slug));
+  };
+  return (
+    <HoverCard
+      openDelayMs={350}
+      copyLabel={t('rail.copy')}
+      copiedLabel={t('rail.copied')}
+      anchor={
+        <button
+          type="button"
+          className={`bh-rail-channel${selected ? ' bh-selected' : ''}`}
+          aria-label={title}
+          aria-current={selected ? 'page' : undefined}
+          onClick={open}
+        >
+          {bot === undefined ? (
+            <span className="bh-rail-channel-icon" aria-hidden="true">
+              <HashIcon size={18} />
+            </span>
+          ) : (
+            <PersonaBotAvatar
+              personaBotId={bot.slug}
+              name={bot.displayName}
+              src={bot.avatar}
+              state={activity}
+              size={32}
+            />
+          )}
+        </button>
+      }
+      content={
+        <div className="bh-rail-preview">
+          <div className="bh-rail-preview-head">
+            {bot === undefined ? (
+              <span className="bh-rail-preview-icon" aria-hidden="true">
+                <HashIcon size={16} />
+              </span>
+            ) : (
+              <PersonaBotAvatar
+                personaBotId={bot.slug}
+                name={bot.displayName}
+                src={bot.avatar}
+                state={activity}
+                size={24}
+                indicator={false}
+              />
+            )}
+            <span className="bh-rail-preview-title">{title}</span>
+          </div>
+          {bot !== undefined && bot.roles.length > 0 ? (
+            <span className="bh-rail-preview-meta">{bot.roles.join(' · ')}</span>
+          ) : null}
+          {bot?.description === undefined ? null : (
+            <span className="bh-rail-preview-description">{bot.description}</span>
+          )}
+          <span className="bh-rail-preview-summary">{summary}</span>
+        </div>
+      }
+    />
+  );
+}
+
 /** Open creation dialog for one production-backed Bot, Channel, or section. */
 type CreateRequest =
   | { kind: 'bot'; sectionId?: string }
-  | { kind: 'section' }
+  | { kind: 'section'; moveChannelId?: string; pinned?: boolean }
   | { kind: 'channel'; sectionId?: string };
 
 /** One rendered flat block: a section with its visible rows, or a loose channel run. */
@@ -343,18 +451,31 @@ export function BotSidebar({
   const prefs = useBotModePrefs((value) => value);
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
+  const [hiddenManagerOpen, setHiddenManagerOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
   const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
   const [pinDrag, setPinDrag] = useState<PinDragState | undefined>(undefined);
+  const [pinZoneArmed, setPinZoneArmed] = useState(false);
+  const [sectionContextMenu, setSectionContextMenu] = useState<SectionMenuRequest | undefined>();
+  const [channelRenameTarget, setChannelRenameTarget] = useState<ChannelSummary | undefined>();
   const [pinZoneHovered, setPinZoneHovered] = useState(false);
-  const [rosterDropHovered, setRosterDropHovered] = useState(false);
+  const [unpinZoneArmed, setUnpinZoneArmed] = useState(false);
+  const [unpinZoneHovered, setUnpinZoneHovered] = useState(false);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
   const searchRoot = useRef<HTMLDivElement | null>(null);
   const searchInput = useRef<HTMLInputElement | null>(null);
+  const pinZoneArmTimer = useRef<number | undefined>(undefined);
+
+  useEffect(
+    () => () => {
+      if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
+    },
+    [],
+  );
 
   useEffect(() => {
     if (searchOpen) searchInput.current?.focus({ preventScroll: true });
@@ -377,29 +498,39 @@ export function BotSidebar({
   }, [searchOpen, state.query]);
 
   const query = state.query.trim().toLowerCase();
-  const bots = state.bots.filter((bot) => matchesQuery(query, bot.displayName, ...bot.roles));
   const botBySlug = new Map(state.bots.map((bot) => [bot.slug, bot]));
-  const dmByBotSlug = new Map(
-    state.channels.flatMap((channel) =>
-      channel.type === 'dm' && channel.botSlug !== undefined ? [[channel.botSlug, channel]] : [],
-    ),
-  );
-  const pinned = new Set(state.roster.pins);
-  const pinnedBots = state.roster.pins.flatMap((slug) => {
-    const bot = bots.find((candidate) => candidate.slug === slug);
-    return bot === undefined ? [] : [bot];
-  });
-  const rosterChannels = state.channels.filter(
+  const hiddenChannelSet = new Set(state.roster.hidden);
+  const allPinnedChannelIds = resolvePinnedChannelIds(state.channels, state.roster.pins);
+  const allPinnedChannelSet = new Set(allPinnedChannelIds);
+  const pinnedChannelIds = allPinnedChannelIds.filter((id) => !hiddenChannelSet.has(id));
+  const hasPinnedChannels = pinnedChannelIds.length > 0;
+  const hasPinnableChannels = state.channels.some(
     (channel) =>
-      channel.type === 'group' || (channel.botSlug !== undefined && !pinned.has(channel.botSlug)),
+      !hiddenChannelSet.has(channel.id) &&
+      (channel.type === 'group' || channel.botSlug !== undefined),
   );
+  const pinnedChannels = pinnedChannelIds.flatMap((channelId) => {
+    const channel = state.channels.find((candidate) => candidate.id === channelId);
+    if (channel === undefined) return [];
+    if (channel.type === 'group') {
+      return matchesQuery(query, channel.name) ? [channel] : [];
+    }
+    const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    return bot !== undefined && matchesQuery(query, bot.displayName, ...bot.roles) ? [channel] : [];
+  });
+  const arrangedChannels = state.channels.filter(
+    (channel) =>
+      !allPinnedChannelSet.has(channel.id) &&
+      (channel.type === 'group' || channel.botSlug !== undefined),
+  );
+  const rosterChannels = arrangedChannels.filter((channel) => !hiddenChannelSet.has(channel.id));
   const channels = rosterChannels.filter((channel) => {
     if (channel.type === 'group') return matchesQuery(query, channel.name);
     const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
     return bot !== undefined && matchesQuery(query, bot.displayName, ...bot.roles);
   });
   const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
-  const rosterChannelIds = flatRosterChannelIds(state.channels, pinned);
+  const rosterChannelIds = flatRosterChannelIds(state.channels, allPinnedChannelSet);
   /**
    * Flat top-level entries in display order: the host `topOrder` completed
    * with channels the flat list does not know yet (appended at the end), or —
@@ -436,14 +567,14 @@ export function BotSidebar({
       const snapshot = store.getSnapshot();
       const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
       return orderScopeChannels(
-        rosterChannels.filter((channel) => !sectioned.has(channel.id)),
+        arrangedChannels.filter((channel) => !sectioned.has(channel.id)),
         prefs.sortMode,
       );
     }
     const section = store
       .getSnapshot()
       .roster.sections.find((candidate) => candidate.id === scopeId);
-    return section === undefined ? [] : sectionOrder(section, rosterChannels);
+    return section === undefined ? [] : sectionOrder(section, arrangedChannels);
   };
   const sectionOfChannel = (channelId: string): string | undefined =>
     store.getSnapshot().roster.sections.find((section) => section.channelIds.includes(channelId))
@@ -482,11 +613,40 @@ export function BotSidebar({
     if (query.length > 0) return blocks.filter((block) => block.channels.length > 0);
     return blocks;
   })();
+  const railPinnedChannels = pinnedChannelIds.flatMap((channelId) => {
+    const channel = state.channels.find((candidate) => candidate.id === channelId);
+    return channel === undefined ? [] : [channel];
+  });
+  const railChannels = flatEntries.flatMap((entry) => {
+    if (entry.kind === 'channel') {
+      const channel = rosterChannels.find((candidate) => candidate.id === entry.id);
+      return channel === undefined ? [] : [channel];
+    }
+    const section = state.roster.sections.find((candidate) => candidate.id === entry.id);
+    return section === undefined ? [] : sectionOrder(section, rosterChannels);
+  });
+  const hiddenItems: HiddenChannelItem[] = state.roster.hidden.flatMap((channelId) => {
+    const channel = state.channels.find((candidate) => candidate.id === channelId);
+    if (channel === undefined || (channel.type === 'dm' && channel.botSlug === undefined))
+      return [];
+    const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    return [
+      {
+        channel,
+        ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
+      },
+    ];
+  });
   const visibleCount =
-    pinnedBots.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
+    pinnedChannels.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
   const selectedBot = state.selection?.kind === 'bot' ? state.selection.slug : undefined;
   const selectedChannel =
     state.selection?.kind === 'channel' ? state.selection.channelId : undefined;
+  const contextSection = state.roster.sections.find(
+    (section) => section.id === sectionContextMenu?.sectionId,
+  );
+  const contextSectionIndex =
+    contextSection === undefined ? -1 : state.roster.sections.indexOf(contextSection);
 
   const persistConfig = (next: RosterConfig): void => {
     store.setConfig(next);
@@ -502,17 +662,36 @@ export function BotSidebar({
 
   const selectSortMenu = (id: string): void => {
     setSortMenuOpen(false);
+    if (id === 'hidden') {
+      setHiddenManagerOpen(true);
+      return;
+    }
     if (isBotModeSortMode(id)) setSortMode(id);
   };
 
   const selectSectionMenu = (section: RosterSection, id: string): void => {
     setSectionMenuId(undefined);
+    setSectionContextMenu(undefined);
     if (id === 'inherit') {
       setSectionSortMode(section.id, undefined);
       return;
     }
     if (isBotModeSortMode(id)) {
       setSectionSortMode(section.id, id);
+      return;
+    }
+    if (id === 'move-up' || id === 'move-down') {
+      const sections = store.getSnapshot().roster.sections;
+      const index = sections.findIndex((candidate) => candidate.id === section.id);
+      const target = sections[index + (id === 'move-up' ? -1 : 1)];
+      if (target === undefined) return;
+      const order = moveWithinOrder(
+        sections.map((candidate) => candidate.id),
+        section.id,
+        target.id,
+        id === 'move-up' ? 'before' : 'after',
+      );
+      if (order !== undefined) void actions.reorderSections(order);
       return;
     }
     if (id === 'rename') {
@@ -554,7 +733,7 @@ export function BotSidebar({
     channelId: string,
     sourceScopeId: ScopeId,
     targetScopeId: ScopeId,
-    target: { kind: 'row'; channelId: string; half: 'before' | 'after' } | { kind: 'scope' },
+    target: ScopeDropTarget,
   ): void => {
     const plan = planChannelMove(sourceScopeId, channelId, {
       targetScopeId,
@@ -563,7 +742,24 @@ export function BotSidebar({
       targetManualOverride:
         targetScopeId !== undefined && prefs.sortModes[targetScopeId] === 'manual',
     });
-    if (plan === undefined) return;
+    const movingPinned = pinDrag?.source === 'pinned' && pinDrag.channelId === channelId;
+    if (plan === undefined) {
+      if (movingPinned && targetScopeId !== undefined && sourceScopeId === targetScopeId) {
+        void actions.setChannelPinned(channelId, false);
+        endPinDrag();
+      }
+      return;
+    }
+    if (movingPinned) {
+      if (plan.kind === 'section') {
+        if (plan.setManualOverride) setSectionSortMode(plan.sectionId, 'manual');
+        void actions.movePinnedChannel(channelId, plan.sectionId, plan.order);
+      } else {
+        void actions.setChannelPinned(channelId, false);
+      }
+      endPinDrag();
+      return;
+    }
     applyChannelMove(moveSink, channelId, plan);
   };
 
@@ -588,12 +784,12 @@ export function BotSidebar({
     });
   };
 
-  /** A row-less section body targets the whole scope; the move appends. */
+  /** A row-less section body uses its top prediction line as index zero. */
   const commitChannelScopeDrop = (
     drag: { scopeId: ScopeId; channelId: string },
     scopeId: ScopeId,
   ): void => {
-    runChannelMove(drag.channelId, drag.scopeId, scopeId, { kind: 'scope' });
+    runChannelMove(drag.channelId, drag.scopeId, scopeId, { kind: 'scope', position: 'first' });
   };
 
   /**
@@ -605,18 +801,27 @@ export function BotSidebar({
   const runFlatInsert = (channelId: string, sourceScopeId: ScopeId, anchor: FlatAnchor): void => {
     const snapshot = store.getSnapshot();
     const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
-    const snapshotChannelIds = flatRosterChannelIds(
-      snapshot.channels,
-      new Set(snapshot.roster.pins),
-    );
+    const snapshotPinned = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
+    const snapshotChannelIds = flatRosterChannelIds(snapshot.channels, new Set(snapshotPinned));
     const flat = completeFlatEntries(
       snapshot.roster.topOrder,
       snapshot.roster.sections.map((section) => section.id),
       snapshotChannelIds,
       sectioned,
     );
-    const plan = planFlatInsert(flat, channelId, sourceScopeId !== undefined, anchor);
+    const movingPinned = pinDrag?.source === 'pinned' && pinDrag.channelId === channelId;
+    const plan = planFlatInsert(
+      flat,
+      channelId,
+      movingPinned || sourceScopeId !== undefined,
+      anchor,
+    );
     if (plan === undefined) return;
+    if (movingPinned) {
+      void actions.movePinnedChannelToFlat(channelId, plan.order);
+      endPinDrag();
+      return;
+    }
     if (plan.unassign) {
       void actions.moveToFlat(channelId, plan.order);
     } else {
@@ -637,8 +842,38 @@ export function BotSidebar({
   };
 
   /** A context-menu pick targets a whole scope; the move appends to a section. */
-  const commitChannelMenuMove = (channelId: string, targetSectionId: string | undefined): void => {
-    runChannelMove(channelId, sectionOfChannel(channelId), targetSectionId, { kind: 'scope' });
+  const commitChannelMenuMove = (
+    channelId: string,
+    targetSectionId: string | undefined,
+    pinned: boolean,
+  ): void => {
+    if (!pinned) {
+      runChannelMove(channelId, sectionOfChannel(channelId), targetSectionId, { kind: 'scope' });
+      return;
+    }
+    if (targetSectionId !== undefined) {
+      const order = [
+        ...scopeChannelsOf(targetSectionId)
+          .map((channel) => channel.id)
+          .filter((id) => id !== channelId),
+        channelId,
+      ];
+      setSectionSortMode(targetSectionId, 'manual');
+      void actions.movePinnedChannel(channelId, targetSectionId, order);
+      return;
+    }
+    const snapshot = store.getSnapshot();
+    const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
+    const flat = completeFlatEntries(
+      snapshot.roster.topOrder,
+      snapshot.roster.sections.map((section) => section.id),
+      flatRosterChannelIds(
+        snapshot.channels,
+        new Set(resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins)),
+      ),
+      sectioned,
+    );
+    void actions.movePinnedChannelToFlat(channelId, [...flat, { kind: 'channel', id: channelId }]);
   };
 
   /** Reorder the section headers with the same in-scope insert math as rows. */
@@ -658,20 +893,40 @@ export function BotSidebar({
     setSortMenuOpen(false);
     setSectionMenuId(undefined);
     setSectionCreateMenuId(undefined);
+    setSectionContextMenu(undefined);
     setChannelMenu(request);
   };
 
-  /** End either pin gesture and clear every non-layout-taking drop highlight. */
+  /**
+   * Start one pin gesture. A layout-taking target opens on the next task so
+   * its height transition cannot invalidate Chromium's native `dragstart`.
+   */
+  const startPinDrag = (channelId: string, source: PinDragState['source']): void => {
+    if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
+    setPinDrag({ channelId, source });
+    if (source === 'roster' && hasPinnedChannels) return;
+    pinZoneArmTimer.current = window.setTimeout(() => {
+      pinZoneArmTimer.current = undefined;
+      if (source === 'roster') setPinZoneArmed(true);
+      else setUnpinZoneArmed(true);
+    }, 0);
+  };
+
+  /** End either pin gesture and clear every transient drop affordance. */
   const endPinDrag = (): void => {
+    if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
+    pinZoneArmTimer.current = undefined;
     setPinDrag(undefined);
+    setPinZoneArmed(false);
     setPinZoneHovered(false);
-    setRosterDropHovered(false);
+    setUnpinZoneArmed(false);
+    setUnpinZoneHovered(false);
   };
 
   const commitPinDrop = (pinned: boolean): void => {
     if (pinDrag === undefined) return;
     if (pinned ? pinDrag.source !== 'roster' : pinDrag.source !== 'pinned') return;
-    void actions.setBotPinned(pinDrag.slug, pinned);
+    void actions.setChannelPinned(pinDrag.channelId, pinned);
     endPinDrag();
   };
 
@@ -698,7 +953,7 @@ export function BotSidebar({
           actions={actions}
           drag={drag}
           onMenu={openChannelMenu}
-          onPinDragStart={(slug) => setPinDrag({ slug, source: 'roster' })}
+          onPinDragStart={(channelId) => startPinDrag(channelId, 'roster')}
           onPinDragEnd={endPinDrag}
         />
       );
@@ -711,11 +966,57 @@ export function BotSidebar({
         actions={actions}
         drag={drag}
         onMenu={openChannelMenu}
+        onPinDragStart={(channelId) => startPinDrag(channelId, 'roster')}
+        onPinDragEnd={endPinDrag}
       />
     );
   };
 
-  if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
+  if (!wide) {
+    const renderRailChannel = (channel: ChannelSummary): ReactElement => {
+      const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+      const message = channel.latestMessage;
+      const author =
+        message?.author.kind === 'human'
+          ? t('rail.you')
+          : message?.author.kind === 'bot'
+            ? (botBySlug.get(message.author.slug)?.displayName ?? message.author.slug)
+            : message?.author.kind === 'bridged'
+              ? message.author.source
+              : undefined;
+      const summary =
+        message === undefined
+          ? t('rail.noMessages')
+          : `${author === undefined ? '' : `${author}：`}${message.body}`;
+      return (
+        <RailChannel
+          key={channel.id}
+          channel={channel}
+          bot={bot}
+          activity={bot === undefined ? undefined : personaBotActivity(state, bot)}
+          selected={
+            selectedChannel === channel.id || (bot !== undefined && selectedBot === bot.slug)
+          }
+          summary={summary}
+          actions={actions}
+          t={t}
+        />
+      );
+    };
+    return (
+      <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
+        <div className="bh-rail-group">
+          {railPinnedChannels.map((channel) => renderRailChannel(channel))}
+        </div>
+        {railPinnedChannels.length > 0 && railChannels.length > 0 ? (
+          <span className="bh-rail-divider" aria-hidden="true" />
+        ) : null}
+        <div className="bh-rail-group">
+          {railChannels.map((channel) => renderRailChannel(channel))}
+        </div>
+      </div>
+    );
+  }
 
   const createSectionId =
     createRequest?.kind === 'channel' || createRequest?.kind === 'bot'
@@ -762,22 +1063,22 @@ export function BotSidebar({
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;
         if (target !== null && target.closest('.bh-section, [data-channel-id]') !== null) return;
-        event.preventDefault();
-        event.dataTransfer.dropEffect = 'move';
         const resolved = resolveGapTarget(event.currentTarget, event.clientY);
         if (resolved === null) {
           clearGapHover();
           return;
         }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
         channelGapDropProps(resolved.sectionId).hover(resolved.half);
       }}
       onDrop={(event) => {
         if (!channelDragActive) return;
         const target = event.target as HTMLElement | null;
         if (target !== null && target.closest('.bh-section, [data-channel-id]') !== null) return;
-        event.preventDefault();
         const resolved = resolveGapTarget(event.currentTarget, event.clientY);
         if (resolved === null) return;
+        event.preventDefault();
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
@@ -848,11 +1149,11 @@ export function BotSidebar({
             dense
             align="end"
             anchor={
-              <Tooltip label="排序方式" side="bottom" delayMs={500}>
+              <Tooltip label={t('roster.menu.label')} side="bottom" delayMs={500}>
                 <button
                   type="button"
                   className="bh-icon-btn"
-                  aria-label="排序方式"
+                  aria-label={t('roster.menu.label')}
                   onClick={() => {
                     setSortMenuOpen((value) => !value);
                   }}
@@ -912,14 +1213,17 @@ export function BotSidebar({
         </div>
       ) : null}
       {visibleCount === 0 && (state.bots.length > 0 || state.channels.length > 0) ? (
-        <div className="bh-note">没有匹配的 BOT 或频道</div>
+        <div className="bh-note">
+          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 BOT 或频道'}
+        </div>
       ) : null}
 
-      {state.bots.length > 0 ? (
+      {hasPinnableChannels ? (
         <div
-          className={`bh-pin-zone${pinnedBots.length === 0 ? ' bh-pin-zone-empty' : ' bh-pin-zone-filled'}${pinZoneHovered ? ' bh-pin-zone-active' : ''}`}
+          className={`bh-pin-zone${hasPinnedChannels ? ' bh-pin-zone-filled' : ' bh-pin-zone-empty'}${!hasPinnedChannels && !pinZoneArmed ? ' bh-pin-zone-hidden' : ''}${pinZoneHovered ? ' bh-pin-zone-active' : ''}`}
           role="region"
           aria-label={t('pin.zone.label')}
+          aria-hidden={!hasPinnedChannels && !pinZoneArmed}
           onDragOver={(event) => {
             if (pinDrag?.source !== 'roster') return;
             event.preventDefault();
@@ -943,72 +1247,76 @@ export function BotSidebar({
             commitPinDrop(true);
           }}
         >
-          {pinnedBots.length === 0 ? (
+          {!hasPinnedChannels ? (
             <span className="bh-pin-zone-hint">{t('pin.drop')}</span>
           ) : (
             <div className="bh-pinned-grid">
-              {pinnedBots.map((bot) => {
-                const selected = selectedBot === bot.slug;
-                const channel = dmByBotSlug.get(bot.slug);
-                const dragSource = pinDrag?.source === 'pinned' && pinDrag.slug === bot.slug;
+              {pinnedChannels.map((channel) => {
+                const bot =
+                  channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+                const selected =
+                  selectedChannel === channel.id || (bot !== undefined && selectedBot === bot.slug);
+                const dragSource = pinDrag?.source === 'pinned' && pinDrag.channelId === channel.id;
+                const channelDrag = channelDragProps(sectionOfChannel(channel.id), channel.id);
                 return (
                   <button
-                    key={bot.slug}
+                    key={channel.id}
                     type="button"
                     className={`bh-pinned${selected ? ' bh-selected' : ''}${dragSource ? ' bh-drag-source' : ''}`}
-                    onClick={() => void actions.openBot(bot.slug)}
-                    draggable={channel !== undefined}
-                    onDragStart={
-                      channel === undefined
-                        ? undefined
-                        : (event) => {
-                            event.dataTransfer.effectAllowed = 'move';
-                            event.dataTransfer.setData('text/plain', channel.id);
-                            setPinDrag({ slug: bot.slug, source: 'pinned' });
-                          }
+                    onClick={() =>
+                      void (bot === undefined
+                        ? actions.openChannel(channel.id)
+                        : actions.openBot(bot.slug))
                     }
-                    onDragEnd={endPinDrag}
-                    onContextMenu={
-                      channel === undefined
-                        ? undefined
-                        : (event) => {
-                            event.preventDefault();
-                            openChannelMenu({
-                              channelId: channel.id,
-                              pinnedView: true,
-                              x: event.clientX,
-                              y: event.clientY,
-                            });
-                          }
-                    }
-                    onKeyDown={
-                      channel === undefined
-                        ? undefined
-                        : (event) => {
-                            const keyboardMenu =
-                              event.key === 'ContextMenu' ||
-                              (event.shiftKey && event.key === 'F10');
-                            if (!keyboardMenu) return;
-                            event.preventDefault();
-                            const rect = event.currentTarget.getBoundingClientRect();
-                            openChannelMenu({
-                              channelId: channel.id,
-                              pinnedView: true,
-                              x: rect.left + 8,
-                              y: rect.bottom,
-                            });
-                          }
-                    }
+                    draggable
+                    onDragStart={(event) => {
+                      event.dataTransfer.effectAllowed = 'move';
+                      event.dataTransfer.setData('text/plain', channel.id);
+                      channelDrag.start();
+                      startPinDrag(channel.id, 'pinned');
+                    }}
+                    onDragEnd={() => {
+                      channelDrag.end();
+                      endPinDrag();
+                    }}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      openChannelMenu({
+                        channelId: channel.id,
+                        pinnedView: true,
+                        x: event.clientX,
+                        y: event.clientY,
+                      });
+                    }}
+                    onKeyDown={(event) => {
+                      const keyboardMenu =
+                        event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+                      if (!keyboardMenu) return;
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      openChannelMenu({
+                        channelId: channel.id,
+                        pinnedView: true,
+                        x: rect.left + 8,
+                        y: rect.bottom,
+                      });
+                    }}
                   >
-                    <PersonaBotAvatar
-                      personaBotId={bot.slug}
-                      name={bot.displayName}
-                      src={bot.avatar}
-                      state={personaBotActivity(state, bot)}
-                      size={54}
-                    />
-                    <span className="bh-name">{bot.displayName}</span>
-                    <RoleBadges roles={bot.roles} />
+                    {bot === undefined ? (
+                      <span className="bh-pinned-channel-icon" aria-hidden="true">
+                        <HashIcon size={24} />
+                      </span>
+                    ) : (
+                      <PersonaBotAvatar
+                        personaBotId={bot.slug}
+                        name={bot.displayName}
+                        src={bot.avatar}
+                        state={personaBotActivity(state, bot)}
+                        size={54}
+                      />
+                    )}
+                    <span className="bh-name">{bot?.displayName ?? channel.name}</span>
+                    {bot === undefined ? null : <RoleBadges roles={bot.roles} />}
                   </button>
                 );
               })}
@@ -1018,13 +1326,17 @@ export function BotSidebar({
       ) : null}
 
       <div
-        className={`bh-roster-list${rosterDropHovered ? ' bh-roster-list-drop-active' : ''}`}
+        className={`bh-unpin-zone${!unpinZoneArmed ? ' bh-unpin-zone-hidden' : ''}${unpinZoneHovered ? ' bh-unpin-zone-active' : ''}`}
+        role="region"
+        aria-label={t('pin.restore.zone.label')}
+        aria-hidden={!unpinZoneArmed}
         onDragOver={(event) => {
           if (pinDrag?.source !== 'pinned') return;
           event.preventDefault();
           event.stopPropagation();
           event.dataTransfer.dropEffect = 'move';
-          setRosterDropHovered(true);
+          clearGapHover();
+          setUnpinZoneHovered(true);
         }}
         onDragLeave={(event) => {
           if (
@@ -1033,7 +1345,7 @@ export function BotSidebar({
           ) {
             return;
           }
-          setRosterDropHovered(false);
+          setUnpinZoneHovered(false);
         }}
         onDrop={(event) => {
           if (pinDrag?.source !== 'pinned') return;
@@ -1042,6 +1354,12 @@ export function BotSidebar({
           commitPinDrop(false);
         }}
       >
+        <span className="bh-unpin-zone-hint">
+          {t(unpinZoneHovered ? 'pin.restore.release' : 'pin.restore.drop')}
+        </span>
+      </div>
+
+      <div className="bh-roster-list">
         {flatBlocks.map((block) => {
           if (block.kind === 'loose') {
             const key = `loose:${block.channels.map((channel) => channel.id).join(',')}`;
@@ -1095,6 +1413,7 @@ export function BotSidebar({
                       event.clientY,
                     );
                     if (resolution.kind === 'row') {
+                      event.stopPropagation();
                       channelDragProps(undefined, resolution.channelId).drop(resolution.half);
                     }
                   }}
@@ -1105,6 +1424,7 @@ export function BotSidebar({
             );
           }
           const { section, channels: sectionChannels } = block;
+          const sectionIndex = state.roster.sections.findIndex((item) => item.id === section.id);
           const collapsed = state.config.collapsed[section.id] === true;
           const menuOpenForSection = sectionMenuId === section.id;
           const createMenuOpenForSection = sectionCreateMenuId === section.id;
@@ -1133,11 +1453,29 @@ export function BotSidebar({
               clientY,
             );
           };
+          const openSectionContextMenu = (x: number, y: number): void => {
+            setMenuOpen(false);
+            setSortMenuOpen(false);
+            setSectionMenuId(undefined);
+            setSectionCreateMenuId(undefined);
+            setChannelMenu(undefined);
+            setSectionContextMenu({ sectionId: section.id, x, y });
+          };
           return (
             <div
               key={section.id}
               data-section-id={section.id}
               className={`bh-section${blockMarkerClass}`}
+              onContextMenu={(event) => {
+                const target = event.target as HTMLElement | null;
+                // Channel rows own their own menu. Every other visible point
+                // in the section block, including the name label and gaps,
+                // opens the section menu.
+                if (target !== null && target.closest('[data-channel-id]') !== null) return;
+                event.preventDefault();
+                event.stopPropagation();
+                openSectionContextMenu(event.clientX, event.clientY);
+              }}
               onDragOver={(event) => {
                 if (sectionDrag.active) {
                   event.preventDefault();
@@ -1159,6 +1497,7 @@ export function BotSidebar({
               onDrop={(event) => {
                 if (sectionDrag.active) {
                   event.preventDefault();
+                  event.stopPropagation();
                   sectionDrag.drop(
                     rowDropHalf(event.clientY, event.currentTarget.getBoundingClientRect()),
                   );
@@ -1168,6 +1507,7 @@ export function BotSidebar({
                 const target = event.target as HTMLElement | null;
                 if (target !== null && target.closest('[data-channel-id]') !== null) return;
                 event.preventDefault();
+                event.stopPropagation();
                 const resolution = resolveBlockTarget(event.currentTarget, event.clientY);
                 if (resolution.kind === 'scope') channelScope.drop();
                 else channelDragProps(section.id, resolution.channelId).drop(resolution.half);
@@ -1175,7 +1515,7 @@ export function BotSidebar({
             >
               <div className="bh-list-area">
                 <div
-                  className={`bh-section-head${menuOpenForSection || createMenuOpenForSection ? ' bh-menu-open' : ''}`}
+                  className={`bh-section-head${menuOpenForSection || createMenuOpenForSection || sectionContextMenu?.sectionId === section.id ? ' bh-menu-open' : ''}`}
                   role="button"
                   tabIndex={0}
                   aria-expanded={!collapsed}
@@ -1188,9 +1528,18 @@ export function BotSidebar({
                   onDragEnd={sectionDrag.end}
                   onClick={() => toggleSection(section.id)}
                   onKeyDown={(event) => {
-                    if (event.key !== 'Enter' && event.key !== ' ') return;
-                    event.preventDefault();
-                    toggleSection(section.id);
+                    const keyboardMenu =
+                      event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+                    if (keyboardMenu) {
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      openSectionContextMenu(rect.left + 8, rect.bottom);
+                      return;
+                    }
+                    if (event.key === 'Enter' || event.key === ' ') {
+                      event.preventDefault();
+                      toggleSection(section.id);
+                    }
                   }}
                 >
                   <span className="bh-section-name">{section.name}</span>
@@ -1224,7 +1573,10 @@ export function BotSidebar({
                           <IconEllipsisOutline16 />
                         </button>
                       }
-                      items={sectionMenuItems(t)}
+                      items={sectionMenuItems(t, {
+                        canMoveUp: sectionIndex > 0,
+                        canMoveDown: sectionIndex < state.roster.sections.length - 1,
+                      })}
                       selectedId={sectionSortMode(prefs, section.id)}
                       onSelect={(id) => selectSectionMenu(section, id)}
                       onClose={() => {
@@ -1297,8 +1649,13 @@ export function BotSidebar({
             setCreateRequest(undefined);
           }}
           onCreate={(name) => {
-            void actions.createSection(name);
-            setCreateRequest(undefined);
+            const request = createRequest;
+            void actions.createSection(name).then((section) => {
+              if (section !== undefined && request.moveChannelId !== undefined) {
+                commitChannelMenuMove(request.moveChannelId, section.id, request.pinned === true);
+              }
+              setCreateRequest(undefined);
+            });
           }}
         />
       ) : null}
@@ -1330,6 +1687,21 @@ export function BotSidebar({
           }}
         />
       ) : null}
+      {channelRenameTarget !== undefined ? (
+        <ChannelRenameModal
+          key={channelRenameTarget.id}
+          name={channelRenameTarget.name}
+          bot={channelRenameTarget.type === 'dm'}
+          onCancel={() => {
+            setChannelRenameTarget(undefined);
+          }}
+          onRename={(name) => {
+            void actions.renameChannel(channelRenameTarget.id, name);
+            setChannelRenameTarget(undefined);
+          }}
+        />
+      ) : null}
+
       {deleteTarget !== undefined ? (
         <SectionDeleteModal
           section={deleteTarget}
@@ -1345,20 +1717,66 @@ export function BotSidebar({
         />
       ) : null}
 
+      {hiddenManagerOpen ? (
+        <HiddenChannelsModal
+          items={hiddenItems}
+          t={t}
+          onRestore={(channelId) => {
+            void actions.setChannelHidden(channelId, false);
+          }}
+          onClose={() => {
+            setHiddenManagerOpen(false);
+          }}
+        />
+      ) : null}
+      {sectionContextMenu !== undefined && contextSection !== undefined ? (
+        <SectionContextMenu
+          menu={sectionContextMenu}
+          index={contextSectionIndex}
+          count={state.roster.sections.length}
+          selectedId={sectionSortMode(prefs, contextSection.id)}
+          t={t}
+          onSelect={(id) => selectSectionMenu(contextSection, id)}
+          onClose={() => {
+            setSectionContextMenu(undefined);
+          }}
+        />
+      ) : null}
+
       {channelMenu !== undefined ? (
         <ChannelMoveMenu
           menu={channelMenu}
           sections={state.roster.sections}
           currentSectionId={sectionOfChannel(channelMenu.channelId)}
-          botSlug={state.channels.find((channel) => channel.id === channelMenu.channelId)?.botSlug}
           pinned={channelMenu.pinnedView === true}
           t={t}
-          onSetPinned={(slug, pinned) => {
-            void actions.setBotPinned(slug, pinned);
+          onSetPinned={(channelId, pinned) => {
+            void actions.setChannelPinned(channelId, pinned);
+            setChannelMenu(undefined);
+          }}
+          onRename={(channelId) => {
+            const channel = state.channels.find((candidate) => candidate.id === channelId);
+            if (channel !== undefined) setChannelRenameTarget(channel);
+            setChannelMenu(undefined);
+          }}
+          onCreateSection={(channelId) => {
+            setCreateRequest({
+              kind: 'section',
+              moveChannelId: channelId,
+              pinned: channelMenu.pinnedView === true,
+            });
+            setChannelMenu(undefined);
+          }}
+          onHide={(channelId) => {
+            void actions.setChannelHidden(channelId, true);
             setChannelMenu(undefined);
           }}
           onPick={(targetSectionId) => {
-            commitChannelMenuMove(channelMenu.channelId, targetSectionId);
+            commitChannelMenuMove(
+              channelMenu.channelId,
+              targetSectionId,
+              channelMenu.pinnedView === true,
+            );
             setChannelMenu(undefined);
           }}
           onClose={() => {
@@ -1367,6 +1785,46 @@ export function BotSidebar({
         />
       ) : null}
     </div>
+  );
+}
+
+/** Cursor-positioned section menu shared by right-click and keyboard access. */
+export function SectionContextMenu({
+  menu,
+  index,
+  count,
+  selectedId,
+  t,
+  onSelect,
+  onClose,
+}: {
+  menu: SectionMenuRequest;
+  index: number;
+  count: number;
+  selectedId: string;
+  t: BotHarnessTranslate;
+  onSelect: (id: string) => void;
+  onClose: () => void;
+}): ReactElement {
+  const proxy = useRef<HTMLSpanElement | null>(null);
+  return (
+    <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
+      <Menu
+        open
+        portal
+        dense
+        autoFocus
+        anchor={<span ref={proxy} aria-hidden="true" />}
+        getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
+        items={sectionMenuItems(t, {
+          canMoveUp: index > 0,
+          canMoveDown: index >= 0 && index < count - 1,
+        })}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        onClose={onClose}
+      />
+    </span>
   );
 }
 
@@ -1381,20 +1839,24 @@ export function ChannelMoveMenu({
   menu,
   sections,
   currentSectionId,
-  botSlug,
   pinned = false,
   t,
   onSetPinned,
+  onHide,
+  onRename,
+  onCreateSection,
   onPick,
   onClose,
 }: {
   menu: ChannelMenuRequest;
   sections: readonly RosterSection[];
   currentSectionId: string | undefined;
-  botSlug?: string | undefined;
   pinned?: boolean;
   t: BotHarnessTranslate;
-  onSetPinned?: (slug: string, pinned: boolean) => void;
+  onSetPinned?: (channelId: string, pinned: boolean) => void;
+  onHide?: (channelId: string) => void;
+  onRename?: (channelId: string) => void;
+  onCreateSection?: (channelId: string) => void;
   onPick: (sectionId: string | undefined) => void;
   onClose: () => void;
 }): ReactElement {
@@ -1415,19 +1877,21 @@ export function ChannelMoveMenu({
       window.clearTimeout(timer);
     };
   }, []);
-  const pinItems: readonly MenuEntry[] =
-    botSlug === undefined
-      ? []
-      : [{ id: pinned ? 'unpin' : 'pin', label: t(pinned ? 'pin.remove' : 'pin.add') }];
-  const items: readonly MenuEntry[] = pinned
-    ? pinItems
-    : botSlug === undefined
-      ? channelMoveMenuItems(t, sections, currentSectionId)
-      : [
-          ...pinItems,
-          { type: 'separator', id: 'pin-separator' },
-          ...channelMoveMenuItems(t, sections, currentSectionId),
-        ];
+  const pinItems: readonly MenuEntry[] = [
+    { id: pinned ? 'unpin' : 'pin', label: t(pinned ? 'pin.remove' : 'pin.add') },
+  ];
+  const hideItems: readonly MenuEntry[] = [
+    { type: 'separator', id: 'hide-separator' },
+    { id: 'hide', label: t('hidden.action') },
+  ];
+  const items: readonly MenuEntry[] = [
+    ...pinItems,
+    { type: 'separator', id: 'pin-separator' },
+    ...channelMoveMenuItems(t, sections, currentSectionId),
+    { type: 'separator', id: 'channel-action-separator' },
+    { id: 'rename', label: t('channel.rename') },
+    ...hideItems,
+  ];
   return (
     <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
       <Menu
@@ -1439,8 +1903,20 @@ export function ChannelMoveMenu({
         getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
         items={items}
         onSelect={(id) => {
-          if ((id === 'pin' || id === 'unpin') && botSlug !== undefined) {
-            onSetPinned?.(botSlug, id === 'pin');
+          if (id === 'pin' || id === 'unpin') {
+            onSetPinned?.(menu.channelId, id === 'pin');
+            return;
+          }
+          if (id === 'hide') {
+            onHide?.(menu.channelId);
+            return;
+          }
+          if (id === 'rename') {
+            onRename?.(menu.channelId);
+            return;
+          }
+          if (id === NEW_SECTION_MOVE_TARGET) {
+            onCreateSection?.(menu.channelId);
             return;
           }
           onPick(id === UNGROUPED_MOVE_TARGET ? undefined : id);
