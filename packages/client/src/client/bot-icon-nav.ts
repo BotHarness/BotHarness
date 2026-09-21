@@ -64,6 +64,7 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
       if (box === null) {
         box = doc.createElement('span');
         box.className = BOT_NAV_ICON_CLASS;
+        box.setAttribute('aria-hidden', 'true');
         cell.insertBefore(box, cell.firstChild);
       }
       if (box.innerHTML !== markup) box.innerHTML = markup;
@@ -83,12 +84,13 @@ export function installBotNavIcon(options: BotNavIconOptions): () => void {
 
   apply();
 
-  const observer = new MutationObserver(schedule);
-  observer.observe(doc.body, { childList: true, subtree: true });
+  const observer =
+    typeof MutationObserver === 'undefined' ? undefined : new MutationObserver(schedule);
+  observer?.observe(doc.body, { childList: true, subtree: true });
   const unsubscribe = options.subscribe?.(schedule);
 
   return () => {
-    observer.disconnect();
+    observer?.disconnect();
     unsubscribe?.();
     for (const cell of touched) {
       cell.querySelector(`:scope > .${BOT_NAV_ICON_CLASS}`)?.remove();

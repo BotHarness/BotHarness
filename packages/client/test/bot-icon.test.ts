@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { BOT_GLYPH_SVG, botIconMarkup } from '../src/client/bot-icon.js';
-import { isBotNavLabel } from '../src/client/bot-icon-nav.js';
+import { installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
 
 describe('bot icon markup', () => {
   it('serves the mascot as palette-matched artwork', () => {
@@ -34,5 +34,105 @@ describe('bot nav label matching', () => {
     expect(isBotNavLabel('', labels)).toBe(false);
     expect(isBotNavLabel(null, labels)).toBe(false);
     expect(isBotNavLabel(undefined, labels)).toBe(false);
+  });
+});
+
+describe('settings nav tagging', () => {
+  interface FakeElement {
+    tagName: string;
+    childElementCount: number;
+    className: string;
+    innerHTML: string;
+    firstChild: FakeElement | null;
+    textContent: string;
+    attributes: Record<string, string>;
+    classList: {
+      add(name: string): void;
+      remove(name: string): void;
+      has(name: string): boolean;
+    };
+    setAttribute(name: string, value: string): void;
+    insertBefore(node: FakeElement, before: FakeElement | null): void;
+    removed?: boolean;
+    remove(): void;
+    querySelectorAll(selector: string): FakeElement[];
+    querySelector(selector: string): FakeElement | null;
+  }
+
+  function fakeClassList(): FakeElement['classList'] {
+    const names = new Set<string>();
+    return {
+      add: (name) => names.add(name),
+      remove: (name) => names.delete(name),
+      has: (name) => names.has(name),
+    };
+  }
+
+  function fakeElement(tagName: string, textContent = ''): FakeElement {
+    const children: FakeElement[] = [];
+    const element: FakeElement = {
+      tagName,
+      textContent,
+      childElementCount: 0,
+      className: '',
+      innerHTML: '',
+      firstChild: null,
+      attributes: {},
+      classList: fakeClassList(),
+      setAttribute(name, value) {
+        element.attributes[name] = value;
+      },
+      insertBefore(node) {
+        children.unshift(node);
+        element.firstChild = children[0] ?? null;
+        element.childElementCount = children.length;
+      },
+      remove() {
+        element.removed = true;
+      },
+      querySelectorAll(selector) {
+        return selector === ':scope > span'
+          ? children.filter((child) => child.tagName === 'span')
+          : [];
+      },
+      querySelector(selector) {
+        const wanted = selector.replace(':scope > .', '');
+        return children.find((child) => child.className === wanted) ?? null;
+      },
+    };
+    (element as unknown as { children: FakeElement[] }).children = children;
+    return element;
+  }
+
+  function fakeNavCell(label: string): FakeElement {
+    const cell = fakeElement('button');
+    cell.insertBefore(fakeElement('span'), null);
+    cell.insertBefore(fakeElement('span', label), null);
+    return cell;
+  }
+
+  it('tags only the matching cell, inserts the mark, and cleans up', () => {
+    const bot = fakeNavCell('Bot 设置');
+    const general = fakeNavCell('通用设置');
+    const document = {
+      body: fakeElement('body'),
+      createElement: (tagName: string) => fakeElement(tagName),
+      querySelectorAll: (selector: string) => (selector === 'button' ? [general, bot] : []),
+    };
+    const dispose = installBotNavIcon({
+      labels: () => ['Bot 设置'],
+      markup: () => '<img src="data:image/png;base64,AAAA" />',
+      root: document as never,
+    });
+
+    expect(bot.classList.has('bh-bot-nav')).toBe(true);
+    expect(general.classList.has('bh-bot-nav')).toBe(false);
+    const box = bot.querySelector(':scope > .bh-bot-nav-icon');
+    expect(box?.innerHTML).toContain('data:image/png;base64');
+    expect(box?.attributes['aria-hidden']).toBe('true');
+
+    dispose();
+    expect(bot.classList.has('bh-bot-nav')).toBe(false);
+    expect(bot.querySelector(':scope > .bh-bot-nav-icon')).toBeNull();
   });
 });
