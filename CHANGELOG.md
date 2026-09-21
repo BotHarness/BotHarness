@@ -14,6 +14,7 @@ Established a concise bilingual release history and clarified the optional Memor
 
 ### Changed
 
+- PersonaBot DM rows can now be pinned from their context menu and unpinned from the pinned grid; the durable pin order changes without losing the DM's previous section or loose position ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed

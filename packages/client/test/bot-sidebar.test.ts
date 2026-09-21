@@ -118,6 +118,7 @@ function stubActions(): BridgeActions {
     createSection: vi.fn(async () => undefined),
     renameSection: vi.fn(async () => true),
     removeSection: vi.fn(async () => true),
+    setBotPinned: vi.fn(async () => true),
     assignChannel: vi.fn(async () => true),
     setSectionChannelOrder: vi.fn(async () => true),
     moveChannel: vi.fn(async () => true),
@@ -547,6 +548,51 @@ describe('bot sidebar rows', () => {
     expect(onPick).toHaveBeenCalledWith('s2');
     onSelect(UNGROUPED_MOVE_TARGET);
     expect(onPick).toHaveBeenCalledWith(undefined);
+  });
+
+  it('adds pinning to a PersonaBot DM menu and limits a pinned card to unpinning', () => {
+    const onSetPinned = vi.fn();
+    const onPick = vi.fn();
+    const onClose = vi.fn();
+    renderToStaticMarkup(
+      createElement(ChannelMoveMenu, {
+        menu: { channelId: DM_CHANNEL.id, x: 40, y: 80 },
+        sections: [section('s1', '工作流', [])],
+        currentSectionId: 's1',
+        botSlug: BOT.slug,
+        t: ((key: BotHarnessKey) => zh[key]) as never,
+        onSetPinned,
+        onPick,
+        onClose,
+      }),
+    );
+
+    let menu = captured.menus.at(-1);
+    if (menu === undefined) throw new Error('PersonaBot menu not rendered');
+    expect(menu.items.map((item) => item['id'])).toEqual(['pin', 'pin-separator', 'move']);
+    menu.onSelect?.('pin');
+    expect(onSetPinned).toHaveBeenCalledWith(BOT.slug, true);
+    expect(onPick).not.toHaveBeenCalled();
+
+    renderToStaticMarkup(
+      createElement(ChannelMoveMenu, {
+        menu: { channelId: DM_CHANNEL.id, pinnedView: true, x: 40, y: 80 },
+        sections: [section('s1', '工作流', [])],
+        currentSectionId: 's1',
+        botSlug: BOT.slug,
+        pinned: true,
+        t: ((key: BotHarnessKey) => zh[key]) as never,
+        onSetPinned,
+        onPick,
+        onClose,
+      }),
+    );
+
+    menu = captured.menus.at(-1);
+    if (menu === undefined) throw new Error('pinned PersonaBot menu not rendered');
+    expect(menu.items.map((item) => item['id'])).toEqual(['unpin']);
+    menu.onSelect?.('unpin');
+    expect(onSetPinned).toHaveBeenLastCalledWith(BOT.slug, false);
   });
 
   it('renders a deleted section channel as a loose channel with no bucket', () => {

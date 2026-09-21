@@ -17,6 +17,7 @@ import {
   reorderRosterSections,
   reorderTopOrder,
   sendChannelMessage,
+  setRosterPins,
   type BridgeCall,
   type CreatePersonaBotInput,
 } from './bridge.js';
@@ -36,6 +37,8 @@ export interface BridgeActions {
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
+  /** Add or remove one PersonaBot from the durable pinned-grid order. */
+  setBotPinned(slug: string, pinned: boolean): Promise<boolean>;
   assignChannel(channelId: string, sectionId: string | undefined, index?: number): Promise<boolean>;
   /** Freeze a section's channel order through positioned channelAssign writes. */
   setSectionChannelOrder(sectionId: string, order: readonly string[]): Promise<boolean>;
@@ -327,6 +330,21 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     async removeSection(sectionId) {
       return rosterMutate(async () => {
         await removeRosterSection(call, sectionId);
+      });
+    },
+    async setBotPinned(slug, pinned) {
+      const current = clientStore.getSnapshot().roster.pins;
+      const next = pinned
+        ? [...current.filter((candidate) => candidate !== slug), slug]
+        : current.filter((candidate) => candidate !== slug);
+      if (
+        next.length === current.length &&
+        next.every((candidate, index) => candidate === current[index])
+      ) {
+        return true;
+      }
+      return rosterMutate(async () => {
+        await setRosterPins(call, next);
       });
     },
     async assignChannel(channelId, sectionId, index) {

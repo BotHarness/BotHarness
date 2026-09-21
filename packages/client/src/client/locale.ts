@@ -15,6 +15,8 @@ export const zh = {
   'section.rename': '重命名',
   'section.delete': '删除',
   'move.menu.label': '移动到',
+  'pin.add': '置顶 PersonaBot',
+  'pin.remove': '取消置顶',
   'roster.readOnly': '名册存储不可用，陈列只读',
 } as const satisfies Record<string, string>;
 
@@ -33,6 +35,8 @@ export const en = {
   'section.rename': 'Rename',
   'section.delete': 'Delete',
   'move.menu.label': 'Move to',
+  'pin.add': 'Pin PersonaBot',
+  'pin.remove': 'Unpin',
   'roster.readOnly': 'Roster storage unavailable; the arrangement is read-only',
 } satisfies Record<BotHarnessKey, string>;
 

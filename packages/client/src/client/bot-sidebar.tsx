@@ -128,9 +128,10 @@ interface SidebarProps {
   t: BotHarnessTranslate;
 }
 
-/** One row's request to open its `移动到` context menu at a viewport point. */
+/** One row/card's request to open its context menu at a viewport point. */
 interface ChannelMenuRequest {
   channelId: string;
+  pinnedView?: boolean;
   x: number;
   y: number;
 }
@@ -361,6 +362,11 @@ export function BotSidebar({
   const query = state.query.trim().toLowerCase();
   const bots = state.bots.filter((bot) => matchesQuery(query, bot.displayName, ...bot.roles));
   const botBySlug = new Map(state.bots.map((bot) => [bot.slug, bot]));
+  const dmByBotSlug = new Map(
+    state.channels.flatMap((channel) =>
+      channel.type === 'dm' && channel.botSlug !== undefined ? [[channel.botSlug, channel]] : [],
+    ),
+  );
   const pinned = new Set(state.roster.pins);
   const pinnedBots = state.roster.pins.flatMap((slug) => {
     const bot = bots.find((candidate) => candidate.slug === slug);
@@ -880,12 +886,43 @@ export function BotSidebar({
         <div className="bh-pinned-grid">
           {pinnedBots.map((bot) => {
             const selected = selectedBot === bot.slug;
+            const channel = dmByBotSlug.get(bot.slug);
             return (
               <button
                 key={bot.slug}
                 type="button"
                 className={`bh-pinned${selected ? ' bh-selected' : ''}`}
                 onClick={() => void actions.openBot(bot.slug)}
+                onContextMenu={
+                  channel === undefined
+                    ? undefined
+                    : (event) => {
+                        event.preventDefault();
+                        openChannelMenu({
+                          channelId: channel.id,
+                          pinnedView: true,
+                          x: event.clientX,
+                          y: event.clientY,
+                        });
+                      }
+                }
+                onKeyDown={
+                  channel === undefined
+                    ? undefined
+                    : (event) => {
+                        const keyboardMenu =
+                          event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10');
+                        if (!keyboardMenu) return;
+                        event.preventDefault();
+                        const rect = event.currentTarget.getBoundingClientRect();
+                        openChannelMenu({
+                          channelId: channel.id,
+                          pinnedView: true,
+                          x: rect.left + 8,
+                          y: rect.bottom,
+                        });
+                      }
+                }
               >
                 <PersonaBotAvatar
                   personaBotId={bot.slug}
@@ -1209,7 +1246,13 @@ export function BotSidebar({
           menu={channelMenu}
           sections={state.roster.sections}
           currentSectionId={sectionOfChannel(channelMenu.channelId)}
+          botSlug={state.channels.find((channel) => channel.id === channelMenu.channelId)?.botSlug}
+          pinned={channelMenu.pinnedView === true}
           t={t}
+          onSetPinned={(slug, pinned) => {
+            void actions.setBotPinned(slug, pinned);
+            setChannelMenu(undefined);
+          }}
           onPick={(targetSectionId) => {
             commitChannelMenuMove(channelMenu.channelId, targetSectionId);
             setChannelMenu(undefined);
@@ -1234,14 +1277,20 @@ export function ChannelMoveMenu({
   menu,
   sections,
   currentSectionId,
+  botSlug,
+  pinned = false,
   t,
+  onSetPinned,
   onPick,
   onClose,
 }: {
   menu: ChannelMenuRequest;
   sections: readonly RosterSection[];
   currentSectionId: string | undefined;
+  botSlug?: string | undefined;
+  pinned?: boolean;
   t: BotHarnessTranslate;
+  onSetPinned?: (slug: string, pinned: boolean) => void;
   onPick: (sectionId: string | undefined) => void;
   onClose: () => void;
 }): ReactElement {
@@ -1262,6 +1311,19 @@ export function ChannelMoveMenu({
       window.clearTimeout(timer);
     };
   }, []);
+  const pinItems: readonly MenuEntry[] =
+    botSlug === undefined
+      ? []
+      : [{ id: pinned ? 'unpin' : 'pin', label: t(pinned ? 'pin.remove' : 'pin.add') }];
+  const items: readonly MenuEntry[] = pinned
+    ? pinItems
+    : botSlug === undefined
+      ? channelMoveMenuItems(t, sections, currentSectionId)
+      : [
+          ...pinItems,
+          { type: 'separator', id: 'pin-separator' },
+          ...channelMoveMenuItems(t, sections, currentSectionId),
+        ];
   return (
     <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
       <Menu
@@ -1271,8 +1333,12 @@ export function ChannelMoveMenu({
         autoFocus
         anchor={<span ref={proxy} aria-hidden="true" />}
         getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
-        items={channelMoveMenuItems(t, sections, currentSectionId)}
+        items={items}
         onSelect={(id) => {
+          if ((id === 'pin' || id === 'unpin') && botSlug !== undefined) {
+            onSetPinned?.(botSlug, id === 'pin');
+            return;
+          }
           onPick(id === UNGROUPED_MOVE_TARGET ? undefined : id);
         }}
         onClose={onClose}

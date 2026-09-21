@@ -178,6 +178,7 @@ describe('bridge actions', () => {
   function setup(extra: Record<string, Handler> = {}) {
     const clientStore = createStore();
     let topOrder: Array<{ kind: 'section' | 'channel'; id: string }> = [];
+    let pins: string[] = [];
     const call = bridgeCall({
       list: () => ({ bots: [BOT] }),
       channels: () => ({ channels: [GROUP, DM] }),
@@ -231,7 +232,11 @@ describe('bridge actions', () => {
           updatedAt: '2026-09-19T00:04:00.000Z',
         },
       }),
-      rosterGet: () => ({ pins: [], sections: [], topOrder }),
+      rosterGet: () => ({ pins, sections: [], topOrder }),
+      pinsSet: (payload) => {
+        pins = payload['pins'] as string[];
+        return { pins };
+      },
       channelAssign: () => ({}),
       topReorder: (payload) => {
         topOrder = payload['order'] as typeof topOrder;
@@ -266,6 +271,29 @@ describe('bridge actions', () => {
       sessionId: 'assignment-1',
       sourceEventId: 'source-1',
     });
+  });
+
+  it('pins and unpins a PersonaBot through the durable roster before refreshing', async () => {
+    const writes: string[][] = [];
+    let pins: string[] = [];
+    const { clientStore, actions } = setup({
+      rosterGet: () => ({ pins, sections: [], topOrder: [] }),
+      pinsSet: (payload) => {
+        pins = [...(payload['pins'] as string[])];
+        writes.push(pins);
+        return { pins };
+      },
+    });
+    await actions.load();
+
+    await expect(actions.setBotPinned('ada', true)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster.pins).toEqual(['ada']);
+    await expect(actions.setBotPinned('ada', true)).resolves.toBe(true);
+    expect(writes).toEqual([['ada']]);
+
+    await expect(actions.setBotPinned('ada', false)).resolves.toBe(true);
+    expect(clientStore.getSnapshot().roster.pins).toEqual([]);
+    expect(writes).toEqual([['ada'], []]);
   });
 
   it('sends a message, reloads the Bot reply, and refreshes Assignments', async () => {
