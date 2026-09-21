@@ -102,6 +102,10 @@ describe('DM turn end to end', () => {
     });
     expect(core.ownership.rootsFor('ada', 'orchestrator')).toHaveLength(1);
     expect(core.ownership.rootsFor('ada', 'assignment')).toHaveLength(1);
+    expect(host.createOptions.map((options) => options.meta?.agentPreset)).toEqual([
+      'standard',
+      'standard',
+    ]);
 
     expect(core.runtime.listAssignments('ada')).toEqual([
       expect.objectContaining({

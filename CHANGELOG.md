@@ -19,6 +19,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- PersonaBot Agents now join an agent preset (`standard` by default), so the Orchestrator runs with ordinary file, Shell, grep, and git tools inside its Memory Repository and can persist memories directly; the Orchestrator now records memory itself and delegates only independent work, while Assignments report memory-worthy findings instead of writing the repository ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
+
 - PersonaBot creation now provisions a real Git-backed Memory Repository and the Orchestrator Session runs inside it; reopening a repository never auto-commits a provisional working-tree edit ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 - Removed the model-visible `memory_read`, `memory_search`, `memory_write`, and `memory_list` tools; V1 works through ordinary file, Shell, grep, and git capabilities ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 

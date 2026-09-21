@@ -19,6 +19,8 @@
 
 ### Changed
 
+- PersonaBot Agent 现在会加入 agent preset（默认 `standard`），Orchestrator 因此在 Memory Repository 内具备普通 file、Shell、grep、git 工具，可以直接持久化记忆；Orchestrator 自行记录记忆、只把独立工作委托给 Assignment，而 Assignment 把值得记忆的内容回报给 Orchestrator，不写仓库（[#115](https://github.com/BotHarness/BotHarness/issues/115)）。
+
 - 创建 PersonaBot 现在会创建真实的 Git-backed Memory Repository，Orchestrator Session 直接在其中运行；重新打开仓库时不会把未提交的工作树改动自动提交（[#115](https://github.com/BotHarness/BotHarness/issues/115)）。
 - 移除模型可见的 `memory_read`、`memory_search`、`memory_write`、`memory_list` tools；V1 通过普通 file、Shell、grep 与 git 能力工作（[#115](https://github.com/BotHarness/BotHarness/issues/115)）。
 

@@ -4,6 +4,77 @@ import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.j
 import { FakeAgentHost, FAKE_BOT as BOT } from './dsh-agent-host-fixture.js';
 
 describe('DSH Bot Agent adapter', () => {
+  it('mounts the resolved agent preset inside every agent factory setup', async () => {
+    const host = new FakeAgentHost();
+    const mounted: Array<{ id: string | undefined; hasTools: boolean }> = [];
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      defaultWorkspaceRoot: '/runtime-workspaces',
+      defaultAgentPreset: 'standard',
+      resolveAgentPresets: () => ({
+        mount: async (agentCtx, id) => {
+          mounted.push({ id, hasTools: agentCtx.tools !== undefined });
+          return undefined;
+        },
+      }),
+      ensureWorkspace: () => undefined,
+    });
+
+    await adapter.runOrchestrator({
+      sessionId: 'orchestrator-ada',
+      resume: false,
+      bot: BOT,
+      message: '你好',
+      channels: {
+        read: () => [],
+        search: () => [],
+        send: async (input) => ({
+          id: 'bot-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: input.body,
+        }),
+      },
+      createAssignment: async () => ({ state: 'completed', summary: 'ok', at: BOT.createdAt }),
+    });
+
+    expect(mounted).toEqual([{ id: 'standard', hasTools: true }]);
+    await adapter.close();
+  });
+
+  it('lets a PersonaBot record choose its own agent preset over the default', async () => {
+    const host = new FakeAgentHost();
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      defaultWorkspaceRoot: '/runtime-workspaces',
+      defaultAgentPreset: 'standard',
+      ensureWorkspace: () => undefined,
+    });
+
+    await adapter.runOrchestrator({
+      sessionId: 'orchestrator-ada',
+      resume: false,
+      bot: { ...BOT, preset: 'cordis' },
+      message: '你好',
+      channels: {
+        read: () => [],
+        search: () => [],
+        send: async (input) => ({
+          id: 'bot-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: input.body,
+        }),
+      },
+      createAssignment: async () => ({ state: 'completed', summary: 'ok', at: BOT.createdAt }),
+    });
+
+    expect(host.createOptions[0]?.meta?.agentPreset).toBe('cordis');
+    await adapter.close();
+  });
+
   it('rejects when the durable turn outcome is an error even though the Agent becomes idle', async () => {
     const host = new FakeAgentHost({
       kind: 'error',
@@ -37,6 +108,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      defaultAgentPreset: 'standard',
       ensureWorkspace: (path) => void preparedWorkspaces.push(path),
     });
     const reports: unknown[] = [];
@@ -87,6 +159,10 @@ describe('DSH Bot Agent adapter', () => {
       '/runtime-workspaces/ada',
       '/runtime-workspaces/ada',
     ]);
+    expect(host.createOptions.map((options) => options.meta?.agentPreset)).toEqual([
+      'standard',
+      'standard',
+    ]);
     expect(preparedWorkspaces).toEqual(['/runtime-workspaces/ada', '/runtime-workspaces/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'create_assignment',
@@ -110,9 +186,15 @@ describe('DSH Bot Agent adapter', () => {
     expect(host.scopes.get('assignment-1')?.tools.map((tool) => tool.name)).toEqual([
       'report_to_orchestrator',
     ]);
-    expect(host.scopes.get('orchestrator-ada')?.sections[0]?.text).toContain('Orchestrator');
-    expect(host.scopes.get('orchestrator-ada')?.sections[0]?.text).toContain('exactly one');
-    expect(host.scopes.get('assignment-1')?.sections[0]?.text).toContain('Assignment');
+    const orchestratorPrompt = host.scopes.get('orchestrator-ada')?.sections[0]?.text ?? '';
+    expect(orchestratorPrompt).toContain('Orchestrator');
+    expect(orchestratorPrompt).toContain('channel_send exactly once');
+    expect(orchestratorPrompt).toContain('must not be delegated');
+    expect(orchestratorPrompt).toContain('Memory Repository');
+    const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
+    expect(assignmentPrompt).toContain('Assignment');
+    expect(assignmentPrompt).toContain('never write to the PersonaBot');
+    expect(assignmentPrompt).toContain('report_to_orchestrator exactly once');
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);

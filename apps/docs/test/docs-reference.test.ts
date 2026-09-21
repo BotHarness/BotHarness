@@ -19,6 +19,14 @@ describe("generated developer reference", () => {
         description: "启用 BotHarness core",
         source: "packages/core/src/plugin.ts",
       },
+      {
+        name: "agentPreset",
+        type: "string",
+        default: "standard",
+        description:
+          "PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）",
+        source: "packages/core/src/plugin.ts",
+      },
     ]);
   });
 

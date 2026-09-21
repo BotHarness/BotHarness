@@ -25,6 +25,7 @@ import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
 import {
   createDshBotAgentAdapter,
+  type DshAgentPresetHost,
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
 import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
@@ -41,14 +42,22 @@ export const MEMORY_TREE_SECTION_ORDER = 10500;
 
 export interface BotHarnessConfig {
   enabled: boolean;
+  /** Defaulted by the schema in production; optional so tests can pass a partial config. */
+  agentPreset?: string;
 }
+
+export const DEFAULT_AGENT_PRESET = 'standard';
 
 export const DEFAULT_CONFIG: BotHarnessConfig = {
   enabled: true,
+  agentPreset: DEFAULT_AGENT_PRESET,
 };
 
 export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 BotHarness core'),
+  agentPreset: Schema.string()
+    .default(DEFAULT_AGENT_PRESET)
+    .description('PersonaBot 会话加入的 DSH agent preset（提供 file/Shell/grep 等普通工具）'),
 });
 
 export interface BotHarnessCore {
@@ -136,6 +145,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         .agentDefaultModel,
       defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
+      defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
+      resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     }),
   });
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
