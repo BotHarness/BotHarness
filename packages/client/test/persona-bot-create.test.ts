@@ -54,6 +54,20 @@ describe('PersonaBot creation form', () => {
     expect(markup).toContain('<button disabled="">创建</button>');
   });
 
+  it('identifies the target section when creating a PersonaBot inside it', () => {
+    const markup = renderToStaticMarkup(
+      createElement(CreatePersonaBotModal, {
+        actions: { createBot: vi.fn() } as unknown as BridgeActions,
+        sectionId: 'section-work',
+        sectionName: '工作流',
+        onCancel: vi.fn(),
+        onCreated: vi.fn(),
+      }),
+    );
+
+    expect(markup).toContain('在「工作流」中创建 PersonaBot');
+  });
+
   it('normalizes, de-duplicates, and drops blank role badges', () => {
     expect(normalizeRoleBadges([' 研究员 ', '写作', '研究员', ' '])).toEqual(['研究员', '写作']);
   });

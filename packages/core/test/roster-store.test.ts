@@ -52,7 +52,7 @@ describe('roster store', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
-  it('creates a host-generated id and appends the section to the order', async () => {
+  it('creates a host-generated id and prepends the section to the order', async () => {
     const fake = createFakeRosterDomain();
     const store = createRosterStore();
     await store.attach(fake.facility);
@@ -63,13 +63,13 @@ describe('roster store', () => {
     expect(first.id).toMatch(UUID_RE);
     expect(first.id).not.toMatch(/^section-/);
     expect(fake.records.get(first.id)).toEqual({ name: '研究', channelIds: [] });
-    expect(fake.state()).toEqual({ pins: [], sectionOrder: [first.id, second.id] });
+    expect(fake.state()).toEqual({ pins: [], sectionOrder: [second.id, first.id] });
     expect(store.snapshot()).toEqual({
       pins: [],
-      sectionOrder: [first.id, second.id],
+      sectionOrder: [second.id, first.id],
       sections: [
-        { id: first.id, name: '研究', channelIds: [] },
         { id: second.id, name: '工作流', channelIds: [] },
+        { id: first.id, name: '研究', channelIds: [] },
       ],
     });
   });
@@ -205,6 +205,30 @@ describe('roster store', () => {
 });
 
 describe('roster flat topOrder', () => {
+  it('prepends a newly created section to an existing flat order', async () => {
+    const fake = createFakeRosterDomain({
+      records: { s1: { name: 'A', channelIds: [] } },
+      state: {
+        pins: [],
+        sectionOrder: ['s1'],
+        topOrder: [
+          { kind: 'channel', id: 'loose' },
+          { kind: 'section', id: 's1' },
+        ],
+      },
+    });
+    const store = createRosterStore();
+    await store.attach(fake.facility);
+
+    const created = await store.sectionCreate('最新');
+
+    expect(fake.state().topOrder).toEqual([
+      { kind: 'section', id: created.id },
+      { kind: 'channel', id: 'loose' },
+      { kind: 'section', id: 's1' },
+    ]);
+  });
+
   it('projects absent topOrder as undefined and keeps legacy writes flat-free', async () => {
     const fake = createFakeRosterDomain();
     const store = createRosterStore();

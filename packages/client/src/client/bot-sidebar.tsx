@@ -307,7 +307,7 @@ function ChannelRow({
 
 /** Open creation dialog for one production-backed Bot, Channel, or section. */
 type CreateRequest =
-  | { kind: 'bot' }
+  | { kind: 'bot'; sectionId?: string }
   | { kind: 'section' }
   | { kind: 'channel'; sectionId?: string };
 
@@ -329,6 +329,7 @@ export function BotSidebar({
   const [menuOpen, setMenuOpen] = useState(false);
   const [sortMenuOpen, setSortMenuOpen] = useState(false);
   const [sectionMenuId, setSectionMenuId] = useState<string | undefined>(undefined);
+  const [sectionCreateMenuId, setSectionCreateMenuId] = useState<string | undefined>(undefined);
   const [searchOpen, setSearchOpen] = useState(false);
   const [channelMenu, setChannelMenu] = useState<ChannelMenuRequest | undefined>(undefined);
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
@@ -633,6 +634,7 @@ export function BotSidebar({
     setMenuOpen(false);
     setSortMenuOpen(false);
     setSectionMenuId(undefined);
+    setSectionCreateMenuId(undefined);
     setChannelMenu(request);
   };
 
@@ -676,7 +678,10 @@ export function BotSidebar({
 
   if (!wide) return <div className="bh-root bh-region bh-region-rail" />;
 
-  const createSectionId = createRequest?.kind === 'channel' ? createRequest.sectionId : undefined;
+  const createSectionId =
+    createRequest?.kind === 'channel' || createRequest?.kind === 'bot'
+      ? createRequest.sectionId
+      : undefined;
   const createSection =
     createSectionId === undefined
       ? undefined
@@ -962,6 +967,7 @@ export function BotSidebar({
         const { section, channels: sectionChannels } = block;
         const collapsed = state.config.collapsed[section.id] === true;
         const menuOpenForSection = sectionMenuId === section.id;
+        const createMenuOpenForSection = sectionCreateMenuId === section.id;
         const sectionDrag = sectionDragProps(section.id);
         const channelGap = channelGapDropProps(section.id);
         const channelScope = channelScopeDropProps(section.id);
@@ -1029,7 +1035,7 @@ export function BotSidebar({
           >
             <div className="bh-list-area">
               <div
-                className={`bh-section-head${menuOpenForSection ? ' bh-menu-open' : ''}`}
+                className={`bh-section-head${menuOpenForSection || createMenuOpenForSection ? ' bh-menu-open' : ''}`}
                 role="button"
                 tabIndex={0}
                 aria-expanded={!collapsed}
@@ -1072,6 +1078,7 @@ export function BotSidebar({
                           setSectionMenuId((value) =>
                             value === section.id ? undefined : section.id,
                           );
+                          setSectionCreateMenuId(undefined);
                         }}
                       >
                         <IconEllipsisOutline16 />
@@ -1084,17 +1091,42 @@ export function BotSidebar({
                       setSectionMenuId(undefined);
                     }}
                   />
-                  <button
-                    type="button"
-                    className="bh-row-action"
-                    aria-label={`在「${section.name}」中创建频道`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      setCreateRequest({ kind: 'channel', sectionId: section.id });
+                  <Menu
+                    open={createMenuOpenForSection}
+                    portal
+                    dense
+                    align="end"
+                    closeOnPointerLeave
+                    anchor={
+                      <button
+                        type="button"
+                        className="bh-row-action"
+                        aria-label={`在「${section.name}」中新建`}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setSectionMenuId(undefined);
+                          setSectionCreateMenuId((value) =>
+                            value === section.id ? undefined : section.id,
+                          );
+                        }}
+                      >
+                        <IconPlusOutline16 />
+                      </button>
+                    }
+                    items={sectionCreateMenuItems()}
+                    onSelect={(id) => {
+                      setSectionCreateMenuId(undefined);
+                      if (id === 'bot') {
+                        setCreateRequest({ kind: 'bot', sectionId: section.id });
+                      }
+                      if (id === 'channel') {
+                        setCreateRequest({ kind: 'channel', sectionId: section.id });
+                      }
                     }}
-                  >
-                    <IconPlusOutline16 />
-                  </button>
+                    onClose={() => {
+                      setSectionCreateMenuId(undefined);
+                    }}
+                  />
                 </span>
               </div>
               {collapsed
@@ -1108,6 +1140,8 @@ export function BotSidebar({
       {createRequest?.kind === 'bot' ? (
         <CreatePersonaBotModal
           actions={actions}
+          {...(createSectionId === undefined ? {} : { sectionId: createSectionId })}
+          {...(createSection === undefined ? {} : { sectionName: createSection.name })}
           onCancel={() => {
             setCreateRequest(undefined);
           }}
@@ -1135,11 +1169,8 @@ export function BotSidebar({
             setCreateRequest(undefined);
           }}
           onCreate={async (name) => {
-            const channel = await actions.createGroup(name);
+            const channel = await actions.createGroup(name, createSectionId);
             if (channel === undefined) return;
-            if (createSectionId !== undefined) {
-              await actions.assignChannel(channel.id, createSectionId);
-            }
             setCreateRequest(undefined);
           }}
         />
@@ -1268,4 +1299,9 @@ function menuItems(): MenuEntry[] {
       icon: <IconFolderOpenOutline16 size={16} />,
     },
   ];
+}
+
+/** Creation choices available from one section header. */
+function sectionCreateMenuItems(): MenuEntry[] {
+  return menuItems().filter((item) => item.id === 'bot' || item.id === 'channel');
 }

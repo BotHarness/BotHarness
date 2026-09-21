@@ -46,3 +46,7 @@ This update supersedes the original fixed-bottom bucket and its muted 未分组 
 ## Update (2026-09-21) — PersonaBot DMs use the Channel arrangement
 
 A PersonaBot DM is a first-class `dm` Channel and follows the same section membership, loose top-level placement, drag/drop, prediction-line, and context-menu move rules as a `group` Channel. Its row keeps the PersonaBot avatar, role badges, description, activity projection, and Bot-opening behavior; arranging it never turns the PersonaBot identity into a separate roster entity. The Host reconciles one deterministic DM Channel for every PersonaBot so older profiles and newly created Bots have a durable Channel id before the first conversation is opened. Pinned PersonaBots remain in the dedicated pinned grid and their DM rows are omitted from the ordinary arrangement while pinned.
+
+## Update (2026-09-21) — section-scoped creation and newest-first placement
+
+The `+` action on a section header opens a small creation menu for either a group Channel or a PersonaBot DM; both are created directly into that section as its first Channel. Creation defaults are newest-first at every roster level: a new section is prepended to the absolute top-level order, while a new loose group Channel or PersonaBot DM is prepended ahead of every existing top-level entry. These are durable Host arrangement writes, not temporary optimistic rendering, so the first position survives refresh and remains the starting point for later manual drag ordering.
