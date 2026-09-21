@@ -140,6 +140,7 @@ export interface ComputerEntryViewProps {
   readonly error?: string;
   readonly botSlug?: string;
   readonly onStart: () => void;
+  readonly onConfirmStart: () => void;
   readonly onStop: () => void;
   readonly onApprove: (remember: boolean) => void;
   readonly onCancel: () => void;
@@ -160,6 +161,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     error,
     botSlug,
     onStart,
+    onConfirmStart,
     onStop,
     onApprove,
     onCancel,
@@ -186,7 +188,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
           <button type="button" style={buttonStyle} onClick={onCancel}>
             取消
           </button>
-          <button type="button" style={primaryButtonStyle} onClick={onStart}>
+          <button type="button" style={primaryButtonStyle} onClick={onConfirmStart}>
             授权并启动
           </button>
         </div>
@@ -351,15 +353,17 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
     void act(START_ENDPOINT);
   }, [act, approved]);
 
-  const onApprove = useCallback(
-    (remember: boolean) => {
-      if (remember) {
-        globalThis.sessionStorage?.setItem(APPROVED_KEY, '1');
-        setApproved(true);
-      }
-    },
-    [],
-  );
+  const onConfirmStart = useCallback(() => {
+    setConfirming(false);
+    void act(START_ENDPOINT);
+  }, [act]);
+
+  const onApprove = useCallback((remember: boolean) => {
+    if (remember) {
+      globalThis.sessionStorage?.setItem(APPROVED_KEY, '1');
+      setApproved(true);
+    }
+  }, []);
 
   return (
     <ComputerEntryView
@@ -375,6 +379,7 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
       {...(error === undefined ? {} : { error })}
       {...(botSlug === undefined ? {} : { botSlug })}
       onStart={onStart}
+      onConfirmStart={onConfirmStart}
       onStop={() => void act(STOP_ENDPOINT)}
       onApprove={onApprove}
       onCancel={() => setConfirming(false)}

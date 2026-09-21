@@ -13,6 +13,7 @@ function view(overrides: Partial<ComputerEntryViewProps> = {}): string {
     elapsed: 0,
     nowTs: 0,
     onStart: () => undefined,
+    onConfirmStart: () => undefined,
     onStop: () => undefined,
     onApprove: () => undefined,
     onCancel: () => undefined,

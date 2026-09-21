@@ -79,7 +79,7 @@ window.__ModuleLoader__.load({
 		};
 		/** Pure three-state view; the container component supplies data and handlers. */
 		function ComputerEntryView(props) {
-			const { state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, onStart, onStop, onApprove, onCancel } = props;
+			const { state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
 			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: SETUP_GUIDANCE
@@ -130,7 +130,7 @@ window.__ModuleLoader__.load({
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 							type: "button",
 							style: primaryButtonStyle,
-							onClick: onStart,
+							onClick: onConfirmStart,
 							children: "授权并启动"
 						})]
 					})
@@ -288,6 +288,10 @@ window.__ModuleLoader__.load({
 				}
 				act(START_ENDPOINT);
 			}, [act, approved]);
+			const onConfirmStart = (0, react.useCallback)(() => {
+				setConfirming(false);
+				act(START_ENDPOINT);
+			}, [act]);
 			const onApprove = (0, react.useCallback)((remember) => {
 				if (remember) {
 					globalThis.sessionStorage?.setItem(APPROVED_KEY, "1");
@@ -307,6 +311,7 @@ window.__ModuleLoader__.load({
 				...error === void 0 ? {} : { error },
 				...botSlug === void 0 ? {} : { botSlug },
 				onStart,
+				onConfirmStart,
 				onStop: () => void act(STOP_ENDPOINT),
 				onApprove,
 				onCancel: () => setConfirming(false)
