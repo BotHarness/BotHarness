@@ -193,6 +193,39 @@ describe('Docker computer provider', () => {
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
   });
 
+  it('builds the shipped image context when the image is missing', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+      config: { imageContext: '/pkg/image', buildOnMissing: true },
+    });
+    await provider.start();
+    const build = calls.find((argv) => argv[1] === 'build');
+    expect((build ?? []).join(' ')).toContain('/pkg/image');
+    expect(calls.some((argv) => argv[1] === 'pull')).toBe(false);
+  });
+
+  it('passes the requested desktop locale into the container', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        return ok('ok');
+      }, calls),
+      getLanguage: () => 'zh_CN.UTF-8',
+    });
+    await provider.start();
+    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    expect(run).toContain('LANG=zh_CN.UTF-8');
+    expect(run).toContain('LC_ALL=zh_CN.UTF-8');
+  });
+
   it('honors the hardening switch in the container environment', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({

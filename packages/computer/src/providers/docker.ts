@@ -33,12 +33,18 @@ export interface DockerComputerConfig {
   readonly idleStopMinutes: number;
   /** HARDEN_DESKTOP removes terminals/sudo; a full desktop usually wants it off. */
   readonly hardenDesktop: boolean;
+  /** Locale the desktop runs in, e.g. zh_CN.UTF-8. */
+  readonly language: string;
+  /** Docker build context used when the image is missing; empty disables building. */
+  readonly imageContext: string;
+  /** Build `imageContext` when the image is absent instead of pulling `image`. */
+  readonly buildOnMissing: boolean;
 }
 
 export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
-  // A full XFCE desktop (panel, wallpaper, file manager) instead of a
-  // single-app image, so the Computer looks and behaves like a real machine.
-  image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
+  // Built locally from imageContext: a full XFCE desktop (panel, wallpaper,
+  // file manager) with Chrome preinstalled and desktop locales generated.
+  image: 'botharness-computer:xfce-chrome',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
   hostPort: 39_001,
@@ -48,6 +54,9 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   shmSize: '1g',
   idleStopMinutes: 30,
   hardenDesktop: true,
+  language: 'en_US.UTF-8',
+  imageContext: '',
+  buildOnMissing: true,
 };
 
 interface DockerComputerProviderOptions {
@@ -55,6 +64,8 @@ interface DockerComputerProviderOptions {
   readonly config?: Partial<DockerComputerConfig>;
   /** Receives container state transitions for the plugin diagnostics stream. */
   readonly onEvent?: (detail: string) => void;
+  /** Resolved at start time so a viewer can choose the desktop language. */
+  readonly getLanguage?: () => string;
 }
 
 function combine(config: Partial<DockerComputerConfig> | undefined): DockerComputerConfig {
@@ -112,7 +123,7 @@ export function createDockerComputerProvider(
   options: DockerComputerProviderOptions,
 ): ComputerProvider {
   const config = combine(options.config);
-  const { runner, onEvent } = options;
+  const { runner, onEvent, getLanguage } = options;
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
@@ -218,7 +229,15 @@ export function createDockerComputerProvider(
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
     throwIfCancelled();
-    if (image.code !== 0) {
+    if (image.code !== 0 && config.buildOnMissing && config.imageContext !== '') {
+      phase = 'pulling';
+      detail = '正在构建 Computer 镜像（首次需要几分钟）…';
+      const build = await runner.run(['docker', 'build', '-t', config.image, config.imageContext]);
+      if (build.code !== 0) {
+        fail(build.stderr.trim() || 'docker build failed');
+      }
+      throwIfCancelled();
+    } else if (image.code !== 0) {
       phase = 'pulling';
       detail = '正在拉取镜像（首次约 1.2 GB，请耐心等待）…';
       const tracker = createPullTracker();
@@ -261,6 +280,10 @@ export function createDockerComputerProvider(
       `127.0.0.1:${config.hostPort}:${config.containerPort}`,
       '-e',
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
+      '-e',
+      `LANG=${getLanguage?.() ?? config.language}`,
+      '-e',
+      `LC_ALL=${getLanguage?.() ?? config.language}`,
       '-e',
       'PIXELFLUX_WAYLAND=false',
       '-v',

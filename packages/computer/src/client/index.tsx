@@ -729,7 +729,12 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
         await requestJson(endpoint, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ authorize: true }),
+          body: JSON.stringify({
+            authorize: true,
+            ...(endpoint === START_ENDPOINT && typeof navigator !== 'undefined'
+              ? { language: navigator.language }
+              : {}),
+          }),
         });
         await refresh();
       } catch (cause) {

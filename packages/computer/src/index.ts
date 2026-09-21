@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { join } from 'node:path';
@@ -28,8 +29,20 @@ export interface ComputerConfig {
   idleStopMinutes: number;
   /** Removes terminals and sudo inside the Computer; off for a full desktop. */
   hardenDesktop: boolean;
+  /** Desktop locale, e.g. zh_CN.UTF-8; defaults to the DSH locale preference. */
+  language: string;
+  /** Docker build context for the local image; empty disables building. */
+  imageContext: string;
   /** Human-chosen directory that holds Computer exports; empty disables export/import. */
   exportDir: string;
+}
+
+/** The Docker build context shipped beside this package (webtop + Chrome). */
+const DEFAULT_IMAGE_CONTEXT = fileURLToPath(new URL('../image', import.meta.url));
+
+/** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
+export function desktopLocale(language: string): string {
+  return /^zh([-_]|$)/i.test(language) ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
 }
 
 export const DEFAULT_CONFIG: ComputerConfig = {
@@ -43,6 +56,8 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
+  language: DEFAULT_DOCKER_CONFIG.language,
+  imageContext: DEFAULT_IMAGE_CONTEXT,
   exportDir: '',
 };
 
@@ -57,6 +72,8 @@ export const Config = Schema.object({
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
   hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
+  language: Schema.string().default(DEFAULT_CONFIG.language),
+  imageContext: Schema.string().default(DEFAULT_CONFIG.imageContext),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description('导出目录；为空时禁用导出/导入'),
@@ -135,9 +152,11 @@ export function apply(ctx: Context, config: ComputerConfig): void {
 
   const diagnostics = createComputerDiagnostics();
   const service: ComputerService = createComputerService();
+  let requestedLanguage = '';
   const provider = createDockerComputerProvider({
     runner: createProcessRunner(),
     onEvent: (detail) => diagnostics.record('container', detail),
+    getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
     config: {
       image: config.image,
       containerName: config.containerName,
@@ -148,6 +167,8 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       shmSize: config.shmSize,
       idleStopMinutes: config.idleStopMinutes,
       hardenDesktop: config.hardenDesktop,
+      language: config.language,
+      imageContext: config.imageContext,
     },
   });
 
@@ -214,8 +235,9 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
         let authorize = false;
+        let body: { authorize?: unknown; language?: unknown } = {};
         try {
-          const body = (await request.json()) as { authorize?: unknown };
+          body = (await request.json()) as { authorize?: unknown; language?: unknown };
           authorize = body.authorize === true;
         } catch {
           // An empty or non-JSON body never authorizes a start.
@@ -226,7 +248,12 @@ export function apply(ctx: Context, config: ComputerConfig): void {
             400,
           );
         }
-        log('start requested (panel)');
+        if (typeof body.language === 'string' && body.language !== '') {
+          requestedLanguage = desktopLocale(body.language);
+        }
+        log(
+          `start requested (panel)${requestedLanguage === '' ? '' : ` locale=${requestedLanguage}`}`,
+        );
         watcher.touch();
         void service.start().catch(() => undefined);
         return json({ ok: true, started: true });
