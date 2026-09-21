@@ -95,10 +95,25 @@ const SESSION_OWNERSHIP_LINEAGE_MIGRATION: SchemaMigration = {
   },
 };
 
+const SOURCE_EVENT_SIDE_EFFECT_MIGRATION: SchemaMigration = {
+  generation: 7,
+  module: 'bot-runtime',
+  description: 'Separate an in-flight side effect from an unreplayable failure state',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE source_events ADD COLUMN side_effect_started_at TEXT;
+      UPDATE source_events
+         SET side_effect_started_at = created_at
+       WHERE attempt_state = 'needs-repair';
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
   ASSIGNMENT_DIRECTORY_MIGRATION,
   SOURCE_EVENT_ATTEMPT_MIGRATION,
   SESSION_OWNERSHIP_LINEAGE_MIGRATION,
+  SOURCE_EVENT_SIDE_EFFECT_MIGRATION,
 ]);

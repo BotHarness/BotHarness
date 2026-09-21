@@ -72,15 +72,22 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
   source_event_id: string;
   handled_at: string | null;
   attempt_state: string;
+  side_effect_started_at: string | null;
 }> {
   return attachOperationalModule(owner, 'bot-runtime-test').read((database) =>
     database
       .prepare(
-        `SELECT source_event_id, handled_at, attempt_state FROM source_events
+        `SELECT source_event_id, handled_at, attempt_state, side_effect_started_at
+           FROM source_events
           WHERE source_kind = 'human-message' ORDER BY source_event_id`,
       )
       .all(),
-  ) as Array<{ source_event_id: string; handled_at: string | null; attempt_state: string }>;
+  ) as Array<{
+    source_event_id: string;
+    handled_at: string | null;
+    attempt_state: string;
+    side_effect_started_at: string | null;
+  }>;
 }
 
 describe('Bot runtime tracer bullet', () => {
@@ -137,7 +144,12 @@ describe('Bot runtime tracer bullet', () => {
 
     await expect(admit(runtime, input)).rejects.toThrow(/TRANSPORT/);
     expect(sourceEvents(owner)).toEqual([
-      { source_event_id: 'source-retry', handled_at: null, attempt_state: 'retryable' },
+      {
+        source_event_id: 'source-retry',
+        handled_at: null,
+        attempt_state: 'retryable',
+        side_effect_started_at: null,
+      },
     ]);
     expect(assignmentRuns).toBe(0);
     expect(
@@ -150,6 +162,8 @@ describe('Bot runtime tracer bullet', () => {
         source_event_id: 'source-retry',
         handled_at: FIXED_NOW().toISOString(),
         attempt_state: 'handled',
+        // The successful retry performed side effects, so the marker remains as evidence.
+        side_effect_started_at: expect.any(String),
       },
     ]);
     expect(orchestratorAttempts).toBe(2);
@@ -224,7 +238,12 @@ describe('Bot runtime tracer bullet', () => {
     await expect(admit(runtime, input)).rejects.toThrow(/requires reconciliation/);
 
     expect(sourceEvents(owner)).toEqual([
-      { source_event_id: 'source-repair', handled_at: null, attempt_state: 'needs-repair' },
+      {
+        source_event_id: 'source-repair',
+        handled_at: null,
+        attempt_state: 'needs-repair',
+        side_effect_started_at: expect.any(String),
+      },
     ]);
     expect(orchestratorAttempts).toBe(1);
     expect(assignmentRuns).toBe(1);
@@ -469,6 +488,119 @@ describe('Bot runtime tracer bullet', () => {
         session_id: 'orchestrator-ada',
         cwd_reference: '/srv/runtime-workspaces/ada',
       }),
+    ]);
+
+    await runtime.close();
+    owner.close();
+  });
+
+  it('keeps an attempt running while its side effect is in flight', async () => {
+    const home = createTempRoot('botharness-bot-runtime-inflight-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada');
+    await channels.appendMessage(dm!.id, {
+      id: 'human-1',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'hi',
+    });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        async runOrchestrator(run) {
+          await run.channels.send({ body: 'working' });
+          await gate;
+        },
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createSessionId: () => 'orchestrator-ada',
+    });
+
+    const admission = runtime.admitDmMessage({
+      channelId: dm!.id,
+      messageId: 'human-1',
+      body: 'hi',
+    });
+    if (!admission.admitted) throw new Error('expected admission');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    expect(sourceEvents(owner)).toEqual([
+      {
+        source_event_id: expect.any(String),
+        handled_at: null,
+        attempt_state: 'running',
+        side_effect_started_at: FIXED_NOW().toISOString(),
+      },
+    ]);
+
+    release();
+    await admission.settled;
+    expect(sourceEvents(owner)).toEqual([
+      {
+        source_event_id: expect.any(String),
+        handled_at: FIXED_NOW().toISOString(),
+        attempt_state: 'handled',
+        side_effect_started_at: FIXED_NOW().toISOString(),
+      },
+    ]);
+
+    await runtime.close();
+    owner.close();
+  });
+
+  it('recovers attempts a previous process left behind at boot', async () => {
+    const home = createTempRoot('botharness-bot-runtime-recover-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    attachOperationalModule(owner, 'test-seed').transaction((database) => {
+      database
+        .prepare(
+          `INSERT INTO source_events
+             (source_event_id, source_kind, bot_slug, message_id, body, created_at,
+              attempt_state, side_effect_started_at)
+           VALUES ('with-effect', 'human-message', 'ada', 'm1', 'body', ?, 'running', ?),
+                  ('without-effect', 'human-message', 'ada', 'm2', 'body', ?, 'running', NULL)`,
+        )
+        .run(FIXED_NOW().toISOString(), FIXED_NOW().toISOString(), FIXED_NOW().toISOString());
+    });
+
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async () => undefined,
+        runAssignment: async () => undefined,
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+    });
+
+    expect(sourceEvents(owner)).toEqual([
+      {
+        source_event_id: 'with-effect',
+        handled_at: null,
+        attempt_state: 'needs-repair',
+        side_effect_started_at: FIXED_NOW().toISOString(),
+      },
+      {
+        source_event_id: 'without-effect',
+        handled_at: null,
+        attempt_state: 'retryable',
+        side_effect_started_at: null,
+      },
     ]);
 
     await runtime.close();
