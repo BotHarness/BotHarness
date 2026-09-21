@@ -94,14 +94,18 @@ function MessageBubble({
         )
       ) : null}
       <div
-        className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true ? ' bh-bubble-pending' : ''}`}
+        className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}`}
       >
         {human || continuation ? null : (
           <div className="bh-bubble-author">{authorLabel(message, bots)}</div>
         )}
         <div className="bh-bubble-body">{message.body}</div>
         <div className="bh-bubble-time">
-          {message.pending === true ? '发送中' : clockTime(message.at)}
+          {message.streaming === true
+            ? '正在生成…'
+            : message.pending === true
+              ? '发送中'
+              : clockTime(message.at)}
         </div>
       </div>
     </div>
@@ -161,6 +165,16 @@ function ConversationView({
   const conversation = state.conversation;
   const channel = conversation.channel;
   const messages = conversation.messages;
+  const displayMessages: ChannelMessage[] = [
+    ...messages,
+    ...conversation.drafts.map((item) => ({
+      id: item.draftId,
+      at: '',
+      author: { kind: 'bot' as const, slug: item.botSlug },
+      body: item.body,
+      streaming: true,
+    })),
+  ];
   const selection = state.selection;
   const bot =
     selection?.kind === 'bot'
@@ -219,7 +233,7 @@ function ConversationView({
   useEffect(() => {
     const element = scrollRef.current;
     if (element !== null) element.scrollTop = element.scrollHeight;
-  }, [messages.length, channelId]);
+  }, [messages.length, conversation.drafts, channelId]);
 
   const submit = async (): Promise<void> => {
     const body = draft.trim();
@@ -273,11 +287,11 @@ function ConversationView({
             {conversation.status === 'error' && conversation.error !== undefined ? (
               <div className="bh-error">消息加载失败：{conversation.error}</div>
             ) : null}
-            {messages.length === 0 && conversation.status !== 'loading' ? (
+            {displayMessages.length === 0 && conversation.status !== 'loading' ? (
               <EmptyConversation channel={channel} bot={bot} />
             ) : null}
-            {messages.map((message, index) => {
-              const previous = messages[index - 1];
+            {displayMessages.map((message, index) => {
+              const previous = displayMessages[index - 1];
               const continuation =
                 previous !== undefined &&
                 previous.author.kind === message.author.kind &&

@@ -9,6 +9,7 @@ import {
   type ParsedMemoryFile,
 } from './front-matter.js';
 import { createMemoryGit, type MemoryCommit } from './git.js';
+import { ensureMemoryRepository } from './repository.js';
 import { resolveMemoryPath, toMemoryRelativePath, toMemoryWritePath } from './jail.js';
 import { searchMemoryFiles, type MemorySearchFile, type MemorySearchHit } from './search.js';
 import {
@@ -115,7 +116,10 @@ function listSearchFiles(root: string): MemorySearchFile[] {
 
 export function createMemoryStore(options: MemoryStoreOptions): MemoryStore {
   const root = options.memoryDir;
-  mkdirSync(root, { recursive: true });
+  const repository = ensureMemoryRepository({ memoryDir: root });
+  if (!repository.ok) {
+    throw new Error(`Memory Repository unavailable: ${repository.code}: ${repository.message}`);
+  }
   const now = options.now ?? (() => new Date());
   const git = createMemoryGit(root);
 

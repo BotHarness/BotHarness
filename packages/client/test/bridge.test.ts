@@ -194,6 +194,7 @@ describe('bridge actions', () => {
       channels: () => ({ channels: [GROUP, DM] }),
       channelDm: () => ({ channel: DM }),
       channelMessages: () => ({
+        revision: 2,
         messages: [
           { id: 'm2', at: '2026-09-19T00:02:00.000Z', author: { kind: 'human' }, body: 'newer' },
           { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },

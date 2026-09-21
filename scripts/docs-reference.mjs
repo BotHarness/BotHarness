@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
 // TypeScript 7's root export contains version metadata only. The docs
@@ -165,6 +165,7 @@ function collectConfig(root) {
 
 function collectTools(root) {
   const sourcePath = 'packages/core/src/memory/tools.ts';
+  if (!existsSync(join(root, sourcePath))) return [];
   const source = parse(root, sourcePath);
   const bindings = bindingMap(source);
   const tools = [];

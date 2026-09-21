@@ -14,6 +14,8 @@ BOT mode 的折叠 rail 复用这份 Channel 排序读模型：置顶项在分�
 
 Hidden Channel 是 application-defined 的可逆 roster presentation state：它会从展开列表、pin grid、搜索与折叠 rail 中消失，但不会改动 Channel、消息、PersonaBot、Memory 或原 placement。破坏性删除仍受 ADR-0037 的 dependency report 与独立确认约束（#138）。
 
+当前 Channel Chat 的实时显示遵循 ADR-0054：正式消息先写入当前持久化权威，再以该 Channel 的单调 revision 发出进程内通知。Client 用 `channelMessages` 快照建立游标，并在已选 Channel 上通过经过 DSH 认证的 `/api/botharness/stream` SSE 接收已提交消息；重连可回放、缺口则重读快照。同一连接还传送 Orchestrator 显式 `channel_send` 工具参数产生的进程内 `channel/draft` 预览；草稿没有 Channel revision，不从历史回放，提交或放弃时消失。Orchestrator 普通 final 与 Assignment 输出不等于 Channel 消息；#46 迁移后由数据库事务提交替代当前 NDJSON append 作为发布边界。
+
 ## 1 · 系统上下文
 
 ```mermaid

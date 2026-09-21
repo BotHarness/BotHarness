@@ -1,126 +1,9 @@
-import type { Context } from '@deepseek-ai/cordis';
-import type {
-  Agent,
-  AgentHandle,
-  CreateAgentOptions,
-  ResumeAgentOptions,
-} from '@deepseek-ai/dsh-agent';
-import { createAssistantMessage, type Message, type UserMessage } from '@deepseek-ai/dsh-llm';
-import type { TurnEndReason } from '@deepseek-ai/dsh-session';
-import type { ToolDefinition, ToolRunContext } from '@deepseek-ai/dsh-tools';
+import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
+
 import { describe, expect, it } from 'vitest';
 
-import type { PersonaBotRecord } from '../src/bots/persona-bot.js';
-import {
-  createDshBotAgentAdapter,
-  type DshAgentHost,
-} from '../src/runtime/dsh-bot-agent-adapter.js';
-
-const BOT: PersonaBotRecord = {
-  slug: 'ada',
-  displayName: 'Ada',
-  roles: [],
-  workspaces: [],
-  createdAt: '2026-09-21T00:00:00.000Z',
-};
-
-interface FakeScope {
-  tools: ToolDefinition[];
-  sections: Array<{ name: string; text: string }>;
-}
-
-class FakeAgentHost implements DshAgentHost {
-  readonly createOptions: CreateAgentOptions[] = [];
-  readonly resumeOptions: ResumeAgentOptions[] = [];
-  readonly disposed: string[] = [];
-  readonly scopes = new Map<string, FakeScope>();
-
-  constructor(private readonly orchestratorTurnEnd: TurnEndReason = { kind: 'completed' }) {}
-
-  async create(options: CreateAgentOptions): Promise<AgentHandle> {
-    this.createOptions.push(options);
-    return this.#start(String(options.sessionId), options.setup);
-  }
-
-  async resume(options: ResumeAgentOptions): Promise<AgentHandle> {
-    this.resumeOptions.push(options);
-    return this.#start(String(options.resumeSessionId), options.setup);
-  }
-
-  async #start(
-    sessionId: string,
-    setup: CreateAgentOptions['setup'] | ResumeAgentOptions['setup'],
-  ): Promise<AgentHandle> {
-    const scope: FakeScope = { tools: [], sections: [] };
-    const messages: Message[] = [];
-    const events: Array<{
-      type: 'turn/end';
-      seq: number;
-      time: number;
-      data: { turn: number; reason: TurnEndReason };
-    }> = [];
-    let pending = Promise.resolve();
-    const session = {
-      deriveMessages: () => [...messages],
-      get seq() {
-        return events.length;
-      },
-      snapshotEvents: (fromSeq = 0, toSeqExclusive = events.length) =>
-        events.slice(fromSeq, toSeqExclusive),
-    };
-    const fakeAgent = {
-      id: sessionId,
-      session,
-      followup: (message: UserMessage) => {
-        messages.push(message);
-        const isOrchestrator = scope.tools.some((tool) => tool.name === 'create_assignment');
-        const reason = isOrchestrator ? this.orchestratorTurnEnd : { kind: 'completed' as const };
-        pending = (reason.kind === 'error' ? Promise.resolve() : this.#drive(scope, messages)).then(
-          () => {
-            events.push({
-              type: 'turn/end',
-              seq: events.length,
-              time: Date.parse(BOT.createdAt),
-              data: { turn: events.length + 1, reason },
-            });
-          },
-        );
-      },
-      whenIdle: () => pending,
-    };
-    const fakeContext = {
-      on: () => () => undefined,
-      tools: { register: (tool: ToolDefinition) => void scope.tools.push(tool) },
-      systemPrompt: {
-        section: (section: { name: string; text: string }) => void scope.sections.push(section),
-      },
-    };
-    await setup?.(fakeContext as unknown as Context, fakeAgent as unknown as Agent);
-    this.scopes.set(sessionId, scope);
-    return {
-      agent: fakeAgent as unknown as Agent,
-      dispose: async () => void this.disposed.push(sessionId),
-    };
-  }
-
-  async #drive(scope: FakeScope, messages: Message[]): Promise<void> {
-    const createAssignment = scope.tools.find((tool) => tool.name === 'create_assignment');
-    if (createAssignment !== undefined) {
-      await createAssignment.execute({ purpose: '核对发布状态' }, {} as ToolRunContext);
-      const channelSend = scope.tools.find((tool) => tool.name === 'channel_send');
-      await channelSend?.execute({ body: '发布状态已经核对完成。' }, {} as ToolRunContext);
-      messages.push(
-        createAssistantMessage({
-          content: [{ type: 'text', text: 'private Orchestrator final' }],
-          source: { provider: 'test', model: 'test' },
-        }),
-      );
-      return;
-    }
-    const report = scope.tools.find((tool) => tool.name === 'report_to_orchestrator');
-    await report?.execute({ state: 'completed', summary: '发布状态正常' }, {} as ToolRunContext);
-  }
-}
+import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
+import { FakeAgentHost, FAKE_BOT as BOT } from './dsh-agent-host-fixture.js';
 
 describe('DSH Bot Agent adapter', () => {
   it('rejects when the durable turn outcome is an error even though the Agent becomes idle', async () => {
@@ -140,6 +23,7 @@ describe('DSH Bot Agent adapter', () => {
         sessionId: 'orchestrator-ada',
         resume: false,
         bot: BOT,
+        inboundChannelId: 'dm-test',
         message: '请核对发布状态',
         channels: { read: () => [], search: () => [], send: async () => undefined as never },
         createAssignment: async () => undefined as never,
@@ -165,6 +49,7 @@ describe('DSH Bot Agent adapter', () => {
       sessionId: 'orchestrator-ada',
       resume: false,
       bot: BOT,
+      inboundChannelId: 'dm-test',
       message: '请核对发布状态',
       channels: {
         read: () => [],
@@ -235,5 +120,81 @@ describe('DSH Bot Agent adapter', () => {
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
+  });
+
+  it('caches allowed and denied draft Channels only for the current Orchestrator run', async () => {
+    const host = new FakeAgentHost();
+    const reads: string[] = [];
+    const drafts: string[] = [];
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      defaultWorkspaceRoot: '/runtime-workspaces',
+      ensureWorkspace: () => undefined,
+      publishDraft: (event) => {
+        if (event.type === 'update') drafts.push(event.draft.body);
+      },
+    });
+    const run = (resume: boolean) =>
+      adapter.runOrchestrator({
+        sessionId: 'orchestrator-ada',
+        resume,
+        bot: BOT,
+        inboundChannelId: 'dm-test',
+        message: '请核对发布状态',
+        channels: {
+          read: ({ channelId } = {}) => {
+            const id = channelId ?? 'dm-test';
+            reads.push(id);
+            if (id === 'outside') throw new Error('not a member');
+            return [];
+          },
+          search: () => [],
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot' as const, slug: BOT.slug },
+            body: input.body,
+          }),
+        },
+        createAssignment: async () => ({
+          state: 'completed',
+          summary: '发布状态正常',
+          at: BOT.createdAt,
+        }),
+      });
+    const stream = (callId: string, argumentsDelta: string) => {
+      adapter.acceptAssistantStream('orchestrator-ada', {
+        type: 'chunk',
+        attemptId: 'attempt-1',
+        revision: 1,
+        index: 0,
+        time: 1,
+        chunk: {
+          type: 'tool-call-delta',
+          index: 0,
+          id: callId,
+          name: 'channel_send',
+          argumentsDelta,
+        },
+      } as AssistantStreamFrame);
+    };
+
+    const first = run(false);
+    stream('allowed', '{"body":"a');
+    stream('allowed', 'b');
+    stream('allowed', 'c"}');
+    stream('denied-1', '{"body":"private","channel_id":"outside"}');
+    stream('denied-2', '{"body":"private","channel_id":"outside"}');
+    await first;
+    expect(reads).toEqual(['dm-test', 'outside']);
+    expect(drafts).toEqual(['a', 'ab', 'abc']);
+
+    const second = run(true);
+    stream('next', '{"body":"next"}');
+    await second;
+    expect(reads).toEqual(['dm-test', 'outside', 'dm-test']);
+    expect(drafts.at(-1)).toBe('next');
+    await adapter.close();
   });
 });

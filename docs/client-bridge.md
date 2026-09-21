@@ -49,7 +49,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | `botharness/channelDm`       | `{ slug, displayName? }`                                                                             | `{ channel }`                                         | 打开 BOT 的 DM（幂等）；M3 仅本地                                                            |
 | `botharness/channelCreate`   | `{ name, members }`                                                                                  | `{ channel }`                                         | 新建群聊 Channel；M3 仅本地                                                                  |
 | `botharness/channelRename`   | `{ channelId, name }`                                                                                | `{ channel, bot? }`                                   | 重命名 group Channel；DM 同步 PersonaBot displayName，但保留 Channel ID 与内部 PersonaBot ID |
-| `botharness/channelMessages` | `{ channelId, before?, limit? }`                                                                     | `{ messages }`                                        | 历史分页（newest-first，默认 50 / 上限 200）；M3 仅本地                                      |
+| `botharness/channelMessages` | `{ channelId, before?, limit? }`                                                                     | `{ messages, revision }`                              | 历史快照与该 Channel 的提交修订号；`before` 用于分页                                         |
 | `botharness/channelSend`     | `{ channelId, body }`                                                                                | `{ message }`                                         | 写本地 NDJSON（`author.kind = 'human'`）；M3 无投递                                          |
 | `botharness/assignments`     | `{ slug }`                                                                                           | `{ assignments }`                                     | PersonaBot 的 Assignment Directory 摘要                                                      |
 | `botharness/assignment`      | `{ slug, sessionId }`                                                                                | `{ assignment }`                                      | 一项 Assignment 的目的、状态、报告与 Session 关联                                            |
@@ -74,9 +74,10 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 ## 4. 刷新与变更模型
 
-- **MVP：动作后刷新 + 低频轮询**。客户端在 create/update/pause/resume 后立即重拉 `list`；名册每 5–10s 轮询一次 `list`（带 `since`/`cursor`，只回变更摘要）。
-- **不做实时推送**：`states.on(...)` 是 Host 进程内 tracker；上游 Remote 事件白名单（`API_REMOTE_FORWARDED_EVENTS`）是第一方静态清单，第三方包无法追加。「六态实时」若被验证为必须，再在 `fetch.register` 的私有路由上做 SSE/长轮询，wire 形状仍走 `botharness/*`。
-- 客户端必须以「读模型可能过期」为前提渲染：加载态、错误态、空态都是一等 UI。
+- **Channel 消息（#141）**：`channelMessages` 快照返回 `revision`；已选 Channel 建立一个经 DSH 认证的 `GET /api/botharness/stream?channelId=…&after=revision` SSE 流。Host 仅在消息持久提交后发带递增 revision 的 `channel/message`，重连从权威日志回放、缺口重读快照；Human 本地发送立即回显。Orchestrator 的显式 `channel_send` 工具参数流可产生无 revision 的进程内 `channel/draft`，只预览正在生成的 DM 气泡；提交后由正式消息替换，失败或放弃则移除。Assignment 输出和普通 assistant final 不进入 Channel。
+- **其他读模型**：create/update/pause/resume 后仍主动刷新；现有名册低频轮询与六态 Activity 实时投影不由 Channel SSE 替代。Host 进程内 `states.on(...)` 不能跨浏览器直接使用，上游 Remote 事件白名单也不可由第三方扩展。
+- **路由边界**：SSE 使用 Connection Fetch 注册完整 `/api/botharness/stream` 路径，而不是占用 API gateway 的 `/api` RPC interceptor；普通读写命令继续使用 Typert bridge。详见 ADR-0054。
+- 客户端仍以「读模型可能过期」为前提渲染：加载态、错误态、空态都是一等 UI。
 
 ## 5. 为什么不走 Cordis inject / 为什么最终走 Typert SRC
 
@@ -86,7 +87,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | Typert 严格 codegen      | 暂缓：需构建期生成 + 第一方 assembly；仓库外可复现性未验证                                                                  |
 | Typert SRC markers       | 已采用（#50）：`TypertRemoteService` + `typertRemote` 绑定即可被 gateway 认领，无需 codegen；`/api` 单槽位仍归 gateway 所有 |
 | 直接 `states.on` 推送    | 不成立：转发事件白名单是第一方静态文件，第三方不可扩展                                                                      |
-| 现在做 SSE               | 暂缓：MVP 需要的是刷新而非实时；私有流在方法面不变的前提下可后加                                                            |
+| Channel SSE              | 已实现（#141）：单向投递已提交消息和进程内 `channel_send` 草稿；快照与命令仍走 Typert RPC，其他状态不借此流广播             |
 
 ## 6. 客户端包与 bundle 约束
 
@@ -111,5 +112,5 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 - 二十四个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 六个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet` 九个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 六个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson}`（ADR-0030）；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
-- 六态实时性等级与私有流（如做）的鉴权与背压。
+- 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。
 - `@PersonaBot` 提及 token 的 appearance 与序列化（依赖 `@deepseek-ai/dsh-client-ui-input-trigger` 的 `ReferenceInsert` 限制）。

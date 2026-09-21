@@ -11,6 +11,7 @@ import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
+import { createTestOwnership } from './helpers.js';
 
 const roots: string[] = [];
 
@@ -26,6 +27,7 @@ function setup(
   sessionSummaries: SessionSummary[] = [],
   botIds: string[] = ['ada'],
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
+  ownership = createTestOwnership(),
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -44,6 +46,7 @@ function setup(
       states,
       channels,
       sessions,
+      ownership,
       roster: createRosterStore(),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
@@ -196,11 +199,12 @@ describe('bridge methods', () => {
     );
   });
 
-  it('creates a name-only bot without provisioning Memory or Persona', () => {
+  it('creates a name-only bot with its Memory directory and no Persona file', () => {
     const { root, methods } = setup([], ['plain']);
 
     expect(methods.create({ displayName: 'Plain' }).ok).toBe(true);
-    expect(existsSync(join(root, 'plain', 'memory'))).toBe(false);
+    expect(existsSync(join(root, 'plain', 'memory'))).toBe(true);
+    expect(existsSync(join(root, 'plain', 'memory', 'PERSONA.md'))).toBe(false);
   });
 
   it('owns ID generation and reports malformed Human-facing fields', () => {
@@ -657,34 +661,33 @@ describe('bridge methods', () => {
     });
   });
 
-  it('lists sessions whose cwd sits inside the bot workspaces, newest first', () => {
+  it('lists Sessions owned by the bot through explicit ownership, newest first', () => {
     const summaries: SessionSummary[] = [
-      {
-        id: 'session-1',
-        title: 'older',
-        cwd: '/srv/ada',
-        updatedAt: '2026-09-19T01:00:00.000Z',
-      },
+      { id: 'session-1', title: 'older', cwd: '/srv/ada', updatedAt: '2026-09-19T01:00:00.000Z' },
       {
         id: 'session-2',
         title: 'newer',
-        cwd: '/srv/ada/sub',
+        cwd: '/srv/shared',
         updatedAt: '2026-09-19T03:00:00.000Z',
       },
       {
         id: 'session-3',
-        title: 'outside',
-        cwd: '/srv/other',
+        title: 'other bot',
+        cwd: '/srv/ada',
         updatedAt: '2026-09-19T04:00:00.000Z',
       },
-      {
-        id: 'session-4',
-        title: 'prefix trap',
-        cwd: '/srv/ada-extra',
-        updatedAt: '2026-09-19T05:00:00.000Z',
-      },
+      { id: 'session-4', title: 'unowned', cwd: '/srv/ada', updatedAt: '2026-09-19T05:00:00.000Z' },
     ];
-    const { methods } = setup(summaries);
+    const { methods } = setup(
+      summaries,
+      ['ada'],
+      undefined,
+      createTestOwnership({
+        'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+        'session-2': { botSlug: 'ada', rootRole: 'assignment' },
+        'session-3': { botSlug: 'bob', rootRole: 'assignment' },
+      }),
+    );
     methods.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/ada/'] });
 
     const result = methods.sessions({ slug: 'ada' });
@@ -693,20 +696,6 @@ describe('bridge methods', () => {
       'session-2',
       'session-1',
     ]);
-  });
-
-  it('returns an empty session list for a bot without workspaces', () => {
-    const { methods } = setup([
-      {
-        id: 'session-1',
-        title: 'anywhere',
-        cwd: '/srv/ada',
-        updatedAt: '2026-09-19T01:00:00.000Z',
-      },
-    ]);
-    methods.create({ slug: 'ada', displayName: 'Ada' });
-
-    expect(methods.sessions({ slug: 'ada' })).toEqual({ ok: true, value: { sessions: [] } });
   });
 
   it('rejects malformed or unknown session reads', () => {

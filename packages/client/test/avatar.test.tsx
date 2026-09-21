@@ -19,6 +19,8 @@ const SENDING_CONVERSATION: ConversationState = {
   status: 'ready',
   channel: undefined,
   messages: [],
+  drafts: [],
+  revision: 0,
   error: undefined,
   sending: true,
 };

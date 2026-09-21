@@ -22,23 +22,22 @@ describe("generated developer reference", () => {
     ]);
   });
 
-  it("extracts every registered memory tool and parameter", () => {
-    expect(reference.tools.map((tool) => tool.name)).toEqual([
-      "memory_read",
-      "memory_search",
-      "memory_write",
-      "memory_list",
-    ]);
-    expect(reference.tools.find((tool) => tool.name === "memory_write")?.parameters).toEqual([
-      expect.objectContaining({ name: "path", type: "string", required: true }),
-      expect.objectContaining({ name: "body", type: "string", required: true }),
-      expect.objectContaining({ name: "summary", type: "string", required: true }),
-      expect.objectContaining({ name: "sources", type: "array<string>", required: false }),
-      expect.objectContaining({ name: "tags", type: "array<string>", required: false }),
-    ]);
+  it("publishes no model-visible memory tools in V1", () => {
+    expect(reference.tools).toEqual([]);
   });
 
-  it("does not publish the in-process BotStateEvent as a Cordis event", () => {
-    expect(reference.publicEvents).toEqual([]);
+  it("publishes the consumed DSH events, not the in-process BotStateEvent", () => {
+    expect(
+      reference.publicEvents.map(({ name, direction, operation }) => ({
+        name,
+        direction,
+        operation,
+      })),
+    ).toEqual([
+      { name: "agent/assistant-stream", direction: "consumes", operation: "on" },
+      { name: "agent/created", direction: "consumes", operation: "on" },
+      { name: "agent/disposed", direction: "consumes", operation: "on" },
+      { name: "session/event", direction: "consumes", operation: "on" },
+    ]);
   });
 });

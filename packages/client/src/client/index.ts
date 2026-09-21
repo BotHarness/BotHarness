@@ -20,6 +20,7 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { channelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
+import { mountChannelLive } from './channel-live.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
@@ -70,6 +71,10 @@ export function apply(ctx: ClientContext): void {
     return mountMotionPolicyAttribute(prefs.source, document.documentElement);
   }, 'botharness: motion policy boundary');
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness: dictionaries');
+  ctx.effect(
+    () => (typeof EventSource === 'undefined' ? () => {} : mountChannelLive(store, actions)),
+    'botharness: Channel live subscription',
+  );
   ctx.effect(() => {
     store.setConfig(loadRosterConfig(storage));
     const controller = new AbortController();
