@@ -5,6 +5,7 @@ window.__ModuleLoader__.load({
 		var exports = module.exports;
 		Object.defineProperty(exports, Symbol.toStringTag, { value: "Module" });
 		let react = require("react");
+		let react_dom = require("react-dom");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region packages/computer/src/client/index.tsx
 		const name = "botharness-computer-client";
@@ -80,11 +81,96 @@ window.__ModuleLoader__.load({
 		/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
 		const DESIGN_WIDTH = 1280;
 		const DESIGN_HEIGHT = 800;
-		/**
-		* A fixed-aspect card that scales the viewer iframe down to the container
-		* width, so the whole remote screen is visible instead of its top-left corner.
-		*/
-		function ScaledFrame({ title }) {
+		const SPIN_STYLE = `
+@keyframes bc-spin { to { transform: rotate(360deg); } }
+`;
+		/** Watches the same-origin viewer document until its stream surface is live. */
+		function useFrameReady(iframeRef, active) {
+			const [ready, setReady] = (0, react.useState)(false);
+			(0, react.useEffect)(() => {
+				if (!active) {
+					setReady(false);
+					return () => {};
+				}
+				let cancelled = false;
+				let timer;
+				const check = () => {
+					if (cancelled) return;
+					try {
+						const surface = (iframeRef.current?.contentDocument ?? null)?.getElementById("videoCanvas");
+						if (surface !== null) {
+							if ((surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width) > 0) {
+								setReady(true);
+								return;
+							}
+						}
+					} catch {}
+					timer = setTimeout(check, 500);
+				};
+				timer = setTimeout(check, 300);
+				return () => {
+					cancelled = true;
+					if (timer !== void 0) clearTimeout(timer);
+				};
+			}, [iframeRef, active]);
+			return ready;
+		}
+		/** Centered spinner over black, used while the viewer connects. */
+		function LoadingOverlay() {
+			const size = 26;
+			const stroke = 2;
+			const radius = 12;
+			const circumference = 2 * Math.PI * radius;
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+				style: {
+					position: "absolute",
+					inset: 0,
+					display: "grid",
+					placeItems: "center",
+					background: "#000",
+					color: "#fff"
+				},
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+					style: {
+						display: "flex",
+						flexDirection: "column",
+						alignItems: "center",
+						gap: 10
+					},
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
+						width: size,
+						height: size,
+						style: { animation: "bc-spin 1.1s linear infinite" },
+						"aria-hidden": "true",
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: "rgba(255,255,255,0.18)",
+							strokeWidth: stroke
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("circle", {
+							cx: size / 2,
+							cy: size / 2,
+							r: radius,
+							fill: "none",
+							stroke: "#fff",
+							strokeWidth: stroke,
+							strokeLinecap: "round",
+							strokeDasharray: `${String(circumference * .28)} ${String(circumference * .72)}`
+						})]
+					}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12.5,
+							opacity: .7
+						},
+						children: "连接中"
+					})]
+				})
+			});
+		}
+		/** Fixed-aspect card that scales the viewer to the container width. */
+		function ScaledFrame({ title, interactive, iframeRef }) {
 			const ref = (0, react.useRef)(null);
 			const [scale, setScale] = (0, react.useState)(1);
 			(0, react.useEffect)(() => {
@@ -110,8 +196,10 @@ window.__ModuleLoader__.load({
 					background: "#000"
 				},
 				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("iframe", {
+					ref: iframeRef,
 					title,
 					src: VIEWER_SRC,
+					tabIndex: interactive ? 0 : -1,
 					style: {
 						position: "absolute",
 						top: 0,
@@ -120,9 +208,154 @@ window.__ModuleLoader__.load({
 						height: DESIGN_HEIGHT,
 						border: "none",
 						transform: `scale(${String(scale)})`,
-						transformOrigin: "top left"
+						transformOrigin: "top left",
+						pointerEvents: interactive ? "auto" : "none"
 					}
 				})
+			});
+		}
+		/**
+		* Running state: an AgentScreen-style resting card. While the stream connects
+		* it shows the loading overlay; once live, a hover mask blocks input and
+		* offers 「打开」, which expands to the fullscreen viewer.
+		*/
+		function RunningCard({ botSlug, busy, stopping, onStop }) {
+			const iframeRef = (0, react.useRef)(null);
+			const ready = useFrameReady(iframeRef, true);
+			const [hovered, setHovered] = (0, react.useState)(false);
+			const [expanded, setExpanded] = (0, react.useState)(false);
+			const title = `${botSlug ?? "PersonaBot"} 的屏幕`;
+			(0, react.useEffect)(() => {
+				if (!expanded) return () => {};
+				const onKey = (event) => {
+					if (event.key === "Escape") setExpanded(false);
+				};
+				document.addEventListener("keydown", onKey);
+				document.body.style.overflow = "hidden";
+				return () => {
+					document.removeEventListener("keydown", onKey);
+					document.body.style.overflow = "";
+				};
+			}, [expanded]);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: {
+					display: "flex",
+					flexDirection: "column",
+					gap: 8
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						role: ready ? "button" : void 0,
+						"aria-label": ready ? "打开大屏" : "正在连接",
+						onMouseEnter: () => setHovered(true),
+						onMouseLeave: () => setHovered(false),
+						onClick: () => {
+							if (ready) setExpanded(true);
+						},
+						style: {
+							position: "relative",
+							cursor: ready ? "pointer" : "default"
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+							title,
+							interactive: false,
+							iframeRef
+						}), !ready ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(LoadingOverlay, {}) : hovered ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							style: {
+								position: "absolute",
+								inset: 0,
+								display: "grid",
+								placeItems: "center",
+								background: "rgba(17,19,24,0.18)",
+								borderRadius: 8
+							},
+							children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: {
+									display: "inline-flex",
+									alignItems: "center",
+									gap: 6,
+									padding: "6px 12px",
+									borderRadius: 999,
+									background: "var(--dsh-accent, #4d6bfe)",
+									color: "#fff",
+									fontSize: 12.5,
+									fontWeight: 500
+								},
+								children: "⤢ 打开"
+							})
+						}) : null]
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: {
+							fontSize: 13,
+							fontWeight: 500,
+							opacity: .9
+						},
+						children: title
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+						type: "button",
+						style: buttonStyle,
+						disabled: busy || stopping,
+						onClick: onStop,
+						children: busy || stopping ? "停止中…" : "停止"
+					}),
+					expanded ? (0, react_dom.createPortal)(/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						role: "dialog",
+						"aria-modal": "true",
+						"aria-label": title,
+						style: {
+							position: "fixed",
+							inset: 0,
+							zIndex: 100,
+							display: "flex",
+							alignItems: "center",
+							justifyContent: "center",
+							padding: 24
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+							style: {
+								position: "absolute",
+								inset: 0,
+								background: "rgba(0,0,0,0.75)"
+							},
+							onClick: () => setExpanded(false)
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								position: "relative",
+								display: "flex",
+								flexDirection: "column",
+								gap: 8,
+								width: "min(1200px, 94vw)"
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+								style: {
+									display: "flex",
+									alignItems: "center",
+									gap: 8,
+									color: "#fff"
+								},
+								children: [
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("strong", {
+										style: { fontSize: 13 },
+										children: title
+									}),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+									/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+										type: "button",
+										style: buttonStyle,
+										onClick: () => setExpanded(false),
+										"aria-label": "收起",
+										children: "收起"
+									})
+								]
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
+								title,
+								interactive: true
+							})]
+						})]
+					}), document.body) : null
+				]
 			});
 		}
 		/** Pure three-state view; the container component supplies data and handlers. */
@@ -185,19 +418,11 @@ window.__ModuleLoader__.load({
 				]
 			});
 			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
-			if (state === "running") return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				style: {
-					display: "flex",
-					flexDirection: "column",
-					gap: 8
-				},
-				children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, { title: `${botSlug ?? "PersonaBot"} 的电脑` }), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-					type: "button",
-					style: buttonStyle,
-					disabled: busy || inProgress,
-					onClick: onStop,
-					children: busy || phase === "stopping" ? "停止中…" : "停止"
-				})]
+			if (state === "running") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RunningCard, {
+				botSlug,
+				busy,
+				stopping: phase === "stopping",
+				onStop
 			});
 			if (inProgress) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
@@ -356,6 +581,16 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function apply(ctx) {
+			ctx.effect(() => {
+				if (typeof document === "undefined") return () => {};
+				const style = document.createElement("style");
+				style.setAttribute("data-botharness-computer", "client");
+				style.textContent = SPIN_STYLE;
+				document.head.appendChild(style);
+				return () => {
+					style.remove();
+				};
+			}, "botharness-computer: client styles");
 			ctx.inject(["channelSidebar"], (sidebarCtx) => {
 				const registry = sidebarCtx.channelSidebar;
 				if (registry === void 0) return;

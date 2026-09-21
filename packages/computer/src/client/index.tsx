@@ -6,7 +6,9 @@ import {
   type CSSProperties,
   type ComponentType,
   type ReactElement,
+  type RefObject,
 } from 'react';
+import { createPortal } from 'react-dom';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 
 export const name = 'botharness-computer-client';
@@ -132,11 +134,109 @@ const terminalStyle: CSSProperties = {
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
 
-/**
- * A fixed-aspect card that scales the viewer iframe down to the container
- * width, so the whole remote screen is visible instead of its top-left corner.
- */
-function ScaledFrame({ title }: { title: string }): ReactElement {
+const SPIN_STYLE = `
+@keyframes bc-spin { to { transform: rotate(360deg); } }
+`;
+
+/** Watches the same-origin viewer document until its stream surface is live. */
+function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean): boolean {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    if (!active) {
+      setReady(false);
+      return () => {};
+    }
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const check = (): void => {
+      if (cancelled) return;
+      try {
+        const doc = iframeRef.current?.contentDocument ?? null;
+        const surface = doc?.getElementById('videoCanvas') as
+          | HTMLVideoElement
+          | HTMLCanvasElement
+          | null;
+        if (surface !== null) {
+          const width = surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width;
+          if (width > 0) {
+            setReady(true);
+            return;
+          }
+        }
+      } catch {
+        // A cross-origin or not-yet-loaded document simply keeps waiting.
+      }
+      timer = setTimeout(check, 500);
+    };
+    timer = setTimeout(check, 300);
+    return () => {
+      cancelled = true;
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [iframeRef, active]);
+
+  return ready;
+}
+
+/** Centered spinner over black, used while the viewer connects. */
+function LoadingOverlay(): ReactElement {
+  const size = 26;
+  const stroke = 2;
+  const radius = (size - stroke) / 2;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        background: '#000',
+        color: '#fff',
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <svg
+          width={size}
+          height={size}
+          style={{ animation: 'bc-spin 1.1s linear infinite' }}
+          aria-hidden="true"
+        >
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="rgba(255,255,255,0.18)"
+            strokeWidth={stroke}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            fill="none"
+            stroke="#fff"
+            strokeWidth={stroke}
+            strokeLinecap="round"
+            strokeDasharray={`${String(circumference * 0.28)} ${String(circumference * 0.72)}`}
+          />
+        </svg>
+        <span style={{ fontSize: 12.5, opacity: 0.7 }}>连接中</span>
+      </div>
+    </div>
+  );
+}
+
+interface ScaledFrameProps {
+  readonly title: string;
+  /** Interactive frames forward input; the inline card keeps a hover mask. */
+  readonly interactive: boolean;
+  readonly iframeRef?: RefObject<HTMLIFrameElement>;
+}
+
+/** Fixed-aspect card that scales the viewer to the container width. */
+function ScaledFrame({ title, interactive, iframeRef }: ScaledFrameProps): ReactElement {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
 
@@ -166,8 +266,10 @@ function ScaledFrame({ title }: { title: string }): ReactElement {
       }}
     >
       <iframe
+        ref={iframeRef}
         title={title}
         src={VIEWER_SRC}
+        tabIndex={interactive ? 0 : -1}
         style={{
           position: 'absolute',
           top: 0,
@@ -177,8 +279,144 @@ function ScaledFrame({ title }: { title: string }): ReactElement {
           border: 'none',
           transform: `scale(${String(scale)})`,
           transformOrigin: 'top left',
+          pointerEvents: interactive ? 'auto' : 'none',
         }}
       />
+    </div>
+  );
+}
+
+/**
+ * Running state: an AgentScreen-style resting card. While the stream connects
+ * it shows the loading overlay; once live, a hover mask blocks input and
+ * offers 「打开」, which expands to the fullscreen viewer.
+ */
+function RunningCard({
+  botSlug,
+  busy,
+  stopping,
+  onStop,
+}: {
+  readonly botSlug: string | undefined;
+  readonly busy: boolean;
+  readonly stopping: boolean;
+  readonly onStop: () => void;
+}): ReactElement {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const ready = useFrameReady(iframeRef, true);
+  const [hovered, setHovered] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const title = `${botSlug ?? 'PersonaBot'} 的屏幕`;
+
+  useEffect(() => {
+    if (!expanded) return () => {};
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setExpanded(false);
+    };
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
+  }, [expanded]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div
+        role={ready ? 'button' : undefined}
+        aria-label={ready ? '打开大屏' : '正在连接'}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => {
+          if (ready) setExpanded(true);
+        }}
+        style={{ position: 'relative', cursor: ready ? 'pointer' : 'default' }}
+      >
+        <ScaledFrame title={title} interactive={false} iframeRef={iframeRef} />
+        {!ready ? (
+          <LoadingOverlay />
+        ) : hovered ? (
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'grid',
+              placeItems: 'center',
+              background: 'rgba(17,19,24,0.18)',
+              borderRadius: 8,
+            }}
+          >
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                borderRadius: 999,
+                background: 'var(--dsh-accent, #4d6bfe)',
+                color: '#fff',
+                fontSize: 12.5,
+                fontWeight: 500,
+              }}
+            >
+              ⤢ 打开
+            </span>
+          </div>
+        ) : null}
+      </div>
+      <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{title}</div>
+      <button type="button" style={buttonStyle} disabled={busy || stopping} onClick={onStop}>
+        {busy || stopping ? '停止中…' : '停止'}
+      </button>
+
+      {expanded
+        ? createPortal(
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-label={title}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                zIndex: 100,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: 24,
+              }}
+            >
+              <div
+                style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.75)' }}
+                onClick={() => setExpanded(false)}
+              />
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  width: 'min(1200px, 94vw)',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fff' }}>
+                  <strong style={{ fontSize: 13 }}>{title}</strong>
+                  <span style={{ flex: 1 }} />
+                  <button
+                    type="button"
+                    style={buttonStyle}
+                    onClick={() => setExpanded(false)}
+                    aria-label="收起"
+                  >
+                    收起
+                  </button>
+                </div>
+                <ScaledFrame title={title} interactive />
+              </div>
+            </div>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }
@@ -261,12 +499,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
 
   if (state === 'running') {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <ScaledFrame title={`${botSlug ?? 'PersonaBot'} 的电脑`} />
-        <button type="button" style={buttonStyle} disabled={busy || inProgress} onClick={onStop}>
-          {busy || phase === 'stopping' ? '停止中…' : '停止'}
-        </button>
-      </div>
+      <RunningCard botSlug={botSlug} busy={busy} stopping={phase === 'stopping'} onStop={onStop} />
     );
   }
 
@@ -434,6 +667,16 @@ export function ComputerEntry({ botSlug }: ChannelSidebarEntryProps): ReactEleme
 }
 
 export function apply(ctx: ClientContext): void {
+  ctx.effect(() => {
+    if (typeof document === 'undefined') return () => {};
+    const style = document.createElement('style');
+    style.setAttribute('data-botharness-computer', 'client');
+    style.textContent = SPIN_STYLE;
+    document.head.appendChild(style);
+    return () => {
+      style.remove();
+    };
+  }, 'botharness-computer: client styles');
   ctx.inject(['channelSidebar'], (sidebarCtx) => {
     const registry = (sidebarCtx as unknown as { channelSidebar?: ChannelSidebarRegistryLike })
       .channelSidebar;

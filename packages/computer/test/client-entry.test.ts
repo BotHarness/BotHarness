@@ -70,12 +70,14 @@ describe('Computer entry states', () => {
     expect(html).toContain('共享');
   });
 
-  it('renders the live viewer and stop while running', () => {
+  it('renders the live viewer, its connecting overlay, and stop while running', () => {
     const html = view({ state: 'running', botSlug: 'atlas' });
     expect(html).toContain('<iframe');
     expect(html).toContain('/botharness-computer/viewer/');
     expect(html).toContain('停止');
-    expect(html).toContain('atlas');
+    expect(html).toContain('atlas 的屏幕');
+    // The stream is not live yet in a static render, so the loading state shows.
+    expect(html).toContain('连接中');
   });
 
   it('shows pull progress with the runtime line and elapsed time', () => {
