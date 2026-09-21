@@ -105,6 +105,7 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 - **迭代客户端**：改 `packages/client` 后跑根 `pnpm build`，产出新的 `lib/client.js`；`dsh-client-hmr` 检测 bundle 字节变化（`ClientModuleRegistry.rebuilt` 重哈希 → revision 变化 → 推送新入口图），浏览器自动换新。仅 sourcemap 变化不触发重载。
 - **迭代 Host**：Cordis 插件注册都走 `ctx.effect`，vendored HMR 直接生效，无需重启。
 - **参考**：client-modules（bundle 路由、revision、`onRebuilt`/`onGraphChanged`）；extension-cookbook（plugin hot-reload）。
+- **Agent 一键实例**：`node scripts/dev-instance.mjs --home ~/.dsh-<name> --port <port> [--worktree <path>] [--build]` 自动完成「建 profile → 链接该 worktree 的包 → pnpm install → 注入机器级 `DEEPSEEK_API_KEY` → 后台启动 → 等待 token URL → 探测 `/api` 健康」，适合并行 worktree/端口/token 互不干扰；密钥来源与优先级见 `scripts/dev-secret.mjs`（env > `~/.config/botharness/dev.env` > macOS Keychain）。
 
 ## 8. 未决
 

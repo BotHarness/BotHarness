@@ -21,7 +21,7 @@ pnpm build
 
 Toolchain: pnpm 12.4.2 · Node ≥22 (`.node-version` = v24.21.0) · TypeScript 7 · oxlint · oxfmt · vitest · tsdown.
 In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create symlinks on WSL paths.
-Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` profile and run `dsh web --profile web-dev` (pinned `0.1.5-rc.2`, isolated `DSH_HOME`); rebuild the client bundle with `pnpm build` — `dsh-client-hmr` pushes the new revision, and Host-side changes ride Cordis HMR. Details: `docs/client-bridge.md` §7.
+Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` profile and run `dsh web --profile web-dev` (pinned `0.1.5-rc.2`, isolated `DSH_HOME`); rebuild the client bundle with `pnpm build` — `dsh-client-hmr` pushes the new revision, and Host-side changes ride Cordis HMR. Details: `docs/client-bridge.md` §7. Agents boot an isolated, verified instance with `node scripts/dev-instance.mjs --home <path> --port <n> [--worktree <path>] [--build]`; it links that worktree, installs the profile, injects the machine-local `DEEPSEEK_API_KEY` (env > `~/.config/botharness/dev.env` > Keychain `botharness-deepseek`; `node scripts/dev-secret.mjs check` reports the source) and prints the one-shot token URL after probing `/api`. Secrets stay machine-local and never enter the repo.
 
 ## Conventions
 
