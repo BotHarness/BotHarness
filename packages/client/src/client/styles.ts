@@ -339,9 +339,19 @@ button:has(.bh-panel-glyph) {
 }
 
 /* The Bot row keeps its native shape and simply stands taller than the other
-   sidebar rows, so the mark and label sit in a roomier pill. */
+   sidebar rows, with a larger mark and label to match. */
 button:has(.bh-panel-glyph[data-wide='true']) {
   min-height: 44px;
+}
+
+button:has(.bh-panel-glyph[data-wide='true']) .bh-panel-glyph > .bh-bot-icon {
+  width: 24px;
+  height: 24px;
+}
+
+button:has(.bh-panel-glyph[data-wide='true']) > span:not(.bh-panel-glyph):not(.bh-panel-glyph-hit):not(.bh-panel-gear) {
+  font-size: 16px;
+  line-height: 24px;
 }
 
 /* The Bot mode switch: the button keeps its own background, the transparent
