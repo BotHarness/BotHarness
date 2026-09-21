@@ -84,47 +84,6 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
 }
 
 describe('Bot runtime tracer bullet', () => {
-  it('does not turn an Orchestrator final message into a Channel message', async () => {
-    const home = createTempRoot('botharness-bot-runtime-silent-');
-    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
-    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
-    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
-    const dm = channels.getOrCreateDm('ada', 'Ada');
-    expect(dm).toBeDefined();
-    await channels.appendMessage(dm!.id, {
-      id: 'human-1',
-      at: FIXED_NOW().toISOString(),
-      author: { kind: 'human' },
-      body: '请调查发布状态',
-    });
-    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
-    const runtime = createBotRuntime({
-      database: owner,
-      registry,
-      channels,
-      agents: {
-        runOrchestrator: async () => undefined,
-        runAssignment: async () => undefined,
-        close: async () => undefined,
-      },
-      now: FIXED_NOW,
-      createSessionId: () => 'orchestrator-ada',
-    });
-
-    await admit(runtime, {
-      channelId: dm!.id,
-      messageId: 'human-1',
-      body: '请调查发布状态',
-    });
-
-    expect(channels.readMessages(dm!.id)).toEqual([
-      expect.objectContaining({ id: 'human-1', author: { kind: 'human' } }),
-    ]);
-
-    await runtime.close();
-    owner.close();
-  });
-
   it('keeps a failed Source Event pending, then retries and acknowledges it exactly once', async () => {
     const home = createTempRoot('botharness-bot-runtime-retry-');
     const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });

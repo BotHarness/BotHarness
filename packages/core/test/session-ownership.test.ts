@@ -6,6 +6,7 @@ import {
   type OperationalDatabaseOwner,
 } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
 import {
   createSessionOwnership,
   SessionOwnershipConflictError,
@@ -184,6 +185,45 @@ describe('Session ownership', () => {
     });
     expect(created).toMatchObject({ sessionId: 'recovered', provenance: 'repair' });
     owner.close();
+  });
+
+  it('migrates a generation-5 table in place and keeps legacy rows claimable', () => {
+    const home = createTempRoot('botharness-ownership-migration-');
+    const v5Plan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, 4));
+    expect(v5Plan.targetGeneration).toBe(5);
+    const legacyOwner = mountOperationalDatabase({ dshHome: home, schemaPlan: v5Plan });
+    attachOperationalModule(legacyOwner, 'session-ownership-test').transaction((database) => {
+      database
+        .prepare(
+          `INSERT INTO session_ownership (session_id, bot_slug, root_role, created_at)
+           VALUES ('legacy-1', 'ada', 'orchestrator', ?)`,
+        )
+        .run(AT);
+    });
+    legacyOwner.close();
+
+    const migrated = mount(home);
+    expect(migrated.generation).toBe(BOT_HARNESS_SCHEMA_PLAN.targetGeneration);
+    const ownership = createSessionOwnership(
+      attachOperationalModule(migrated, 'session-ownership'),
+    );
+
+    expect(ownership.resolve('legacy-1')).toEqual({
+      sessionId: 'legacy-1',
+      botSlug: 'ada',
+      rootRole: 'orchestrator',
+      provenance: 'legacy',
+      parentSessionId: undefined,
+      cwdReference: undefined,
+      createdAt: AT,
+    });
+    expect(
+      ownership.claim({ sessionId: 'legacy-1', botSlug: 'ada', rootRole: 'orchestrator', at: AT }),
+    ).toMatchObject({ provenance: 'legacy' });
+    expect(() =>
+      ownership.claim({ sessionId: 'legacy-1', botSlug: 'bob', rootRole: 'orchestrator', at: AT }),
+    ).toThrow(SessionOwnershipConflictError);
+    migrated.close();
   });
 
   it('rebuilds from the durable table after a restart', () => {

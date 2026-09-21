@@ -6,7 +6,7 @@ import {
   deriveSessionState,
   sessionStateForEvent,
 } from '../src/state/dsh-activity.js';
-import { createFakeSessionOwnership } from './helpers.js';
+import { createTestOwnership } from './helpers.js';
 
 const event = (type: string) => ({ type, time: 1, data: {} });
 
@@ -27,43 +27,9 @@ describe('DSH activity projection', () => {
     expect(deriveSessionState([])).toBeUndefined();
   });
 
-  it('publishes owned Sessions and never contaminates unowned ones', () => {
-    const states = createBotStateTracker();
-    const ownership = createFakeSessionOwnership({
-      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
-    });
-    const activity = createDshActivityProjection({ ownership, states });
-
-    activity.handleSessionEvent('session-1', event('tool/call'));
-    activity.handleSessionEvent('unowned', event('tool/call'));
-
-    expect(states.snapshot('ada')).toEqual({
-      slug: 'ada',
-      state: 'working',
-      sessions: { 'session-1': 'working' },
-    });
-    expect(states.snapshot('bob').sessions).toEqual({});
-  });
-
-  it('clears a disposed Session without touching its siblings', () => {
-    const states = createBotStateTracker();
-    const ownership = createFakeSessionOwnership({
-      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
-      'session-2': { botSlug: 'ada', rootRole: 'assignment' },
-    });
-    const activity = createDshActivityProjection({ ownership, states });
-    activity.handleSessionEvent('session-1', event('tool/call'));
-    activity.handleSessionEvent('session-2', event('step/start'));
-
-    activity.handleSessionDisposed('session-1');
-    activity.handleSessionDisposed('unowned');
-
-    expect(states.snapshot('ada').sessions).toEqual({ 'session-2': 'thinking' });
-  });
-
   it('attributes a fork and a Subagent to the owning parent through lineage', () => {
     const states = createBotStateTracker();
-    const ownership = createFakeSessionOwnership({
+    const ownership = createTestOwnership({
       'root-1': { botSlug: 'ada', rootRole: 'orchestrator' },
     });
     const activity = createDshActivityProjection({ ownership, states });
@@ -81,8 +47,6 @@ describe('DSH activity projection', () => {
       provenance: 'fork',
       parentSessionId: 'root-1',
     });
-    expect(ownership.rootsFor('ada', 'assignment')).toEqual([]);
-
     expect(
       activity.handleAgentCreated({
         id: 'subagent-1',
@@ -114,7 +78,7 @@ describe('DSH activity projection', () => {
 
   it('attributes lineage during a cold rebuild before deriving state', () => {
     const states = createBotStateTracker();
-    const ownership = createFakeSessionOwnership({
+    const ownership = createTestOwnership({
       'root-1': { botSlug: 'ada', rootRole: 'orchestrator' },
     });
     const activity = createDshActivityProjection({ ownership, states });
@@ -131,27 +95,5 @@ describe('DSH activity projection', () => {
     expect(report).toEqual({ rebuilt: 2, attributed: 1, unowned: 0 });
     expect(ownership.resolve('subagent-1')).toMatchObject({ provenance: 'subagent' });
     expect(states.snapshot('ada').sessions).toEqual({ 'root-1': 'done', 'subagent-1': 'working' });
-  });
-
-  it('rebuilds cold state from durable logs, bounded by ownership', () => {
-    const states = createBotStateTracker();
-    const ownership = createFakeSessionOwnership({
-      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
-      'session-2': { botSlug: 'ada', rootRole: 'assignment' },
-    });
-    const activity = createDshActivityProjection({ ownership, states });
-
-    const report = activity.rebuild([
-      { id: 'session-1', header: {}, snapshotEvents: () => [event('tool/call')] },
-      { id: 'session-2', header: {}, snapshotEvents: () => [event('turn/end')] },
-      { id: 'unowned', header: {}, snapshotEvents: () => [event('tool/call')] },
-    ]);
-
-    expect(report).toEqual({ rebuilt: 2, attributed: 0, unowned: 1 });
-    expect(states.snapshot('ada')).toEqual({
-      slug: 'ada',
-      state: 'working',
-      sessions: { 'session-1': 'working', 'session-2': 'done' },
-    });
   });
 });

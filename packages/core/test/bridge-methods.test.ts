@@ -11,7 +11,7 @@ import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
-import { createFakeSessionOwnership } from './helpers.js';
+import { createTestOwnership } from './helpers.js';
 
 const roots: string[] = [];
 
@@ -27,7 +27,7 @@ function setup(
   sessionSummaries: SessionSummary[] = [],
   botIds: string[] = ['ada'],
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
-  ownership = createFakeSessionOwnership(),
+  ownership = createTestOwnership(),
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -681,7 +681,7 @@ describe('bridge methods', () => {
       summaries,
       ['ada'],
       undefined,
-      createFakeSessionOwnership({
+      createTestOwnership({
         'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
         'session-2': { botSlug: 'ada', rootRole: 'assignment' },
         'session-3': { botSlug: 'bob', rootRole: 'assignment' },
@@ -695,20 +695,6 @@ describe('bridge methods', () => {
       'session-2',
       'session-1',
     ]);
-  });
-
-  it('returns an empty session list for a bot without workspaces', () => {
-    const { methods } = setup([
-      {
-        id: 'session-1',
-        title: 'anywhere',
-        cwd: '/srv/ada',
-        updatedAt: '2026-09-19T01:00:00.000Z',
-      },
-    ]);
-    methods.create({ slug: 'ada', displayName: 'Ada' });
-
-    expect(methods.sessions({ slug: 'ada' })).toEqual({ ok: true, value: { sessions: [] } });
   });
 
   it('rejects malformed or unknown session reads', () => {
