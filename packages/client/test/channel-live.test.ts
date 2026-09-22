@@ -18,28 +18,52 @@ class FakeSource {
   onerror: ((event: Event) => void) | null = null;
   readyState = 1;
   closed = false;
+  draftRevision = 0;
   constructor(readonly url: string) {}
   get channelId(): string {
     return new URL(this.url, 'http://localhost').searchParams.get('channelId') ?? '';
   }
-  emitDraft(id: string, body: string): void {
-    this.listeners.get('channel/draft')?.(
-      new MessageEvent('channel/draft', {
-        data: JSON.stringify({ channelId: this.channelId, draftId: id, botSlug: 'ada', body }),
+  baseline(drafts: unknown[] = []): void {
+    this.listeners.get('channel/draft-baseline')?.(
+      new MessageEvent('channel/draft-baseline', {
+        data: JSON.stringify({ channelId: this.channelId, revision: this.draftRevision, drafts }),
       }),
     );
   }
-  endDraft(id: string): void {
-    this.listeners.get('channel/draft-end')?.(
-      new MessageEvent('channel/draft-end', {
-        data: JSON.stringify({ channelId: this.channelId, draftId: id }),
+  emitDraft(id: string, body: string, attemptId = 'attempt'): void {
+    this.draftRevision += 1;
+    this.listeners.get('channel/draft')?.(
+      new MessageEvent('channel/draft', {
+        data: JSON.stringify({
+          channelId: this.channelId,
+          draftId: id,
+          attemptId,
+          revision: this.draftRevision,
+          botSlug: 'ada',
+          body,
+        }),
+      }),
+    );
+  }
+  endDraft(id: string, abandoned = false): void {
+    this.draftRevision += 1;
+    const name = abandoned ? 'channel/draft-abandoned' : 'channel/draft-settled';
+    this.listeners.get(name)?.(
+      new MessageEvent(name, {
+        data: JSON.stringify({
+          channelId: this.channelId,
+          draftId: id,
+          attemptId: 'attempt',
+          revision: this.draftRevision,
+          ...(abandoned ? { reason: 'interrupted' } : {}),
+        }),
       }),
     );
   }
   addEventListener(name: string, listener: EventListener): void {
     this.listeners.set(name, listener);
   }
-  emit(revision: number, id: string): void {
+  emit(revision: number, id: string, body = id): void {
     this.listeners.get('channel/message')?.(
       new MessageEvent('channel/message', {
         data: JSON.stringify({
@@ -49,7 +73,7 @@ class FakeSource {
             id,
             at: '2026-09-21T00:00:01.000Z',
             author: { kind: 'bot', slug: 'ada' },
-            body: id,
+            body,
           },
         }),
       }),
@@ -107,13 +131,14 @@ describe('Channel live Client', () => {
       vi.fn(async () => undefined),
       dm,
     );
+    sources[0]?.baseline();
     sources[0]?.emitDraft('attempt:call', '你');
     sources[0]?.emitDraft('attempt:call', '你好');
     expect(store.getSnapshot().conversation.drafts).toMatchObject([
       { body: '你好', botSlug: 'ada' },
     ]);
     expect(store.getSnapshot().conversation.revision).toBe(0);
-    sources[0]?.emit(1, 'committed');
+    sources[0]?.emit(1, 'committed', '你好');
     expect(store.getSnapshot().conversation.drafts).toEqual([]);
     expect(store.getSnapshot().conversation.messages.map((item) => item.id)).toEqual(['committed']);
     sources[0]?.endDraft('attempt:call');
@@ -185,5 +210,78 @@ describe('Channel live Client', () => {
     store.setMode('dsh');
     expect(sources[1]?.closed).toBe(true);
     dispose();
+  });
+
+  it('drops speculative drafts and re-snapshots after a draft revision gap', async () => {
+    const { store, sources, dispose, refresh } = setup();
+    sources[0]?.baseline();
+    sources[0]?.emitDraft('attempt:call', '先');
+    expect(store.getSnapshot().conversation.drafts).toHaveLength(1);
+    if (sources[0] !== undefined) sources[0].draftRevision = 3;
+    sources[0]?.emitDraft('attempt:call', '断档');
+    await vi.waitFor(() => expect(sources).toHaveLength(2));
+    expect(refresh).toHaveBeenCalledWith(CHANNEL.id);
+    expect(store.getSnapshot().conversation.drafts).toEqual([]);
+    if (sources[1] !== undefined) sources[1].draftRevision = 4;
+    sources[1]?.baseline();
+    expect(store.getSnapshot().conversation.draftRevision).toBe(4);
+    dispose();
+  });
+
+  it('shows an interrupted notice without preserving an abandoned draft', () => {
+    const { store, sources, dispose } = setup();
+    sources[0]?.baseline();
+    sources[0]?.emitDraft('attempt:call', '未完成');
+    sources[0]?.endDraft('attempt:call', true);
+    expect(store.getSnapshot().conversation.drafts).toEqual([]);
+    expect(store.getSnapshot().conversation.draftNotice).toBe('interrupted');
+    dispose();
+  });
+
+  it('replaces a sole draft when the committed Bot text is corrected', () => {
+    const { store, sources, dispose } = setup();
+    sources[0]?.baseline();
+    sources[0]?.emitDraft('attempt:call', 'partial');
+    sources[0]?.emit(1, 'reply', 'corrected');
+    expect(store.getSnapshot().conversation.drafts).toEqual([]);
+    expect(store.getSnapshot().conversation.messages.map((item) => item.body)).toEqual([
+      'corrected',
+    ]);
+    dispose();
+  });
+
+  it('re-baselines when the active model attempt changes', async () => {
+    const { store, sources, dispose, refresh } = setup();
+    sources[0]?.baseline();
+    sources[0]?.emitDraft('attempt:call', 'first');
+    sources[0]?.endDraft('attempt:call', true);
+    sources[0]?.emitDraft('attempt-2:call', 'retry', 'attempt-2');
+    await vi.waitFor(() => expect(sources).toHaveLength(2));
+    expect(refresh).toHaveBeenCalledWith(CHANNEL.id);
+    expect(store.getSnapshot().conversation.drafts).toEqual([]);
+    expect(store.getSnapshot().conversation.draftNotice).toBeUndefined();
+    dispose();
+  });
+
+  it('coalesces multiple draft chunks into one animation-frame render', () => {
+    const callbacks: FrameRequestCallback[] = [];
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    });
+    vi.stubGlobal('cancelAnimationFrame', vi.fn());
+    try {
+      const { store, sources, dispose } = setup();
+      sources[0]?.baseline();
+      sources[0]?.emitDraft('attempt:call', '你');
+      sources[0]?.emitDraft('attempt:call', '你好');
+      expect(callbacks).toHaveLength(1);
+      expect(store.getSnapshot().conversation.drafts).toEqual([]);
+      callbacks[0]?.(0);
+      expect(store.getSnapshot().conversation.drafts).toMatchObject([{ body: '你好' }]);
+      dispose();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

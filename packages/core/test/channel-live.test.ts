@@ -71,6 +71,9 @@ describe('Channel post-commit stream', () => {
     const replay = await reader?.read();
     expect(new TextDecoder().decode(replay?.value)).toContain('id: 1\nevent: channel/message');
     expect(new TextDecoder().decode(replay?.value)).toContain('"body":"one"');
+    expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
+      'event: channel/draft-baseline',
+    );
 
     await store.appendMessage(channel.id, message('two'));
     const live = await reader?.read();
@@ -120,6 +123,7 @@ describe('Channel post-commit stream', () => {
       .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=0`))
       .body?.getReader();
     await reader?.read(); // retry
+    await reader?.read(); // draft baseline
     await store.appendMessage(dm.id, {
       ...message('reply'),
       author: { kind: 'bot', slug: 'persona-live' },
@@ -145,9 +149,18 @@ describe('Channel post-commit stream', () => {
       .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=0`))
       .body?.getReader();
     await reader?.read(); // retry
+    expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
+      'event: channel/draft-baseline',
+    );
     hub.publishDraft({
       type: 'update',
-      draft: { channelId: dm.id, draftId: 'attempt:call', botSlug: 'ada', body: '你' },
+      draft: {
+        channelId: dm.id,
+        draftId: 'attempt:call',
+        attemptId: 'attempt',
+        botSlug: 'ada',
+        body: '你',
+      },
     });
     const first = new TextDecoder().decode((await reader?.read())?.value);
     expect(first).toContain('event: channel/draft');
@@ -156,18 +169,68 @@ describe('Channel post-commit stream', () => {
     expect(store.revision(dm.id)).toBe(0);
     hub.publishDraft({
       type: 'update',
-      draft: { channelId: dm.id, draftId: 'attempt:call', botSlug: 'ada', body: '你好' },
+      draft: {
+        channelId: dm.id,
+        draftId: 'attempt:call',
+        attemptId: 'attempt',
+        botSlug: 'ada',
+        body: '你好',
+      },
     });
     expect(new TextDecoder().decode((await reader?.read())?.value)).toContain('"body":"你好"');
-    await store.appendMessage(dm.id, { ...message('reply'), author: { kind: 'bot', slug: 'ada' } });
+    await store.appendMessage(dm.id, {
+      ...message('reply'),
+      author: { kind: 'bot', slug: 'ada' },
+      body: '你好',
+    });
     expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
       'event: channel/message',
     );
     expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
-      'event: channel/draft-end',
+      'event: channel/draft-settled',
     );
-    hub.publishDraft({ type: 'end', channelId: dm.id, draftId: 'attempt:call' });
+    hub.publishDraft({
+      type: 'settled',
+      channelId: dm.id,
+      draftId: 'attempt:call',
+      attemptId: 'attempt',
+    });
     expect(store.revision(dm.id)).toBe(1);
+    await reader?.cancel();
+  });
+
+  it('settles the sole Bot draft when the final body corrects its partial text', async () => {
+    let hub: ChannelLiveHub | undefined;
+    const store = createChannelStore({
+      rootDir: root(),
+      onCommitted: (commit) => hub?.publishCommitted(commit),
+    });
+    const dm = store.getOrCreateDm('ada', 'Ada');
+    expect(dm).toBeDefined();
+    if (dm === undefined) return;
+    hub = createChannelLiveHub(store);
+    hubs.push(hub);
+    hub.publishDraft({
+      type: 'update',
+      draft: {
+        channelId: dm.id,
+        draftId: 'attempt:call',
+        attemptId: 'attempt',
+        botSlug: 'ada',
+        body: 'partial',
+      },
+    });
+    await store.appendMessage(dm.id, {
+      ...message('reply'),
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'corrected',
+    });
+    const reader = hub
+      .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=1`))
+      .body?.getReader();
+    await reader?.read(); // retry
+    const baseline = new TextDecoder().decode((await reader?.read())?.value);
+    expect(baseline).toContain('"drafts":[]');
     await reader?.cancel();
   });
 

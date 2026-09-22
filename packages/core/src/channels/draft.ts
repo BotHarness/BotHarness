@@ -1,72 +1,110 @@
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
+import { BlockAssembler } from '@deepseek-ai/dsh-llm';
 
 /** A presentation-only Channel draft; neither a Channel message nor a Source Event. */
 export interface ChannelDraft {
   channelId: string;
   draftId: string;
+  attemptId: string;
   botSlug: string;
   body: string;
 }
 
 export type ChannelDraftEvent =
   | { type: 'update'; draft: ChannelDraft }
-  | { type: 'end'; channelId: string; draftId: string };
+  | { type: 'settled'; channelId: string; draftId: string; attemptId: string }
+  | {
+      type: 'abandoned';
+      channelId: string;
+      draftId: string;
+      attemptId: string;
+      reason: 'retargeted' | 'interrupted' | 'expired';
+    };
 
 interface DraftRun {
   channelId: string;
   botSlug: string;
   canAccess(channelId: string): boolean;
+  currentAttemptId: string | undefined;
+  attempts: Map<string, DraftAttempt>;
+}
+
+interface DraftAttempt {
+  assembler: BlockAssembler;
+  nextIndex: number;
+  invalid: boolean;
   calls: Map<string, DraftCall>;
 }
 
 interface DraftCall {
-  attemptId: string;
-  name: string | undefined;
-  args: string;
   published: ChannelDraft | undefined;
 }
 
-function partialBody(raw: string): string | undefined {
-  try {
-    const complete: unknown = JSON.parse(raw);
-    if (typeof complete === 'object' && complete !== null && 'body' in complete) {
-      return typeof complete.body === 'string' ? complete.body : undefined;
-    }
-  } catch {
-    // A streaming tool call is normally incomplete JSON.
-  }
-  const match = /(?:^|[{,])\s*"body"\s*:\s*"/.exec(raw);
-  if (match === null) return undefined;
-  const start = match.index + match[0].length;
+/** Reads flat string fields even before the outer JSON object is closed. */
+function stringField(raw: string, key: string): { value: string; complete: boolean } | undefined {
+  const segments: string[] = [];
+  let depth = 0;
+  let inString = false;
   let escaped = false;
-  let content = '';
-  for (let index = start; index < raw.length; index += 1) {
+  let start = 0;
+  for (let index = 0; index < raw.length; index += 1) {
     const char = raw[index];
-    if (char === '"' && !escaped) break;
-    content += char;
-    if (char === '\\' && !escaped) escaped = true;
-    else escaped = false;
-  }
-  // Incomplete escapes and Unicode sequences are expected at chunk boundaries.
-  for (let end = content.length; end >= 0 && end >= content.length - 6; end -= 1) {
-    try {
-      const body: unknown = JSON.parse(`"${content.slice(0, end)}"`);
-      if (typeof body === 'string') return body;
-    } catch {
-      // Retry without the unfinished escape suffix.
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') inString = false;
+      continue;
     }
+    if (char === '"') inString = true;
+    else if (char === '{') {
+      depth += 1;
+      if (depth === 1) start = index + 1;
+    } else if (char === '}' && depth === 1) {
+      segments.push(raw.slice(start, index));
+      start = raw.length;
+      break;
+    } else if (char === '}') depth -= 1;
+    else if (char === ',' && depth === 1) {
+      segments.push(raw.slice(start, index));
+      start = index + 1;
+    }
+  }
+  if (start < raw.length) segments.push(raw.slice(start));
+  for (const segment of segments) {
+    const match = /^\s*"([^"\\]+)"\s*:\s*"/.exec(segment);
+    if (match?.[1] !== key) continue;
+    const valueStart = match[0].length;
+    let end = valueStart;
+    let escape = false;
+    for (; end < segment.length; end += 1) {
+      const char = segment[end];
+      if (char === '"' && !escape) break;
+      if (char === '\\' && !escape) escape = true;
+      else escape = false;
+    }
+    const complete = end < segment.length;
+    const content = segment.slice(valueStart, end);
+    for (let length = content.length; length >= Math.max(0, content.length - 6); length -= 1) {
+      try {
+        const value: unknown = JSON.parse('"' + content.slice(0, length) + '"');
+        if (typeof value === 'string')
+          return { value, complete: complete && length === content.length };
+      } catch {
+        // The provider may split an escape or Unicode sequence across chunks.
+      }
+    }
+    return undefined;
   }
   return undefined;
 }
 
+function partialBody(raw: string): string | undefined {
+  return stringField(raw, 'body')?.value;
+}
+
 function explicitChannelId(raw: string): string | undefined {
-  try {
-    const args: unknown = JSON.parse(raw);
-    if (typeof args !== 'object' || args === null || !('channel_id' in args)) return undefined;
-    return typeof args.channel_id === 'string' ? args.channel_id : undefined;
-  } catch {
-    return undefined;
-  }
+  const field = stringField(raw, 'channel_id');
+  return field?.complete === true && field.value.length > 0 ? field.value : undefined;
 }
 
 /** Tracks only Orchestrator channel_send arguments; never treats final assistant text as chat. */
@@ -78,61 +116,135 @@ export class ChannelDraftTracker {
     this.#publish = publish;
   }
 
-  begin(sessionId: string, input: Omit<DraftRun, 'calls'>): void {
+  begin(sessionId: string, input: Pick<DraftRun, 'channelId' | 'botSlug' | 'canAccess'>): void {
     this.end(sessionId);
-    this.#runs.set(sessionId, { ...input, calls: new Map() });
+    this.#runs.set(sessionId, { ...input, currentAttemptId: undefined, attempts: new Map() });
   }
 
   accept(sessionId: string, frame: AssistantStreamFrame): void {
     const run = this.#runs.get(sessionId);
     if (run === undefined) return;
+    if (frame.type === 'start') {
+      this.#switchAttempt(run, frame.attemptId);
+      return;
+    }
     if (frame.type === 'end') {
       if (frame.outcome.kind === 'abandoned') {
-        for (const [callId, call] of run.calls) {
-          if (call.attemptId === frame.attemptId) this.#endCall(run, callId, call);
-        }
+        const attempt = run.attempts.get(frame.attemptId);
+        if (attempt !== undefined) this.#abandonAttempt(attempt, 'interrupted');
+        run.attempts.delete(frame.attemptId);
       }
       return;
     }
-    if (frame.type !== 'chunk' || frame.chunk.type !== 'tool-call-delta') return;
-    const chunk = frame.chunk;
-    const callId = `${frame.attemptId}:${chunk.id}`;
-    let call = run.calls.get(callId);
-    if (call === undefined) {
-      call = { attemptId: frame.attemptId, name: undefined, args: '', published: undefined };
-      run.calls.set(callId, call);
+    this.#switchAttempt(run, frame.attemptId);
+    let attempt = run.attempts.get(frame.attemptId);
+    if (attempt === undefined) {
+      attempt = { assembler: new BlockAssembler(), nextIndex: 0, invalid: false, calls: new Map() };
+      run.attempts.set(frame.attemptId, attempt);
     }
-    call.name = chunk.name ?? call.name;
-    call.args += chunk.argumentsDelta;
-    if (call.name !== 'channel_send') return;
-    const body = partialBody(call.args);
-    if (body === undefined || body.length === 0) return;
-    const channelId = explicitChannelId(call.args) ?? run.channelId;
-    if (!run.canAccess(channelId)) {
-      this.#endCall(run, callId, call);
+    if (attempt.invalid || frame.index < attempt.nextIndex) return;
+    if (frame.index !== attempt.nextIndex) {
+      this.#abandonAttempt(attempt, 'interrupted');
+      attempt.invalid = true;
       return;
     }
-    if (call.published?.channelId !== undefined && call.published.channelId !== channelId) {
-      this.#publish({ type: 'end', channelId: call.published.channelId, draftId: callId });
-      call.published = undefined;
+    attempt.nextIndex += 1;
+    attempt.assembler.push(frame.chunk);
+    for (const block of attempt.assembler.blocks()) {
+      if (block.type !== 'tool-call' || block.name !== 'channel_send') continue;
+      this.#acceptCall(run, attempt, frame.attemptId, block.id, block.arguments);
     }
-    if (call.published?.body === body) return;
-    const draft = { channelId, draftId: callId, botSlug: run.botSlug, body };
-    call.published = draft;
-    this.#publish({ type: 'update', draft });
+  }
+
+  /** Called only after channel_send has durably committed its message. */
+  settle(sessionId: string, channelId: string, body: string): void {
+    const run = this.#runs.get(sessionId);
+    if (run === undefined) return;
+    const candidates: {
+      attemptId: string;
+      attempt: DraftAttempt;
+      draftId: string;
+      body: string;
+    }[] = [];
+    for (const [attemptId, attempt] of run.attempts) {
+      for (const [draftId, call] of attempt.calls) {
+        const draft = call.published;
+        if (draft?.channelId === channelId) {
+          candidates.push({ attemptId, attempt, draftId, body: draft.body });
+        }
+      }
+    }
+    const match =
+      candidates.find((candidate) => body.startsWith(candidate.body)) ??
+      (candidates.length === 1 ? candidates[0] : undefined);
+    if (match === undefined) return;
+    this.#publish({
+      type: 'settled',
+      channelId,
+      draftId: match.draftId,
+      attemptId: match.attemptId,
+    });
+    match.attempt.calls.delete(match.draftId);
   }
 
   end(sessionId: string): void {
     const run = this.#runs.get(sessionId);
     if (run === undefined) return;
-    for (const [callId, call] of run.calls) this.#endCall(run, callId, call);
+    for (const attempt of run.attempts.values()) this.#abandonAttempt(attempt, 'expired');
     this.#runs.delete(sessionId);
   }
 
-  #endCall(run: DraftRun, callId: string, call: DraftCall): void {
-    if (call.published !== undefined) {
-      this.#publish({ type: 'end', channelId: call.published.channelId, draftId: callId });
+  #switchAttempt(run: DraftRun, attemptId: string): void {
+    if (run.currentAttemptId === attemptId) return;
+    for (const attempt of run.attempts.values()) this.#abandonAttempt(attempt, 'interrupted');
+    run.attempts.clear();
+    run.currentAttemptId = attemptId;
+  }
+
+  #acceptCall(
+    run: DraftRun,
+    attempt: DraftAttempt,
+    attemptId: string,
+    callId: string,
+    args: string,
+  ): void {
+    const draftId = attemptId + ':' + callId;
+    let call = attempt.calls.get(draftId);
+    if (call === undefined) {
+      call = { published: undefined };
+      attempt.calls.set(draftId, call);
     }
-    run.calls.delete(callId);
+    const body = partialBody(args);
+    if (body === undefined || body.length === 0) return;
+    const channelId = explicitChannelId(args) ?? run.channelId;
+    if (!run.canAccess(channelId)) {
+      this.#abandonCall(call, 'retargeted');
+      return;
+    }
+    if (call.published !== undefined && call.published.channelId !== channelId) {
+      this.#abandonCall(call, 'retargeted');
+    }
+    if (call.published?.body === body) return;
+    const draft = { channelId, draftId, attemptId, botSlug: run.botSlug, body };
+    call.published = draft;
+    this.#publish({ type: 'update', draft });
+  }
+
+  #abandonAttempt(attempt: DraftAttempt, reason: 'interrupted' | 'expired'): void {
+    for (const call of attempt.calls.values()) this.#abandonCall(call, reason);
+    attempt.calls.clear();
+  }
+
+  #abandonCall(call: DraftCall, reason: 'retargeted' | 'interrupted' | 'expired'): void {
+    const draft = call.published;
+    if (draft === undefined) return;
+    this.#publish({
+      type: 'abandoned',
+      channelId: draft.channelId,
+      draftId: draft.draftId,
+      attemptId: draft.attemptId,
+      reason,
+    });
+    call.published = undefined;
   }
 }

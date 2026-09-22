@@ -4,11 +4,28 @@ import type { ChannelMessageCommit, ChannelStore } from './store.js';
 export const CHANNEL_STREAM_PATH = '/api/botharness/stream';
 export const CHANNEL_COMMIT_EVENT = 'channel/message';
 export const CHANNEL_DRAFT_EVENT = 'channel/draft';
-export const CHANNEL_DRAFT_END_EVENT = 'channel/draft-end';
+export const CHANNEL_DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
+export const CHANNEL_DRAFT_SETTLED_EVENT = 'channel/draft-settled';
+export const CHANNEL_DRAFT_ABANDONED_EVENT = 'channel/draft-abandoned';
+
+interface PublishedDraft extends ChannelDraft {
+  revision: number;
+}
+
+type PublishedDraftEvent =
+  | { type: 'update'; draft: PublishedDraft }
+  | {
+      type: 'settled' | 'abandoned';
+      channelId: string;
+      draftId: string;
+      attemptId: string;
+      revision: number;
+      reason?: 'retargeted' | 'interrupted' | 'expired';
+    };
 
 interface Subscriber {
   push(commit: ChannelMessageCommit): void;
-  pushDraft(event: ChannelDraftEvent): void;
+  pushDraft(event: PublishedDraftEvent): void;
   close(): void;
 }
 
@@ -29,8 +46,13 @@ function frame(commit: ChannelMessageCommit): string {
   return `id: ${commit.revision}\nevent: ${CHANNEL_COMMIT_EVENT}\ndata: ${JSON.stringify(commit)}\n\n`;
 }
 
-function draftFrame(event: ChannelDraftEvent): string {
-  const name = event.type === 'update' ? CHANNEL_DRAFT_EVENT : CHANNEL_DRAFT_END_EVENT;
+function draftFrame(event: PublishedDraftEvent): string {
+  const name =
+    event.type === 'update'
+      ? CHANNEL_DRAFT_EVENT
+      : event.type === 'settled'
+        ? CHANNEL_DRAFT_SETTLED_EVENT
+        : CHANNEL_DRAFT_ABANDONED_EVENT;
   const data = event.type === 'update' ? event.draft : event;
   return `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 }
@@ -38,7 +60,8 @@ function draftFrame(event: ChannelDraftEvent): string {
 /** Process-local fanout; the Channel log is the durable authority. */
 export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
   const subscribers = new Map<string, Set<Subscriber>>();
-  const drafts = new Map<string, Map<string, ChannelDraft>>();
+  const drafts = new Map<string, Map<string, PublishedDraft>>();
+  const draftRevisions = new Map<string, number>();
   const remove = (channelId: string, subscriber: Subscriber): void => {
     const group = subscribers.get(channelId);
     group?.delete(subscriber);
@@ -111,9 +134,15 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           controller.enqueue(encoder.encode('retry: 1500\n\n'));
           // Subscribe before replay so there is no query/subscribe gap.
           for (const commit of channels.messagesAfter(channelId, after) ?? []) push(commit);
-          for (const draft of drafts.get(channelId)?.values() ?? []) {
-            subscriber?.pushDraft({ type: 'update', draft });
-          }
+          controller.enqueue(
+            encoder.encode(
+              `event: ${CHANNEL_DRAFT_BASELINE_EVENT}\ndata: ${JSON.stringify({
+                channelId,
+                revision: draftRevisions.get(channelId) ?? 0,
+                drafts: [...(drafts.get(channelId)?.values() ?? [])],
+              })}\n\n`,
+            ),
+          );
           heartbeat = setInterval(() => {
             if (ended) return;
             try {
@@ -138,29 +167,44 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
     publishCommitted(commit) {
       for (const subscriber of subscribers.get(commit.channelId) ?? []) subscriber.push(commit);
       if (commit.message.author.kind !== 'bot') return;
-      for (const draft of drafts.get(commit.channelId)?.values() ?? []) {
-        if (draft.botSlug === commit.message.author.slug) {
-          this.publishDraft({ type: 'end', channelId: commit.channelId, draftId: draft.draftId });
-        }
+      const botSlug = commit.message.author.slug;
+      const candidates = [...(drafts.get(commit.channelId)?.values() ?? [])].filter(
+        (draft) => draft.botSlug === botSlug,
+      );
+      const matching = candidates.filter((draft) => commit.message.body.startsWith(draft.body));
+      const settled = matching.length > 0 ? matching : candidates.length === 1 ? candidates : [];
+      for (const draft of settled) {
+        this.publishDraft({
+          type: 'settled',
+          channelId: commit.channelId,
+          draftId: draft.draftId,
+          attemptId: draft.attemptId,
+        });
       }
     },
     publishDraft(event) {
       const channelId = event.type === 'update' ? event.draft.channelId : event.channelId;
       if (channels.get(channelId) === undefined) return;
+      const revision = (draftRevisions.get(channelId) ?? 0) + 1;
+      let published: PublishedDraftEvent;
       if (event.type === 'update') {
         let group = drafts.get(channelId);
         if (group === undefined) {
           group = new Map();
           drafts.set(channelId, group);
         }
-        group.set(event.draft.draftId, event.draft);
+        const draft = { ...event.draft, revision };
+        group.set(draft.draftId, draft);
+        published = { type: 'update', draft };
       } else {
         const group = drafts.get(channelId);
-        if (group?.has(event.draftId) !== true) return;
+        if (group?.get(event.draftId)?.attemptId !== event.attemptId) return;
         group.delete(event.draftId);
         if (group.size === 0) drafts.delete(channelId);
+        published = { ...event, revision };
       }
-      for (const subscriber of subscribers.get(channelId) ?? []) subscriber.pushDraft(event);
+      draftRevisions.set(channelId, revision);
+      for (const subscriber of subscribers.get(channelId) ?? []) subscriber.pushDraft(published);
     },
     close() {
       drafts.clear();

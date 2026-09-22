@@ -10,6 +10,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Bot and bridged Channel messages now render Markdown with DSH's safe native renderer, while Human messages retain literal text and line breaks ([#142](https://github.com/BotHarness/BotHarness/issues/142)).
+- PersonaBot replies now appear as a live Channel draft while `channel_send` is generated, then settle into one committed message; interrupted drafts disappear with a clear status ([#144](https://github.com/BotHarness/BotHarness/issues/144), [ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)).
 
 - The Computer group in the Bot settings section can export to a directory chosen at export time and open its folder in the Host's file manager, and the directory can also be typed when the deployment mounts no directory picker ([#168](https://github.com/BotHarness/BotHarness/issues/168)).
 

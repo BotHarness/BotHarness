@@ -580,6 +580,13 @@ function ConversationView({
             {conversation.status === 'error' && conversation.error !== undefined ? (
               <div className="bh-error">{t('messages.error', { error: conversation.error })}</div>
             ) : null}
+            {conversation.draftNotice !== undefined ? (
+              <div className="bh-note" role="status">
+                {conversation.draftNotice === 'interrupted'
+                  ? t('message.draftInterrupted')
+                  : t('message.draftExpired')}
+              </div>
+            ) : null}
             {displayMessages.length === 0 && conversation.status !== 'loading' ? (
               <EmptyConversation channel={channel} bot={bot} t={t} />
             ) : null}

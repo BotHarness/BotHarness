@@ -15,6 +15,7 @@ const token = process.env.BH_E2E_TOKEN;
 if (!token) throw new Error('Set BH_E2E_TOKEN to the local DSH web token');
 const origin = process.env.BH_E2E_ORIGIN ?? 'http://127.0.0.1:3099';
 const expectReply = process.argv.includes('--expect-reply');
+const expectStream = process.argv.includes('--expect-stream');
 const reselect = process.argv.includes('--reselect');
 const waitMs = Number(process.argv.find((arg) => arg.startsWith('--wait-ms='))?.split('=')[1] ?? 0);
 if (!Number.isSafeInteger(waitMs) || waitMs < 0 || waitMs > 30000) {
@@ -32,6 +33,66 @@ const browser = await puppeteer.launch({
 
 try {
   const page = await browser.newPage();
+  await page.evaluateOnNewDocument(() => {
+    const probe = {
+      baselines: 0,
+      updates: 0,
+      settled: 0,
+      abandoned: 0,
+      maxBodyLength: 0,
+      revisionContiguous: true,
+      bodyPrefixMonotonic: true,
+      lastRevision: 0,
+      bodies: {},
+    };
+    window.__bhDraftProbe = probe;
+    const original = EventSource.prototype.addEventListener;
+    EventSource.prototype.addEventListener = function (name, listener, options) {
+      if (
+        name === 'channel/draft-baseline' ||
+        name === 'channel/draft' ||
+        name === 'channel/draft-settled' ||
+        name === 'channel/draft-abandoned'
+      ) {
+        original.call(
+          this,
+          name,
+          (event) => {
+            try {
+              const frame = JSON.parse(event.data);
+              if (name === 'channel/draft-baseline') {
+                probe.baselines += 1;
+                probe.lastRevision = frame.revision;
+                probe.bodies = Object.fromEntries(
+                  frame.drafts.map((draft) => [draft.draftId, draft.body]),
+                );
+                return;
+              }
+              if (frame.revision !== probe.lastRevision + 1) probe.revisionContiguous = false;
+              probe.lastRevision = frame.revision;
+              if (name === 'channel/draft') {
+                probe.updates += 1;
+                probe.maxBodyLength = Math.max(probe.maxBodyLength, frame.body.length);
+                const previous = probe.bodies[frame.draftId];
+                if (previous !== undefined && !frame.body.startsWith(previous)) {
+                  probe.bodyPrefixMonotonic = false;
+                }
+                probe.bodies[frame.draftId] = frame.body;
+              } else {
+                if (name === 'channel/draft-settled') probe.settled += 1;
+                else probe.abandoned += 1;
+                delete probe.bodies[frame.draftId];
+              }
+            } catch {
+              probe.revisionContiguous = false;
+            }
+          },
+          options,
+        );
+      }
+      return original.call(this, name, listener, options);
+    };
+  });
   await page.setViewport({ width: 1440, height: 960 });
   page.on('response', async (response) => {
     if (!response.url().includes('/api/botharness/')) return;
@@ -189,16 +250,27 @@ try {
       }
     }
   }
+  const draftStream = await page.evaluate(() => {
+    const metrics = { ...window.__bhDraftProbe };
+    delete metrics.bodies;
+    return metrics;
+  });
   const passed =
     visible &&
     !draftRetained &&
     final.dmCount === 1 &&
     final.humanCount === 1 &&
-    (!expectReply || (replyVisible && final.replyContainsNonce));
+    (!expectReply || (replyVisible && final.replyContainsNonce)) &&
+    (!expectStream ||
+      (draftStream.updates > 0 &&
+        draftStream.settled > 0 &&
+        draftStream.revisionContiguous &&
+        draftStream.bodyPrefixMonotonic));
   console.log(
     JSON.stringify({
       verdict: passed ? 'PASS' : 'FAIL',
-      scenario: { reselect, waitMs, expectReply },
+      scenario: { reselect, waitMs, expectReply, expectStream },
+      draftStream,
       botName: name,
       visible,
       draftRetained,

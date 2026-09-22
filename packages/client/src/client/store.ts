@@ -48,6 +48,8 @@ export interface ChannelMessage {
 export interface ChannelDraft {
   channelId: string;
   draftId: string;
+  attemptId: string;
+  revision: number;
   botSlug: string;
   body: string;
 }
@@ -115,6 +117,9 @@ export interface ConversationState {
   messages: readonly ChannelMessage[];
   /** Process-local, presentation-only Orchestrator channel_send previews. */
   drafts: readonly ChannelDraft[];
+  /** Process-local draft event watermark; reset on a new SSE baseline. */
+  draftRevision: number;
+  draftNotice: 'interrupted' | 'expired' | undefined;
   /** Durable per-Channel live-stream watermark. */
   revision: number;
   timeline: ConversationTimeline;
@@ -182,6 +187,8 @@ function initialConversation(): ConversationState {
     channel: undefined,
     messages: [],
     drafts: [],
+    draftRevision: 0,
+    draftNotice: undefined,
     revision: 0,
     timeline: initialTimeline(),
     focusMessageId: undefined,
