@@ -302,6 +302,8 @@ export function ComputerSettingsRows({
 
   const startExport = useCallback(() => {
     if (!pickerAvailable) {
+      // No picker: export to the configured directory (or the typed one).
+      setExportTarget(undefined);
       setConfirming('export');
       return;
     }
@@ -312,10 +314,12 @@ export function ComputerSettingsRows({
         setConfirming('export');
       })
       .catch(() => {
-        setExportTarget(undefined);
-        setConfirming('export');
+        // The picker is broken: surface the typed-path fallback instead of
+        // silently exporting somewhere the Human did not choose.
+        setManualOpen(true);
+        setNote(t('rows.pickerFailed'));
       });
-  }, [pickDirectory, pickerAvailable]);
+  }, [pickDirectory, pickerAvailable, t]);
 
   const runExport = useCallback(() => {
     setConfirming(undefined);
@@ -478,7 +482,7 @@ export function ComputerSettingsRows({
             <button
               type="button"
               className="bh-settings-selector"
-              disabled={!hasDir || busy !== undefined}
+              disabled={(pickerAvailable ? false : !hasDir) || busy !== undefined}
               onClick={startExport}
             >
               {busy === 'export'

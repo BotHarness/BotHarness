@@ -403,7 +403,16 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         try {
           // Argument array, never a shell: the path is data, not a command.
           const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
-          child.unref();
+          // spawn() reports a missing binary asynchronously, so wait for the
+          // first event before claiming success (an unhandled 'error' would
+          // otherwise take the Host process down).
+          await new Promise<void>((resolve, reject) => {
+            child.once('spawn', () => {
+              child.unref();
+              resolve();
+            });
+            child.once('error', reject);
+          });
           log(`opened directory (${dir})`);
           return json({ ok: true });
         } catch (error) {

@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useState, type ReactElement, type ReactNode } from 'react';
 
 import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
@@ -46,6 +46,39 @@ const MOTION_OPTIONS: readonly { id: BotModeMotionPreference; label: BotHarnessK
 ];
 
 /**
+ * One Bot mark card: the whole card selects the mark, and the selected card is
+ * outlined. Hook-free on purpose, so tests can invoke its `onClick` directly
+ * without a DOM.
+ */
+export function BotIconCard({
+  option,
+  label,
+  selected,
+  onSelect,
+}: {
+  readonly option: BotModeIcon;
+  readonly label: string;
+  readonly selected: boolean;
+  readonly onSelect: (icon: BotModeIcon) => void;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={selected}
+      className="bh-icon-card"
+      data-selected={selected ? 'true' : undefined}
+      onClick={() => {
+        onSelect(option);
+      }}
+    >
+      <BotIcon icon={option} size={40} className="bh-icon-card-art" />
+      <span className="bh-icon-card-label">{label}</span>
+    </button>
+  );
+}
+
+/**
  * The BotHarness settings page: the shared motion and BOT-mode sorting
  * preferences, rendered as their own section instead of inside the native
  * General page.
@@ -82,25 +115,15 @@ export function BotSettingsSection({
         </div>
       </div>
       <div className="bh-icon-grid" role="radiogroup" aria-label={t('icon.row.title')}>
-        {ICON_OPTIONS.map((option) => {
-          const selected = prefs.botIcon === option.id;
-          return (
-            <button
-              key={option.id}
-              type="button"
-              role="radio"
-              aria-checked={selected}
-              className="bh-icon-card"
-              data-selected={selected ? 'true' : undefined}
-              onClick={() => {
-                setBotIcon(option.id);
-              }}
-            >
-              <BotIcon icon={option.id} size={40} className="bh-icon-card-art" />
-              <span className="bh-icon-card-label">{t(option.label)}</span>
-            </button>
-          );
-        })}
+        {ICON_OPTIONS.map((option) => (
+          <BotIconCard
+            key={option.id}
+            option={option.id}
+            label={t(option.label)}
+            selected={prefs.botIcon === option.id}
+            onSelect={setBotIcon}
+          />
+        ))}
       </div>
       <div className="bh-settings-row bh-motion-row">
         <div className="bh-settings-row-text">
@@ -186,7 +209,10 @@ export function BotSettingsSection({
           }
         />
       </div>
-      {renderSlot('botharness.settings.item', {})}
+      {/* The slot contract types its ReactNode against the DSH client's React
+          types, which can differ from this package's pinned @types/react; the
+          cast keeps the boundary from failing on a duplicated ReactNode. */}
+      {renderSlot('botharness.settings.item', {}) as unknown as ReactNode}
     </div>
   );
 }

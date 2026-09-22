@@ -18,7 +18,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { BotSettingsSection } from '../src/client/bot-settings-section.js';
+import { BotIconCard, BotSettingsSection } from '../src/client/bot-settings-section.js';
 import { zh, type BotHarnessKey } from '../src/client/locale.js';
 
 const t = (key: BotHarnessKey): string => zh[key];
@@ -141,6 +141,18 @@ describe('BotHarness settings section', () => {
     expect(markup).toContain('仅当前会话生效，不会保存');
     expect(markup).not.toContain('设置 Bot 模式列表的默认排序方式');
   });
+  it('selects a mark when its card is activated', () => {
+    const setBotIcon = vi.fn();
+    const card = BotIconCard({
+      option: 'simple',
+      label: 'DeepSeekBot 简约',
+      selected: false,
+      onSelect: setBotIcon,
+    });
+    (card.props as { onClick: () => void }).onClick();
+    expect(setBotIcon).toHaveBeenCalledWith('simple');
+  });
+
   it('renders one card per Bot mark and writes the picked one', () => {
     const setBotIcon = vi.fn();
     const markup = renderSection(snapshot({ botIcon: 'blob' }), undefined, undefined, setBotIcon);

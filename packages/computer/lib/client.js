@@ -381,6 +381,7 @@ window.__ModuleLoader__.load({
       }, [pickDirectoryInto, prefs]);
       const startExport = (0, react.useCallback)(() => {
         if (!pickerAvailable) {
+          setExportTarget(void 0);
           setConfirming('export');
           return;
         }
@@ -391,10 +392,10 @@ window.__ModuleLoader__.load({
             setConfirming('export');
           })
           .catch(() => {
-            setExportTarget(void 0);
-            setConfirming('export');
+            setManualOpen(true);
+            setNote(t('rows.pickerFailed'));
           });
-      }, [pickDirectory, pickerAvailable]);
+      }, [pickDirectory, pickerAvailable, t]);
       const runExport = (0, react.useCallback)(() => {
         setConfirming(void 0);
         setBusy('export');
@@ -577,7 +578,7 @@ window.__ModuleLoader__.load({
                   : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                       type: 'button',
                       className: 'bh-settings-selector',
-                      disabled: !hasDir || busy !== void 0,
+                      disabled: (pickerAvailable ? false : !hasDir) || busy !== void 0,
                       onClick: startExport,
                       children:
                         busy === 'export'
