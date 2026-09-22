@@ -188,7 +188,7 @@ describe('plugin entry', () => {
         }),
       ).toThrow(/recovery mode/);
       expect(stubs.tools.register).not.toHaveBeenCalled();
-      expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
+      expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(1);
       expect(ctx.get('botharnessBridge')).toBeDefined();
     } finally {
       await ctx.fiber.dispose();
@@ -196,24 +196,20 @@ describe('plugin entry', () => {
     }
   });
 
-  it('registers persona and memory-tree prompt sections in order', () => {
+  it('registers the persona prompt section', () => {
     const { ctx, stubs } = createStubContext();
 
     apply(ctx, { enabled: true });
 
-    expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(2);
+    expect(stubs.systemPrompt.section).toHaveBeenCalledTimes(1);
     const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
     const persona = sections.find((section) => section?.name === 'botharness:persona');
-    const tree = sections.find((section) => section?.name === 'botharness:memory-tree');
-    expect(persona?.order).toBeLessThan(tree?.order ?? 0);
-    expect(tree?.order).toBe(10500);
+    expect(persona?.order).toBe(10400);
 
     expect(persona?.text({})).toBe('');
-    expect(tree?.text({})).toBe('');
     expect(persona?.text({ agent: { session: { header: { cwd: '/no/such/workspace' } } } })).toBe(
       '',
     );
-    expect(tree?.text({ agent: { session: { header: { cwd: '/no/such/workspace' } } } })).toBe('');
   });
 
   it('registers the client bridge as a typert service on the gateway namespace', () => {
@@ -296,7 +292,7 @@ describe('plugin entry', () => {
     }
   });
 
-  it('resolves memory by Session ownership and feeds the tree prompt section', async () => {
+  it('resolves memory by Session ownership', async () => {
     const home = createTempRoot('botharness-plugin-');
     vi.stubEnv('DSH_HOME', home);
     try {
@@ -323,10 +319,8 @@ describe('plugin entry', () => {
       });
 
       const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
-      const tree = sections.find((section) => section?.name === 'botharness:memory-tree');
-      expect(tree?.text({ agent: { session: { id: 'orchestrator-local' } } })).toContain(
-        'confidences.md — Preference',
-      );
+      const persona = sections.find((section) => section?.name === 'botharness:persona');
+      expect(persona?.text({ agent: { session: { id: 'orchestrator-local' } } })).toBe('');
       expect(core?.memory.storeForSession('unowned-session')).toBeUndefined();
     } finally {
       vi.unstubAllEnvs();

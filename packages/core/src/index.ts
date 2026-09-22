@@ -4,7 +4,6 @@ export {
   createCore,
   DEFAULT_CONFIG,
   inject,
-  MEMORY_TREE_SECTION_ORDER,
   name,
   PERSONA_SECTION_ORDER,
 } from './plugin.js';
@@ -107,7 +106,6 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
-export { memoryTreeDay, memoryTreeSignature } from './memory/tree.js';
 export {
   createDshSessionSource,
   isInsideWorkspace,
@@ -141,13 +139,6 @@ export type {
   MemoryWriteResult,
 } from './memory/store.js';
 export type { MemoryCommit } from './memory/git.js';
-export { formatMemoryTree, MEMORY_TREE_LIMIT } from './memory/tree.js';
-export type {
-  MemoryTreeEntry,
-  MemoryTreeFile,
-  MemoryTreeFolder,
-  MemoryTreeOverflow,
-} from './memory/tree.js';
 export type { MemorySearchHit } from './memory/search.js';
 export { ensureMemoryRepository, inspectMemoryRepository } from './memory/repository.js';
 export type {

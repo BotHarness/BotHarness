@@ -4,7 +4,6 @@ import { describe, expect, it } from 'vitest';
 
 import { createMemoryService, createPersonaBotRegistry } from '../src/index.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
-import { formatMemoryTree } from '../src/memory/tree.js';
 import { createTestOwnership, FIXED_NOW, createTempRoot, remember } from './helpers.js';
 
 describe('memory across sessions', () => {
@@ -40,6 +39,5 @@ describe('memory across sessions', () => {
       { path: 'customers/acme.md', line: 9, excerpt: 'Decision: renew in Q4.' },
     ]);
     expect(storeB!.read('customers/acme.md')?.body).toBe('# Acme\n\nDecision: renew in Q4.\n');
-    expect(formatMemoryTree(storeB!.tree())).toContain('customers/acme.md — Acme renewal decision');
   });
 });

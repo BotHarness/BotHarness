@@ -7,7 +7,7 @@ import { createMemoryStore } from '../src/index.js';
 import { FIXED_NOW, createTempRoot } from './helpers.js';
 
 describe('memory store write', () => {
-  it('writes a topic file with front-matter and regenerates MEMORY.md', async () => {
+  it('writes a topic file with front-matter', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
 
@@ -29,11 +29,6 @@ describe('memory store write', () => {
     expect(raw).toContain('summary: Acme renewal');
     expect(raw).toContain('sources:');
     expect(raw.endsWith('---\n# Acme\n\nRenewal due.\n')).toBe(true);
-
-    const index = readFileSync(join(root, 'MEMORY.md'), 'utf8');
-    expect(index).toContain('customers/acme.md');
-    expect(index).toContain('Acme renewal');
-    expect(index).toContain('(updated 2026-09-17)');
   });
 
   it('round-trips reads and reports degraded files with warnings', async () => {
@@ -87,17 +82,12 @@ describe('memory store write', () => {
     const entry = store.read('legacy.md');
     expect(entry?.summary).toBe('Legacy note');
     expect(entry?.warnings).toEqual([]);
-    expect(
-      store.tree().map((treeEntry) => (treeEntry.kind === 'overflow' ? '' : treeEntry.path)),
-    ).toEqual(['legacy.md']);
     expect(await store.search('legacy')).toEqual([
       { path: 'legacy.md', line: 8, excerpt: 'legacy fact' },
     ]);
 
     await store.write({ path: 'topics/new.md', body: 'new\n', summary: 'New note' });
-    const index = readFileSync(join(root, 'MEMORY.md'), 'utf8');
-    expect(index).toContain('legacy.md');
-    expect(index).toContain('topics/new.md');
+    expect(store.read('topics/new.md')?.summary).toBe('New note');
   });
 
   it('refuses to write MEMORY.md and PERSONA.md', async () => {
@@ -164,16 +154,13 @@ describe('memory store jail', () => {
 });
 
 describe('memory store persona', () => {
-  it('returns the persona body, keeps it out of the tree, and refuses writes', async () => {
+  it('returns the persona body and refuses writes', async () => {
     const root = createTempRoot();
     const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
     expect(store.persona()).toBeUndefined();
 
     writeFileSync(join(root, 'PERSONA.md'), '# Persona\n\nBe kind.\n');
     expect(store.persona()).toBe('# Persona\n\nBe kind.\n');
-    expect(
-      store.tree().some((entry) => entry.kind !== 'overflow' && entry.path === 'PERSONA.md'),
-    ).toBe(false);
 
     await expect(
       store.write({ path: 'PERSONA.md', body: 'evil', summary: 'takeover' }),
@@ -213,5 +200,53 @@ describe('memory store serialization and atomicity', () => {
 
     expect(store.read('good.md')?.body).toBe('ok\n');
     expect(store.history()[0]?.message.split('\n')[0]).toBe('Recovered');
+  });
+});
+
+describe('memory store search', () => {
+  it('finds case-insensitive substrings with path, line and trimmed excerpt', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await store.write({
+      path: 'topics/a.md',
+      body: 'First line\nACME renewal in Q4\n',
+      summary: 'A',
+    });
+    await store.write({
+      path: 'customers/acme.md',
+      body: 'No match here\nacme again\n',
+      summary: 'B',
+    });
+
+    const hits = await store.search('acme');
+
+    expect(hits).toEqual([
+      { path: 'customers/acme.md', line: 7, excerpt: 'acme again' },
+      { path: 'topics/a.md', line: 7, excerpt: 'ACME renewal in Q4' },
+    ]);
+  });
+
+  it('searches bodies only, ignoring front-matter and the reserved files', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await store.write({ path: 'a.md', body: 'plain body\n', summary: 'Zebra summary' });
+    writeFileSync(join(root, 'PERSONA.md'), 'zebra persona\n');
+    writeFileSync(join(root, 'MEMORY.md'), 'zebra index\n');
+
+    expect(await store.search('zebra')).toEqual([]);
+    expect(await store.search('plain')).toEqual([{ path: 'a.md', line: 6, excerpt: 'plain body' }]);
+  });
+
+  it('returns nothing for blank queries and truncates long excerpts', async () => {
+    const root = createTempRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    const longLine = `${'x'.repeat(400)} needle`;
+    await store.write({ path: 'long.md', body: `${longLine}\n`, summary: 'Long' });
+
+    expect(await store.search('   ')).toEqual([]);
+    const hits = await store.search('needle');
+    expect(hits).toHaveLength(1);
+    expect(hits[0]?.excerpt.endsWith('...')).toBe(true);
+    expect(hits[0]?.excerpt.length).toBe(243);
   });
 });

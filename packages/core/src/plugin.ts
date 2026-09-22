@@ -38,7 +38,6 @@ export const name = 'botharness-core';
 export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel'];
 
 export const PERSONA_SECTION_ORDER = 10400;
-export const MEMORY_TREE_SECTION_ORDER = 10500;
 
 export interface BotHarnessConfig {
   enabled: boolean;
@@ -242,10 +241,5 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     name: 'botharness:persona',
     order: PERSONA_SECTION_ORDER,
     text: ({ agent }) => core.memory.storeForAgent(agent)?.persona() ?? '',
-  });
-  ctx.systemPrompt.section({
-    name: 'botharness:memory-tree',
-    order: MEMORY_TREE_SECTION_ORDER,
-    text: ({ agent }) => core.memory.treeForSession(agent?.session?.id),
   });
 }
