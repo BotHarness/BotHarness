@@ -1,3 +1,4 @@
+import type { Context } from '@deepseek-ai/cordis';
 import { mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -24,22 +25,43 @@ import type {
 
 const ROLE_PROMPT_ORDER = 10_350;
 
-const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot.
-For this tracer-bullet runtime, every nonblank Human message must create exactly one Assignment by calling create_assignment with a concise purpose. Wait for its report, then call channel_send exactly once to answer the triggering Channel.
+const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
+You own the Human conversation and the memory: answer the triggering Channel with channel_send exactly once, and record durable facts yourself with ordinary file, Shell, grep, and git capabilities inside your working directory. Reading an Assignment report never writes memory for you — you decide what to persist.
+Delegate with create_assignment only for bounded independent work that benefits from its own working directory or parallel execution. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
-Complete the stated purpose using the tools available in this Agent scope. Before finishing, call report_to_orchestrator exactly once with a concise summary and one state: completed, blocked, waiting-human, or failed. Do not address the Human directly.`;
+Work in your own working directory with the tools available in this Agent scope, and never write to the PersonaBot's Memory Repository — only the Orchestrator owns memory. Before finishing, call report_to_orchestrator exactly once with a concise summary and one state: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it. Do not address the Human directly.`;
 
 export interface DshAgentHost {
   create(options: CreateAgentOptions): Promise<AgentHandle>;
   resume(options: ResumeAgentOptions): Promise<AgentHandle>;
 }
 
+/**
+ * The agent-preset roster that composes a session's tools and prompt sections.
+ * A session that names a preset but never mounts it sees only the tools its own
+ * factory setup registered, so mounting is not optional.
+ */
+export interface DshAgentPresetHost {
+  mount(agentCtx: Context, id?: string): Promise<unknown>;
+}
+
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
   defaultWorkspaceRoot: string;
+  /**
+   * Resolves the preset roster lazily: a service may mount after this plugin
+   * applies, so the roster is looked up per agent creation, not captured once.
+   */
+  resolveAgentPresets?: () => DshAgentPresetHost | undefined;
+  /**
+   * Agent preset a PersonaBot session joins when its record names none. Every
+   * session must join one: an agent without a preset resolves against the
+   * empty global layer and sees only the tools its own setup registered.
+   */
+  defaultAgentPreset?: string;
   /**
    * Explicit Orchestrator working directory (the PersonaBot's Memory
    * Repository). Absent falls back to the legacy workspace resolution.
@@ -70,11 +92,13 @@ function createMeta(
   run: OrchestratorAgentRun | AssignmentAgentRun,
   cwd: string,
   ensureWorkspace: (path: string) => void,
+  defaultAgentPreset: string | undefined,
 ) {
   ensureWorkspace(cwd);
+  const agentPreset = run.bot.preset ?? defaultAgentPreset;
   return {
     cwd,
-    ...(run.bot.preset === undefined ? {} : { agentPreset: run.bot.preset }),
+    ...(agentPreset === undefined ? {} : { agentPreset }),
   };
 }
 
@@ -104,6 +128,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #defaultModel: DshDefaultModelHost;
   readonly #defaultWorkspaceRoot: string;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
+  readonly #defaultAgentPreset: string | undefined;
+  readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
   readonly #runs = new Map<string, ActiveRun>();
@@ -115,6 +141,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#defaultModel = options.defaultModel;
     this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
+    this.#defaultAgentPreset = options.defaultAgentPreset;
+    this.#resolveAgentPresets = options.resolveAgentPresets;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
     this.#drafts = new ChannelDraftTracker(options.publishDraft ?? (() => undefined));
@@ -193,7 +221,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
-    const setup: NonNullable<CreateAgentOptions['setup']> = (agentCtx) => {
+    const setup: NonNullable<CreateAgentOptions['setup']> = async (agentCtx) => {
+      await this.#composePreset(agentCtx, run.bot);
       installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
       agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
@@ -318,7 +347,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
     };
     const options = { agentOptions: resolvedAgentOptions, setup };
-    const meta = createMeta(run, this.#resolveCwd(run.bot, 'orchestrator'), this.#ensureWorkspace);
+    const meta = createMeta(
+      run,
+      this.#resolveCwd(run.bot, 'orchestrator'),
+      this.#ensureWorkspace,
+      this.#defaultAgentPreset,
+    );
     const handle = run.resume
       ? await this.#agents.resume({
           resumeSessionId: SessionId(run.sessionId),
@@ -333,6 +367,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     return handle;
   }
 
+  async #composePreset(agentCtx: Context, bot: PersonaBotRecord): Promise<void> {
+    const presets = this.#resolveAgentPresets?.();
+    if (presets === undefined) return;
+    await presets.mount(agentCtx, bot.preset ?? this.#defaultAgentPreset);
+  }
+
   #resolveCwd(bot: PersonaBotRecord, role: 'orchestrator' | 'assignment'): string {
     if (role === 'orchestrator') {
       const explicit = this.#orchestratorCwd?.(bot);
@@ -344,13 +384,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   async #assignmentHandle(run: AssignmentAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const meta = createMeta(run, this.#resolveCwd(run.bot, 'assignment'), this.#ensureWorkspace);
+    const meta = createMeta(
+      run,
+      this.#resolveCwd(run.bot, 'assignment'),
+      this.#ensureWorkspace,
+      this.#defaultAgentPreset,
+    );
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
     const handle = await this.#agents.create({
       sessionId: SessionId(run.sessionId),
       ...(meta === undefined ? {} : { meta }),
       agentOptions: resolvedAgentOptions,
-      setup: (agentCtx) => {
+      setup: async (agentCtx) => {
+        await this.#composePreset(agentCtx, run.bot);
         installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
         agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
