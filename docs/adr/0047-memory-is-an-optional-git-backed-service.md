@@ -5,7 +5,7 @@ Date: 2026-09-21
 
 # Memory is a default Git-backed Service with file-first Agent access
 
-> Superseded in part by ADR-0056: pinned bodies, the pin budget, and any generated index are gone; Persona is delivered to a Session's system prompt from a per-Session snapshot, and the Agent explores the repository with ordinary file tools.
+> Superseded in part by ADR-0060: pinned bodies, the pin budget, and any generated index are gone; Persona is delivered to a Session's system prompt from a per-Session snapshot, and the Agent explores the repository with ordinary file tools.
 
 ## Original decision (superseded in part by the update below)
 
@@ -46,6 +46,6 @@ Application-defined Cordis Events report reconciliation and accepted or rejected
 
 ## Update (2026-09-22) — no pinned bodies, no generated index, persona is a Session snapshot
 
-ADR-0056 supersedes the pin mechanism above. The system prompt prefix is append-only and carries no derived Memory state: the Memory Tree section and the generated `MEMORY.md` index are removed, pin frontmatter is no longer consumed by prompt assembly, and there is no pin budget or full-body injection. The Agent reads, searches, and versions repository files with ordinary filesystem, Shell, `grep`, and `git` capabilities.
+ADR-0060 supersedes the pin mechanism above. The system prompt prefix is append-only and carries no derived Memory state: the Memory Tree section and the generated `MEMORY.md` index are removed, pin frontmatter is no longer consumed by prompt assembly, and there is no pin budget or full-body injection. The Agent reads, searches, and versions repository files with ordinary filesystem, Shell, `grep`, and `git` capabilities.
 
 Persona remains conventional content but is delivered differently: each owned Session freezes the `PERSONA.md` body at its first prompt assembly, and that Session's system prompt keeps those bytes for its whole life, including across a Host restart. A Human edit reaches Sessions that have not snapshotted yet. The repository lifecycle, file-first access, accepted-commit boundary, and Memory Service ownership above are unchanged.
