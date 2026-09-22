@@ -84,6 +84,46 @@ describe('Channel composer', () => {
     expect(markup).toContain('answer');
   });
 
+  it('keeps failed uploads visible and blocks sending until retry succeeds', () => {
+    const file = new File(['report'], 'report.pdf', { type: 'application/pdf' });
+    const render = (status: 'error' | 'ready') =>
+      renderToStaticMarkup(
+        createElement(ChannelComposer, {
+          value: '',
+          placeholder: 'Message Ada',
+          sending: false,
+          attachments: [
+            {
+              id: 'upload-1',
+              file,
+              status,
+              ...(status === 'error'
+                ? { error: 'network unavailable' }
+                : {
+                    ref: {
+                      hash: `sha256:${'a'.repeat(64)}`,
+                      name: 'report.pdf',
+                      mime: 'application/pdf',
+                      size: 6,
+                    },
+                  }),
+            },
+          ],
+          onChange: () => undefined,
+          onSubmit: () => undefined,
+        }),
+      );
+
+    const failed = render('error');
+    expect(failed).toContain('report.pdf');
+    expect(failed).toContain('title="network unavailable"');
+    expect(failed).toContain('重试');
+    expect(failed.match(/<button class="bh-send-btn"[^>]*>/u)?.[0]).toContain('disabled=""');
+
+    const ready = render('ready');
+    expect(ready.match(/<button class="bh-send-btn"[^>]*>/u)?.[0]).not.toContain('disabled');
+  });
+
   it('submits plain Enter but preserves multiline and IME input', () => {
     const key = (patch: {
       key?: string;
