@@ -22,6 +22,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconTrashOutline16: stub,
     Input: stub,
     Menu: stub,
+    MarkdownText: stub,
     Modal: stub,
     StateDot: stub,
     Tag,

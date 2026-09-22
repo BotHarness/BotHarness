@@ -1551,6 +1551,23 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   white-space: pre-wrap;
   word-break: break-word;
 }
+.bh-bubble-body-markdown {
+  min-width: 0;
+  white-space: normal;
+}
+.bh-bubble-body-markdown > :first-child > :first-child {
+  margin-top: 0;
+}
+.bh-bubble-body-markdown > :first-child > :last-child {
+  margin-bottom: 0;
+}
+.bh-bubble-body-markdown .md-code-block {
+  max-width: 100%;
+}
+.bh-bubble-body-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+}
 .bh-bubble-time {
   margin: 4px 2px 0;
   font-size: 10.5px;

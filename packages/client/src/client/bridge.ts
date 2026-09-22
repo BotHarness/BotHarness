@@ -211,7 +211,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (typeof body !== 'string') return undefined;
   const author = parseAuthor(record['author']);
   if (author === undefined) return undefined;
-  return { id, at, author, body };
+  const format = record['format'];
+  if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
+  return { id, at, author, body, ...(format === undefined ? {} : { format }) };
 }
 
 export function parseChannelMessages(value: unknown): ChannelMessage[] {

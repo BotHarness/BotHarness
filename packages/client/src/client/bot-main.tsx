@@ -17,6 +17,7 @@ import {
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import { ChannelComposer, type ChannelComposerActivity } from './channel-composer.js';
+import { ChannelMessageBody } from './channel-message-body.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -147,7 +148,7 @@ function MessageGroupView({
                 className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}`}
                 data-group-position={position}
               >
-                <div className="bh-bubble-body">{message.body}</div>
+                <ChannelMessageBody message={message} t={t} />
               </div>
               <button
                 type="button"

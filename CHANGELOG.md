@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Bot and bridged Channel messages now render Markdown with DSH's safe native renderer, while Human messages retain literal text and line breaks ([#142](https://github.com/BotHarness/BotHarness/issues/142)).
+
 - The Computer group in the Bot settings section can export to a directory chosen at export time and open its folder in the Host's file manager, and the directory can also be typed when the deployment mounts no directory picker ([#168](https://github.com/BotHarness/BotHarness/issues/168)).
 
 - Added the Computer group to the Bot settings section: its export directory is chosen through the Host's directory picker, the idle stop time is edited in place, and export/import run from the same page with an explicit authorization step; these settings are runtime settings, so they apply without restarting DSH ([#168](https://github.com/BotHarness/BotHarness/issues/168)).

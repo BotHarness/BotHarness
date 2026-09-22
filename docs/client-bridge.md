@@ -67,6 +67,8 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 `ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (PersonaBot IDs) / botSlug? (dm；当前 wire 键) / createdAt / updatedAt`；`ChannelListItem` 在它之上附加可选 `latestMessage`，由现有消息权威读取并投影给折叠 rail，不写回 `channel.json`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。当前 M3 bridge 仍以每 Channel 的 `messages.ndjson` 作为历史权威，只读写本地文件、不做投递，群聊暂不写 BOT 回复（v1.1 Channel 工具）；这是迁移前的实现事实，不是新架构终态。ADR-0037 与 #79/#80 会将 Messaging operational facts 单向迁入 `botharness.db`，迁移后不双写 NDJSON。`before` 是消息 id 游标：返回比该消息更旧的一页。
 
+`ChannelMessage.format?: 'markdown' | 'text'` 是可选的内容表示提示；旧记录无需迁移。Client 默认把 Human 消息按原样文本和换行呈现，把 Bot / bridged 消息交给 DSH 公开的 `MarkdownText`；显式 `format` 可覆盖默认值。原生渲染器不允许危险协议、相对链接或原始 HTML 生效，也不传入本地文件扩展词汇。
+
 #143 起，Client 读取历史首选 `channelTimeline`，旧 `channelMessages` 只保留兼容。当前 NDJSON 实现仍会扫描文件后切片；Client 不解释游标，也不将整段历史无限累计到内存。游标与消息 revision 各司其职：前者定位历史页，后者是 SSE 重连水位。详见 ADR-0055。
 
 `SessionSummary` 含 `id / title / cwd / updatedAt`；标题取会话日志里第一条 `user/message` 的文本（无则空串，客户端回退展示），`updatedAt` 取最后一条事件时间（无事件回退 `createdAt`）。`sessions` 只读 DSH Host 当前在册的会话（`ctx.sessions.list()`），按 cwd 是否位于 BOT 的任一 workspace 内过滤。这是已实现 M3 bridge 的临时兼容启发式，只用于描述当前 wire 行为；新领域逻辑不得把 cwd 当 ownership。#80 会以 durable explicit Session ownership 和 Orchestrator / Assignment role projection 替换它（ADR-0035/0045）。

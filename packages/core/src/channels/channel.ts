@@ -26,6 +26,7 @@ export interface ChannelMessage {
   author: ChannelMessageAuthor;
   body: string;
   external?: ChannelMessageExternal;
+  format?: 'markdown' | 'text';
 }
 
 export const CHANNEL_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -90,6 +91,12 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (typeof message['at'] !== 'string' || message['at'].length === 0) return false;
   if (typeof message['body'] !== 'string') return false;
   if (!isChannelMessageAuthor(message['author'])) return false;
+  if (
+    message['format'] !== undefined &&
+    message['format'] !== 'markdown' &&
+    message['format'] !== 'text'
+  )
+    return false;
   const external = message['external'];
   if (external !== undefined) {
     if (typeof external !== 'object' || external === null) return false;

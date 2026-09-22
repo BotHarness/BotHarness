@@ -38,6 +38,7 @@ export interface ChannelMessage {
   at: string;
   author: ChannelAuthor;
   body: string;
+  format?: 'markdown' | 'text';
   /** Local echo awaiting the Host's committed message; never sent on the wire. */
   pending?: boolean;
   /** Local projection of a process-only Orchestrator tool-call draft. */
