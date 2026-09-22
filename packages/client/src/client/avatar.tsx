@@ -30,6 +30,8 @@ export interface PersonaBotAvatarProps {
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   indicator?: boolean | undefined;
+  /** Locale-bound translate for the activity label; Chinese when rendered in isolation. */
+  t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
 }
 
@@ -154,6 +156,7 @@ export function PersonaBotAvatar({
   effect,
   indicator = true,
   className,
+  t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect = effect ?? defaultActivityEffect(state);
   const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
@@ -169,7 +172,7 @@ export function PersonaBotAvatar({
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
       role="img"
-      aria-label={`${name}：${personaBotActivityLabel(state)}`}
+      aria-label={`${name}：${personaBotActivityLabel(state, t)}`}
     >
       <AvatarMedia personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}
@@ -182,11 +185,13 @@ export function PersonaBotFacepile({
   size,
   max = 3,
   className,
+  t = zhTranslate,
 }: {
   items: readonly PersonaBotFacepileItem[];
   size: number;
   max?: number | undefined;
   className?: string | undefined;
+  t?: BotHarnessTranslate | undefined;
 }): ReactElement | null {
   if (items.length === 0) return null;
   const visible = items.slice(0, max);
@@ -194,7 +199,7 @@ export function PersonaBotFacepile({
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
       {visible.map((item) => (
-        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} />
+        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />
       ))}
       {overflow > 0 ? (
         <span className="bh-avatar-facepile-overflow" style={{ width: size, height: size }}>
@@ -207,5 +212,13 @@ export function PersonaBotFacepile({
 
 /** Compatibility wrapper for older call sites outside the bundled client. */
 export function Blobatar({ seed, size }: { seed: string; size: number }): ReactElement {
-  return <PersonaBotAvatar personaBotId={seed} name={seed} size={size} indicator={false} />;
+  return (
+    <PersonaBotAvatar
+      personaBotId={seed}
+      name={seed}
+      size={size}
+      indicator={false}
+      t={zhTranslate}
+    />
+  );
 }

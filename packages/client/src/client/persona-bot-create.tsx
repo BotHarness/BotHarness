@@ -108,7 +108,7 @@ export function CreatePersonaBotModal({
           onCreated();
         },
         (cause: unknown) => {
-          setError(personaBotCreateError(cause));
+          setError(personaBotCreateError(cause, t));
           setCreating(false);
         },
       );

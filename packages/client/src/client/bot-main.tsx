@@ -90,6 +90,7 @@ function MessageBubble({
           <span className="bh-bubble-avatar-spacer" aria-hidden="true" />
         ) : (
           <PersonaBotAvatar
+            t={t}
             personaBotId={message.author.slug}
             name={authorBot?.displayName ?? message.author.slug}
             src={authorBot?.avatar}
@@ -141,6 +142,7 @@ function EmptyConversation({
     <div className="bh-placeholder bh-chat-empty">
       {bot !== undefined ? (
         <PersonaBotAvatar
+          t={t}
           personaBotId={bot.slug}
           name={bot.displayName}
           src={bot.avatar}
@@ -267,6 +269,7 @@ function ConversationView({
           <div className="bh-topbar">
             {bot !== undefined ? (
               <PersonaBotAvatar
+                t={t}
                 personaBotId={bot.slug}
                 name={bot.displayName}
                 src={bot.avatar}
@@ -274,7 +277,7 @@ function ConversationView({
                 size={22}
               />
             ) : channelFacepile.length > 0 ? (
-              <PersonaBotFacepile items={channelFacepile} size={22} />
+              <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
             ) : (
               <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
                 #

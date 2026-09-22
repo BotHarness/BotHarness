@@ -67,8 +67,10 @@ export function fitComposerTextarea(
 
 function PersonaBotActivityStatus({
   activity,
+  t,
 }: {
   activity: ChannelComposerActivity | undefined;
+  t: BotHarnessTranslate;
 }): ReactElement | null {
   if (activity === undefined || activity.items.length === 0) return null;
 
@@ -80,6 +82,7 @@ function PersonaBotActivityStatus({
       title={activity.summary}
     >
       <PersonaBotFacepile
+        t={t}
         className="bh-composer-activity-facepile"
         items={activity.items}
         size={40}
@@ -136,7 +139,7 @@ export function ChannelComposer({
 
   return (
     <div className="bh-composer-shell">
-      <PersonaBotActivityStatus activity={activity} />
+      <PersonaBotActivityStatus activity={activity} t={t} />
       <div
         className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}

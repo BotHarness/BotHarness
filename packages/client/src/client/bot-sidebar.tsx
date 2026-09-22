@@ -316,6 +316,7 @@ function BotRow({
       }}
     >
       <PersonaBotAvatar
+        t={t}
         personaBotId={bot.slug}
         name={bot.displayName}
         src={bot.avatar}
@@ -467,6 +468,7 @@ function RailChannel({
             </span>
           ) : (
             <PersonaBotAvatar
+              t={t}
               personaBotId={bot.slug}
               name={bot.displayName}
               src={bot.avatar}
@@ -485,6 +487,7 @@ function RailChannel({
               </span>
             ) : (
               <PersonaBotAvatar
+                t={t}
                 personaBotId={bot.slug}
                 name={bot.displayName}
                 src={bot.avatar}
@@ -1395,6 +1398,7 @@ export function BotSidebar({
                       </span>
                     ) : (
                       <PersonaBotAvatar
+                        t={t}
                         personaBotId={bot.slug}
                         name={bot.displayName}
                         src={bot.avatar}

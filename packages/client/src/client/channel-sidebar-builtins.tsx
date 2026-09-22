@@ -104,6 +104,7 @@ function MembersEntry({ t }: ChannelSidebarEntryProps): ReactElement {
         return (
           <div className="bh-member-row" key={slug}>
             <PersonaBotAvatar
+              t={t}
               personaBotId={slug}
               name={member?.displayName ?? slug}
               src={member?.avatar}
