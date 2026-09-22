@@ -25,6 +25,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - The Bot icon chooser is a grid of cards that show each mark, with the selected one outlined, instead of a selector that only names them ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
 
+- BotHarness copy now follows the DSH language everywhere, not only in Settings: the roster, section management, PersonaBot creation, the Channel sidebar entries, the composer, and activity states all render English when the interface is English ([#184](https://github.com/BotHarness/BotHarness/issues/184)).
+
 - The app sidebar's Bot mode switch stands taller with a larger mark and label: clicking the row again leaves Bot mode, and hovering reveals a settings gear that opens the Settings dialog on the Bot section ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
 
 - BotHarness now has its own Bot mark: the app sidebar's BOT-mode entry and the Bot settings section's navigation show the DeepSeekBot mascot (light and dark artwork), and the new Bot icon row switches it between the mascot, its simplified variant, a generated blob, or a generic bot glyph ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
