@@ -52,6 +52,10 @@ window.__ModuleLoader__.load({
       'rows.exportDir.pick': '选择…',
       'rows.exportDir.manual': '手动输入路径',
       'rows.exportDir.save': '保存',
+      'rows.exportDir.saveAndExport': '保存并导出',
+      'rows.exportDir.saving': '正在保存…',
+      'rows.exportDir.saved': '导出目录已保存：{dir}',
+      'rows.exportDir.needsAbsolute': '路径必须是绝对路径，例如 /path/to/exports',
       'rows.exportDir.open': '打开目录',
       'rows.idle.title': '空闲停止',
       'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
@@ -118,6 +122,10 @@ window.__ModuleLoader__.load({
       'rows.exportDir.pick': 'Choose…',
       'rows.exportDir.manual': 'Type a path',
       'rows.exportDir.save': 'Save',
+      'rows.exportDir.saveAndExport': 'Save and export',
+      'rows.exportDir.saving': 'Saving…',
+      'rows.exportDir.saved': 'Export directory saved: {dir}',
+      'rows.exportDir.needsAbsolute': 'Path must be absolute, e.g. /path/to/exports',
       'rows.exportDir.open': 'Open folder',
       'rows.idle.title': 'Idle stop',
       'rows.idle.description': 'How long the Computer waits without viewers before stopping',
@@ -208,9 +216,9 @@ window.__ModuleLoader__.load({
           this.listeners.delete(listener);
         };
       };
-      setExportDir(exportDir) {
+      async setExportDir(exportDir) {
         this.publish({ exportDir });
-        this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir).catch(() => void 0);
+        await this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
       }
       setIdleStopMinutes(idleStopMinutes) {
         this.publish({ idleStopMinutes });
@@ -363,6 +371,8 @@ window.__ModuleLoader__.load({
       const [exportTarget, setExportTarget] = (0, react.useState)(void 0);
       const [manualOpen, setManualOpen] = (0, react.useState)(false);
       const [manualPath, setManualPath] = (0, react.useState)('');
+      const [manualPurpose, setManualPurpose] = (0, react.useState)('set');
+      const [saving, setSaving] = (0, react.useState)(false);
       const [note, setNote] = (0, react.useState)(void 0);
       const [hostDir, setHostDir] = (0, react.useState)(void 0);
       const [livePhase, setLivePhase] = (0, react.useState)(void 0);
@@ -408,6 +418,7 @@ window.__ModuleLoader__.load({
               if (dir !== null) apply(dir);
             })
             .catch(() => {
+              setManualPurpose('set');
               setManualOpen(true);
               setNote(t('rows.pickerFailed'));
             });
@@ -417,7 +428,7 @@ window.__ModuleLoader__.load({
       const pickExportDir = (0, react.useCallback)(() => {
         pickDirectoryInto((dir) => {
           setManualPath(dir);
-          prefs.setExportDir(dir);
+          prefs.setExportDir(dir).catch((error) => setNote(String(error)));
           setNote(void 0);
         });
       }, [pickDirectoryInto, prefs]);
@@ -434,10 +445,33 @@ window.__ModuleLoader__.load({
             setConfirming('export');
           })
           .catch(() => {
+            setManualPurpose('export');
             setManualOpen(true);
             setNote(t('rows.pickerFailed'));
           });
       }, [pickDirectory, pickerAvailable, t]);
+      const saveManualPath = (0, react.useCallback)(() => {
+        const dir = manualPath.trim();
+        if (dir === '') return;
+        if (!dir.startsWith('/') && !/^[A-Za-z]:[\\/]/u.test(dir)) {
+          setNote(t('rows.exportDir.needsAbsolute'));
+          return;
+        }
+        setSaving(true);
+        setNote(void 0);
+        prefs
+          .setExportDir(dir)
+          .then(() => {
+            setManualOpen(false);
+            setNote(t('rows.exportDir.saved', { dir }));
+            if (manualPurpose === 'export') {
+              setExportTarget(dir);
+              setConfirming('export');
+            }
+          })
+          .catch((error) => setNote(String(error)))
+          .finally(() => setSaving(false));
+      }, [manualPath, manualPurpose, prefs, t]);
       const runExport = (0, react.useCallback)(() => {
         setConfirming(void 0);
         setBusy('export');
@@ -517,6 +551,7 @@ window.__ModuleLoader__.load({
                   className: 'bh-settings-selector',
                   disabled: !writable,
                   onClick: () => {
+                    setManualPurpose('set');
                     setManualOpen((value) => !value);
                     setManualPath(exportDir);
                   },
@@ -544,13 +579,13 @@ window.__ModuleLoader__.load({
                   /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                     type: 'button',
                     className: 'bh-settings-selector',
-                    disabled: !writable || manualPath.trim() === '',
-                    onClick: () => {
-                      prefs.setExportDir(manualPath.trim());
-                      setManualOpen(false);
-                      setNote(void 0);
-                    },
-                    children: t('rows.exportDir.save'),
+                    disabled: !writable || saving || manualPath.trim() === '',
+                    onClick: saveManualPath,
+                    children: saving
+                      ? t('rows.exportDir.saving')
+                      : manualPurpose === 'export'
+                        ? t('rows.exportDir.saveAndExport')
+                        : t('rows.exportDir.save'),
                   }),
                 ],
               })

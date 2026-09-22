@@ -50,7 +50,7 @@ afterEach(() => {
 });
 
 describe('computer settings prefs', () => {
-  it('adopts the scope values and publishes writes optimistically', () => {
+  it('adopts the scope values and publishes writes optimistically', async () => {
     const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 60 });
     const prefs = new ComputerSettingsPrefs();
     const seen: string[] = [];
@@ -64,13 +64,24 @@ describe('computer settings prefs', () => {
       writable: true,
     });
 
-    prefs.setExportDir('/other');
+    await prefs.setExportDir('/other');
     expect(prefs.getSnapshot().exportDir).toBe('/other');
     expect(fake.writes).toEqual([{ field: 'exportDir', value: '/other' }]);
 
     fake.push({ exportDir: '/adopted', idleStopMinutes: 15 });
     expect(prefs.getSnapshot()).toMatchObject({ exportDir: '/adopted', idleStopMinutes: 15 });
     expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it('rejects setExportDir when the scope write fails, so the row can show the error', async () => {
+    const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 30 });
+    fake.scope.set = async () => {
+      throw new Error('scope refused');
+    };
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+
+    await expect(prefs.setExportDir('/other')).rejects.toThrow('scope refused');
   });
 });
 

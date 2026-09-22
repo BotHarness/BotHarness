@@ -62,6 +62,7 @@
 
 ### Fixed
 
+- 修复目录选择器不可用（Web 部署）时 Computer 的导出流程：「导出到…」会打开路径输入且按钮为「保存并导出」，保存过程有进行中状态和成功/失败提示（不再静默收起），相对路径会被明确拒绝，保存成功后直接进入导出授权步骤（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 - 修复新建 PersonaBot 自动打开 DM 后首条消息无法发送的问题；现在无需重新选择 Bot 或刷新页面即可发送（[#186](https://github.com/BotHarness/BotHarness/issues/186)）。
 - PersonaBot DM 现在会随 Orchestrator 显式 `channel_send` 的生成过程预览回复，并在提交后替换为正式 Channel 消息；其他已提交消息也无需刷新即可显示，重连会补回遗漏的历史（[#141](https://github.com/BotHarness/BotHarness/issues/141)、[ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)）。
 - turn 运行期间不再把进行中的 side effect 报告为 `needs-repair`；被中断的 attempt 在启动时统一对账（已有 side effect → 需修复，否则可重试）（[#115](https://github.com/BotHarness/BotHarness/issues/115)）。

@@ -81,9 +81,9 @@ export class ComputerSettingsPrefs {
     };
   };
 
-  setExportDir(exportDir: string): void {
+  async setExportDir(exportDir: string): Promise<void> {
     this.publish({ exportDir });
-    void this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir).catch(() => undefined);
+    await this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
   }
 
   setIdleStopMinutes(idleStopMinutes: number): void {
@@ -262,6 +262,8 @@ export function ComputerSettingsRows({
   const [exportTarget, setExportTarget] = useState<string | undefined>(undefined);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPath, setManualPath] = useState('');
+  const [manualPurpose, setManualPurpose] = useState<'set' | 'export'>('set');
+  const [saving, setSaving] = useState(false);
   const [note, setNote] = useState<string | undefined>(undefined);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
   const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
@@ -317,6 +319,7 @@ export function ComputerSettingsRows({
           if (dir !== null) apply(dir);
         })
         .catch(() => {
+          setManualPurpose('set');
           setManualOpen(true);
           setNote(t('rows.pickerFailed'));
         });
@@ -327,7 +330,7 @@ export function ComputerSettingsRows({
   const pickExportDir = useCallback(() => {
     pickDirectoryInto((dir) => {
       setManualPath(dir);
-      prefs.setExportDir(dir);
+      void prefs.setExportDir(dir).catch((error: unknown) => setNote(String(error)));
       setNote(undefined);
     });
   }, [pickDirectoryInto, prefs]);
@@ -347,11 +350,36 @@ export function ComputerSettingsRows({
       })
       .catch(() => {
         // The picker is broken: surface the typed-path fallback instead of
-        // silently exporting somewhere the Human did not choose.
+        // silently exporting somewhere the Human did not choose. The save
+        // button becomes "Save and export" so the export intent carries over.
+        setManualPurpose('export');
         setManualOpen(true);
         setNote(t('rows.pickerFailed'));
       });
   }, [pickDirectory, pickerAvailable, t]);
+
+  const saveManualPath = useCallback(() => {
+    const dir = manualPath.trim();
+    if (dir === '') return;
+    if (!dir.startsWith('/') && !/^[A-Za-z]:[\\/]/u.test(dir)) {
+      setNote(t('rows.exportDir.needsAbsolute'));
+      return;
+    }
+    setSaving(true);
+    setNote(undefined);
+    void prefs
+      .setExportDir(dir)
+      .then(() => {
+        setManualOpen(false);
+        setNote(t('rows.exportDir.saved', { dir }));
+        if (manualPurpose === 'export') {
+          setExportTarget(dir);
+          setConfirming('export');
+        }
+      })
+      .catch((error: unknown) => setNote(String(error)))
+      .finally(() => setSaving(false));
+  }, [manualPath, manualPurpose, prefs, t]);
 
   const runExport = useCallback(() => {
     setConfirming(undefined);
@@ -426,6 +454,7 @@ export function ComputerSettingsRows({
             className="bh-settings-selector"
             disabled={!writable}
             onClick={() => {
+              setManualPurpose('set');
               setManualOpen((value) => !value);
               setManualPath(exportDir);
             }}
@@ -451,14 +480,14 @@ export function ComputerSettingsRows({
           <button
             type="button"
             className="bh-settings-selector"
-            disabled={!writable || manualPath.trim() === ''}
-            onClick={() => {
-              prefs.setExportDir(manualPath.trim());
-              setManualOpen(false);
-              setNote(undefined);
-            }}
+            disabled={!writable || saving || manualPath.trim() === ''}
+            onClick={saveManualPath}
           >
-            {t('rows.exportDir.save')}
+            {saving
+              ? t('rows.exportDir.saving')
+              : manualPurpose === 'export'
+                ? t('rows.exportDir.saveAndExport')
+                : t('rows.exportDir.save')}
           </button>
         </div>
       ) : null}

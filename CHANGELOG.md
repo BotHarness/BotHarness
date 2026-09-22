@@ -62,6 +62,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed the Computer's export flow when the directory picker is unavailable (web deployments): "Export to…" now opens path entry labeled "Save and export", the save button shows progress and a success/failure note instead of silently closing, relative paths are rejected with an explanation, and saving carries straight into the export authorization step ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 - Fixed the newly created PersonaBot DM so its first Human message can be sent immediately without reselecting the Bot or refreshing the page ([#186](https://github.com/BotHarness/BotHarness/issues/186)).
 - PersonaBot DM now previews a reply as the Orchestrator streams an explicit `channel_send` call, then replaces it with the committed Channel message; other committed messages appear without refresh, and reconnects replay missed history ([#141](https://github.com/BotHarness/BotHarness/issues/141), [ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)).
 - A running turn no longer reports `needs-repair` while a side effect is in flight; an interrupted attempt is reconciled at boot (side effect started → reconciliation, otherwise retryable) ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
