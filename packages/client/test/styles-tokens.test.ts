@@ -180,7 +180,9 @@ describe('client styles', () => {
       /\.bh-composer-body \{[^}]*height: var\(--bh-composer-body-height\)[^}]*transition: height 220ms/,
     );
     expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
-    expect(source).toMatch(/\.bh-composer-expanded \.bh-composer-footer \{[^}]*bottom: 8px/);
+    expect(source).toMatch(
+      /\.bh-composer-expanded \.bh-composer-footer,\s*\.bh-composer-replying \.bh-composer-footer \{[^}]*bottom: 8px/,
+    );
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-body");
   });

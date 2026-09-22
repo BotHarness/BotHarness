@@ -33,12 +33,19 @@ export type ChannelAuthor =
   | { kind: 'bot'; slug: string }
   | { kind: 'bridged'; source: string };
 
+export interface ChannelReplyPreview {
+  author: ChannelAuthor;
+  body: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
   author: ChannelAuthor;
   body: string;
   format?: 'markdown' | 'text';
+  replyTo?: string;
+  replyToPreview?: ChannelReplyPreview | null;
   /** Local echo awaiting the Host's committed message; never sent on the wire. */
   pending?: boolean;
   /** Local projection of a process-only Orchestrator tool-call draft. */

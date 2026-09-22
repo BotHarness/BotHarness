@@ -484,6 +484,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               description: 'Channel id; defaults to the inbound Channel.',
             },
+            reply_to: {
+              type: 'string',
+              description: 'Optional message id to reply to in that same Channel.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -497,6 +501,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const message = await active.run.channels.send({
               body: args.body,
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
             });
             this.#drafts.settle(
               run.sessionId,

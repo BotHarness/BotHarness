@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelStore } from '../channels/store.js';
 import {
   attachOperationalModule,
@@ -111,7 +112,7 @@ export interface ChannelMessageView {
 export interface OrchestratorChannelAccess {
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
   search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
-  send(input: { body: string; channelId?: string }): Promise<ChannelMessage>;
+  send(input: { body: string; channelId?: string; replyTo?: string }): Promise<ChannelMessage>;
 }
 
 /** Adapter at the DSH Agent seam; tests and the pinned Host runtime satisfy the same interface. */
@@ -707,12 +708,16 @@ class BotRuntimeImplementation implements BotRuntime {
       send: async (input) => {
         const channel = resolve(input.channelId);
         const body = requireNonBlank(input.body, 'Channel message body');
+        if (input.replyTo !== undefined && !this.#channels.hasMessage(channel.id, input.replyTo)) {
+          throw new ChannelReplyTargetError();
+        }
         beforeSend();
         const message: ChannelMessage = {
           id: this.#createMessageId(),
           at: this.#now().toISOString(),
           author: { kind: 'bot', slug: botSlug },
           body,
+          ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
         };
         const appended = await this.#channels.appendMessage(channel.id, message);
         if (appended === undefined) throw new Error(`Channel disappeared: ${channel.id}`);

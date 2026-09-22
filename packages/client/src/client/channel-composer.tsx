@@ -28,9 +28,11 @@ export interface ChannelComposerProps {
   placeholder: string;
   sending: boolean;
   activity?: ChannelComposerActivity | undefined;
+  reply?: { id: string; author: string; body: string } | undefined;
   /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
   t?: BotHarnessTranslate | undefined;
   onChange(value: string): void;
+  onCancelReply?(): void;
   onSubmit(): void | Promise<void>;
 }
 
@@ -101,8 +103,10 @@ export function ChannelComposer({
   placeholder,
   sending,
   activity,
+  reply,
   t = zhTranslate,
   onChange,
+  onCancelReply,
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
@@ -121,6 +125,11 @@ export function ChannelComposer({
     if (inputRef.current === null) return;
     syncTextarea(inputRef.current);
   }, [syncTextarea, value]);
+
+  const replyId = reply?.id;
+  useEffect(() => {
+    if (replyId !== undefined) inputRef.current?.focus();
+  }, [replyId]);
 
   useEffect(() => {
     const element = inputRef.current;
@@ -141,10 +150,28 @@ export function ChannelComposer({
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} t={t} />
       <div
-        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
+        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${reply === undefined ? '' : ' bh-composer-replying'}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}
         style={{ '--bh-composer-body-height': `${fit.height}px` } as CSSProperties}
       >
+        {reply === undefined ? null : (
+          <div className="bh-composer-reply">
+            <div className="bh-composer-reply-copy">
+              <span className="bh-composer-reply-author">
+                {t('message.replyingTo', { author: reply.author })}
+              </span>
+              <span className="bh-composer-reply-body">{reply.body}</span>
+            </div>
+            <button
+              type="button"
+              className="bh-composer-reply-cancel"
+              aria-label={t('message.replyCancel')}
+              onClick={onCancelReply}
+            >
+              &times;
+            </button>
+          </div>
+        )}
         <div className="bh-composer-body">
           <textarea
             ref={inputRef}
@@ -158,6 +185,11 @@ export function ChannelComposer({
               onChange(event.target.value);
             }}
             onKeyDown={(event) => {
+              if (event.key === 'Escape' && reply !== undefined) {
+                event.preventDefault();
+                onCancelReply?.();
+                return;
+              }
               if (!shouldSubmitComposerKey(event)) return;
               event.preventDefault();
               void onSubmit();

@@ -87,17 +87,57 @@ interface MessageMenuRequest {
   y: number;
 }
 
+function ReplyQuote({
+  message,
+  bots,
+  onJump,
+  t,
+}: {
+  message: ChannelMessage;
+  bots: readonly BotSummary[];
+  onJump(messageId: string): void;
+  t: BotHarnessTranslate;
+}): ReactElement | null {
+  const targetId = message.replyTo;
+  if (targetId === undefined) return null;
+  const preview = message.replyToPreview;
+  if (preview === undefined || preview === null) {
+    return (
+      <div className="bh-bubble-reply bh-bubble-reply-unavailable">
+        {t('message.replyUnavailable')}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      className="bh-bubble-reply"
+      onClick={() => onJump(targetId)}
+      aria-label={t('message.replyJump', {
+        author: authorLabel({ ...message, author: preview.author }, bots, t),
+      })}
+    >
+      <span className="bh-bubble-reply-author">
+        {authorLabel({ ...message, author: preview.author }, bots, t)}
+      </span>
+      <span className="bh-bubble-reply-body">{preview.body}</span>
+    </button>
+  );
+}
+
 function MessageGroupView({
   group,
   bots,
   focusMessageId,
   onContextMenu,
+  onJumpReply,
   t,
 }: {
   group: MessageGroup;
   focusMessageId?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  onJumpReply(messageId: string): void;
   t: BotHarnessTranslate;
 }): ReactElement {
   const first = group.messages[0]!;
@@ -148,6 +188,7 @@ function MessageGroupView({
                 className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}`}
                 data-group-position={position}
               >
+                <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
                 <ChannelMessageBody message={message} t={t} />
               </div>
               <button
@@ -178,11 +219,13 @@ function MessageGroupView({
 
 function MessageActionMenu({
   onLocate,
+  onReply,
   request,
   onClose,
   t,
 }: {
   onLocate(messageId: string): void;
+  onReply(message: ChannelMessage): void;
   request: MessageMenuRequest;
   onClose(): void;
   t: BotHarnessTranslate;
@@ -212,11 +255,15 @@ function MessageActionMenu({
         anchor={<span ref={proxy} aria-hidden="true" />}
         getAnchorRect={() => proxy.current?.getBoundingClientRect() ?? null}
         items={[
+          ...(request.message.pending === true || request.message.streaming === true
+            ? []
+            : [{ id: 'reply', label: t('message.reply') }]),
           { id: 'locate', label: t('message.locate') },
           { id: 'copy', label: t('message.copy'), icon: <IconCopyOutline16 /> },
         ]}
         onSelect={(id) => {
-          if (id === 'locate') onLocate(request.message.id);
+          if (id === 'reply') onReply(request.message);
+          else if (id === 'locate') onLocate(request.message.id);
           else if (id === 'copy') {
             void navigator.clipboard?.writeText(request.message.body);
           }
@@ -284,6 +331,7 @@ function ConversationView({
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [replyTarget, setReplyTarget] = useState<ChannelMessage | undefined>();
   const submitting = useRef(false);
   const followingLatest = useRef(true);
   const prependAnchor = useRef<{
@@ -393,6 +441,7 @@ function ConversationView({
 
   useEffect(() => {
     setDraft('');
+    setReplyTarget(undefined);
   }, [channelId]);
 
   const loadOlderAtTop = (retry = false): void => {
@@ -518,9 +567,14 @@ function ConversationView({
     setUnseen(0);
     const submittedFor = currentChannel.current;
     setDraft('');
+    const submittedReplyTo = replyTarget?.id;
     try {
-      const sent = await actions.send(body);
-      if (!sent && currentChannel.current === submittedFor) setDraft(body);
+      const sent = await actions.send(body, submittedReplyTo);
+      if (sent) {
+        setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
+      } else if (currentChannel.current === submittedFor) {
+        setDraft(body);
+      }
     } finally {
       submitting.current = false;
     }
@@ -618,6 +672,9 @@ function ConversationView({
                     onContextMenu={(message, x, y) => {
                       setMessageMenu({ message, x, y });
                     }}
+                    onJumpReply={(messageId) => {
+                      if (channelId !== undefined) void actions.openAround(channelId, messageId);
+                    }}
                     t={t}
                   />
                 </div>
@@ -654,8 +711,18 @@ function ConversationView({
             placeholder={t('composer.placeholder', { name: title })}
             sending={conversation.sending}
             activity={composerActivity}
+            reply={
+              replyTarget === undefined
+                ? undefined
+                : {
+                    id: replyTarget.id,
+                    author: authorLabel(replyTarget, state.bots, t),
+                    body: replyTarget.body,
+                  }
+            }
             t={t}
             onChange={setDraft}
+            onCancelReply={() => setReplyTarget(undefined)}
             onSubmit={submit}
           />
           {messageMenu === undefined ? null : (
@@ -665,6 +732,7 @@ function ConversationView({
               onLocate={(messageId) => {
                 if (channelId !== undefined) void actions.openAround(channelId, messageId);
               }}
+              onReply={(message) => setReplyTarget(message)}
               onClose={() => {
                 setMessageMenu(undefined);
               }}

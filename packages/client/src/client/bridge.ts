@@ -213,7 +213,29 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (author === undefined) return undefined;
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
-  return { id, at, author, body, ...(format === undefined ? {} : { format }) };
+  const replyTo = record['replyTo'];
+  if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0))
+    return undefined;
+  const rawPreview = record['replyToPreview'];
+  let replyToPreview: ChannelMessage['replyToPreview'];
+  if (rawPreview === null) {
+    replyToPreview = null;
+  } else if (rawPreview !== undefined) {
+    const preview = asRecord(rawPreview);
+    if (preview === undefined || typeof preview['body'] !== 'string') return undefined;
+    const previewAuthor = parseAuthor(preview['author']);
+    if (previewAuthor === undefined) return undefined;
+    replyToPreview = { author: previewAuthor, body: preview['body'] };
+  }
+  return {
+    id,
+    at,
+    author,
+    body,
+    ...(format === undefined ? {} : { format }),
+    ...(replyTo === undefined ? {} : { replyTo }),
+    ...(replyToPreview === undefined ? {} : { replyToPreview }),
+  };
 }
 
 export function parseChannelMessages(value: unknown): ChannelMessage[] {
@@ -466,9 +488,15 @@ export async function sendChannelMessage(
   call: BridgeCall,
   channelId: string,
   body: string,
+  replyTo?: string,
   signal?: AbortSignal,
 ): Promise<ChannelMessage> {
-  const value = await unwrap(call, 'channelSend', { channelId, body }, signal);
+  const value = await unwrap(
+    call,
+    'channelSend',
+    { channelId, body, ...(replyTo === undefined ? {} : { replyTo }) },
+    signal,
+  );
   const message = parseChannelMessage(asRecord(value)?.['message']);
   if (message === undefined) throw new Error('invalid channelSend response');
   return message;

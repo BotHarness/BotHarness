@@ -106,6 +106,60 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
 }
 
 describe('Bot runtime tracer bullet', () => {
+  it('keeps an invalid Bot reply retryable because no Channel side effect started', async () => {
+    const home = createTempRoot('botharness-bot-runtime-invalid-reply-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada');
+    expect(dm).toBeDefined();
+    await channels.appendMessage(dm!.id, {
+      id: 'human-invalid-reply',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'Please reply',
+    });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async (run) => {
+          await run.channels.send({ body: 'bad reply', replyTo: 'missing' });
+        },
+        runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createEventId: () => 'source-invalid-reply',
+      createMessageId: () => 'bot-invalid-reply',
+      createSessionId: () => 'orchestrator-ada',
+    });
+
+    await expect(
+      admit(runtime, {
+        channelId: dm!.id,
+        messageId: 'human-invalid-reply',
+        body: 'Please reply',
+      }),
+    ).rejects.toThrow('Reply target must exist in this Channel');
+    expect(sourceEvents(owner)).toEqual([
+      {
+        source_event_id: 'source-invalid-reply',
+        handled_at: null,
+        attempt_state: 'retryable',
+        side_effect_started_at: null,
+      },
+    ]);
+    expect(channels.readMessages(dm!.id).map((message) => message.id)).toEqual([
+      'human-invalid-reply',
+    ]);
+    await runtime.close();
+    owner.close();
+  });
+
   it('keeps a failed Source Event pending, then retries and acknowledges it exactly once', async () => {
     const home = createTempRoot('botharness-bot-runtime-retry-');
     const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });

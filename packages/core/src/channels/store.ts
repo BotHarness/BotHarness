@@ -60,6 +60,8 @@ export interface ChannelStore {
   get(id: string): ChannelRecord | undefined;
   /** Latest valid durable message, without parsing the full history into records. */
   latestMessage(id: string): ChannelMessage | undefined;
+  /** Check the full durable Channel history, including messages outside the latest page. */
+  hasMessage(id: string, messageId: string): boolean;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
@@ -74,6 +76,35 @@ export interface ChannelStore {
 
 function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
+export class ChannelReplyTargetError extends Error {
+  constructor() {
+    super('Reply target must exist in this Channel');
+    this.name = 'ChannelReplyTargetError';
+  }
+}
+
+const REPLY_PREVIEW_LIMIT = 140;
+
+function projectReply(
+  message: ChannelMessage,
+  byId: ReadonlyMap<string, ChannelMessage>,
+): ChannelMessage {
+  if (message.replyTo === undefined) return message;
+  const target = byId.get(message.replyTo);
+  if (target === undefined) return { ...message, replyToPreview: null };
+  const normalized = target.body.replace(/\s+/gu, ' ').trim();
+  const characters = Array.from(normalized);
+  const body =
+    characters.length > REPLY_PREVIEW_LIMIT
+      ? characters.slice(0, REPLY_PREVIEW_LIMIT).join('') + '...'
+      : normalized;
+  return { ...message, replyToPreview: { author: target.author, body } };
+}
+
+function messageIndex(messages: readonly ChannelMessage[]): Map<string, ChannelMessage> {
+  return new Map(messages.map((message) => [message.id, message]));
 }
 
 export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
@@ -236,6 +267,10 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       }
       return undefined;
     },
+    hasMessage(id, messageId) {
+      if (!isValidChannelId(id) || messageId.length === 0) return false;
+      return readValidMessages(id).some((message) => message.id === messageId);
+    },
     list() {
       let entries: Dirent[];
       try {
@@ -299,17 +334,27 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       return enqueue(id, () => {
         const record = read(id);
         if (record === undefined) return undefined;
+        const priorMessages = message.replyTo === undefined ? [] : readValidMessages(id);
+        if (
+          message.replyTo !== undefined &&
+          !priorMessages.some((candidate) => candidate.id === message.replyTo)
+        ) {
+          throw new ChannelReplyTargetError();
+        }
+        const durableMessage = { ...message };
+        delete durableMessage.replyToPreview;
+        const projected = projectReply(durableMessage, messageIndex(priorMessages));
         const revision = revisionOf(id) + 1;
         mkdirSync(channelDir(id), { recursive: true });
-        appendFileSync(messagesFile(id), `${JSON.stringify(message)}\n`, 'utf8');
+        appendFileSync(messagesFile(id), `${JSON.stringify(durableMessage)}\n`, 'utf8');
         revisions.set(id, revision);
         write({ ...record, updatedAt: now().toISOString() });
         try {
-          options.onCommitted?.({ channelId: id, message, revision });
+          options.onCommitted?.({ channelId: id, message: projected, revision });
         } catch (error) {
           options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
         }
-        return message;
+        return projected;
       });
     },
     readMessages(id, readOptions) {
@@ -323,10 +368,18 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         if (index === -1) return [];
         end = index;
       }
-      return messages.slice(Math.max(0, end - limit), end).reverse();
+      const byId = messageIndex(messages);
+      return messages
+        .slice(Math.max(0, end - limit), end)
+        .reverse()
+        .map((message) => projectReply(message, byId));
     },
     readTimeline(id, request) {
-      return pageChannelTimeline(id, readValidMessages(id), request);
+      const messages = readValidMessages(id);
+      const page = pageChannelTimeline(id, messages, request);
+      if (page === undefined) return undefined;
+      const byId = messageIndex(messages);
+      return { ...page, entries: page.entries.map((message) => projectReply(message, byId)) };
     },
     revision: revisionOf,
     messagesAfter(id, revision) {
@@ -336,9 +389,10 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       const messages = readValidMessages(id);
       if (revision > messages.length) return undefined;
       revisions.set(id, messages.length);
+      const byId = messageIndex(messages);
       return messages.slice(revision).map((message, index) => ({
         channelId: id,
-        message,
+        message: projectReply(message, byId),
         revision: revision + index + 1,
       }));
     },

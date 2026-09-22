@@ -139,6 +139,30 @@ describe('bridge parsers', () => {
     expect(messages[0]?.author).toEqual({ kind: 'bot', slug: 'ada' });
   });
 
+  it('parses reply previews and an unavailable original without accepting malformed links', () => {
+    const base = {
+      id: 'reply',
+      at: '2026-09-19T00:02:00.000Z',
+      author: { kind: 'human' },
+      body: 'answer',
+      replyTo: 'original',
+    };
+    const messages = parseChannelMessages({
+      messages: [
+        { ...base, replyToPreview: { author: { kind: 'bot', slug: 'ada' }, body: 'summary' } },
+        { ...base, id: 'unavailable', replyToPreview: null },
+        { ...base, id: 'invalid', replyTo: '' },
+        { ...base, id: 'bad-preview', replyToPreview: { author: { kind: 'bot' }, body: 'x' } },
+      ],
+    });
+    expect(messages.map((message) => message.id)).toEqual(['reply', 'unavailable']);
+    expect(messages[0]).toMatchObject({
+      replyTo: 'original',
+      replyToPreview: { author: { kind: 'bot', slug: 'ada' }, body: 'summary' },
+    });
+    expect(messages[1]?.replyToPreview).toBeNull();
+  });
+
   it('parses Assignment summaries and drops malformed rows', () => {
     expect(
       parseAssignmentSummaries({
@@ -791,6 +815,47 @@ describe('bridge actions', () => {
     expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.latestMessage?.body).toBe(
       'hello',
     );
+  });
+
+  it('echoes a reply immediately and sends its target ID through the Channel RPC', async () => {
+    let requested: Record<string, unknown> | undefined;
+    let finish: (value: unknown) => void = () => undefined;
+    const response = new Promise<unknown>((resolve) => {
+      finish = resolve;
+    });
+    const { clientStore, actions } = setup({
+      channelSend: (payload) => {
+        requested = payload;
+        return response;
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+
+    const sending = actions.send('answer', 'm1');
+    expect(requested).toEqual({ channelId: 'dm-ada', body: 'answer', replyTo: 'm1' });
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)).toMatchObject({
+      body: 'answer',
+      pending: true,
+      replyTo: 'm1',
+      replyToPreview: { author: { kind: 'human' }, body: 'older' },
+    });
+    finish({
+      message: {
+        id: 'm3',
+        at: '2026-09-19T00:03:00.000Z',
+        author: { kind: 'human' },
+        body: 'answer',
+        replyTo: 'm1',
+        replyToPreview: { author: { kind: 'human' }, body: 'older' },
+      },
+    });
+    await expect(sending).resolves.toBe(true);
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)).toMatchObject({
+      id: 'm3',
+      replyTo: 'm1',
+    });
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.pending).toBeUndefined();
   });
 
   it('removes the local echo and reports the failure when a send is rejected', async () => {
