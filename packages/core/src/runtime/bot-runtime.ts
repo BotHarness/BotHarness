@@ -214,6 +214,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
     this.#createMessageId = options.createMessageId ?? (() => randomUUID());
+    // Recovery mode still mounts the plugin for files and diagnostics; every
+    // Messaging operation there already fails closed, so skip the sweep.
+    if (options.database.mode === 'ready') this.#recoverInterruptedAttempts();
   }
 
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission {
@@ -309,7 +312,7 @@ class BotRuntimeImplementation implements BotRuntime {
 
     const timestamp = this.#now().toISOString();
     const orchestrator = this.#ensureOrchestrator(bot, timestamp);
-    const markSideEffect = () => this.#markSourceEventNeedsRepair(claim.sourceEventId);
+    const markSideEffect = () => this.#markSideEffectStarted(claim.sourceEventId);
     try {
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
@@ -325,7 +328,7 @@ class BotRuntimeImplementation implements BotRuntime {
         },
       });
     } catch (error) {
-      this.#markSourceEventRetryable(claim.sourceEventId);
+      this.#markSourceEventFailed(claim.sourceEventId);
       throw error;
     }
     const handledAt = this.#now().toISOString();
@@ -397,12 +400,38 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  #markSourceEventNeedsRepair(sourceEventId: string): void {
+  /**
+   * Record that an external side effect started while the attempt stays
+   * `running`: the attempt is no longer safely replayable, but it has not
+   * failed yet. The marker survives a crash and is what boot recovery and the
+   * failure path use to decide between reconciliation and retry.
+   */
+  #markSideEffectStarted(sourceEventId: string): void {
     this.#database.transaction(
       (database) => {
         database
           .prepare(
-            `UPDATE source_events SET attempt_state = 'needs-repair'
+            `UPDATE source_events
+                SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+              WHERE source_event_id = ? AND attempt_state = 'running'`,
+          )
+          .run(this.#now().toISOString(), sourceEventId);
+      },
+      ['source-event', 'bot-inbox'],
+    );
+  }
+
+  /** A failed attempt is retryable only when no side effect had started. */
+  #markSourceEventFailed(sourceEventId: string): void {
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(
+            `UPDATE source_events
+                SET attempt_state = CASE
+                      WHEN side_effect_started_at IS NULL THEN 'retryable'
+                      ELSE 'needs-repair'
+                    END
               WHERE source_event_id = ? AND attempt_state = 'running'`,
           )
           .run(sourceEventId);
@@ -411,15 +440,25 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  #markSourceEventRetryable(sourceEventId: string): void {
+  /**
+   * Boot recovery for attempts a previous process left behind: an unfinished
+   * attempt with a side effect needs reconciliation; one without is retryable.
+   */
+  #recoverInterruptedAttempts(): void {
     this.#database.transaction(
       (database) => {
         database
           .prepare(
-            `UPDATE source_events SET attempt_state = 'retryable'
-              WHERE source_event_id = ? AND attempt_state = 'running'`,
+            `UPDATE source_events SET attempt_state = 'needs-repair'
+              WHERE attempt_state = 'running' AND side_effect_started_at IS NOT NULL`,
           )
-          .run(sourceEventId);
+          .run();
+        database
+          .prepare(
+            `UPDATE source_events SET attempt_state = 'retryable'
+              WHERE attempt_state = 'running' AND side_effect_started_at IS NULL`,
+          )
+          .run();
       },
       ['source-event', 'bot-inbox'],
     );

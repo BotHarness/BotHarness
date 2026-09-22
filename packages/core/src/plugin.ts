@@ -22,7 +22,6 @@ import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
-import { formatMemoryTree } from './memory/tree.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
 import {
@@ -40,7 +39,6 @@ export const name = 'botharness-core';
 export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel'];
 
 export const PERSONA_SECTION_ORDER = 10400;
-export const MEMORY_TREE_SECTION_ORDER = 10500;
 
 export interface BotHarnessConfig {
   enabled: boolean;
@@ -254,14 +252,5 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     name: 'botharness:persona',
     order: PERSONA_SECTION_ORDER,
     text: ({ agent }) => core.memory.storeForAgent(agent)?.persona() ?? '',
-  });
-  ctx.systemPrompt.section({
-    name: 'botharness:memory-tree',
-    order: MEMORY_TREE_SECTION_ORDER,
-    text: ({ agent }) => {
-      const store = core.memory.storeForAgent(agent);
-      if (store === undefined) return '';
-      return formatMemoryTree(store.tree());
-    },
   });
 }
