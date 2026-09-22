@@ -149,7 +149,8 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
-    expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+    // Helper one-shots run with --rm; only a persistent container creation counts.
+    expect(calls.some((argv) => argv[1] === 'run' && !argv.includes('--rm'))).toBe(false);
   });
 
   it('recreates a running container whose spec no longer matches', async () => {
@@ -418,6 +419,42 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'inspect') return fail('No such object');
         if (argv[1] === 'image') return fail('No such image');
         if (argv[1] === 'exec') return fail('read-only filesystem');
+        return ok('ok');
+      }),
+    });
+    await expect(provider.start()).resolves.toBeUndefined();
+  });
+
+  it('scales stock desktop panels before starting a stopped container', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const seed = calls.find((argv) => argv.includes('--rm') && argv.join(' ').includes('xfce4-panel.xml'));
+    expect(seed?.join(' ')).toContain('value="40"');
+    expect(seed?.join(' ')).toContain('value="64"');
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
+  });
+
+  it('still starts when panel scaling cannot be prepared', async () => {
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        if (argv.includes('--rm')) return fail('image not present');
         return ok('ok');
       }),
     });

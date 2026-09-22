@@ -313,6 +313,34 @@ export function createDockerComputerProvider(
     }
   };
 
+  /**
+   * The stock desktop chrome is drawn for a large monitor: a 26px top bar and
+   * a 48px dock look tiny inside the viewer. Panels are fixed pixels (they do
+   * not follow the already-2x Xft DPI), so seed bigger defaults: top bar
+   * 26 → 40 with 24px icons, dock 48 → 64. The edit runs in a helper
+   * container while the desktop is down — xfconfd would overwrite a live
+   * edit — and sed only touches exact stock values, so a Human's own
+   * customization is never overwritten and reruns are no-ops. Best effort: a
+   * fresh volume has no config yet and migrates on the next start.
+   */
+  const ensurePanelScale = async (): Promise<void> => {
+    const result = await runner.run([
+      'docker',
+      'run',
+      '--rm',
+      '--entrypoint',
+      'sh',
+      '-v',
+      `${config.volumeName}:/data`,
+      config.image,
+      '-c',
+      `f=/data/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml; test -f "$f" && sed -i 's/name="icon-size" type="uint" value="16"/name="icon-size" type="uint" value="24"/; s/name="size" type="uint" value="26"/name="size" type="uint" value="40"/; s/name="size" type="uint" value="48"/name="size" type="uint" value="64"/' "$f"`,
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('panel scale could not be prepared');
+    }
+  };
+
   const runStart = async (): Promise<void> => {
     cancelRequested = false;
     const probe = await probeRuntime();
@@ -333,6 +361,7 @@ export function createDockerComputerProvider(
       phase = 'starting';
       detail = '正在启动已有容器…';
       throwIfCancelled();
+      await ensurePanelScale();
       const start = await runner.run(['docker', 'start', config.containerName]);
       if (start.code !== 0) {
         fail(start.stderr.trim() || 'docker start failed');
