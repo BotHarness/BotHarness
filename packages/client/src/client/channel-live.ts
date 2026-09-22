@@ -349,3 +349,89 @@ export function mountChannelLive(
     close();
   };
 }
+
+/**
+ * Observe canonical roster commits across windows. The SSE frame only invalidates
+ * local state; the Host roster snapshot remains the authority for final placement.
+ */
+export function mountRosterLive(
+  store: ClientStore,
+  actions: BridgeActions,
+  makeSource: (url: string) => EventSource = (url) => new EventSource(url),
+): () => void {
+  let source: EventSource | undefined;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let dragging = false;
+  let deferred = false;
+  let disposed = false;
+  let refreshController: AbortController | undefined;
+
+  const refresh = (): void => {
+    timer = undefined;
+    if (disposed || store.getSnapshot().mode !== 'bot') return;
+    if (dragging) {
+      deferred = true;
+      return;
+    }
+    refreshController?.abort();
+    const controller = new AbortController();
+    refreshController = controller;
+    void actions.refreshRoster(controller.signal).finally(() => {
+      if (refreshController === controller) refreshController = undefined;
+    });
+  };
+  const schedule = (): void => {
+    if (dragging) {
+      deferred = true;
+      return;
+    }
+    if (timer !== undefined) clearTimeout(timer);
+    timer = setTimeout(refresh, 60);
+  };
+  const onDragStart = (): void => {
+    dragging = true;
+  };
+  const onDragEnd = (): void => {
+    dragging = false;
+    if (deferred) {
+      deferred = false;
+      schedule();
+    }
+  };
+  const sync = (): void => {
+    if (store.getSnapshot().mode === 'bot') {
+      if (source !== undefined) return;
+      source = makeSource('/api/botharness/stream?scope=roster');
+      source.onopen = schedule;
+      source.addEventListener('roster/changed', schedule);
+      return;
+    }
+    source?.close();
+    source = undefined;
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+    refreshController?.abort();
+    refreshController = undefined;
+  };
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('dragstart', onDragStart, true);
+    document.addEventListener('dragend', onDragEnd, true);
+    document.addEventListener('drop', onDragEnd, true);
+  }
+  const unsubscribe = store.subscribe(sync);
+  sync();
+  return () => {
+    disposed = true;
+    unsubscribe();
+    source?.close();
+    if (timer !== undefined) clearTimeout(timer);
+    refreshController?.abort();
+    refreshController = undefined;
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('dragstart', onDragStart, true);
+      document.removeEventListener('dragend', onDragEnd, true);
+      document.removeEventListener('drop', onDragEnd, true);
+    }
+  };
+}

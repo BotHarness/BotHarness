@@ -57,6 +57,7 @@ export interface BridgeActions {
   openAround(channelId: string, messageId: string): Promise<void>;
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
+  dismissFailedMessage(channelId: string, messageId: string): boolean;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
@@ -110,7 +111,9 @@ let localEchoSequence = 0;
 
 function nextLocalEchoId(): string {
   localEchoSequence += 1;
-  return `local-echo-${Date.now().toString(36)}-${localEchoSequence}`;
+  const fallback = `${localEchoSequence.toString(16).padStart(8, '0').slice(-8)}-0000-4000-8000-${Date.now().toString(16).padStart(12, '0').slice(-12)}`;
+  const unique = globalThis.crypto?.randomUUID?.() ?? fallback;
+  return `human-${unique}`;
 }
 
 function reconcileCommittedMessage(
@@ -118,7 +121,7 @@ function reconcileCommittedMessage(
   localId: string,
   committed: ChannelMessage,
 ): ChannelMessage[] {
-  if (messages.some((message) => message.id === committed.id)) {
+  if (committed.id !== localId && messages.some((message) => message.id === committed.id)) {
     return messages.filter((message) => message.id !== localId);
   }
   const index = messages.findIndex((message) => message.id === localId);
@@ -138,7 +141,7 @@ function mergeLatestWindow(
   const messages = [
     ...prefix,
     ...incoming,
-    ...previous.filter((item) => item.pending === true),
+    ...previous.filter((item) => item.pending === true || item.failed !== undefined),
   ].filter((item) => {
     if (seen.has(item.id)) return false;
     seen.add(item.id);
@@ -148,6 +151,20 @@ function mergeLatestWindow(
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
+  const failedByChannel = new Map<string, ChannelMessage[]>();
+  const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
+  const remainingFailures = (
+    channelId: string,
+    committed: readonly ChannelMessage[],
+  ): ChannelMessage[] => {
+    const committedIds = new Set(committed.map((message) => message.id));
+    const current = localFailedFor(channelId);
+    const next = current.filter((message) => !committedIds.has(message.id));
+    if (next.length !== current.length) {
+      failedByChannel.set(channelId, next);
+    }
+    return next;
+  };
   const currentSelection = (): ConversationSelection | undefined =>
     clientStore.getSnapshot().selection;
 
@@ -280,7 +297,8 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     });
     try {
       const { page, revision, focusMessageId } = await loadOpeningTimeline(channelId);
-      const messages = page.entries;
+      const failures = remainingFailures(channelId, page.entries);
+      const messages = page.hasNewer ? page.entries : [...page.entries, ...failures];
       if (currentSelection() !== active) return;
       clientStore.setConversation({
         status: 'ready',
@@ -354,7 +372,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         clientStore.setConversation({
           status: 'ready',
           channel: projectedChannel,
-          messages,
+          messages: page.hasNewer
+            ? messages
+            : [...messages, ...remainingFailures(channel.id, page.entries)],
           revision,
           timeline: { ...initialTimeline(), ...page },
           focusMessageId,
@@ -458,19 +478,27 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           latest.conversation.timeline.newerCursor !== timeline.newerCursor
         )
           return;
-        const seen = new Set(latest.conversation.messages.map((entry) => entry.id));
+        const cursorDidNotAdvance =
+          page.hasNewer && (page.newerCursor === null || page.newerCursor === timeline.newerCursor);
+        const pageIds = new Set(page.entries.map((entry) => entry.id));
+        const existing = latest.conversation.messages.filter((entry) => !pageIds.has(entry.id));
+        const seen = new Set(existing.map((entry) => entry.id));
+        const incoming = page.entries.filter((entry) => !seen.has(entry.id));
+        const failures = remainingFailures(channelId, page.entries);
         clientStore.setConversation({
-          messages: [
-            ...latest.conversation.messages,
-            ...page.entries.filter((entry) => !seen.has(entry.id)),
-          ],
+          messages: [...existing, ...incoming, ...(page.hasNewer ? [] : failures)].filter(
+            (entry, index, entries) =>
+              entries.findIndex((candidate) => candidate.id === entry.id) === index,
+          ),
           revision: Math.max(revision, latest.conversation.revision),
           timeline: {
             ...latest.conversation.timeline,
-            newerCursor: page.newerCursor ?? latest.conversation.timeline.newerCursor,
-            hasNewer: page.hasNewer,
+            newerCursor: cursorDidNotAdvance
+              ? latest.conversation.timeline.newerCursor
+              : (page.newerCursor ?? latest.conversation.timeline.newerCursor),
+            hasNewer: cursorDidNotAdvance ? false : page.hasNewer,
             loadingNewer: false,
-            newerError: undefined,
+            newerError: cursorDidNotAdvance ? 'Timeline newer cursor did not advance' : undefined,
           },
         });
       } catch (error) {
@@ -494,7 +522,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       const { page, revision } = await loadTimelinePage(call, channelId);
       if (clientStore.getSnapshot().conversation.channel?.id !== channelId) return;
       clientStore.setConversation({
-        messages: page.entries,
+        messages: [...page.entries, ...remainingFailures(channelId, page.entries)],
         revision,
         timeline: { ...initialTimeline(), ...page },
         focusMessageId: undefined,
@@ -574,7 +602,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           const { page, revision } = await loadTimelinePage(call, channel.id);
           if (clientStore.getSnapshot().conversation.channel?.id !== channel.id) return false;
           clientStore.setConversation({
-            messages: page.entries,
+            messages: [...page.entries, ...remainingFailures(channel.id, page.entries)],
             revision,
             timeline: { ...initialTimeline(), ...page },
             focusMessageId: undefined,
@@ -612,8 +640,19 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           },
         ],
       });
+      const localEcho = clientStore
+        .getSnapshot()
+        .conversation.messages.find((message) => message.id === localId)!;
       try {
-        const message = await sendChannelMessage(call, channel.id, text, replyTo, attachments);
+        const message = await sendChannelMessage(
+          call,
+          channel.id,
+          text,
+          replyTo,
+          attachments,
+          localId,
+        );
+        remainingFailures(channel.id, [message]);
         const selection = currentSelection();
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id === channel.id) {
@@ -645,16 +684,55 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         }
         return true;
       } catch (error) {
-        if (clientStore.getSnapshot().conversation.channel?.id === channel.id) {
-          const latest = clientStore.getSnapshot();
+        const latest = clientStore.getSnapshot();
+        const matching =
+          latest.conversation.channel?.id === channel.id
+            ? latest.conversation.messages.find((message) => message.id === localId)
+            : undefined;
+        if (matching !== undefined && matching.pending !== true && matching.failed === undefined) {
+          remainingFailures(channel.id, [matching]);
+          clientStore.setConversation({ sending: false, error: undefined });
+          return true;
+        }
+        const failedEcho: ChannelMessage = {
+          ...localEcho,
+          pending: false,
+          failed: errorMessage(error),
+        };
+        failedByChannel.set(channel.id, [
+          ...localFailedFor(channel.id).filter((message) => message.id !== localId),
+          failedEcho,
+        ]);
+        if (latest.conversation.channel?.id === channel.id) {
           clientStore.setConversation({
             sending: false,
             error: errorMessage(error),
-            messages: latest.conversation.messages.filter((message) => message.id !== localId),
+            messages: latest.conversation.messages.some((message) => message.id === localId)
+              ? latest.conversation.messages.map((message) =>
+                  message.id === localId ? failedEcho : message,
+                )
+              : [...latest.conversation.messages, failedEcho],
           });
         }
         return false;
       }
+    },
+    dismissFailedMessage(channelId, messageId) {
+      const conversation = clientStore.getSnapshot().conversation;
+      if (conversation.channel?.id !== channelId) return false;
+      const failed = conversation.messages.find(
+        (message) => message.id === messageId && message.failed !== undefined,
+      );
+      if (failed === undefined) return false;
+      failedByChannel.set(
+        channelId,
+        localFailedFor(channelId).filter((item) => item.id !== messageId),
+      );
+      clientStore.setConversation({
+        messages: conversation.messages.filter((message) => message.id !== messageId),
+        error: undefined,
+      });
+      return true;
     },
     async createBot(input, sectionId) {
       const bot = await createPersonaBot(call, input);

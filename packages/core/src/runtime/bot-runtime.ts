@@ -7,6 +7,7 @@ import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelStore } from '../channels/store.js';
+import type { AttachmentStore } from '../attachments/store.js';
 import {
   attachOperationalModule,
   type OperationalDatabaseModulePort,
@@ -113,6 +114,13 @@ export interface ChannelMessageView {
 export interface OrchestratorChannelAccess {
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
   search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
+  readAttachment?(input: {
+    channelId?: string;
+    messageId: string;
+    hash: string;
+    maxBytes: number;
+    signal?: AbortSignal;
+  }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
   send(input: {
     body: string;
     channelId?: string;
@@ -168,6 +176,8 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
+  /** Profile-scoped Channel attachment authority. */
+  attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
   ownership?: SessionOwnership;
   /** Explicit run-configuration root recorded as each Session's cwd reference. */
@@ -336,6 +346,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #agents: BotAgentAdapter;
+  readonly #attachments: AttachmentStore | undefined;
   readonly #now: () => Date;
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
@@ -355,6 +366,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#registry = options.registry;
     this.#channels = options.channels;
     this.#agents = options.agents;
+    this.#attachments = options.attachments;
     this.#now = options.now ?? (() => new Date());
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
@@ -710,6 +722,33 @@ class BotRuntimeImplementation implements BotRuntime {
               right.message.id.localeCompare(left.message.id),
           )
           .slice(0, limit);
+      },
+      readAttachment: async (input) => {
+        const channel = resolve(input.channelId);
+        const message = this.#channels.message(channel.id, input.messageId);
+        if (message === undefined) throw new Error(`Channel message not found: ${input.messageId}`);
+        const ref = message.attachments?.find((candidate) => candidate.hash === input.hash);
+        if (ref === undefined) {
+          throw new Error(
+            `Attachment ${input.hash} is not attached to Channel message ${input.messageId}`,
+          );
+        }
+        if (!ref.mime.startsWith('image/')) {
+          throw new Error(`Attachment ${ref.name} is not a supported Channel image`);
+        }
+        if (ref.size > input.maxBytes) {
+          throw new Error(
+            `Attachment ${ref.name} exceeds the ${input.maxBytes}-byte model read limit`,
+          );
+        }
+        if (this.#attachments === undefined)
+          throw new Error('Channel attachment store unavailable');
+        const downloaded = await this.#attachments.download(ref.hash, ref.name, input.signal);
+        const data = new Uint8Array(await new Response(downloaded.body).arrayBuffer());
+        if (data.byteLength !== ref.size) {
+          throw new Error(`Attachment ${ref.name} changed while being read`);
+        }
+        return { ref: downloaded.ref, data };
       },
       send: async (input) => {
         const channel = resolve(input.channelId);

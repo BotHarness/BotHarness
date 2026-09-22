@@ -106,6 +106,108 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
   }>;
 }
 
+it('reads only a joined Channel image by durable message and attachment reference', async () => {
+  const home = createTempRoot('botharness-bot-runtime-image-read-');
+  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  const attachments = createAttachmentStore({ rootDir: join(home, 'attachments') });
+  const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+  const image = await attachments.upload({
+    data: (async function* () {
+      yield bytes;
+    })(),
+    name: 'visual.png',
+  });
+  const channels = createChannelStore({
+    rootDir: join(home, 'channels'),
+    attachments,
+    now: FIXED_NOW,
+  });
+  const joined = channels.createGroup({ name: 'Joined', members: ['ada'] });
+  const privateChannel = channels.createGroup({ name: 'Private', members: [] });
+  const dm = channels.getOrCreateDm('ada', 'Ada')!;
+  await channels.appendMessage(joined.id, {
+    id: 'image-message',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: 'What is in this image?',
+    attachments: [image],
+  });
+  for (let index = 0; index < 201; index += 1) {
+    await channels.appendMessage(joined.id, {
+      id: `newer-${index}`,
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: `Newer message ${index}`,
+    });
+  }
+  await channels.appendMessage(privateChannel.id, {
+    id: 'private-image',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: '',
+    attachments: [image],
+  });
+  await channels.appendMessage(dm.id, {
+    id: 'trigger-image-read',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: 'Inspect the group image',
+  });
+  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  let inspected = false;
+  const runtime = createBotRuntime({
+    database: owner,
+    registry,
+    channels,
+    attachments,
+    agents: {
+      runOrchestrator: async (run) => {
+        const access = run.channels.readAttachment;
+        expect(access).toBeDefined();
+        const result = await access!({
+          channelId: joined.id,
+          messageId: 'image-message',
+          hash: image.hash,
+          maxBytes: 1024,
+        });
+        expect(result.ref).toEqual(image);
+        expect(result.data).toEqual(bytes);
+        await expect(
+          access!({
+            channelId: privateChannel.id,
+            messageId: 'private-image',
+            hash: image.hash,
+            maxBytes: 1024,
+          }),
+        ).rejects.toThrow(/not a member/);
+        await expect(
+          access!({
+            channelId: joined.id,
+            messageId: 'missing',
+            hash: image.hash,
+            maxBytes: 1024,
+          }),
+        ).rejects.toThrow(/not found/);
+        inspected = true;
+      },
+      runAssignment: async () => undefined,
+      requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+      close: async () => undefined,
+    },
+    now: FIXED_NOW,
+    createEventId: () => 'source-image-read',
+    createSessionId: () => 'orchestrator-ada',
+  });
+  await admit(runtime, {
+    channelId: dm.id,
+    messageId: 'trigger-image-read',
+    body: 'Inspect the group image',
+  });
+  expect(inspected).toBe(true);
+  await runtime.close();
+  owner.close();
+});
 describe('Bot runtime tracer bullet', () => {
   it('sends a staged attachment through the trusted Orchestrator Channel access', async () => {
     const home = createTempRoot('botharness-bot-runtime-attachment-');

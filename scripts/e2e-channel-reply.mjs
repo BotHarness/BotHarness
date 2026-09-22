@@ -30,7 +30,8 @@ try {
     if (!response.url().includes('/api/botharness/channelTimeline')) return;
     try {
       const request = JSON.parse(response.request().postData() ?? '{}');
-      calls.push(request.payload?.args?.around ?? 'latest');
+      const args = request.payload?.args ?? {};
+      calls.push(args.direction === 'newer' ? 'newer' : (args.around ?? 'latest'));
     } catch {
       // The DOM and authoritative RPC read below decide the verdict.
     }
@@ -237,7 +238,29 @@ try {
     { timeout: 10000 },
     ids.originalId,
   );
+  const latestVisible = async () =>
+    page.evaluate(
+      (body) =>
+        Array.from(document.querySelectorAll('.bh-bubble-wrap')).some((wrap) =>
+          wrap.textContent?.includes(body),
+        ),
+      latestBody,
+    );
+  if (await latestVisible()) throw new Error('around page unexpectedly contains latest message');
+  const paginationDeadline = Date.now() + 10000;
+  while (Date.now() < paginationDeadline && !(await latestVisible())) {
+    await page.evaluate(() => {
+      const pane = document.querySelector('.bh-chat-body');
+      if (!pane) throw new Error('Channel scroll pane missing');
+      pane.scrollTop = pane.scrollHeight;
+      pane.dispatchEvent(new Event('scroll', { bubbles: true }));
+    });
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  const reachedLatestByScroll = await latestVisible();
   const verdict =
+    reachedLatestByScroll &&
+    calls.includes('newer') &&
     host.uiReplyTo !== undefined &&
     host.uiPreview === latestBody &&
     host.oldPreview === originalBody &&
@@ -252,6 +275,8 @@ try {
       oldPreview: host.oldPreview,
       aroundCalled: calls.includes(ids.originalId),
       originalHighlighted: true,
+      reachedLatestByScroll,
+      newerCalled: calls.includes('newer'),
     }),
   );
   if (!verdict) process.exitCode = 1;

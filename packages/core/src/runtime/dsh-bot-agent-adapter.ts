@@ -10,6 +10,7 @@ import {
   type ModelSelection,
   type ResumeAgentOptions,
 } from '@deepseek-ai/dsh-agent';
+import { AttachmentId, type ImageMediaType } from '@deepseek-ai/dsh-attachment';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
@@ -25,12 +26,18 @@ import type {
 } from './bot-runtime.js';
 
 const ROLE_PROMPT_ORDER = 10_350;
+const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+];
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
 You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting, and record durable facts yourself with ordinary file, Shell, grep, and git capabilities inside your working directory. Reading an Assignment report never writes memory for you — you decide what to persist.
 create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
-Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined.`;
+Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
 Work in your own working directory with the tools available in this Agent scope, and never write to the PersonaBot's Memory Repository — only the Orchestrator owns memory.
@@ -441,6 +448,129 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 ...(args.limit === undefined ? {} : { limit: args.limit }),
               }),
             );
+          },
+        }),
+      );
+      agentCtx.tools.register(
+        defineTool({
+          name: 'channel_read_image',
+          description:
+            'Inspect one image attached to a Channel message this PersonaBot has joined. Pass channel_id, message_id, and the opaque sha256 hash returned by channel_read. This returns the image itself without exposing a Host filesystem path.',
+          parameters: {
+            channel_id: {
+              type: 'string',
+              description: 'Channel id; defaults to the inbound Channel.',
+            },
+            message_id: {
+              type: 'string',
+              required: true,
+              description: 'Owning Channel message id returned by channel_read.',
+            },
+            hash: {
+              type: 'string',
+              required: true,
+              description: 'Opaque sha256 attachment hash returned by channel_read.',
+            },
+          },
+          output: {
+            schema: {
+              type: 'object',
+              additionalProperties: false,
+              properties: {
+                channelId: { type: 'string', required: true },
+                messageId: { type: 'string', required: true },
+                hash: { type: 'string', required: true },
+                image: {
+                  type: 'object',
+                  additionalProperties: false,
+                  required: true,
+                  properties: {
+                    attachmentId: { type: 'string', required: true },
+                    mediaType: {
+                      type: 'string',
+                      enum: ['image/png', 'image/jpeg', 'image/webp', 'image/gif'],
+                      required: true,
+                    },
+                    bytes: { type: 'integer', required: true },
+                    width: { type: 'integer', required: true },
+                    height: { type: 'integer', required: true },
+                    name: { type: 'string' },
+                    originalDimensions: {
+                      type: 'object',
+                      additionalProperties: false,
+                      properties: {
+                        width: { type: 'integer', required: true },
+                        height: { type: 'integer', required: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+            render: (_args, value) => {
+              const image = value.image;
+              return [
+                {
+                  type: 'text',
+                  text: `Channel image ${value.hash} from message ${value.messageId}`,
+                },
+                {
+                  type: 'image',
+                  attachment: {
+                    attachmentId: AttachmentId(image.attachmentId),
+                    mediaType: image.mediaType,
+                    bytes: image.bytes,
+                    width: image.width,
+                    height: image.height,
+                    ...(image.name === undefined ? {} : { name: image.name }),
+                    ...(image.originalDimensions === undefined
+                      ? {}
+                      : { originalDimensions: { ...image.originalDimensions } }),
+                  },
+                },
+              ];
+            },
+          },
+          execute: async (args, exec) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('channel_read_image: Orchestrator run is unavailable');
+            }
+            const access = active.run.channels.readAttachment;
+            if (access === undefined) {
+              throw new Error('channel_read_image: Channel attachment access is unavailable');
+            }
+            const hostAttachments = agentCtx.get('attachments');
+            if (hostAttachments === undefined) {
+              throw new Error('channel_read_image: DSH attachment service is unavailable');
+            }
+            const maxBytes = Math.min(
+              hostAttachments.imageLimits.maxImageBytes,
+              hostAttachments.imageLimits.maxMessageImageBytes,
+            );
+            const result = await access({
+              ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              messageId: args.message_id,
+              hash: args.hash,
+              maxBytes,
+              signal: exec.signal,
+            });
+            if (!CHANNEL_IMAGE_MEDIA_TYPES.includes(result.ref.mime as ImageMediaType)) {
+              throw new Error(
+                `channel_read_image: ${result.ref.mime} is not a supported model image type`,
+              );
+            }
+            const image = await hostAttachments.saveImage({
+              data: result.data,
+              mediaType: result.ref.mime as ImageMediaType,
+              name: result.ref.name,
+            });
+            return {
+              channelId: args.channel_id ?? active.run.inboundChannelId,
+              messageId: args.message_id,
+              hash: result.ref.hash,
+              image,
+            };
           },
         }),
       );

@@ -41,7 +41,10 @@ const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLay
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
     messages
-      .filter((message) => message.pending !== true && message.streaming !== true)
+      .filter(
+        (message) =>
+          message.pending !== true && message.streaming !== true && message.failed === undefined,
+      )
       .map((message) => message.id),
   );
 }
@@ -136,12 +139,14 @@ function MessageGroupView({
   focusMessageId,
   onContextMenu,
   onJumpReply,
+  onRestoreFailed,
   t,
 }: {
   group: MessageGroup;
   focusMessageId?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
   t: BotHarnessTranslate;
 }): ReactElement {
@@ -182,15 +187,26 @@ function MessageGroupView({
           return (
             <div
               key={message.id}
-              className={`bh-bubble-wrap${focusMessageId === message.id ? ' bh-bubble-focused' : ''}`}
+              className={`bh-bubble-wrap${focusMessageId === message.id ? ' bh-bubble-focused' : ''}${message.failed === undefined ? '' : ' bh-bubble-wrap-failed'}`}
               data-message-id={message.id}
               onContextMenu={(event) => {
                 event.preventDefault();
                 onContextMenu(message, event.clientX, event.clientY);
               }}
             >
+              {message.failed === undefined ? null : (
+                <button
+                  type="button"
+                  className="bh-bubble-failed-action"
+                  aria-label={t('message.failedRestore')}
+                  title={message.failed}
+                  onClick={() => onRestoreFailed(message)}
+                >
+                  {t('message.failed')}
+                </button>
+              )}
               <div
-                className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}`}
+                className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
                 data-group-position={position}
               >
                 <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
@@ -213,9 +229,11 @@ function MessageGroupView({
         <div className="bh-bubble-time">
           {last.streaming === true
             ? t('message.generating')
-            : last.pending === true
-              ? t('message.sending')
-              : clockTime(last.at)}
+            : last.failed !== undefined
+              ? t('message.failed')
+              : last.pending === true
+                ? t('message.sending')
+                : clockTime(last.at)}
         </div>
       </div>
     </div>
@@ -337,6 +355,8 @@ function ConversationView({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
   const [uploadItems, setUploadItems] = useState<ChannelComposerUpload[]>([]);
+  const [restoreBlocked, setRestoreBlocked] = useState(false);
+  const [restoreFocusSignal, setRestoreFocusSignal] = useState(0);
   const uploadControllers = useRef(new Map<string, AbortController>());
   const [replyTarget, setReplyTarget] = useState<ChannelMessage | undefined>();
   const submitting = useRef(false);
@@ -452,6 +472,7 @@ function ConversationView({
     for (const controller of uploadControllers.current.values()) controller.abort();
     uploadControllers.current.clear();
     setUploadItems([]);
+    setRestoreBlocked(false);
   }, [channelId]);
 
   const loadOlderAtTop = (retry = false): void => {
@@ -472,6 +493,17 @@ function ConversationView({
       height: element.scrollHeight,
     };
     void actions.loadOlder(channelId);
+  };
+
+  const loadNewerAtBottom = (): void => {
+    if (
+      channelId === undefined ||
+      !conversation.timeline.hasNewer ||
+      conversation.timeline.loadingNewer ||
+      conversation.timeline.newerError !== undefined
+    )
+      return;
+    void actions.loadNewer(channelId);
   };
 
   useClientLayoutEffect(() => {
@@ -522,6 +554,11 @@ function ConversationView({
     if (element !== null && element.scrollHeight <= element.clientHeight + 1) loadOlderAtTop();
   }, [messages[0]?.id, conversation.timeline.hasOlder, conversation.timeline.loadingOlder]);
   useEffect(() => {
+    const element = scrollRef.current;
+    if (element !== null && element.scrollHeight <= element.clientHeight + 1) loadNewerAtBottom();
+  }, [messages.at(-1)?.id, conversation.timeline.hasNewer, conversation.timeline.loadingNewer]);
+
+  useEffect(() => {
     const id = conversation.focusMessageId;
     const element = scrollRef.current;
     if (id === undefined || element === null) return;
@@ -550,10 +587,11 @@ function ConversationView({
     const element = scrollRef.current;
     if (element === null) return;
     const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
-    followingLatest.current = atBottom;
-    if (atBottom) setUnseen(0);
+    followingLatest.current = atBottom && !conversation.timeline.hasNewer;
+    if (followingLatest.current) setUnseen(0);
     scheduleReadMark();
     if (element.scrollTop <= 48) loadOlderAtTop();
+    if (atBottom) loadNewerAtBottom();
   };
 
   const jumpToLatest = (): void => {
@@ -628,19 +666,34 @@ function ConversationView({
     followingLatest.current = true;
     setUnseen(0);
     const submittedFor = currentChannel.current;
+    const submittedUploads = uploadItems;
+    const previousFailures = new Set(
+      store
+        .getSnapshot()
+        .conversation.messages.filter((item) => item.failed !== undefined)
+        .map((item) => item.id),
+    );
     setDraft('');
+    setUploadItems([]);
     const submittedReplyTo = replyTarget?.id;
     try {
       const sent = await actions.send(
         body,
         submittedReplyTo,
-        uploadItems.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
+        submittedUploads.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
       );
       if (sent) {
-        if (currentChannel.current === submittedFor) setUploadItems([]);
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
       } else if (currentChannel.current === submittedFor) {
-        setDraft(body);
+        const failedEcho = store
+          .getSnapshot()
+          .conversation.messages.some(
+            (item) => item.failed !== undefined && !previousFailures.has(item.id),
+          );
+        if (!failedEcho) {
+          setDraft((current) => current || body);
+          setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
+        }
       }
     } finally {
       submitting.current = false;
@@ -742,6 +795,30 @@ function ConversationView({
                     onJumpReply={(messageId) => {
                       if (channelId !== undefined) void actions.openAround(channelId, messageId);
                     }}
+                    onRestoreFailed={(message) => {
+                      if (channelId === undefined) return;
+                      if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
+                        setRestoreBlocked(true);
+                        return;
+                      }
+                      if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                      setDraft(message.body);
+                      setUploadItems(
+                        (message.attachments ?? []).map((ref) => ({
+                          id: crypto.randomUUID(),
+                          file: new File([], ref.name, { type: ref.mime }),
+                          ref,
+                          status: 'ready' as const,
+                        })),
+                      );
+                      setReplyTarget(
+                        message.replyTo === undefined
+                          ? undefined
+                          : messages.find((candidate) => candidate.id === message.replyTo),
+                      );
+                      setRestoreBlocked(false);
+                      setRestoreFocusSignal((value) => value + 1);
+                    }}
                     t={t}
                   />
                 </div>
@@ -773,10 +850,16 @@ function ConversationView({
                 : t('messages.unseen', { count: unseen })}
             </button>
           ) : null}
+          {restoreBlocked ? (
+            <div className="bh-note" role="alert">
+              {t('message.restoreBlocked')}
+            </div>
+          ) : null}
           <ChannelComposer
             value={draft}
             placeholder={t('composer.placeholder', { name: title })}
             sending={conversation.sending}
+            focusSignal={restoreFocusSignal}
             attachments={uploadItems}
             onAddFiles={addFiles}
             onRetryAttachment={(id) => {
@@ -799,7 +882,10 @@ function ConversationView({
                   }
             }
             t={t}
-            onChange={setDraft}
+            onChange={(value) => {
+              setDraft(value);
+              setRestoreBlocked(false);
+            }}
             onCancelReply={() => setReplyTarget(undefined)}
             onSubmit={submit}
           />

@@ -202,6 +202,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     body: string,
     replyTo?: string,
     attachments?: ChannelAttachmentRef[],
+    messageId?: string,
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
@@ -209,6 +210,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         body,
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(attachments === undefined ? {} : { attachments }),
+        ...(messageId === undefined ? {} : { messageId }),
       }),
     );
   }

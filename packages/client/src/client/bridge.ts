@@ -549,6 +549,7 @@ export async function sendChannelMessage(
   body: string,
   replyTo?: string,
   attachments?: ChannelAttachmentRef[],
+  messageId?: string,
   signal?: AbortSignal,
 ): Promise<ChannelMessage> {
   const value = await unwrap(
@@ -559,6 +560,7 @@ export async function sendChannelMessage(
       body,
       ...(replyTo === undefined ? {} : { replyTo }),
       ...(attachments === undefined ? {} : { attachments }),
+      ...(messageId === undefined ? {} : { messageId }),
     },
     signal,
   );

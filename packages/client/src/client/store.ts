@@ -56,6 +56,8 @@ export interface ChannelMessage {
   replyToPreview?: ChannelReplyPreview | null;
   /** Local echo awaiting the Host's committed message; never sent on the wire. */
   pending?: boolean;
+  /** Process-local rejected send. Never a committed Source Event. */
+  failed?: string;
   /** Local projection of a process-only Orchestrator tool-call draft. */
   streaming?: boolean;
 }

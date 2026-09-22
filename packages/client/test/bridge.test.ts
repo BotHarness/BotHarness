@@ -533,6 +533,61 @@ describe('bridge actions', () => {
     ]);
     expect(clientStore.getSnapshot().conversation.focusMessageId).toBeUndefined();
   });
+  it('stops newer pagination when the Host cursor does not advance', async () => {
+    const entry = (id: string) => ({
+      id,
+      at: '2026-09-19T00:01:00.000Z',
+      author: { kind: 'human' },
+      body: id,
+    });
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['direction'] === 'around') {
+          return {
+            revision: 4,
+            page: {
+              entries: [entry('m1'), entry('m2')],
+              olderCursor: null,
+              newerCursor: 'c2',
+              hasOlder: false,
+              hasNewer: true,
+            },
+          };
+        }
+        if (payload['direction'] === 'newer') {
+          return {
+            revision: 4,
+            page: {
+              entries: [],
+              olderCursor: 'c2',
+              newerCursor: 'c2',
+              hasOlder: true,
+              hasNewer: true,
+            },
+          };
+        }
+        return {
+          revision: 4,
+          page: {
+            entries: [entry('m3'), entry('m4')],
+            olderCursor: 'c3',
+            newerCursor: null,
+            hasOlder: true,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    await actions.openAround('dm-ada', 'm2');
+    await actions.loadNewer('dm-ada');
+    expect(clientStore.getSnapshot().conversation.timeline).toMatchObject({
+      hasNewer: false,
+      loadingNewer: false,
+      newerError: 'Timeline newer cursor did not advance',
+    });
+  });
   it('does not splice an in-flight older page into a newly opened around window', async () => {
     let completeOlder: (value: unknown) => void = () => {};
     const delayedOlder = new Promise<unknown>((resolve) => {
@@ -767,11 +822,15 @@ describe('bridge actions', () => {
   it('echoes a DM message locally, then reconciles it with the committed message', async () => {
     let assignmentReads = 0;
     let resolveSend: (value: { message: Record<string, unknown> }) => void = () => undefined;
+    let requestedId = '';
     const response = new Promise<{ message: Record<string, unknown> }>((resolve) => {
       resolveSend = resolve;
     });
     const { clientStore, actions } = setup({
-      channelSend: () => response,
+      channelSend: (payload) => {
+        requestedId = String(payload['messageId']);
+        return response;
+      },
       assignments: () => {
         assignmentReads += 1;
         return { assignments: [] };
@@ -788,7 +847,7 @@ describe('bridge actions', () => {
 
     resolveSend({
       message: {
-        id: 'm3',
+        id: requestedId,
         at: '2026-09-19T00:03:00.000Z',
         author: { kind: 'human' },
         body: 'hello',
@@ -802,7 +861,7 @@ describe('bridge actions', () => {
       { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },
       { id: 'm2', at: '2026-09-19T00:02:00.000Z', author: { kind: 'human' }, body: 'newer' },
       {
-        id: 'm3',
+        id: requestedId,
         at: '2026-09-19T00:03:00.000Z',
         author: { kind: 'human' },
         body: 'hello',
@@ -833,7 +892,13 @@ describe('bridge actions', () => {
     await actions.openBot('ada');
 
     const sending = actions.send('answer', 'm1');
-    expect(requested).toEqual({ channelId: 'dm-ada', body: 'answer', replyTo: 'm1' });
+    expect(requested).toMatchObject({
+      channelId: 'dm-ada',
+      body: 'answer',
+      replyTo: 'm1',
+      messageId: expect.stringMatching(/^human-/),
+    });
+
     expect(clientStore.getSnapshot().conversation.messages.at(-1)).toMatchObject({
       body: 'answer',
       pending: true,
@@ -858,7 +923,133 @@ describe('bridge actions', () => {
     expect(clientStore.getSnapshot().conversation.messages.at(-1)?.pending).toBeUndefined();
   });
 
-  it('removes the local echo and reports the failure when a send is rejected', async () => {
+  it('restores a hidden failed bubble when newer paging reaches the tail', async () => {
+    const entry = (id: string) => ({
+      id,
+      at: '2026-09-19T00:01:00.000Z',
+      author: { kind: 'human' },
+      body: id,
+    });
+    const { clientStore, actions } = setup({
+      channelSend: () => {
+        throw new Error('offline');
+      },
+      channelTimeline: (payload) => {
+        if (payload['direction'] === 'around') {
+          return {
+            revision: 4,
+            page: {
+              entries: [entry('m1'), entry('m2')],
+              olderCursor: null,
+              newerCursor: 'c2',
+              hasOlder: false,
+              hasNewer: true,
+            },
+          };
+        }
+        if (payload['direction'] === 'newer') {
+          return {
+            revision: 4,
+            page: {
+              entries: [entry('m3'), entry('m4')],
+              olderCursor: 'c3',
+              newerCursor: null,
+              hasOlder: true,
+              hasNewer: false,
+            },
+          };
+        }
+        return {
+          revision: 4,
+          page: {
+            entries: [entry('m3'), entry('m4')],
+            olderCursor: 'c3',
+            newerCursor: null,
+            hasOlder: true,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    await actions.send('restore me');
+    const failedId = clientStore.getSnapshot().conversation.messages.at(-1)?.id;
+    await actions.openAround('dm-ada', 'm2');
+    expect(
+      clientStore.getSnapshot().conversation.messages.some((item) => item.id === failedId),
+    ).toBe(false);
+    await actions.loadNewer('dm-ada');
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)).toMatchObject({
+      id: failedId,
+      body: 'restore me',
+      failed: 'offline',
+    });
+    await actions.openAround('dm-ada', 'm2');
+    await actions.send('second failure');
+    const retained = clientStore
+      .getSnapshot()
+      .conversation.messages.find((message) => message.id === failedId);
+    expect(retained).toMatchObject({ body: 'restore me', failed: 'offline' });
+  });
+
+  it('does not turn an SSE-reconciled commit back into a failed bubble', async () => {
+    let rejectSend: (reason: Error) => void = () => {};
+    const { clientStore, actions } = setup({
+      channelSend: () =>
+        new Promise((_, reject) => {
+          rejectSend = reject;
+        }),
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const sending = actions.send('committed despite response loss');
+    const local = clientStore.getSnapshot().conversation.messages.at(-1)!;
+    clientStore.setConversation({
+      messages: clientStore.getSnapshot().conversation.messages.map((message) =>
+        message.id === local.id
+          ? (() => {
+              const { pending: _pending, ...committed } = message;
+              return committed;
+            })()
+          : message,
+      ),
+    });
+    rejectSend(new Error('response lost'));
+    await expect(sending).resolves.toBe(true);
+    const committed = clientStore.getSnapshot().conversation.messages.at(-1);
+    expect(committed?.id).toBe(local.id);
+    expect(committed?.pending).toBeUndefined();
+    expect(committed?.failed).toBeUndefined();
+  });
+
+  it('generates a Host-valid UUID fallback when Web Crypto is unavailable', async () => {
+    let sentId = '';
+    const { actions } = setup({
+      channelSend: (payload) => {
+        sentId = String(payload['messageId']);
+        return {
+          message: {
+            id: sentId,
+            at: BOT.createdAt,
+            author: { kind: 'human' },
+            body: String(payload['body']),
+          },
+        };
+      },
+    });
+    vi.stubGlobal('crypto', undefined);
+    try {
+      await actions.load();
+      await actions.openBot('ada');
+      await expect(actions.send('fallback')).resolves.toBe(true);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    expect(sentId).toMatch(/^human-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u);
+  });
+
+  it('keeps a failed local echo for explicit draft restoration when a send is rejected', async () => {
     const { clientStore, actions } = setup({
       channelSend: () => {
         throw new Error('PersonaBot is archived: ada');
@@ -867,12 +1058,43 @@ describe('bridge actions', () => {
     await actions.load();
     await actions.openBot('ada');
 
-    await expect(actions.send('hello')).resolves.toBe(false);
+    const attachment = {
+      hash: 'sha256:abc',
+      name: 'photo.png',
+      mime: 'image/png',
+      size: 123,
+    };
+    await expect(actions.send('hello', undefined, [attachment])).resolves.toBe(false);
 
     const state = clientStore.getSnapshot();
-    expect(state.conversation.messages.map((message) => message.body)).toEqual(['older', 'newer']);
+    expect(state.conversation.messages.map((message) => message.body)).toEqual([
+      'older',
+      'newer',
+      'hello',
+    ]);
+    expect(state.conversation.messages.at(-1)).toMatchObject({
+      id: expect.stringMatching(/^human-/),
+      pending: false,
+      failed: 'PersonaBot is archived: ada',
+    });
     expect(state.conversation.sending).toBe(false);
     expect(state.conversation.error).toBe('PersonaBot is archived: ada');
+    expect(state.conversation.messages.at(-1)?.attachments).toEqual([attachment]);
+    await actions.openChannel('group-team');
+    await actions.openBot('ada');
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.failed).toBe(
+      'PersonaBot is archived: ada',
+    );
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.attachments).toEqual([
+      attachment,
+    ]);
+    expect(actions.dismissFailedMessage('dm-ada', state.conversation.messages.at(-1)!.id)).toBe(
+      true,
+    );
+    expect(clientStore.getSnapshot().conversation.messages.map((message) => message.body)).toEqual([
+      'older',
+      'newer',
+    ]);
   });
 
   it('creates a group channel, selects it, and surfaces failures', async () => {

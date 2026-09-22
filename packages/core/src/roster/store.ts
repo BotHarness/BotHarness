@@ -162,7 +162,12 @@ export class RosterStore {
   /**
    * @param options.warn - One-shot report for the unavailable degradation path.
    */
-  constructor(private readonly options: { warn?: ((message: string) => void) | undefined } = {}) {}
+  constructor(
+    private readonly options: {
+      warn?: ((message: string) => void) | undefined;
+      onCommitted?: (() => void) | undefined;
+    } = {},
+  ) {}
 
   /** Whether a domain is currently open and serving writes. */
   get available(): boolean {
@@ -506,7 +511,15 @@ export class RosterStore {
   }
 
   private enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const result = this.tail.then(operation);
+    const result = this.tail.then(async () => {
+      const value = await operation();
+      try {
+        this.options.onCommitted?.();
+      } catch (error) {
+        this.options.warn?.(`botharness: roster committed notification failed: ${String(error)}`);
+      }
+      return value;
+    });
     this.tail = result.then(
       () => {},
       () => {},
@@ -545,7 +558,10 @@ export class RosterStore {
  * @returns the store, unattached until the domain facility appears.
  */
 export function createRosterStore(
-  options: { warn?: ((message: string) => void) | undefined } = {},
+  options: {
+    warn?: ((message: string) => void) | undefined;
+    onCommitted?: (() => void) | undefined;
+  } = {},
 ): RosterStore {
   return new RosterStore(options);
 }

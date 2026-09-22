@@ -39,6 +39,11 @@ export interface ChannelMessageCommit {
   message: ChannelMessage;
   revision: number;
 }
+export type ChannelAppendOnceResult =
+  | { status: 'appended'; message: ChannelMessage }
+  | { status: 'existing'; message: ChannelMessage }
+  | { status: 'conflict' }
+  | { status: 'missing' };
 
 /** Profile-scoped last committed Channel message observed by the Human. */
 export interface ChannelReadPosition {
@@ -65,12 +70,14 @@ export interface ChannelStore {
   latestMessage(id: string): ChannelMessage | undefined;
   /** Check the full durable Channel history, including messages outside the latest page. */
   hasMessage(id: string, messageId: string): boolean;
+  message(id: string, messageId: string): ChannelMessage | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
   /** Durable mark set for a profile-scoped Attachment Store sweep. */
   referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
+  appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
   readPosition(id: string): ChannelReadPosition | undefined;
   markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
@@ -107,6 +114,15 @@ function projectReply(
       ? characters.slice(0, REPLY_PREVIEW_LIMIT).join('') + '...'
       : normalized;
   return { ...message, replyToPreview: { author: target.author, body } };
+}
+
+function sameMessageIntent(left: ChannelMessage, right: ChannelMessage): boolean {
+  return (
+    JSON.stringify(left.author) === JSON.stringify(right.author) &&
+    left.body === right.body &&
+    left.replyTo === right.replyTo &&
+    JSON.stringify(left.attachments ?? []) === JSON.stringify(right.attachments ?? [])
+  );
 }
 
 function messageIndex(messages: readonly ChannelMessage[]): Map<string, ChannelMessage> {
@@ -292,6 +308,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       if (!isValidChannelId(id) || messageId.length === 0) return false;
       return readValidMessages(id).some((message) => message.id === messageId);
     },
+    message(id, messageId) {
+      if (!isValidChannelId(id) || messageId.length === 0) return undefined;
+      const messages = readValidMessages(id);
+      const message = messages.find((candidate) => candidate.id === messageId);
+      return message === undefined ? undefined : projectReply(message, messageIndex(messages));
+    },
     list() {
       let entries: Dirent[];
       try {
@@ -377,6 +399,42 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
           options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
         }
         return projected;
+      });
+    },
+    appendMessageOnce(id, message) {
+      return enqueue(id, () => {
+        const record = read(id);
+        if (record === undefined) return { status: 'missing' };
+        const priorMessages = readValidMessages(id);
+        const existing = priorMessages.find((candidate) => candidate.id === message.id);
+        if (existing !== undefined) {
+          if (!sameMessageIntent(existing, message)) return { status: 'conflict' };
+          return {
+            status: 'existing',
+            message: projectReply(existing, messageIndex(priorMessages)),
+          };
+        }
+        if (
+          message.replyTo !== undefined &&
+          !priorMessages.some((candidate) => candidate.id === message.replyTo)
+        ) {
+          throw new ChannelReplyTargetError();
+        }
+        assertAttachmentRefs(message.attachments ?? []);
+        const durableMessage = { ...message };
+        delete durableMessage.replyToPreview;
+        const projected = projectReply(durableMessage, messageIndex(priorMessages));
+        const revision = revisionOf(id) + 1;
+        mkdirSync(channelDir(id), { recursive: true });
+        appendFileSync(messagesFile(id), `${JSON.stringify(durableMessage)}\n`, 'utf8');
+        revisions.set(id, revision);
+        write({ ...record, updatedAt: now().toISOString() });
+        try {
+          options.onCommitted?.({ channelId: id, message: projected, revision });
+        } catch (error) {
+          options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+        }
+        return { status: 'appended', message: projected };
       });
     },
     readMessages(id, readOptions) {

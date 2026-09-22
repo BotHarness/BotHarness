@@ -52,6 +52,19 @@ describe('roster store', () => {
     expect(warn).toHaveBeenCalledTimes(1);
   });
 
+  it('notifies subscribers only after a roster write settles', async () => {
+    const fake = createFakeRosterDomain();
+    const snapshots: string[][] = [];
+    const store = createRosterStore({ onCommitted: () => snapshots.push(store.snapshot().pins) });
+    await store.attach(fake.facility);
+    await store.pinsSet(['channel-a']);
+    expect(snapshots).toEqual([['channel-a']]);
+    await expect(store.channelAssign('channel-a', 'missing')).rejects.toBeInstanceOf(
+      RosterUnknownSectionError,
+    );
+    expect(snapshots).toEqual([['channel-a']]);
+  });
+
   it('creates a host-generated id and prepends the section to the order', async () => {
     const fake = createFakeRosterDomain();
     const store = createRosterStore();
