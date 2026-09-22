@@ -112,7 +112,15 @@ describe('Roster live Client', () => {
     try {
       const store = createStore();
       store.setMode('bot');
-      const refreshRoster = vi.fn(async () => undefined);
+      const signals: AbortSignal[] = [];
+      const refreshRoster = vi.fn(
+        (signal?: AbortSignal) =>
+          new Promise<void>((resolve) => {
+            if (signal === undefined) return resolve();
+            signals.push(signal);
+            signal.addEventListener('abort', () => resolve(), { once: true });
+          }),
+      );
       const actions = { refreshRoster } as unknown as BridgeActions;
       const sources: FakeSource[] = [];
       const dispose = mountRosterLive(store, actions, (url) => {
@@ -125,10 +133,14 @@ describe('Roster live Client', () => {
       sources[0]?.listeners.get('roster/changed')?.(new MessageEvent('roster/changed'));
       await vi.advanceTimersByTimeAsync(80);
       expect(refreshRoster).toHaveBeenCalledTimes(1);
+      expect(signals[0]?.aborted).toBe(false);
       sources[0]?.onopen?.(new Event('open'));
       await vi.advanceTimersByTimeAsync(80);
       expect(refreshRoster).toHaveBeenCalledTimes(2);
+      expect(signals[0]?.aborted).toBe(true);
+      expect(signals[1]?.aborted).toBe(false);
       dispose();
+      expect(signals[1]?.aborted).toBe(true);
       expect(sources[0]?.closed).toBe(true);
     } finally {
       vi.useRealTimers();

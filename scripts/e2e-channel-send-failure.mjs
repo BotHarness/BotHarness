@@ -115,6 +115,14 @@ try {
   assert.equal(sendAttempts, 1);
 
   rejectSend = false;
+  await page.waitForFunction(
+    (expected) => {
+      const textarea = document.querySelector('textarea');
+      return document.activeElement === textarea && textarea?.value === expected;
+    },
+    { timeout: 3000 },
+    body,
+  );
   await page.keyboard.press('Enter');
   await page.waitForFunction(
     (expected) =>

@@ -35,7 +35,14 @@ try {
       .find((button) => ['BOT 模式', 'Bot mode'].includes(button.textContent?.trim() ?? ''))
       ?.click();
   });
-  await new Promise((resolve) => setTimeout(resolve, 900));
+  await page.waitForFunction(
+    () =>
+      document.querySelector('button[aria-label="新建"], button[aria-label="New"]') !== null ||
+      Array.from(document.querySelectorAll('button')).some(
+        (button) => button.textContent?.trim() === 'Configure later',
+      ),
+    { timeout: 10000 },
+  );
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.trim() === 'Configure later')
@@ -100,7 +107,19 @@ try {
     () => document.querySelector('.bh-composer')?.classList.contains('bh-composer-with-footer'),
     { timeout: 3000 },
   );
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await page.waitForFunction(
+    () => {
+      const input = document.querySelector('.bh-composer-input');
+      const add = document.querySelector('.bh-composer-add-file');
+      const send = document.querySelector('.bh-send-btn');
+      if (!input || !add || !send) return false;
+      const inputBox = input.getBoundingClientRect();
+      const addBox = add.getBoundingClientRect();
+      const sendBox = send.getBoundingClientRect();
+      return addBox.top > inputBox.bottom && sendBox.top > inputBox.bottom;
+    },
+    { timeout: 3000 },
+  );
   const expanded = await measure();
   assert.equal(expanded.layout, 'expanded');
   assert.equal(expanded.footer, true);
@@ -121,7 +140,10 @@ try {
     });
   }
   await page.setViewport({ width: 720, height: 900 });
-  await new Promise((resolve) => setTimeout(resolve, 300));
+  await page.waitForFunction(
+    () => window.innerWidth === 720 && document.querySelector('.bh-composer')?.clientWidth > 0,
+    { timeout: 3000 },
+  );
   const narrow = await measure();
   assert.ok(Math.abs(narrow.add.centerY - narrow.send.centerY) < 2);
   assert.ok(narrow.add.top > narrow.input.bottom);

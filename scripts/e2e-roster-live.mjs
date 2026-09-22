@@ -84,8 +84,10 @@ async function positions(page) {
   );
 }
 
+let a;
+let original;
 try {
-  const a = await browser.newPage();
+  a = await browser.newPage();
   const b = await browser.newPage();
   await enterBotMode(a);
   const created = [];
@@ -103,7 +105,7 @@ try {
     { timeout: 15000 },
     names,
   );
-  const original = (await rpc(a, 'rosterGet', {})).topOrder;
+  original = (await rpc(a, 'rosterGet', {})).topOrder;
   const without = original.filter((item) => !created.includes(item.id));
   const order = [...created.map((id) => ({ kind: 'channel', id })), ...without];
   await rpc(a, 'topReorder', { order });
@@ -135,10 +137,12 @@ try {
     names,
   );
   console.log(JSON.stringify({ verdict: 'PASS', positions: await positions(b) }));
-  await rpc(a, 'topReorder', { order: original });
 } catch (error) {
   console.error(String(error?.stack ?? error).replace(/token=[^&\s]+/g, 'token=<REDACTED>'));
   process.exitCode = 1;
 } finally {
+  if (a !== undefined && original !== undefined) {
+    await rpc(a, 'topReorder', { order: original }).catch(() => {});
+  }
   await browser.close();
 }

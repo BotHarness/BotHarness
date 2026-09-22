@@ -598,15 +598,22 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       ) {
         return dmAdmissionFailure(channelId, channel.botSlug, 'archived-bot');
       }
-      let appended: ChannelMessage | undefined;
+      let appendResult;
       try {
-        appended = await deps.channels.appendMessage(channelId, message);
+        appendResult = await deps.channels.appendMessageOnce(channelId, message);
       } catch (error) {
         if (error instanceof ChannelReplyTargetError || error instanceof ChannelAttachmentError)
           return invalidInput(error.message);
         throw error;
       }
-      if (appended === undefined) return unknownChannel(channelId);
+      if (appendResult.status === 'missing') return unknownChannel(channelId);
+      if (appendResult.status === 'conflict') {
+        return invalidInput('messageId already belongs to different Channel content');
+      }
+      const appended = appendResult.message;
+      if (appendResult.status === 'existing') {
+        return { ok: true, value: { message: appended } };
+      }
       if (channel.type === 'dm' && deps.runtime !== undefined) {
         const admission = deps.runtime.admitDmMessage({
           channelId,

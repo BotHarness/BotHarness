@@ -364,6 +364,7 @@ export function mountRosterLive(
   let dragging = false;
   let deferred = false;
   let disposed = false;
+  let refreshController: AbortController | undefined;
 
   const refresh = (): void => {
     timer = undefined;
@@ -372,7 +373,12 @@ export function mountRosterLive(
       deferred = true;
       return;
     }
-    void actions.refreshRoster();
+    refreshController?.abort();
+    const controller = new AbortController();
+    refreshController = controller;
+    void actions.refreshRoster(controller.signal).finally(() => {
+      if (refreshController === controller) refreshController = undefined;
+    });
   };
   const schedule = (): void => {
     if (dragging) {
@@ -404,6 +410,8 @@ export function mountRosterLive(
     source = undefined;
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
+    refreshController?.abort();
+    refreshController = undefined;
   };
 
   if (typeof document !== 'undefined') {
@@ -418,6 +426,8 @@ export function mountRosterLive(
     unsubscribe();
     source?.close();
     if (timer !== undefined) clearTimeout(timer);
+    refreshController?.abort();
+    refreshController = undefined;
     if (typeof document !== 'undefined') {
       document.removeEventListener('dragstart', onDragStart, true);
       document.removeEventListener('dragend', onDragEnd, true);

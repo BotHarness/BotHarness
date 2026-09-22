@@ -247,7 +247,8 @@ try {
       latestBody,
     );
   if (await latestVisible()) throw new Error('around page unexpectedly contains latest message');
-  for (let i = 0; i < 12 && !(await latestVisible()); i += 1) {
+  const paginationDeadline = Date.now() + 10000;
+  while (Date.now() < paginationDeadline && !(await latestVisible())) {
     await page.evaluate(() => {
       const pane = document.querySelector('.bh-chat-body');
       if (!pane) throw new Error('Channel scroll pane missing');

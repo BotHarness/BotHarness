@@ -121,8 +121,10 @@ describe('bridge methods', () => {
       body: 'only once',
       messageId: 'human-12345678-1234-4234-8234-123456789abc',
     };
-    const first = await methods.channelSend(payload);
-    const duplicate = await methods.channelSend(payload);
+    const [first, duplicate] = await Promise.all([
+      methods.channelSend(payload),
+      methods.channelSend(payload),
+    ]);
     expect(duplicate).toEqual(first);
     expect(channels.readMessages('dm-ada')).toHaveLength(1);
     expect(admissions).toBe(1);
