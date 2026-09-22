@@ -22,6 +22,7 @@
     "bot:icons": "node scripts/bot-icons.mjs",
     "sync:development-status": "node scripts/development-status.mjs",
     "dev": "pnpm --filter docs exec portless",
+    "dev:instance": "node scripts/dev-instance.mjs",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:deploy": "pnpm --filter docs run deploy"
