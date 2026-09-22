@@ -149,7 +149,8 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
-    expect(calls.some((argv) => argv[1] === 'run')).toBe(false);
+    // Helper one-shots run with --rm; only a persistent container creation counts.
+    expect(calls.some((argv) => argv[1] === 'run' && !argv.includes('--rm'))).toBe(false);
   });
 
   it('recreates a running container whose spec no longer matches', async () => {
@@ -392,6 +393,73 @@ describe('Docker computer provider', () => {
     await provider.start();
     const exec = (calls.find((argv) => argv[1] === 'exec') ?? []).join(' ');
     expect(exec).toContain('chromium.desktop');
+  });
+
+  it('seeds the Chromium session-restore policy after start', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const execs = calls.filter((argv) => argv[1] === 'exec').map((argv) => argv.join(' '));
+    const policy = execs.find((command) => command.includes('RestoreOnStartup'));
+    expect(policy).toContain('/etc/chromium/policies/managed/botharness.json');
+    expect(policy).toContain('"RestoreOnStartup":1');
+  });
+
+  it('still starts when the session-restore policy cannot be written', async () => {
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        if (argv[1] === 'exec') return fail('read-only filesystem');
+        return ok('ok');
+      }),
+    });
+    await expect(provider.start()).resolves.toBeUndefined();
+  });
+
+  it('seeds desktop defaults before starting a stopped container', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const seed = calls.find((argv) => argv.includes('--rm') && argv.join(' ').includes('xfce4-panel.xml'));
+    expect(seed?.join(' ')).toContain('value="52"');
+    expect(seed?.join(' ')).toContain('value="96"');
+    expect(seed?.join(' ')).toContain('autostart/chromium.desktop');
+    expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
+  });
+
+  it('still starts when desktop defaults cannot be prepared', async () => {
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory')) return specLine();
+          return ok('exited\n');
+        }
+        if (argv.includes('--rm')) return fail('image not present');
+        return ok('ok');
+      }),
+    });
+    await expect(provider.start()).resolves.toBeUndefined();
   });
 
   it('passes the requested desktop locale into the container', async () => {
