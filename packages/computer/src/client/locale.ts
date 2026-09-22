@@ -30,18 +30,26 @@ export const zh = {
   'entry.phase.pulling': '正在拉取镜像',
   'entry.phase.starting': '正在启动',
   'entry.phase.stopping': '正在停止',
+  'entry.phase.exporting': '正在导出',
+  'entry.phase.importing': '正在导入',
   'entry.phase.working': '处理中',
   'entry.wait': '请稍候',
   'entry.elapsed': '已用时 {seconds}s',
   'entry.updated': '最后更新 {seconds}s 前',
   'entry.setup':
     '未检测到容器运行时。任选其一安装后重试：\n\nColima（推荐，MIT）：\n  brew install colima docker\n  brew services start colima\n\n或 Docker Desktop：https://www.docker.com/products/docker-desktop/',
+  'section.title': 'Computer',
+  'section.description': '导出目录、空闲停止与导出 / 导入',
   'rows.exportDir.title': 'Computer 导出目录',
   'rows.exportDir.current': '当前：{dir}',
-  'rows.exportDir.empty': '选择目录后即可导出/导入；未配置时导出与导入不可用',
+  'rows.exportDir.empty': '未配置时使用默认导出目录',
   'rows.exportDir.pick': '选择…',
   'rows.exportDir.manual': '手动输入路径',
   'rows.exportDir.save': '保存',
+  'rows.exportDir.saving': '正在保存…',
+  'rows.exportDir.saved': '导出目录已保存：{dir}',
+  'rows.exportDir.needsAbsolute': '路径必须是绝对路径，例如 /path/to/exports',
+  'rows.exportDir.saveRejected': 'Host 未接受该导出目录，已恢复原值；请重试',
   'rows.exportDir.open': '打开目录',
   'rows.idle.title': '空闲停止',
   'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
@@ -61,7 +69,7 @@ export const zh = {
   'rows.imported': '已从 {file} 导入并重启 Computer。',
   'rows.noArchives': '该目录还没有归档；先导出一次。',
   'rows.noSettings': '设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。',
-  'rows.pickerFailed': '目录选择器不可用：请手动输入路径。',
+  'rows.pickerFallback': '目录选择器不可用，已使用当前导出目录：{dir}',
 } as const;
 
 /** English dictionary; same keys as the Chinese one. */
@@ -94,18 +102,27 @@ export const en: Record<keyof typeof zh, string> = {
   'entry.phase.pulling': 'Pulling the image',
   'entry.phase.starting': 'Starting',
   'entry.phase.stopping': 'Stopping',
+  'entry.phase.exporting': 'Exporting',
+  'entry.phase.importing': 'Importing',
   'entry.phase.working': 'Working',
   'entry.wait': 'Please wait',
   'entry.elapsed': 'Elapsed {seconds}s',
   'entry.updated': 'Last update {seconds}s ago',
   'entry.setup':
     'No container runtime found. Install one of these, then retry:\n\nColima (recommended, MIT):\n  brew install colima docker\n  brew services start colima\n\nOr Docker Desktop: https://www.docker.com/products/docker-desktop/',
+  'section.title': 'Computer',
+  'section.description': 'Export directory, idle stop, and export / import',
   'rows.exportDir.title': 'Computer export directory',
   'rows.exportDir.current': 'Current: {dir}',
-  'rows.exportDir.empty': 'Pick a directory to enable export and import',
+  'rows.exportDir.empty': 'Uses the default export directory when none is set',
   'rows.exportDir.pick': 'Choose…',
   'rows.exportDir.manual': 'Type a path',
   'rows.exportDir.save': 'Save',
+  'rows.exportDir.saving': 'Saving…',
+  'rows.exportDir.saved': 'Export directory saved: {dir}',
+  'rows.exportDir.needsAbsolute': 'Path must be absolute, e.g. /path/to/exports',
+  'rows.exportDir.saveRejected':
+    'The Host did not accept the export directory — the previous value was restored; try again',
   'rows.exportDir.open': 'Open folder',
   'rows.idle.title': 'Idle stop',
   'rows.idle.description': 'How long the Computer waits without viewers before stopping',
@@ -126,11 +143,24 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.noArchives': 'No archives in that directory yet — export once first.',
   'rows.noSettings':
     'Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.',
-  'rows.pickerFailed': 'Directory picker unavailable — type a path instead.',
+  'rows.pickerFallback': 'Directory picker unavailable — using the current export directory: {dir}',
 };
 
 /** Keys of the Computer client's copy. */
 export type ComputerKey = keyof typeof zh;
+
+/**
+ * Server-reported phase → the locale key shown while it runs. Shared by the
+ * sidebar entry card and the settings rows so both surfaces label a transfer
+ * the same way.
+ */
+export const PHASE_LABEL: Partial<Record<string, ComputerKey>> = {
+  pulling: 'entry.phase.pulling',
+  starting: 'entry.phase.starting',
+  stopping: 'entry.phase.stopping',
+  exporting: 'entry.phase.exporting',
+  importing: 'entry.phase.importing',
+};
 
 /** Namespace-bound translate function. */
 export type ComputerTranslate = TranslateNS<typeof LOCALE_NS>;

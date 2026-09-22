@@ -1,0 +1,41 @@
+---
+title: Computer export & migration
+description: Move a Computer to another machine — one archive out, one archive in.
+sidebar:
+  order: 20
+---
+
+The Computer keeps its whole desktop — logins, bookmarks, downloads, and files — on one Docker named volume. **Export** packs that volume into a single archive; **import** restores it on this or another machine. One file out, one file in.
+
+## Where files live
+
+- Everything durable sits on the named volume mounted at `/config` (the desktop user's home). Removing the container is safe; the volume *is* the Computer.
+- **Workspace convention**: keep Human- and bot-produced files in `~/workspace` (that is `/config/workspace`). Every start creates the directory if it is missing, it sits on the volume, and it travels through export → import. Browser state stays separate under `~/.config/chromium`.
+- The **export directory** is a path on the *host*: it defaults to `~/Desktop/BotHarness Exports` (or `~/BotHarness Exports` when the home has no Desktop) and can be changed in **Settings → BotHarness → Computer** when a directory picker is available. The archive file appears there; import only lists and accepts files from that directory.
+
+## Export
+
+1. Open **Settings → BotHarness → Computer**. Nothing has to be configured — the export directory already shows its current (default) path — but you can pick another destination with **Choose…** when a picker is available.
+2. Click **Export to…** (or **Export**), choose the destination, and confirm. The Computer closes its browser gracefully, stops, packs the volume, and restarts if it was running; the rows show the live stage and elapsed time.
+3. When it finishes, the note shows the archive path — one timestamped `.tar` file. On deployments without a working picker, where the directory was fixed, the folder also opens automatically in the Host's file manager.
+
+## Import on another machine
+
+1. Install a container runtime (Docker or Colima) and DeepSeek Harness with BotHarness on the target machine; start the profile once so the Computer plugin loads.
+2. Copy the `.tar` archive over (USB, `scp`, network share).
+3. In **Settings → BotHarness → Computer**, note the target's export directory (the default shown works with no setup) and put the archive in it.
+4. Click **Import…**, pick the archive, confirm. The Computer recreates the volume, unpacks the archive, and starts — logins, bookmarks, and `~/workspace` files are back.
+
+## Size and time expectations
+
+- The archive is an uncompressed tar of the volume. After normal use the volume is often **around 1 GB** (browser profile, caches, and workspace files); check the produced file, or `docker system df -v` for the live volume.
+- Local export and import of ~1 GB typically take **under a minute** each way on a developer machine (disk-bound; importing also verifies the pinned image is present).
+
+## Treat archives as secrets
+
+The archive contains the Computer's cookies and saved logins — the same sensitivity as a browser-profile backup. Store and transfer it accordingly. It is a profile-level facet and never part of a PersonaBot export.
+
+## See also
+
+- [ADR-0052](/dev/adr/0052-computer-storage-and-export) — storage stays on a named volume; portability is an explicit export.
+- [ADR-0062](/dev/adr/0062-computer-volume-quiesce-and-workspace) — quiesced exports and the `~/workspace` convention.

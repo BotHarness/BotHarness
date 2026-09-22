@@ -11,9 +11,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import {
   ComputerSettingsPrefs,
+  ExportDirRejectedError,
   createComputerSettingsFace,
+  displayExportDir,
   type ComputerSettingsScope,
 } from '../src/client/settings-rows.js';
+import { PHASE_LABEL } from '../src/client/locale.js';
 
 function fakeScope(value: { exportDir: string; idleStopMinutes: number } | undefined): {
   scope: ComputerSettingsScope;
@@ -49,7 +52,7 @@ afterEach(() => {
 });
 
 describe('computer settings prefs', () => {
-  it('adopts the scope values and publishes writes optimistically', () => {
+  it('adopts the scope values and publishes writes optimistically', async () => {
     const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 60 });
     const prefs = new ComputerSettingsPrefs();
     const seen: string[] = [];
@@ -63,13 +66,51 @@ describe('computer settings prefs', () => {
       writable: true,
     });
 
-    prefs.setExportDir('/other');
+    await prefs.setExportDir('/other');
     expect(prefs.getSnapshot().exportDir).toBe('/other');
     expect(fake.writes).toEqual([{ field: 'exportDir', value: '/other' }]);
 
     fake.push({ exportDir: '/adopted', idleStopMinutes: 15 });
     expect(prefs.getSnapshot()).toMatchObject({ exportDir: '/adopted', idleStopMinutes: 15 });
     expect(seen.length).toBeGreaterThan(0);
+  });
+
+  it('rejects setExportDir when the scope write fails, so the row can show the error', async () => {
+    const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 30 });
+    fake.scope.set = async () => {
+      throw new Error('scope refused');
+    };
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+
+    await expect(prefs.setExportDir('/other')).rejects.toThrow('scope refused');
+  });
+
+  it('rejects setExportDir when the Host silently recovers to the previous value', async () => {
+    // The real DSH scope resolves even on a refused write; the recovery read
+    // rolling the snapshot back is the only signal that nothing was stored.
+    const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 30 });
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+    fake.scope.set = async () => {
+      fake.push({ exportDir: '/exports', idleStopMinutes: 30 });
+    };
+
+    await expect(prefs.setExportDir('/other')).rejects.toThrow(ExportDirRejectedError);
+    expect(prefs.getSnapshot().exportDir).toBe('/exports');
+  });
+});
+
+describe('displayExportDir', () => {
+  it('prefers the configured scope value', () => {
+    expect(displayExportDir('/configured', '/host-resolved')).toBe('/configured');
+  });
+
+  it('falls back to the Host-resolved path while the scope is empty', () => {
+    expect(displayExportDir('', '/Users/me/Desktop/BotHarness Exports')).toBe(
+      '/Users/me/Desktop/BotHarness Exports',
+    );
+    expect(displayExportDir('', undefined)).toBe('');
   });
 });
 
@@ -144,5 +185,16 @@ describe('computer settings face', () => {
     const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
     expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
     expect(face.pickerAvailable).toBe(false);
+  });
+});
+
+describe('transfer phase labels', () => {
+  it('labels every transfer phase the Host can report', () => {
+    expect(PHASE_LABEL.exporting).toBe('entry.phase.exporting');
+    expect(PHASE_LABEL.importing).toBe('entry.phase.importing');
+    expect(PHASE_LABEL.stopping).toBe('entry.phase.stopping');
+    expect(PHASE_LABEL.starting).toBe('entry.phase.starting');
+    expect(PHASE_LABEL.pulling).toBe('entry.phase.pulling');
+    expect(PHASE_LABEL.unknown).toBeUndefined();
   });
 });

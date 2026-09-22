@@ -9,7 +9,14 @@ import {
   type RefObject,
 } from 'react';
 import { createPortal } from 'react-dom';
-import { LOCALE_NS, en, zh, type ComputerKey, type ComputerTranslate } from './locale.js';
+import {
+  LOCALE_NS,
+  PHASE_LABEL,
+  en,
+  zh,
+  type ComputerKey,
+  type ComputerTranslate,
+} from './locale.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 
@@ -104,12 +111,6 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
   return (await response.json()) as T;
 }
-
-const PHASE_LABEL: Partial<Record<ComputerPhase, ComputerKey>> = {
-  pulling: 'entry.phase.pulling',
-  starting: 'entry.phase.starting',
-  stopping: 'entry.phase.stopping',
-};
 
 const SETUP_GUIDANCE_KEY: ComputerKey = 'entry.setup';
 

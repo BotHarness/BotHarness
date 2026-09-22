@@ -38,18 +38,26 @@ window.__ModuleLoader__.load({
       'entry.phase.pulling': '正在拉取镜像',
       'entry.phase.starting': '正在启动',
       'entry.phase.stopping': '正在停止',
+      'entry.phase.exporting': '正在导出',
+      'entry.phase.importing': '正在导入',
       'entry.phase.working': '处理中',
       'entry.wait': '请稍候',
       'entry.elapsed': '已用时 {seconds}s',
       'entry.updated': '最后更新 {seconds}s 前',
       'entry.setup':
         '未检测到容器运行时。任选其一安装后重试：\n\nColima（推荐，MIT）：\n  brew install colima docker\n  brew services start colima\n\n或 Docker Desktop：https://www.docker.com/products/docker-desktop/',
+      'section.title': 'Computer',
+      'section.description': '导出目录、空闲停止与导出 / 导入',
       'rows.exportDir.title': 'Computer 导出目录',
       'rows.exportDir.current': '当前：{dir}',
-      'rows.exportDir.empty': '选择目录后即可导出/导入；未配置时导出与导入不可用',
+      'rows.exportDir.empty': '未配置时使用默认导出目录',
       'rows.exportDir.pick': '选择…',
       'rows.exportDir.manual': '手动输入路径',
       'rows.exportDir.save': '保存',
+      'rows.exportDir.saving': '正在保存…',
+      'rows.exportDir.saved': '导出目录已保存：{dir}',
+      'rows.exportDir.needsAbsolute': '路径必须是绝对路径，例如 /path/to/exports',
+      'rows.exportDir.saveRejected': 'Host 未接受该导出目录，已恢复原值；请重试',
       'rows.exportDir.open': '打开目录',
       'rows.idle.title': '空闲停止',
       'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
@@ -69,7 +77,7 @@ window.__ModuleLoader__.load({
       'rows.imported': '已从 {file} 导入并重启 Computer。',
       'rows.noArchives': '该目录还没有归档；先导出一次。',
       'rows.noSettings': '设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。',
-      'rows.pickerFailed': '目录选择器不可用：请手动输入路径。',
+      'rows.pickerFallback': '目录选择器不可用，已使用当前导出目录：{dir}',
     };
     /** English dictionary; same keys as the Chinese one. */
     const en = {
@@ -102,18 +110,27 @@ window.__ModuleLoader__.load({
       'entry.phase.pulling': 'Pulling the image',
       'entry.phase.starting': 'Starting',
       'entry.phase.stopping': 'Stopping',
+      'entry.phase.exporting': 'Exporting',
+      'entry.phase.importing': 'Importing',
       'entry.phase.working': 'Working',
       'entry.wait': 'Please wait',
       'entry.elapsed': 'Elapsed {seconds}s',
       'entry.updated': 'Last update {seconds}s ago',
       'entry.setup':
         'No container runtime found. Install one of these, then retry:\n\nColima (recommended, MIT):\n  brew install colima docker\n  brew services start colima\n\nOr Docker Desktop: https://www.docker.com/products/docker-desktop/',
+      'section.title': 'Computer',
+      'section.description': 'Export directory, idle stop, and export / import',
       'rows.exportDir.title': 'Computer export directory',
       'rows.exportDir.current': 'Current: {dir}',
-      'rows.exportDir.empty': 'Pick a directory to enable export and import',
+      'rows.exportDir.empty': 'Uses the default export directory when none is set',
       'rows.exportDir.pick': 'Choose…',
       'rows.exportDir.manual': 'Type a path',
       'rows.exportDir.save': 'Save',
+      'rows.exportDir.saving': 'Saving…',
+      'rows.exportDir.saved': 'Export directory saved: {dir}',
+      'rows.exportDir.needsAbsolute': 'Path must be absolute, e.g. /path/to/exports',
+      'rows.exportDir.saveRejected':
+        'The Host did not accept the export directory — the previous value was restored; try again',
       'rows.exportDir.open': 'Open folder',
       'rows.idle.title': 'Idle stop',
       'rows.idle.description': 'How long the Computer waits without viewers before stopping',
@@ -135,7 +152,20 @@ window.__ModuleLoader__.load({
       'rows.noArchives': 'No archives in that directory yet — export once first.',
       'rows.noSettings':
         'Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.',
-      'rows.pickerFailed': 'Directory picker unavailable — type a path instead.',
+      'rows.pickerFallback':
+        'Directory picker unavailable — using the current export directory: {dir}',
+    };
+    /**
+     * Server-reported phase → the locale key shown while it runs. Shared by the
+     * sidebar entry card and the settings rows so both surfaces label a transfer
+     * the same way.
+     */
+    const PHASE_LABEL = {
+      pulling: 'entry.phase.pulling',
+      starting: 'entry.phase.starting',
+      stopping: 'entry.phase.stopping',
+      exporting: 'entry.phase.exporting',
+      importing: 'entry.phase.importing',
     };
     //#endregion
     //#region packages/computer/src/settings.ts
@@ -161,6 +191,22 @@ window.__ModuleLoader__.load({
      * `@botharness/client`, which is always mounted when this page renders.
      * @module @botharness/computer/settings-rows
      */
+    /** Thrown when the Host rolls the export directory back instead of storing it. */
+    var ExportDirRejectedError = class extends Error {
+      constructor() {
+        super('the Host did not accept the export directory');
+        this.name = 'ExportDirRejectedError';
+      }
+    };
+    /**
+     * Directory shown on the export row: a configured scope value wins; while the
+     * scope is empty (the unconfigured default) fall back to the Host-resolved
+     * path from the status route, so buttons and "Current" track what export and
+     * open-dir will actually use.
+     */
+    function displayExportDir(configured, hostDir) {
+      return configured !== '' ? configured : (hostDir ?? '');
+    }
     /** Live Computer settings published to the rows. */
     var ComputerSettingsPrefs = class {
       snapshot = {
@@ -192,9 +238,11 @@ window.__ModuleLoader__.load({
           this.listeners.delete(listener);
         };
       };
-      setExportDir(exportDir) {
+      async setExportDir(exportDir) {
+        if (this.scope === void 0) throw new ExportDirRejectedError();
         this.publish({ exportDir });
-        this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir).catch(() => void 0);
+        await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+        if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
       }
       setIdleStopMinutes(idleStopMinutes) {
         this.publish({ idleStopMinutes });
@@ -347,18 +395,48 @@ window.__ModuleLoader__.load({
       const [exportTarget, setExportTarget] = (0, react.useState)(void 0);
       const [manualOpen, setManualOpen] = (0, react.useState)(false);
       const [manualPath, setManualPath] = (0, react.useState)('');
-      const [note, setNote] = (0, react.useState)(void 0);
+      const [saving, setSaving] = (0, react.useState)(false);
+      const [dirNote, setDirNote] = (0, react.useState)(void 0);
+      const [transferNote, setTransferNote] = (0, react.useState)(void 0);
+      const [pickerBroken, setPickerBroken] = (0, react.useState)(false);
       const [hostDir, setHostDir] = (0, react.useState)(void 0);
+      const [livePhase, setLivePhase] = (0, react.useState)(void 0);
+      const [liveElapsed, setLiveElapsed] = (0, react.useState)(0);
       (0, react.useEffect)(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
       (0, react.useEffect)(() => {
-        if (snapshot.status !== 'unavailable') return;
+        if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
         hostExportDir()
           .then((dir) => setHostDir(dir))
           .catch(() => void 0);
-      }, [hostExportDir, snapshot.status]);
-      const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
+      }, [hostExportDir, snapshot.status, snapshot.exportDir]);
+      (0, react.useEffect)(() => {
+        if (busy === void 0) {
+          setLivePhase(void 0);
+          setLiveElapsed(0);
+          return;
+        }
+        const startedAt = Date.now();
+        let cancelled = false;
+        const tick = async () => {
+          if (cancelled) return;
+          setLiveElapsed(Math.round((Date.now() - startedAt) / 1e3));
+          try {
+            const payload = await requestJson$1(STATUS_ENDPOINT$1);
+            if (!cancelled) setLivePhase(payload.status?.phase);
+          } catch {}
+        };
+        tick();
+        const timer = setInterval(() => void tick(), 1e3);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      }, [busy]);
+      const phaseKey = livePhase === void 0 ? void 0 : PHASE_LABEL[livePhase];
+      const exportDir = displayExportDir(snapshot.exportDir, hostDir);
       const hasDir = exportDir !== '';
       const writable = snapshot.status === 'ready' && snapshot.writable;
+      const canAdjust = pickerAvailable && !pickerBroken;
       const pickDirectoryInto = (0, react.useCallback)(
         (apply) => {
           pickDirectory()
@@ -366,21 +444,22 @@ window.__ModuleLoader__.load({
               if (dir !== null) apply(dir);
             })
             .catch(() => {
-              setManualOpen(true);
-              setNote(t('rows.pickerFailed'));
+              setPickerBroken(true);
+              setManualOpen(false);
+              setDirNote(t('rows.pickerFallback', { dir: exportDir }));
             });
         },
-        [pickDirectory, t],
+        [exportDir, pickDirectory, t],
       );
       const pickExportDir = (0, react.useCallback)(() => {
         pickDirectoryInto((dir) => {
           setManualPath(dir);
-          prefs.setExportDir(dir);
-          setNote(void 0);
+          setDirNote(void 0);
+          prefs.setExportDir(dir).catch((error) => setDirNote(String(error)));
         });
       }, [pickDirectoryInto, prefs]);
       const startExport = (0, react.useCallback)(() => {
-        if (!pickerAvailable) {
+        if (!canAdjust) {
           setExportTarget(void 0);
           setConfirming('export');
           return;
@@ -392,30 +471,61 @@ window.__ModuleLoader__.load({
             setConfirming('export');
           })
           .catch(() => {
-            setManualOpen(true);
-            setNote(t('rows.pickerFailed'));
+            setPickerBroken(true);
+            setManualOpen(false);
+            setDirNote(t('rows.pickerFallback', { dir: exportDir }));
+            setExportTarget(void 0);
+            setConfirming('export');
           });
-      }, [pickDirectory, pickerAvailable, t]);
+      }, [canAdjust, exportDir, pickDirectory, t]);
+      const saveManualPath = (0, react.useCallback)(() => {
+        const dir = manualPath.trim();
+        if (dir === '') return;
+        if (!dir.startsWith('/') && !/^[A-Za-z]:[\\/]/u.test(dir)) {
+          setDirNote(t('rows.exportDir.needsAbsolute'));
+          return;
+        }
+        setSaving(true);
+        setDirNote(void 0);
+        prefs
+          .setExportDir(dir)
+          .then(() => {
+            setManualOpen(false);
+            setDirNote(t('rows.exportDir.saved', { dir }));
+          })
+          .catch((error) =>
+            setDirNote(
+              error instanceof ExportDirRejectedError
+                ? t('rows.exportDir.saveRejected')
+                : String(error),
+            ),
+          )
+          .finally(() => setSaving(false));
+      }, [manualPath, prefs, t]);
       const runExport = (0, react.useCallback)(() => {
+        const autoOpen = !canAdjust;
         setConfirming(void 0);
         setBusy('export');
-        setNote(void 0);
+        setTransferNote(void 0);
         exportArchive(exportTarget)
-          .then((archive) =>
-            setNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive })),
-          )
-          .catch((error) => setNote(String(error)))
+          .then((archive) => {
+            setTransferNote(
+              archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive }),
+            );
+            if (autoOpen) openDirectory(exportDir).catch(() => void 0);
+          })
+          .catch((error) => setTransferNote(String(error)))
           .finally(() => setBusy(void 0));
-      }, [exportArchive, exportTarget, t]);
+      }, [canAdjust, exportArchive, exportDir, exportTarget, openDirectory, t]);
       const runImport = (0, react.useCallback)(
         (file) => {
           setImportOpen(false);
           setConfirming(void 0);
           setBusy('import');
-          setNote(void 0);
+          setTransferNote(void 0);
           importArchive(file)
-            .then(() => setNote(t('rows.imported', { file })))
-            .catch((error) => setNote(String(error)))
+            .then(() => setTransferNote(t('rows.imported', { file })))
+            .catch((error) => setTransferNote(String(error)))
             .finally(() => setBusy(void 0));
         },
         [importArchive, t],
@@ -425,16 +535,29 @@ window.__ModuleLoader__.load({
           .then((files) => {
             setArchives(files);
             setImportOpen(true);
-            if (files.length === 0) setNote(t('rows.noArchives'));
+            if (files.length === 0) setTransferNote(t('rows.noArchives'));
           })
-          .catch((error) => setNote(String(error)));
+          .catch((error) => setTransferNote(String(error)));
       }, [listArchives, t]);
       const openDir = (0, react.useCallback)(() => {
-        openDirectory(exportDir).catch((error) => setNote(String(error)));
+        openDirectory(exportDir).catch((error) => setDirNote(String(error)));
       }, [exportDir, openDirectory]);
       return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
         className: 'bh-settings-rows',
         children: [
+          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+            className: 'bh-settings-section-head',
+            children: [
+              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-settings-section-title',
+                children: t('section.title'),
+              }),
+              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-settings-section-desc',
+                children: t('section.description'),
+              }),
+            ],
+          }),
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
             title: t('rows.exportDir.title'),
             description: hasDir
@@ -448,7 +571,7 @@ window.__ModuleLoader__.load({
                 flexWrap: 'wrap',
               },
               children: [
-                pickerAvailable
+                canAdjust
                   ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('button', {
                       type: 'button',
                       className: 'bh-settings-selector',
@@ -470,20 +593,22 @@ window.__ModuleLoader__.load({
                   onClick: openDir,
                   children: t('rows.exportDir.open'),
                 }),
-                /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                  type: 'button',
-                  className: 'bh-settings-selector',
-                  disabled: !writable,
-                  onClick: () => {
-                    setManualOpen((value) => !value);
-                    setManualPath(exportDir);
-                  },
-                  children: t('rows.exportDir.manual'),
-                }),
+                canAdjust
+                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      disabled: !writable,
+                      onClick: () => {
+                        setManualOpen((value) => !value);
+                        setManualPath(exportDir);
+                      },
+                      children: t('rows.exportDir.manual'),
+                    })
+                  : null,
               ],
             }),
           }),
-          manualOpen
+          manualOpen && canAdjust
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
                 className: 'bh-settings-row',
                 children: [
@@ -502,17 +627,19 @@ window.__ModuleLoader__.load({
                   /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                     type: 'button',
                     className: 'bh-settings-selector',
-                    disabled: !writable || manualPath.trim() === '',
-                    onClick: () => {
-                      prefs.setExportDir(manualPath.trim());
-                      setManualOpen(false);
-                      setNote(void 0);
-                    },
-                    children: t('rows.exportDir.save'),
+                    disabled: !writable || saving || manualPath.trim() === '',
+                    onClick: saveManualPath,
+                    children: saving ? t('rows.exportDir.saving') : t('rows.exportDir.save'),
                   }),
                 ],
               })
             : null,
+          dirNote === void 0
+            ? null
+            : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                children: dirNote,
+              }),
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
             title: t('rows.idle.title'),
             description: t('rows.idle.description'),
@@ -578,12 +705,12 @@ window.__ModuleLoader__.load({
                   : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                       type: 'button',
                       className: 'bh-settings-selector',
-                      disabled: (pickerAvailable ? false : !hasDir) || busy !== void 0,
+                      disabled: !hasDir || busy !== void 0,
                       onClick: startExport,
                       children:
                         busy === 'export'
                           ? t('rows.exporting')
-                          : pickerAvailable
+                          : canAdjust
                             ? t('rows.exportTo')
                             : t('rows.export'),
                     }),
@@ -635,17 +762,23 @@ window.__ModuleLoader__.load({
               ],
             }),
           }),
+          busy !== void 0 && phaseKey !== void 0
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                children: `${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`,
+              })
+            : null,
           snapshot.status === 'unavailable'
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
                 className: 'bh-note',
                 children: t('rows.noSettings'),
               })
             : null,
-          note === void 0
+          transferNote === void 0
             ? null
             : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
                 className: 'bh-note',
-                children: note,
+                children: transferNote,
               }),
         ],
       });
@@ -676,11 +809,6 @@ window.__ModuleLoader__.load({
       if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
       return await response.json();
     }
-    const PHASE_LABEL = {
-      pulling: 'entry.phase.pulling',
-      starting: 'entry.phase.starting',
-      stopping: 'entry.phase.stopping',
-    };
     const SETUP_GUIDANCE_KEY = 'entry.setup';
     const SHARED_NOTE_KEY = 'entry.shared';
     const AUTHORIZATION_POINTS = [

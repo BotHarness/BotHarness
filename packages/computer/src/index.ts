@@ -1,6 +1,8 @@
 import { spawn } from 'node:child_process';
-import { readdir } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
+import { homedir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
 import type { Duplex } from 'node:stream';
 
@@ -43,7 +45,7 @@ export interface ComputerConfig {
   hardenDesktop: boolean;
   /** Desktop locale, e.g. zh_CN.UTF-8; defaults to the DSH locale preference. */
   language: string;
-  /** Human-chosen directory that holds Computer exports; empty disables export/import. */
+  /** Human-chosen directory that holds Computer exports; empty uses the built-in default. */
   exportDir: string;
 }
 
@@ -92,12 +94,26 @@ export const Config = Schema.object({
   language: Schema.string().default(DEFAULT_CONFIG.language),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
-    .description('导出目录；为空时禁用导出/导入'),
+    .description(
+      '导出目录；为空时回退到默认目录（~/Desktop/BotHarness Exports，无 Desktop 时为 ~/BotHarness Exports）',
+    ),
 });
 
 /** Rejects archive names that could escape the configured export directory. */
 export function isSafeArchiveName(name: string): boolean {
-  return /^[A-Za-z0-9][A-Za-z0-9._-]*\.tar$/.test(name) && !name.includes('..');
+  return /^[A-Za-z0-9][A-Za-z0-9._-]*\.tar$/u.test(name) && !name.includes('..');
+}
+
+/**
+ * The export directory used when none is configured: a folder under the
+ * Desktop when it exists, else under the home directory. Pickerless
+ * deployments (e.g. web) run read-only against whatever this resolves to.
+ */
+export function defaultExportDir(home = homedir()): string {
+  const desktop = join(home, 'Desktop');
+  return existsSync(desktop)
+    ? join(desktop, 'BotHarness Exports')
+    : join(home, 'BotHarness Exports');
 }
 
 /** Runs one argv array through `node:child_process` without a shell. */
@@ -206,6 +222,13 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       exportDir: config.exportDir,
       idleStopMinutes: config.idleStopMinutes,
     };
+  // Export/import always resolve a concrete directory: the configured path,
+  // or the built-in default when none is set — so pickerless deployments can
+  // export, import, and open the folder without ever typing a path.
+  const resolveExportDir = (): string => {
+    const dir = effective().exportDir;
+    return dir === '' ? defaultExportDir() : dir;
+  };
   ctx.inject(['settings'], (settingsCtx) => {
     const scope = settingsCtx.settings.register(
       COMPUTER_SETTINGS_NAMESPACE,
@@ -260,7 +283,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
           provider: service.providerName ?? null,
           probe,
           status,
-          exportDir: effective().exportDir,
+          exportDir: resolveExportDir(),
         });
       },
     };
@@ -349,8 +372,6 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         { ok: false, code: 'authorize-required', error: 'explicit authorization required' },
         400,
       );
-    const missingExportDir = (): Response =>
-      json({ ok: false, code: 'export-dir-missing', error: 'exportDir is not configured' }, 400);
 
     const exportRoute = {
       path: '/api/computer/export',
@@ -365,10 +386,12 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         if (requested !== undefined && !isAbsolute(requested)) {
           return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
         }
-        const exportDir = requested ?? effective().exportDir;
-        if (exportDir === '') return missingExportDir();
+        const exportDir = requested ?? resolveExportDir();
         log(`export requested (panel)${requested === undefined ? '' : ` → ${requested}`}`);
         try {
+          // Create the destination as the Host user first: Docker would
+          // otherwise create a root-owned path on Linux engines.
+          await mkdir(exportDir, { recursive: true });
           const archive = await service.exportTo(exportDir);
           return json({ ok: true, archive });
         } catch (error) {
@@ -392,8 +415,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         if (requested !== undefined && !isAbsolute(requested)) {
           return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
         }
-        const dir = requested ?? effective().exportDir;
-        if (dir === '') return missingExportDir();
+        const dir = requested ?? resolveExportDir();
         const opener =
           process.platform === 'darwin'
             ? 'open'
@@ -401,6 +423,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
               ? 'explorer'
               : 'xdg-open';
         try {
+          await mkdir(dir, { recursive: true });
           // Argument array, never a shell: the path is data, not a command.
           const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
           // spawn() reports a missing binary asynchronously, so wait for the
@@ -457,12 +480,15 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (): Promise<Response> => {
-        const exportDir = effective().exportDir;
-        if (exportDir === '') return json({ ok: true, files: [] });
+        const exportDir = resolveExportDir();
         try {
           const entries = await readdir(exportDir);
           return json({ ok: true, files: entries.filter(isSafeArchiveName).sort() });
         } catch (error) {
+          // A directory that has never held an export lists as empty.
+          if ((error as { code?: string }).code === 'ENOENT') {
+            return json({ ok: true, files: [] });
+          }
           return json({ ok: false, error: String(error) }, 500);
         }
       },
@@ -479,8 +505,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       fetch: async (request: Request): Promise<Response> => {
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
-        const exportDir = effective().exportDir;
-        if (exportDir === '') return missingExportDir();
+        const exportDir = resolveExportDir();
         const file = typeof body.file === 'string' ? body.file : '';
         if (!isSafeArchiveName(file)) {
           return json({ ok: false, code: 'invalid-archive', error: 'invalid archive name' }, 400);

@@ -2175,6 +2175,24 @@ button.bh-bot-nav > svg {
   line-height: 1.3;
 }
 
+.bh-settings-section-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 24px 0 8px;
+}
+.bh-settings-section-title {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  color: var(--dsw-alias-label-primary);
+}
+.bh-settings-section-desc {
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: var(--dsw-alias-label-tertiary);
+}
 .bh-settings-rows {
   display: flex;
   flex-direction: column;

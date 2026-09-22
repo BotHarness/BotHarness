@@ -26,8 +26,13 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a persistent BotHarness motion preference with Follow system, Reduce motion, and Full motion modes, including a live accessible preview and one effective policy shared by Client surfaces ([#128](https://github.com/BotHarness/BotHarness/issues/128)).
 - Reworked the DM and group Channel composer as a responsive floating island with multiline input and an accessible, projection-only PersonaBot activity region ([#129](https://github.com/BotHarness/BotHarness/issues/129)).
 - Added deterministic, read-only GitHub Release draft preparation for the independent DeepSeekBot and DSH Skill release trains ([guide](docs/agents/changelog.md#preparing-a-github-release-draft), [#103](https://github.com/BotHarness/BotHarness/issues/103)).
+- Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Computer export now closes the browser gracefully before packing the volume (bounded at ~10 seconds, falling back to a plain stop), and every start seeds the durable `~/workspace` directory, so a migrated profile opens with flushed logins and tabs and bot work files travel with the archive ([#154](https://github.com/BotHarness/BotHarness/issues/154), [ADR-0062](docs/adr/0062-computer-volume-quiesce-and-workspace.md)).
+- During an export or import, the Computer settings rows and the sidebar card show the live stage with elapsed time instead of a generic busy label ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
+- The Computer's settings rows — export directory, idle stop, export/import — now render under their own **Computer** section heading on the BotHarness settings page ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 - The Bot icon chooser is a grid of cards that show each mark, with the selected one outlined, instead of a selector that only names them ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
 
@@ -58,6 +63,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed Computer export end-to-end on deployments whose directory picker rejects (e.g. web): the export directory falls back to a built-in default (`~/Desktop/BotHarness Exports`, or `~/BotHarness Exports` without a Desktop) shown read-only so no path has to be typed, the row keeps tracking that Host-resolved path while the settings scope is still empty (Open folder / export / import stay enabled against it), a failed picker switches to the fixed directory and continues the export, and the folder opens in the Host's file manager when the export finishes; on picker deployments, saving a typed path shows progress plus success/failure notes, rejects relative paths, and surfaces a Host-refused write as an error instead of a false success ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 - Failed Human Channel sends now keep a visible failed bubble; retry restores the original text and attachments to the composer for explicit resubmission, and Client message IDs make response-loss retries idempotent at the Host ([#206](https://github.com/BotHarness/BotHarness/issues/206)).
 - Reply-quote navigation can now continue loading newer timeline pages by ordinary downward scrolling until it reaches the latest message ([#207](https://github.com/BotHarness/BotHarness/issues/207)).
 - Committed Channel placement changes now invalidate the roster in other open windows; drag previews remain local and remote windows re-read only authoritative committed state ([#208](https://github.com/BotHarness/BotHarness/issues/208)).

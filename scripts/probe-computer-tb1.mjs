@@ -135,7 +135,8 @@ async function main() {
   const checks = [];
   const check = (name, ok, detail = '') => {
     checks.push({ name, ok, detail });
-    if (!options.json) console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail === '' ? '' : ` — ${detail}`}`);
+    if (!options.json)
+      console.log(`${ok ? 'PASS' : 'FAIL'} ${name}${detail === '' ? '' : ` — ${detail}`}`);
   };
 
   const cookie = await handshake(base, token);
@@ -195,7 +196,11 @@ async function main() {
     }
     // 5. Real container lifecycle: start (background) → poll → running.
     const started = await postJson(base, cookie, '/api/computer/start', { authorize: true });
-    check('lifecycle-start-accepted', started.status === 200 && started.body?.ok === true, `HTTP ${started.status}`);
+    check(
+      'lifecycle-start-accepted',
+      started.status === 200 && started.body?.ok === true,
+      `HTTP ${started.status}`,
+    );
     await waitForState(base, cookie, 'running', 300_000);
     check('lifecycle-reaches-running', true, '');
 
@@ -225,7 +230,11 @@ async function main() {
 
     // 8. Stop returns the Computer to rest (volume stays for the next start).
     const stopped = await postJson(base, cookie, '/api/computer/stop', { authorize: true });
-    check('lifecycle-stop-accepted', stopped.status === 200 && stopped.body?.ok === true, `HTTP ${stopped.status}`);
+    check(
+      'lifecycle-stop-accepted',
+      stopped.status === 200 && stopped.body?.ok === true,
+      `HTTP ${stopped.status}`,
+    );
     await waitForState(base, cookie, 'stopped', 120_000);
     check('lifecycle-reaches-stopped', true, '');
   }

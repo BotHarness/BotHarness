@@ -22,7 +22,7 @@ import {
   COMPUTER_IDLE_STOP_FIELD,
   type ComputerSettings,
 } from '../settings.js';
-import type { ComputerTranslate } from './locale.js';
+import { PHASE_LABEL, type ComputerTranslate } from './locale.js';
 
 /** Sync state of the Host settings scope the rows consume. */
 export interface ComputerSettingsSnapshot {
@@ -41,6 +41,24 @@ export interface ComputerSettingsScope {
   };
   subscribe(listener: () => void): () => void;
   set(field: string, value: unknown): Promise<void>;
+}
+
+/** Thrown when the Host rolls the export directory back instead of storing it. */
+export class ExportDirRejectedError extends Error {
+  constructor() {
+    super('the Host did not accept the export directory');
+    this.name = 'ExportDirRejectedError';
+  }
+}
+
+/**
+ * Directory shown on the export row: a configured scope value wins; while the
+ * scope is empty (the unconfigured default) fall back to the Host-resolved
+ * path from the status route, so buttons and "Current" track what export and
+ * open-dir will actually use.
+ */
+export function displayExportDir(configured: string, hostDir: string | undefined): string {
+  return configured !== '' ? configured : (hostDir ?? '');
 }
 
 /** Live Computer settings published to the rows. */
@@ -81,9 +99,13 @@ export class ComputerSettingsPrefs {
     };
   };
 
-  setExportDir(exportDir: string): void {
+  async setExportDir(exportDir: string): Promise<void> {
+    if (this.scope === undefined) throw new ExportDirRejectedError();
     this.publish({ exportDir });
-    void this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir).catch(() => undefined);
+    await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+    // The DSH scope resolves even when the Host refuses the write (it recovers
+    // silently), so a snapshot that rolled back is the only refusal signal.
+    if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
   }
 
   setIdleStopMinutes(idleStopMinutes: number): void {
@@ -262,21 +284,63 @@ export function ComputerSettingsRows({
   const [exportTarget, setExportTarget] = useState<string | undefined>(undefined);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPath, setManualPath] = useState('');
-  const [note, setNote] = useState<string | undefined>(undefined);
+  const [saving, setSaving] = useState(false);
+  const [dirNote, setDirNote] = useState<string | undefined>(undefined);
+  const [transferNote, setTransferNote] = useState<string | undefined>(undefined);
+  const [pickerBroken, setPickerBroken] = useState(false);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
+  const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
+  const [liveElapsed, setLiveElapsed] = useState(0);
 
   useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
 
   useEffect(() => {
-    if (snapshot.status !== 'unavailable') return;
+    // The Host-resolved path (status route) is what export/open-dir will use
+    // whenever the scope carries no configured directory — including the
+    // ready-but-empty default — and the only source when the scope is absent.
+    if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
     void hostExportDir()
       .then((dir) => setHostDir(dir))
       .catch(() => undefined);
-  }, [hostExportDir, snapshot.status]);
+  }, [hostExportDir, snapshot.status, snapshot.exportDir]);
 
-  const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
+  // While an export/import runs, mirror the Host's reported phase and an
+  // elapsed timer so the rows show stage and time, not only a busy label.
+  useEffect(() => {
+    if (busy === undefined) {
+      setLivePhase(undefined);
+      setLiveElapsed(0);
+      return;
+    }
+    const startedAt = Date.now();
+    let cancelled = false;
+    const tick = async (): Promise<void> => {
+      if (cancelled) return;
+      setLiveElapsed(Math.round((Date.now() - startedAt) / 1000));
+      try {
+        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT);
+        if (!cancelled) setLivePhase(payload.status?.phase);
+      } catch {
+        // Status is advisory here; the request that set `busy` owns the outcome.
+      }
+    };
+    void tick();
+    const timer = setInterval(() => void tick(), 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [busy]);
+
+  const phaseKey = livePhase === undefined ? undefined : PHASE_LABEL[livePhase];
+
+  const exportDir = displayExportDir(snapshot.exportDir, hostDir);
   const hasDir = exportDir !== '';
   const writable = snapshot.status === 'ready' && snapshot.writable;
+  // The directory is adjustable only while a working picker exists; once the
+  // picker rejects (e.g. web deployments) the row runs read-only against the
+  // directory the Host reports, default or configured.
+  const canAdjust = pickerAvailable && !pickerBroken;
 
   const pickDirectoryInto = useCallback(
     (apply: (dir: string) => void) => {
@@ -285,24 +349,25 @@ export function ComputerSettingsRows({
           if (dir !== null) apply(dir);
         })
         .catch(() => {
-          setManualOpen(true);
-          setNote(t('rows.pickerFailed'));
+          setPickerBroken(true);
+          setManualOpen(false);
+          setDirNote(t('rows.pickerFallback', { dir: exportDir }));
         });
     },
-    [pickDirectory, t],
+    [exportDir, pickDirectory, t],
   );
 
   const pickExportDir = useCallback(() => {
     pickDirectoryInto((dir) => {
       setManualPath(dir);
-      prefs.setExportDir(dir);
-      setNote(undefined);
+      setDirNote(undefined);
+      void prefs.setExportDir(dir).catch((error: unknown) => setDirNote(String(error)));
     });
   }, [pickDirectoryInto, prefs]);
 
   const startExport = useCallback(() => {
-    if (!pickerAvailable) {
-      // No picker: export to the configured directory (or the typed one).
+    if (!canAdjust) {
+      // Fixed directory (no picker, or one that failed): export straight there.
       setExportTarget(undefined);
       setConfirming('export');
       return;
@@ -314,34 +379,66 @@ export function ComputerSettingsRows({
         setConfirming('export');
       })
       .catch(() => {
-        // The picker is broken: surface the typed-path fallback instead of
-        // silently exporting somewhere the Human did not choose.
-        setManualOpen(true);
-        setNote(t('rows.pickerFailed'));
+        // Switch to the fixed directory shown on the row and keep the export
+        // intent — the Human clicked Export, not "enter a path".
+        setPickerBroken(true);
+        setManualOpen(false);
+        setDirNote(t('rows.pickerFallback', { dir: exportDir }));
+        setExportTarget(undefined);
+        setConfirming('export');
       });
-  }, [pickDirectory, pickerAvailable, t]);
+  }, [canAdjust, exportDir, pickDirectory, t]);
+
+  const saveManualPath = useCallback(() => {
+    const dir = manualPath.trim();
+    if (dir === '') return;
+    if (!dir.startsWith('/') && !/^[A-Za-z]:[\\/]/u.test(dir)) {
+      setDirNote(t('rows.exportDir.needsAbsolute'));
+      return;
+    }
+    setSaving(true);
+    setDirNote(undefined);
+    void prefs
+      .setExportDir(dir)
+      .then(() => {
+        setManualOpen(false);
+        setDirNote(t('rows.exportDir.saved', { dir }));
+      })
+      .catch((error: unknown) =>
+        setDirNote(
+          error instanceof ExportDirRejectedError
+            ? t('rows.exportDir.saveRejected')
+            : String(error),
+        ),
+      )
+      .finally(() => setSaving(false));
+  }, [manualPath, prefs, t]);
 
   const runExport = useCallback(() => {
+    // In fixed-directory mode (pickerless) nobody saw a destination chooser,
+    // so open the folder once the archive lands.
+    const autoOpen = !canAdjust;
     setConfirming(undefined);
     setBusy('export');
-    setNote(undefined);
+    setTransferNote(undefined);
     void exportArchive(exportTarget)
-      .then((archive) =>
-        setNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive })),
-      )
-      .catch((error: unknown) => setNote(String(error)))
+      .then((archive) => {
+        setTransferNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive }));
+        if (autoOpen) void openDirectory(exportDir).catch(() => undefined);
+      })
+      .catch((error: unknown) => setTransferNote(String(error)))
       .finally(() => setBusy(undefined));
-  }, [exportArchive, exportTarget, t]);
+  }, [canAdjust, exportArchive, exportDir, exportTarget, openDirectory, t]);
 
   const runImport = useCallback(
     (file: string) => {
       setImportOpen(false);
       setConfirming(undefined);
       setBusy('import');
-      setNote(undefined);
+      setTransferNote(undefined);
       void importArchive(file)
-        .then(() => setNote(t('rows.imported', { file })))
-        .catch((error: unknown) => setNote(String(error)))
+        .then(() => setTransferNote(t('rows.imported', { file })))
+        .catch((error: unknown) => setTransferNote(String(error)))
         .finally(() => setBusy(undefined));
     },
     [importArchive, t],
@@ -352,17 +449,21 @@ export function ComputerSettingsRows({
       .then((files) => {
         setArchives(files);
         setImportOpen(true);
-        if (files.length === 0) setNote(t('rows.noArchives'));
+        if (files.length === 0) setTransferNote(t('rows.noArchives'));
       })
-      .catch((error: unknown) => setNote(String(error)));
+      .catch((error: unknown) => setTransferNote(String(error)));
   }, [listArchives, t]);
 
   const openDir = useCallback(() => {
-    void openDirectory(exportDir).catch((error: unknown) => setNote(String(error)));
+    void openDirectory(exportDir).catch((error: unknown) => setDirNote(String(error)));
   }, [exportDir, openDirectory]);
 
   return (
     <div className="bh-settings-rows">
+      <div className="bh-settings-section-head">
+        <div className="bh-settings-section-title">{t('section.title')}</div>
+        <div className="bh-settings-section-desc">{t('section.description')}</div>
+      </div>
       <Row
         title={t('rows.exportDir.title')}
         description={
@@ -370,7 +471,7 @@ export function ComputerSettingsRows({
         }
       >
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {pickerAvailable ? (
+          {canAdjust ? (
             <button
               type="button"
               className="bh-settings-selector"
@@ -389,21 +490,23 @@ export function ComputerSettingsRows({
           >
             {t('rows.exportDir.open')}
           </button>
-          <button
-            type="button"
-            className="bh-settings-selector"
-            disabled={!writable}
-            onClick={() => {
-              setManualOpen((value) => !value);
-              setManualPath(exportDir);
-            }}
-          >
-            {t('rows.exportDir.manual')}
-          </button>
+          {canAdjust ? (
+            <button
+              type="button"
+              className="bh-settings-selector"
+              disabled={!writable}
+              onClick={() => {
+                setManualOpen((value) => !value);
+                setManualPath(exportDir);
+              }}
+            >
+              {t('rows.exportDir.manual')}
+            </button>
+          ) : null}
         </div>
       </Row>
 
-      {manualOpen ? (
+      {manualOpen && canAdjust ? (
         <div className="bh-settings-row">
           <div className="bh-settings-row-text">
             <input
@@ -419,17 +522,14 @@ export function ComputerSettingsRows({
           <button
             type="button"
             className="bh-settings-selector"
-            disabled={!writable || manualPath.trim() === ''}
-            onClick={() => {
-              prefs.setExportDir(manualPath.trim());
-              setManualOpen(false);
-              setNote(undefined);
-            }}
+            disabled={!writable || saving || manualPath.trim() === ''}
+            onClick={saveManualPath}
           >
-            {t('rows.exportDir.save')}
+            {saving ? t('rows.exportDir.saving') : t('rows.exportDir.save')}
           </button>
         </div>
       ) : null}
+      {dirNote === undefined ? null : <div className="bh-note">{dirNote}</div>}
 
       <Row title={t('rows.idle.title')} description={t('rows.idle.description')}>
         <Menu
@@ -482,12 +582,12 @@ export function ComputerSettingsRows({
             <button
               type="button"
               className="bh-settings-selector"
-              disabled={(pickerAvailable ? false : !hasDir) || busy !== undefined}
+              disabled={!hasDir || busy !== undefined}
               onClick={startExport}
             >
               {busy === 'export'
                 ? t('rows.exporting')
-                : pickerAvailable
+                : canAdjust
                   ? t('rows.exportTo')
                   : t('rows.export')}
             </button>
@@ -540,10 +640,15 @@ export function ComputerSettingsRows({
         </div>
       </Row>
 
+      {busy !== undefined && phaseKey !== undefined ? (
+        <div className="bh-note">
+          {`${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`}
+        </div>
+      ) : null}
       {snapshot.status === 'unavailable' ? (
         <div className="bh-note">{t('rows.noSettings')}</div>
       ) : null}
-      {note === undefined ? null : <div className="bh-note">{note}</div>}
+      {transferNote === undefined ? null : <div className="bh-note">{transferNote}</div>}
     </div>
   );
 }

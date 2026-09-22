@@ -343,6 +343,47 @@ export function createDockerComputerProvider(
     }
   };
 
+  /**
+   * The durable workspace convention (#154): Human- and bot-produced files
+   * belong in `~/workspace` (HOME is `/config`, so the path sits on the named
+   * volume), separate from the browser profile at `~/.config/chromium`. Seeded
+   * at every start so the path exists on a fresh volume and travels through
+   * export → import. Best effort.
+   */
+  const ensureWorkspaceDir = async (): Promise<void> => {
+    const result = await runner.run([
+      'docker',
+      'exec',
+      config.containerName,
+      'sh',
+      '-c',
+      'mkdir -p /config/workspace && chown abc:abc /config/workspace',
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('workspace directory could not be prepared');
+    }
+  };
+
+  /**
+   * Best-effort graceful browser shutdown before an export: SIGTERM lets
+   * Chromium flush cookies, history, and open tabs so the tar below sees a
+   * consistent profile instead of a torn write. Bounded at ~10s; a timeout or
+   * failure falls through to `docker stop`, where the managed RestoreOnStartup
+   * policy still recovers the session. No-op while the container is down.
+   */
+  const quiesceBrowser = async (): Promise<void> => {
+    const current = await inspect();
+    if (current.state !== 'running') return;
+    phase = 'stopping';
+    detail = '正在关闭浏览器…';
+    const script =
+      'term_browsers() { for p in /proc/[0-9]*; do c=$(cat "$p/comm" 2>/dev/null) || continue; case "$c" in chromium|chrome) kill -TERM "$(basename "$p")" 2>/dev/null ;; esac; done; }; term_browsers; i=0; while [ "$i" -lt 20 ]; do alive=0; for p in /proc/[0-9]*; do c=$(cat "$p/comm" 2>/dev/null) || continue; case "$c" in chromium|chrome) alive=1 ;; esac; done; [ "$alive" -eq 0 ] && exit 0; sleep 0.5; i=$((i + 1)); done; exit 0';
+    const result = await runner.run(['docker', 'exec', config.containerName, 'sh', '-c', script]);
+    if (result.code !== 0) {
+      onEvent?.('browser quiesce skipped');
+    }
+  };
+
   const runStart = async (): Promise<void> => {
     cancelRequested = false;
     const probe = await probeRuntime();
@@ -357,6 +398,7 @@ export function createDockerComputerProvider(
       detail = undefined;
       await ensureDesktopShortcut();
       await ensureSessionRestore();
+      await ensureWorkspaceDir();
       return;
     }
     if (existing.state === 'stopped' && !(await recreateIfSpecChanged())) {
@@ -373,6 +415,7 @@ export function createDockerComputerProvider(
       running = true;
       await ensureDesktopShortcut();
       await ensureSessionRestore();
+      await ensureWorkspaceDir();
       return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
@@ -450,6 +493,7 @@ export function createDockerComputerProvider(
     running = true;
     await ensureDesktopShortcut();
     await ensureSessionRestore();
+    await ensureWorkspaceDir();
   };
 
   const withDetail = (status: ComputerStatus): ComputerStatus => {
@@ -469,6 +513,7 @@ export function createDockerComputerProvider(
   };
 
   const exportTo = async (destDir: string): Promise<string> => {
+    await quiesceBrowser();
     const wasRunning = await ensureStopped('正在停止容器以导出…');
     phase = 'exporting';
     detail = '正在打包 Computer 数据…';
