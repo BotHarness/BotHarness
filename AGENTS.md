@@ -60,6 +60,8 @@ For a feature that crosses layers, deliver a sequence of **tracer bullets**: the
 
 Issues and specs live as GitHub issues on `BotHarness/BotHarness` (via the `gh` CLI). See `docs/agents/issue-tracker.md`.
 
+For issue-backed coding work or a PR, follow [the coding-agent issue trace](docs/agents/agent-work-trace.md): check existing claims, record this task's claim before implementation, carry its reference into commits and the PR, then record completion or handoff.
+
 ### Triage labels
 
 Default five-role vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
