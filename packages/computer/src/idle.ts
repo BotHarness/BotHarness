@@ -6,7 +6,8 @@
  */
 
 export interface IdleWatcherOptions {
-  readonly idleMs: number;
+  /** Idle threshold in milliseconds, or a getter read on every check. */
+  readonly idleMs: number | (() => number);
   readonly onIdle: () => void | Promise<void>;
   readonly now?: () => number;
 }
@@ -22,6 +23,8 @@ export interface IdleWatcher {
 
 export function createIdleWatcher(options: IdleWatcherOptions): IdleWatcher {
   const now = options.now ?? (() => Date.now());
+  const idleMs =
+    typeof options.idleMs === 'function' ? options.idleMs : () => options.idleMs as number;
   let lastActivity = now();
   let fired = false;
 
@@ -31,7 +34,7 @@ export function createIdleWatcher(options: IdleWatcherOptions): IdleWatcher {
       fired = false;
     },
     isIdle(): boolean {
-      return now() - lastActivity >= options.idleMs;
+      return now() - lastActivity >= idleMs();
     },
     tick(): void {
       if (fired || !this.isIdle()) return;

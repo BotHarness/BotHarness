@@ -1843,6 +1843,71 @@ button.bh-bot-nav > svg {
   object-fit: contain;
 }
 
+/* Bot icon chooser: what you see is what you pick — one card per mark. */
+/* Manual path fallback inside a settings row (the picker may be absent). */
+.bh-settings-input {
+  width: 100%;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 12px;
+}
+
+.bh-settings-input:focus {
+  outline: none;
+  border-color: var(--bh-accent);
+}
+
+.bh-icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 8px;
+  margin: 8px 0 4px;
+}
+
+.bh-icon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    border-color 120ms var(--ds-ease-in-out),
+    background 120ms var(--ds-ease-in-out),
+    color 120ms var(--ds-ease-in-out);
+}
+
+.bh-icon-card:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+
+.bh-icon-card[data-selected='true'] {
+  border-color: var(--bh-accent);
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+
+.bh-icon-card-art {
+  pointer-events: none;
+}
+
+.bh-icon-card-label {
+  text-align: center;
+  line-height: 1.3;
+}
+
 .bh-settings-rows {
   display: flex;
   flex-direction: column;
