@@ -84,6 +84,7 @@ export function HiddenChannelsModal({
               </span>
             ) : (
               <PersonaBotAvatar
+                t={t}
                 personaBotId={bot.slug}
                 name={bot.displayName}
                 src={bot.avatar}

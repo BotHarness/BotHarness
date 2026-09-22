@@ -31,6 +31,7 @@ import {
   MAX_CHANNEL_SIDEBAR_WIDTH,
   MIN_CHANNEL_SIDEBAR_WIDTH,
 } from './channel-sidebar-prefs.js';
+import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
 
 function matchesNarrow(): boolean {
@@ -174,11 +175,13 @@ export function ChannelSidebar({
   state,
   actions,
   controller,
+  t,
 }: {
   registry: ChannelSidebarRegistry;
   state: ClientState;
   actions: BridgeActions;
   controller: ChannelSidebarController;
+  t: BotHarnessTranslate;
 }): ReactElement | null {
   const selection = state.selection;
   const channel = state.conversation.channel;
@@ -211,6 +214,7 @@ export function ChannelSidebar({
     channelId: channel.id,
     botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
     actions,
+    t,
   };
   const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (
@@ -218,7 +222,7 @@ export function ChannelSidebar({
       id="bh-channel-sidebar"
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
       role="complementary"
-      aria-label="Channel sidebar"
+      aria-label={t('sidebar.region')}
       style={
         controller.mode === 'overlay'
           ? undefined
@@ -231,7 +235,7 @@ export function ChannelSidebar({
           role="separator"
           tabIndex={0}
           aria-orientation="vertical"
-          aria-label="调整 Channel sidebar 宽度"
+          aria-label={t('sidebar.resize.label')}
           aria-valuenow={dockedWidth}
           aria-valuemin={MIN_CHANNEL_SIDEBAR_WIDTH}
           aria-valuemax={MAX_CHANNEL_SIDEBAR_WIDTH}
@@ -273,7 +277,7 @@ export function ChannelSidebar({
       </div>
       <div className="bh-channel-sidebar-entries">
         {entries.length === 0 ? (
-          <div className="bh-note">还没有可显示的面板。</div>
+          <div className="bh-note">{t('sidebar.empty')}</div>
         ) : (
           entries.map((entry) => (
             <ChannelSidebarEntrySection

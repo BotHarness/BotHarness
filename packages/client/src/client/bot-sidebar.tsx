@@ -37,7 +37,7 @@ import {
   type ScopeId,
   type SectionDropTarget,
 } from './channel-drag.js';
-import { needsYou, STATE_LABELS, toBotState, toStateDot } from './labels.js';
+import { botStateLabel, needsYou, toBotState, toStateDot } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
@@ -257,6 +257,7 @@ function BotRow({
   onMenu,
   onPinDragStart,
   onPinDragEnd,
+  t,
 }: {
   bot: BotSummary;
   channel: ChannelSummary;
@@ -267,6 +268,7 @@ function BotRow({
   onMenu: (request: ChannelMenuRequest) => void;
   onPinDragStart: (channelId: string) => void;
   onPinDragEnd: () => void;
+  t: BotHarnessTranslate;
 }): ReactElement {
   const botState = toBotState(bot.aggregateState);
   const markerClass =
@@ -314,6 +316,7 @@ function BotRow({
       }}
     >
       <PersonaBotAvatar
+        t={t}
         personaBotId={bot.slug}
         name={bot.displayName}
         src={bot.avatar}
@@ -324,9 +327,9 @@ function BotRow({
         <span className="bh-top">
           <span className="bh-name">{bot.displayName}</span>
           <RoleBadges roles={bot.roles} />
-          {needsYou(botState) ? <span className="bh-unread" title="需要你" /> : null}
+          {needsYou(botState) ? <span className="bh-unread" title={t('roster.needsYou')} /> : null}
         </span>
-        <span className="bh-msg">{bot.description ?? STATE_LABELS[botState]}</span>
+        <span className="bh-msg">{bot.description ?? botStateLabel(botState, t)}</span>
       </span>
       <StateDot state={toStateDot(botState)} size={8} className="bh-state" />
     </button>
@@ -340,6 +343,7 @@ function ChannelRow({
   onMenu,
   onPinDragStart,
   onPinDragEnd,
+  t,
 }: {
   channel: ChannelSummary;
   selected: boolean;
@@ -348,6 +352,7 @@ function ChannelRow({
   onMenu: (request: ChannelMenuRequest) => void;
   onPinDragStart?: ((channelId: string) => void) | undefined;
   onPinDragEnd?: (() => void) | undefined;
+  t: BotHarnessTranslate;
 }): ReactElement {
   const marker = drag?.marker ?? null;
   const markerClass =
@@ -415,7 +420,9 @@ function ChannelRow({
       </span>
       <span className="bh-channel-title">{channel.name}</span>
       <span className="bh-channel-meta">
-        {channel.members.length > 0 ? `${channel.members.length} 位成员` : '还没有成员'}
+        {channel.members.length > 0
+          ? t('roster.members.count', { count: channel.members.length })
+          : t('roster.members.empty')}
       </span>
     </button>
   );
@@ -461,6 +468,7 @@ function RailChannel({
             </span>
           ) : (
             <PersonaBotAvatar
+              t={t}
               personaBotId={bot.slug}
               name={bot.displayName}
               src={bot.avatar}
@@ -479,6 +487,7 @@ function RailChannel({
               </span>
             ) : (
               <PersonaBotAvatar
+                t={t}
                 personaBotId={bot.slug}
                 name={bot.displayName}
                 src={bot.avatar}
@@ -1019,6 +1028,7 @@ export function BotSidebar({
     if (channel.type === 'dm' && bot !== undefined) {
       return (
         <BotRow
+          t={t}
           key={channel.id}
           bot={bot}
           channel={channel}
@@ -1034,6 +1044,7 @@ export function BotSidebar({
     }
     return (
       <ChannelRow
+        t={t}
         key={channel.id}
         channel={channel}
         selected={selectedChannel === channel.id}
@@ -1158,7 +1169,7 @@ export function BotSidebar({
     >
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
-          消息
+          {t('roster.messages')}
         </span>
         <div className={`bh-search-slot${searchOpen ? ' bh-search-slot-open' : ''}`}>
           <div
@@ -1171,11 +1182,16 @@ export function BotSidebar({
               searchInput.current?.focus();
             }}
           >
-            <Tooltip label="搜索" side="bottom" delayMs={500} disabled={searchOpen}>
+            <Tooltip
+              label={t('roster.search.label')}
+              side="bottom"
+              delayMs={500}
+              disabled={searchOpen}
+            >
               <button
                 type="button"
                 className="bh-search-btn"
-                aria-label="搜索"
+                aria-label={t('roster.search.label')}
                 aria-expanded={searchOpen}
                 onClick={() => {
                   setMenuOpen(false);
@@ -1190,7 +1206,7 @@ export function BotSidebar({
               ref={searchInput}
               className="bh-search-input"
               type="text"
-              placeholder="搜索 Bot 或频道"
+              placeholder={t('roster.search.placeholder')}
               value={state.query}
               tabIndex={searchOpen ? 0 : -1}
               onChange={(event) => store.setQuery(event.target.value)}
@@ -1204,7 +1220,7 @@ export function BotSidebar({
               <button
                 type="button"
                 className="bh-clear-btn"
-                aria-label="清除搜索"
+                aria-label={t('roster.search.clear')}
                 onClick={(event) => {
                   event.stopPropagation();
                   store.setQuery('');
@@ -1249,11 +1265,11 @@ export function BotSidebar({
             dense
             align="end"
             anchor={
-              <Tooltip label="新建" side="bottom" delayMs={500}>
+              <Tooltip label={t('roster.new.label')} side="bottom" delayMs={500}>
                 <button
                   type="button"
                   className="bh-icon-btn"
-                  aria-label="新建"
+                  aria-label={t('roster.new.label')}
                   onClick={() => {
                     setMenuOpen((value) => !value);
                   }}
@@ -1262,7 +1278,7 @@ export function BotSidebar({
                 </button>
               </Tooltip>
             }
-            items={menuItems()}
+            items={menuItems(t)}
             onSelect={selectMenu}
             onClose={() => {
               setMenuOpen(false);
@@ -1272,23 +1288,23 @@ export function BotSidebar({
       </div>
 
       {state.status === 'loading' && state.bots.length === 0 ? (
-        <div className="bh-note">正在加载 Bot…</div>
+        <div className="bh-note">{t('roster.loading')}</div>
       ) : null}
       {state.status === 'error' && state.error !== undefined ? (
-        <div className="bh-error">名册加载失败：{state.error}</div>
+        <div className="bh-error">{t('roster.error', { error: state.error })}</div>
       ) : null}
       {state.roster.readOnly ? <div className="bh-note">{t('roster.readOnly')}</div> : null}
       {state.status === 'ready' && state.bots.length === 0 ? (
         <div className="bh-empty-create">
-          <span>还没有 PersonaBot。</span>
+          <span>{t('roster.empty')}</span>
           <Button variant="outline" size="sm" onClick={() => setCreateRequest({ kind: 'bot' })}>
-            创建第一个 PersonaBot
+            {t('roster.empty.create')}
           </Button>
         </div>
       ) : null}
       {visibleCount === 0 && (state.bots.length > 0 || state.channels.length > 0) ? (
         <div className="bh-note">
-          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : '没有匹配的 Bot 或频道'}
+          {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : t('roster.noMatch')}
         </div>
       ) : null}
 
@@ -1382,6 +1398,7 @@ export function BotSidebar({
                       </span>
                     ) : (
                       <PersonaBotAvatar
+                        t={t}
                         personaBotId={bot.slug}
                         name={bot.displayName}
                         src={bot.avatar}
@@ -1635,7 +1652,7 @@ export function BotSidebar({
                         <button
                           type="button"
                           className="bh-row-action"
-                          aria-label={`「${section.name}」排序方式`}
+                          aria-label={t('roster.section.sort', { name: section.name })}
                           onClick={(event) => {
                             event.stopPropagation();
                             setSectionMenuId((value) =>
@@ -1667,7 +1684,7 @@ export function BotSidebar({
                         <button
                           type="button"
                           className="bh-row-action"
-                          aria-label={`在「${section.name}」中新建`}
+                          aria-label={t('roster.section.create', { name: section.name })}
                           onClick={(event) => {
                             event.stopPropagation();
                             setSectionMenuId(undefined);
@@ -1679,7 +1696,7 @@ export function BotSidebar({
                           <IconPlusOutline16 />
                         </button>
                       }
-                      items={sectionCreateMenuItems()}
+                      items={sectionCreateMenuItems(t)}
                       onSelect={(id) => {
                         setSectionCreateMenuId(undefined);
                         if (id === 'bot') {
@@ -1706,6 +1723,7 @@ export function BotSidebar({
 
       {createRequest?.kind === 'bot' ? (
         <CreatePersonaBotModal
+          t={t}
           actions={actions}
           {...(createSectionId === undefined ? {} : { sectionId: createSectionId })}
           {...(createSection === undefined ? {} : { sectionName: createSection.name })}
@@ -1719,6 +1737,7 @@ export function BotSidebar({
       ) : null}
       {createRequest?.kind === 'section' ? (
         <CreateSectionModal
+          t={t}
           onCancel={() => {
             setCreateRequest(undefined);
           }}
@@ -1735,6 +1754,7 @@ export function BotSidebar({
       ) : null}
       {createRequest?.kind === 'channel' ? (
         <CreateChannelModal
+          t={t}
           key={createSectionId ?? 'root'}
           sectionName={createSection?.name}
           onCancel={() => {
@@ -1750,6 +1770,7 @@ export function BotSidebar({
 
       {renameTarget !== undefined ? (
         <SectionRenameModal
+          t={t}
           key={renameTarget.id}
           section={renameTarget}
           onCancel={() => {
@@ -1763,6 +1784,7 @@ export function BotSidebar({
       ) : null}
       {channelRenameTarget !== undefined ? (
         <ChannelRenameModal
+          t={t}
           key={channelRenameTarget.id}
           name={channelRenameTarget.name}
           bot={channelRenameTarget.type === 'dm'}
@@ -1778,6 +1800,7 @@ export function BotSidebar({
 
       {deleteTarget !== undefined ? (
         <SectionDeleteModal
+          t={t}
           section={deleteTarget}
           onCancel={() => {
             setDeleteTarget(undefined);
@@ -2001,27 +2024,27 @@ export function ChannelMoveMenu({
   );
 }
 
-function menuItems(): MenuEntry[] {
+function menuItems(t: BotHarnessTranslate): MenuEntry[] {
   return [
     {
       id: 'bot',
-      label: '创建 PersonaBot',
+      label: t('roster.menu.createBot'),
       icon: <IconAgentPresetOutline16 size={16} />,
     },
     {
       id: 'channel',
-      label: '创建频道',
+      label: t('roster.menu.createChannel'),
       icon: <IconNewChatOutline16 size={16} />,
     },
     {
       id: 'section',
-      label: '创建频道分组',
+      label: t('roster.menu.createSection'),
       icon: <IconFolderOpenOutline16 size={16} />,
     },
   ];
 }
 
 /** Creation choices available from one section header. */
-function sectionCreateMenuItems(): MenuEntry[] {
-  return menuItems().filter((item) => item.id === 'bot' || item.id === 'channel');
+function sectionCreateMenuItems(t: BotHarnessTranslate): MenuEntry[] {
+  return menuItems(t).filter((item) => item.id === 'bot' || item.id === 'channel');
 }

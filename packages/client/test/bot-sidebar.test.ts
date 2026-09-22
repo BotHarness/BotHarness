@@ -53,7 +53,7 @@ import type { BridgeActions } from '../src/client/actions.js';
 import { BotSidebar, ChannelMoveMenu } from '../src/client/bot-sidebar.js';
 import { UNGROUPED_MOVE_TARGET } from '../src/client/section-management.js';
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { zh, type BotHarnessKey } from '../src/client/locale.js';
+import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
 import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
@@ -169,7 +169,7 @@ function renderSidebar(wide = true): string {
         selector(prefs)) as never,
       setSortMode,
       setSectionSortMode,
-      t: ((key: BotHarnessKey) => zh[key]) as never,
+      t: zhTranslate as never,
     }),
   );
 }
@@ -694,7 +694,7 @@ describe('bot sidebar rows', () => {
         menu: { channelId: 'c-section', x: 40, y: 80 },
         sections: [section('s1', '工作流', []), section('s2', '研究', [])],
         currentSectionId: 's1',
-        t: ((key: BotHarnessKey) => zh[key]) as never,
+        t: zhTranslate as never,
         onPick,
         onRename,
         onCreateSection,
@@ -742,7 +742,7 @@ describe('bot sidebar rows', () => {
         menu: { channelId: DM_CHANNEL.id, x: 40, y: 80 },
         sections: [section('s1', '工作流', [])],
         currentSectionId: 's1',
-        t: ((key: BotHarnessKey) => zh[key]) as never,
+        t: zhTranslate as never,
         onSetPinned,
         onHide,
         onPick,
@@ -773,7 +773,7 @@ describe('bot sidebar rows', () => {
         sections: [section('s1', '工作流', [])],
         currentSectionId: 's1',
         pinned: true,
-        t: ((key: BotHarnessKey) => zh[key]) as never,
+        t: zhTranslate as never,
         onSetPinned,
         onHide,
         onPick,

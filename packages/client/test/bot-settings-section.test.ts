@@ -19,9 +19,9 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { BotIconCard, BotSettingsSection } from '../src/client/bot-settings-section.js';
-import { zh, type BotHarnessKey } from '../src/client/locale.js';
+import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
 
-const t = (key: BotHarnessKey): string => zh[key];
+const t = zhTranslate;
 
 function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {

@@ -31,7 +31,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
 import { createBotPanelEntry } from '../src/client/bot-sidebar.js';
-import { zh, type BotHarnessKey, type BotHarnessTranslate } from '../src/client/locale.js';
+import {
+  zh,
+  zhTranslate,
+  type BotHarnessKey,
+  type BotHarnessTranslate,
+} from '../src/client/locale.js';
 
 const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
   selector({
@@ -44,7 +49,7 @@ const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
     status: 'ready',
   })) as never;
 
-const t = ((key: BotHarnessKey): string => zh[key]) as unknown as BotHarnessTranslate;
+const t = zhTranslate as unknown as BotHarnessTranslate;
 const openSettings = () => undefined;
 
 describe('bot panel entry', () => {

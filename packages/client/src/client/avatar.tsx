@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import { blobatar } from 'blobatar';
 
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
   'thinking',
@@ -28,6 +30,8 @@ export interface PersonaBotAvatarProps {
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   indicator?: boolean | undefined;
+  /** Locale-bound translate for the activity label; Chinese when rendered in isolation. */
+  t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
 }
 
@@ -61,18 +65,21 @@ export function defaultActivityEffect(
   return undefined;
 }
 
-export function personaBotActivityLabel(state: PersonaBotActivityState): string {
+export function personaBotActivityLabel(
+  state: PersonaBotActivityState,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
   switch (state) {
     case 'idle':
-      return '空闲';
+      return t('activity.idle');
     case 'thinking':
-      return '正在思考';
+      return t('activity.thinking');
     case 'working':
-      return '正在工作';
+      return t('activity.working');
     case 'waiting':
-      return '正在等待你';
+      return t('activity.waiting');
     case 'blocked':
-      return '工作受阻';
+      return t('activity.blocked');
   }
 }
 
@@ -149,6 +156,7 @@ export function PersonaBotAvatar({
   effect,
   indicator = true,
   className,
+  t = zhTranslate,
 }: PersonaBotAvatarProps): ReactElement {
   const resolvedEffect = effect ?? defaultActivityEffect(state);
   const mediaKind = src === undefined || src.length === 0 ? 'blob' : 'image';
@@ -164,7 +172,7 @@ export function PersonaBotAvatar({
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
       role="img"
-      aria-label={`${name}：${personaBotActivityLabel(state)}`}
+      aria-label={t('avatar.label', { name, activity: personaBotActivityLabel(state, t) })}
     >
       <AvatarMedia personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}
@@ -177,11 +185,13 @@ export function PersonaBotFacepile({
   size,
   max = 3,
   className,
+  t = zhTranslate,
 }: {
   items: readonly PersonaBotFacepileItem[];
   size: number;
   max?: number | undefined;
   className?: string | undefined;
+  t?: BotHarnessTranslate | undefined;
 }): ReactElement | null {
   if (items.length === 0) return null;
   const visible = items.slice(0, max);
@@ -189,7 +199,7 @@ export function PersonaBotFacepile({
   return (
     <span className={['bh-avatar-facepile', className].filter(Boolean).join(' ')}>
       {visible.map((item) => (
-        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} />
+        <PersonaBotAvatar key={item.personaBotId} {...item} size={size} t={t} />
       ))}
       {overflow > 0 ? (
         <span className="bh-avatar-facepile-overflow" style={{ width: size, height: size }}>
@@ -202,5 +212,13 @@ export function PersonaBotFacepile({
 
 /** Compatibility wrapper for older call sites outside the bundled client. */
 export function Blobatar({ seed, size }: { seed: string; size: number }): ReactElement {
-  return <PersonaBotAvatar personaBotId={seed} name={seed} size={size} indicator={false} />;
+  return (
+    <PersonaBotAvatar
+      personaBotId={seed}
+      name={seed}
+      size={size}
+      indicator={false}
+      t={zhTranslate}
+    />
+  );
 }

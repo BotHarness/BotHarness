@@ -31,9 +31,10 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import type { BridgeActions } from '../src/client/actions.js';
 import { BotMain } from '../src/client/bot-main.js';
-import { channelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
+import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
+import { zhTranslate } from '../src/client/locale.js';
 import { store } from '../src/client/store.js';
 
 const entryProps = {
@@ -41,11 +42,12 @@ const entryProps = {
   channelId: 'dm-ada',
   botSlug: 'ada',
   actions: {} as BridgeActions,
+  t: zhTranslate,
 };
 
 function sidebarRegistry() {
   const registry = createChannelSidebarRegistry();
-  for (const entry of channelSidebarBuiltins) registry.register(entry);
+  for (const entry of createChannelSidebarBuiltins(zhTranslate)) registry.register(entry);
   return registry;
 }
 
@@ -110,7 +112,9 @@ describe('Bot main Assignment pane', () => {
   });
 
   it('renders an expanded entry body from the registered entry', () => {
-    const assignments = channelSidebarBuiltins.find((entry) => entry.id === 'assignments');
+    const assignments = createChannelSidebarBuiltins(zhTranslate).find(
+      (entry) => entry.id === 'assignments',
+    );
     expect(assignments).toBeDefined();
 
     const markup = renderToStaticMarkup(
@@ -131,7 +135,9 @@ describe('Bot main Assignment pane', () => {
   });
 
   it('renders a collapsed entry header without its body', () => {
-    const assignments = channelSidebarBuiltins.find((entry) => entry.id === 'assignments');
+    const assignments = createChannelSidebarBuiltins(zhTranslate).find(
+      (entry) => entry.id === 'assignments',
+    );
     const markup = renderToStaticMarkup(
       createElement(ChannelSidebarEntrySection, {
         entry: assignments!,

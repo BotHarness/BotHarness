@@ -21,11 +21,15 @@ export interface ChannelComposerActivity {
   summary: string;
 }
 
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+
 export interface ChannelComposerProps {
   value: string;
   placeholder: string;
   sending: boolean;
   activity?: ChannelComposerActivity | undefined;
+  /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
+  t?: BotHarnessTranslate | undefined;
   onChange(value: string): void;
   onSubmit(): void | Promise<void>;
 }
@@ -63,8 +67,10 @@ export function fitComposerTextarea(
 
 function PersonaBotActivityStatus({
   activity,
+  t,
 }: {
   activity: ChannelComposerActivity | undefined;
+  t: BotHarnessTranslate;
 }): ReactElement | null {
   if (activity === undefined || activity.items.length === 0) return null;
 
@@ -76,6 +82,7 @@ function PersonaBotActivityStatus({
       title={activity.summary}
     >
       <PersonaBotFacepile
+        t={t}
         className="bh-composer-activity-facepile"
         items={activity.items}
         size={40}
@@ -94,6 +101,7 @@ export function ChannelComposer({
   placeholder,
   sending,
   activity,
+  t = zhTranslate,
   onChange,
   onSubmit,
 }: ChannelComposerProps): ReactElement {
@@ -131,7 +139,7 @@ export function ChannelComposer({
 
   return (
     <div className="bh-composer-shell">
-      <PersonaBotActivityStatus activity={activity} />
+      <PersonaBotActivityStatus activity={activity} t={t} />
       <div
         className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}
@@ -162,7 +170,7 @@ export function ChannelComposer({
             variant="primary"
             size="sm"
             icon={<IconSendOutline16 size={16} />}
-            aria-label={sending ? '发送中' : '发送'}
+            aria-label={sending ? t('message.sending') : t('composer.send')}
             disabled={value.trim().length === 0 || sending}
             onClick={() => void onSubmit()}
           />

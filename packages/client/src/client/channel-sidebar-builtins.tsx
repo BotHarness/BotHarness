@@ -7,34 +7,37 @@ import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
 import { personaBotActivity } from './persona-activity.js';
+import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary } from './store.js';
 
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
 
-function assignmentStatus(activity: 'working' | 'idle' | 'error'): string {
+function assignmentStatus(activity: 'working' | 'idle' | 'error', t: BotHarnessTranslate): string {
   switch (activity) {
     case 'working':
-      return '进行中';
+      return t('assignment.state.working');
     case 'idle':
-      return '已报告';
+      return t('assignment.state.reported');
     case 'error':
-      return '出错';
+      return t('assignment.state.error');
   }
 }
 
-function AssignmentsEntry({ actions }: ChannelSidebarEntryProps): ReactElement {
+function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   const assignments = useClientState().assignments;
   const selected = assignments.selected;
   return (
     <>
-      {assignments.status === 'loading' ? <div className="bh-note">正在加载事项…</div> : null}
+      {assignments.status === 'loading' ? (
+        <div className="bh-note">{t('assignments.loading')}</div>
+      ) : null}
       {assignments.status === 'error' && assignments.error !== undefined ? (
-        <div className="bh-error">事项加载失败：{assignments.error}</div>
+        <div className="bh-error">{t('assignments.error', { error: assignments.error })}</div>
       ) : null}
       {assignments.status === 'ready' && assignments.items.length === 0 ? (
-        <div className="bh-note">还没有事项。直接在左侧聊天，Bot 会按需自行安排。</div>
+        <div className="bh-note">{t('assignments.empty')}</div>
       ) : null}
       {assignments.items.map((assignment) => (
         <button
@@ -50,8 +53,8 @@ function AssignmentsEntry({ actions }: ChannelSidebarEntryProps): ReactElement {
         >
           <div className="bh-assignment-title">{assignment.purpose}</div>
           <div className="bh-assignment-meta">
-            <span>{assignmentStatus(assignment.activity)}</span>
-            <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now())}</span>
+            <span>{assignmentStatus(assignment.activity, t)}</span>
+            <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now(), t)}</span>
           </div>
           {assignment.latestReport === undefined ? null : (
             <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
@@ -59,20 +62,20 @@ function AssignmentsEntry({ actions }: ChannelSidebarEntryProps): ReactElement {
         </button>
       ))}
       {selected === undefined ? null : (
-        <section className="bh-assignment-detail" aria-label="事项详情">
-          <div className="bh-assignment-detail-label">事项详情</div>
+        <section className="bh-assignment-detail" aria-label={t('assignment.detail.label')}>
+          <div className="bh-assignment-detail-label">{t('assignment.detail.label')}</div>
           <div className="bh-assignment-detail-purpose">{selected.purpose}</div>
           <dl>
             <div>
-              <dt>状态</dt>
-              <dd>{assignmentStatus(selected.activity)}</dd>
+              <dt>{t('assignment.detail.status')}</dt>
+              <dd>{assignmentStatus(selected.activity, t)}</dd>
             </div>
             <div>
-              <dt>最近报告</dt>
-              <dd>{selected.latestReport?.summary ?? '尚未报告'}</dd>
+              <dt>{t('assignment.detail.latest')}</dt>
+              <dd>{selected.latestReport?.summary ?? t('assignment.detail.unreported')}</dd>
             </div>
             <div>
-              <dt>Assignment Session</dt>
+              <dt>{t('assignment.detail.session')}</dt>
               <dd className="bh-assignment-id" title={selected.sessionId}>
                 {selected.sessionId}
               </dd>
@@ -88,11 +91,11 @@ function AssignmentsBadge(): ReactElement {
   return <Tag tone="neutral">{useClientState().assignments.items.length}</Tag>;
 }
 
-function MembersEntry(): ReactElement {
+function MembersEntry({ t }: ChannelSidebarEntryProps): ReactElement {
   const state = useClientState();
   const members = state.conversation.channel?.members ?? [];
   if (members.length === 0) {
-    return <div className="bh-note">还没有成员。Bot 参与群聊随 v1.1 到来。</div>;
+    return <div className="bh-note">{t('members.empty')}</div>;
   }
   return (
     <>
@@ -101,6 +104,7 @@ function MembersEntry(): ReactElement {
         return (
           <div className="bh-member-row" key={slug}>
             <PersonaBotAvatar
+              t={t}
               personaBotId={slug}
               name={member?.displayName ?? slug}
               src={member?.avatar}
@@ -120,21 +124,25 @@ function MembersBadge(): ReactElement {
 }
 
 /** Entries BotHarness itself contributes to the Channel sidebar. */
-export const channelSidebarBuiltins: readonly ChannelSidebarEntry[] = [
-  {
-    id: 'assignments',
-    label: '事项',
-    order: 10,
-    scope: 'personabot',
-    component: AssignmentsEntry,
-    badge: AssignmentsBadge,
-  },
-  {
-    id: 'members',
-    label: '成员',
-    order: 10,
-    scope: 'channel',
-    component: MembersEntry,
-    badge: MembersBadge,
-  },
-];
+export function createChannelSidebarBuiltins(
+  t: BotHarnessTranslate,
+): readonly ChannelSidebarEntry[] {
+  return [
+    {
+      id: 'assignments',
+      label: t('entry.assignments'),
+      order: 10,
+      scope: 'personabot',
+      component: AssignmentsEntry,
+      badge: AssignmentsBadge,
+    },
+    {
+      id: 'members',
+      label: t('entry.members'),
+      order: 10,
+      scope: 'channel',
+      component: MembersEntry,
+      badge: MembersBadge,
+    },
+  ];
+}

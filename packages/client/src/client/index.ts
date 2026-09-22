@@ -18,7 +18,7 @@ import { BotSettingsSection } from './bot-settings-section.js';
 import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
-import { channelSidebarBuiltins } from './channel-sidebar-builtins.js';
+import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { mountChannelLive } from './channel-live.js';
@@ -56,8 +56,17 @@ export function apply(ctx: ClientContext): void {
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
   ctx.effect(() => {
-    const disposers = channelSidebarBuiltins.map((entry) => channelSidebar.register(entry));
+    // Labels resolve at build time, so re-register the entries when the locale
+    // changes; the registry notifies the sidebar and it re-renders.
+    let disposers: (() => void)[] = [];
+    const reconcile = (): void => {
+      for (const dispose of disposers) dispose();
+      disposers = createChannelSidebarBuiltins(t).map((entry) => channelSidebar.register(entry));
+    };
+    reconcile();
+    const unsubscribe = ctx.locale.subscribe(reconcile);
     return () => {
+      unsubscribe();
       for (const dispose of disposers) dispose();
     };
   }, 'botharness: Channel sidebar entries');
@@ -162,6 +171,7 @@ export function apply(ctx: ClientContext): void {
       {
         name: 'main',
         key: PANEL_ID,
+        locale: LOCALE_NS,
         inject: () => ({ actions, channelSidebar }),
       },
       BotPanel,

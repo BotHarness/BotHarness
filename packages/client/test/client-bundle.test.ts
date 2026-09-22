@@ -163,6 +163,7 @@ describe('@botharness/client browser bundle', () => {
         },
       },
       locale: {
+        subscribe: () => () => undefined,
         register: () => () => undefined,
         bind: () => (key: string) => key,
       },
@@ -188,6 +189,7 @@ describe('@botharness/client browser bundle', () => {
       {
         name: 'main',
         key: 'botharness',
+        locale: 'botharness',
         inject: expect.any(Function),
       },
     ]);
