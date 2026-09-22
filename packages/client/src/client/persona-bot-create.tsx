@@ -74,7 +74,9 @@ export function CreatePersonaBotModal({
   const [description, setDescription] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  const [error, setError] = useState<string | undefined>(undefined);
+  // The raw cause is stored and translated at render time, so a locale change
+  // while the modal is open updates the message instead of freezing it.
+  const [cause, setCause] = useState<unknown | undefined>(undefined);
   const invalid = displayName.trim().length === 0;
 
   const rolesWithDraft = (): string[] =>
@@ -92,7 +94,7 @@ export function CreatePersonaBotModal({
     setRoles(submittedRoles);
     setRoleDraft('');
     setCreating(true);
-    setError(undefined);
+    setCause(undefined);
     void actions
       .createBot(
         {
@@ -107,8 +109,8 @@ export function CreatePersonaBotModal({
           setCreating(false);
           onCreated();
         },
-        (cause: unknown) => {
-          setError(personaBotCreateError(cause, t));
+        (rejection: unknown) => {
+          setCause(rejection);
           setCreating(false);
         },
       );
@@ -199,9 +201,9 @@ export function CreatePersonaBotModal({
             onChange={(event) => setDescription(event.currentTarget.value)}
           />
         </Field>
-        {error === undefined ? null : (
+        {cause === undefined ? null : (
           <div className="bh-modal-error" role="alert">
-            {t('create.failed', { error })}
+            {t('create.failed', { error: personaBotCreateError(cause, t) })}
           </div>
         )}
       </div>

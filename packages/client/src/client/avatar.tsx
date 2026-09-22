@@ -172,7 +172,7 @@ export function PersonaBotAvatar({
       data-media={mediaKind}
       data-active={active ? 'true' : 'false'}
       role="img"
-      aria-label={`${name}：${personaBotActivityLabel(state, t)}`}
+      aria-label={t('avatar.label', { name, activity: personaBotActivityLabel(state, t) })}
     >
       <AvatarMedia personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}
