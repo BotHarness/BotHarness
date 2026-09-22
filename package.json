@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint && pnpm changelog:check",
+    "lint": "oxlint && pnpm changelog:check && node scripts/check-adr-numbers.mjs",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",

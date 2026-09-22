@@ -129,9 +129,9 @@ Profile-wide **Assignment Concurrency Limit** 默认是 `3`，只计算正在执
 
 Chat、Orchestrator 与 Assignment 的最小执行链只依赖 system-defined base runtime prompt；Persona 与 Memory 都不是 Session role 或启动前置条件。application-defined Memory Service 是独立的 `Consumer → Service Definition → Provider` capability seam。V1 的 Git-backed Provider 可以缺席；缺席时不注册 Memory Tool、不注入 Memory context、也不显示 Client Memory destination，但 DM 与 Assignment 行为保持成立。
 
-Memory Repository 具有独立 identity 与 lifecycle，并通过 attachment 关联 PersonaBot。所有文件都是普通 Markdown：没有 generated/special `MEMORY.md`。如果创建时提供 Persona，Provider 创建普通 `persona.md`；获得写权限的 Agent 或 Human 之后可以像处理其他文件一样修改、改名或删除它，且修改只对尚未生成 persona 快照的 Session 生效（ADR-0056）。
+Memory Repository 具有独立 identity 与 lifecycle，并通过 attachment 关联 PersonaBot。所有文件都是普通 Markdown：没有 generated/special `MEMORY.md`。如果创建时提供 Persona，Provider 创建普通 `persona.md`；获得写权限的 Agent 或 Human 之后可以像处理其他文件一样修改、改名或删除它，且修改只对尚未生成 persona 快照的 Session 生效（ADR-0060）。
 
-Prompt 组装遵循 ADR-0056：Session 的 system prompt 前缀只可追加。只有静态 role/rule 文本与该 Session 冻结的 persona 快照进入前缀；任何从仓库内容推导出的信息只能作为 tool result 追加到会话末尾，绝不拼接进前缀。不存在 pin state、pin budget、full-body injection 或 generated index，也不存在 `memory_pin`/`memory_unpin` command。
+Prompt 组装遵循 ADR-0060：Session 的 system prompt 前缀只可追加。只有静态 role/rule 文本与该 Session 冻结的 persona 快照进入前缀；任何从仓库内容推导出的信息只能作为 tool result 追加到会话末尾，绝不拼接进前缀。不存在 pin state、pin budget、full-body injection 或 generated index，也不存在 `memory_pin`/`memory_unpin` command。
 
 每个 Memory Service command/query 都由 application-defined Cordis Events 包围：`memory/before-operation` 使用 waterfall，可 enrich、rewrite 或 reject；`memory/after-operation` 在 success/failure 后 emit，mutation 只在 durable Git commit 成功后报告 commit id。Event 只携带 repository、operation、actor、cause、path、commit、outcome 等 metadata；Git history 是 durable authority，listener 错过 live Event 后可以查询重建。
 
