@@ -2,6 +2,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { createAttachmentStore } from '../src/attachments/store.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import {
@@ -106,6 +107,61 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
 }
 
 describe('Bot runtime tracer bullet', () => {
+  it('sends a staged attachment through the trusted Orchestrator Channel access', async () => {
+    const home = createTempRoot('botharness-bot-runtime-attachment-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const attachments = createAttachmentStore({ rootDir: join(home, 'attachments') });
+    const ref = await attachments.upload({
+      data: (async function* () {
+        yield new TextEncoder().encode('bot artifact');
+      })(),
+      name: 'result.txt',
+    });
+    const channels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      attachments,
+      now: FIXED_NOW,
+    });
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    await channels.appendMessage(dm.id, {
+      id: 'human-attachment-request',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'Send the artifact',
+    });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const runtime = createBotRuntime({
+      database: owner,
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async (run) => {
+          await run.channels.send({ body: '', attachments: [ref] });
+        },
+        runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      createEventId: () => 'source-attachment',
+      createMessageId: () => 'bot-attachment',
+      createSessionId: () => 'orchestrator-ada',
+    });
+    await admit(runtime, {
+      channelId: dm.id,
+      messageId: 'human-attachment-request',
+      body: 'Send the artifact',
+    });
+    expect(channels.readMessages(dm.id)[0]).toMatchObject({
+      id: 'bot-attachment',
+      author: { kind: 'bot', slug: 'ada' },
+      attachments: [ref],
+    });
+    await runtime.close();
+    owner.close();
+  });
+
   it('keeps an invalid Bot reply retryable because no Channel side effect started', async () => {
     const home = createTempRoot('botharness-bot-runtime-invalid-reply-');
     const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });

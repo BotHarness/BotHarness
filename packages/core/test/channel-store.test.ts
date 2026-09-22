@@ -11,6 +11,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
+import { createAttachmentStore } from '../src/attachments/store.js';
 import type { ChannelMessage } from '../src/channels/channel.js';
 import { ChannelReplyTargetError, createChannelStore } from '../src/channels/store.js';
 
@@ -311,6 +312,46 @@ describe('channel store', () => {
     expect(store.readPosition('dm-ada')).toBeUndefined();
     writeFileSync(path, JSON.stringify({ messageId: 'missing', revision: 1, readAt: entry.at }));
     expect(store.readPosition('dm-ada')).toBeUndefined();
+  });
+
+  it('accepts only refs present in the profile CAS before durable append', async () => {
+    const root = createRoot();
+    const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
+    const ref = await attachments.upload({
+      data: (async function* () {
+        yield new TextEncoder().encode('hello');
+      })(),
+      name: 'note.txt',
+    });
+    const store = createChannelStore({ rootDir: join(root, 'channels'), attachments });
+    store.getOrCreateDm('ada', 'Ada');
+    const sent = await store.appendMessage('dm-ada', { ...message(''), attachments: [ref] });
+    expect(sent?.attachments).toEqual([ref]);
+    expect(store.readMessages('dm-ada')[0]?.attachments).toEqual([ref]);
+    const forged = { ...ref, size: ref.size + 1 };
+    expect(() => store.assertAttachmentRefs([forged])).toThrow('does not belong');
+    await expect(
+      store.appendMessage('dm-ada', { ...message('bad'), attachments: [forged] }),
+    ).rejects.toThrow('does not belong');
+    expect(store.revision('dm-ada')).toBe(1);
+    const orphan = await attachments.upload({
+      data: (async function* () {
+        yield new TextEncoder().encode('orphan');
+      })(),
+      name: 'orphan.txt',
+    });
+    expect(
+      attachments.sweepUnreferenced(new Date(Date.now() + 10_000), () =>
+        store.referencedAttachmentHashes(),
+      ),
+    ).toBe(1);
+    expect(attachments.has(ref)).toBe(true);
+    expect(attachments.has(orphan)).toBe(false);
+    const other = createChannelStore({ rootDir: join(root, 'other-channels') });
+    other.getOrCreateDm('ada', 'Ada');
+    await expect(
+      other.appendMessage('dm-ada', { ...message('bad'), attachments: [ref] }),
+    ).rejects.toThrow('does not belong');
   });
 
   it('skips directories whose channel.json is corrupt or mismatched', () => {

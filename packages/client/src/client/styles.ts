@@ -1586,6 +1586,12 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 11px;
 }
 
+/* Files stay part of the same message grouping as their text. */
+.bh-bubble-content { min-width: 0; }
+.bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
+.bh-message-image-link { display: block; max-width: min(100%, 360px); }
+.bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
+.bh-message-file { display: inline-flex; align-items: center; gap: 5px; min-width: 0; width: fit-content; max-width: 100%; padding: 7px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: inherit; overflow-wrap: anywhere; }
 .bh-bubble-body {
   white-space: pre-wrap;
   word-break: break-word;
@@ -1665,7 +1671,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   min-height: 50px;
   box-sizing: border-box;
   overflow: hidden;
-  padding: 7px 54px 7px 10px;
+  padding: 7px 54px 7px 44px;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 25px;
   background: var(--dsw-alias-bg-module-platform);
@@ -1754,6 +1760,14 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.bh-composer-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.bh-composer-add-file { position: absolute; left: 8px; bottom: 50%; transform: translateY(50%); width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 22px; line-height: 30px; cursor: pointer; }
+.bh-composer-add-file:hover { background: var(--dsw-alias-interactive-bg-active); }
+.bh-composer-add-file:disabled { opacity: .5; cursor: default; }
+.bh-composer-attachments { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 6px 7px 0; }
+.bh-composer-attachment { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; padding: 4px 6px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 8px; color: var(--dsw-alias-label-secondary); font-size: 11px; }
+.bh-composer-attachment-name { overflow: hidden; max-width: 180px; white-space: nowrap; text-overflow: ellipsis; }
+.bh-composer-attachment button { padding: 0 2px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; }
 .bh-composer-body {
   display: flex;
   min-width: 0;

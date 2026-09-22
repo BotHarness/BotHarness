@@ -479,7 +479,25 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           description:
             'Send one Human-facing message as this PersonaBot to a Channel it has joined. Omit channel_id to use the Channel that triggered the current turn.',
           parameters: {
-            body: { type: 'string', required: true, description: 'Message body.' },
+            body: {
+              type: 'string',
+              required: true,
+              description: 'Message body; may be empty when attachments are present.',
+            },
+            attachments: {
+              type: 'array',
+              description: 'Optional references returned by Channel attachment uploads or reads.',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: {
+                  hash: { type: 'string', required: true },
+                  name: { type: 'string', required: true },
+                  mime: { type: 'string', required: true },
+                  size: { type: 'number', required: true },
+                },
+              },
+            },
             channel_id: {
               type: 'string',
               description: 'Channel id; defaults to the inbound Channel.',
@@ -500,6 +518,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             }
             const message = await active.run.channels.send({
               body: args.body,
+              ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
               ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
             });
