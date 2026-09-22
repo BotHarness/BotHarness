@@ -17,6 +17,12 @@ import {
   type ComputerKey,
   type ComputerTranslate,
 } from './locale.js';
+import {
+  Button,
+  IconFullscreenOutline16,
+  Pill,
+  StateDot,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 
@@ -27,6 +33,13 @@ import {
   createComputerSettingsFace,
   type ComputerSettingsScope,
 } from './settings-rows.js';
+import {
+  dotStateFor,
+  framePhase,
+  nextExpanded,
+  statusKeyFor,
+  type FramePhase,
+} from './viewer-state.js';
 
 export const name = 'botharness-computer-client';
 
@@ -127,7 +140,7 @@ const noteStyle: CSSProperties = { opacity: 0.7, fontSize: 12, whiteSpace: 'pre-
 const buttonStyle: CSSProperties = {
   padding: '4px 10px',
   borderRadius: 6,
-  border: '1px solid var(--dsh-border, #3a3a3a)',
+  border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
   background: 'transparent',
   color: 'inherit',
   cursor: 'pointer',
@@ -135,9 +148,9 @@ const buttonStyle: CSSProperties = {
 };
 const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
-  borderColor: 'var(--dsh-accent, #4d6bfe)',
-  background: 'var(--dsh-accent, #4d6bfe)',
-  color: '#fff',
+  border: '1px solid var(--dsw-alias-button-primary-fill, #4d6bfe)',
+  background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
+  color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
 };
 const terminalStyle: CSSProperties = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -147,6 +160,19 @@ const terminalStyle: CSSProperties = {
   wordBreak: 'break-all',
 };
 
+/* @bh-video-surface:start — intentional fixed colours for the video surface.
+   The letterbox behind the scaled stream and the spinner drawn on top of it
+   are content-adjacent: they stay black/white in both host themes so the
+   picture never sits on a light plate. Every themed chrome colour must read a
+   --dsw token; enforced by client-tokens.test.ts. */
+const VIDEO_SURFACE = {
+  background: '#000000',
+  spinnerTrack: 'rgba(255, 255, 255, 0.18)',
+  spinnerArc: '#ffffff',
+  onVideo: '#ffffff',
+} as const;
+/* @bh-video-surface:end */
+
 /** Logical viewport the viewer renders at; the wrapper scales it to fit. */
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
@@ -155,19 +181,31 @@ const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
+/** Frame health: pixels seen yet, and consecutive silent checks so far. */
+interface FrameTracker {
+  readonly ready: boolean;
+  readonly misses: number;
+}
+
 /**
  * Watches the same-origin viewer document: reports when its stream surface is
  * live and, after a loss (e.g. the Selkies session was closed from its own UI),
- * reports the loss again so the caller can reconnect.
+ * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
+ * reset the tracker so the new document starts back at "connecting".
  */
-function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean): boolean {
-  const [ready, setReady] = useState(false);
+function useFrameReady(
+  iframeRef: RefObject<HTMLIFrameElement>,
+  active: boolean,
+  epoch: number,
+): FrameTracker {
+  const [tracker, setTracker] = useState<FrameTracker>({ ready: false, misses: 0 });
 
   useEffect(() => {
     if (!active) {
-      setReady(false);
+      setTracker({ ready: false, misses: 0 });
       return () => {};
     }
+    setTracker({ ready: false, misses: 0 });
     let cancelled = false;
     let misses = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -189,10 +227,10 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean)
       }
       if (live) {
         misses = 0;
-        setReady(true);
+        setTracker({ ready: true, misses: 0 });
       } else {
         misses += 1;
-        if (misses >= 3) setReady(false);
+        setTracker({ ready: false, misses });
       }
       timer = setTimeout(check, 1000);
     };
@@ -201,9 +239,9 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, active: boolean)
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [iframeRef, active]);
+  }, [iframeRef, active, epoch]);
 
-  return ready;
+  return tracker;
 }
 
 /** Centered spinner over black; the shared connecting/retrying indicator. */
@@ -219,8 +257,8 @@ export function ScreenIndicator({ label = '连接中' }: { readonly label?: stri
         inset: 0,
         display: 'grid',
         placeItems: 'center',
-        background: '#000',
-        color: '#fff',
+        background: VIDEO_SURFACE.background,
+        color: VIDEO_SURFACE.onVideo,
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
@@ -235,7 +273,7 @@ export function ScreenIndicator({ label = '连接中' }: { readonly label?: stri
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.18)"
+            stroke={VIDEO_SURFACE.spinnerTrack}
             strokeWidth={stroke}
           />
           <circle
@@ -243,13 +281,42 @@ export function ScreenIndicator({ label = '连接中' }: { readonly label?: stri
             cy={size / 2}
             r={radius}
             fill="none"
-            stroke="#fff"
+            stroke={VIDEO_SURFACE.spinnerArc}
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={`${String(circumference * 0.28)} ${String(circumference * 0.72)}`}
           />
         </svg>
         <span style={{ fontSize: 12.5, opacity: 0.7 }}>{label}</span>
+      </div>
+    </div>
+  );
+}
+
+/** Explicit "no picture" state once connecting has gone on too long. */
+function ScreenEmpty({
+  t,
+  onRetry,
+}: {
+  readonly t: ComputerTranslate;
+  readonly onRetry: () => void;
+}): ReactElement {
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        background: VIDEO_SURFACE.background,
+        color: VIDEO_SURFACE.onVideo,
+      }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+        <span style={{ fontSize: 12.5, opacity: 0.75 }}>{t('entry.noScreen')}</span>
+        <Button variant="toolbar" size="sm" onClick={onRetry}>
+          {t('entry.reconnect')}
+        </Button>
       </div>
     </div>
   );
@@ -300,12 +367,12 @@ function ScaledFrame({
         ...(fit === 'width'
           ? {
               aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-              border: '1px solid var(--dsh-border, #3a3a3a)',
+              border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
               borderRadius: 8,
             }
           : { height: '100%' }),
         overflow: 'hidden',
-        background: '#000',
+        background: VIDEO_SURFACE.background,
       }}
     >
       <iframe
@@ -351,11 +418,82 @@ function CollapseIcon(): ReactElement {
   );
 }
 
+export interface ViewerTitleBarProps {
+  readonly t: ComputerTranslate;
+  readonly title: string;
+  readonly phase: FramePhase;
+  readonly reconnecting: boolean;
+  readonly busy: boolean;
+  readonly stopping: boolean;
+  readonly onStop: () => void;
+  readonly onCollapse: () => void;
+}
+
+/** The shared stop control (title bar + resting card), one definition. */
+function StopButton({
+  t,
+  busy,
+  stopping,
+  onStop,
+}: {
+  readonly t: ComputerTranslate;
+  readonly busy: boolean;
+  readonly stopping: boolean;
+  readonly onStop: () => void;
+}): ReactElement {
+  return (
+    <Button variant="ghost" size="sm" disabled={busy || stopping} onClick={onStop}>
+      {busy || stopping ? t('entry.stopping') : t('entry.stop')}
+    </Button>
+  );
+}
+
+/**
+ * The fullscreen viewer's title bar: Bot name + stream status on the left,
+ * the stop control and collapse on the right. Exported for component tests.
+ */
+export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
+  const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        height: 44,
+        flex: '0 0 auto',
+        padding: '0 8px 0 14px',
+        borderBottom: '1px solid var(--dsw-alias-border-l2, #eceef1)',
+        color: 'var(--dsw-alias-label-primary, #1c2024)',
+        background: 'var(--dsw-alias-bg-base, #ffffff)',
+      }}
+    >
+      <StateDot state={dotStateFor(phase)} />
+      <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
+      <span style={{ fontSize: 12, opacity: 0.65 }}>{t(statusKeyFor(phase, reconnecting))}</span>
+      <span style={{ flex: 1 }} />
+      <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={onCollapse}
+        aria-label={t('entry.collapseFullscreen')}
+        title={t('entry.collapseFullscreen')}
+      >
+        <CollapseIcon />
+      </Button>
+    </div>
+  );
+}
+
 /**
  * Running state: an AgentScreen-style resting card. While the stream connects
- * (or reconnects) it shows the shared indicator; once live, a hover mask blocks
- * input and offers 「打开」, which expands to the fullscreen viewer. Only one
- * viewer iframe is mounted at a time.
+ * (or reconnects) it shows the shared indicator; sustained silence becomes an
+ * explicit empty state with a retry; once live, a hover mask offers the blue
+ * Open pill, which expands to the fullscreen viewer (title bar with status +
+ * stop + collapse, Escape collapses, page scroll locked). Only one viewer
+ * iframe is mounted at a time — the resting card unmounts while the overlay
+ * is up — so the viewer WebSocket is never established twice.
  */
 function RunningCard({
   t,
@@ -380,9 +518,16 @@ function RunningCard({
   const wasReady = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
-  const inlineReady = useFrameReady(inlineRef, !expanded);
-  const fullReady = useFrameReady(fullRef, expanded);
-  const ready = expanded ? fullReady : inlineReady;
+  const inlineFrame = useFrameReady(inlineRef, !expanded, reloadKey);
+  const fullFrame = useFrameReady(fullRef, expanded, reloadKey);
+  const tracker = expanded ? fullFrame : inlineFrame;
+  const ready = tracker.ready;
+  const phase = framePhase(tracker.ready, tracker.misses);
+
+  const reconnect = (): void => {
+    setReconnecting(true);
+    setReloadKey((key) => key + 1);
+  };
 
   // Switching which frame is active is not a stream loss: reset the tracker so
   // the newly active frame's first mount is not read as a reconnect.
@@ -410,7 +555,7 @@ function RunningCard({
     if (!expanded) return () => {};
     const onKey = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') {
-        setExpanded(false);
+        setExpanded(nextExpanded('esc'));
         return;
       }
       // The viewer is a modal: keep Tab inside it instead of letting focus
@@ -444,26 +589,65 @@ function RunningCard({
     };
   }, [expanded]);
 
-  const indicatorLabel = reconnecting ? t('entry.reconnecting') : t('entry.connecting');
+  const statusText = t(statusKeyFor(phase, reconnecting));
+  const openable = phase === 'live' && !expanded;
+
+  // Shared connecting/empty notice; the resting card falls through to the
+  // hover mask only once the stream is actually live.
+  const notice =
+    phase === 'connecting' ? (
+      <ScreenIndicator label={statusText} />
+    ) : phase === 'empty' ? (
+      <ScreenEmpty t={t} onRetry={reconnect} />
+    ) : null;
+  const inlineOverlay =
+    notice ??
+    (hovered ? (
+      <div
+        style={{
+          position: 'absolute',
+          inset: 0,
+          display: 'grid',
+          placeItems: 'center',
+          background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+          borderRadius: 8,
+        }}
+      >
+        <Pill
+          onClick={() => setExpanded(nextExpanded('open'))}
+          style={{
+            background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
+            color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+            height: 28,
+            padding: '0 12px',
+            fontSize: 13,
+            gap: 6,
+          }}
+        >
+          <IconFullscreenOutline16 size={14} />
+          {t('entry.openFullscreen')}
+        </Pill>
+      </div>
+    ) : null);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div
-        role={ready && !expanded ? 'button' : undefined}
-        tabIndex={ready && !expanded ? 0 : undefined}
-        aria-label={ready ? t('entry.openFullscreen') : indicatorLabel}
+        role={openable ? 'button' : undefined}
+        tabIndex={openable ? 0 : undefined}
+        aria-label={openable ? t('entry.openFullscreen') : statusText}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          if (ready && !expanded) setExpanded(true);
+          if (openable) setExpanded(nextExpanded('open'));
         }}
         onKeyDown={(event) => {
-          if (!ready || expanded) return;
+          if (!openable) return;
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
-          setExpanded(true);
+          setExpanded(nextExpanded('open'));
         }}
-        style={{ position: 'relative', cursor: ready && !expanded ? 'pointer' : 'default' }}
+        style={{ position: 'relative', cursor: openable ? 'pointer' : 'default' }}
       >
         {expanded ? (
           <div
@@ -473,12 +657,11 @@ function RunningCard({
               aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
               display: 'grid',
               placeItems: 'center',
-              border: '1px solid var(--dsh-border, #3a3a3a)',
+              border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
               borderRadius: 8,
-              background: '#000',
-              color: '#fff',
+              background: 'var(--dsw-alias-bg-layer-2, #f2f3f5)',
+              color: 'var(--dsw-alias-label-secondary, #4e5969)',
               fontSize: 12.5,
-              opacity: 0.8,
             }}
           >
             {t('entry.fullscreenOpened')}
@@ -486,55 +669,25 @@ function RunningCard({
         ) : (
           <>
             <ScaledFrame key={reloadKey} title={title} interactive={false} iframeRef={inlineRef} />
-            {!inlineReady ? (
-              <ScreenIndicator label={indicatorLabel} />
-            ) : hovered ? (
-              <div
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  display: 'grid',
-                  placeItems: 'center',
-                  background: 'rgba(17,19,24,0.18)',
-                  borderRadius: 8,
-                }}
-              >
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '6px 12px',
-                    borderRadius: 999,
-                    background: 'var(--dsh-accent, #4d6bfe)',
-                    color: '#fff',
-                    fontSize: 12.5,
-                    fontWeight: 500,
-                  }}
-                >
-                  ⤢ {t('entry.openFullscreen')}
-                </span>
-              </div>
-            ) : null}
+            {inlineOverlay}
           </>
         )}
       </div>
-      <div style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{title}</div>
+      <div
+        style={{
+          fontSize: 13,
+          fontWeight: 500,
+          color: 'var(--dsw-alias-label-primary, #1c2024)',
+          opacity: 0.9,
+        }}
+      >
+        {title}
+      </div>
       <div style={{ display: 'flex', gap: 8 }}>
-        <button type="button" style={buttonStyle} disabled={busy || stopping} onClick={onStop}>
-          {busy || stopping ? t('entry.stopping') : t('entry.stop')}
-        </button>
-        <button
-          type="button"
-          style={buttonStyle}
-          onClick={() => {
-            setReconnecting(true);
-            setReloadKey((key) => key + 1);
-          }}
-          title={t('entry.reconnect')}
-        >
+        <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
+        <Button variant="ghost" size="sm" onClick={reconnect} title={t('entry.reconnect')}>
           {t('entry.reconnect')}
-        </button>
+        </Button>
       </div>
 
       {expanded
@@ -551,33 +704,20 @@ function RunningCard({
                 zIndex: 100,
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#000',
-                color: '#fff',
+                background: 'var(--dsw-alias-bg-base, #ffffff)',
+                color: 'var(--dsw-alias-label-primary, #1c2024)',
               }}
             >
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  height: 44,
-                  flex: '0 0 auto',
-                  padding: '0 8px 0 14px',
-                  borderBottom: '1px solid var(--dsh-border, #2c2c2c)',
-                }}
-              >
-                <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
-                <span style={{ flex: 1 }} />
-                <button
-                  type="button"
-                  onClick={() => setExpanded(false)}
-                  aria-label={t('entry.collapseFullscreen')}
-                  title={t('entry.collapseFullscreen')}
-                  style={{ ...buttonStyle, display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                >
-                  <CollapseIcon />
-                </button>
-              </div>
+              <ViewerTitleBar
+                t={t}
+                title={title}
+                phase={phase}
+                reconnecting={reconnecting}
+                busy={busy}
+                stopping={stopping}
+                onStop={onStop}
+                onCollapse={() => setExpanded(nextExpanded('collapse'))}
+              />
               <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
                 <ScaledFrame
                   key={reloadKey}
@@ -586,7 +726,7 @@ function RunningCard({
                   fit="contain"
                   iframeRef={fullRef}
                 />
-                {!fullReady ? <ScreenIndicator label={indicatorLabel} /> : null}
+                {notice}
               </div>
             </div>,
             document.body,
@@ -696,20 +836,24 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
             overflow: 'hidden',
             height: 6,
             borderRadius: 3,
-            background: 'rgba(127,127,127,0.25)',
+            background: 'var(--dsw-alias-border-l4, #f2f3f5)',
           }}
         >
           <div
             style={
               progress?.percent === undefined
-                ? { position: 'absolute', inset: 0, background: 'var(--dsh-accent, #4d6bfe)' }
+                ? {
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
+                  }
                 : {
                     position: 'absolute',
                     left: 0,
                     top: 0,
                     bottom: 0,
                     width: `${String(progress.percent)}%`,
-                    background: 'var(--dsh-accent, #4d6bfe)',
+                    background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
                   }
             }
           />

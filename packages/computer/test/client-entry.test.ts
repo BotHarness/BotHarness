@@ -2,18 +2,33 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
-  const stub = () => null;
+vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
+  const { createElement } = await import('react');
+  const glyph = () => null;
+  const control = (props: Record<string, unknown>) => {
+    const { children, variant: _variant, size: _size, ...rest } = props;
+    return createElement('button', { type: 'button', ...rest }, children as never);
+  };
+  const dot = (props: { state?: string }) => createElement('span', { 'data-state': props.state });
   return {
-    IconChevronDownOutline14: stub,
-    IconCloseFill14: stub,
-    IconFolderOpenOutline16: stub,
-    IconSettingsOutline16: stub,
-    Menu: stub,
+    IconChevronDownOutline14: glyph,
+    IconCloseFill14: glyph,
+    IconFolderOpenOutline16: glyph,
+    IconSettingsOutline16: glyph,
+    IconFullscreenOutline16: glyph,
+    Menu: glyph,
+    Button: control,
+    Pill: control,
+    StateDot: dot,
   };
 });
 
-import { apply, ComputerEntryView, type ComputerEntryViewProps } from '../src/client/index.js';
+import {
+  apply,
+  ComputerEntryView,
+  ViewerTitleBar,
+  type ComputerEntryViewProps,
+} from '../src/client/index.js';
 import { zh, type ComputerKey, type ComputerTranslate } from '../src/client/locale.js';
 
 const t = ((key: ComputerKey, params?: Record<string, unknown>): string => {
@@ -150,5 +165,52 @@ describe('Computer entry states', () => {
     expect(html).toContain('授权并启动');
     expect(html).toContain('本次会话内不再询问');
     expect(html).toContain('拉取镜像');
+  });
+});
+
+describe('Fullscreen viewer title bar', () => {
+  function titleBar(overrides: Partial<Parameters<typeof ViewerTitleBar>[0]> = {}): string {
+    return renderToStaticMarkup(
+      createElement(ViewerTitleBar, {
+        t,
+        title: 'atlas 的屏幕',
+        phase: 'live',
+        reconnecting: false,
+        busy: false,
+        stopping: false,
+        onStop: () => undefined,
+        onCollapse: () => undefined,
+        ...overrides,
+      }),
+    );
+  }
+
+  it('carries the Bot name, live status, stop, and collapse together', () => {
+    const html = titleBar();
+    expect(html).toContain('atlas 的屏幕');
+    expect(html).toContain('已连接');
+    expect(html).toContain('data-state="done"');
+    expect(html).toContain('停止');
+    expect(html).toContain('收起全屏');
+  });
+
+  it('shows the connecting label while the stream is not live yet', () => {
+    const html = titleBar({ phase: 'connecting' });
+    expect(html).toContain('连接中');
+    expect(html).toContain('data-state="ongoing"');
+  });
+
+  it('prefers the reconnecting label and reports the empty state as an error', () => {
+    const reconnecting = titleBar({ phase: 'connecting', reconnecting: true });
+    expect(reconnecting).toContain('正在重新连接');
+    const empty = titleBar({ phase: 'empty' });
+    expect(empty).toContain('暂无画面');
+    expect(empty).toContain('data-state="error"');
+  });
+
+  it('disables stop while a stop is already underway', () => {
+    const html = titleBar({ stopping: true });
+    expect(html).toContain('停止中');
+    expect(html).toMatch(/<button[^>]*disabled/);
   });
 });
