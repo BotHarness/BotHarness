@@ -21,6 +21,16 @@ const SENDING_CONVERSATION: ConversationState = {
   messages: [],
   drafts: [],
   revision: 0,
+  timeline: {
+    olderCursor: null,
+    newerCursor: null,
+    hasOlder: false,
+    hasNewer: false,
+    loadingOlder: false,
+    olderError: undefined,
+    loadingNewer: false,
+    newerError: undefined,
+  },
   error: undefined,
   sending: true,
 };

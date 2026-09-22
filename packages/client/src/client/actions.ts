@@ -8,7 +8,7 @@ import {
   loadAssignment,
   loadAssignments,
   loadBots,
-  loadChannelMessages,
+  loadTimelinePage,
   loadChannels,
   loadRoster,
   openDmChannel,
@@ -29,6 +29,7 @@ import {
   type RosterSection,
   type TopOrderEntry,
 } from './roster.js';
+import { initialTimeline } from './store.js';
 import {
   completeFlatEntries,
   flatRosterChannelIds,
@@ -47,6 +48,10 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
+  loadOlder(channelId: string): Promise<void>;
+  loadNewer(channelId: string): Promise<void>;
+  openLatest(channelId: string): Promise<void>;
+  openAround(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string): Promise<boolean>;
@@ -115,6 +120,27 @@ function reconcileCommittedMessage(
   const index = messages.findIndex((message) => message.id === localId);
   if (index < 0) return [...messages, committed];
   return messages.map((message) => (message.id === localId ? committed : message));
+}
+
+/** Preserve an already visible prefix only when it overlaps the fresh latest window. */
+function mergeLatestWindow(
+  previous: readonly ChannelMessage[],
+  incoming: readonly ChannelMessage[],
+): { messages: ChannelMessage[]; keptPrefix: boolean } {
+  const first = incoming[0];
+  const overlap = first === undefined ? -1 : previous.findIndex((item) => item.id === first.id);
+  const prefix = overlap < 0 ? [] : previous.slice(0, overlap);
+  const seen = new Set<string>();
+  const messages = [
+    ...prefix,
+    ...incoming,
+    ...previous.filter((item) => item.pending === true),
+  ].filter((item) => {
+    if (seen.has(item.id)) return false;
+    seen.add(item.id);
+    return true;
+  });
+  return { messages, keptPrefix: overlap >= 0 };
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
@@ -227,17 +253,20 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       channel,
       messages: [],
       revision: 0,
+      timeline: initialTimeline(),
       error: undefined,
       sending: false,
     });
     try {
-      const { messages, revision } = await loadChannelMessages(call, channelId);
+      const { page, revision } = await loadTimelinePage(call, channelId);
+      const messages = page.entries;
       if (currentSelection() !== active) return;
       clientStore.setConversation({
         status: 'ready',
         channel,
         messages,
         revision,
+        timeline: { ...initialTimeline(), ...page },
         error: undefined,
         sending: false,
       });
@@ -247,55 +276,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     }
   };
 
-  const openBot = async (slug: string): Promise<void> => {
-    const snapshot = clientStore.getSnapshot();
-    const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
-    if (bot === undefined) return;
-    const selection: ConversationSelection = { kind: 'bot', slug };
-    clientStore.select(selection);
-    // `select` keeps the existing object when the selection is unchanged, so
-    // the request token must come from the store, never from the object we
-    // just built: a fresh object would never compare equal again.
-    const active = currentSelection();
-    if (active === undefined) return;
-    clientStore.setConversation({
-      status: 'loading',
-      channel: undefined,
-      messages: [],
-      revision: 0,
-      error: undefined,
-      sending: false,
-    });
-    try {
-      const channel = await openDmChannel(call, slug, bot.displayName);
-      const { messages, revision } = await loadChannelMessages(call, channel.id);
-      if (currentSelection() !== active) return;
-      const latestMessage = messages.at(-1);
-      const projectedChannel =
-        latestMessage === undefined
-          ? channel
-          : { ...channel, updatedAt: latestMessage.at, latestMessage };
-      clientStore.upsertChannel(projectedChannel);
-      clientStore.setConversation({
-        status: 'ready',
-        channel: projectedChannel,
-        messages,
-        revision,
-        error: undefined,
-        sending: false,
-      });
-    } catch (error) {
-      if (currentSelection() !== active) return;
-      clientStore.setConversation({
-        status: 'error',
-        error: errorMessage(error),
-        sending: false,
-      });
-    }
-    await loadAssignmentsFor(slug, active);
-  };
-
-  return {
+  const actions: BridgeActions = {
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {
@@ -313,19 +294,224 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       await refreshRoster(signal);
     },
     refreshRoster,
-    openBot,
+    async openBot(slug) {
+      const snapshot = clientStore.getSnapshot();
+      const bot = snapshot.bots.find((candidate) => candidate.slug === slug);
+      if (bot === undefined) return;
+      const selection: ConversationSelection = { kind: 'bot', slug };
+      clientStore.select(selection);
+      // `select` may retain its existing object; compare the active request token.
+      const active = currentSelection();
+      if (active === undefined) return;
+      clientStore.setConversation({
+        status: 'loading',
+        channel: undefined,
+        messages: [],
+        revision: 0,
+        timeline: initialTimeline(),
+        error: undefined,
+        sending: false,
+      });
+      try {
+        const channel = await openDmChannel(call, slug, bot.displayName);
+        const { page, revision } = await loadTimelinePage(call, channel.id);
+        const messages = page.entries;
+        if (currentSelection() !== active) return;
+        const latestMessage = messages.at(-1);
+        const projectedChannel =
+          latestMessage === undefined
+            ? channel
+            : { ...channel, updatedAt: latestMessage.at, latestMessage };
+        clientStore.upsertChannel(projectedChannel);
+        clientStore.setConversation({
+          status: 'ready',
+          channel: projectedChannel,
+          messages,
+          revision,
+          timeline: { ...initialTimeline(), ...page },
+          error: undefined,
+          sending: false,
+        });
+      } catch (error) {
+        if (currentSelection() !== active) return;
+        clientStore.setConversation({
+          status: 'error',
+          error: errorMessage(error),
+          sending: false,
+        });
+      }
+      await loadAssignmentsFor(slug, active);
+    },
     openChannel(channelId) {
       return openChannelById(channelId);
     },
+    async loadOlder(channelId) {
+      const snapshot = clientStore.getSnapshot();
+      const timeline = snapshot.conversation.timeline;
+      if (
+        snapshot.conversation.channel?.id !== channelId ||
+        !timeline.hasOlder ||
+        timeline.olderCursor === null ||
+        timeline.loadingOlder
+      )
+        return;
+      clientStore.setConversation({
+        timeline: { ...timeline, loadingOlder: true, olderError: undefined },
+      });
+      try {
+        const { page } = await loadTimelinePage(call, channelId, {
+          direction: 'older',
+          cursor: timeline.olderCursor,
+        });
+        const latest = clientStore.getSnapshot();
+        if (
+          latest.conversation.channel?.id !== channelId ||
+          !latest.conversation.timeline.loadingOlder ||
+          latest.conversation.timeline.olderCursor !== timeline.olderCursor
+        )
+          return;
+        const pageIds = new Set(page.entries.map((entry) => entry.id));
+        clientStore.setConversation({
+          messages: [
+            ...page.entries,
+            ...latest.conversation.messages.filter((entry) => !pageIds.has(entry.id)),
+          ],
+          timeline: {
+            ...latest.conversation.timeline,
+            olderCursor: page.olderCursor,
+            hasOlder: page.hasOlder,
+            loadingOlder: false,
+            olderError: undefined,
+          },
+        });
+      } catch (error) {
+        const latest = clientStore.getSnapshot();
+        if (
+          latest.conversation.channel?.id !== channelId ||
+          !latest.conversation.timeline.loadingOlder ||
+          latest.conversation.timeline.olderCursor !== timeline.olderCursor
+        )
+          return;
+        clientStore.setConversation({
+          timeline: {
+            ...latest.conversation.timeline,
+            loadingOlder: false,
+            olderError: errorMessage(error),
+          },
+        });
+      }
+    },
+    async loadNewer(channelId) {
+      const snapshot = clientStore.getSnapshot();
+      const timeline = snapshot.conversation.timeline;
+      if (
+        snapshot.conversation.channel?.id !== channelId ||
+        !timeline.hasNewer ||
+        timeline.newerCursor === null ||
+        timeline.loadingNewer
+      )
+        return;
+      clientStore.setConversation({
+        timeline: { ...timeline, loadingNewer: true, newerError: undefined },
+      });
+      try {
+        const { page, revision } = await loadTimelinePage(call, channelId, {
+          direction: 'newer',
+          cursor: timeline.newerCursor,
+        });
+        const latest = clientStore.getSnapshot();
+        if (
+          latest.conversation.channel?.id !== channelId ||
+          !latest.conversation.timeline.loadingNewer ||
+          latest.conversation.timeline.newerCursor !== timeline.newerCursor
+        )
+          return;
+        const seen = new Set(latest.conversation.messages.map((entry) => entry.id));
+        clientStore.setConversation({
+          messages: [
+            ...latest.conversation.messages,
+            ...page.entries.filter((entry) => !seen.has(entry.id)),
+          ],
+          revision: Math.max(revision, latest.conversation.revision),
+          timeline: {
+            ...latest.conversation.timeline,
+            newerCursor: page.newerCursor ?? latest.conversation.timeline.newerCursor,
+            hasNewer: page.hasNewer,
+            loadingNewer: false,
+            newerError: undefined,
+          },
+        });
+      } catch (error) {
+        const latest = clientStore.getSnapshot();
+        if (
+          latest.conversation.channel?.id !== channelId ||
+          !latest.conversation.timeline.loadingNewer ||
+          latest.conversation.timeline.newerCursor !== timeline.newerCursor
+        )
+          return;
+        clientStore.setConversation({
+          timeline: {
+            ...latest.conversation.timeline,
+            loadingNewer: false,
+            newerError: errorMessage(error),
+          },
+        });
+      }
+    },
+    async openLatest(channelId) {
+      const { page, revision } = await loadTimelinePage(call, channelId);
+      if (clientStore.getSnapshot().conversation.channel?.id !== channelId) return;
+      clientStore.setConversation({
+        messages: page.entries,
+        revision,
+        timeline: { ...initialTimeline(), ...page },
+        focusMessageId: undefined,
+        error: undefined,
+      });
+    },
+    async openAround(channelId, messageId) {
+      try {
+        const { page, revision } = await loadTimelinePage(call, channelId, {
+          direction: 'around',
+          around: messageId,
+        });
+        if (clientStore.getSnapshot().conversation.channel?.id !== channelId) return;
+        clientStore.setConversation({
+          messages: page.entries,
+          revision,
+          timeline: { ...initialTimeline(), ...page },
+          focusMessageId: messageId,
+          error: undefined,
+        });
+      } catch (error) {
+        if (clientStore.getSnapshot().conversation.channel?.id !== channelId) return;
+        clientStore.setConversation({ error: errorMessage(error) });
+      }
+    },
     async refreshChannelMessages(channelId) {
-      const page = await loadChannelMessages(call, channelId);
+      const { page, revision } = await loadTimelinePage(call, channelId);
       const snapshot = clientStore.getSnapshot();
       if (snapshot.conversation.channel?.id !== channelId) return;
-      if (page.revision < snapshot.conversation.revision) return;
-      const pending = snapshot.conversation.messages.filter((message) => message.pending === true);
+      if (revision < snapshot.conversation.revision) return;
+      if (snapshot.conversation.timeline.hasNewer) {
+        // This window is intentionally away from the tail; a reconnect must
+        // not stitch a latest page across an unobserved gap.
+        clientStore.setConversation({ revision });
+        return;
+      }
+      const merged = mergeLatestWindow(snapshot.conversation.messages, page.entries);
       clientStore.setConversation({
-        messages: [...page.messages, ...pending],
-        revision: page.revision,
+        messages: merged.messages,
+        revision,
+        timeline: {
+          ...snapshot.conversation.timeline,
+          olderCursor: merged.keptPrefix
+            ? snapshot.conversation.timeline.olderCursor
+            : page.olderCursor,
+          newerCursor: page.newerCursor,
+          hasOlder: merged.keptPrefix ? snapshot.conversation.timeline.hasOlder : page.hasOlder,
+          hasNewer: page.hasNewer,
+        },
       });
     },
     async openAssignment(sessionId) {
@@ -341,10 +527,28 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       }
     },
     async send(body) {
-      const snapshot = clientStore.getSnapshot();
+      let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
       if (channel === undefined || text.length === 0 || snapshot.conversation.sending) return false;
+      if (snapshot.conversation.timeline.hasNewer) {
+        try {
+          const { page, revision } = await loadTimelinePage(call, channel.id);
+          if (clientStore.getSnapshot().conversation.channel?.id !== channel.id) return false;
+          clientStore.setConversation({
+            messages: page.entries,
+            revision,
+            timeline: { ...initialTimeline(), ...page },
+            focusMessageId: undefined,
+          });
+          snapshot = clientStore.getSnapshot();
+        } catch (error) {
+          if (clientStore.getSnapshot().conversation.channel?.id === channel.id) {
+            clientStore.setConversation({ error: errorMessage(error) });
+          }
+          return false;
+        }
+      }
       const localId = nextLocalEchoId();
       clientStore.setConversation({
         sending: true,
@@ -410,7 +614,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       clientStore.upsertBot(bot);
       clientStore.upsertChannel(channel);
       await placeCreatedChannelFirst(channel.id, sectionId);
-      await openBot(bot.slug);
+      await actions.openBot(bot.slug);
       return bot;
     },
     async createGroup(name, sectionId) {
@@ -575,4 +779,5 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       });
     },
   };
+  return actions;
 }

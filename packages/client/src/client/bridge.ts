@@ -385,6 +385,58 @@ export async function loadChannelMessages(
   }
   return { messages: parseChannelMessages(value).reverse(), revision };
 }
+export interface TimelinePage {
+  entries: ChannelMessage[];
+  olderCursor: string | null;
+  newerCursor: string | null;
+  hasOlder: boolean;
+  hasNewer: boolean;
+}
+
+export interface TimelinePageRequest {
+  direction?: 'older' | 'newer' | 'around';
+  cursor?: string;
+  around?: string;
+  limit?: number;
+  olderLimit?: number;
+  newerLimit?: number;
+}
+
+export async function loadTimelinePage(
+  call: BridgeCall,
+  channelId: string,
+  request: TimelinePageRequest = {},
+  signal?: AbortSignal,
+): Promise<{ page: TimelinePage; revision: number }> {
+  const response = asRecord(
+    await unwrap(call, 'channelTimeline', { channelId, ...request }, signal),
+  );
+  const revision = response?.['revision'];
+  const raw = asRecord(response?.['page']);
+  const entries = raw?.['entries'];
+  if (
+    typeof revision !== 'number' ||
+    !Number.isSafeInteger(revision) ||
+    revision < 0 ||
+    !Array.isArray(entries) ||
+    !entries.every((entry) => parseChannelMessage(entry) !== undefined) ||
+    !(raw?.['olderCursor'] === null || typeof raw?.['olderCursor'] === 'string') ||
+    !(raw?.['newerCursor'] === null || typeof raw?.['newerCursor'] === 'string') ||
+    typeof raw?.['hasOlder'] !== 'boolean' ||
+    typeof raw?.['hasNewer'] !== 'boolean'
+  )
+    throw new Error('invalid channelTimeline response');
+  return {
+    revision,
+    page: {
+      entries: entries.map((entry) => parseChannelMessage(entry)!),
+      olderCursor: raw['olderCursor'] as string | null,
+      newerCursor: raw['newerCursor'] as string | null,
+      hasOlder: raw['hasOlder'],
+      hasNewer: raw['hasNewer'],
+    },
+  };
+}
 
 export async function sendChannelMessage(
   call: BridgeCall,

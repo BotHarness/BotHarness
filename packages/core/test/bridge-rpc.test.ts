@@ -86,6 +86,7 @@ describe('bridge typert service', () => {
       'channelCreate',
       'channelRename',
       'channelMessages',
+      'channelTimeline',
       'channelSend',
       'assignments',
       'assignment',
@@ -131,6 +132,15 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
     expect(parameterNames(service.channelRename)).toEqual(['channelId', 'name']);
     expect(parameterNames(service.channelMessages)).toEqual(['channelId', 'before', 'limit']);
+    expect(parameterNames(service.channelTimeline)).toEqual([
+      'channelId',
+      'direction',
+      'cursor',
+      'around',
+      'limit',
+      'olderLimit',
+      'newerLimit',
+    ]);
     expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);

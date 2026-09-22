@@ -19,7 +19,7 @@ function bridgeCall(handlers: Record<string, Handler>): BridgeCall {
   return async (endpoint, payload) => {
     const handler = handlers[endpoint];
     if (handler === undefined) throw new Error(`unexpected endpoint: ${endpoint}`);
-    return { ok: true, value: handler(payload) };
+    return { ok: true, value: await handler(payload) };
   };
 }
 
@@ -200,6 +200,19 @@ describe('bridge actions', () => {
           { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },
         ],
       }),
+      channelTimeline: () => ({
+        revision: 2,
+        page: {
+          entries: [
+            { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },
+            { id: 'm2', at: '2026-09-19T00:02:00.000Z', author: { kind: 'human' }, body: 'newer' },
+          ],
+          olderCursor: 'm1',
+          newerCursor: 'm2',
+          hasOlder: false,
+          hasNewer: false,
+        },
+      }),
       channelSend: (payload) => ({
         message: {
           id: 'm3',
@@ -291,6 +304,180 @@ describe('bridge actions', () => {
     });
   });
 
+  it('keeps the visible window on older-page failure and prepends exactly once on retry', async () => {
+    const entry = (id: string) => ({
+      id,
+      at: '2026-09-19T00:01:00.000Z',
+      author: { kind: 'human' },
+      body: id,
+    });
+    let failOlder = true;
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['direction'] === 'older') {
+          expect(payload['cursor']).toBe('cursor-m2');
+          if (failOlder) throw new Error('temporarily unavailable');
+          return {
+            revision: 4,
+            page: {
+              entries: [entry('m0'), entry('m1')],
+              olderCursor: 'cursor-m0',
+              newerCursor: 'cursor-m1',
+              hasOlder: false,
+              hasNewer: true,
+            },
+          };
+        }
+        return {
+          revision: 4,
+          page: {
+            entries: [entry('m2'), entry('m3')],
+            olderCursor: 'cursor-m2',
+            newerCursor: 'cursor-m3',
+            hasOlder: true,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm2',
+      'm3',
+    ]);
+    await actions.loadOlder('dm-ada');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm2',
+      'm3',
+    ]);
+    expect(clientStore.getSnapshot().conversation.timeline.olderError).toBe(
+      'temporarily unavailable',
+    );
+    failOlder = false;
+    await actions.loadOlder('dm-ada');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm0',
+      'm1',
+      'm2',
+      'm3',
+    ]);
+    expect(clientStore.getSnapshot().conversation.timeline.hasOlder).toBe(false);
+  });
+  it('opens around a target, pages forward contiguously, then returns to latest', async () => {
+    const entry = (id: string) => ({
+      id,
+      at: '2026-09-19T00:01:00.000Z',
+      author: { kind: 'human' },
+      body: id,
+    });
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['direction'] === 'around') {
+          expect(payload['around']).toBe('m2');
+          return {
+            revision: 7,
+            page: {
+              entries: [entry('m1'), entry('m2'), entry('m3')],
+              olderCursor: 'c1',
+              newerCursor: 'c3',
+              hasOlder: true,
+              hasNewer: true,
+            },
+          };
+        }
+        if (payload['direction'] === 'newer') {
+          expect(payload['cursor']).toBe('c3');
+          return {
+            revision: 7,
+            page: {
+              entries: [entry('m4'), entry('m5'), entry('m6')],
+              olderCursor: 'c4',
+              newerCursor: 'c6',
+              hasOlder: true,
+              hasNewer: false,
+            },
+          };
+        }
+        return {
+          revision: 7,
+          page: {
+            entries: [entry('m5'), entry('m6')],
+            olderCursor: 'c5',
+            newerCursor: 'c6',
+            hasOlder: true,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    await actions.openAround('dm-ada', 'm2');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm1',
+      'm2',
+      'm3',
+    ]);
+    expect(clientStore.getSnapshot().conversation.focusMessageId).toBe('m2');
+    await actions.loadNewer('dm-ada');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+      'm6',
+    ]);
+    expect(clientStore.getSnapshot().conversation.timeline.hasNewer).toBe(false);
+    await actions.openLatest('dm-ada');
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm5',
+      'm6',
+    ]);
+    expect(clientStore.getSnapshot().conversation.focusMessageId).toBeUndefined();
+  });
+  it('does not splice an in-flight older page into a newly opened around window', async () => {
+    let completeOlder: (value: unknown) => void = () => {};
+    const delayedOlder = new Promise<unknown>((resolve) => {
+      completeOlder = resolve;
+    });
+    const entry = (id: string) => ({
+      id,
+      at: '2026-09-19T00:01:00.000Z',
+      author: { kind: 'human' },
+      body: id,
+    });
+    const page = (ids: string[], olderCursor: string, hasNewer: boolean) => ({
+      revision: 4,
+      page: {
+        entries: ids.map(entry),
+        olderCursor,
+        newerCursor: ids.at(-1) ?? null,
+        hasOlder: true,
+        hasNewer,
+      },
+    });
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) =>
+        payload['direction'] === 'older'
+          ? delayedOlder
+          : payload['direction'] === 'around'
+            ? page(['m1', 'm2'], 'around-m1', true)
+            : page(['m3', 'm4'], 'latest-m3', false),
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const loading = actions.loadOlder('dm-ada');
+    await actions.openAround('dm-ada', 'm1');
+    completeOlder(page(['m0'], 'older-m0', true));
+    await loading;
+    expect(clientStore.getSnapshot().conversation.messages.map((item) => item.id)).toEqual([
+      'm1',
+      'm2',
+    ]);
+    expect(clientStore.getSnapshot().conversation.timeline.olderCursor).toBe('around-m1');
+  });
   it('renames a DM Channel and its PersonaBot projection without changing either id', async () => {
     const { clientStore, actions } = setup();
     await actions.load();
@@ -592,7 +779,7 @@ describe('bridge actions', () => {
     expect(assignments).toEqual([{ channelId: 'group-team', sectionId: 'section-work', index: 0 }]);
   });
 
-  it('creates a PersonaBot through the Host, adds it to the roster, and selects it', async () => {
+  it('can send the first DM immediately after creating a PersonaBot', async () => {
     const creates: Array<Record<string, unknown>> = [];
     const { clientStore, actions } = setup({
       create: (payload) => {
@@ -637,10 +824,11 @@ describe('bridge actions', () => {
       kind: 'bot',
       slug: 'bot-generated',
     });
-    // Creating a PersonaBot opens its DM conversation, so surfaces that need
-    // the selected Channel (the Channel sidebar) render immediately.
+    // Creation must initialize the selected DM before the Human's first send.
+    await expect(actions.send('创建后第一条消息')).resolves.toBe(true);
     expect(clientStore.getSnapshot().conversation.status).toBe('ready');
     expect(clientStore.getSnapshot().conversation.channel?.id).toBe('dm-bot-generated');
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.body).toBe('创建后第一条消息');
     expect(clientStore.getSnapshot().roster.topOrder?.[0]).toEqual({
       kind: 'channel',
       id: 'dm-bot-generated',

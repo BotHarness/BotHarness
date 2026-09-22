@@ -85,6 +85,29 @@ export type ConversationSelection =
   | { kind: 'bot'; slug: string }
   | { kind: 'channel'; channelId: string };
 
+export interface ConversationTimeline {
+  olderCursor: string | null;
+  newerCursor: string | null;
+  hasOlder: boolean;
+  hasNewer: boolean;
+  loadingOlder: boolean;
+  olderError: string | undefined;
+  loadingNewer: boolean;
+  newerError: string | undefined;
+}
+
+export function initialTimeline(): ConversationTimeline {
+  return {
+    olderCursor: null,
+    newerCursor: null,
+    hasOlder: false,
+    hasNewer: false,
+    loadingOlder: false,
+    olderError: undefined,
+    loadingNewer: false,
+    newerError: undefined,
+  };
+}
 export interface ConversationState {
   status: ClientStatus;
   channel: ChannelSummary | undefined;
@@ -93,6 +116,8 @@ export interface ConversationState {
   drafts: readonly ChannelDraft[];
   /** Durable per-Channel live-stream watermark. */
   revision: number;
+  timeline: ConversationTimeline;
+  focusMessageId?: string | undefined;
   error: string | undefined;
   sending: boolean;
 }
@@ -157,6 +182,8 @@ function initialConversation(): ConversationState {
     messages: [],
     drafts: [],
     revision: 0,
+    timeline: initialTimeline(),
+    focusMessageId: undefined,
     error: undefined,
     sending: false,
   };
