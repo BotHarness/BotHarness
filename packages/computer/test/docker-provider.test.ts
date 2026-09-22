@@ -394,6 +394,36 @@ describe('Docker computer provider', () => {
     expect(exec).toContain('chromium.desktop');
   });
 
+  it('seeds the Chromium session-restore policy after start', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const execs = calls.filter((argv) => argv[1] === 'exec').map((argv) => argv.join(' '));
+    const policy = execs.find((command) => command.includes('RestoreOnStartup'));
+    expect(policy).toContain('/etc/chromium/policies/managed/botharness.json');
+    expect(policy).toContain('"RestoreOnStartup":1');
+  });
+
+  it('still starts when the session-restore policy cannot be written', async () => {
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        if (argv[1] === 'exec') return fail('read-only filesystem');
+        return ok('ok');
+      }),
+    });
+    await expect(provider.start()).resolves.toBeUndefined();
+  });
+
   it('passes the requested desktop locale into the container', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({

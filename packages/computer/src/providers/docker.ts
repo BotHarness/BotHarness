@@ -289,6 +289,30 @@ export function createDockerComputerProvider(
     }
   };
 
+  /**
+   * A clean desktop stop makes Chromium forget open tabs: its default session
+   * policy opens a new-tab page, and only a crashed session is restored. A
+   * managed policy tells it to restore the previous session instead, so tabs
+   * survive stop → start the same way they survive export → import today (a
+   * tar taken while the browser runs keeps the crashed-session marker).
+   * Policies live outside the profile so Chromium never rewrites them, and
+   * they apply on the browser's next launch — safe to write while it runs.
+   * Best effort.
+   */
+  const ensureSessionRestore = async (): Promise<void> => {
+    const result = await runner.run([
+      'docker',
+      'exec',
+      config.containerName,
+      'sh',
+      '-c',
+      `mkdir -p /etc/chromium/policies/managed && printf '%s' '{"RestoreOnStartup":1}' > /etc/chromium/policies/managed/botharness.json`,
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('session-restore policy could not be prepared');
+    }
+  };
+
   const runStart = async (): Promise<void> => {
     cancelRequested = false;
     const probe = await probeRuntime();
@@ -302,6 +326,7 @@ export function createDockerComputerProvider(
       phase = 'running';
       detail = undefined;
       await ensureDesktopShortcut();
+      await ensureSessionRestore();
       return;
     }
     if (existing.state === 'stopped' && !(await recreateIfSpecChanged())) {
@@ -316,6 +341,7 @@ export function createDockerComputerProvider(
       detail = undefined;
       running = true;
       await ensureDesktopShortcut();
+      await ensureSessionRestore();
       return;
     }
     const image = await runner.run(['docker', 'image', 'inspect', config.image]);
@@ -392,6 +418,7 @@ export function createDockerComputerProvider(
     detail = undefined;
     running = true;
     await ensureDesktopShortcut();
+    await ensureSessionRestore();
   };
 
   const withDetail = (status: ComputerStatus): ComputerStatus => {
