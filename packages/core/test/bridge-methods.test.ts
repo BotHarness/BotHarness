@@ -4,6 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
+import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
@@ -33,7 +34,12 @@ function setup(
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
   const states = createBotStateTracker();
-  const channels = createChannelStore({ rootDir: join(root, 'channels'), now: tickingNow() });
+  const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
+  const channels = createChannelStore({
+    rootDir: join(root, 'channels'),
+    attachments,
+    now: tickingNow(),
+  });
   const sessions: BotSessionSource = { list: () => sessionSummaries };
   let botIdIndex = 0;
   return {
@@ -41,6 +47,7 @@ function setup(
     registry,
     states,
     channels,
+    attachments,
     methods: createBridgeMethods({
       registry,
       states,
@@ -59,6 +66,26 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('sends an attachment-only message and rejects forged refs', async () => {
+    const { channels, attachments, methods } = setup();
+    channels.getOrCreateDm('ada', 'Ada');
+    const ref = await attachments.upload({
+      data: (async function* () {
+        yield new TextEncoder().encode('hello');
+      })(),
+      name: 'note.txt',
+    });
+    const sent = await methods.channelSend({ channelId: 'dm-ada', body: '', attachments: [ref] });
+    expect(sent).toMatchObject({ ok: true, value: { message: { attachments: [ref] } } });
+    const bad = await methods.channelSend({
+      channelId: 'dm-ada',
+      body: '',
+      attachments: [{ ...ref, size: 999 }],
+    });
+    expect(bad).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(channels.readMessages('dm-ada')).toHaveLength(1);
+  });
+
   it('lists PersonaBots with their aggregate state', () => {
     const { registry, states, methods } = setup();
     registry.create({

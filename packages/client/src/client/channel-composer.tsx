@@ -11,6 +11,7 @@ import {
 import { Button, IconSendOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
+import type { ChannelAttachmentRef } from './store.js';
 
 /**
  * Activity projection consumed by the composer. It carries no Session payload
@@ -23,10 +24,22 @@ export interface ChannelComposerActivity {
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 
+export interface ChannelComposerUpload {
+  id: string;
+  file: File;
+  status: 'uploading' | 'ready' | 'error';
+  ref?: ChannelAttachmentRef;
+  error?: string | undefined;
+}
+
 export interface ChannelComposerProps {
   value: string;
   placeholder: string;
   sending: boolean;
+  attachments?: readonly ChannelComposerUpload[] | undefined;
+  onAddFiles?(files: File[]): void;
+  onRetryAttachment?(id: string): void;
+  onRemoveAttachment?(id: string): void;
   activity?: ChannelComposerActivity | undefined;
   reply?: { id: string; author: string; body: string } | undefined;
   /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
@@ -102,6 +115,10 @@ export function ChannelComposer({
   value,
   placeholder,
   sending,
+  attachments = [],
+  onAddFiles,
+  onRetryAttachment,
+  onRemoveAttachment,
   activity,
   reply,
   t = zhTranslate,
@@ -110,6 +127,7 @@ export function ChannelComposer({
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fit, setFit] = useState<ComposerTextareaFit>({ expanded: false, height: 34 });
 
   const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
@@ -172,6 +190,34 @@ export function ChannelComposer({
             </button>
           </div>
         )}
+        {attachments.length > 0 ? (
+          <div className="bh-composer-attachments" aria-live="polite">
+            {attachments.map((item) => (
+              <div className="bh-composer-attachment" key={item.id}>
+                <span className="bh-composer-attachment-name" title={item.file.name}>
+                  {item.file.name}
+                </span>
+                {item.status === 'uploading' ? <span>{t('composer.uploading')}</span> : null}
+                {item.status === 'error' ? (
+                  <button
+                    type="button"
+                    onClick={() => onRetryAttachment?.(item.id)}
+                    title={item.error}
+                  >
+                    {t('composer.retryAttachment')}
+                  </button>
+                ) : null}
+                <button
+                  type="button"
+                  aria-label={t('composer.removeAttachment', { name: item.file.name })}
+                  onClick={() => onRemoveAttachment?.(item.id)}
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <div className="bh-composer-body">
           <textarea
             ref={inputRef}
@@ -196,6 +242,27 @@ export function ChannelComposer({
             }}
           />
         </div>
+        <input
+          ref={fileInputRef}
+          className="bh-composer-file-input"
+          type="file"
+          multiple
+          aria-label={t('composer.addAttachment')}
+          onChange={(event) => {
+            const files = Array.from(event.currentTarget.files ?? []);
+            event.currentTarget.value = '';
+            if (files.length > 0) onAddFiles?.(files);
+          }}
+        />
+        <button
+          type="button"
+          className="bh-composer-add-file"
+          aria-label={t('composer.addAttachment')}
+          disabled={sending || attachments.length >= 10}
+          onClick={() => fileInputRef.current?.click()}
+        >
+          +
+        </button>
         <div className="bh-composer-footer">
           <Button
             className="bh-send-btn"
@@ -203,7 +270,11 @@ export function ChannelComposer({
             size="sm"
             icon={<IconSendOutline16 size={16} />}
             aria-label={sending ? t('message.sending') : t('composer.send')}
-            disabled={value.trim().length === 0 || sending}
+            disabled={
+              (value.trim().length === 0 && attachments.length === 0) ||
+              sending ||
+              attachments.some((item) => item.status !== 'ready')
+            }
             onClick={() => void onSubmit()}
           />
         </div>

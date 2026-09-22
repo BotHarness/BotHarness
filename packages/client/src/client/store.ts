@@ -38,11 +38,19 @@ export interface ChannelReplyPreview {
   body: string;
 }
 
+export interface ChannelAttachmentRef {
+  hash: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
   author: ChannelAuthor;
   body: string;
+  attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;
   replyToPreview?: ChannelReplyPreview | null;

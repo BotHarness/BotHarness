@@ -18,6 +18,14 @@ describe('Channel message format over RPC', () => {
     });
   });
 
+  it('preserves valid attachment refs and rejects malformed ones', () => {
+    const ref = { hash: `sha256:${'a'.repeat(64)}`, name: 'a.png', mime: 'image/png', size: 3 };
+    expect(parseChannelMessage({ ...base, attachments: [ref] })?.attachments).toEqual([ref]);
+    expect(
+      parseChannelMessage({ ...base, attachments: [{ ...ref, hash: '../bad' }] }),
+    ).toBeUndefined();
+  });
+
   it('does not accept unknown remote content formats', () => {
     expect(parseChannelMessage({ ...base, format: 'html' })).toBeUndefined();
   });

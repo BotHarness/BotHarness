@@ -15,7 +15,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 function render(
   author: ChannelMessage['author'],
   body: string,
-  options: Pick<ChannelMessage, 'format' | 'streaming'> = {},
+  options: Pick<ChannelMessage, 'format' | 'streaming' | 'attachments'> = {},
 ) {
   return renderToStaticMarkup(
     createElement(ChannelMessageBody, {
@@ -28,6 +28,20 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it('renders server-sniffed images inline and files as downloads', () => {
+    const hash = `sha256:${'a'.repeat(64)}`;
+    const markup = render({ kind: 'human' }, '', {
+      attachments: [
+        { hash, name: 'photo.png', mime: 'image/png', size: 123 },
+        { hash, name: 'report.pdf', mime: 'application/pdf', size: 456 },
+      ],
+    });
+    expect(markup).toContain('<img');
+    expect(markup).toContain('alt="photo.png"');
+    expect(markup).toContain('download="report.pdf"');
+    expect(markup).toContain('/api/botharness/attachment?hash=');
+  });
+
   it('routes Bot and bridged messages to the public DSH Markdown renderer', () => {
     for (const author of [
       { kind: 'bot', slug: 'ada' },

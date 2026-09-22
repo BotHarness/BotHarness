@@ -4,6 +4,8 @@ import { z } from 'zod';
 
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
+import { ChannelAttachmentError } from '../attachments/store.js';
+import { isChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
@@ -538,9 +540,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channelId = asNonBlank(source, 'channelId');
       if (channelId === undefined) return invalidInput('channelId is required');
       const body = source['body'];
-      if (typeof body !== 'string' || body.trim().length === 0) {
+      const attachments = source['attachments'];
+      if (
+        attachments !== undefined &&
+        (!Array.isArray(attachments) ||
+          attachments.length > 10 ||
+          !attachments.every(isChannelAttachmentRef))
+      )
+        return invalidInput('invalid attachments');
+      if (
+        typeof body !== 'string' ||
+        (body.trim().length === 0 && (!attachments || attachments.length === 0))
+      )
         return invalidInput('body is required');
-      }
       const replyTo = source['replyTo'];
       if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
         return invalidInput('replyTo must be a message id');
@@ -550,6 +562,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         at: new Date().toISOString(),
         author: { kind: 'human' },
         body,
+        ...(attachments === undefined ? {} : { attachments }),
         ...(replyTo === undefined ? {} : { replyTo }),
       };
       const channel = deps.channels.get(channelId);
@@ -558,7 +571,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         appended = await deps.channels.appendMessage(channelId, message);
       } catch (error) {
-        if (error instanceof ChannelReplyTargetError) return invalidInput(error.message);
+        if (error instanceof ChannelReplyTargetError || error instanceof ChannelAttachmentError)
+          return invalidInput(error.message);
         throw error;
       }
       if (appended === undefined) return unknownChannel(channelId);
@@ -566,7 +580,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         const admission = deps.runtime.admitDmMessage({
           channelId,
           messageId: appended.id,
-          body: appended.body,
+          body:
+            appended.body ||
+            `[Attachments: ${appended.attachments?.map((ref) => ref.name).join(', ') ?? ''}]`,
         });
         if (!admission.admitted) {
           return dmAdmissionFailure(channelId, channel.botSlug, admission.reason);

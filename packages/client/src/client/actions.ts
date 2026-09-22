@@ -39,6 +39,7 @@ import {
 } from './roster-order.js';
 import type {
   BotSummary,
+  ChannelAttachmentRef,
   ChannelMessage,
   ChannelSummary,
   ClientStore,
@@ -57,7 +58,7 @@ export interface BridgeActions {
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   openAssignment(sessionId: string): Promise<void>;
-  send(body: string, replyTo?: string): Promise<boolean>;
+  send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
@@ -557,11 +558,16 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         clientStore.setAssignments({ error: errorMessage(error) });
       }
     },
-    async send(body, replyTo) {
+    async send(body, replyTo, attachments) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
-      if (channel === undefined || text.length === 0 || snapshot.conversation.sending) return false;
+      if (
+        channel === undefined ||
+        (text.length === 0 && !attachments?.length) ||
+        snapshot.conversation.sending
+      )
+        return false;
       const replyTarget = snapshot.conversation.messages.find((message) => message.id === replyTo);
       if (snapshot.conversation.timeline.hasNewer) {
         try {
@@ -592,6 +598,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
             at: new Date().toISOString(),
             author: { kind: 'human' },
             body: text,
+            ...(attachments === undefined ? {} : { attachments }),
             ...(replyTo === undefined
               ? {}
               : {
@@ -606,7 +613,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         ],
       });
       try {
-        const message = await sendChannelMessage(call, channel.id, text, replyTo);
+        const message = await sendChannelMessage(call, channel.id, text, replyTo, attachments);
         const selection = currentSelection();
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id === channel.id) {

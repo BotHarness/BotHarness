@@ -9,6 +9,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
+import { uploadChannelAttachment } from './bridge.js';
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
@@ -16,7 +17,11 @@ import {
   type PersonaBotFacepileItem,
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
-import { ChannelComposer, type ChannelComposerActivity } from './channel-composer.js';
+import {
+  ChannelComposer,
+  type ChannelComposerActivity,
+  type ChannelComposerUpload,
+} from './channel-composer.js';
 import { ChannelMessageBody } from './channel-message-body.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
@@ -331,6 +336,8 @@ function ConversationView({
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [uploadItems, setUploadItems] = useState<ChannelComposerUpload[]>([]);
+  const uploadControllers = useRef(new Map<string, AbortController>());
   const [replyTarget, setReplyTarget] = useState<ChannelMessage | undefined>();
   const submitting = useRef(false);
   const followingLatest = useRef(true);
@@ -442,6 +449,9 @@ function ConversationView({
   useEffect(() => {
     setDraft('');
     setReplyTarget(undefined);
+    for (const controller of uploadControllers.current.values()) controller.abort();
+    uploadControllers.current.clear();
+    setUploadItems([]);
   }, [channelId]);
 
   const loadOlderAtTop = (retry = false): void => {
@@ -559,9 +569,61 @@ function ConversationView({
     if (element !== null) element.scrollTop = element.scrollHeight;
   };
 
+  const startUpload = (item: ChannelComposerUpload): void => {
+    const controller = new AbortController();
+    uploadControllers.current.set(item.id, controller);
+    setUploadItems((current) =>
+      current.map((entry) =>
+        entry.id === item.id ? { ...entry, status: 'uploading', error: undefined } : entry,
+      ),
+    );
+    void uploadChannelAttachment(item.file, controller.signal)
+      .then((ref) => {
+        if (controller.signal.aborted) return;
+        setUploadItems((current) =>
+          current.map((entry) =>
+            entry.id === item.id ? { ...entry, status: 'ready', ref } : entry,
+          ),
+        );
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setUploadItems((current) =>
+          current.map((entry) =>
+            entry.id === item.id
+              ? {
+                  ...entry,
+                  status: 'error',
+                  error: error instanceof Error ? error.message : String(error),
+                }
+              : entry,
+          ),
+        );
+      })
+      .finally(() => {
+        if (uploadControllers.current.get(item.id) === controller)
+          uploadControllers.current.delete(item.id);
+      });
+  };
+
+  const addFiles = (files: File[]): void => {
+    const available = Math.max(0, 10 - uploadItems.length);
+    const added = files
+      .slice(0, available)
+      .map((file) => ({ id: crypto.randomUUID(), file, status: 'uploading' as const }));
+    setUploadItems((current) => [...current, ...added]);
+    for (const item of added) startUpload(item);
+  };
+
   const submit = async (): Promise<void> => {
     const body = draft.trim();
-    if (body.length === 0 || conversation.sending || submitting.current) return;
+    if (
+      (body.length === 0 && uploadItems.length === 0) ||
+      uploadItems.some((item) => item.status !== 'ready' || item.ref === undefined) ||
+      conversation.sending ||
+      submitting.current
+    )
+      return;
     submitting.current = true;
     followingLatest.current = true;
     setUnseen(0);
@@ -569,8 +631,13 @@ function ConversationView({
     setDraft('');
     const submittedReplyTo = replyTarget?.id;
     try {
-      const sent = await actions.send(body, submittedReplyTo);
+      const sent = await actions.send(
+        body,
+        submittedReplyTo,
+        uploadItems.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
+      );
       if (sent) {
+        if (currentChannel.current === submittedFor) setUploadItems([]);
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
       } else if (currentChannel.current === submittedFor) {
         setDraft(body);
@@ -710,6 +777,17 @@ function ConversationView({
             value={draft}
             placeholder={t('composer.placeholder', { name: title })}
             sending={conversation.sending}
+            attachments={uploadItems}
+            onAddFiles={addFiles}
+            onRetryAttachment={(id) => {
+              const item = uploadItems.find((candidate) => candidate.id === id);
+              if (item !== undefined) startUpload(item);
+            }}
+            onRemoveAttachment={(id) => {
+              uploadControllers.current.get(id)?.abort();
+              uploadControllers.current.delete(id);
+              setUploadItems((current) => current.filter((item) => item.id !== id));
+            }}
             activity={composerActivity}
             reply={
               replyTarget === undefined

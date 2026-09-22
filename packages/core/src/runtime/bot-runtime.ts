@@ -5,6 +5,7 @@ import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
+import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelStore } from '../channels/store.js';
 import {
   attachOperationalModule,
@@ -112,7 +113,12 @@ export interface ChannelMessageView {
 export interface OrchestratorChannelAccess {
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
   search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
-  send(input: { body: string; channelId?: string; replyTo?: string }): Promise<ChannelMessage>;
+  send(input: {
+    body: string;
+    channelId?: string;
+    replyTo?: string;
+    attachments?: ChannelAttachmentRef[];
+  }): Promise<ChannelMessage>;
 }
 
 /** Adapter at the DSH Agent seam; tests and the pinned Host runtime satisfy the same interface. */
@@ -707,7 +713,10 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       send: async (input) => {
         const channel = resolve(input.channelId);
-        const body = requireNonBlank(input.body, 'Channel message body');
+        const body = input.body;
+        if (!body.trim() && !input.attachments?.length)
+          throw new Error('Channel message requires a body or attachment');
+        this.#channels.assertAttachmentRefs(input.attachments ?? []);
         if (input.replyTo !== undefined && !this.#channels.hasMessage(channel.id, input.replyTo)) {
           throw new ChannelReplyTargetError();
         }
@@ -717,6 +726,7 @@ class BotRuntimeImplementation implements BotRuntime {
           at: this.#now().toISOString(),
           author: { kind: 'bot', slug: botSlug },
           body,
+          ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
           ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
         };
         const appended = await this.#channels.appendMessage(channel.id, message);

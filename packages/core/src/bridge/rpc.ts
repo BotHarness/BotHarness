@@ -11,6 +11,7 @@ import type {
   PersonaBotSummary,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition } from '../channels/store.js';
 import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
@@ -200,12 +201,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelId: string,
     body: string,
     replyTo?: string,
+    attachments?: ChannelAttachmentRef[],
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
         channelId,
         body,
         ...(replyTo === undefined ? {} : { replyTo }),
+        ...(attachments === undefined ? {} : { attachments }),
       }),
     );
   }

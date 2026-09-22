@@ -8,6 +8,7 @@ import type {
   AssignmentSummary,
   BotSummary,
   ChannelAuthor,
+  ChannelAttachmentRef,
   ChannelMessage,
   ChannelSummary,
   SessionSummary,
@@ -200,6 +201,52 @@ function parseAuthor(value: unknown): ChannelAuthor | undefined {
   }
 }
 
+export function parseChannelAttachment(value: unknown): ChannelAttachmentRef | undefined {
+  const record = asRecord(value);
+  if (record === undefined) return undefined;
+  const { hash, name, mime, size } = record;
+  if (
+    typeof hash !== 'string' ||
+    !/^sha256:[0-9a-f]{64}$/u.test(hash) ||
+    typeof name !== 'string' ||
+    name.length === 0 ||
+    name.length > 180 ||
+    /[/\\\u0000-\u001f\u007f]/u.test(name) ||
+    typeof mime !== 'string' ||
+    !/^[a-z][a-z0-9.+-]*\/[a-z0-9][a-z0-9.+-]*$/u.test(mime) ||
+    typeof size !== 'number' ||
+    !Number.isSafeInteger(size) ||
+    size < 0
+  )
+    return undefined;
+  return { hash, name, mime, size };
+}
+
+export function channelAttachmentUrl(ref: ChannelAttachmentRef): string {
+  return `/api/botharness/attachment?hash=${encodeURIComponent(ref.hash)}&name=${encodeURIComponent(ref.name)}`;
+}
+
+export async function uploadChannelAttachment(
+  file: File,
+  signal?: AbortSignal,
+): Promise<ChannelAttachmentRef> {
+  const response = await fetch(
+    `/api/botharness/attachment/upload?name=${encodeURIComponent(file.name)}`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/octet-stream' },
+      body: file,
+      credentials: 'same-origin',
+      ...(signal === undefined ? {} : { signal }),
+    },
+  );
+  if (!response.ok) throw new Error(`Attachment upload failed (${response.status})`);
+  const payload = asRecord(await response.json());
+  const ref = parseChannelAttachment(payload?.['attachment']);
+  if (ref === undefined) throw new Error('Invalid attachment upload response');
+  return ref;
+}
+
 export function parseChannelMessage(value: unknown): ChannelMessage | undefined {
   const record = asRecord(value);
   if (record === undefined) return undefined;
@@ -211,6 +258,17 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (typeof body !== 'string') return undefined;
   const author = parseAuthor(record['author']);
   if (author === undefined) return undefined;
+  const rawAttachments = record['attachments'];
+  const attachments = Array.isArray(rawAttachments)
+    ? rawAttachments.map(parseChannelAttachment)
+    : undefined;
+  if (
+    rawAttachments !== undefined &&
+    (attachments === undefined ||
+      attachments.length > 10 ||
+      attachments.some((entry) => entry === undefined))
+  )
+    return undefined;
   const format = record['format'];
   if (format !== undefined && format !== 'markdown' && format !== 'text') return undefined;
   const replyTo = record['replyTo'];
@@ -232,6 +290,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(replyTo === undefined ? {} : { replyTo }),
     ...(replyToPreview === undefined ? {} : { replyToPreview }),
@@ -489,12 +548,18 @@ export async function sendChannelMessage(
   channelId: string,
   body: string,
   replyTo?: string,
+  attachments?: ChannelAttachmentRef[],
   signal?: AbortSignal,
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
     'channelSend',
-    { channelId, body, ...(replyTo === undefined ? {} : { replyTo }) },
+    {
+      channelId,
+      body,
+      ...(replyTo === undefined ? {} : { replyTo }),
+      ...(attachments === undefined ? {} : { attachments }),
+    },
     signal,
   );
   const message = parseChannelMessage(asRecord(value)?.['message']);

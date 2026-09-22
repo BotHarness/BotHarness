@@ -1,3 +1,5 @@
+import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
+
 export type ChannelType = 'dm' | 'group';
 
 export interface ChannelRecord {
@@ -30,6 +32,7 @@ export interface ChannelMessage {
   at: string;
   author: ChannelMessageAuthor;
   body: string;
+  attachments?: ChannelAttachmentRef[];
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
   /** A message id in this same Channel; independent of provider threading. */
@@ -99,6 +102,14 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (typeof message['id'] !== 'string' || message['id'].length === 0) return false;
   if (typeof message['at'] !== 'string' || message['at'].length === 0) return false;
   if (typeof message['body'] !== 'string') return false;
+  const attachments = message['attachments'];
+  if (
+    attachments !== undefined &&
+    (!Array.isArray(attachments) ||
+      attachments.length > 10 ||
+      !attachments.every(isChannelAttachmentRef))
+  )
+    return false;
   if (!isChannelMessageAuthor(message['author'])) return false;
   if (
     message['format'] !== undefined &&

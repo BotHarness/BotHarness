@@ -7,6 +7,12 @@ import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import Schema from '@deepseek-ai/schemastery';
 
+import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
+import {
+  createAttachmentHttp,
+  CHANNEL_ATTACHMENT_PATH,
+  CHANNEL_ATTACHMENT_UPLOAD_PATH,
+} from './attachments/http.js';
 import { createBridgeMethods } from './bridge/methods.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
@@ -68,6 +74,7 @@ export interface BotHarnessCore {
   ownership: SessionOwnership;
   memory: MemoryService;
   channels: ChannelStore;
+  attachments: AttachmentStore;
   live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
@@ -106,7 +113,11 @@ export function createCore(
   });
   const states = createBotStateTracker();
   let live: ChannelLiveHub | undefined;
+  const attachments = createAttachmentStore({
+    rootDir: join(dshHome, 'botharness', 'attachments'),
+  });
   const channels = createChannelStore({
+    attachments,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => live?.publishCommitted(commit),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
@@ -130,6 +141,7 @@ export function createCore(
     ownership,
     memory,
     channels,
+    attachments,
     live,
     roster: createRosterStore({ warn: options.warn }),
     runtime: createBotRuntime({
@@ -196,8 +208,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           fetch: {
             register(route: {
               path: string;
-              methods: readonly ['GET'];
-              requestBody: 'buffered';
+              methods: readonly ('GET' | 'POST')[];
+              requestBody: 'buffered' | 'streaming';
               fetch(request: Request): Promise<Response>;
             }): () => Promise<void>;
           };
@@ -214,6 +226,27 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         },
       });
     }, 'botharness: Channel live stream');
+    const attachmentHttp = createAttachmentHttp(core.attachments);
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: CHANNEL_ATTACHMENT_UPLOAD_PATH,
+          methods: ['POST'],
+          requestBody: 'streaming',
+          fetch: attachmentHttp,
+        }),
+      'botharness: Channel attachment upload',
+    );
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: CHANNEL_ATTACHMENT_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: attachmentHttp,
+        }),
+      'botharness: Channel attachment download',
+    );
   });
   const activity = createDshActivityProjection({
     ownership: core.ownership,

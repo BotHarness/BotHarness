@@ -3,6 +3,8 @@ import type { Dirent } from 'node:fs';
 import { join } from 'node:path';
 
 import { isValidSlug } from '../bots/slug.js';
+import { ChannelAttachmentError, type AttachmentStore } from '../attachments/store.js';
+import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
   dmChannelId,
@@ -25,6 +27,7 @@ export { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE } from './timeline.js';
 
 export interface ChannelStoreOptions {
   rootDir: string;
+  attachments?: AttachmentStore;
   now?: () => Date;
   onCommitted?: (commit: ChannelMessageCommit) => void;
   warn?: (message: string) => void;
@@ -62,6 +65,9 @@ export interface ChannelStore {
   latestMessage(id: string): ChannelMessage | undefined;
   /** Check the full durable Channel history, including messages outside the latest page. */
   hasMessage(id: string, messageId: string): boolean;
+  assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
+  /** Durable mark set for a profile-scoped Attachment Store sweep. */
+  referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
@@ -115,6 +121,13 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   const messagesFile = (id: string): string => join(channelDir(id), 'messages.ndjson');
   const readPositionFile = (id: string): string => join(channelDir(id), 'read-position.json');
   const revisions = new Map<string, number>();
+  const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
+    if (
+      refs.length > 10 ||
+      refs.some((ref) => !isChannelAttachmentRef(ref) || !options.attachments?.has(ref))
+    )
+      throw new ChannelAttachmentError('Attachment does not belong to this profile', 'invalid-ref');
+  };
 
   const readValidMessages = (id: string): ChannelMessage[] => {
     if (!isValidChannelId(id)) return [];
@@ -267,6 +280,14 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       }
       return undefined;
     },
+    assertAttachmentRefs,
+    referencedAttachmentHashes() {
+      const hashes = new Set<string>();
+      for (const channel of this.list())
+        for (const message of readValidMessages(channel.id))
+          for (const ref of message.attachments ?? []) hashes.add(ref.hash);
+      return hashes;
+    },
     hasMessage(id, messageId) {
       if (!isValidChannelId(id) || messageId.length === 0) return false;
       return readValidMessages(id).some((message) => message.id === messageId);
@@ -341,6 +362,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         ) {
           throw new ChannelReplyTargetError();
         }
+        assertAttachmentRefs(message.attachments ?? []);
         const durableMessage = { ...message };
         delete durableMessage.replyToPreview;
         const projected = projectReply(durableMessage, messageIndex(priorMessages));
