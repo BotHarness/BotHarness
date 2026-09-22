@@ -602,7 +602,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           const { page, revision } = await loadTimelinePage(call, channel.id);
           if (clientStore.getSnapshot().conversation.channel?.id !== channel.id) return false;
           clientStore.setConversation({
-            messages: page.entries,
+            messages: [...page.entries, ...remainingFailures(channel.id, page.entries)],
             revision,
             timeline: { ...initialTimeline(), ...page },
             focusMessageId: undefined,

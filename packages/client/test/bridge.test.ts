@@ -985,6 +985,12 @@ describe('bridge actions', () => {
       body: 'restore me',
       failed: 'offline',
     });
+    await actions.openAround('dm-ada', 'm2');
+    await actions.send('second failure');
+    const retained = clientStore
+      .getSnapshot()
+      .conversation.messages.find((message) => message.id === failedId);
+    expect(retained).toMatchObject({ body: 'restore me', failed: 'offline' });
   });
 
   it('does not turn an SSE-reconciled commit back into a failed bubble', async () => {
