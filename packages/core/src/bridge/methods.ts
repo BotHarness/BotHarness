@@ -581,7 +581,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           channelId,
           messageId: appended.id,
           body:
-            appended.body ||
+            appended.body.trim() ||
             `[Attachments: ${appended.attachments?.map((ref) => ref.name).join(', ') ?? ''}]`,
         });
         if (!admission.admitted) {

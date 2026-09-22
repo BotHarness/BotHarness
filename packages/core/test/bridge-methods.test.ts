@@ -66,8 +66,18 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
-  it('sends an attachment-only message and rejects forged refs', async () => {
-    const { channels, attachments, methods } = setup();
+  it('admits blank attachment-only DMs and rejects forged refs', async () => {
+    const admitted: string[] = [];
+    const { channels, attachments, methods } = setup([], ['ada'], () => ({
+      admitDmMessage(input) {
+        admitted.push(input.body);
+        return { admitted: true as const, settled: Promise.resolve() };
+      },
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      whenIdle: async () => undefined,
+      close: async () => undefined,
+    }));
     channels.getOrCreateDm('ada', 'Ada');
     const ref = await attachments.upload({
       data: (async function* () {
@@ -75,15 +85,22 @@ describe('bridge methods', () => {
       })(),
       name: 'note.txt',
     });
-    const sent = await methods.channelSend({ channelId: 'dm-ada', body: '', attachments: [ref] });
+    const sent = await methods.channelSend({
+      channelId: 'dm-ada',
+      body: '   ',
+      attachments: [ref],
+    });
     expect(sent).toMatchObject({ ok: true, value: { message: { attachments: [ref] } } });
+    const empty = await methods.channelSend({ channelId: 'dm-ada', body: '', attachments: [ref] });
+    expect(empty.ok).toBe(true);
+    expect(admitted).toEqual(['[Attachments: note.txt]', '[Attachments: note.txt]']);
     const bad = await methods.channelSend({
       channelId: 'dm-ada',
       body: '',
       attachments: [{ ...ref, size: 999 }],
     });
     expect(bad).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
-    expect(channels.readMessages('dm-ada')).toHaveLength(1);
+    expect(channels.readMessages('dm-ada')).toHaveLength(2);
   });
 
   it('lists PersonaBots with their aggregate state', () => {
