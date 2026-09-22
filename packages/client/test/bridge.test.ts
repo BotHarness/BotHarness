@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { createActions } from '../src/client/actions.js';
 import {
+  BridgeCallError,
   createBridgeCall,
   parseAssignmentSummaries,
   parseBotSummary,
@@ -200,6 +201,10 @@ describe('bridge actions', () => {
           { id: 'm1', at: '2026-09-19T00:01:00.000Z', author: { kind: 'human' }, body: 'older' },
         ],
       }),
+      channelReadPosition: () => ({}),
+      channelMarkRead: () => ({
+        position: { messageId: 'm2', revision: 2, readAt: BOT.createdAt },
+      }),
       channelTimeline: () => ({
         revision: 2,
         page: {
@@ -302,6 +307,73 @@ describe('bridge actions', () => {
       sessionId: 'assignment-1',
       sourceEventId: 'source-1',
     });
+  });
+
+  it('reopens DM and group Channels around the profile read anchor', async () => {
+    const requests: Array<Record<string, unknown>> = [];
+    const entry = (id: string) => ({ id, at: BOT.createdAt, author: { kind: 'human' }, body: id });
+    const { clientStore, actions } = setup({
+      channelReadPosition: () => ({
+        position: { messageId: 'm2', revision: 2, readAt: BOT.createdAt },
+      }),
+      channelTimeline: (payload) => {
+        requests.push(payload);
+        return {
+          revision: 4,
+          page: {
+            entries: [entry('m1'), entry('m2'), entry('m3')],
+            olderCursor: 'older-m1',
+            newerCursor: 'newer-m3',
+            hasOlder: true,
+            hasNewer: true,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    expect(clientStore.getSnapshot().conversation.focusMessageId).toBe('m2');
+    expect(clientStore.getSnapshot().conversation.timeline.hasNewer).toBe(true);
+    await actions.openChannel('group-team');
+    expect(clientStore.getSnapshot().conversation.focusMessageId).toBe('m2');
+    expect(requests).toEqual([
+      { channelId: 'dm-ada', direction: 'around', around: 'm2' },
+      { channelId: 'group-team', direction: 'around', around: 'm2' },
+    ]);
+  });
+
+  it('falls back to latest for an expired anchor and sends explicit read marks', async () => {
+    const marked: Array<Record<string, unknown>> = [];
+    const { clientStore, actions } = setup({
+      channelReadPosition: () => ({ position: { messageId: 'gone' } }),
+      channelTimeline: (payload) => {
+        if (payload['direction'] === 'around') {
+          throw new BridgeCallError('invalid-input', 'invalid or expired timeline anchor');
+        }
+        return {
+          revision: 0,
+          page: {
+            entries: [],
+            olderCursor: null,
+            newerCursor: null,
+            hasOlder: false,
+            hasNewer: false,
+          },
+        };
+      },
+      channelMarkRead: (payload) => {
+        marked.push(payload);
+        return {
+          position: { messageId: payload['messageId'], revision: 1, readAt: BOT.createdAt },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    expect(clientStore.getSnapshot().conversation.status).toBe('ready');
+    expect(clientStore.getSnapshot().conversation.focusMessageId).toBeUndefined();
+    await actions.markRead('dm-ada', 'm1');
+    expect(marked).toEqual([{ channelId: 'dm-ada', messageId: 'm1' }]);
   });
 
   it('keeps the visible window on older-page failure and prepends exactly once on retry', async () => {

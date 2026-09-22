@@ -37,6 +37,13 @@ export interface ChannelMessageCommit {
   revision: number;
 }
 
+/** Profile-scoped last committed Channel message observed by the Human. */
+export interface ChannelReadPosition {
+  messageId: string;
+  revision: number;
+  readAt: string;
+}
+
 export interface ChannelReadOptions {
   before?: string;
   limit?: number;
@@ -56,6 +63,8 @@ export interface ChannelStore {
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
+  readPosition(id: string): ChannelReadPosition | undefined;
+  markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
@@ -73,6 +82,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   const channelDir = (id: string): string => join(rootDir, id);
   const recordFile = (id: string): string => join(channelDir(id), 'channel.json');
   const messagesFile = (id: string): string => join(channelDir(id), 'messages.ndjson');
+  const readPositionFile = (id: string): string => join(channelDir(id), 'read-position.json');
   const revisions = new Map<string, number>();
 
   const readValidMessages = (id: string): ChannelMessage[] => {
@@ -126,6 +136,32 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     return isChannelRecord(parsed, id) ? parsed : undefined;
   };
 
+  const readPosition = (id: string): ChannelReadPosition | undefined => {
+    if (read(id) === undefined) return undefined;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(readFileSync(readPositionFile(id), 'utf8'));
+    } catch (error) {
+      if (isMissing(error) || error instanceof SyntaxError) return undefined;
+      throw error;
+    }
+    if (typeof parsed !== 'object' || parsed === null) return undefined;
+    const position = parsed as Record<string, unknown>;
+    const messageId = position['messageId'];
+    const revision = position['revision'];
+    const readAt = position['readAt'];
+    if (
+      typeof messageId !== 'string' ||
+      typeof revision !== 'number' ||
+      !Number.isSafeInteger(revision) ||
+      revision < 1 ||
+      typeof readAt !== 'string'
+    )
+      return undefined;
+    if (readValidMessages(id)[revision - 1]?.id !== messageId) return undefined;
+    return { messageId, revision, readAt };
+  };
+
   const write = (record: ChannelRecord): void => {
     mkdirSync(channelDir(record.id), { recursive: true });
     atomicWriteFile(recordFile(record.id), `${JSON.stringify(record, null, 2)}\n`);
@@ -159,6 +195,24 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
   return {
     rootDir,
     get: read,
+    readPosition,
+    markRead(id, messageId) {
+      return enqueue(id, () => {
+        if (read(id) === undefined || messageId.trim().length === 0) return undefined;
+        const messages = readValidMessages(id);
+        const index = messages.findIndex((message) => message.id === messageId);
+        if (index < 0) return undefined;
+        const previous = readPosition(id);
+        if (previous !== undefined && previous.revision >= index + 1) return previous;
+        const position: ChannelReadPosition = {
+          messageId,
+          revision: index + 1,
+          readAt: now().toISOString(),
+        };
+        atomicWriteFile(readPositionFile(id), `${JSON.stringify(position, null, 2)}\n`);
+        return position;
+      });
+    },
     latestMessage(id) {
       if (!isValidChannelId(id)) return undefined;
       let text: string;

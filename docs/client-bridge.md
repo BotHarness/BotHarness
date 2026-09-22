@@ -114,7 +114,7 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 
 ## 8. 未决
 
-- 二十四个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 六个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet` 九个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 六个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson}`（ADR-0030）；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
+- 二十七个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 九个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet` 九个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 九个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson,read-position.json}`（ADR-0030）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。

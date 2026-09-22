@@ -217,6 +217,42 @@ describe('channel store', () => {
     expect(await store.appendMessage('dm-ada', message('nowhere'))).toBeUndefined();
   });
 
+  it('keeps one durable, monotonic read position per Channel across Host restarts', async () => {
+    const root = createRoot();
+    const store = createChannelStore({ rootDir: root, now: tickingNow() });
+    store.getOrCreateDm('ada', 'Ada');
+    const first = message('first');
+    const second = message('second');
+    const third = message('third');
+    for (const entry of [first, second, third]) await store.appendMessage('dm-ada', entry);
+
+    expect(store.readPosition('dm-ada')).toBeUndefined();
+    expect(await store.markRead('dm-ada', second.id)).toMatchObject({
+      messageId: second.id,
+      revision: 2,
+    });
+    const reopened = createChannelStore({ rootDir: root, now: tickingNow() });
+    expect(reopened.readPosition('dm-ada')?.messageId).toBe(second.id);
+    expect((await reopened.markRead('dm-ada', first.id))?.messageId).toBe(second.id);
+    expect((await reopened.markRead('dm-ada', third.id))?.revision).toBe(3);
+    expect(await reopened.markRead('dm-ada', 'missing')).toBeUndefined();
+    expect(await reopened.markRead('../escape', third.id)).toBeUndefined();
+    expect(reopened.readPosition('dm-ada')?.messageId).toBe(third.id);
+  });
+
+  it('ignores a corrupt or stale read position rather than opening at the wrong message', async () => {
+    const root = createRoot();
+    const store = createChannelStore({ rootDir: root });
+    store.getOrCreateDm('ada', 'Ada');
+    const entry = message('first');
+    await store.appendMessage('dm-ada', entry);
+    const path = join(root, 'dm-ada', 'read-position.json');
+    writeFileSync(path, 'not json', 'utf8');
+    expect(store.readPosition('dm-ada')).toBeUndefined();
+    writeFileSync(path, JSON.stringify({ messageId: 'missing', revision: 1, readAt: entry.at }));
+    expect(store.readPosition('dm-ada')).toBeUndefined();
+  });
+
   it('skips directories whose channel.json is corrupt or mismatched', () => {
     const root = createRoot();
     mkdirSync(join(root, 'stale'), { recursive: true });

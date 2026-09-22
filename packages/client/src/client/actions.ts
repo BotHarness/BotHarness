@@ -9,6 +9,8 @@ import {
   loadAssignments,
   loadBots,
   loadTimelinePage,
+  loadReadPosition,
+  markReadPosition,
   loadChannels,
   loadRoster,
   openDmChannel,
@@ -52,6 +54,7 @@ export interface BridgeActions {
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
   openAround(channelId: string, messageId: string): Promise<void>;
+  markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string): Promise<boolean>;
@@ -240,6 +243,22 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     }
   };
 
+  const loadOpeningTimeline = async (channelId: string) => {
+    const anchor = await loadReadPosition(call, channelId);
+    if (anchor !== undefined) {
+      try {
+        return {
+          ...(await loadTimelinePage(call, channelId, { direction: 'around', around: anchor })),
+          focusMessageId: anchor,
+        };
+      } catch (error) {
+        // The message may have disappeared between reading the marker and paging.
+        if (!(error instanceof BridgeCallError) || error.code !== 'invalid-input') throw error;
+      }
+    }
+    return { ...(await loadTimelinePage(call, channelId)), focusMessageId: undefined };
+  };
+
   const openChannelById = async (channelId: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
     const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
@@ -254,11 +273,12 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       messages: [],
       revision: 0,
       timeline: initialTimeline(),
+      focusMessageId: undefined,
       error: undefined,
       sending: false,
     });
     try {
-      const { page, revision } = await loadTimelinePage(call, channelId);
+      const { page, revision, focusMessageId } = await loadOpeningTimeline(channelId);
       const messages = page.entries;
       if (currentSelection() !== active) return;
       clientStore.setConversation({
@@ -267,6 +287,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         messages,
         revision,
         timeline: { ...initialTimeline(), ...page },
+        focusMessageId,
         error: undefined,
         sending: false,
       });
@@ -309,19 +330,25 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         messages: [],
         revision: 0,
         timeline: initialTimeline(),
+        focusMessageId: undefined,
         error: undefined,
         sending: false,
       });
       try {
         const channel = await openDmChannel(call, slug, bot.displayName);
-        const { page, revision } = await loadTimelinePage(call, channel.id);
+        const { page, revision, focusMessageId } = await loadOpeningTimeline(channel.id);
         const messages = page.entries;
         if (currentSelection() !== active) return;
-        const latestMessage = messages.at(-1);
+        const listedChannel = clientStore
+          .getSnapshot()
+          .channels.find((candidate) => candidate.id === channel.id);
+        const latestMessage = page.hasNewer ? undefined : messages.at(-1);
         const projectedChannel =
-          latestMessage === undefined
-            ? channel
-            : { ...channel, updatedAt: latestMessage.at, latestMessage };
+          listedChannel?.latestMessage !== undefined
+            ? listedChannel
+            : latestMessage === undefined
+              ? (listedChannel ?? channel)
+              : { ...(listedChannel ?? channel), updatedAt: latestMessage.at, latestMessage };
         clientStore.upsertChannel(projectedChannel);
         clientStore.setConversation({
           status: 'ready',
@@ -329,6 +356,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           messages,
           revision,
           timeline: { ...initialTimeline(), ...page },
+          focusMessageId,
           error: undefined,
           sending: false,
         });
@@ -344,6 +372,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     },
     openChannel(channelId) {
       return openChannelById(channelId);
+    },
+    markRead(channelId, messageId) {
+      return markReadPosition(call, channelId, messageId);
     },
     async loadOlder(channelId) {
       const snapshot = clientStore.getSnapshot();

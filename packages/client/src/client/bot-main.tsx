@@ -284,6 +284,7 @@ function ConversationView({
   } | null>(null);
   const openedChannel = useRef<string | undefined>(undefined);
   const lastRevision = useRef<number | undefined>(undefined);
+  const readMarkTimer = useRef<number | undefined>(undefined);
   const [unseen, setUnseen] = useState(0);
   const [messageMenu, setMessageMenu] = useState<MessageMenuRequest | undefined>();
   const conversation = state.conversation;
@@ -344,6 +345,36 @@ function ConversationView({
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
+  const scheduleReadMark = (): void => {
+    const element = scrollRef.current;
+    if (channelId === undefined || element === null || conversation.status !== 'ready') return;
+    const committedIds = new Set(messages.map((message) => message.id));
+    const viewport = element.getBoundingClientRect();
+    const visible = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]'))
+      .filter((candidate) => {
+        const id = candidate.dataset['messageId'];
+        if (id === undefined || !committedIds.has(id)) return false;
+        const bounds = candidate.getBoundingClientRect();
+        return bounds.top < viewport.bottom && bounds.bottom > viewport.top;
+      })
+      .at(-1);
+    const messageId = visible?.dataset['messageId'];
+    if (messageId === undefined) return;
+    window.clearTimeout(readMarkTimer.current);
+    readMarkTimer.current = window.setTimeout(() => {
+      if (currentChannel.current !== channelId) return;
+      void actions.markRead(channelId, messageId).catch((error: unknown) => {
+        console.warn('botharness: channel read position failed', error);
+      });
+    }, 250);
+  };
+
+  useEffect(
+    () => () => {
+      window.clearTimeout(readMarkTimer.current);
+    },
+    [channelId],
+  );
   const currentChannel = useRef(channelId);
 
   useEffect(() => {
@@ -386,6 +417,8 @@ function ConversationView({
   useClientLayoutEffect(() => {
     const element = scrollRef.current;
     if (element === null || conversation.status !== 'ready') return;
+    if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer)
+      followingLatest.current = false;
     const anchor = prependAnchor.current;
     if (anchor !== null && messages[0]?.id !== anchor.firstId) {
       const retained = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]')).find(
@@ -438,12 +471,19 @@ function ConversationView({
     };
   }, [channelId, conversation.focusMessageId, messages]);
 
+  useEffect(() => {
+    if (conversation.status !== 'ready') return;
+    const frame = window.requestAnimationFrame(scheduleReadMark);
+    return () => window.cancelAnimationFrame(frame);
+  }, [channelId, conversation.status, conversation.focusMessageId, messages]);
+
   const onTimelineScroll = (): void => {
     const element = scrollRef.current;
     if (element === null) return;
     const atBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 80;
     followingLatest.current = atBottom;
     if (atBottom) setUnseen(0);
+    scheduleReadMark();
     if (element.scrollTop <= 48) loadOlderAtTop();
   };
 

@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
-import type { ChannelStore } from '../channels/store.js';
+import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
   CreatePersonaBotResult,
@@ -78,6 +78,8 @@ export interface BridgeMethods {
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
+  channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
+  channelMarkRead(payload: unknown): Promise<BridgeResult<{ position: ChannelReadPosition }>>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -511,6 +513,24 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const page = deps.channels.readTimeline(channelId, parsed.data);
       if (page === undefined) return invalidInput('invalid or expired timeline anchor');
       return { ok: true, value: { page, revision: deps.channels.revision(channelId) } };
+    },
+    channelReadPosition(payload) {
+      const channelId = asNonBlank(asObject(payload), 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      if (deps.channels.get(channelId) === undefined) return unknownChannel(channelId);
+      const position = deps.channels.readPosition(channelId);
+      return { ok: true, value: position === undefined ? {} : { position } };
+    },
+    async channelMarkRead(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (channelId === undefined || messageId === undefined)
+        return invalidInput('channelId and messageId are required');
+      if (deps.channels.get(channelId) === undefined) return unknownChannel(channelId);
+      const position = await deps.channels.markRead(channelId, messageId);
+      if (position === undefined) return invalidInput('message does not belong to channel');
+      return { ok: true, value: { position } };
     },
     async channelSend(payload) {
       const source = asObject(payload);

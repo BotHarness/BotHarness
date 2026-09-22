@@ -14,7 +14,7 @@ BOT mode 的折叠 rail 复用这份 Channel 排序读模型：置顶项在分�
 
 Hidden Channel 是 application-defined 的可逆 roster presentation state：它会从展开列表、pin grid、搜索与折叠 rail 中消失，但不会改动 Channel、消息、PersonaBot、Memory 或原 placement。破坏性删除仍受 ADR-0037 的 dependency report 与独立确认约束（#138）。
 
-当前 Channel Chat 的实时显示遵循 ADR-0054：正式消息先写入当前持久化权威，再以该 Channel 的单调 revision 发出进程内通知。#143 的时间线读取遵循 ADR-0055：Host 的 `channelTimeline` 用不透明游标提供 latest / older / newer / around 窗口，Client 仅保留一段连续的按提交顺序排列的可见消息；当前 NDJSON 的游标解释与未来 #46 的 SQLite 实现都留在 Host。打开 Channel 先取最新页，向上补页维持视口锚点，定位旧消息可前后补页并高亮；用户离开底部后，新消息只更新未读提示，不强制滚到底，也不把实时消息拼接进尚有后续页的旧窗口。旧 `channelMessages` 端点暂作兼容。已选 Channel 通过经过 DSH 认证的 `/api/botharness/stream` SSE 接收已提交消息；重连可回放、缺口则从 Host 修复。同一连接还传送 Orchestrator 显式 `channel_send` 工具参数产生的进程内 `channel/draft` 预览；草稿没有 Channel revision，不从历史回放，提交或放弃时消失。Orchestrator 普通 final 与 Assignment 输出不等于 Channel 消息；#46 迁移后由数据库事务提交替代当前 NDJSON append 作为发布边界。
+当前 Channel Chat 的实时显示遵循 ADR-0054：正式消息先写入当前持久化权威，再以该 Channel 的单调 revision 发出进程内通知。#143 的时间线读取遵循 ADR-0055：Host 的 `channelTimeline` 用不透明游标提供 latest / older / newer / around 窗口，Client 仅保留一段连续的按提交顺序排列的可见消息；当前 NDJSON 的游标解释与未来 #46 的 SQLite 实现都留在 Host。首次打开 Channel 取最新页；有上次已读锚点时，重开会在锚点附近分页并定位；向上补页维持视口锚点，定位旧消息可前后补页并高亮；用户离开底部后，新消息只更新未读提示，不强制滚到底，也不把实时消息拼接进尚有后续页的旧窗口。旧 `channelMessages` 端点暂作兼容。已选 Channel 通过经过 DSH 认证的 `/api/botharness/stream` SSE 接收已提交消息；重连可回放、缺口则从 Host 修复。同一连接还传送 Orchestrator 显式 `channel_send` 工具参数产生的进程内 `channel/draft` 预览；草稿没有 Channel revision，不从历史回放，提交或放弃时消失。Orchestrator 普通 final 与 Assignment 输出不等于 Channel 消息；#46 迁移后由数据库事务提交替代当前 NDJSON append 作为发布边界。
 
 ## 1 · 系统上下文
 
