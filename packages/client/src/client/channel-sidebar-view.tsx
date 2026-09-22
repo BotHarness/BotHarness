@@ -222,7 +222,7 @@ export function ChannelSidebar({
       id="bh-channel-sidebar"
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
       role="complementary"
-      aria-label="Channel sidebar"
+      aria-label={t('sidebar.region')}
       style={
         controller.mode === 'overlay'
           ? undefined

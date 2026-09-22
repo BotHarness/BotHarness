@@ -75,7 +75,7 @@ function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElemen
               <dd>{selected.latestReport?.summary ?? t('assignment.detail.unreported')}</dd>
             </div>
             <div>
-              <dt>Assignment Session</dt>
+              <dt>{t('assignment.detail.session')}</dt>
               <dd className="bh-assignment-id" title={selected.sessionId}>
                 {selected.sessionId}
               </dd>
