@@ -220,7 +220,31 @@ async function main() {
   await waitForState(base, cookie, 'running', 300_000);
   check('reaches-running', true, '');
 
-  const browsers = countBrowsers(options.container);
+  // The fresh-create path seeds the desktop shortcut but not the panel
+  // defaults/autostart entry; those run on the next stopped → start cycle.
+  // One cycle here matches the Human's steady state before hashing.
+  const cycledStop = await postJson(base, cookie, '/api/computer/stop', { authorize: true });
+  check(
+    'cycle-stop-accepted',
+    cycledStop.status === 200 && cycledStop.body?.ok === true,
+    `HTTP ${cycledStop.status}`,
+  );
+  await waitForState(base, cookie, 'stopped', 120_000);
+  const cycledStart = await postJson(base, cookie, '/api/computer/start', { authorize: true });
+  check(
+    'cycle-start-accepted',
+    cycledStart.status === 200 && cycledStart.body?.ok === true,
+    `HTTP ${cycledStart.status}`,
+  );
+  await waitForState(base, cookie, 'running', 300_000);
+
+  let browsers = 0;
+  const browserDeadline = Date.now() + 90_000;
+  while (Date.now() < browserDeadline) {
+    browsers = countBrowsers(options.container);
+    if (browsers > 0) break;
+    await new Promise((resolve) => setTimeout(resolve, 3_000));
+  }
   check('browser-open-before-export', browsers > 0, `browser processes=${browsers}`);
 
   seedMarkers(options.container);
