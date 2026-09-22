@@ -80,7 +80,8 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 ## 4. 刷新与变更模型
 
 - **分页与阅读位置（#143）**：打开 Channel 取最新 50 条；靠近顶部加载更早页，按原有消息的屏幕位置校准视口（同 sender 气泡组跨页重排时也不跳动）。围绕消息 ID 可打开前后窗口；离开末尾时保留连续的历史窗口，只提示有新消息，不把 SSE 尾部跨缺口拼接进去；加载失败保留原窗口并可重试。
-- **Channel 消息（#141）**：`channelTimeline` 页返回 `revision`；已选 Channel 建立一个经 DSH 认证的 `GET /api/botharness/stream?channelId=…&after=revision` SSE 流。Host 仅在消息持久提交后发带递增 revision 的 `channel/message`，重连从权威日志回放、缺口则从 Host 修复连续窗口；Human 本地发送立即回显。Orchestrator 的显式 `channel_send` 工具参数流可产生无 revision 的进程内 `channel/draft`，只预览正在生成的 DM 气泡；提交后由正式消息替换，失败或放弃则移除。Assignment 输出和普通 assistant final 不进入 Channel。
+- **Channel 消息（#141）**：`channelTimeline` 页返回 durable `revision`；已选 Channel 建立一个经 DSH 认证的 `GET /api/botharness/stream?channelId=…&after=revision` SSE 流。Host 仅在消息持久提交后发带递增 revision 的 `channel/message`，重连从权威日志回放、缺口则从 Host 修复连续窗口；Human 本地发送立即回显。Assignment 输出和普通 assistant final 不进入 Channel。
+- **Bot 草稿流（#144）**：Host 全局观察 Orchestrator `agent/assistant-stream`，以 DSH `BlockAssembler` 从显式 `channel_send` 参数提取正文。`channel/draft`、`channel/draft-settled`、`channel/draft-abandoned` 带 attempt ID 与进程内单调草稿 revision；草稿 revision 不等于 durable Channel revision，也不是 SSE replay ID。每次连接先发完整草稿 baseline；Client 在断档时丢弃草稿并重读 committed，按 animation frame 合并预览渲染。草稿不落盘、不进入 Inbox；只有提交后的 `channel/message` 可供不可逆消费者使用。
 - **其他读模型**：create/update/pause/resume 后仍主动刷新；现有名册低频轮询与六态 Activity 实时投影不由 Channel SSE 替代。Host 进程内 `states.on(...)` 不能跨浏览器直接使用，上游 Remote 事件白名单也不可由第三方扩展。
 - **路由边界**：SSE 使用 Connection Fetch 注册完整 `/api/botharness/stream` 路径，而不是占用 API gateway 的 `/api` RPC interceptor；普通读写命令继续使用 Typert bridge。详见 ADR-0054。
 - 客户端仍以「读模型可能过期」为前提渲染：加载态、错误态、空态都是一等 UI。

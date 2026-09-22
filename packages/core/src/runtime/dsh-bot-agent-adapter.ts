@@ -498,6 +498,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               body: args.body,
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
             });
+            this.#drafts.settle(
+              run.sessionId,
+              args.channel_id ?? run.inboundChannelId,
+              message.body,
+            );
             return `Sent Channel message ${message.id}.`;
           },
         }),

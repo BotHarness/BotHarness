@@ -317,16 +317,19 @@ describe('DSH Bot Agent adapter', () => {
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
         },
       });
+    let frameIndex = 0;
+    const callIndexes = new Map<string, number>();
     const stream = (callId: string, argumentsDelta: string) => {
+      if (!callIndexes.has(callId)) callIndexes.set(callId, callIndexes.size);
       adapter.acceptAssistantStream('orchestrator-ada', {
         type: 'chunk',
         attemptId: 'attempt-1',
         revision: 1,
-        index: 0,
+        index: frameIndex++,
         time: 1,
         chunk: {
           type: 'tool-call-delta',
-          index: 0,
+          index: callIndexes.get(callId),
           id: callId,
           name: 'channel_send',
           argumentsDelta,
@@ -345,6 +348,8 @@ describe('DSH Bot Agent adapter', () => {
     expect(drafts).toEqual(['a', 'ab', 'abc']);
 
     const second = run(true);
+    frameIndex = 0;
+    callIndexes.clear();
     stream('next', '{"body":"next"}');
     await second;
     expect(reads).toEqual(['dm-test', 'outside', 'dm-test']);

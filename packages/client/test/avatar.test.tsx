@@ -20,6 +20,8 @@ const SENDING_CONVERSATION: ConversationState = {
   channel: undefined,
   messages: [],
   drafts: [],
+  draftRevision: 0,
+  draftNotice: undefined,
   revision: 0,
   timeline: {
     olderCursor: null,

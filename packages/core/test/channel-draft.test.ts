@@ -3,14 +3,19 @@ import { describe, expect, it } from 'vitest';
 
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../src/channels/draft.js';
 
-function delta(argumentsDelta: string, name = 'channel_send'): AssistantStreamFrame {
+function delta(
+  argumentsDelta: string,
+  name = 'channel_send',
+  index = 0,
+  blockIndex = 0,
+): AssistantStreamFrame {
   return {
     type: 'chunk',
     attemptId: 'attempt-1',
     revision: 1,
-    index: 0,
+    index,
     time: 1,
-    chunk: { type: 'tool-call-delta', index: 0, id: 'call-1', name, argumentsDelta },
+    chunk: { type: 'tool-call-delta', index: blockIndex, id: 'call-1', name, argumentsDelta },
   } as AssistantStreamFrame;
 }
 
@@ -30,8 +35,8 @@ describe('Orchestrator Channel draft tracker', () => {
     const { drafts, events } = tracker();
     drafts.accept('assignment-1', delta('{"body":"wrong"}'));
     drafts.accept('orchestrator-ada', delta('{"purpose":"work"}', 'create_assignment'));
-    for (const fragment of ['{"body":"你', '好', '，', '世', '界"}']) {
-      drafts.accept('orchestrator-ada', delta(fragment));
+    for (const [index, fragment] of ['{"body":"你', '好', '，', '世', '界"}'].entries()) {
+      drafts.accept('orchestrator-ada', delta(fragment, 'channel_send', index + 1, 1));
     }
     expect(
       events.filter((event) => event.type === 'update').map((event) => event.draft.body),
@@ -41,13 +46,13 @@ describe('Orchestrator Channel draft tracker', () => {
       draft: { channelId: 'dm-ada', botSlug: 'ada' },
     });
     drafts.end('orchestrator-ada');
-    expect(events.at(-1)).toMatchObject({ type: 'end', channelId: 'dm-ada' });
+    expect(events.at(-1)).toMatchObject({ type: 'abandoned', channelId: 'dm-ada' });
   });
 
   it('decodes incomplete JSON escapes and abandons the preview without committing', () => {
     const { drafts, events } = tracker();
-    for (const fragment of ['{"body":"第', '一\\', 'n行', '"}']) {
-      drafts.accept('orchestrator-ada', delta(fragment));
+    for (const [index, fragment] of ['{"body":"第', '一\\', 'n行', '"}'].entries()) {
+      drafts.accept('orchestrator-ada', delta(fragment, 'channel_send', index));
     }
     expect(events.filter((event) => event.type === 'update').at(-1)).toMatchObject({
       draft: { body: '第一\n行' },
@@ -59,7 +64,7 @@ describe('Orchestrator Channel draft tracker', () => {
       index: 4,
       outcome: { kind: 'abandoned' },
     } as AssistantStreamFrame);
-    expect(events.at(-1)?.type).toBe('end');
+    expect(events.at(-1)?.type).toBe('abandoned');
   });
 
   it('moves a draft only to a joined explicit Channel', () => {
@@ -74,5 +79,59 @@ describe('Orchestrator Channel draft tracker', () => {
     });
     drafts.accept('orchestrator-ada', delta('{"body":"private","channel_id":"group-team"}'));
     expect(events.filter((event) => event.type === 'update')).toHaveLength(1);
+  });
+
+  it('does not project a turn that never calls channel_send', () => {
+    const { drafts, events } = tracker();
+    drafts.accept('orchestrator-ada', delta('{"purpose":"work"}', 'create_assignment'));
+    drafts.end('orchestrator-ada');
+    expect(events).toEqual([]);
+  });
+
+  it('abandons the inbound preview before moving to an explicit joined Channel', () => {
+    const { drafts, events } = tracker();
+    drafts.accept('orchestrator-ada', delta('{"body":"先'));
+    drafts.accept('orchestrator-ada', delta('发","channel_id":"group-team"}', 'channel_send', 1));
+    expect(events).toMatchObject([
+      { type: 'update', draft: { channelId: 'dm-ada', body: '先' } },
+      { type: 'abandoned', channelId: 'dm-ada', reason: 'retargeted' },
+      { type: 'update', draft: { channelId: 'group-team', body: '先发' } },
+    ]);
+    drafts.settle('orchestrator-ada', 'group-team', '先发');
+    drafts.end('orchestrator-ada');
+    expect(events.at(-1)).toMatchObject({ type: 'settled', channelId: 'group-team' });
+  });
+
+  it('discards a gapped attempt and never turns it into a durable message', () => {
+    const { drafts, events } = tracker();
+    drafts.accept('orchestrator-ada', delta('{"body":"先'));
+    drafts.accept('orchestrator-ada', delta('发', 'channel_send', 2));
+    drafts.accept('orchestrator-ada', delta('完"}', 'channel_send', 3));
+    expect(events).toMatchObject([
+      { type: 'update', draft: { body: '先' } },
+      { type: 'abandoned', reason: 'interrupted' },
+    ]);
+  });
+
+  it('settles the sole preview when the final tool body corrects its partial text', () => {
+    const { drafts, events } = tracker();
+    drafts.accept('orchestrator-ada', delta('{"body":"partial'));
+    drafts.settle('orchestrator-ada', 'dm-ada', 'corrected');
+    drafts.end('orchestrator-ada');
+    expect(events.map((event) => event.type)).toEqual(['update', 'settled']);
+  });
+
+  it('abandons an old attempt before accepting a replacement attempt', () => {
+    const { drafts, events } = tracker();
+    drafts.accept('orchestrator-ada', delta('{"body":"旧'));
+    drafts.accept('orchestrator-ada', {
+      ...delta('{"body":"新'),
+      attemptId: 'attempt-2',
+    } as AssistantStreamFrame);
+    expect(events).toMatchObject([
+      { type: 'update', draft: { attemptId: 'attempt-1', body: '旧' } },
+      { type: 'abandoned', attemptId: 'attempt-1', reason: 'interrupted' },
+      { type: 'update', draft: { attemptId: 'attempt-2', body: '新' } },
+    ]);
   });
 });
