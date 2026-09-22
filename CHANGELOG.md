@@ -13,6 +13,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Added the Computer group to the Bot settings section: its export directory is chosen through the Host's directory picker, the idle stop time is edited in place, and export/import run from the same page with an explicit authorization step; these settings are runtime settings, so they apply without restarting DSH ([#168](https://github.com/BotHarness/BotHarness/issues/168)).
 
+- Added a paged Channel timeline with grouped message bubbles, one Bot avatar and one sender/time per consecutive run (Human messages have no avatar), contextual Copy and Locate actions, scroll-anchored older-history loading, and a jump to newer messages ([#143](https://github.com/BotHarness/BotHarness/issues/143), [ADR-0055](docs/adr/0055-channel-timeline-uses-opaque-cursors.md)).
 - Added an optional Computer plugin: a profile-scoped shared Linux desktop that runs locally in Docker and appears in the DSH Web Client as an authenticated VNC panel, with explicit authorization for start and stop, live image-pull progress, idle stop, and one-file export/import of the Computer's persistent store; PersonaBot binding and a Settings-based directory picker remain follow-up slices ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 - Added the Channel sidebar shell: Bot mode's right region now renders ordered, collapsible entries (group members, DM Assignments) registered through one client-side seam ([#156](https://github.com/BotHarness/BotHarness/issues/156)).
 
@@ -51,6 +52,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed the newly created PersonaBot DM so its first Human message can be sent immediately without reselecting the Bot or refreshing the page ([#186](https://github.com/BotHarness/BotHarness/issues/186)).
 - PersonaBot DM now previews a reply as the Orchestrator streams an explicit `channel_send` call, then replaces it with the committed Channel message; other committed messages appear without refresh, and reconnects replay missed history ([#141](https://github.com/BotHarness/BotHarness/issues/141), [ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)).
 - A running turn no longer reports `needs-repair` while a side effect is in flight; an interrupted attempt is reconciled at boot (side effect started → reconciliation, otherwise retryable) ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 

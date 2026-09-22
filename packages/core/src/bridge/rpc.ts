@@ -13,6 +13,7 @@ import type {
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
+import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { SessionSummary } from '../sessions/source.js';
 
@@ -161,6 +162,28 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.channelMessages({ channelId, before, limit }));
   }
 
+  channelTimeline(
+    channelId: string,
+    direction?: TimelineDirection,
+    cursor?: string,
+    around?: string,
+    limit?: number,
+    olderLimit?: number,
+    newerLimit?: number,
+  ): { page: ChannelTimelinePage; revision: number } {
+    return unwrap(
+      this.methods.channelTimeline({
+        channelId,
+        direction,
+        cursor,
+        around,
+        limit,
+        olderLimit,
+        newerLimit,
+      }),
+    );
+  }
+
   async channelSend(channelId: string, body: string): Promise<{ message: ChannelMessage }> {
     return unwrap(await this.methods.channelSend({ channelId, body }));
   }
@@ -230,6 +253,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelCreate',
   'channelRename',
   'channelMessages',
+  'channelTimeline',
   'channelSend',
   'assignments',
   'assignment',

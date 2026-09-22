@@ -13,9 +13,15 @@ import {
   type ChannelMessage,
   type ChannelRecord,
 } from './channel.js';
+import {
+  DEFAULT_MESSAGE_PAGE,
+  MAX_MESSAGE_PAGE,
+  pageChannelTimeline,
+  type ChannelTimelinePage,
+  type ChannelTimelineRequest,
+} from './timeline.js';
 
-export const DEFAULT_MESSAGE_PAGE = 50;
-export const MAX_MESSAGE_PAGE = 200;
+export { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE } from './timeline.js';
 
 export interface ChannelStoreOptions {
   rootDir: string;
@@ -52,6 +58,7 @@ export interface ChannelStore {
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
+  readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
 }
@@ -263,6 +270,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         end = index;
       }
       return messages.slice(Math.max(0, end - limit), end).reverse();
+    },
+    readTimeline(id, request) {
+      return pageChannelTimeline(id, readValidMessages(id), request);
     },
     revision: revisionOf,
     messagesAfter(id, revision) {

@@ -121,6 +121,34 @@ describe('Channel live Client', () => {
     dispose();
   });
 
+  it('advances the revision but does not splice live messages into an older window', () => {
+    const { store, sources, dispose } = setup();
+    store.setConversation({
+      messages: [
+        {
+          id: 'old',
+          at: '2026-09-21T00:00:00.000Z',
+          author: { kind: 'human' },
+          body: 'old',
+        },
+      ],
+      timeline: {
+        olderCursor: 'c-old',
+        newerCursor: 'c-old',
+        hasOlder: false,
+        hasNewer: true,
+        loadingOlder: false,
+        olderError: undefined,
+        loadingNewer: false,
+        newerError: undefined,
+      },
+    });
+    sources[0]?.emit(1, 'new');
+    expect(store.getSnapshot().conversation.messages.map((item) => item.id)).toEqual(['old']);
+    expect(store.getSnapshot().conversation.revision).toBe(1);
+    expect(store.getSnapshot().channels[0]?.latestMessage?.id).toBe('new');
+    dispose();
+  });
   it('re-snapshots on a revision gap and reopens from the new cursor', async () => {
     const store = createStore();
     const sources: FakeSource[] = [];

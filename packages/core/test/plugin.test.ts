@@ -234,6 +234,7 @@ describe('plugin entry', () => {
       'channelCreate',
       'channelRename',
       'channelMessages',
+      'channelTimeline',
       'channelSend',
       'assignments',
       'assignment',

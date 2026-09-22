@@ -10,6 +10,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconAgentPresetOutline16: stub,
     IconChevronDownOutline14: stub,
     IconCloseFill14: stub,
+    IconCopyOutline16: stub,
     IconCloseOutline16: stub,
     IconEllipsisOutline16: stub,
     IconFolderOpenOutline16: stub,
@@ -196,5 +197,57 @@ describe('Bot main Assignment pane', () => {
     expect(markup).toContain('bh-bubble-pending');
     expect(markup).toContain('发送中');
     expect(markup).toContain('hello');
+    expect(markup).not.toContain('bh-message-group-avatar');
+  });
+  it('renders adjacent Bot messages as one group with a bottom avatar and one timestamp', () => {
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+    };
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:01:00.000Z',
+    };
+    store.setRoster([bot], [channel]);
+    store.select({ kind: 'bot', slug: 'ada' });
+    store.setConversation({
+      status: 'ready',
+      channel,
+      sending: false,
+      focusMessageId: 'b1',
+      messages: [
+        {
+          id: 'b1',
+          at: '2026-09-21T00:01:00.000Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: 'first',
+        },
+        {
+          id: 'b2',
+          at: '2026-09-21T00:01:05.000Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: 'second',
+        },
+      ],
+    });
+
+    const markup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
+    expect(markup).toContain('data-group-size="2"');
+    expect(markup).toContain('data-group-position="first"');
+    expect(markup).toContain('data-group-position="last"');
+    expect(markup.match(/class="bh-message-group-avatar"/g)).toHaveLength(1);
+    expect(markup.match(/class="bh-bubble-time"/g)).toHaveLength(1);
+    expect(markup).toContain('bh-bubble-focused');
   });
 });

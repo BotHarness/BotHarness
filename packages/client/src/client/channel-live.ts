@@ -151,10 +151,9 @@ export function mountChannelLive(
           author.kind === 'bot'
             ? latest.conversation.drafts.filter((draft) => draft.botSlug !== author.slug)
             : latest.conversation.drafts,
-        messages: [
-          ...latest.conversation.messages.filter((item) => item.id !== message.id),
-          message,
-        ],
+        messages: latest.conversation.timeline.hasNewer
+          ? latest.conversation.messages
+          : [...latest.conversation.messages.filter((item) => item.id !== message.id), message],
       });
     });
     next.addEventListener(DRAFT_EVENT, (event) => {

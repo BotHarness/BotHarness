@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelStore } from '../channels/store.js';
+import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
   CreatePersonaBotResult,
   PersonaBotPatch,
@@ -76,6 +77,7 @@ export interface BridgeMethods {
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
+  channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -489,6 +491,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(limit === undefined ? {} : { limit }),
       });
       return { ok: true, value: { messages, revision: deps.channels.revision(channelId) } };
+    },
+    channelTimeline(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      if (deps.channels.get(channelId) === undefined) return unknownChannel(channelId);
+      const parsed = z
+        .object({
+          direction: z.enum(['older', 'newer', 'around']).optional(),
+          cursor: z.string().min(1).max(2048).optional(),
+          around: z.string().min(1).optional(),
+          limit: z.number().int().min(1).max(200).optional(),
+          olderLimit: z.number().int().min(0).max(200).optional(),
+          newerLimit: z.number().int().min(0).max(200).optional(),
+        })
+        .safeParse(source);
+      if (!parsed.success) return invalidInput('invalid channelTimeline payload');
+      const page = deps.channels.readTimeline(channelId, parsed.data);
+      if (page === undefined) return invalidInput('invalid or expired timeline anchor');
+      return { ok: true, value: { page, revision: deps.channels.revision(channelId) } };
     },
     async channelSend(payload) {
       const source = asObject(payload);

@@ -14,3 +14,5 @@ For a live PersonaBot reply, the Host observes DSH's process-local `agent/assist
 The SSE route is registered through DSH Connection Fetch with the **full** `/api/…` pathname; it does not intercept the API gateway's single `/api` RPC slot. This keeps unary commands and reads on the existing Typert bridge. Channel authorization remains the current authenticated local-profile boundary; per-actor Channel access controls follow the Messaging authority in later slices.
 
 When #46 moves Channel facts to the operational database, the transaction commit replaces the NDJSON append as the publication boundary, and the revision/replay contract must follow the new authority without dual writes. Presence, activity, and unread projections are not `channel/message` frames.
+
+Update (2026-09-22, #143): `channelTimeline` is now the Client's initial and recovery read model, replacing the bounded `channelMessages` snapshot described above; the older endpoint remains for compatibility. ADR-0055 records the opaque cursor and visible-window policy. The commit-before-publish SSE boundary in this ADR is unchanged.
