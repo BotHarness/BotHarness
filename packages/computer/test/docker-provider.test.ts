@@ -425,7 +425,7 @@ describe('Docker computer provider', () => {
     await expect(provider.start()).resolves.toBeUndefined();
   });
 
-  it('scales stock desktop panels before starting a stopped container', async () => {
+  it('seeds desktop defaults before starting a stopped container', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
@@ -440,12 +440,13 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
     const seed = calls.find((argv) => argv.includes('--rm') && argv.join(' ').includes('xfce4-panel.xml'));
-    expect(seed?.join(' ')).toContain('value="40"');
-    expect(seed?.join(' ')).toContain('value="64"');
+    expect(seed?.join(' ')).toContain('value="52"');
+    expect(seed?.join(' ')).toContain('value="96"');
+    expect(seed?.join(' ')).toContain('autostart/chromium.desktop');
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
   });
 
-  it('still starts when panel scaling cannot be prepared', async () => {
+  it('still starts when desktop defaults cannot be prepared', async () => {
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
         if (argv[1] === 'info') return ok('27.0.0');
