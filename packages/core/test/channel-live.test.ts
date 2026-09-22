@@ -40,6 +40,20 @@ describe('Channel post-commit stream', () => {
     expect(CHANNEL_STREAM_PATH).toBe('/api/botharness/stream');
   });
 
+  it('broadcasts a roster invalidation only after the Host publishes a committed change', async () => {
+    const hub = createChannelLiveHub(createChannelStore({ rootDir: root() }));
+    hubs.push(hub);
+    const response = hub.open(new Request('http://localhost/api/botharness/stream?scope=roster'));
+    expect(response.status).toBe(200);
+    const reader = response.body?.getReader();
+    expect(new TextDecoder().decode((await reader?.read())?.value)).toContain('retry: 1500');
+    hub.publishRosterCommitted();
+    expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
+      'event: roster/changed',
+    );
+    await reader?.cancel();
+  });
+
   it('publishes only durable rows and replays from the snapshot cursor', async () => {
     const directory = root();
     const observed: ChannelMessageCommit[] = [];

@@ -165,6 +165,7 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 25px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*padding-bottom: 48px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*border-radius: 20px/);
+    expect(source).toMatch(/\.bh-composer-with-footer \{[^}]*padding: 10px 54px 48px 44px/);
     expect(source).toMatch(
       /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
     );
@@ -180,9 +181,9 @@ describe('client styles', () => {
       /\.bh-composer-body \{[^}]*height: var\(--bh-composer-body-height\)[^}]*transition: height 220ms/,
     );
     expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
-    expect(source).toMatch(
-      /\.bh-composer-expanded \.bh-composer-footer,\s*\.bh-composer-replying \.bh-composer-footer \{[^}]*bottom: 8px/,
-    );
+    expect(source).toMatch(/\.bh-composer-with-footer \.bh-composer-add-file \{[^}]*bottom: 10px/);
+    expect(source).toMatch(/\.bh-composer-with-footer \.bh-composer-footer \{[^}]*bottom: 8px/);
+    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-add-file");
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-body");
   });

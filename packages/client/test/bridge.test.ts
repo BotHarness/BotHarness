@@ -833,7 +833,13 @@ describe('bridge actions', () => {
     await actions.openBot('ada');
 
     const sending = actions.send('answer', 'm1');
-    expect(requested).toEqual({ channelId: 'dm-ada', body: 'answer', replyTo: 'm1' });
+    expect(requested).toMatchObject({
+      channelId: 'dm-ada',
+      body: 'answer',
+      replyTo: 'm1',
+      messageId: expect.stringMatching(/^human-/),
+    });
+
     expect(clientStore.getSnapshot().conversation.messages.at(-1)).toMatchObject({
       body: 'answer',
       pending: true,
@@ -858,7 +864,7 @@ describe('bridge actions', () => {
     expect(clientStore.getSnapshot().conversation.messages.at(-1)?.pending).toBeUndefined();
   });
 
-  it('removes the local echo and reports the failure when a send is rejected', async () => {
+  it('keeps a failed local echo for explicit draft restoration when a send is rejected', async () => {
     const { clientStore, actions } = setup({
       channelSend: () => {
         throw new Error('PersonaBot is archived: ada');
@@ -867,12 +873,43 @@ describe('bridge actions', () => {
     await actions.load();
     await actions.openBot('ada');
 
-    await expect(actions.send('hello')).resolves.toBe(false);
+    const attachment = {
+      hash: 'sha256:abc',
+      name: 'photo.png',
+      mime: 'image/png',
+      size: 123,
+    };
+    await expect(actions.send('hello', undefined, [attachment])).resolves.toBe(false);
 
     const state = clientStore.getSnapshot();
-    expect(state.conversation.messages.map((message) => message.body)).toEqual(['older', 'newer']);
+    expect(state.conversation.messages.map((message) => message.body)).toEqual([
+      'older',
+      'newer',
+      'hello',
+    ]);
+    expect(state.conversation.messages.at(-1)).toMatchObject({
+      id: expect.stringMatching(/^human-/),
+      pending: false,
+      failed: 'PersonaBot is archived: ada',
+    });
     expect(state.conversation.sending).toBe(false);
     expect(state.conversation.error).toBe('PersonaBot is archived: ada');
+    expect(state.conversation.messages.at(-1)?.attachments).toEqual([attachment]);
+    await actions.openChannel('group-team');
+    await actions.openBot('ada');
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.failed).toBe(
+      'PersonaBot is archived: ada',
+    );
+    expect(clientStore.getSnapshot().conversation.messages.at(-1)?.attachments).toEqual([
+      attachment,
+    ]);
+    expect(actions.dismissFailedMessage('dm-ada', state.conversation.messages.at(-1)!.id)).toBe(
+      true,
+    );
+    expect(clientStore.getSnapshot().conversation.messages.map((message) => message.body)).toEqual([
+      'older',
+      'newer',
+    ]);
   });
 
   it('creates a group channel, selects it, and surfaces failures', async () => {

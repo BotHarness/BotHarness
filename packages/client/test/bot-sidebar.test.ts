@@ -111,6 +111,7 @@ function stubActions(): BridgeActions {
     openAround: vi.fn(async () => undefined),
     markRead: vi.fn(async () => undefined),
     refreshChannelMessages: vi.fn(async () => undefined),
+    dismissFailedMessage: vi.fn(() => false),
     openAssignment: vi.fn(async () => undefined),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),

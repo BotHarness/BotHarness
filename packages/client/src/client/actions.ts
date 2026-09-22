@@ -57,6 +57,7 @@ export interface BridgeActions {
   openAround(channelId: string, messageId: string): Promise<void>;
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
+  dismissFailedMessage(channelId: string, messageId: string): boolean;
   openAssignment(sessionId: string): Promise<void>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
@@ -110,7 +111,9 @@ let localEchoSequence = 0;
 
 function nextLocalEchoId(): string {
   localEchoSequence += 1;
-  return `local-echo-${Date.now().toString(36)}-${localEchoSequence}`;
+  const unique =
+    globalThis.crypto?.randomUUID?.() ?? `${Date.now().toString(36)}-${localEchoSequence}`;
+  return `human-${unique}`;
 }
 
 function reconcileCommittedMessage(
@@ -138,7 +141,7 @@ function mergeLatestWindow(
   const messages = [
     ...prefix,
     ...incoming,
-    ...previous.filter((item) => item.pending === true),
+    ...previous.filter((item) => item.pending === true || item.failed !== undefined),
   ].filter((item) => {
     if (seen.has(item.id)) return false;
     seen.add(item.id);
@@ -148,6 +151,8 @@ function mergeLatestWindow(
 }
 
 export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
+  const failedByChannel = new Map<string, ChannelMessage[]>();
+  const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
   const currentSelection = (): ConversationSelection | undefined =>
     clientStore.getSnapshot().selection;
 
@@ -280,7 +285,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     });
     try {
       const { page, revision, focusMessageId } = await loadOpeningTimeline(channelId);
-      const messages = page.entries;
+      const messages = page.hasNewer
+        ? page.entries
+        : [...page.entries, ...localFailedFor(channelId)];
       if (currentSelection() !== active) return;
       clientStore.setConversation({
         status: 'ready',
@@ -354,7 +361,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         clientStore.setConversation({
           status: 'ready',
           channel: projectedChannel,
-          messages,
+          messages: page.hasNewer ? messages : [...messages, ...localFailedFor(channel.id)],
           revision,
           timeline: { ...initialTimeline(), ...page },
           focusMessageId,
@@ -494,7 +501,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       const { page, revision } = await loadTimelinePage(call, channelId);
       if (clientStore.getSnapshot().conversation.channel?.id !== channelId) return;
       clientStore.setConversation({
-        messages: page.entries,
+        messages: [...page.entries, ...localFailedFor(channelId)],
         revision,
         timeline: { ...initialTimeline(), ...page },
         focusMessageId: undefined,
@@ -612,8 +619,18 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           },
         ],
       });
+      const localEcho = clientStore
+        .getSnapshot()
+        .conversation.messages.find((message) => message.id === localId)!;
       try {
-        const message = await sendChannelMessage(call, channel.id, text, replyTo, attachments);
+        const message = await sendChannelMessage(
+          call,
+          channel.id,
+          text,
+          replyTo,
+          attachments,
+          localId,
+        );
         const selection = currentSelection();
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id === channel.id) {
@@ -645,16 +662,43 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         }
         return true;
       } catch (error) {
+        const failedEcho: ChannelMessage = {
+          ...localEcho,
+          pending: false,
+          failed: errorMessage(error),
+        };
+        failedByChannel.set(channel.id, [...localFailedFor(channel.id), failedEcho]);
         if (clientStore.getSnapshot().conversation.channel?.id === channel.id) {
           const latest = clientStore.getSnapshot();
           clientStore.setConversation({
             sending: false,
             error: errorMessage(error),
-            messages: latest.conversation.messages.filter((message) => message.id !== localId),
+            messages: latest.conversation.messages.some((message) => message.id === localId)
+              ? latest.conversation.messages.map((message) =>
+                  message.id === localId ? failedEcho : message,
+                )
+              : [...latest.conversation.messages, failedEcho],
           });
         }
         return false;
       }
+    },
+    dismissFailedMessage(channelId, messageId) {
+      const conversation = clientStore.getSnapshot().conversation;
+      if (conversation.channel?.id !== channelId) return false;
+      const failed = conversation.messages.find(
+        (message) => message.id === messageId && message.failed !== undefined,
+      );
+      if (failed === undefined) return false;
+      failedByChannel.set(
+        channelId,
+        localFailedFor(channelId).filter((item) => item.id !== messageId),
+      );
+      clientStore.setConversation({
+        messages: conversation.messages.filter((message) => message.id !== messageId),
+        error: undefined,
+      });
+      return true;
     },
     async createBot(input, sectionId) {
       const bot = await createPersonaBot(call, input);

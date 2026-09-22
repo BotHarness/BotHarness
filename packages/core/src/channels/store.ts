@@ -65,6 +65,7 @@ export interface ChannelStore {
   latestMessage(id: string): ChannelMessage | undefined;
   /** Check the full durable Channel history, including messages outside the latest page. */
   hasMessage(id: string, messageId: string): boolean;
+  message(id: string, messageId: string): ChannelMessage | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
   /** Durable mark set for a profile-scoped Attachment Store sweep. */
   referencedAttachmentHashes(): ReadonlySet<string>;
@@ -291,6 +292,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     hasMessage(id, messageId) {
       if (!isValidChannelId(id) || messageId.length === 0) return false;
       return readValidMessages(id).some((message) => message.id === messageId);
+    },
+    message(id, messageId) {
+      if (!isValidChannelId(id) || messageId.length === 0) return undefined;
+      const messages = readValidMessages(id);
+      const message = messages.find((candidate) => candidate.id === messageId);
+      return message === undefined ? undefined : projectReply(message, messageIndex(messages));
     },
     list() {
       let entries: Dirent[];

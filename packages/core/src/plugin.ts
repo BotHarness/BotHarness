@@ -143,11 +143,15 @@ export function createCore(
     channels,
     attachments,
     live,
-    roster: createRosterStore({ warn: options.warn }),
+    roster: createRosterStore({
+      warn: options.warn,
+      onCommitted: () => live?.publishRosterCommitted(),
+    }),
     runtime: createBotRuntime({
       database: operationalDatabase,
       registry,
       channels,
+      attachments,
       agents: options.agents ?? unavailableAgentAdapter(),
       ownership,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),

@@ -36,6 +36,8 @@ export interface ChannelComposerProps {
   value: string;
   placeholder: string;
   sending: boolean;
+  /** Increment to focus the input after restoring a failed local message. */
+  focusSignal?: number;
   attachments?: readonly ChannelComposerUpload[] | undefined;
   onAddFiles?(files: File[]): void;
   onRetryAttachment?(id: string): void;
@@ -115,6 +117,7 @@ export function ChannelComposer({
   value,
   placeholder,
   sending,
+  focusSignal = 0,
   attachments = [],
   onAddFiles,
   onRetryAttachment,
@@ -129,6 +132,7 @@ export function ChannelComposer({
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fit, setFit] = useState<ComposerTextareaFit>({ expanded: false, height: 34 });
+  const hasFooter = fit.expanded || reply !== undefined || attachments.length > 0;
 
   const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
     const nextFit = fitComposerTextarea(element);
@@ -148,6 +152,9 @@ export function ChannelComposer({
   useEffect(() => {
     if (replyId !== undefined) inputRef.current?.focus();
   }, [replyId]);
+  useEffect(() => {
+    if (focusSignal > 0) inputRef.current?.focus();
+  }, [focusSignal]);
 
   useEffect(() => {
     const element = inputRef.current;
@@ -168,7 +175,7 @@ export function ChannelComposer({
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} t={t} />
       <div
-        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${reply === undefined ? '' : ' bh-composer-replying'}`}
+        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}
         style={{ '--bh-composer-body-height': `${fit.height}px` } as CSSProperties}
       >

@@ -209,6 +209,7 @@ describe('DSH Bot Agent adapter', () => {
       'inspect_assignment',
       'send_assignment_request',
       'channel_read',
+      'channel_read_image',
       'channel_search',
       'channel_send',
     ]);
@@ -222,6 +223,34 @@ describe('DSH Bot Agent adapter', () => {
     const channelTools = host.scopes
       .get('orchestrator-ada')
       ?.tools.filter((tool) => tool.name.startsWith('channel_'));
+    const channelReadImage = host.scopes
+      .get('orchestrator-ada')
+      ?.tools.find((tool) => tool.name === 'channel_read_image');
+    expect(channelReadImage?.parameters).toMatchObject({
+      properties: {
+        channel_id: expect.any(Object),
+        message_id: expect.any(Object),
+        hash: expect.any(Object),
+      },
+      required: ['message_id', 'hash'],
+    });
+    expect(
+      channelReadImage?.output.render(
+        {},
+        {
+          channelId: 'group-team',
+          messageId: 'message-1',
+          hash: 'sha256:abc',
+          image: {
+            attachmentId: 'sha256:image',
+            mediaType: 'image/png',
+            bytes: 8,
+            width: 1,
+            height: 1,
+          },
+        },
+      ),
+    ).toMatchObject([{ type: 'text' }, { type: 'image' }]);
     expect(JSON.stringify(channelTools?.map((tool) => tool.parameters))).not.toMatch(
       /bot_slug|persona_bot|author/,
     );

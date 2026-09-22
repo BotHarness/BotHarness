@@ -21,7 +21,7 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
-import { mountChannelLive } from './channel-live.js';
+import { mountChannelLive, mountRosterLive } from './channel-live.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
@@ -84,6 +84,10 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => (typeof EventSource === 'undefined' ? () => {} : mountChannelLive(store, actions)),
     'botharness: Channel live subscription',
+  );
+  ctx.effect(
+    () => (typeof EventSource === 'undefined' ? () => {} : mountRosterLive(store, actions)),
+    'botharness: Roster live subscription',
   );
   ctx.effect(() => {
     store.setConfig(loadRosterConfig(storage));

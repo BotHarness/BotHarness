@@ -103,6 +103,35 @@ describe('bridge methods', () => {
     expect(channels.readMessages('dm-ada')).toHaveLength(2);
   });
 
+  it('deduplicates one Human client message id before a second runtime admission', async () => {
+    let admissions = 0;
+    const { channels, methods } = setup([], ['ada'], () => ({
+      admitDmMessage() {
+        admissions += 1;
+        return { admitted: true as const, settled: Promise.resolve() };
+      },
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      whenIdle: async () => undefined,
+      close: async () => undefined,
+    }));
+    channels.getOrCreateDm('ada', 'Ada');
+    const payload = {
+      channelId: 'dm-ada',
+      body: 'only once',
+      messageId: 'human-12345678-1234-4234-8234-123456789abc',
+    };
+    const first = await methods.channelSend(payload);
+    const duplicate = await methods.channelSend(payload);
+    expect(duplicate).toEqual(first);
+    expect(channels.readMessages('dm-ada')).toHaveLength(1);
+    expect(admissions).toBe(1);
+    await expect(methods.channelSend({ ...payload, body: 'different' })).resolves.toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+  });
+
   it('lists PersonaBots with their aggregate state', () => {
     const { registry, states, methods } = setup();
     registry.create({
@@ -728,9 +757,30 @@ describe('bridge methods', () => {
     ]);
   });
 
-  it('maps an archived PersonaBot admission failure to a stable error', async () => {
-    const { methods } = setup([], ['ada'], () => ({
+  it('rejects an archived PersonaBot before committing a Human DM', async () => {
+    const { methods, registry, channels } = setup([], ['ada'], () => ({
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      whenIdle: async () => undefined,
+      close: async () => undefined,
+    }));
+    methods.create({ displayName: 'Ada' });
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+    registry.setPaused('ada', true);
+
+    const sent = await methods.channelSend({ channelId: 'dm-ada', body: 'hello' });
+
+    expect(sent).toEqual({
+      ok: false,
+      error: { code: 'bot-archived', message: 'PersonaBot is archived: ada' },
+    });
+    expect(channels.readMessages('dm-ada')).toEqual([]);
+  });
+
+  it('reports a post-commit admission refusal without mislabeling a durable message as failed', async () => {
+    const { methods, channels } = setup([], ['ada'], () => ({
+      admitDmMessage: () => ({ admitted: false as const, reason: 'runtime-closed' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
       whenIdle: async () => undefined,
@@ -741,10 +791,8 @@ describe('bridge methods', () => {
 
     const sent = await methods.channelSend({ channelId: 'dm-ada', body: 'hello' });
 
-    expect(sent).toEqual({
-      ok: false,
-      error: { code: 'bot-archived', message: 'PersonaBot is archived: ada' },
-    });
+    expect(sent).toMatchObject({ ok: true, value: { message: { body: 'hello' } } });
+    expect(channels.readMessages('dm-ada').map((message) => message.body)).toEqual(['hello']);
   });
 
   it('lists Sessions owned by the bot through explicit ownership, newest first', () => {
