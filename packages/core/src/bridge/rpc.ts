@@ -11,6 +11,7 @@ import type {
   PersonaBotSummary,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import type { ChannelReadPosition } from '../channels/store.js';
 import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
@@ -184,6 +185,17 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  channelReadPosition(channelId: string): { position?: ChannelReadPosition } {
+    return unwrap(this.methods.channelReadPosition({ channelId }));
+  }
+
+  async channelMarkRead(
+    channelId: string,
+    messageId: string,
+  ): Promise<{ position: ChannelReadPosition }> {
+    return unwrap(await this.methods.channelMarkRead({ channelId, messageId }));
+  }
+
   async channelSend(channelId: string, body: string): Promise<{ message: ChannelMessage }> {
     return unwrap(await this.methods.channelSend({ channelId, body }));
   }
@@ -254,6 +266,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelRename',
   'channelMessages',
   'channelTimeline',
+  'channelReadPosition',
+  'channelMarkRead',
   'channelSend',
   'assignments',
   'assignment',

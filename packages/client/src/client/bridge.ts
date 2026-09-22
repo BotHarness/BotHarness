@@ -438,6 +438,28 @@ export async function loadTimelinePage(
   };
 }
 
+/** The Host owns the profile-wide read anchor; the browser only renders it. */
+export async function loadReadPosition(
+  call: BridgeCall,
+  channelId: string,
+): Promise<string | undefined> {
+  const value = asRecord(await unwrap(call, 'channelReadPosition', { channelId }));
+  const position = value?.['position'];
+  if (position === undefined) return undefined;
+  const messageId = asRecord(position)?.['messageId'];
+  if (typeof messageId !== 'string' || messageId.length === 0)
+    throw new Error('invalid channelReadPosition response');
+  return messageId;
+}
+
+export async function markReadPosition(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<void> {
+  await unwrap(call, 'channelMarkRead', { channelId, messageId });
+}
+
 export async function sendChannelMessage(
   call: BridgeCall,
   channelId: string,

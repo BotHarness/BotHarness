@@ -109,6 +109,7 @@ function stubActions(): BridgeActions {
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),
     openAround: vi.fn(async () => undefined),
+    markRead: vi.fn(async () => undefined),
     refreshChannelMessages: vi.fn(async () => undefined),
     openAssignment: vi.fn(async () => undefined),
     send: vi.fn(async () => false),

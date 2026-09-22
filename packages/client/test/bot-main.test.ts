@@ -31,12 +31,30 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { BotMain } from '../src/client/bot-main.js';
+import { BotMain, committedMessageIds } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
 import { zhTranslate } from '../src/client/locale.js';
-import { store } from '../src/client/store.js';
+import { store, type ChannelMessage } from '../src/client/store.js';
+
+describe('Channel read position candidates', () => {
+  it('ignores optimistic echoes and process-only streaming drafts', () => {
+    const committed: ChannelMessage = {
+      id: 'm1',
+      at: '2026-09-19T00:00:00.000Z',
+      author: { kind: 'human' },
+      body: 'Hello',
+    };
+    expect([
+      ...committedMessageIds([
+        committed,
+        { ...committed, id: 'local-echo-1', pending: true },
+        { ...committed, id: 'draft-1', streaming: true },
+      ]),
+    ]).toEqual(['m1']);
+  });
+});
 
 const entryProps = {
   scope: 'personabot' as const,
