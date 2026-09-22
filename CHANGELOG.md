@@ -32,6 +32,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - Computer export now closes the browser gracefully before packing the volume (bounded at ~10 seconds, falling back to a plain stop), and every start seeds the durable `~/workspace` directory, so a migrated profile opens with flushed logins and tabs and bot work files travel with the archive ([#154](https://github.com/BotHarness/BotHarness/issues/154), [ADR-0062](docs/adr/0062-computer-volume-quiesce-and-workspace.md)).
 - During an export or import, the Computer settings rows and the sidebar card show the live stage with elapsed time instead of a generic busy label ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
+- The Computer's settings rows — export directory, idle stop, export/import — now render under their own **Computer** section heading on the BotHarness settings page ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 - The Bot icon chooser is a grid of cards that show each mark, with the selected one outlined, instead of a selector that only names them ([#178](https://github.com/BotHarness/BotHarness/issues/178)).
 
@@ -62,7 +63,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
-- Fixed the Computer's export flow when the directory picker is unavailable (web deployments): "Export to…" now opens path entry labeled "Save and export", the save button shows progress and a success/failure note instead of silently closing, relative paths are rejected with an explanation, and saving carries straight into the export authorization step ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
+- Fixed Computer export end-to-end on deployments whose directory picker rejects (e.g. web): the export directory falls back to a built-in default (`~/Desktop/BotHarness Exports`, or `~/BotHarness Exports` without a Desktop) shown read-only so no path has to be typed, a failed picker switches to that fixed directory and continues the export, and the folder opens in the Host's file manager when the export finishes; on picker deployments, saving a typed path still shows progress plus success/failure notes and rejects relative paths ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 - Fixed the newly created PersonaBot DM so its first Human message can be sent immediately without reselecting the Bot or refreshing the page ([#186](https://github.com/BotHarness/BotHarness/issues/186)).
 - PersonaBot DM now previews a reply as the Orchestrator streams an explicit `channel_send` call, then replaces it with the committed Channel message; other committed messages appear without refresh, and reconnects replay missed history ([#141](https://github.com/BotHarness/BotHarness/issues/141), [ADR-0054](docs/adr/0054-channel-live-delivery-follows-durable-commit.md)).
 - A running turn no longer reports `needs-repair` while a side effect is in flight; an interrupted attempt is reconciled at boot (side effect started → reconciliation, otherwise retryable) ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
