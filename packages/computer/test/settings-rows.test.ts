@@ -11,7 +11,9 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 
 import {
   ComputerSettingsPrefs,
+  ExportDirRejectedError,
   createComputerSettingsFace,
+  displayExportDir,
   type ComputerSettingsScope,
 } from '../src/client/settings-rows.js';
 import { PHASE_LABEL } from '../src/client/locale.js';
@@ -82,6 +84,33 @@ describe('computer settings prefs', () => {
     prefs.attach(fake.scope);
 
     await expect(prefs.setExportDir('/other')).rejects.toThrow('scope refused');
+  });
+
+  it('rejects setExportDir when the Host silently recovers to the previous value', async () => {
+    // The real DSH scope resolves even on a refused write; the recovery read
+    // rolling the snapshot back is the only signal that nothing was stored.
+    const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 30 });
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+    fake.scope.set = async () => {
+      fake.push({ exportDir: '/exports', idleStopMinutes: 30 });
+    };
+
+    await expect(prefs.setExportDir('/other')).rejects.toThrow(ExportDirRejectedError);
+    expect(prefs.getSnapshot().exportDir).toBe('/exports');
+  });
+});
+
+describe('displayExportDir', () => {
+  it('prefers the configured scope value', () => {
+    expect(displayExportDir('/configured', '/host-resolved')).toBe('/configured');
+  });
+
+  it('falls back to the Host-resolved path while the scope is empty', () => {
+    expect(displayExportDir('', '/Users/me/Desktop/BotHarness Exports')).toBe(
+      '/Users/me/Desktop/BotHarness Exports',
+    );
+    expect(displayExportDir('', undefined)).toBe('');
   });
 });
 

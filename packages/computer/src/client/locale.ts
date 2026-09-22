@@ -49,6 +49,7 @@ export const zh = {
   'rows.exportDir.saving': '正在保存…',
   'rows.exportDir.saved': '导出目录已保存：{dir}',
   'rows.exportDir.needsAbsolute': '路径必须是绝对路径，例如 /path/to/exports',
+  'rows.exportDir.saveRejected': 'Host 未接受该导出目录，已恢复原值；请重试',
   'rows.exportDir.open': '打开目录',
   'rows.idle.title': '空闲停止',
   'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
@@ -120,6 +121,8 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.exportDir.saving': 'Saving…',
   'rows.exportDir.saved': 'Export directory saved: {dir}',
   'rows.exportDir.needsAbsolute': 'Path must be absolute, e.g. /path/to/exports',
+  'rows.exportDir.saveRejected':
+    'The Host did not accept the export directory — the previous value was restored; try again',
   'rows.exportDir.open': 'Open folder',
   'rows.idle.title': 'Idle stop',
   'rows.idle.description': 'How long the Computer waits without viewers before stopping',

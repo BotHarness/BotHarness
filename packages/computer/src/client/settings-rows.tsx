@@ -43,6 +43,24 @@ export interface ComputerSettingsScope {
   set(field: string, value: unknown): Promise<void>;
 }
 
+/** Thrown when the Host rolls the export directory back instead of storing it. */
+export class ExportDirRejectedError extends Error {
+  constructor() {
+    super('the Host did not accept the export directory');
+    this.name = 'ExportDirRejectedError';
+  }
+}
+
+/**
+ * Directory shown on the export row: a configured scope value wins; while the
+ * scope is empty (the unconfigured default) fall back to the Host-resolved
+ * path from the status route, so buttons and "Current" track what export and
+ * open-dir will actually use.
+ */
+export function displayExportDir(configured: string, hostDir: string | undefined): string {
+  return configured !== '' ? configured : (hostDir ?? '');
+}
+
 /** Live Computer settings published to the rows. */
 export class ComputerSettingsPrefs {
   private snapshot: ComputerSettingsSnapshot = {
@@ -82,8 +100,12 @@ export class ComputerSettingsPrefs {
   };
 
   async setExportDir(exportDir: string): Promise<void> {
+    if (this.scope === undefined) throw new ExportDirRejectedError();
     this.publish({ exportDir });
-    await this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+    await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+    // The DSH scope resolves even when the Host refuses the write (it recovers
+    // silently), so a snapshot that rolled back is the only refusal signal.
+    if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
   }
 
   setIdleStopMinutes(idleStopMinutes: number): void {
@@ -273,11 +295,14 @@ export function ComputerSettingsRows({
   useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
 
   useEffect(() => {
-    if (snapshot.status !== 'unavailable') return;
+    // The Host-resolved path (status route) is what export/open-dir will use
+    // whenever the scope carries no configured directory — including the
+    // ready-but-empty default — and the only source when the scope is absent.
+    if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
     void hostExportDir()
       .then((dir) => setHostDir(dir))
       .catch(() => undefined);
-  }, [hostExportDir, snapshot.status]);
+  }, [hostExportDir, snapshot.status, snapshot.exportDir]);
 
   // While an export/import runs, mirror the Host's reported phase and an
   // elapsed timer so the rows show stage and time, not only a busy label.
@@ -309,7 +334,7 @@ export function ComputerSettingsRows({
 
   const phaseKey = livePhase === undefined ? undefined : PHASE_LABEL[livePhase];
 
-  const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
+  const exportDir = displayExportDir(snapshot.exportDir, hostDir);
   const hasDir = exportDir !== '';
   const writable = snapshot.status === 'ready' && snapshot.writable;
   // The directory is adjustable only while a working picker exists; once the
@@ -379,7 +404,13 @@ export function ComputerSettingsRows({
         setManualOpen(false);
         setDirNote(t('rows.exportDir.saved', { dir }));
       })
-      .catch((error: unknown) => setDirNote(String(error)))
+      .catch((error: unknown) =>
+        setDirNote(
+          error instanceof ExportDirRejectedError
+            ? t('rows.exportDir.saveRejected')
+            : String(error),
+        ),
+      )
       .finally(() => setSaving(false));
   }, [manualPath, prefs, t]);
 

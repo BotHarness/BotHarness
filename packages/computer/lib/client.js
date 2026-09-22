@@ -57,6 +57,7 @@ window.__ModuleLoader__.load({
       'rows.exportDir.saving': '正在保存…',
       'rows.exportDir.saved': '导出目录已保存：{dir}',
       'rows.exportDir.needsAbsolute': '路径必须是绝对路径，例如 /path/to/exports',
+      'rows.exportDir.saveRejected': 'Host 未接受该导出目录，已恢复原值；请重试',
       'rows.exportDir.open': '打开目录',
       'rows.idle.title': '空闲停止',
       'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
@@ -128,6 +129,8 @@ window.__ModuleLoader__.load({
       'rows.exportDir.saving': 'Saving…',
       'rows.exportDir.saved': 'Export directory saved: {dir}',
       'rows.exportDir.needsAbsolute': 'Path must be absolute, e.g. /path/to/exports',
+      'rows.exportDir.saveRejected':
+        'The Host did not accept the export directory — the previous value was restored; try again',
       'rows.exportDir.open': 'Open folder',
       'rows.idle.title': 'Idle stop',
       'rows.idle.description': 'How long the Computer waits without viewers before stopping',
@@ -188,6 +191,22 @@ window.__ModuleLoader__.load({
      * `@botharness/client`, which is always mounted when this page renders.
      * @module @botharness/computer/settings-rows
      */
+    /** Thrown when the Host rolls the export directory back instead of storing it. */
+    var ExportDirRejectedError = class extends Error {
+      constructor() {
+        super('the Host did not accept the export directory');
+        this.name = 'ExportDirRejectedError';
+      }
+    };
+    /**
+     * Directory shown on the export row: a configured scope value wins; while the
+     * scope is empty (the unconfigured default) fall back to the Host-resolved
+     * path from the status route, so buttons and "Current" track what export and
+     * open-dir will actually use.
+     */
+    function displayExportDir(configured, hostDir) {
+      return configured !== '' ? configured : (hostDir ?? '');
+    }
     /** Live Computer settings published to the rows. */
     var ComputerSettingsPrefs = class {
       snapshot = {
@@ -220,8 +239,10 @@ window.__ModuleLoader__.load({
         };
       };
       async setExportDir(exportDir) {
+        if (this.scope === void 0) throw new ExportDirRejectedError();
         this.publish({ exportDir });
-        await this.scope?.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+        await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
+        if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
       }
       setIdleStopMinutes(idleStopMinutes) {
         this.publish({ idleStopMinutes });
@@ -383,11 +404,11 @@ window.__ModuleLoader__.load({
       const [liveElapsed, setLiveElapsed] = (0, react.useState)(0);
       (0, react.useEffect)(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
       (0, react.useEffect)(() => {
-        if (snapshot.status !== 'unavailable') return;
+        if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
         hostExportDir()
           .then((dir) => setHostDir(dir))
           .catch(() => void 0);
-      }, [hostExportDir, snapshot.status]);
+      }, [hostExportDir, snapshot.status, snapshot.exportDir]);
       (0, react.useEffect)(() => {
         if (busy === void 0) {
           setLivePhase(void 0);
@@ -412,7 +433,7 @@ window.__ModuleLoader__.load({
         };
       }, [busy]);
       const phaseKey = livePhase === void 0 ? void 0 : PHASE_LABEL[livePhase];
-      const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
+      const exportDir = displayExportDir(snapshot.exportDir, hostDir);
       const hasDir = exportDir !== '';
       const writable = snapshot.status === 'ready' && snapshot.writable;
       const canAdjust = pickerAvailable && !pickerBroken;
@@ -472,7 +493,13 @@ window.__ModuleLoader__.load({
             setManualOpen(false);
             setDirNote(t('rows.exportDir.saved', { dir }));
           })
-          .catch((error) => setDirNote(String(error)))
+          .catch((error) =>
+            setDirNote(
+              error instanceof ExportDirRejectedError
+                ? t('rows.exportDir.saveRejected')
+                : String(error),
+            ),
+          )
           .finally(() => setSaving(false));
       }, [manualPath, prefs, t]);
       const runExport = (0, react.useCallback)(() => {
