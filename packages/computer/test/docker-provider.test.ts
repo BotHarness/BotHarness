@@ -245,6 +245,52 @@ describe('Docker computer provider', () => {
     expect((tar ?? []).join(' ')).toContain('tar cf /backup/');
   });
 
+  it('quiesces the browser before stopping for an export', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return ok('running\n');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.exportTo?.('/tmp/exports');
+    const verbs = calls.map((argv) => argv[1]);
+    const execIndex = calls.findIndex((argv) => argv[1] === 'exec');
+    expect(execIndex).toBeGreaterThanOrEqual(0);
+    const quiesce = (calls[execIndex] ?? []).join(' ');
+    expect(quiesce).toContain('kill -TERM');
+    expect(quiesce).toContain('chromium');
+    expect(execIndex).toBeLessThan(verbs.indexOf('stop'));
+  });
+
+  it('skips the browser quiesce when the container is not running', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return ok('exited\n');
+        return ok('ok');
+      }, calls),
+    });
+    const archive = await provider.exportTo?.('/tmp/exports');
+    expect(archive).toMatch(/\.tar$/);
+    expect(calls.some((argv) => argv[1] === 'exec')).toBe(false);
+    expect(calls.some((argv) => argv[1] === 'run')).toBe(true);
+  });
+
+  it('still exports when the browser quiesce fails', async () => {
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return ok('running\n');
+        if (argv[1] === 'exec') return fail('exec refused');
+        return ok('ok');
+      }),
+    });
+    await expect(provider.exportTo?.('/tmp/exports')).resolves.toMatch(/\.tar$/);
+  });
+
   it('imports by creating the volume, untarring, and starting', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
@@ -412,6 +458,22 @@ describe('Docker computer provider', () => {
     expect(policy).toContain('"RestoreOnStartup":1');
   });
 
+  it('seeds the durable workspace directory after start', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') return fail('No such object');
+        if (argv[1] === 'image') return fail('No such image');
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    const execs = calls.filter((argv) => argv[1] === 'exec').map((argv) => argv.join(' '));
+    expect(execs.some((command) => command.includes('mkdir -p /config/workspace'))).toBe(true);
+    expect(execs.some((command) => command.includes('chown abc:abc /config/workspace'))).toBe(true);
+  });
+
   it('still starts when the session-restore policy cannot be written', async () => {
     const provider = createDockerComputerProvider({
       runner: runnerWith((argv) => {
@@ -439,7 +501,9 @@ describe('Docker computer provider', () => {
       }, calls),
     });
     await provider.start();
-    const seed = calls.find((argv) => argv.includes('--rm') && argv.join(' ').includes('xfce4-panel.xml'));
+    const seed = calls.find(
+      (argv) => argv.includes('--rm') && argv.join(' ').includes('xfce4-panel.xml'),
+    );
     expect(seed?.join(' ')).toContain('value="52"');
     expect(seed?.join(' ')).toContain('value="96"');
     expect(seed?.join(' ')).toContain('autostart/chromium.desktop');

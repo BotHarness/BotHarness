@@ -22,7 +22,7 @@ import {
   COMPUTER_IDLE_STOP_FIELD,
   type ComputerSettings,
 } from '../settings.js';
-import type { ComputerTranslate } from './locale.js';
+import { PHASE_LABEL, type ComputerTranslate } from './locale.js';
 
 /** Sync state of the Host settings scope the rows consume. */
 export interface ComputerSettingsSnapshot {
@@ -264,6 +264,8 @@ export function ComputerSettingsRows({
   const [manualPath, setManualPath] = useState('');
   const [note, setNote] = useState<string | undefined>(undefined);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
+  const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
+  const [liveElapsed, setLiveElapsed] = useState(0);
 
   useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
 
@@ -273,6 +275,36 @@ export function ComputerSettingsRows({
       .then((dir) => setHostDir(dir))
       .catch(() => undefined);
   }, [hostExportDir, snapshot.status]);
+
+  // While an export/import runs, mirror the Host's reported phase and an
+  // elapsed timer so the rows show stage and time, not only a busy label.
+  useEffect(() => {
+    if (busy === undefined) {
+      setLivePhase(undefined);
+      setLiveElapsed(0);
+      return;
+    }
+    const startedAt = Date.now();
+    let cancelled = false;
+    const tick = async (): Promise<void> => {
+      if (cancelled) return;
+      setLiveElapsed(Math.round((Date.now() - startedAt) / 1000));
+      try {
+        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT);
+        if (!cancelled) setLivePhase(payload.status?.phase);
+      } catch {
+        // Status is advisory here; the request that set `busy` owns the outcome.
+      }
+    };
+    void tick();
+    const timer = setInterval(() => void tick(), 1000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [busy]);
+
+  const phaseKey = livePhase === undefined ? undefined : PHASE_LABEL[livePhase];
 
   const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
   const hasDir = exportDir !== '';
@@ -540,6 +572,11 @@ export function ComputerSettingsRows({
         </div>
       </Row>
 
+      {busy !== undefined && phaseKey !== undefined ? (
+        <div className="bh-note">
+          {`${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`}
+        </div>
+      ) : null}
       {snapshot.status === 'unavailable' ? (
         <div className="bh-note">{t('rows.noSettings')}</div>
       ) : null}

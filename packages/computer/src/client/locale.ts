@@ -30,6 +30,8 @@ export const zh = {
   'entry.phase.pulling': '正在拉取镜像',
   'entry.phase.starting': '正在启动',
   'entry.phase.stopping': '正在停止',
+  'entry.phase.exporting': '正在导出',
+  'entry.phase.importing': '正在导入',
   'entry.phase.working': '处理中',
   'entry.wait': '请稍候',
   'entry.elapsed': '已用时 {seconds}s',
@@ -94,6 +96,8 @@ export const en: Record<keyof typeof zh, string> = {
   'entry.phase.pulling': 'Pulling the image',
   'entry.phase.starting': 'Starting',
   'entry.phase.stopping': 'Stopping',
+  'entry.phase.exporting': 'Exporting',
+  'entry.phase.importing': 'Importing',
   'entry.phase.working': 'Working',
   'entry.wait': 'Please wait',
   'entry.elapsed': 'Elapsed {seconds}s',
@@ -131,6 +135,19 @@ export const en: Record<keyof typeof zh, string> = {
 
 /** Keys of the Computer client's copy. */
 export type ComputerKey = keyof typeof zh;
+
+/**
+ * Server-reported phase → the locale key shown while it runs. Shared by the
+ * sidebar entry card and the settings rows so both surfaces label a transfer
+ * the same way.
+ */
+export const PHASE_LABEL: Partial<Record<string, ComputerKey>> = {
+  pulling: 'entry.phase.pulling',
+  starting: 'entry.phase.starting',
+  stopping: 'entry.phase.stopping',
+  exporting: 'entry.phase.exporting',
+  importing: 'entry.phase.importing',
+};
 
 /** Namespace-bound translate function. */
 export type ComputerTranslate = TranslateNS<typeof LOCALE_NS>;

@@ -38,6 +38,8 @@ window.__ModuleLoader__.load({
       'entry.phase.pulling': '正在拉取镜像',
       'entry.phase.starting': '正在启动',
       'entry.phase.stopping': '正在停止',
+      'entry.phase.exporting': '正在导出',
+      'entry.phase.importing': '正在导入',
       'entry.phase.working': '处理中',
       'entry.wait': '请稍候',
       'entry.elapsed': '已用时 {seconds}s',
@@ -102,6 +104,8 @@ window.__ModuleLoader__.load({
       'entry.phase.pulling': 'Pulling the image',
       'entry.phase.starting': 'Starting',
       'entry.phase.stopping': 'Stopping',
+      'entry.phase.exporting': 'Exporting',
+      'entry.phase.importing': 'Importing',
       'entry.phase.working': 'Working',
       'entry.wait': 'Please wait',
       'entry.elapsed': 'Elapsed {seconds}s',
@@ -136,6 +140,18 @@ window.__ModuleLoader__.load({
       'rows.noSettings':
         'Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.',
       'rows.pickerFailed': 'Directory picker unavailable — type a path instead.',
+    };
+    /**
+     * Server-reported phase → the locale key shown while it runs. Shared by the
+     * sidebar entry card and the settings rows so both surfaces label a transfer
+     * the same way.
+     */
+    const PHASE_LABEL = {
+      pulling: 'entry.phase.pulling',
+      starting: 'entry.phase.starting',
+      stopping: 'entry.phase.stopping',
+      exporting: 'entry.phase.exporting',
+      importing: 'entry.phase.importing',
     };
     //#endregion
     //#region packages/computer/src/settings.ts
@@ -349,6 +365,8 @@ window.__ModuleLoader__.load({
       const [manualPath, setManualPath] = (0, react.useState)('');
       const [note, setNote] = (0, react.useState)(void 0);
       const [hostDir, setHostDir] = (0, react.useState)(void 0);
+      const [livePhase, setLivePhase] = (0, react.useState)(void 0);
+      const [liveElapsed, setLiveElapsed] = (0, react.useState)(0);
       (0, react.useEffect)(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
       (0, react.useEffect)(() => {
         if (snapshot.status !== 'unavailable') return;
@@ -356,6 +374,30 @@ window.__ModuleLoader__.load({
           .then((dir) => setHostDir(dir))
           .catch(() => void 0);
       }, [hostExportDir, snapshot.status]);
+      (0, react.useEffect)(() => {
+        if (busy === void 0) {
+          setLivePhase(void 0);
+          setLiveElapsed(0);
+          return;
+        }
+        const startedAt = Date.now();
+        let cancelled = false;
+        const tick = async () => {
+          if (cancelled) return;
+          setLiveElapsed(Math.round((Date.now() - startedAt) / 1e3));
+          try {
+            const payload = await requestJson$1(STATUS_ENDPOINT$1);
+            if (!cancelled) setLivePhase(payload.status?.phase);
+          } catch {}
+        };
+        tick();
+        const timer = setInterval(() => void tick(), 1e3);
+        return () => {
+          cancelled = true;
+          clearInterval(timer);
+        };
+      }, [busy]);
+      const phaseKey = livePhase === void 0 ? void 0 : PHASE_LABEL[livePhase];
       const exportDir = snapshot.status === 'unavailable' ? (hostDir ?? '') : snapshot.exportDir;
       const hasDir = exportDir !== '';
       const writable = snapshot.status === 'ready' && snapshot.writable;
@@ -635,6 +677,12 @@ window.__ModuleLoader__.load({
               ],
             }),
           }),
+          busy !== void 0 && phaseKey !== void 0
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                children: `${t(phaseKey)} · ${t('entry.elapsed', { seconds: liveElapsed })}`,
+              })
+            : null,
           snapshot.status === 'unavailable'
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
                 className: 'bh-note',
@@ -676,11 +724,6 @@ window.__ModuleLoader__.load({
       if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
       return await response.json();
     }
-    const PHASE_LABEL = {
-      pulling: 'entry.phase.pulling',
-      starting: 'entry.phase.starting',
-      stopping: 'entry.phase.stopping',
-    };
     const SETUP_GUIDANCE_KEY = 'entry.setup';
     const SHARED_NOTE_KEY = 'entry.shared';
     const AUTHORIZATION_POINTS = [

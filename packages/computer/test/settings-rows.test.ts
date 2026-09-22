@@ -14,6 +14,7 @@ import {
   createComputerSettingsFace,
   type ComputerSettingsScope,
 } from '../src/client/settings-rows.js';
+import { PHASE_LABEL } from '../src/client/locale.js';
 
 function fakeScope(value: { exportDir: string; idleStopMinutes: number } | undefined): {
   scope: ComputerSettingsScope;
@@ -144,5 +145,16 @@ describe('computer settings face', () => {
     const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
     expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
     expect(face.pickerAvailable).toBe(false);
+  });
+});
+
+describe('transfer phase labels', () => {
+  it('labels every transfer phase the Host can report', () => {
+    expect(PHASE_LABEL.exporting).toBe('entry.phase.exporting');
+    expect(PHASE_LABEL.importing).toBe('entry.phase.importing');
+    expect(PHASE_LABEL.stopping).toBe('entry.phase.stopping');
+    expect(PHASE_LABEL.starting).toBe('entry.phase.starting');
+    expect(PHASE_LABEL.pulling).toBe('entry.phase.pulling');
+    expect(PHASE_LABEL.unknown).toBeUndefined();
   });
 });
