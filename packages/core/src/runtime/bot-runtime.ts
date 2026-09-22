@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelStore } from '../channels/store.js';
 import {
   attachOperationalModule,
@@ -707,6 +708,9 @@ class BotRuntimeImplementation implements BotRuntime {
       send: async (input) => {
         const channel = resolve(input.channelId);
         const body = requireNonBlank(input.body, 'Channel message body');
+        if (input.replyTo !== undefined && !this.#channels.hasMessage(channel.id, input.replyTo)) {
+          throw new ChannelReplyTargetError();
+        }
         beforeSend();
         const message: ChannelMessage = {
           id: this.#createMessageId(),

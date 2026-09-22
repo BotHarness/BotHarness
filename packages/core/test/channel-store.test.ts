@@ -181,6 +181,8 @@ describe('channel store', () => {
     const channel = store.createGroup({ name: 'Team', members: [] });
     const original = message('Original   message');
     await store.appendMessage(channel.id, original);
+    expect(store.hasMessage(channel.id, original.id)).toBe(true);
+    expect(store.hasMessage(channel.id, 'missing')).toBe(false);
     const reply = {
       ...message('response'),
       replyTo: original.id,

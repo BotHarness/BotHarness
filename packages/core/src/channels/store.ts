@@ -60,6 +60,8 @@ export interface ChannelStore {
   get(id: string): ChannelRecord | undefined;
   /** Latest valid durable message, without parsing the full history into records. */
   latestMessage(id: string): ChannelMessage | undefined;
+  /** Check the full durable Channel history, including messages outside the latest page. */
+  hasMessage(id: string, messageId: string): boolean;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
@@ -264,6 +266,10 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         if (isChannelMessage(parsed)) return parsed;
       }
       return undefined;
+    },
+    hasMessage(id, messageId) {
+      if (!isValidChannelId(id) || messageId.length === 0) return false;
+      return readValidMessages(id).some((message) => message.id === messageId);
     },
     list() {
       let entries: Dirent[];
