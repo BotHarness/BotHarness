@@ -35,7 +35,7 @@ An optional, brief Human-authored self-introduction that explains who a PersonaB
 _Avoid_: Persona, role badge, system prompt
 
 **Persona**:
-Conventional Memory content that describes character, voice, or standing instructions and is usually pinned into the system prompt. It has no special file type or write protection: an authorized Agent or Human may create, revise, unpin, rename, or remove it.
+Conventional Memory content that describes character, voice, or standing instructions, delivered to a Session's system prompt from a snapshot frozen at that Session's first prompt assembly. It has no special file type or write protection: an authorized Agent or Human may create, revise, rename, or remove it; an edit reaches new Sessions, not one already running.
 _Avoid_: system prompt, character sheet, profile
 
 **Bot state**:
@@ -168,10 +168,6 @@ _Avoid_: knowledge base, vector store, RAG, database, context
 A PersonaBot-owned Git repository of Memory files, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Its lifecycle follows the PersonaBot while archive, export, restore, and purge remain explicit operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
-**Pinned Memory**:
-A Memory file whose versioned metadata requests full-body injection into the system prompt, within a Human-configurable repository budget and the active model's final context preflight. Persona is an ordinary Memory file that is pinned by default when created.
-_Avoid_: special Persona file, always-loaded MEMORY.md, silent truncation
-
 **Topic file**:
 A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository.
 _Avoid_: note, document, page, record
@@ -181,11 +177,11 @@ The north-star topic file: one per customer, holding timeline, key facts, commit
 _Avoid_: CRM record, account, contact sheet
 
 **Memory Service**:
-The application-defined capability that owns Memory Repository lifecycle, validation, pin-budget enforcement, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
+The application-defined capability that owns Memory Repository lifecycle, validation, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
 _Avoid_: Memory tool, filesystem watcher, Git event source, generic repository
 
 **Memory Commit**:
-An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change pinned context, history projections, or Memory events.
+An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change a Session's frozen persona, history projections, or Memory events.
 _Avoid_: file save, filesystem event, raw Git commit, auto-save
 
 **Memory Reconciliation**:

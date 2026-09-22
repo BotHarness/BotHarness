@@ -74,7 +74,7 @@ flowchart TB
 
   subgraph Modules["BotHarness deep modules"]
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
-    Memory["Optional Memory Service<br/>repositories · pins · Git commits · events"]
+    Memory["Optional Memory Service<br/>repositories · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
@@ -106,7 +106,7 @@ flowchart TB
 | Module      | Owns                                                                                                    | Does not own                          |
 | ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
 | PersonaBot  | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容    |
-| Memory      | generic Git-backed repositories、pin budget、semantic commits、operation events                         | PersonaBot lifecycle、Inbox、Session  |
+| Memory      | generic Git-backed repositories、semantic commits、operation events                                     | PersonaBot lifecycle、Inbox、Session  |
 | Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
 | Assignments | Assignment Directory、Assignment Request/Delivery Intent、capacity admission、report/lifecycle routing  | DSH transcript、Subagent runtime      |
 | Portability | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式 |
@@ -114,7 +114,7 @@ flowchart TB
 
 `botharness.db` 是 BotHarness core 的物理事务宿主，不是共享的 generic repository。Memory 内容与 commit 由 optional Git-backed Provider 掌管；每个 deep module 只通过自己的接口拥有表和不变量，跨模块流程由显式 command/port 协调。
 
-application-defined Memory Service 使用 `Consumer → Service Definition → Provider` capability seam。Provider 缺席时，PersonaBot 仍以系统定义的 base runtime prompt 完成 Chat、Orchestrator 与 Assignment 主链，Client 也不显示 Memory destination。Provider 存在时，所有 Markdown 文件语义平等：没有特殊 `MEMORY.md`；可选 `persona.md` 只是创建时默认 pinned 的普通文件，Agent 与 Human 都可修改。pin metadata 随 Git versioning，在可调 byte budget 和 model-aware context preflight 内进入后续 system prompt。每次 operation 经过 `memory/before-operation` waterfall 与 `memory/after-operation` notification；Git commit 才是 durable authority。
+application-defined Memory Service 使用 `Consumer → Service Definition → Provider` capability seam。Provider 缺席时，PersonaBot 仍以系统定义的 base runtime prompt 完成 Chat、Orchestrator 与 Assignment 主链，Client 也不显示 Memory destination。Provider 存在时，所有 Markdown 文件语义平等：没有生成的或特殊的 `MEMORY.md`，也不会把从仓库内容推导出的状态注入 system prompt。可选 `persona.md` 随 Session 首次组装 system prompt 时冻结的快照进入该 Session，Human 的修改只对尚未生成快照的 Session 生效（ADR-0056）。Agent 通过普通文件工具探索仓库。每次 operation 经过 `memory/before-operation` waterfall 与 `memory/after-operation` notification；Git commit 才是 durable authority。
 
 ## 3 · Host 启动、迁移与 recovery
 
