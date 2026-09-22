@@ -34,6 +34,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - BotHarness preferences now live in their own Bot settings section in the Settings dialog — the motion and BOT list sorting rows moved out of the native General page, and the Computer's settings, export/import, and resource bounds will follow there ([#177](https://github.com/BotHarness/BotHarness/issues/177)).
 
 - The Computer now pulls the upstream webtop image (XFCE with Chromium) instead of a BotHarness-built Chrome image, and runs under explicit resource bounds — 2 CPUs and 2 GiB memory by default, swap pinned to the limit, 512 MB shared memory, 4096 processes, and a 30-minute idle stop, all overridable per Host: the image shrank by ~470 MB and resting memory fell from ~2.4 GiB to ~1.15 GiB ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
+- The Computer desktop now opens at viewer-friendly chrome sizes — a taller top bar with larger icons and a taller bottom dock — seeded only over stock values, so a Human's own panel customization is never overwritten ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 - PersonaBot Agents now join an agent preset (`standard` by default), so the Orchestrator runs with ordinary file, Shell, grep, and git tools inside its Memory Repository and can persist memories directly; the Orchestrator now records memory itself and delegates only independent work, while Assignments report memory-worthy findings instead of writing the repository ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
 - The Orchestrator now starts Assignments without waiting: `create_assignment` returns its Session id immediately, a continuity key reuses an idle Assignment instead of creating another, and Assignment reports and questions arrive through the Bot Inbox where an answer resumes the waiting Assignment ([ADR-0055](docs/adr/0055-assignment-collaboration-round-trips-through-the-bot-inbox.md), [#180](https://github.com/BotHarness/BotHarness/issues/180)).
 
@@ -59,6 +60,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Made PersonaBot DM Channels follow the same section, loose-placement, drag, and move rules as group Channels while retaining their avatar contact rows ([#56](https://github.com/BotHarness/BotHarness/issues/56)).
 - Fixed flat-order drag commits so an unpinned PersonaBot DM can persist at the absolute top or between Channel sections exactly like a group Channel ([#56](https://github.com/BotHarness/BotHarness/issues/56)).
 - Channel messages no longer wait for the PersonaBot's Orchestrator turn: a Human message appears immediately, can be sent while the bot is still working, and is admitted to the Bot Inbox for serial processing ([#140](https://github.com/BotHarness/BotHarness/issues/140)).
+- Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 ### Documentation
 
