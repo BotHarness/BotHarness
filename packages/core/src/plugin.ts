@@ -243,6 +243,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.systemPrompt.section({
     name: 'botharness:persona',
     order: PERSONA_SECTION_ORDER,
-    text: ({ agent }) => core.memory.storeForAgent(agent)?.persona() ?? '',
+    text: ({ agent }) => core.memory.personaForSession(agent?.session?.id),
   });
 }

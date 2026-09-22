@@ -44,6 +44,15 @@ export interface SessionOwnershipRepair {
   at: string;
 }
 
+/**
+ * The system-prompt persona frozen for one Session. The body is stored as-is;
+ * an empty body is a real snapshot of a PersonaBot without a PERSONA.md.
+ */
+export interface SessionPersonaSnapshot {
+  body: string;
+  recordedAt: string;
+}
+
 /** Base class for domain failures the ownership interface reports as-is. */
 export class SessionOwnershipError extends Error {
   constructor(message: string) {
@@ -85,6 +94,18 @@ export interface SessionOwnership {
   descendantsOf(sessionId: string): SessionOwnershipRecord[];
   /** Explicit, auditable re-owning; the only way ownership may change. */
   repair(input: SessionOwnershipRepair): SessionOwnershipRecord;
+  /**
+   * The Session's frozen persona snapshot, or undefined when none has been
+   * recorded yet (including for an unknown Session).
+   */
+  personaSnapshot(sessionId: string): SessionPersonaSnapshot | undefined;
+  /**
+   * Record the first persona snapshot for an owned Session and return the
+   * durable bytes. A later call never rewrites an existing snapshot, so the
+   * Session's prompt prefix stays constant for its whole life. Re-owning the
+   * Session to another PersonaBot clears the snapshot for a fresh baseline.
+   */
+  recordPersonaSnapshot(sessionId: string, body: string, at: string): SessionPersonaSnapshot;
   /** Bounded diagnostic listing of every owned Session. */
   list(): SessionOwnershipRecord[];
 }
@@ -118,6 +139,24 @@ function readRow(connection: DatabaseSync, sessionId: string): OwnershipRow | un
   return connection
     .prepare(`SELECT ${COLUMNS} FROM session_ownership WHERE session_id = ?`)
     .get(sessionId) as OwnershipRow | undefined;
+}
+
+interface PersonaSnapshotRow {
+  persona_snapshot: string | null;
+  persona_snapshot_at: string | null;
+}
+
+function readPersonaSnapshot(
+  connection: DatabaseSync,
+  sessionId: string,
+): SessionPersonaSnapshot | undefined {
+  const row = connection
+    .prepare(
+      'SELECT persona_snapshot, persona_snapshot_at FROM session_ownership WHERE session_id = ?',
+    )
+    .get(sessionId) as PersonaSnapshotRow | undefined;
+  if (row?.persona_snapshot == null || row.persona_snapshot_at == null) return undefined;
+  return { body: row.persona_snapshot, recordedAt: row.persona_snapshot_at };
 }
 
 function insertRow(
@@ -255,10 +294,19 @@ export function createSessionOwnership(database: OperationalDatabaseModulePort):
               .prepare(
                 `UPDATE session_ownership
                     SET bot_slug = ?, root_role = ?, provenance = 'repair',
-                        cwd_reference = COALESCE(?, cwd_reference)
+                        cwd_reference = COALESCE(?, cwd_reference),
+                        persona_snapshot = CASE WHEN bot_slug = ? THEN persona_snapshot END,
+                        persona_snapshot_at = CASE WHEN bot_slug = ? THEN persona_snapshot_at END
                   WHERE session_id = ?`,
               )
-              .run(input.botSlug, input.rootRole, input.cwdReference ?? null, input.sessionId);
+              .run(
+                input.botSlug,
+                input.rootRole,
+                input.cwdReference ?? null,
+                input.botSlug,
+                input.botSlug,
+                input.sessionId,
+              );
           },
           ['session-ownership'],
         );
@@ -267,6 +315,35 @@ export function createSessionOwnership(database: OperationalDatabaseModulePort):
       if (repaired === undefined)
         throw new Error(`Session ownership repair failed: ${input.sessionId}`);
       return repaired;
+    },
+    personaSnapshot(sessionId) {
+      return database.read((connection) => readPersonaSnapshot(connection, sessionId));
+    },
+    recordPersonaSnapshot(sessionId, body, at) {
+      try {
+        return database.transaction(
+          (connection) => {
+            if (readRow(connection, sessionId) === undefined) {
+              throw new SessionOwnershipError(`Unknown Session ownership: ${sessionId}`);
+            }
+            connection
+              .prepare(
+                `UPDATE session_ownership
+                    SET persona_snapshot = ?, persona_snapshot_at = ?
+                  WHERE session_id = ? AND persona_snapshot IS NULL`,
+              )
+              .run(body, at, sessionId);
+            const recorded = readPersonaSnapshot(connection, sessionId);
+            if (recorded === undefined) {
+              throw new Error(`Persona snapshot write failed: ${sessionId}`);
+            }
+            return recorded;
+          },
+          ['session-ownership'],
+        );
+      } catch (error) {
+        return rethrowDomainError(error);
+      }
     },
     list() {
       const rows = database.read((connection) =>

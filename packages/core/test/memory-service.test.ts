@@ -1,4 +1,4 @@
-import { rmSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -14,6 +14,7 @@ function initializeMemory(memoryDir: string) {
 
 function setup(options: { memoryDir?: string } = {}): {
   registry: ReturnType<typeof createPersonaBotRegistry>;
+  ownership: ReturnType<typeof createTestOwnership>;
   service: MemoryService;
 } {
   const root = createTempRoot();
@@ -34,7 +35,11 @@ function setup(options: { memoryDir?: string } = {}): {
     rootRole: 'orchestrator',
     at: FIXED_NOW().toISOString(),
   });
-  return { registry, service: createMemoryService({ registry, ownership, now: FIXED_NOW }) };
+  return {
+    registry,
+    ownership,
+    service: createMemoryService({ registry, ownership, now: FIXED_NOW }),
+  };
 }
 
 describe('createMemoryService', () => {
@@ -64,6 +69,34 @@ describe('createMemoryService', () => {
 
     expect(service.repositoryFor('session-research')).toEqual({ state: 'missing' });
     expect(service.storeForSession('session-research')).toBeUndefined();
+  });
+
+  it('freezes the persona for an existing Session and hands a later edit to new Sessions', () => {
+    const { registry, ownership, service } = setup();
+    const memoryDir = registry.memoryDirFor('research');
+    if (memoryDir === undefined) throw new Error('memory dir missing');
+    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
+
+    expect(service.personaForSession('session-research')).toBe('# Persona v1\n');
+    expect(service.personaForSession('session-research')).toBe('# Persona v1\n');
+    expect(ownership.personaSnapshot('session-research')).toEqual({
+      body: '# Persona v1\n',
+      recordedAt: FIXED_NOW().toISOString(),
+    });
+
+    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+    expect(service.personaForSession('session-research')).toBe('# Persona v1\n');
+
+    ownership.claim({
+      sessionId: 'session-second',
+      botSlug: 'research',
+      rootRole: 'orchestrator',
+      at: FIXED_NOW().toISOString(),
+    });
+    expect(service.personaForSession('session-second')).toBe('# Persona v2\n');
+
+    expect(service.personaForSession('unowned-session')).toBe('');
+    expect(service.personaForSession(undefined)).toBe('');
   });
 
   it('honours a custom memory dir and keeps one store per dir', async () => {

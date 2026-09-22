@@ -131,6 +131,18 @@ const ASSIGNMENT_COLLABORATION_MIGRATION: SchemaMigration = {
   },
 };
 
+const SESSION_PERSONA_SNAPSHOT_MIGRATION: SchemaMigration = {
+  generation: 9,
+  module: 'session-ownership',
+  description: 'Freeze each Session system-prompt persona at its first assembly',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE session_ownership ADD COLUMN persona_snapshot TEXT;
+      ALTER TABLE session_ownership ADD COLUMN persona_snapshot_at TEXT;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -139,4 +151,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_LINEAGE_MIGRATION,
   SOURCE_EVENT_SIDE_EFFECT_MIGRATION,
   ASSIGNMENT_COLLABORATION_MIGRATION,
+  SESSION_PERSONA_SNAPSHOT_MIGRATION,
 ]);
