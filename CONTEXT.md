@@ -188,14 +188,6 @@ _Avoid_: file save, filesystem event, raw Git commit, auto-save
 The Memory Service process that validates repository state and accepts or rejects candidate Git commits against Memory invariants. Live Cordis Events describe reconciliation and accepted Memory Commits; they never treat `.git` filesystem activity as durable fact.
 _Avoid_: filesystem watch, background distillation, event-sourced Git
 
-**Memory Remote**:
-A Human-configured Git remote that mirrors one Memory Repository for cross-device continuity. It holds Memory content only and carries no PersonaBot identity, authority, or credentials.
-_Avoid_: GitHub binding, cloud backup, second Memory authority
-
-**Memory Sync**:
-A Human-requested, Agent-executed synchronization between a Memory Repository and its Memory Remote using ordinary Git capabilities under a first-party Skill. The dialogue request is the authorization; there is no product approval or UI binding.
-_Avoid_: automatic backup, Host push, OAuth sync
-
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.
 _Avoid_: upload, provider URL, per-Bot inbox copy, database blob
