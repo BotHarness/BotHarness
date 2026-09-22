@@ -40,9 +40,9 @@ import {
   HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS,
   HiddenChannelsModal,
 } from '../src/client/hidden-channels.js';
-import { zh, type BotHarnessKey } from '../src/client/locale.js';
+import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
 
-const t = (key: BotHarnessKey): string => zh[key];
+const t = zhTranslate;
 const AT = '2026-09-21T00:00:00.000Z';
 
 beforeEach(() => {

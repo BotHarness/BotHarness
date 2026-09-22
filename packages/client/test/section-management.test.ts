@@ -37,7 +37,7 @@ vi.mock('../src/client/name-input.js', () => ({
 
 import type { MenuItem } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import { zh, type BotHarnessKey } from '../src/client/locale.js';
+import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
 import {
   channelMoveMenuItems,
   CreateChannelModal,
@@ -53,7 +53,7 @@ import {
 
 const SECTION = { id: 's1', name: '工作流', channelIds: [] };
 
-const t = (key: BotHarnessKey): string => zh[key];
+const t = zhTranslate;
 
 function lastButton(label: string): Record<string, unknown> {
   const found = captured.buttons.findLast((button) => button['children'] === label);
@@ -162,6 +162,7 @@ describe('section rename modal', () => {
     const onRename = vi.fn();
     renderToStaticMarkup(
       createElement(SectionRenameModal, {
+        t: zhTranslate,
         section: { ...SECTION, name: '  旧名  ' },
         onCancel: () => undefined,
         onRename,
@@ -177,6 +178,7 @@ describe('section rename modal', () => {
     const onRename = vi.fn();
     renderToStaticMarkup(
       createElement(SectionRenameModal, {
+        t: zhTranslate,
         section: { ...SECTION, name: '新名' },
         onCancel: () => undefined,
         onRename,
@@ -193,6 +195,7 @@ describe('section rename modal', () => {
     const onRename = vi.fn();
     renderToStaticMarkup(
       createElement(SectionRenameModal, {
+        t: zhTranslate,
         section: { ...SECTION, name: '输入中' },
         onCancel: () => undefined,
         onRename,
@@ -211,6 +214,7 @@ describe('section rename modal', () => {
     const onRename = vi.fn();
     renderToStaticMarkup(
       createElement(SectionRenameModal, {
+        t: zhTranslate,
         section: { ...SECTION, name: '   ' },
         onCancel: () => undefined,
         onRename,
@@ -227,6 +231,7 @@ describe('section rename modal', () => {
     const onCancel = vi.fn();
     renderToStaticMarkup(
       createElement(SectionRenameModal, {
+        t: zhTranslate,
         section: SECTION,
         onCancel,
         onRename: () => undefined,
@@ -248,6 +253,7 @@ describe('section delete modal', () => {
     const onCancel = vi.fn();
     renderToStaticMarkup(
       createElement(SectionDeleteModal, {
+        t: zhTranslate,
         section: { ...SECTION, name: '工作流', channelIds: ['c1'] },
         onCancel,
         onDelete,
@@ -273,7 +279,11 @@ describe('section delete modal', () => {
 describe('section create modal', () => {
   it('renders the 频道分组 copy with a focused blank name field', () => {
     renderToStaticMarkup(
-      createElement(CreateSectionModal, { onCancel: () => undefined, onCreate: () => undefined }),
+      createElement(CreateSectionModal, {
+        t: zhTranslate,
+        onCancel: () => undefined,
+        onCreate: () => undefined,
+      }),
     );
 
     expect(lastModal()['title']).toBe('创建频道分组');
@@ -286,7 +296,13 @@ describe('section create modal', () => {
   it('keeps Enter, the create button, and cancel inert on a blank draft', () => {
     const onCreate = vi.fn();
     const onCancel = vi.fn();
-    renderToStaticMarkup(createElement(CreateSectionModal, { onCancel, onCreate }));
+    renderToStaticMarkup(
+      createElement(CreateSectionModal, {
+        t: zhTranslate,
+        onCancel,
+        onCreate,
+      }),
+    );
 
     expect(lastButton('创建')['disabled']).toBe(true);
     (lastInput()['onKeyDown'] as (event: unknown) => void)(key('Enter'));
@@ -302,6 +318,7 @@ describe('channel create modal', () => {
   it('titles an ungrouped channel and a section-scoped channel', () => {
     renderToStaticMarkup(
       createElement(CreateChannelModal, {
+        t: zhTranslate,
         onCancel: () => undefined,
         onCreate: async () => undefined,
       }),
@@ -311,6 +328,7 @@ describe('channel create modal', () => {
 
     renderToStaticMarkup(
       createElement(CreateChannelModal, {
+        t: zhTranslate,
         sectionName: '工作流',
         onCancel: () => undefined,
         onCreate: async () => undefined,
@@ -322,7 +340,13 @@ describe('channel create modal', () => {
   it('keeps the blank draft inert and closes through cancel and Escape', () => {
     const onCreate = vi.fn(async () => undefined);
     const onCancel = vi.fn();
-    renderToStaticMarkup(createElement(CreateChannelModal, { onCancel, onCreate }));
+    renderToStaticMarkup(
+      createElement(CreateChannelModal, {
+        t: zhTranslate,
+        onCancel,
+        onCreate,
+      }),
+    );
 
     expect(lastButton('创建')['disabled']).toBe(true);
     (lastInput()['onKeyDown'] as (event: unknown) => void)(key('Enter'));

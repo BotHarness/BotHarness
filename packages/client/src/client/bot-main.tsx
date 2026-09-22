@@ -15,6 +15,7 @@ import {
 } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import { ChannelComposer, type ChannelComposerActivity } from './channel-composer.js';
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -30,10 +31,14 @@ function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
 
-function authorLabel(message: ChannelMessage, bots: readonly BotSummary[]): string {
+function authorLabel(
+  message: ChannelMessage,
+  bots: readonly BotSummary[],
+  t: BotHarnessTranslate,
+): string {
   switch (message.author.kind) {
     case 'human':
-      return '你';
+      return t('main.author.human');
     case 'bot':
       return memberName(bots, message.author.slug);
     case 'bridged':
@@ -47,17 +52,15 @@ function clockTime(at: string): string {
   return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-function Welcome({ state }: { state: ClientState }): ReactElement {
+function Welcome({ state, t }: { state: ClientState; t: BotHarnessTranslate }): ReactElement {
   return (
     <div className="bh-root bh-main">
       <div className="bh-content">
         <div className="bh-placeholder">
           <IconAgentPresetOutline16 size={32} />
-          <div className="bh-big">与 PersonaBot 对话</div>
-          <div>从左侧选择一个 Bot 或频道开始</div>
-          {state.bots.length === 0 ? (
-            <div className="bh-dim">还没有 PersonaBot；可从左侧「+」或空态按钮创建。</div>
-          ) : null}
+          <div className="bh-big">{t('main.welcome.title')}</div>
+          <div>{t('main.welcome.hint')}</div>
+          {state.bots.length === 0 ? <div className="bh-dim">{t('main.welcome.empty')}</div> : null}
         </div>
       </div>
     </div>
@@ -68,10 +71,12 @@ function MessageBubble({
   message,
   bots,
   continuation,
+  t,
 }: {
   message: ChannelMessage;
   bots: readonly BotSummary[];
   continuation: boolean;
+  t: BotHarnessTranslate;
 }): ReactElement {
   const human = message.author.kind === 'human';
   const authorSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
@@ -97,14 +102,14 @@ function MessageBubble({
         className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}`}
       >
         {human || continuation ? null : (
-          <div className="bh-bubble-author">{authorLabel(message, bots)}</div>
+          <div className="bh-bubble-author">{authorLabel(message, bots, t)}</div>
         )}
         <div className="bh-bubble-body">{message.body}</div>
         <div className="bh-bubble-time">
           {message.streaming === true
-            ? '正在生成…'
+            ? t('message.generating')
             : message.pending === true
-              ? '发送中'
+              ? t('message.sending')
               : clockTime(message.at)}
         </div>
       </div>
@@ -115,9 +120,11 @@ function MessageBubble({
 function EmptyConversation({
   channel,
   bot,
+  t,
 }: {
   channel: ChannelSummary | undefined;
   bot: BotSummary | undefined;
+  t: BotHarnessTranslate;
 }): ReactElement {
   if (channel?.type === 'group') {
     return (
@@ -126,7 +133,7 @@ function EmptyConversation({
           #
         </span>
         <div className="bh-big">{channel.name}</div>
-        <div>群聊消息保存在本地；Bot 参与随 v1.1 到来。</div>
+        <div>{t('main.group.note')}</div>
       </div>
     );
   }
@@ -142,9 +149,11 @@ function EmptyConversation({
         />
       ) : null}
       <div className="bh-big">
-        {bot === undefined ? '本地对话' : `这是与 ${bot.displayName} 的本地对话`}
+        {bot === undefined
+          ? t('main.localChat')
+          : t('main.localChat.with', { name: bot.displayName })}
       </div>
-      <div>直接发消息即可；Bot 会自行安排事项，并在这里回复结果。</div>
+      <div>{t('main.localChat.hint')}</div>
     </div>
   );
 }
@@ -153,10 +162,12 @@ function ConversationView({
   state,
   actions,
   channelSidebar,
+  t,
 }: {
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  t: BotHarnessTranslate;
 }): ReactElement {
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -180,7 +191,7 @@ function ConversationView({
     selection?.kind === 'bot'
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
-  const title = channel?.name ?? bot?.displayName ?? '群聊';
+  const title = channel?.name ?? bot?.displayName ?? t('main.group.title');
   const botActivity = bot === undefined ? undefined : personaBotActivity(state, bot);
   const channelBots =
     channel?.type === 'group'
@@ -216,8 +227,8 @@ function ConversationView({
           items: composerFacepile,
           summary:
             composerFacepile.length === 1
-              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle')}`
-              : `${composerFacepile.length} 个 PersonaBot 有状态更新`,
+              ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle', t)}`
+              : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
   const currentChannel = useRef(channelId);
@@ -282,13 +293,13 @@ function ConversationView({
           </div>
           <div className="bh-chat-body" ref={scrollRef}>
             {conversation.status === 'loading' && messages.length === 0 ? (
-              <div className="bh-note">正在加载消息…</div>
+              <div className="bh-note">{t('messages.loading')}</div>
             ) : null}
             {conversation.status === 'error' && conversation.error !== undefined ? (
-              <div className="bh-error">消息加载失败：{conversation.error}</div>
+              <div className="bh-error">{t('messages.error', { error: conversation.error })}</div>
             ) : null}
             {displayMessages.length === 0 && conversation.status !== 'loading' ? (
-              <EmptyConversation channel={channel} bot={bot} />
+              <EmptyConversation channel={channel} bot={bot} t={t} />
             ) : null}
             {displayMessages.map((message, index) => {
               const previous = displayMessages[index - 1];
@@ -307,15 +318,17 @@ function ConversationView({
                   message={message}
                   bots={state.bots}
                   continuation={continuation}
+                  t={t}
                 />
               );
             })}
           </div>
           <ChannelComposer
             value={draft}
-            placeholder={`发消息给 ${title}`}
+            placeholder={t('composer.placeholder', { name: title })}
             sending={conversation.sending}
             activity={composerActivity}
+            t={t}
             onChange={setDraft}
             onSubmit={submit}
           />
@@ -325,11 +338,12 @@ function ConversationView({
           state={state}
           actions={actions}
           controller={sidebar}
+          t={t}
         />
         <button
           type="button"
           className="bh-sidebar-toggle"
-          aria-label={sidebar.mode === 'hidden' ? '展开 Channel sidebar' : '收起 Channel sidebar'}
+          aria-label={sidebar.mode === 'hidden' ? t('sidebar.expand') : t('sidebar.collapse')}
           aria-expanded={sidebar.mode !== 'hidden'}
           aria-controls="bh-channel-sidebar"
           onClick={sidebar.toggle}
@@ -344,21 +358,25 @@ function ConversationView({
 export function BotMain({
   actions,
   channelSidebar,
+  t = zhTranslate,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
-  if (state.selection === undefined) return <Welcome state={state} />;
-  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} />;
+  if (state.selection === undefined) return <Welcome state={state} t={t} />;
+  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} t={t} />;
 }
 
 export function BotPanel({
   actions,
   channelSidebar,
+  t,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  t: BotHarnessTranslate;
 }): ReactElement {
   useEffect(() => {
     store.setMode('bot');
@@ -366,5 +384,5 @@ export function BotPanel({
       store.setMode('dsh');
     };
   }, []);
-  return <BotMain actions={actions} channelSidebar={channelSidebar} />;
+  return <BotMain actions={actions} channelSidebar={channelSidebar} t={t} />;
 }

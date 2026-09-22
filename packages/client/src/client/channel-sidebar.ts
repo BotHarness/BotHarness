@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import type { BotHarnessTranslate } from './locale.js';
 
 /** Which selection a Channel sidebar entry belongs to. */
 export type ChannelSidebarScope = 'channel' | 'personabot';
@@ -11,6 +12,8 @@ export interface ChannelSidebarEntryProps {
   channelId: string;
   botSlug: string | undefined;
   actions: BridgeActions;
+  /** Locale-bound translate of the BotHarness namespace. */
+  t: BotHarnessTranslate;
 }
 
 /**

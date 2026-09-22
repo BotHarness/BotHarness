@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import { blobatar } from 'blobatar';
 
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+
 export const PERSONA_BOT_ACTIVITY_STATES = [
   'idle',
   'thinking',
@@ -61,18 +63,21 @@ export function defaultActivityEffect(
   return undefined;
 }
 
-export function personaBotActivityLabel(state: PersonaBotActivityState): string {
+export function personaBotActivityLabel(
+  state: PersonaBotActivityState,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
   switch (state) {
     case 'idle':
-      return '空闲';
+      return t('activity.idle');
     case 'thinking':
-      return '正在思考';
+      return t('activity.thinking');
     case 'working':
-      return '正在工作';
+      return t('activity.working');
     case 'waiting':
-      return '正在等待你';
+      return t('activity.waiting');
     case 'blocked':
-      return '工作受阻';
+      return t('activity.blocked');
   }
 }
 

@@ -4,6 +4,7 @@ import { Button, IconCloseOutline16, Tag } from '@deepseek-ai/dsh-client-ui-prim
 
 import type { BridgeActions } from './actions.js';
 import { BridgeCallError, errorMessage } from './bridge.js';
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 
@@ -11,15 +12,18 @@ export function normalizeRoleBadges(values: readonly string[]): string[] {
   return [...new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))];
 }
 
-export function personaBotCreateError(error: unknown): string {
+export function personaBotCreateError(
+  error: unknown,
+  t: BotHarnessTranslate = zhTranslate,
+): string {
   if (error instanceof BridgeCallError) {
     switch (error.code) {
       case 'duplicate':
-        return '系统未能分配唯一身份，请重试。';
+        return t('bot.create.error.identity');
       case 'invalid-input':
-        return '请检查 Bot 名称、岗位或简介。';
+        return t('bot.create.error.invalid');
       case 'unavailable':
-        return '无法连接 Host，请稍后重试。';
+        return t('bot.create.error.connection');
     }
   }
   return errorMessage(error);
@@ -51,12 +55,14 @@ export function CreatePersonaBotModal({
   actions,
   sectionId,
   sectionName,
+  t = zhTranslate,
   onCancel,
   onCreated,
 }: {
   actions: BridgeActions;
   sectionId?: string;
   sectionName?: string;
+  t?: BotHarnessTranslate | undefined;
   onCancel: () => void;
   onCreated: () => void;
 }): ReactElement {
@@ -114,47 +120,45 @@ export function CreatePersonaBotModal({
       onClose={() => {
         if (!creating) onCancel();
       }}
-      closeLabel="关闭"
+      closeLabel={t('common.close')}
       title={
-        sectionName === undefined ? '创建 PersonaBot' : `在「${sectionName}」中创建 PersonaBot`
+        sectionName === undefined
+          ? t('bot.create.title')
+          : t('bot.create.inSection', { name: sectionName })
       }
-      description="名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。"
+      description={t('bot.create.description')}
       footer={
         <>
           <Button variant="outline" disabled={creating} onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" disabled={invalid || creating} onClick={submit}>
-            {creating ? '创建中' : '创建'}
+            {creating ? t('bot.create.creating') : t('common.create')}
           </Button>
         </>
       }
     >
       <div className="bh-personabot-form">
-        <Field id={displayNameId} label="名称">
+        <Field id={displayNameId} label={t('bot.create.name.label')}>
           <NameInput
             id={displayNameId}
             autoFocus
             value={displayName}
             disabled={creating}
-            placeholder="例如：小研"
+            placeholder={t('bot.create.name.placeholder')}
             onChange={(event) => setDisplayName(event.currentTarget.value)}
           />
         </Field>
-        <Field
-          id={roleId}
-          label="岗位 / 职位（可选）"
-          hint="输入后按 Enter 或逗号添加；可添加多个徽章。"
-        >
+        <Field id={roleId} label={t('bot.create.roles.label')} hint={t('bot.create.roles.hint')}>
           <div className="bh-role-editor">
             {roles.length === 0 ? null : (
-              <div className="bh-role-editor-badges" aria-label="已添加的岗位">
+              <div className="bh-role-editor-badges" aria-label={t('bot.create.roles.list')}>
                 {roles.map((role) => (
                   <span className="bh-role-edit-badge" key={role}>
                     <Tag tone="neutral">{role}</Tag>
                     <button
                       type="button"
-                      aria-label={`移除岗位 ${role}`}
+                      aria-label={t('bot.create.roles.remove', { role })}
                       disabled={creating}
                       onClick={() => setRoles((current) => current.filter((item) => item !== role))}
                     >
@@ -168,7 +172,7 @@ export function CreatePersonaBotModal({
               id={roleId}
               value={roleDraft}
               disabled={creating}
-              placeholder="例如：研究员"
+              placeholder={t('bot.create.roles.placeholder')}
               onBlur={commitRoleDraft}
               onChange={(event) => setRoleDraft(event.currentTarget.value)}
               onKeyDown={(event) => {
@@ -184,20 +188,20 @@ export function CreatePersonaBotModal({
         </Field>
         <Field
           id={descriptionId}
-          label="简介（可选）"
-          hint="简短介绍这个 Bot 的信息、擅长领域或主要职责。"
+          label={t('bot.create.about.label')}
+          hint={t('bot.create.about.hint')}
         >
           <NameInput
             id={descriptionId}
             value={description}
             disabled={creating}
-            placeholder="例如：负责代码审查与质量把关"
+            placeholder={t('bot.create.about.placeholder')}
             onChange={(event) => setDescription(event.currentTarget.value)}
           />
         </Field>
         {error === undefined ? null : (
           <div className="bh-modal-error" role="alert">
-            创建失败：{error}
+            {t('create.failed', { error })}
           </div>
         )}
       </div>

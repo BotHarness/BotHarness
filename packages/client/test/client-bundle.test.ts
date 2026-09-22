@@ -188,6 +188,7 @@ describe('@botharness/client browser bundle', () => {
       {
         name: 'main',
         key: 'botharness',
+        locale: 'botharness',
         inject: expect.any(Function),
       },
     ]);

@@ -10,14 +10,14 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { errorMessage } from './bridge.js';
-import { UNGROUPED_LABEL } from './labels.js';
-import type { BotHarnessKey } from './locale.js';
+import { ungroupedLabel } from './labels.js';
+import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 import type { RosterSection } from './roster.js';
 
 /** Narrow translate seat consumed by pure menu builders (the slot `t` seat is a superset). */
-export type BotMenuTranslate = (key: BotHarnessKey) => string;
+export type BotMenuTranslate = BotHarnessTranslate;
 
 /** Caller class that paints the delete confirm's outline button in the error colour. */
 export const DANGER_ACTION_CLASS = 'bh-danger-action';
@@ -98,7 +98,7 @@ export function channelMoveMenuItems(
         ...sections.map((section) =>
           target(section.id, section.name, section.id === currentSectionId),
         ),
-        target(UNGROUPED_MOVE_TARGET, UNGROUPED_LABEL, currentSectionId === undefined),
+        target(UNGROUPED_MOVE_TARGET, ungroupedLabel(t), currentSectionId === undefined),
       ],
     },
   ];
@@ -150,6 +150,7 @@ function NameField({
 
 export interface SectionRenameModalProps {
   section: RosterSection;
+  t: BotHarnessTranslate;
   onCancel: () => void;
   onRename: (name: string) => void;
 }
@@ -157,6 +158,7 @@ export interface SectionRenameModalProps {
 /** Native Modal+input rename; Enter submits, Escape/mask/cancel close without a change. */
 export function SectionRenameModal({
   section,
+  t,
   onCancel,
   onRename,
 }: SectionRenameModalProps): ReactElement {
@@ -167,12 +169,12 @@ export function SectionRenameModal({
     <Modal
       open
       onClose={onCancel}
-      closeLabel="关闭"
-      title="重命名频道分组"
+      closeLabel={t('common.close')}
+      title={t('section.rename.title')}
       footer={
         <>
           <Button variant="outline" onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -181,14 +183,14 @@ export function SectionRenameModal({
               if (!blank) onRename(trimmed);
             }}
           >
-            重命名
+            {t('common.rename')}
           </Button>
         </>
       }
     >
       <NameField
-        label="分组名称"
-        placeholder="分组名称"
+        label={t('section.name.label')}
+        placeholder={t('section.name.placeholder')}
         value={draft}
         disabled={blank}
         onChange={setDraft}
@@ -203,6 +205,7 @@ export function SectionRenameModal({
 export interface ChannelRenameModalProps {
   name: string;
   bot: boolean;
+  t: BotHarnessTranslate;
   onCancel: () => void;
   onRename: (name: string) => void;
 }
@@ -211,23 +214,24 @@ export interface ChannelRenameModalProps {
 export function ChannelRenameModal({
   name,
   bot,
+  t,
   onCancel,
   onRename,
 }: ChannelRenameModalProps): ReactElement {
   const [draft, setDraft] = useState(name);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
-  const label = bot ? 'PersonaBot 名称' : '频道名称';
+  const label = bot ? t('bot.name.label') : t('channel.name.label');
   return (
     <Modal
       open
       onClose={onCancel}
-      closeLabel="关闭"
-      title={bot ? '重命名 PersonaBot' : '重命名频道'}
+      closeLabel={t('common.close')}
+      title={bot ? t('bot.rename.title') : t('channel.rename.title')}
       footer={
         <>
           <Button variant="outline" onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -236,7 +240,7 @@ export function ChannelRenameModal({
               if (!blank) onRename(trimmed);
             }}
           >
-            重命名
+            {t('common.rename')}
           </Button>
         </>
       }
@@ -257,6 +261,7 @@ export function ChannelRenameModal({
 
 export interface SectionDeleteModalProps {
   section: RosterSection;
+  t: BotHarnessTranslate;
   onCancel: () => void;
   onDelete: () => void;
 }
@@ -264,6 +269,7 @@ export interface SectionDeleteModalProps {
 /** Native destructive confirm: outline button in the error colour, focus parked on cancel. */
 export function SectionDeleteModal({
   section,
+  t,
   onCancel,
   onDelete,
 }: SectionDeleteModalProps): ReactElement {
@@ -271,16 +277,16 @@ export function SectionDeleteModal({
     <Modal
       open
       onClose={onCancel}
-      closeLabel="关闭"
-      title="删除频道分组"
-      description={`将把“${section.name}”从名册中移除。其中的频道会移出分组、变为未分组频道，不会被删除。`}
+      closeLabel={t('common.close')}
+      title={t('section.delete.title')}
+      description={t('section.delete.description', { name: section.name })}
       footer={
         <>
           <Button variant="outline" autoFocus onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button variant="outline" className={DANGER_ACTION_CLASS} onClick={onDelete}>
-            删除
+            {t('common.delete')}
           </Button>
         </>
       }
@@ -289,12 +295,17 @@ export function SectionDeleteModal({
 }
 
 export interface CreateSectionModalProps {
+  t: BotHarnessTranslate;
   onCancel: () => void;
   onCreate: (name: string) => void;
 }
 
 /** Native Modal+input creation for a Channel section. */
-export function CreateSectionModal({ onCancel, onCreate }: CreateSectionModalProps): ReactElement {
+export function CreateSectionModal({
+  t,
+  onCancel,
+  onCreate,
+}: CreateSectionModalProps): ReactElement {
   const [draft, setDraft] = useState('');
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
@@ -302,13 +313,13 @@ export function CreateSectionModal({ onCancel, onCreate }: CreateSectionModalPro
     <Modal
       open
       onClose={onCancel}
-      closeLabel="关闭"
-      title="创建频道分组"
-      description="新频道分组只影响本机名册的分组显示。"
+      closeLabel={t('common.close')}
+      title={t('section.create.title')}
+      description={t('section.create.description')}
       footer={
         <>
           <Button variant="outline" onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button
             variant="primary"
@@ -317,14 +328,14 @@ export function CreateSectionModal({ onCancel, onCreate }: CreateSectionModalPro
               if (!blank) onCreate(trimmed);
             }}
           >
-            创建
+            {t('common.create')}
           </Button>
         </>
       }
     >
       <NameField
-        label="分组名称"
-        placeholder="分组名称"
+        label={t('section.name.label')}
+        placeholder={t('section.name.placeholder')}
         value={draft}
         disabled={blank}
         onChange={setDraft}
@@ -339,6 +350,7 @@ export function CreateSectionModal({ onCancel, onCreate }: CreateSectionModalPro
 export interface CreateChannelModalProps {
   /** Section the new Channel is assigned to; absent creates an ungrouped Channel. */
   sectionName?: string | undefined;
+  t: BotHarnessTranslate;
   onCancel: () => void;
   /** Resolve to close the dialog; reject to show the error in place. */
   onCreate: (name: string) => Promise<void>;
@@ -347,6 +359,7 @@ export interface CreateChannelModalProps {
 /** Native Modal+input creation for a Channel, optionally scoped to a section. */
 export function CreateChannelModal({
   sectionName,
+  t,
   onCancel,
   onCreate,
 }: CreateChannelModalProps): ReactElement {
@@ -373,23 +386,27 @@ export function CreateChannelModal({
     <Modal
       open
       onClose={onCancel}
-      closeLabel="关闭"
-      title={sectionName === undefined ? '创建频道' : `在「${sectionName}」中创建频道`}
-      description="先建一个本地频道；Bot 参与和消息投递随 v1.1 到来。"
+      closeLabel={t('common.close')}
+      title={
+        sectionName === undefined
+          ? t('channel.create.title')
+          : t('channel.create.inSection', { name: sectionName })
+      }
+      description={t('channel.create.description')}
       footer={
         <>
           <Button variant="outline" disabled={creating} onClick={onCancel}>
-            取消
+            {t('common.cancel')}
           </Button>
           <Button variant="primary" disabled={blank || creating} onClick={submit}>
-            创建
+            {t('common.create')}
           </Button>
         </>
       }
     >
       <NameField
-        label="频道名称"
-        placeholder="频道名称"
+        label={t('channel.name.label')}
+        placeholder={t('channel.name.placeholder')}
         value={draft}
         disabled={blank || creating}
         onChange={setDraft}
@@ -397,7 +414,7 @@ export function CreateChannelModal({
       />
       {error !== undefined ? (
         <div className="bh-modal-error" role="alert">
-          创建失败：{error}
+          {t('create.failed', { error })}
         </div>
       ) : null}
     </Modal>

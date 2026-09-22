@@ -21,11 +21,15 @@ export interface ChannelComposerActivity {
   summary: string;
 }
 
+import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+
 export interface ChannelComposerProps {
   value: string;
   placeholder: string;
   sending: boolean;
   activity?: ChannelComposerActivity | undefined;
+  /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
+  t?: BotHarnessTranslate | undefined;
   onChange(value: string): void;
   onSubmit(): void | Promise<void>;
 }
@@ -94,6 +98,7 @@ export function ChannelComposer({
   placeholder,
   sending,
   activity,
+  t = zhTranslate,
   onChange,
   onSubmit,
 }: ChannelComposerProps): ReactElement {
@@ -162,7 +167,7 @@ export function ChannelComposer({
             variant="primary"
             size="sm"
             icon={<IconSendOutline16 size={16} />}
-            aria-label={sending ? '发送中' : '发送'}
+            aria-label={sending ? t('message.sending') : t('composer.send')}
             disabled={value.trim().length === 0 || sending}
             onClick={() => void onSubmit()}
           />
