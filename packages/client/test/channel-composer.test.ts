@@ -46,6 +46,7 @@ describe('Channel composer', () => {
     expect(markup).toContain('<textarea');
     expect(markup).toContain('hello');
     expect(markup).toContain('class="bh-composer bh-composer-compact"');
+    expect(markup).not.toContain('bh-composer-with-footer');
     expect(markup).toContain('data-layout="compact"');
   });
 
@@ -78,6 +79,7 @@ describe('Channel composer', () => {
       }),
     );
     expect(markup).toContain('bh-composer-replying');
+    expect(markup).toContain('bh-composer-with-footer');
     expect(markup).toContain('bh-composer-reply-copy');
     expect(markup).toContain('original text');
     expect(markup).toContain('bh-composer-reply-cancel');
@@ -115,6 +117,7 @@ describe('Channel composer', () => {
       );
 
     const failed = render('error');
+    expect(failed).toContain('bh-composer-with-footer');
     expect(failed).toContain('report.pdf');
     expect(failed).toContain('title="network unavailable"');
     expect(failed).toContain('重试');

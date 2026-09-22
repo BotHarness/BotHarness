@@ -51,6 +51,7 @@ describe('Channel read position candidates', () => {
       ...committedMessageIds([
         committed,
         { ...committed, id: 'local-echo-1', pending: true },
+        { ...committed, id: 'local-failed-1', failed: 'network disconnected' },
         { ...committed, id: 'draft-1', streaming: true },
       ]),
     ]).toEqual(['m1']);
@@ -212,11 +213,54 @@ describe('Bot main Assignment pane', () => {
     const markup = renderToStaticMarkup(
       createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
     );
-
     expect(markup).toContain('bh-bubble-pending');
     expect(markup).toContain('发送中');
     expect(markup).toContain('hello');
     expect(markup).not.toContain('bh-message-group-avatar');
+  });
+
+  it('keeps a failed Human bubble with an explicit restore affordance', () => {
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+    };
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:01:00.000Z',
+    };
+    store.setRoster([bot], [channel]);
+    store.select({ kind: 'bot', slug: 'ada' });
+    store.setConversation({
+      status: 'ready',
+      channel,
+      messages: [
+        {
+          id: 'local-failed-1',
+          at: '2026-09-21T00:02:00.000Z',
+          author: { kind: 'human' },
+          body: 'hello',
+          failed: 'network disconnected',
+        },
+      ],
+      error: undefined,
+      sending: false,
+    });
+    const markup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
+    expect(markup).toContain('hello');
+    expect(markup).toContain('bh-bubble-failed');
+    expect(markup).toContain('发送失败');
+    expect(markup).not.toContain('发送中');
   });
   it('renders adjacent Bot messages as one group with a bottom avatar and one timestamp', () => {
     const bot = {

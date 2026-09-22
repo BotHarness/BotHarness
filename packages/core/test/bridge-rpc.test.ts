@@ -148,6 +148,7 @@ describe('bridge typert service', () => {
       'body',
       'replyTo',
       'attachments',
+      'messageId',
     ]);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);

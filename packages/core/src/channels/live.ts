@@ -7,6 +7,7 @@ export const CHANNEL_DRAFT_EVENT = 'channel/draft';
 export const CHANNEL_DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
 export const CHANNEL_DRAFT_SETTLED_EVENT = 'channel/draft-settled';
 export const CHANNEL_DRAFT_ABANDONED_EVENT = 'channel/draft-abandoned';
+export const ROSTER_CHANGED_EVENT = 'roster/changed';
 
 interface PublishedDraft extends ChannelDraft {
   revision: number;
@@ -33,6 +34,7 @@ export interface ChannelLiveHub {
   open(request: Request): Response;
   publishCommitted(commit: ChannelMessageCommit): void;
   publishDraft(event: ChannelDraftEvent): void;
+  publishRosterCommitted(): void;
   close(): void;
 }
 
@@ -62,6 +64,58 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
   const subscribers = new Map<string, Set<Subscriber>>();
   const drafts = new Map<string, Map<string, PublishedDraft>>();
   const draftRevisions = new Map<string, number>();
+  const rosterSubscribers = new Set<{ push(): void; close(): void }>();
+  const openRoster = (): Response => {
+    const encoder = new TextEncoder();
+    let subscriber: { push(): void; close(): void } | undefined;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        let ended = false;
+        subscriber = {
+          push() {
+            if (ended) return;
+            try {
+              controller.enqueue(encoder.encode(`event: ${ROSTER_CHANGED_EVENT}\ndata: {}\n\n`));
+            } catch {
+              this.close();
+            }
+          },
+          close() {
+            if (ended) return;
+            ended = true;
+            if (heartbeat !== undefined) clearInterval(heartbeat);
+            rosterSubscribers.delete(this);
+            try {
+              controller.close();
+            } catch {
+              // The browser may already have cancelled the stream.
+            }
+          },
+        };
+        rosterSubscribers.add(subscriber);
+        controller.enqueue(encoder.encode('retry: 1500\n\n'));
+        heartbeat = setInterval(() => {
+          if (ended) return;
+          try {
+            controller.enqueue(encoder.encode(': heartbeat\n\n'));
+          } catch {
+            subscriber?.close();
+          }
+        }, 15_000);
+      },
+      cancel() {
+        subscriber?.close();
+      },
+    });
+    return new Response(body, {
+      headers: {
+        'Content-Type': 'text/event-stream; charset=utf-8',
+        'Cache-Control': 'no-cache, no-transform',
+        'X-Accel-Buffering': 'no',
+      },
+    });
+  };
   const remove = (channelId: string, subscriber: Subscriber): void => {
     const group = subscribers.get(channelId);
     group?.delete(subscriber);
@@ -71,6 +125,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
   return {
     open(request) {
       const url = new URL(request.url);
+      if (url.searchParams.get('scope') === 'roster') return openRoster();
       const channelId = url.searchParams.get('channelId');
       if (channelId === null || channels.get(channelId) === undefined) {
         return new Response('Unknown Channel', { status: 404 });
@@ -206,11 +261,15 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
       draftRevisions.set(channelId, revision);
       for (const subscriber of subscribers.get(channelId) ?? []) subscriber.pushDraft(published);
     },
+    publishRosterCommitted() {
+      for (const subscriber of rosterSubscribers) subscriber.push();
+    },
     close() {
       drafts.clear();
       for (const group of subscribers.values()) {
         for (const subscriber of group) subscriber.close();
       }
+      for (const subscriber of rosterSubscribers) subscriber.close();
     },
   };
 }

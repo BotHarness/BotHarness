@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { mountChannelLive } from '../src/client/channel-live.js';
+import { mountChannelLive, mountRosterLive } from '../src/client/channel-live.js';
 import { createStore, type ChannelSummary } from '../src/client/store.js';
 
 const CHANNEL: ChannelSummary = {
@@ -17,6 +17,7 @@ class FakeSource {
   readonly listeners = new Map<string, EventListener>();
   onerror: ((event: Event) => void) | null = null;
   readyState = 1;
+  onopen: ((event: Event) => void) | null = null;
   closed = false;
   draftRevision = 0;
   constructor(readonly url: string) {}
@@ -105,6 +106,47 @@ function setup(refresh = vi.fn(async () => undefined), channel = CHANNEL) {
   });
   return { store, sources, dispose, refresh };
 }
+describe('Roster live Client', () => {
+  it('refreshes only committed invalidations and recovers after a reconnect', async () => {
+    vi.useFakeTimers();
+    try {
+      const store = createStore();
+      store.setMode('bot');
+      const signals: AbortSignal[] = [];
+      const refreshRoster = vi.fn(
+        (signal?: AbortSignal) =>
+          new Promise<void>((resolve) => {
+            if (signal === undefined) return resolve();
+            signals.push(signal);
+            signal.addEventListener('abort', () => resolve(), { once: true });
+          }),
+      );
+      const actions = { refreshRoster } as unknown as BridgeActions;
+      const sources: FakeSource[] = [];
+      const dispose = mountRosterLive(store, actions, (url) => {
+        const source = new FakeSource(url);
+        sources.push(source);
+        return source as unknown as EventSource;
+      });
+      expect(sources).toHaveLength(1);
+      expect(sources[0]?.url).toBe('/api/botharness/stream?scope=roster');
+      sources[0]?.listeners.get('roster/changed')?.(new MessageEvent('roster/changed'));
+      await vi.advanceTimersByTimeAsync(80);
+      expect(refreshRoster).toHaveBeenCalledTimes(1);
+      expect(signals[0]?.aborted).toBe(false);
+      sources[0]?.onopen?.(new Event('open'));
+      await vi.advanceTimersByTimeAsync(80);
+      expect(refreshRoster).toHaveBeenCalledTimes(2);
+      expect(signals[0]?.aborted).toBe(true);
+      expect(signals[1]?.aborted).toBe(false);
+      dispose();
+      expect(signals[1]?.aborted).toBe(true);
+      expect(sources[0]?.closed).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
 
 describe('Channel live Client', () => {
   it('appends once, ignores duplicate revisions, and updates the Channel preview', () => {

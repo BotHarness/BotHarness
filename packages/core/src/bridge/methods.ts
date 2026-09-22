@@ -557,25 +557,63 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
         return invalidInput('replyTo must be a message id');
       }
+      const requestedMessageId = source['messageId'];
+      if (
+        requestedMessageId !== undefined &&
+        (typeof requestedMessageId !== 'string' ||
+          !/^human-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(
+            requestedMessageId,
+          ))
+      ) {
+        return invalidInput('messageId must be a Human client message id');
+      }
+      const channel = deps.channels.get(channelId);
+      if (channel === undefined) return unknownChannel(channelId);
+      const existing =
+        requestedMessageId === undefined
+          ? undefined
+          : deps.channels.message(channelId, requestedMessageId);
+      if (existing !== undefined) {
+        const same =
+          existing.author.kind === 'human' &&
+          existing.body === body &&
+          existing.replyTo === replyTo &&
+          JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []);
+        return same
+          ? { ok: true, value: { message: existing } }
+          : invalidInput('messageId already belongs to different Channel content');
+      }
       const message: ChannelMessage = {
-        id: randomUUID(),
+        id: requestedMessageId ?? randomUUID(),
         at: new Date().toISOString(),
         author: { kind: 'human' },
         body,
         ...(attachments === undefined ? {} : { attachments }),
         ...(replyTo === undefined ? {} : { replyTo }),
       };
-      const channel = deps.channels.get(channelId);
-      if (channel === undefined) return unknownChannel(channelId);
-      let appended: ChannelMessage | undefined;
+      if (
+        channel.type === 'dm' &&
+        channel.botSlug !== undefined &&
+        deps.registry.get(channel.botSlug)?.paused === true
+      ) {
+        return dmAdmissionFailure(channelId, channel.botSlug, 'archived-bot');
+      }
+      let appendResult;
       try {
-        appended = await deps.channels.appendMessage(channelId, message);
+        appendResult = await deps.channels.appendMessageOnce(channelId, message);
       } catch (error) {
         if (error instanceof ChannelReplyTargetError || error instanceof ChannelAttachmentError)
           return invalidInput(error.message);
         throw error;
       }
-      if (appended === undefined) return unknownChannel(channelId);
+      if (appendResult.status === 'missing') return unknownChannel(channelId);
+      if (appendResult.status === 'conflict') {
+        return invalidInput('messageId already belongs to different Channel content');
+      }
+      const appended = appendResult.message;
+      if (appendResult.status === 'existing') {
+        return { ok: true, value: { message: appended } };
+      }
       if (channel.type === 'dm' && deps.runtime !== undefined) {
         const admission = deps.runtime.admitDmMessage({
           channelId,
@@ -585,7 +623,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             `[Attachments: ${appended.attachments?.map((ref) => ref.name).join(', ') ?? ''}]`,
         });
         if (!admission.admitted) {
-          return dmAdmissionFailure(channelId, channel.botSlug, admission.reason);
+          // The Channel append already committed. Never report a durable message
+          // as an unsent failure that the Human might duplicate on retry.
+          return { ok: true, value: { message: appended } };
         }
       }
       return { ok: true, value: { message: appended } };
