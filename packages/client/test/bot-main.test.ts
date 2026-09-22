@@ -269,4 +269,47 @@ describe('Bot main Assignment pane', () => {
     expect(markup.match(/class="bh-bubble-time"/g)).toHaveLength(1);
     expect(markup).toContain('bh-bubble-focused');
   });
+  it('renders a linked reply summary and safely degrades when the original is gone', () => {
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle' as const,
+      workspaces: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+    };
+    const channel = {
+      id: 'dm-ada',
+      type: 'dm' as const,
+      name: 'Ada',
+      members: ['ada'],
+      botSlug: 'ada',
+      createdAt: bot.createdAt,
+      updatedAt: bot.createdAt,
+    };
+    const reply: ChannelMessage = {
+      id: 'm2',
+      at: bot.createdAt,
+      author: { kind: 'human' },
+      body: 'answer',
+      replyTo: 'm1',
+      replyToPreview: { author: { kind: 'bot', slug: 'ada' }, body: 'original summary' },
+    };
+    store.setRoster([bot], [channel]);
+    store.select({ kind: 'bot', slug: 'ada' });
+    store.setConversation({ status: 'ready', channel, messages: [reply], sending: false });
+    const render = () =>
+      renderToStaticMarkup(
+        createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+      );
+    const linked = render();
+    expect(linked).toContain('class="bh-bubble-reply"');
+    expect(linked).toContain('original summary');
+    expect(linked).toContain('bh-bubble-reply-author');
+
+    store.setConversation({ messages: [{ ...reply, replyToPreview: null }] });
+    const unavailable = render();
+    expect(unavailable).toContain('bh-bubble-reply-unavailable');
+    expect(unavailable).not.toContain('class="bh-bubble-reply"');
+  });
 });

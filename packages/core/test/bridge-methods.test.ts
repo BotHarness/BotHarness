@@ -456,6 +456,45 @@ describe('bridge methods', () => {
     });
   });
 
+  it('rejects missing or cross-Channel reply targets before appending a human message', async () => {
+    const { methods, channels } = setup();
+    methods.channelDm({ slug: 'ada', displayName: 'Ada' });
+    const group = methods.channelCreate({ name: 'Team', members: [] });
+    expect(group.ok).toBe(true);
+    const groupId = group.ok ? group.value.channel.id : '';
+    const source = await methods.channelSend({ channelId: groupId, body: 'source' });
+    expect(source.ok).toBe(true);
+    const sourceId = source.ok ? source.value.message.id : '';
+
+    const invalidTarget = {
+      ok: false,
+      error: { code: 'invalid-input', message: 'Reply target must exist in this Channel' },
+    };
+    expect(
+      await methods.channelSend({ channelId: 'dm-ada', body: 'cross', replyTo: sourceId }),
+    ).toEqual(invalidTarget);
+    expect(
+      await methods.channelSend({ channelId: 'dm-ada', body: 'missing', replyTo: 'unknown' }),
+    ).toEqual(invalidTarget);
+    expect(
+      await methods.channelSend({ channelId: 'dm-ada', body: 'invalid', replyTo: '' }),
+    ).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'replyTo must be a message id' },
+    });
+    expect(channels.revision('dm-ada')).toBe(0);
+
+    const accepted = await methods.channelSend({
+      channelId: groupId,
+      body: 'answer',
+      replyTo: sourceId,
+    });
+    expect(accepted.ok && accepted.value.message).toMatchObject({
+      replyTo: sourceId,
+      replyToPreview: { author: { kind: 'human' }, body: 'source' },
+    });
+  });
+
   it('records human messages locally and pages them newest-first', async () => {
     const { methods } = setup();
     methods.channelDm({ slug: 'ada', displayName: 'Ada' });

@@ -20,6 +20,11 @@ export interface ChannelMessageExternal {
   thread?: string;
 }
 
+export interface ChannelReplyPreview {
+  author: ChannelMessageAuthor;
+  body: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -27,6 +32,10 @@ export interface ChannelMessage {
   body: string;
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
+  /** A message id in this same Channel; independent of provider threading. */
+  replyTo?: string;
+  /** Read-only projection. Null means the original message is unavailable. */
+  replyToPreview?: ChannelReplyPreview | null;
 }
 
 export const CHANNEL_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
@@ -97,6 +106,18 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     message['format'] !== 'text'
   )
     return false;
+  if (
+    message['replyTo'] !== undefined &&
+    (typeof message['replyTo'] !== 'string' || message['replyTo'].length === 0)
+  )
+    return false;
+  const preview = message['replyToPreview'];
+  if (preview !== undefined && preview !== null) {
+    if (typeof preview !== 'object') return false;
+    const record = preview as Record<string, unknown>;
+    if (!isChannelMessageAuthor(record['author']) || typeof record['body'] !== 'string')
+      return false;
+  }
   const external = message['external'];
   if (external !== undefined) {
     if (typeof external !== 'object' || external === null) return false;

@@ -12,7 +12,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
 import type { ChannelMessage } from '../src/channels/channel.js';
-import { createChannelStore } from '../src/channels/store.js';
+import { ChannelReplyTargetError, createChannelStore } from '../src/channels/store.js';
 
 const roots: string[] = [];
 let sequence = 0;
@@ -173,6 +173,64 @@ describe('channel store', () => {
     });
     expect(store.latestMessage('dm-ada')?.body).toBe('m5');
     expect(store.latestMessage('missing')).toBeUndefined();
+  });
+
+  it('persists only a same-Channel reply ID and projects its summary in every read path', async () => {
+    const root = createRoot();
+    const store = createChannelStore({ rootDir: root, now: tickingNow() });
+    const channel = store.createGroup({ name: 'Team', members: [] });
+    const original = message('Original   message');
+    await store.appendMessage(channel.id, original);
+    const reply = {
+      ...message('response'),
+      replyTo: original.id,
+      replyToPreview: { author: { kind: 'human' as const }, body: 'untrusted preview' },
+    };
+    const committed = await store.appendMessage(channel.id, reply);
+    expect(committed).toMatchObject({
+      replyTo: original.id,
+      replyToPreview: { author: { kind: 'human' }, body: 'Original message' },
+    });
+    expect(store.readMessages(channel.id)[0]?.replyToPreview).toEqual(committed?.replyToPreview);
+    expect(store.readTimeline(channel.id)?.entries.at(-1)?.replyToPreview).toEqual(
+      committed?.replyToPreview,
+    );
+    expect(store.messagesAfter(channel.id, 1)?.[0]?.message.replyToPreview).toEqual(
+      committed?.replyToPreview,
+    );
+    const lines = readFileSync(join(root, channel.id, 'messages.ndjson'), 'utf8')
+      .trim()
+      .split('\n');
+    expect(JSON.parse(lines[1] ?? '{}')).toMatchObject({ replyTo: original.id });
+    expect(lines[1]).not.toContain('replyToPreview');
+
+    // An old reply remains readable if its original is later removed.
+    writeFileSync(join(root, channel.id, 'messages.ndjson'), (lines[1] ?? '') + '\n');
+    const reopened = createChannelStore({ rootDir: root });
+    expect(reopened.readTimeline(channel.id)?.entries[0]?.replyToPreview).toBeNull();
+  });
+
+  it('rejects a missing or cross-Channel reply before writing or notifying', async () => {
+    const commits: string[] = [];
+    const store = createChannelStore({
+      rootDir: createRoot(),
+      onCommitted: (commit) => commits.push(commit.message.id),
+    });
+    const dm = store.getOrCreateDm('ada', 'Ada');
+    const group = store.createGroup({ name: 'Team', members: [] });
+    const groupMessage = message('group');
+    await store.appendMessage(group.id, groupMessage);
+    expect(dm).toBeDefined();
+    if (dm === undefined) return;
+    await expect(
+      store.appendMessage(dm.id, { ...message('cross'), replyTo: groupMessage.id }),
+    ).rejects.toThrow(ChannelReplyTargetError);
+    await expect(
+      store.appendMessage(dm.id, { ...message('missing'), replyTo: 'unknown' }),
+    ).rejects.toThrow(ChannelReplyTargetError);
+    expect(store.revision(dm.id)).toBe(0);
+    expect(store.readMessages(dm.id)).toEqual([]);
+    expect(commits).toEqual([groupMessage.id]);
   });
 
   it('serializes concurrent appends to the same channel', async () => {

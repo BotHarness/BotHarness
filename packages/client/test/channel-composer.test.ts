@@ -65,6 +65,25 @@ describe('Channel composer', () => {
     expect(markup).toContain('disabled=""');
   });
 
+  it('keeps a cancellable reply quote inside the composer island', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: 'answer',
+        placeholder: 'Message Ada',
+        sending: false,
+        reply: { id: 'm1', author: 'Ada', body: 'original text' },
+        onChange: () => undefined,
+        onCancelReply: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('bh-composer-replying');
+    expect(markup).toContain('bh-composer-reply-copy');
+    expect(markup).toContain('original text');
+    expect(markup).toContain('bh-composer-reply-cancel');
+    expect(markup).toContain('answer');
+  });
+
   it('submits plain Enter but preserves multiline and IME input', () => {
     const key = (patch: {
       key?: string;

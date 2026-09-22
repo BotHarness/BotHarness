@@ -143,7 +143,7 @@ describe('bridge typert service', () => {
       'olderLimit',
       'newerLimit',
     ]);
-    expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body']);
+    expect(parameterNames(service.channelSend)).toEqual(['channelId', 'body', 'replyTo']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);

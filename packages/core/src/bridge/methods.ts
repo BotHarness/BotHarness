@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
@@ -540,15 +541,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (typeof body !== 'string' || body.trim().length === 0) {
         return invalidInput('body is required');
       }
+      const replyTo = source['replyTo'];
+      if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
+        return invalidInput('replyTo must be a message id');
+      }
       const message: ChannelMessage = {
         id: randomUUID(),
         at: new Date().toISOString(),
         author: { kind: 'human' },
         body,
+        ...(replyTo === undefined ? {} : { replyTo }),
       };
       const channel = deps.channels.get(channelId);
       if (channel === undefined) return unknownChannel(channelId);
-      const appended = await deps.channels.appendMessage(channelId, message);
+      let appended: ChannelMessage | undefined;
+      try {
+        appended = await deps.channels.appendMessage(channelId, message);
+      } catch (error) {
+        if (error instanceof ChannelReplyTargetError) return invalidInput(error.message);
+        throw error;
+      }
       if (appended === undefined) return unknownChannel(channelId);
       if (channel.type === 'dm' && deps.runtime !== undefined) {
         const admission = deps.runtime.admitDmMessage({
