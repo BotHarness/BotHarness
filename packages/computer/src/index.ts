@@ -1,14 +1,21 @@
 import { spawn } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import type { Duplex } from 'node:stream';
 
 import type { Context } from '@deepseek-ai/cordis';
+import type { SettingsScope } from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createComputerDiagnostics } from './diagnostics.js';
 import { createIdleWatcher } from './idle.js';
+import {
+  COMPUTER_EXPORT_DIR_FIELD,
+  COMPUTER_IDLE_STOP_FIELD,
+  COMPUTER_SETTINGS_NAMESPACE,
+  type ComputerSettings,
+} from './settings.js';
 import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers/docker.js';
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
 import { createComputerService, type ComputerService } from './service.js';
@@ -60,6 +67,15 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   language: DEFAULT_DOCKER_CONFIG.language,
   exportDir: '',
 };
+
+/** Runtime-editable fields; the plugin config supplies their base values. */
+export const ComputerSettingsSchema: Schema<
+  Partial<ComputerSettings>,
+  ComputerSettings
+> = Schema.object({
+  [COMPUTER_EXPORT_DIR_FIELD]: Schema.string().default(DEFAULT_CONFIG.exportDir),
+  [COMPUTER_IDLE_STOP_FIELD]: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
+});
 
 export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Computer'),
@@ -181,13 +197,37 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     diagnostics.record('lifecycle', message);
   };
 
+  // Runtime settings: the plugin config is the composition base and a Human
+  // override in the settings document wins without a restart. Reads happen at
+  // call time, so export/import and the idle policy follow edits immediately.
+  let settings: SettingsScope<ComputerSettings> | undefined;
+  const effective = (): ComputerSettings =>
+    settings?.get() ?? {
+      exportDir: config.exportDir,
+      idleStopMinutes: config.idleStopMinutes,
+    };
+  ctx.inject(['settings'], (settingsCtx) => {
+    const scope = settingsCtx.settings.register(
+      COMPUTER_SETTINGS_NAMESPACE,
+      ComputerSettingsSchema,
+      {
+        base: { exportDir: config.exportDir, idleStopMinutes: config.idleStopMinutes },
+      },
+    );
+    settings = scope;
+    log(`runtime settings registered (${COMPUTER_SETTINGS_NAMESPACE})`);
+    return () => {
+      settings = undefined;
+    };
+  });
+
   const watcher = createIdleWatcher({
-    idleMs: Math.max(1, config.idleStopMinutes) * 60_000,
+    idleMs: () => Math.max(1, effective().idleStopMinutes) * 60_000,
     onIdle: async () => {
       try {
         const status = await service.status();
         if (status.state === 'running') {
-          log(`idle stop after ${String(config.idleStopMinutes)} min without activity`);
+          log(`idle stop after ${String(effective().idleStopMinutes)} min without activity`);
           await service.stop();
         }
       } catch {
@@ -220,7 +260,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
           provider: service.providerName ?? null,
           probe,
           status,
-          exportDir: config.exportDir,
+          exportDir: effective().exportDir,
         });
       },
     };
@@ -319,10 +359,17 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       fetch: async (request: Request): Promise<Response> => {
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
-        if (config.exportDir === '') return missingExportDir();
-        log('export requested (panel)');
+        // The Human may export to a directory chosen at export time; the
+        // configured directory is the default.
+        const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
+        if (requested !== undefined && !isAbsolute(requested)) {
+          return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
+        }
+        const exportDir = requested ?? effective().exportDir;
+        if (exportDir === '') return missingExportDir();
+        log(`export requested (panel)${requested === undefined ? '' : ` → ${requested}`}`);
         try {
-          const archive = await service.exportTo(config.exportDir);
+          const archive = await service.exportTo(exportDir);
           return json({ ok: true, archive });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
@@ -332,6 +379,50 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(exportRoute),
       'botharness-computer: export route',
+    );
+
+    const openDirRoute = {
+      path: '/api/computer/open-dir',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        if (body.authorize !== true) return unauthorized();
+        const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
+        if (requested !== undefined && !isAbsolute(requested)) {
+          return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
+        }
+        const dir = requested ?? effective().exportDir;
+        if (dir === '') return missingExportDir();
+        const opener =
+          process.platform === 'darwin'
+            ? 'open'
+            : process.platform === 'win32'
+              ? 'explorer'
+              : 'xdg-open';
+        try {
+          // Argument array, never a shell: the path is data, not a command.
+          const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
+          // spawn() reports a missing binary asynchronously, so wait for the
+          // first event before claiming success (an unhandled 'error' would
+          // otherwise take the Host process down).
+          await new Promise<void>((resolve, reject) => {
+            child.once('spawn', () => {
+              child.unref();
+              resolve();
+            });
+            child.once('error', reject);
+          });
+          log(`opened directory (${dir})`);
+          return json({ ok: true });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(openDirRoute),
+      'botharness-computer: open-dir route',
     );
 
     const diagnosticsRoute = {
@@ -366,9 +457,10 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (): Promise<Response> => {
-        if (config.exportDir === '') return json({ ok: true, files: [] });
+        const exportDir = effective().exportDir;
+        if (exportDir === '') return json({ ok: true, files: [] });
         try {
-          const entries = await readdir(config.exportDir);
+          const entries = await readdir(exportDir);
           return json({ ok: true, files: entries.filter(isSafeArchiveName).sort() });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
@@ -387,14 +479,15 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       fetch: async (request: Request): Promise<Response> => {
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
-        if (config.exportDir === '') return missingExportDir();
+        const exportDir = effective().exportDir;
+        if (exportDir === '') return missingExportDir();
         const file = typeof body.file === 'string' ? body.file : '';
         if (!isSafeArchiveName(file)) {
           return json({ ok: false, code: 'invalid-archive', error: 'invalid archive name' }, 400);
         }
         log(`import requested (panel): ${file}`);
         try {
-          await service.importFrom(join(config.exportDir, file));
+          await service.importFrom(join(exportDir, file));
           return json({ ok: true });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);

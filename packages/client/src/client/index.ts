@@ -15,6 +15,7 @@ import { botIconMarkup } from './bot-icon.js';
 import { installBotNavIcon } from './bot-icon-nav.js';
 import { openBotSettings } from './bot-settings-open.js';
 import { BotSettingsSection } from './bot-settings-section.js';
+import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { channelSidebarBuiltins } from './channel-sidebar-builtins.js';
@@ -124,6 +125,7 @@ export function apply(ctx: ClientContext): void {
           label: () => t('settings.nav'),
           locale: LOCALE_NS,
           inject: () => botModePrefsFace(prefs),
+          children: { 'botharness.settings.item': { kind: 'list', scope: 'root' } },
         },
         BotSettingsSection,
       ),
