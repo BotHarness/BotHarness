@@ -129,7 +129,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.#assertOpen();
-    this.#runs.set(run.sessionId, { role: 'orchestrator', run });
+    const entry: ActiveRun = { role: 'orchestrator', run };
+    this.#runs.set(run.sessionId, entry);
     const access = new Map<string, boolean>();
     this.#drafts.begin(run.sessionId, {
       channelId: run.inboundChannelId,
@@ -161,6 +162,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       requireCompletedTurn(handle, fromSeq);
     } finally {
       this.#drafts.end(run.sessionId);
+      if (this.#runs.get(run.sessionId) === entry) this.#runs.delete(run.sessionId);
     }
   }
 
@@ -177,6 +179,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#assertOpen();
     const handle = this.#handles.get(run.sessionId);
     const active = this.#runs.get(run.sessionId);
+    // Only a mid-turn Assignment can be steered; a live but settled Agent is
+    // followed up so the caller keeps a completion signal for the new turn.
     if (handle !== undefined && active?.role === 'assignment') {
       handle.agent.steer(
         createUserMessage({
@@ -190,21 +194,25 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   }
 
   async #driveAssignment(run: AssignmentAgentRun): Promise<void> {
-    this.#runs.set(run.sessionId, { role: 'assignment', run, reported: false });
-    const handle = await this.#assignmentHandle(run);
-    const fromSeq = handle.agent.session.seq;
-    handle.agent.followup(
-      createUserMessage({
-        content: [{ type: 'text', text: run.purpose }],
-        source: { kind: 'user' },
-      }),
-    );
-    await handle.agent.whenIdle();
-    requireCompletedTurn(handle, fromSeq);
-    if (run.resume === true) return;
-    const active = this.#runs.get(run.sessionId);
-    if (active?.role !== 'assignment' || !active.reported) {
-      throw new Error('Assignment finished without report_to_orchestrator');
+    const entry: ActiveRun = { role: 'assignment', run, reported: false };
+    this.#runs.set(run.sessionId, entry);
+    try {
+      const handle = await this.#assignmentHandle(run);
+      const fromSeq = handle.agent.session.seq;
+      handle.agent.followup(
+        createUserMessage({
+          content: [{ type: 'text', text: run.purpose }],
+          source: { kind: 'user' },
+        }),
+      );
+      await handle.agent.whenIdle();
+      requireCompletedTurn(handle, fromSeq);
+      if (run.resume === true) return;
+      if (!entry.reported) {
+        throw new Error('Assignment finished without report_to_orchestrator');
+      }
+    } finally {
+      if (this.#runs.get(run.sessionId) === entry) this.#runs.delete(run.sessionId);
     }
   }
 

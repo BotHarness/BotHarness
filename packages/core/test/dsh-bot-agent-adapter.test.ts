@@ -146,6 +146,38 @@ describe('DSH Bot Agent adapter', () => {
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
   });
 
+  it('follows up a settled Assignment instead of steering a stale run', async () => {
+    const host = new FakeAgentHost();
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      defaultWorkspaceRoot: '/runtime-workspaces',
+      ensureWorkspace: () => undefined,
+    });
+    let reported = false;
+    const run = {
+      sessionId: 'assignment-1',
+      bot: BOT,
+      purpose: '核对发布状态',
+      report: async (input: { state: string; summary: string }) => {
+        reported = true;
+        return { ...input, at: BOT.createdAt };
+      },
+    } as Parameters<typeof adapter.runAssignment>[0];
+
+    const first = adapter.runAssignment(run);
+    await Promise.resolve();
+    await first;
+    expect(reported).toBe(true);
+
+    // A live but settled Agent must be followed up: steering it would leave the
+    // caller without a completion signal for the new turn.
+    const settled = adapter.requestAssignment(run);
+    expect(settled.delivery).toBe('followup');
+    if (settled.delivery === 'followup') await settled.done;
+    await adapter.close();
+  });
+
   it('caches allowed and denied draft Channels only for the current Orchestrator run', async () => {
     const host = new FakeAgentHost();
     const reads: string[] = [];
