@@ -79,6 +79,9 @@ function unavailableAgentAdapter(): BotAgentAdapter {
   return {
     runOrchestrator: unavailable,
     runAssignment: unavailable,
+    requestAssignment: () => {
+      throw new Error('BotHarness Agent runtime is unavailable outside a DSH Host');
+    },
     close: async () => undefined,
   };
 }
@@ -251,6 +254,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.systemPrompt.section({
     name: 'botharness:persona',
     order: PERSONA_SECTION_ORDER,
-    text: ({ agent }) => core.memory.storeForAgent(agent)?.persona() ?? '',
+    text: ({ agent }) => core.memory.personaForSession(agent?.session?.id),
   });
 }

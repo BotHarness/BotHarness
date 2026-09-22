@@ -187,6 +187,51 @@ describe('Session ownership', () => {
     owner.close();
   });
 
+  it('freezes one persona snapshot per Session and clears it only on re-owning', () => {
+    const { owner, ownership } = setup();
+    ownership.claim({ sessionId: 'session-1', botSlug: 'ada', rootRole: 'orchestrator', at: AT });
+    ownership.claim({ sessionId: 'session-2', botSlug: 'ada', rootRole: 'orchestrator', at: AT });
+
+    expect(ownership.personaSnapshot('session-1')).toBeUndefined();
+    expect(ownership.personaSnapshot('nobody')).toBeUndefined();
+    expect(ownership.recordPersonaSnapshot('session-1', '# Persona v1\n', AT)).toEqual({
+      body: '# Persona v1\n',
+      recordedAt: AT,
+    });
+    expect(ownership.recordPersonaSnapshot('session-1', '# Persona v2\n', 'later')).toEqual({
+      body: '# Persona v1\n',
+      recordedAt: AT,
+    });
+    expect(ownership.personaSnapshot('session-1')?.body).toBe('# Persona v1\n');
+    expect(ownership.recordPersonaSnapshot('session-2', '', AT)).toEqual({
+      body: '',
+      recordedAt: AT,
+    });
+    expect(ownership.personaSnapshot('session-2')?.body).toBe('');
+
+    ownership.repair({
+      sessionId: 'session-1',
+      botSlug: 'bob',
+      rootRole: 'orchestrator',
+      at: '2026-09-21T00:05:00.000Z',
+    });
+    expect(ownership.personaSnapshot('session-1')).toBeUndefined();
+    expect(ownership.recordPersonaSnapshot('session-1', '# Bob\n', 'bob-at').body).toBe('# Bob\n');
+
+    ownership.repair({
+      sessionId: 'session-1',
+      botSlug: 'bob',
+      rootRole: 'assignment',
+      at: '2026-09-21T00:06:00.000Z',
+    });
+    expect(ownership.personaSnapshot('session-1')?.body).toBe('# Bob\n');
+
+    expect(() => ownership.recordPersonaSnapshot('nobody', 'x', AT)).toThrow(
+      /Unknown Session ownership/,
+    );
+    owner.close();
+  });
+
   it('migrates a generation-5 table in place and keeps legacy rows claimable', () => {
     const home = createTempRoot('botharness-ownership-migration-');
     const v5Plan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, 4));

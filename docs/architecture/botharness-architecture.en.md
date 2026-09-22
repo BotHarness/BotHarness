@@ -76,7 +76,7 @@ flowchart TB
 
   subgraph Modules["BotHarness deep modules"]
     Bots["PersonaBot<br/>identity · lifecycle · Session ownership"]
-    Memory["Optional Memory Service<br/>repositories · pins · Git commits · events"]
+    Memory["Optional Memory Service<br/>repositories · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
     Portable["Portability<br/>Soul · export · backup · restore"]
@@ -108,7 +108,7 @@ flowchart TB
 | Module      | Owns                                                                                                      | Does not own                                         |
 | ----------- | --------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
 | PersonaBot  | identity, lifecycle, explicit Session ownership                                                           | DSH Session lifecycle, Memory content                |
-| Memory      | generic Git-backed repositories, pin budget, semantic commits, operation events                           | PersonaBot lifecycle, Inbox, Sessions                |
+| Memory      | generic Git-backed repositories, semantic commits, operation events                                       | PersonaBot lifecycle, Inbox, Sessions                |
 | Messaging   | Source Events, Channel placement, Inbox Admission, Attention, Trigger/Wake Policy, Service Grants, Outbox | Agent execution, provider credentials                |
 | Assignments | Assignment Directory, Assignment Request/Delivery Intent, capacity admission, report/lifecycle routing    | DSH transcripts, Subagent runtime                    |
 | Portability | coordination for SoulSnapshot, PersonaBot Export, Profile Backup/Restore/Transfer                         | credentials, executable plugins, private DSH formats |
@@ -116,7 +116,7 @@ flowchart TB
 
 `botharness.db` is the physical transaction host for BotHarness core, not a shared generic repository. Optional Git-backed Providers own Memory content and commits. Each deep module owns its tables and invariants only through its own interfaces; explicit commands and ports coordinate cross-module flows.
 
-The application-defined Memory Service uses a `Consumer → Service Definition → Provider` capability seam. When its Provider is absent, a PersonaBot still completes the Chat, Orchestrator, and Assignment path with the system-defined base runtime prompt, and the Client omits the Memory destination. When present, every Markdown file has equal semantics: there is no special `MEMORY.md`; optional `persona.md` is merely an ordinary file pinned by default on creation and remains Agent- and Human-writable. Versioned pin metadata enters future system prompts within a configurable byte budget and a model-aware context preflight. Every operation passes through a `memory/before-operation` waterfall and a `memory/after-operation` notification; the Git commit remains durable authority.
+The application-defined Memory Service uses a `Consumer → Service Definition → Provider` capability seam. When its Provider is absent, a PersonaBot still completes the Chat, Orchestrator, and Assignment path with the system-defined base runtime prompt, and the Client omits the Memory destination. When present, every Markdown file has equal semantics: there is no generated or special `MEMORY.md`, and nothing derived from repository content is injected into the system prompt. Optional `persona.md` is delivered from a per-Session snapshot frozen at the Session's first prompt assembly, so a Human edit reaches Sessions that have not snapshotted yet (ADR-0056). The Agent explores the repository with ordinary file tools. Every operation passes through a `memory/before-operation` waterfall and a `memory/after-operation` notification; the Git commit remains durable authority.
 
 ## 3 · Host boot, migration, and recovery
 

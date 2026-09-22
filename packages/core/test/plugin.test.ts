@@ -1,4 +1,4 @@
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
@@ -322,6 +322,49 @@ describe('plugin entry', () => {
       const persona = sections.find((section) => section?.name === 'botharness:persona');
       expect(persona?.text({ agent: { session: { id: 'orchestrator-local' } } })).toBe('');
       expect(core?.memory.storeForSession('unowned-session')).toBeUndefined();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it('freezes the persona prompt section for the Session and gives an edit to new Sessions', async () => {
+    const home = createTempRoot('botharness-plugin-');
+    vi.stubEnv('DSH_HOME', home);
+    try {
+      const { ctx, stubs } = createStubContext();
+      apply(ctx, { enabled: true });
+
+      const core = ctx.get('botharness') as BotHarnessCore | undefined;
+      const created = core?.registry.create({ slug: 'local-bot', displayName: 'Local' });
+      expect(created?.ok).toBe(true);
+      core?.ownership.claim({
+        sessionId: 'orchestrator-local',
+        botSlug: 'local-bot',
+        rootRole: 'orchestrator',
+        at: '2026-09-21T00:00:00.000Z',
+      });
+      core?.ownership.claim({
+        sessionId: 'orchestrator-new',
+        botSlug: 'local-bot',
+        rootRole: 'orchestrator',
+        at: '2026-09-21T00:00:01.000Z',
+      });
+
+      const memoryDir = core?.registry.memoryDirFor('local-bot');
+      if (memoryDir === undefined) throw new Error('memory dir missing');
+      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
+
+      const sections = stubs.systemPrompt.section.mock.calls.map((call) => call[0]);
+      const persona = sections.find((section) => section?.name === 'botharness:persona');
+      const running = { agent: { session: { id: 'orchestrator-local' } } };
+      expect(persona?.text(running)).toBe('# Persona v1\n');
+
+      writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+
+      expect(persona?.text(running)).toBe('# Persona v1\n');
+      expect(persona?.text({ agent: { session: { id: 'orchestrator-new' } } })).toBe(
+        '# Persona v2\n',
+      );
     } finally {
       vi.unstubAllEnvs();
     }

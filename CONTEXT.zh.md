@@ -35,7 +35,7 @@ _避免使用_：Bot tag、permission role、category
 _避免使用_：Persona、role badge、system prompt
 
 **Persona**：
-用于描述人物特征、表达风格或长期指令的约定式 Memory 内容，通常会被 pin 到 system prompt。它不是特殊文件类型，也没有专属写保护；获得授权的 Agent 与 Human 都可以创建、修改、取消 pin、改名或删除它。
+用于描述人物特征、表达风格或长期指令的约定式 Memory 内容；它在 Session 首次组装 system prompt 时被冻结为快照并随该 Session 保持。它不是特殊文件类型，也没有专属写保护；获得授权的 Agent 与 Human 都可以创建、修改、改名或删除它，但对它的修改只对新 Session 生效，不会改写正在运行的 Session。
 _避免使用_：system prompt、character sheet、profile
 
 **Bot state**：
@@ -104,6 +104,10 @@ _避免使用_：exactly-once delivery、task queue、workflow、AgentHandle sta
 一种持久的、源自 Session 的 Source Event，Assignment Session 通过它主动或响应式地向其 PersonaBot 的 Orchestrator 返回有意义的进度、blocked 或 waiting 状态、结果和 artifact reference。完整执行历史仍保留在 DSH SessionPersistence 中；每份 report 保持不可变，而尚未 Observation 的重复报告可共享一个 Attention Unit。
 _避免使用_：direct Channel reply、copied Session log、ephemeral callback
 
+**Assignment Ask**：
+Assignment Report 的一种变体：Assignment 声明它在继续之前需要 Orchestrator 的答复。等待期间 Assignment 结束自己的 turn，Orchestrator 的一条带地址 Assignment Request 会恢复该 Session；它不是阻塞调用、不是 Channel 消息，也不是独立生命周期。
+_避免使用_：blocking call、direct Orchestrator message、question queue
+
 **Assignment Lifecycle Notice**：
 一种持久的、源自 Host 的 Source Event，只在 settled、error 或 cancellation 等有意义的执行边界发出。它携带源自 DSH 的 last-run facts、简洁安全的摘要，并在可用时包含 report/artifact reference；但它始终不同于 Assignment Agent 自己撰写的内容。
 _避免使用_：Assignment Report、fabricated agent message、per-turn directory snapshot
@@ -162,10 +166,6 @@ _避免使用_：knowledge base、vector store、RAG、database、context
 由 PersonaBot 拥有、在 PersonaBot 创建时自动生成，并固定作为其 Orchestrator Session working directory 的 Memory 文件 Git repository。其 lifecycle 跟随 PersonaBot，但 archive、export、restore 与 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
-**Pinned Memory**：
-一种通过带版本 metadata 请求将完整正文注入 system prompt 的 Memory 文件；注入受 Human 可调的 repository budget 与当前 model 最终 context preflight 约束。Persona 在创建时默认 pinned，但仍只是普通 Memory 文件。
-_避免使用_：special Persona file、always-loaded MEMORY.md、silent truncation
-
 **Topic file**：
 Memory Repository 中专门记录一个主题——例如某个 customer、process 或 decision——的 Memory 文件。
 _避免使用_：note、document、page、record
@@ -175,11 +175,11 @@ _避免使用_：note、document、page、record
 _避免使用_：CRM record、account、contact sheet
 
 **Memory Service**：
-拥有 Memory Repository lifecycle、validation、pin-budget enforcement、reconciliation、accepted commit、history 与 query 的 application-defined capability。v1 中它服务 runtime 与 Human-facing Consumer，但不暴露 model-callable Memory read/write Tool。
+拥有 Memory Repository lifecycle、validation、reconciliation、accepted commit、history 与 query 的 application-defined capability。v1 中它服务 runtime 与 Human-facing Consumer，但不暴露 model-callable Memory read/write Tool。
 _避免使用_：Memory tool、filesystem watcher、Git event source、generic repository
 
 **Memory Commit**：
-一项被接受的 Git commit，以带 actor 与 cause attribution 的方式让一组一致的 Memory 文件变更正式生效。尚未 commit 的 working-tree change 是 provisional state，不改变 pinned context、history projection 或 Memory event。
+一项被接受的 Git commit，以带 actor 与 cause attribution 的方式让一组一致的 Memory 文件变更正式生效。尚未 commit 的 working-tree change 是 provisional state，不改变 Session 已冻结的 persona、history projection 或 Memory event。
 _避免使用_：file save、filesystem event、raw Git commit、auto-save
 
 **Memory Reconciliation**：

@@ -22,6 +22,13 @@ export interface MemoryService {
    */
   storeForSession(sessionId: string | undefined): MemoryStore | undefined;
   storeForAgent(agent: MemoryAgentRef | undefined): MemoryStore | undefined;
+  /**
+   * The Session-frozen persona text for the system prompt. The first assembly
+   * snapshots the current PERSONA.md durably; every later assembly, including
+   * after a restart or a cold resume, returns those same bytes even when a
+   * Human edited the file. Unowned or unready Sessions contribute nothing.
+   */
+  personaForSession(sessionId: string | undefined): string;
   /** Explicit repository path for diagnostics and repair surfaces. */
   memoryDirFor(sessionId: string | undefined): string | undefined;
   /** Repository health for the Memory surface; never mutates. */
@@ -63,9 +70,21 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     return storeForMemoryDir(memoryDir);
   };
 
+  const personaForSession = (sessionId: string | undefined): string => {
+    if (sessionId === undefined || sessionId.length === 0) return '';
+    const recorded = ownership.personaSnapshot(sessionId);
+    if (recorded !== undefined) return recorded.body;
+    const store = storeForSession(sessionId);
+    if (store === undefined) return '';
+    const body = store.persona() ?? '';
+    const at = (options.now ?? (() => new Date()))().toISOString();
+    return ownership.recordPersonaSnapshot(sessionId, body, at).body;
+  };
+
   return {
     memoryDirFor,
     repositoryFor,
+    personaForSession,
     storeForSession,
     storeForAgent: (agent) => storeForSession(agent?.session?.id),
   };

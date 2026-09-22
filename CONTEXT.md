@@ -35,7 +35,7 @@ An optional, brief Human-authored self-introduction that explains who a PersonaB
 _Avoid_: Persona, role badge, system prompt
 
 **Persona**:
-Conventional Memory content that describes character, voice, or standing instructions and is usually pinned into the system prompt. It has no special file type or write protection: an authorized Agent or Human may create, revise, unpin, rename, or remove it.
+Conventional Memory content that describes character, voice, or standing instructions, delivered to a Session's system prompt from a snapshot frozen at that Session's first prompt assembly. It has no special file type or write protection: an authorized Agent or Human may create, revise, rename, or remove it; an edit reaches new Sessions, not one already running.
 _Avoid_: system prompt, character sheet, profile
 
 **Bot state**:
@@ -104,6 +104,10 @@ _Avoid_: exactly-once delivery, task queue, workflow, AgentHandle state
 A durable Session-origin Source Event by which an Assignment Session proactively or responsively returns meaningful progress, blocked or waiting state, results, and artifact references to its PersonaBot's Orchestrator. Full execution history remains in DSH SessionPersistence; each report stays immutable while unobserved repeats may share one Attention Unit.
 _Avoid_: direct Channel reply, copied Session log, ephemeral callback
 
+**Assignment Ask**:
+An Assignment Report variant that declares the Assignment is waiting for an Orchestrator reply before continuing. The Assignment ends its turn while it waits, and the Orchestrator's addressed Assignment Request resumes the Session; it is not a blocking call, a Channel message, or a separate lifecycle.
+_Avoid_: blocking call, direct Orchestrator message, question queue
+
 **Assignment Lifecycle Notice**:
 A durable Host-origin Source Event emitted only for a meaningful execution boundary such as settled, error, or cancellation. It carries DSH-derived last-run facts, a concise safe summary, and report/artifact references when available, but remains distinct from content the Assignment Agent authored.
 _Avoid_: Assignment Report, fabricated agent message, per-turn directory snapshot
@@ -164,10 +168,6 @@ _Avoid_: knowledge base, vector store, RAG, database, context
 A PersonaBot-owned Git repository of Memory files, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Its lifecycle follows the PersonaBot while archive, export, restore, and purge remain explicit operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
-**Pinned Memory**:
-A Memory file whose versioned metadata requests full-body injection into the system prompt, within a Human-configurable repository budget and the active model's final context preflight. Persona is an ordinary Memory file that is pinned by default when created.
-_Avoid_: special Persona file, always-loaded MEMORY.md, silent truncation
-
 **Topic file**:
 A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository.
 _Avoid_: note, document, page, record
@@ -177,11 +177,11 @@ The north-star topic file: one per customer, holding timeline, key facts, commit
 _Avoid_: CRM record, account, contact sheet
 
 **Memory Service**:
-The application-defined capability that owns Memory Repository lifecycle, validation, pin-budget enforcement, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
+The application-defined capability that owns Memory Repository lifecycle, validation, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
 _Avoid_: Memory tool, filesystem watcher, Git event source, generic repository
 
 **Memory Commit**:
-An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change pinned context, history projections, or Memory events.
+An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change a Session's frozen persona, history projections, or Memory events.
 _Avoid_: file save, filesystem event, raw Git commit, auto-save
 
 **Memory Reconciliation**:

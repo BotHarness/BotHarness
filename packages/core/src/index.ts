@@ -95,6 +95,7 @@ export type {
   SessionOwnershipProvenance,
   SessionOwnershipRecord,
   SessionOwnershipRepair,
+  SessionPersonaSnapshot,
   SessionRootRole,
 } from './sessions/ownership.js';
 export {
