@@ -31,6 +31,15 @@ import {
 } from './store.js';
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
+/** Only Host-committed messages may advance the Human's durable read position. */
+export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
+  return new Set(
+    messages
+      .filter((message) => message.pending !== true && message.streaming !== true)
+      .map((message) => message.id),
+  );
+}
+
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
@@ -348,7 +357,7 @@ function ConversationView({
   const scheduleReadMark = (): void => {
     const element = scrollRef.current;
     if (channelId === undefined || element === null || conversation.status !== 'ready') return;
-    const committedIds = new Set(messages.map((message) => message.id));
+    const committedIds = committedMessageIds(messages);
     const viewport = element.getBoundingClientRect();
     const visible = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]'))
       .filter((candidate) => {
