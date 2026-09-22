@@ -56,10 +56,17 @@ export function apply(ctx: ClientContext): void {
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
   ctx.effect(() => {
-    const disposers = createChannelSidebarBuiltins(t).map((entry) =>
-      channelSidebar.register(entry),
-    );
+    // Labels resolve at build time, so re-register the entries when the locale
+    // changes; the registry notifies the sidebar and it re-renders.
+    let disposers: (() => void)[] = [];
+    const reconcile = (): void => {
+      for (const dispose of disposers) dispose();
+      disposers = createChannelSidebarBuiltins(t).map((entry) => channelSidebar.register(entry));
+    };
+    reconcile();
+    const unsubscribe = ctx.locale.subscribe(reconcile);
     return () => {
+      unsubscribe();
       for (const dispose of disposers) dispose();
     };
   }, 'botharness: Channel sidebar entries');

@@ -100,6 +100,7 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
     locale: {
       register: () => () => undefined,
       bind: () => (key: string) => key,
+      subscribe: () => () => undefined,
     },
     provide: () => () => undefined,
     effect: (callback: () => unknown) => {

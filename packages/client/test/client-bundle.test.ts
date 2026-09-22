@@ -163,6 +163,7 @@ describe('@botharness/client browser bundle', () => {
         },
       },
       locale: {
+        subscribe: () => () => undefined,
         register: () => () => undefined,
         bind: () => (key: string) => key,
       },
