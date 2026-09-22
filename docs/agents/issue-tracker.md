@@ -33,6 +33,70 @@ Create a GitHub issue.
 
 Run `gh issue view <number> --comments`.
 
+## Ticket topology: hub + native sub-issues (used by `/to-tickets`)
+
+A feature with many tickets gets one **hub** (orchestrator) issue and every slice
+ticket hangs off it as a **GitHub native sub-issue** — not just a `Parent #n`
+line in the body (the body line stays too, as fallback/readable context).
+
+- **Hub**: label `scope:hub`, title names the feature/slice-group. A hub holds
+  coordination (goal, ticket index, phase plan); it is not an implementation slice.
+- **Attach**: after creating each child, attach it with the sub-issues endpoint
+  (child identity is its numeric database id, not `#number`):
+  `gh api --method POST repos/<owner>/<repo>/issues/<hub-number>/sub_issues -F sub_issue_id=<child-db-id>`,
+  where `<child-db-id>` comes from `gh api repos/<owner>/<repo>/issues/<n> --jq .id`.
+  List children with `gh api repos/<owner>/<repo>/issues/<hub-number>/sub_issues`.
+- **Nesting**: a hub may itself be a sub-issue of a larger hub (epic → feature hub
+  → slice). Nesting is how cross-linked tickets stay navigable.
+- **Blocking** between siblings reuses the native dependency mechanism documented
+  under "Wayfinding operations" (`dependencies/blocked_by`), with a
+  `Blocked by: #<n>` body line as fallback where dependencies aren't available.
+
+### Pre-flight: understand existing open issues before publishing
+
+`/to-tickets` must not duplicate or orphan. Before creating anything:
+
+1. List open issues in the feature area
+   (`gh issue list --state open --label "feature:<x>"` and/or `--label "scope:hub"`).
+2. Fetch each candidate hub's sub-issue tree
+   (`gh api repos/<owner>/<repo>/issues/<n>/sub_issues`) plus `Blocked by` lines,
+   so existing parents, children, and nesting (a parent that is itself
+   someone's sub-issue) are understood.
+3. Reuse/attach: if a hub or slice already exists, attach to it or update it
+   instead of creating a duplicate. Only genuinely new slices become new issues.
+
+## Project & Milestone
+
+- **Project**: a hub and all its children go into the **same org ProjectV2**
+  (the feature's project, e.g. `V1 · Memory`; list with
+  `gh project list --owner BotHarness`). Add with
+  `gh project item-add <project-number> --owner BotHarness --url <issue-url>`.
+  Confirm the target project with the user at quiz time.
+- **Milestone**: the GitHub **milestone** (`v1.0` / `v1.1` / `v2.0`) is the source
+  of truth for the expected implementation phase
+  (`gh issue edit <n> --milestone "<title>"`). Do **not** add the legacy
+  capitalised `V1.0` / `V1.1` / `V2.0` labels to new tickets — they duplicate
+  milestones and are kept only for old issues.
+
+## Claim protocol: `in-progress` label (assignee is NOT the signal)
+
+Several coding agents run in parallel sessions under the **same GitHub user**, so
+`assignee` cannot tell sessions apart. The claim signal is:
+
+- **Held** = the `in-progress` label is on the issue. An open,
+  `ready-for-agent` issue **without** `in-progress` is takeable; with it, hands off.
+- **Who** = a `Claim:` comment posted as the session's first write, e.g.
+  `Claim: opencode/session-<id> — starting <ticket title>`. Read the latest
+  `Claim:` comment to see which agent/session holds the ticket.
+- Do **not** create per-session labels (`agent:foo`, `session:bar`, …) — they
+  explode. One state label + one comment scales.
+- On finish, remove `in-progress` when closing
+  (`gh issue edit <n> --remove-label in-progress`, or close with it — closed
+  means released either way) and leave a resolution comment.
+
+`/implement` sessions follow the same protocol: claim first (label + comment),
+then work.
+
 ## Wayfinding operations
 
 Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
