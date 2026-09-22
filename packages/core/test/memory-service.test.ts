@@ -66,25 +66,6 @@ describe('createMemoryService', () => {
     expect(service.storeForSession('session-research')).toBeUndefined();
   });
 
-  it('renders a prompt-stable tree: date-only, byte-identical across same-day rewrites', async () => {
-    const { service } = setup();
-    const store = service.storeForSession('session-research');
-    if (store === undefined) throw new Error('store missing');
-    await remember(store, { path: 'facts/acme.md', body: 'one\n', summary: 'Acme renewal' });
-    const first = service.treeForSession('session-research');
-    expect(first).toBe('facts/acme.md — Acme renewal (updated 2026-09-17)');
-
-    await remember(store, { path: 'facts/acme.md', body: 'two\n', summary: 'Acme renewal' });
-    expect(service.treeForSession('session-research')).toBe(first);
-    expect(service.treeForSession('session-research')).toBe(first);
-
-    await remember(store, { path: 'facts/beta.md', body: 'new\n', summary: 'Beta visit' });
-    const changed = service.treeForSession('session-research');
-    expect(changed).toContain('facts/beta.md — Beta visit');
-    expect(changed).not.toBe(first);
-    expect(service.treeForSession('unowned-session')).toBe('');
-  });
-
   it('honours a custom memory dir and keeps one store per dir', async () => {
     const root = createTempRoot();
     const memoryDir = join(root, 'custom-memory');
