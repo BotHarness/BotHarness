@@ -1,34 +1,39 @@
 // Resolve the machine-local DeepSeek API key for dev instances.
 //
 // Usage:
+//   node scripts/dev-secret.mjs adopt-profile --home <DSH_HOME>  # share an existing profile key
 //   node scripts/dev-secret.mjs check      # report where the key comes from (never the value)
 //   node scripts/dev-secret.mjs --export   # print `export DEEPSEEK_API_KEY=…` for eval
 //   node scripts/dev-secret.mjs --print    # print the raw key for scripting
 //
-// Resolution order matches the DSH launch-environment precedence documented by
-// `dsh-credentials-local`: $DEEPSEEK_API_KEY wins, then the machine-local dev
-// secret file, then the macOS Keychain item `botharness-deepseek`.
+// Resolution order for the optional process-injected key: $DEEPSEEK_API_KEY,
+// the machine-local dev secret file, then macOS Keychain `botharness-deepseek`.
+// DSH can also resolve a key from its own $DSH_HOME/.credentials.yaml when
+// no key was injected; this helper alone cannot declare a model unavailable.
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 export const DEV_ENV_PATH = join(homedir(), '.config', 'botharness', 'dev.env');
 const KEYCHAIN_SERVICE = 'botharness-deepseek';
 
-function fromEnvironment() {
-  const value = process.env['DEEPSEEK_API_KEY']?.trim();
+function fromEnvironment(environment = process.env) {
+  const value = environment['DEEPSEEK_API_KEY']?.trim();
   return value === undefined || value.length === 0
     ? undefined
     : { source: '$DEEPSEEK_API_KEY', value };
 }
 
-function fromDevEnvFile() {
-  if (!existsSync(DEV_ENV_PATH)) return undefined;
-  const text = readFileSync(DEV_ENV_PATH, 'utf8');
+function fromDevEnvFile(path = DEV_ENV_PATH) {
+  if (!existsSync(path)) return undefined;
+  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) {
+    throw new Error('Shared DeepSeek dev secret file must not be readable by group or others');
+  }
+  const text = readFileSync(path, 'utf8');
   const match = /^[ \t]*export[ \t]+DEEPSEEK_API_KEY[ \t]*=[ \t]*(.+?)[ \t]*$/m.exec(text);
   const value = match?.[1]?.replace(/^["']|["']$/gu, '').trim();
-  return value === undefined || value.length === 0 ? undefined : { source: DEV_ENV_PATH, value };
+  return value === undefined || value.length === 0 ? undefined : { source: path, value };
 }
 
 function fromKeychain() {
@@ -45,13 +50,57 @@ function fromKeychain() {
   }
 }
 
-export function resolveDevSecret() {
-  return fromEnvironment() ?? fromDevEnvFile() ?? fromKeychain();
+/** Read only the DeepSeek reference from one explicit, protected DSH profile. */
+export function profileDeepSeekCredential(profileHome) {
+  const path = join(resolve(profileHome), '.credentials.yaml');
+  if (!existsSync(path)) return undefined;
+  if (process.platform !== 'win32' && (statSync(path).mode & 0o077) !== 0) {
+    throw new Error('DSH profile credential file must not be readable by group or others');
+  }
+  const refs = readFileSync(path, 'utf8').split(/^refs:[ \t]*$/mu)[1];
+  const raw = /^[ \t]{2}DEEPSEEK_API_KEY:[ \t]*(.*)$/mu.exec(refs ?? '')?.[1]?.trim();
+  if (!raw) return undefined;
+  if (raw === 'null' || raw === '~') return undefined;
+  let value = raw;
+  if (raw.startsWith('"') && raw.endsWith('"')) {
+    try {
+      value = JSON.parse(raw);
+    } catch {
+      return undefined;
+    }
+  } else if (raw.startsWith("'") && raw.endsWith("'")) {
+    value = raw.slice(1, -1).replace(/''/gu, "'");
+  }
+  return typeof value === 'string' && /^[A-Za-z0-9._-]+$/u.test(value)
+    ? { source: path, value }
+    : undefined;
+}
+
+/** One-time adoption: create a private shared source without changing the DSH profile. */
+export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) {
+  const credential = profileDeepSeekCredential(profileHome);
+  if (credential === undefined) {
+    throw new Error('No compatible DEEPSEEK_API_KEY in the selected DSH profile');
+  }
+  mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
+  if (process.platform !== 'win32' && (statSync(dirname(destination)).mode & 0o077) !== 0) {
+    throw new Error('Shared DeepSeek dev secret directory must not be accessible by others');
+  }
+  writeFileSync(destination, `export DEEPSEEK_API_KEY=${credential.value}\n`, {
+    encoding: 'utf8',
+    flag: 'wx',
+    mode: 0o600,
+  });
+  return { source: credential.source, destination };
+}
+
+export function resolveDevSecret({ environment = process.env, devEnvPath = DEV_ENV_PATH } = {}) {
+  return fromEnvironment(environment) ?? fromDevEnvFile(devEnvPath) ?? fromKeychain();
 }
 
 /** Environment patch every dev instance launch should apply. */
-export function devSecretEnvironment() {
-  const resolved = resolveDevSecret();
+export function devSecretEnvironment(options) {
+  const resolved = resolveDevSecret(options);
   return resolved === undefined
     ? {}
     : { DEEPSEEK_API_KEY: resolved.value, DSH_DEV_SECRET_SOURCE: resolved.source };
@@ -59,7 +108,10 @@ export function devSecretEnvironment() {
 
 export function devSecretInstructions() {
   return [
-    'No DeepSeek API key found. Store one machine-locally (never in the repo):',
+    'No shared launch-environment DeepSeek key found. A DSH profile credential may still work.',
+    'For new isolated profiles, adopt a protected existing DSH profile once:',
+    '  node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>',
+    'Or store a shared key machine-locally (never in the repo):',
     `  security add-generic-password -U -a "$USER" -s ${KEYCHAIN_SERVICE} -w   # prompts without echo`,
     `  # or write ${DEV_ENV_PATH} yourself, e.g.`,
     `  #   export DEEPSEEK_API_KEY=sk-…`,
@@ -70,6 +122,15 @@ export function devSecretInstructions() {
 const invokedDirectly = process.argv[1]?.endsWith('dev-secret.mjs') === true;
 if (invokedDirectly) {
   const mode = process.argv[2] ?? 'check';
+  if (mode === 'adopt-profile') {
+    if (process.argv[3] !== '--home' || !process.argv[4] || process.argv.length !== 5) {
+      console.error('usage: node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>');
+      process.exit(2);
+    }
+    const adopted = adoptProfileCredential(process.argv[4]);
+    console.log(`Shared DeepSeek dev key saved at ${adopted.destination} (0600); no key printed.`);
+    process.exit(0);
+  }
   const resolved = resolveDevSecret();
   if (resolved === undefined) {
     console.error(devSecretInstructions());
