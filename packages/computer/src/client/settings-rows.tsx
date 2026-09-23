@@ -8,7 +8,7 @@
  * @module @botharness/computer/settings-rows
  */
 
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
 
 import {
   IconChevronDownOutline14,
@@ -143,9 +143,17 @@ export interface ComputerSettingsFace {
   /** Open a directory with the Host's file manager. */
   openDirectory: (dir: string) => Promise<void>;
   /** Archive the Computer's store; `dir` overrides the configured directory. */
-  exportArchive: (dir?: string) => Promise<string>;
+  exportArchive: (dir?: string) => Promise<{ archive: string; downloadToken?: string }>;
+  /** Browser download URL for an export token; the save dialog picks the destination. */
+  downloadUrl: (downloadToken: string) => string;
   /** Restore an archive from the configured directory. */
   importArchive: (file: string) => Promise<void>;
+  /** Authorize a browser upload and mint its single-use token. */
+  requestUpload: (file: string) => Promise<string>;
+  /** Stream a file's bytes to an upload token (never buffered). */
+  sendUploadBytes: (uploadToken: string, file: File) => Promise<void>;
+  /** False where the browser cannot stream request bodies (needs Chromium). */
+  supportsStreamingUpload: (file: unknown) => boolean;
   /** List the archives the configured directory holds. */
   listArchives: () => Promise<string[]>;
   /** Effective export directory reported by the Host, for the no-scope case. */
@@ -159,6 +167,9 @@ const IMPORT_ENDPOINT = '/api/computer/import';
 const EXPORTS_ENDPOINT = '/api/computer/exports';
 const STATUS_ENDPOINT = '/api/computer/status';
 const OPEN_DIR_ENDPOINT = '/api/computer/open-dir';
+const DOWNLOAD_ENDPOINT = '/api/computer/download';
+const UPLOAD_ENDPOINT = '/api/computer/upload';
+const UPLOAD_CONTENT_ENDPOINT = '/api/computer/upload-content';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin', ...init });
@@ -192,18 +203,52 @@ export function createComputerSettingsFace(options: {
       await postAuthorized(OPEN_DIR_ENDPOINT, dir === '' ? {} : { dir });
     },
     exportArchive: async (dir) => {
-      const payload = await requestJson<{ archive?: string }>(EXPORT_ENDPOINT, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          dir === undefined || dir === '' ? { authorize: true } : { authorize: true, dir },
-        ),
-      });
-      return payload.archive ?? '';
+      const payload = await requestJson<{ archive?: string; downloadToken?: string }>(
+        EXPORT_ENDPOINT,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(
+            dir === undefined || dir === '' ? { authorize: true } : { authorize: true, dir },
+          ),
+        },
+      );
+      return {
+        archive: payload.archive ?? '',
+        ...(payload.downloadToken === undefined ? {} : { downloadToken: payload.downloadToken }),
+      };
     },
+    downloadUrl: (downloadToken) =>
+      `${DOWNLOAD_ENDPOINT}?token=${encodeURIComponent(downloadToken)}`,
     importArchive: async (file) => {
       await postAuthorized(IMPORT_ENDPOINT, { file });
     },
+    requestUpload: async (file) => {
+      const payload = await requestJson<{ uploadToken?: string }>(UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ authorize: true, file }),
+      });
+      if (payload.uploadToken === undefined) throw new Error('upload not accepted');
+      return payload.uploadToken;
+    },
+    sendUploadBytes: async (uploadToken, file) => {
+      // `duplex: 'half'` is absent from this TS lib's RequestInit, but the
+      // runtime requires it for stream bodies — cast the init, not the body.
+      const response = await fetch(
+        `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`,
+        {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/x-tar' },
+          body: file.stream() as BodyInit,
+          duplex: 'half',
+        } as RequestInit,
+      );
+      if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
+    },
+    supportsStreamingUpload: (file) =>
+      typeof (file as { stream?: unknown } | null)?.stream === 'function',
     listArchives: async () => {
       const payload = await requestJson<{ files?: string[] }>(EXPORTS_ENDPOINT);
       return payload.files ?? [];
@@ -269,7 +314,11 @@ export function ComputerSettingsRows({
   pickDirectory,
   openDirectory,
   exportArchive,
+  downloadUrl,
   importArchive,
+  requestUpload,
+  sendUploadBytes,
+  supportsStreamingUpload,
   listArchives,
   hostExportDir,
 }: PropsRuntime<'botharness.settings.item'> &
@@ -287,6 +336,11 @@ export function ComputerSettingsRows({
   const [saving, setSaving] = useState(false);
   const [dirNote, setDirNote] = useState<string | undefined>(undefined);
   const [transferNote, setTransferNote] = useState<string | undefined>(undefined);
+  const [download, setDownload] = useState<{ archive: string; token: string } | undefined>(
+    undefined,
+  );
+  const [uploadName, setUploadName] = useState<string | undefined>(undefined);
+  const uploadFile = useRef<File | null>(null);
   const [pickerBroken, setPickerBroken] = useState(false);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
   const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
@@ -421,9 +475,13 @@ export function ComputerSettingsRows({
     setConfirming(undefined);
     setBusy('export');
     setTransferNote(undefined);
+    setDownload(undefined);
     void exportArchive(exportTarget)
-      .then((archive) => {
+      .then(({ archive, downloadToken }) => {
         setTransferNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive }));
+        if (archive !== '' && downloadToken !== undefined) {
+          setDownload({ archive, token: downloadToken });
+        }
         if (autoOpen) void openDirectory(exportDir).catch(() => undefined);
       })
       .catch((error: unknown) => setTransferNote(String(error)))
@@ -443,6 +501,47 @@ export function ComputerSettingsRows({
     },
     [importArchive, t],
   );
+
+  const takeUploadFile = useCallback(
+    (file: File | null) => {
+      if (file === null) return;
+      if (!supportsStreamingUpload(file)) {
+        setTransferNote(t('rows.uploadUnsupported'));
+        return;
+      }
+      uploadFile.current = file;
+      setUploadName(file.name);
+      setTransferNote(undefined);
+    },
+    [supportsStreamingUpload, t],
+  );
+
+  const runUpload = useCallback(() => {
+    const file = uploadFile.current;
+    const name = uploadName;
+    if (file === null || name === undefined) return;
+    setConfirming(undefined);
+    setBusy('import');
+    setTransferNote(undefined);
+    void requestUpload(name)
+      .then(async (token) => {
+        try {
+          await sendUploadBytes(token, file);
+        } catch (error: unknown) {
+          // Streaming request bodies fail as TypeError where the browser
+          // cannot send them (duplex half unavailable).
+          if (error instanceof TypeError) throw new Error(t('rows.uploadUnsupported'));
+          throw error;
+        }
+      })
+      .then(() => {
+        setTransferNote(t('rows.imported', { file: name }));
+        setUploadName(undefined);
+        uploadFile.current = null;
+      })
+      .catch((error: unknown) => setTransferNote(String(error)))
+      .finally(() => setBusy(undefined));
+  }, [uploadName, requestUpload, sendUploadBytes, t]);
 
   const openImport = useCallback(() => {
     void listArchives()
@@ -637,6 +736,50 @@ export function ComputerSettingsRows({
               {t('rows.authorizeImport', { file: archives[0] })}
             </button>
           ) : null}
+          {download === undefined ? null : (
+            <button
+              type="button"
+              className="bh-settings-selector"
+              onClick={() => {
+                globalThis.location?.assign(downloadUrl(download.token));
+              }}
+            >
+              {t('rows.download')}
+            </button>
+          )}
+          <label className="bh-settings-selector">
+            {t('rows.chooseFile')}
+            <input
+              type="file"
+              accept=".tar,application/x-tar"
+              hidden
+              disabled={busy !== undefined}
+              onChange={(event) => {
+                const file = event.target.files?.[0] ?? null;
+                event.target.value = '';
+                takeUploadFile(file);
+              }}
+            />
+          </label>
+          {uploadName === undefined ? null : (
+            <>
+              <button
+                type="button"
+                className="bh-settings-selector"
+                onClick={() => {
+                  setUploadName(undefined);
+                  uploadFile.current = null;
+                }}
+              >
+                {t('entry.cancel')}
+              </button>
+              <button type="button" className="bh-settings-selector" onClick={runUpload}>
+                {busy === 'import'
+                  ? t('rows.importing')
+                  : t('rows.authorizeImport', { file: uploadName })}
+              </button>
+            </>
+          )}
         </div>
       </Row>
 

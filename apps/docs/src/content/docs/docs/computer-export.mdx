@@ -26,6 +26,13 @@ The Computer keeps its whole desktop — logins, bookmarks, downloads, and files
 3. In **Settings → BotHarness → Computer**, note the target's export directory (the default shown works with no setup) and put the archive in it.
 4. Click **Import…**, pick the archive, confirm. The Computer recreates the volume, unpacks the archive, and starts — logins, bookmarks, and `~/workspace` files are back.
 
+## Browser download and upload
+
+On web deployments (no directory picker, no Host folder to open), transfer runs through the browser instead of Host paths:
+
+- After an export finishes, **Download** fetches the archive through the browser's save dialog — streamed, so a ~1 GB file never sits in memory. The export directory stays as the server-side listing location.
+- To import, **Choose archive file…** picks a local `.tar`, then **Authorize and import** streams it up and runs the standard import. Streaming upload needs a Chromium browser; other browsers show an explicit note.
+
 ## Size and time expectations
 
 - The archive is an uncompressed tar of the volume. After normal use the volume is often **around 1 GB** (browser profile, caches, and workspace files); check the produced file, or `docker system df -v` for the live volume.

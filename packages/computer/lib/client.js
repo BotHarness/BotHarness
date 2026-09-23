@@ -321,10 +321,13 @@ window.__ModuleLoader__.load({
       'rows.transfer.description': '把 Computer 的持久存储打包成一个归档，或从归档恢复',
       'rows.export': '导出',
       'rows.exporting': '导出中…',
+      'rows.download': '下载',
       'rows.exportTo': '导出到…',
       'rows.authorizeExport': '授权并导出',
       'rows.import': '导入…',
       'rows.importing': '导入中…',
+      'rows.chooseFile': '选择归档文件…',
+      'rows.uploadUnsupported': '浏览器不支持流式上传，请用 Chromium 系浏览器重试',
       'rows.cancelImport': '取消导入',
       'rows.authorizeImport': '授权并导入 {file}',
       'rows.exported': '已导出：{archive}',
@@ -399,10 +402,13 @@ window.__ModuleLoader__.load({
         'Pack the persistent store into one archive, or restore from one',
       'rows.export': 'Export',
       'rows.exporting': 'Exporting…',
+      'rows.download': 'Download',
       'rows.exportTo': 'Export to…',
       'rows.authorizeExport': 'Authorize and export',
       'rows.import': 'Import…',
       'rows.importing': 'Importing…',
+      'rows.chooseFile': 'Choose archive file…',
+      'rows.uploadUnsupported': 'This browser cannot stream uploads — retry in a Chromium browser',
       'rows.cancelImport': 'Cancel import',
       'rows.authorizeImport': 'Authorize and import {file}',
       'rows.exported': 'Exported: {archive}',
@@ -534,6 +540,9 @@ window.__ModuleLoader__.load({
     const EXPORTS_ENDPOINT = '/api/computer/exports';
     const STATUS_ENDPOINT$1 = '/api/computer/status';
     const OPEN_DIR_ENDPOINT = '/api/computer/open-dir';
+    const DOWNLOAD_ENDPOINT = '/api/computer/download';
+    const UPLOAD_ENDPOINT = '/api/computer/upload';
+    const UPLOAD_CONTENT_ENDPOINT = '/api/computer/upload-content';
     async function requestJson$1(url, init) {
       const response = await fetch(url, {
         credentials: 'same-origin',
@@ -567,26 +576,54 @@ window.__ModuleLoader__.load({
           await postAuthorized(OPEN_DIR_ENDPOINT, dir === '' ? {} : { dir });
         },
         exportArchive: async (dir) => {
-          return (
-            (
-              await requestJson$1(EXPORT_ENDPOINT, {
-                method: 'POST',
-                headers: { 'content-type': 'application/json' },
-                body: JSON.stringify(
-                  dir === void 0 || dir === ''
-                    ? { authorize: true }
-                    : {
-                        authorize: true,
-                        dir,
-                      },
-                ),
-              })
-            ).archive ?? ''
-          );
+          const payload = await requestJson$1(EXPORT_ENDPOINT, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify(
+              dir === void 0 || dir === ''
+                ? { authorize: true }
+                : {
+                    authorize: true,
+                    dir,
+                  },
+            ),
+          });
+          return {
+            archive: payload.archive ?? '',
+            ...(payload.downloadToken === void 0 ? {} : { downloadToken: payload.downloadToken }),
+          };
         },
+        downloadUrl: (downloadToken) =>
+          `${DOWNLOAD_ENDPOINT}?token=${encodeURIComponent(downloadToken)}`,
         importArchive: async (file) => {
           await postAuthorized(IMPORT_ENDPOINT, { file });
         },
+        requestUpload: async (file) => {
+          const payload = await requestJson$1(UPLOAD_ENDPOINT, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              authorize: true,
+              file,
+            }),
+          });
+          if (payload.uploadToken === void 0) throw new Error('upload not accepted');
+          return payload.uploadToken;
+        },
+        sendUploadBytes: async (uploadToken, file) => {
+          const response = await fetch(
+            `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`,
+            {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: { 'content-type': 'application/x-tar' },
+              body: file.stream(),
+              duplex: 'half',
+            },
+          );
+          if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
+        },
+        supportsStreamingUpload: (file) => typeof file?.stream === 'function',
         listArchives: async () => {
           return (await requestJson$1(EXPORTS_ENDPOINT)).files ?? [];
         },
@@ -641,7 +678,11 @@ window.__ModuleLoader__.load({
       pickDirectory,
       openDirectory,
       exportArchive,
+      downloadUrl,
       importArchive,
+      requestUpload,
+      sendUploadBytes,
+      supportsStreamingUpload,
       listArchives,
       hostExportDir,
     }) {
@@ -657,6 +698,9 @@ window.__ModuleLoader__.load({
       const [saving, setSaving] = (0, react.useState)(false);
       const [dirNote, setDirNote] = (0, react.useState)(void 0);
       const [transferNote, setTransferNote] = (0, react.useState)(void 0);
+      const [download, setDownload] = (0, react.useState)(void 0);
+      const [uploadName, setUploadName] = (0, react.useState)(void 0);
+      const uploadFile = (0, react.useRef)(null);
       const [pickerBroken, setPickerBroken] = (0, react.useState)(false);
       const [hostDir, setHostDir] = (0, react.useState)(void 0);
       const [livePhase, setLivePhase] = (0, react.useState)(void 0);
@@ -766,11 +810,17 @@ window.__ModuleLoader__.load({
         setConfirming(void 0);
         setBusy('export');
         setTransferNote(void 0);
+        setDownload(void 0);
         exportArchive(exportTarget)
-          .then((archive) => {
+          .then(({ archive, downloadToken }) => {
             setTransferNote(
               archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive }),
             );
+            if (archive !== '' && downloadToken !== void 0)
+              setDownload({
+                archive,
+                token: downloadToken,
+              });
             if (autoOpen) openDirectory(exportDir).catch(() => void 0);
           })
           .catch((error) => setTransferNote(String(error)))
@@ -789,6 +839,43 @@ window.__ModuleLoader__.load({
         },
         [importArchive, t],
       );
+      const takeUploadFile = (0, react.useCallback)(
+        (file) => {
+          if (file === null) return;
+          if (!supportsStreamingUpload(file)) {
+            setTransferNote(t('rows.uploadUnsupported'));
+            return;
+          }
+          uploadFile.current = file;
+          setUploadName(file.name);
+          setTransferNote(void 0);
+        },
+        [supportsStreamingUpload, t],
+      );
+      const runUpload = (0, react.useCallback)(() => {
+        const file = uploadFile.current;
+        const name = uploadName;
+        if (file === null || name === void 0) return;
+        setConfirming(void 0);
+        setBusy('import');
+        setTransferNote(void 0);
+        requestUpload(name)
+          .then(async (token) => {
+            try {
+              await sendUploadBytes(token, file);
+            } catch (error) {
+              if (error instanceof TypeError) throw new Error(t('rows.uploadUnsupported'));
+              throw error;
+            }
+          })
+          .then(() => {
+            setTransferNote(t('rows.imported', { file: name }));
+            setUploadName(void 0);
+            uploadFile.current = null;
+          })
+          .catch((error) => setTransferNote(String(error)))
+          .finally(() => setBusy(void 0));
+      }, [uploadName, requestUpload, sendUploadBytes, t]);
       const openImport = (0, react.useCallback)(() => {
         listArchives()
           .then((files) => {
@@ -1018,6 +1105,57 @@ window.__ModuleLoader__.load({
                       children: t('rows.authorizeImport', { file: archives[0] }),
                     })
                   : null,
+                download === void 0
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      onClick: () => {
+                        globalThis.location?.assign(downloadUrl(download.token));
+                      },
+                      children: t('rows.download'),
+                    }),
+                /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('label', {
+                  className: 'bh-settings-selector',
+                  children: [
+                    t('rows.chooseFile'),
+                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)('input', {
+                      type: 'file',
+                      accept: '.tar,application/x-tar',
+                      hidden: true,
+                      disabled: busy !== void 0,
+                      onChange: (event) => {
+                        const file = event.target.files?.[0] ?? null;
+                        event.target.value = '';
+                        takeUploadFile(file);
+                      },
+                    }),
+                  ],
+                }),
+                uploadName === void 0
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                      children: [
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          onClick: () => {
+                            setUploadName(void 0);
+                            uploadFile.current = null;
+                          },
+                          children: t('entry.cancel'),
+                        }),
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          onClick: runUpload,
+                          children:
+                            busy === 'import'
+                              ? t('rows.importing')
+                              : t('rows.authorizeImport', { file: uploadName }),
+                        }),
+                      ],
+                    }),
               ],
             }),
           }),

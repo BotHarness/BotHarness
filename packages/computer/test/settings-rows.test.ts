@@ -121,7 +121,7 @@ describe('computer settings face', () => {
       calls.push({ url, init });
       const body =
         url === '/api/computer/export'
-          ? { ok: true, archive: '/exports/a.tar' }
+          ? { ok: true, archive: '/exports/a.tar', downloadToken: 'dl-1' }
           : url === '/api/computer/exports'
             ? { ok: true, files: ['a.tar'] }
             : url === '/api/computer/status'
@@ -137,7 +137,11 @@ describe('computer settings face', () => {
     const prefs = new ComputerSettingsPrefs();
     const face = createComputerSettingsFace({ prefs });
 
-    expect(await face.exportArchive()).toBe('/exports/a.tar');
+    expect(await face.exportArchive()).toEqual({
+      archive: '/exports/a.tar',
+      downloadToken: 'dl-1',
+    });
+    expect(face.downloadUrl('t 1/2')).toBe('/api/computer/download?token=t%201%2F2');
     await face.importArchive('a.tar');
     expect(await face.listArchives()).toEqual(['a.tar']);
     expect(await face.hostExportDir()).toBe('/exports');
@@ -174,7 +178,7 @@ describe('computer settings face', () => {
     });
     const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
 
-    expect(await face.exportArchive('/target')).toBe('/target/a.tar');
+    expect(await face.exportArchive('/target')).toEqual({ archive: '/target/a.tar' });
     await face.openDirectory('/target');
 
     const exportCall = calls.find((call) => call.url === '/api/computer/export');
@@ -185,6 +189,40 @@ describe('computer settings face', () => {
     const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
     expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
     expect(face.pickerAvailable).toBe(false);
+  });
+
+  it('requests an upload token and streams the file bytes by token', async () => {
+    const calls: { url: string; init: RequestInit | undefined }[] = [];
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      calls.push({ url, init });
+      const body = String(url).startsWith('/api/computer/upload-content')
+        ? { ok: true }
+        : { ok: true, uploadToken: 'up-1' };
+      return Promise.resolve(
+        new Response(JSON.stringify(body), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
+
+    expect(await face.requestUpload('a.tar')).toBe('up-1');
+    await face.sendUploadBytes('up-1', new File(['chunk-1', 'chunk-2'], 'a.tar'));
+    const initCall = calls.find((call) => call.url === '/api/computer/upload');
+    expect(JSON.parse(String(initCall?.init?.body))).toEqual({ authorize: true, file: 'a.tar' });
+    const putCall = calls.find((call) =>
+      String(call.url).startsWith('/api/computer/upload-content'),
+    );
+    expect(putCall?.init?.method).toBe('POST');
+    expect(String(putCall?.url)).toContain('token=up-1');
+    expect(putCall?.init?.body).toBeInstanceOf(ReadableStream);
+  });
+
+  it('reports when the browser cannot stream uploads', () => {
+    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
+    expect(face.supportsStreamingUpload(new File(['x'], 'a.tar'))).toBe(true);
+    expect(face.supportsStreamingUpload({ name: 'a.tar' })).toBe(false);
   });
 });
 
