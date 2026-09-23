@@ -124,6 +124,10 @@ function stubActions(): BridgeActions {
     memorySave: vi.fn(async () => {
       throw new Error('not configured');
     }),
+    listWorkspaceOptions: vi.fn(async () => []),
+    listWorkspaceGrants: vi.fn(async () => []),
+    createWorkspaceGrant: vi.fn(async () => ({ id: 'grant-1', path: '/project', title: 'Project', botSlug: 'atlas', workspaceId: 'workspace-1', workspacePath: '/project', workspaceTitle: 'Project', createdAt: AT })),
+    revokeWorkspaceGrant: vi.fn(async () => ({ id: 'grant-1', path: '/project', title: 'Project', botSlug: 'atlas', workspaceId: 'workspace-1', workspacePath: '/project', workspaceTitle: 'Project', createdAt: AT, revokedAt: AT })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),

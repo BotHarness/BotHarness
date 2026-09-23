@@ -189,6 +189,31 @@ const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
   },
 };
 
+/** Reserved after #115's accepted-Memory migration (generation 10). */
+export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
+  generation: 11,
+  module: 'workspace-grants',
+  description: 'Record Human Workspace Grants and immutable Assignment permission provenance',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE workspace_grants (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        workspace_path TEXT NOT NULL,
+        workspace_title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+      CREATE UNIQUE INDEX workspace_grants_active_target
+        ON workspace_grants (bot_slug, workspace_id) WHERE revoked_at IS NULL;
+      ALTER TABLE assignments ADD COLUMN grant_id TEXT REFERENCES workspace_grants(id);
+      ALTER TABLE assignments ADD COLUMN workspace_id TEXT;
+      ALTER TABLE assignments ADD COLUMN primary_cwd TEXT;
+      ALTER TABLE assignments ADD COLUMN permission_mode TEXT;
+      ALTER TABLE assignments ADD COLUMN approval_policy TEXT;
+      ALTER TABLE assignments ADD COLUMN preset_revision INTEGER;
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -199,4 +224,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_COLLABORATION_MIGRATION,
   SESSION_PERSONA_SNAPSHOT_MIGRATION,
   MEMORY_ACCEPTED_COMMIT_MIGRATION,
+  WORKSPACE_GRANT_MIGRATION,
 ]);

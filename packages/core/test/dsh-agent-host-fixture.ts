@@ -16,6 +16,7 @@ export interface FakeSession {
   id: string;
   header: { cwd?: string; createdAt: number };
   seq: number;
+  append(type: string, data: unknown): void;
   snapshotEvents(
     fromSeq?: number,
     toSeqExclusive?: number,
@@ -93,6 +94,9 @@ export class FakeAgentHost implements DshAgentHost {
       get seq() {
         return events.length;
       },
+      append: (type, data) => this.#emit(session, events, {
+        type, data, seq: events.length, time: session.header.createdAt,
+      }),
       snapshotEvents: (fromSeq = 0, toSeqExclusive = events.length) =>
         events.slice(fromSeq, toSeqExclusive),
     };
@@ -142,7 +146,7 @@ export class FakeAgentHost implements DshAgentHost {
   async #drive(scope: FakeScope, messages: Message[]): Promise<void> {
     const createAssignment = scope.tools.find((tool) => tool.name === 'create_assignment');
     if (createAssignment !== undefined) {
-      await createAssignment.execute({ purpose: '核对发布状态' }, {} as ToolRunContext);
+      await createAssignment.execute({ purpose: '核对发布状态', grant_id: 'grant-1' }, {} as ToolRunContext);
       const channelSend = scope.tools.find((tool) => tool.name === 'channel_send');
       await channelSend?.execute({ body: '发布状态已经核对完成。' }, {} as ToolRunContext);
       messages.push(

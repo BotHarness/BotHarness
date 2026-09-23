@@ -3,6 +3,7 @@ import type { ReactElement } from 'react';
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar } from './avatar.js';
+import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
@@ -57,6 +58,12 @@ function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElemen
             <span>{assignmentStatus(assignment.activity, t)}</span>
             <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now(), t)}</span>
           </div>
+          {assignment.permission === undefined ? null : (
+            <div className="bh-assignment-meta">
+              <span>{assignment.permission.primaryCwd}</span>
+              <Tag tone="neutral">{assignment.permission.mode}</Tag>
+            </div>
+          )}
           {assignment.latestReport === undefined ? null : (
             <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
           )}
@@ -75,6 +82,13 @@ function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElemen
               <dt>{t('assignment.detail.latest')}</dt>
               <dd>{selected.latestReport?.summary ?? t('assignment.detail.unreported')}</dd>
             </div>
+            {selected.permission === undefined ? null : (
+              <>
+                <div><dt>{t('grant.primaryCwd')}</dt><dd>{selected.permission.primaryCwd}</dd></div>
+                <div><dt>{t('grant.actualPermission')}</dt><dd>{selected.permission.mode} / {selected.permission.approval}</dd></div>
+                <div><dt>{t('grant.source')}</dt><dd>{selected.permission.grantId}</dd></div>
+              </>
+            )}
             <div>
               <dt>{t('assignment.detail.session')}</dt>
               <dd className="bh-assignment-id" title={selected.sessionId}>
@@ -143,6 +157,13 @@ export function createChannelSidebarBuiltins(
       scope: 'personabot',
       component: AssignmentsEntry,
       badge: AssignmentsBadge,
+    },
+    {
+      id: 'workspace-grants',
+      label: t('entry.workspaceGrants'),
+      order: 20,
+      scope: 'personabot',
+      component: WorkspaceGrantsEntry,
     },
     {
       id: 'members',
