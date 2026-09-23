@@ -112,6 +112,23 @@ export function createWorkspaceGrantStore(options: {
       return rows.map(toRecord);
     },
     async create(botSlug, workspaceId) {
+      // Fence a pending idempotent create against a Human revoke during status().
+      const activeAtStart = database.read(
+        (connection) =>
+          connection
+            .prepare(
+              'SELECT id FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NULL',
+            )
+            .get(botSlug, workspaceId) as { id: string } | undefined,
+      );
+      const revokedCountAtStart = database.read(
+        (connection) =>
+          connection
+            .prepare(
+              'SELECT COUNT(*) AS count FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NOT NULL',
+            )
+            .get(botSlug, workspaceId) as { count: number },
+      ).count;
       const workspace = lookup().get(workspaceId);
       if (workspace === undefined) {
         throw new WorkspaceGrantError('unknown-workspace', 'Unknown DSH Workspace: ' + workspaceId);
@@ -130,6 +147,19 @@ export function createWorkspaceGrantStore(options: {
               'SELECT * FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NULL',
             )
             .get(botSlug, workspaceId) as unknown as GrantRow | undefined;
+          const revokedCountNow = (
+            connection
+              .prepare(
+                'SELECT COUNT(*) AS count FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NOT NULL',
+              )
+              .get(botSlug, workspaceId) as { count: number }
+          ).count;
+          if (
+            revokedCountNow !== revokedCountAtStart ||
+            (activeAtStart !== undefined && existing?.id !== activeAtStart.id)
+          ) {
+            return undefined;
+          }
           if (existing !== undefined) return existing;
           const id = createId();
           connection
@@ -143,6 +173,12 @@ export function createWorkspaceGrantStore(options: {
         },
         ['workspace-grants'],
       );
+      if (row === undefined) {
+        throw new WorkspaceGrantError(
+          'invalid-grant',
+          'Workspace Grant was revoked while authorization was pending',
+        );
+      }
       return toRecord(row);
     },
     revoke(botSlug, grantId) {

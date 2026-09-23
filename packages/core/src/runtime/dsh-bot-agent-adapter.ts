@@ -3,6 +3,7 @@ import { mkdirSync } from 'node:fs';
 
 import {
   installModelSelection,
+  type Agent,
   type AgentHandle,
   type AssistantStreamFrame,
   type CreateAgentOptions,
@@ -48,6 +49,7 @@ If you cannot proceed without an Orchestrator decision, report with state blocke
 export interface DshAgentHost {
   create(options: CreateAgentOptions): Promise<AgentHandle>;
   resume(options: ResumeAgentOptions): Promise<AgentHandle>;
+  get?(id: ReturnType<typeof SessionId>): Agent | undefined;
 }
 
 /**
@@ -80,6 +82,8 @@ export interface DshBotAgentAdapterOptions {
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   ensureWorkspace?: (path: string) => void;
   publishDraft?: (event: ChannelDraftEvent) => void;
+  /** Validate a foreign live Agent before attaching BotHarness role behavior. */
+  authorizeBorrow?: (agent: Agent, role: 'orchestrator' | 'assignment') => void;
 }
 
 export interface DshDefaultModelHost {
@@ -143,6 +147,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #defaultModel: DshDefaultModelHost;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
+  readonly #authorizeBorrow:
+    | ((agent: Agent, role: 'orchestrator' | 'assignment') => void)
+    | undefined;
   readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
@@ -155,6 +162,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#defaultModel = options.defaultModel;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
+    this.#authorizeBorrow = options.authorizeBorrow;
     this.#resolveAgentPresets = options.resolveAgentPresets;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
@@ -264,17 +272,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
-    const setup: NonNullable<CreateAgentOptions['setup']> = async (agentCtx, agent) => {
+    const borrowedDisposers: Array<() => void> = [];
+    const setup = async (agentCtx: Context, agent: Agent, borrowed = false): Promise<void> => {
       setSandboxMode(agent.session, 'workspace-write');
       setApprovalPolicy(agent.session, 'ask');
-      await this.#composePreset(agentCtx, run.bot);
-      installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-      agentCtx.systemPrompt.section({
+      if (!borrowed) {
+        await this.#composePreset(agentCtx, run.bot);
+        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+      }
+      const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+        const dispose = agentCtx.tools.register(tool);
+        if (borrowed) borrowedDisposers.push(dispose);
+        return dispose;
+      };
+      const disposeRolePrompt = agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
         order: ROLE_PROMPT_ORDER,
         text: ORCHESTRATOR_PROMPT,
       });
-      agentCtx.tools.register(
+      if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+      registerTool(
         defineTool({
           name: 'create_assignment',
           description:
@@ -327,7 +344,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'list_workspace_grants',
           description:
@@ -346,7 +363,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'list_assignments',
           description:
@@ -365,7 +382,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'inspect_assignment',
           description:
@@ -393,7 +410,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'send_assignment_request',
           description:
@@ -445,7 +462,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_read',
           description:
@@ -477,7 +494,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_read_image',
           description:
@@ -600,7 +617,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_search',
           description:
@@ -629,7 +646,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_send',
           description:
@@ -688,6 +705,24 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'orchestrator');
+      try {
+        await setup(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const options = { agentOptions: resolvedAgentOptions, setup };
     const meta = createMeta(
       run,
@@ -728,24 +763,33 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     if (existing !== undefined) return existing;
     const meta = createMeta(run, run.permission.primaryCwd, undefined, this.#defaultAgentPreset);
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
+    const borrowedDisposers: Array<() => void> = [];
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),
       ...(meta === undefined ? {} : { meta }),
       agentOptions: resolvedAgentOptions,
-      setup: async (agentCtx, agent) => {
+      setup: async (agentCtx, agent, borrowed = false) => {
         if (agent.session.header.cwd !== run.permission.primaryCwd) {
           throw new Error('Assignment Session cwd differs from its Workspace Grant snapshot');
         }
         setSandboxMode(agent.session, run.permission.mode);
         setApprovalPolicy(agent.session, run.permission.approval);
-        await this.#composePreset(agentCtx, run.bot);
-        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-        agentCtx.systemPrompt.section({
+        if (!borrowed) {
+          await this.#composePreset(agentCtx, run.bot);
+          installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+        }
+        const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+          const dispose = agentCtx.tools.register(tool);
+          if (borrowed) borrowedDisposers.push(dispose);
+          return dispose;
+        };
+        const disposeRolePrompt = agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
           order: ROLE_PROMPT_ORDER,
           text: ASSIGNMENT_PROMPT,
         });
-        agentCtx.tools.register(
+        if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+        registerTool(
           defineTool({
             name: 'report_to_orchestrator',
             description:
@@ -796,6 +840,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         );
       },
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'assignment');
+      try {
+        await (
+          createOptions.setup as (ctx: Context, agent: Agent, borrowed: boolean) => Promise<void>
+        )(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const handle =
       run.resume === true
         ? await this.#agents.resume({

@@ -30,6 +30,7 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import { grantExecutionDenial, grantToolExecutionDenial } from './workspaces/grant-execution.js';
 import {
   createWorkspaceGrantStore,
   type DshWorkspaceLookup,
@@ -185,6 +186,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     publishDraft: (event) => publishDraft(event),
+    authorizeBorrow: (agent, role) => {
+      const owner = core.ownership.resolve(agent.session.id);
+      if (owner?.rootRole !== role) throw new Error('BotHarness Agent role mismatch');
+      const denial = grantExecutionDenial(
+        core,
+        agent.session,
+        ctx.get('sandboxPolicy'),
+        ctx.get('approval'),
+      );
+      if (denial !== undefined) throw new Error(denial);
+    },
   });
   const core = createCore({
     dshHome,
@@ -197,6 +209,28 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
+
+  const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
+    grantExecutionDenial(core, session, ctx.get('sandboxPolicy'), ctx.get('approval'));
+  // Native DSH prompt/resume also enters this waterfall, including after a Host restart.
+  ctx.on(
+    'agent/pre-step',
+    async ({ agent }, next) =>
+      permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
+    { global: true },
+  );
+  // A mode switch during an already-running step must be caught at the tool boundary.
+  ctx.tools.guard(({ agent, arguments: args }) =>
+    agent === undefined
+      ? undefined
+      : grantToolExecutionDenial(
+          core,
+          agent.session,
+          ctx.get('sandboxPolicy'),
+          ctx.get('approval'),
+          args,
+        ),
+  );
 
   ctx.on(
     'agent/assistant-stream',

@@ -39,7 +39,7 @@ function startHarness(): Harness {
         ctx.emit('session/event', session as never, event as never),
     },
   );
-  ctx.provide('tools', { register: () => () => undefined });
+  ctx.provide('tools', { register: () => () => undefined, guard: () => () => undefined });
   ctx.provide('systemPrompt', { section: () => () => undefined });
   ctx.provide('sessions', { list: () => host.sessions });
   ctx.provide('agents', host as never);

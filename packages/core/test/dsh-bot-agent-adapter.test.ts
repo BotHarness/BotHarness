@@ -1,4 +1,5 @@
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
+import { SessionId } from '@deepseek-ai/dsh-session';
 
 import { describe, expect, it } from 'vitest';
 
@@ -14,6 +15,58 @@ const ASSIGNMENT = {
 };
 
 describe('DSH Bot Agent adapter', () => {
+  it('borrows a native resumed BotHarness Agent and releases only its role registrations', async () => {
+    const host = new FakeAgentHost();
+    await host.create({
+      sessionId: SessionId('orchestrator-ada'),
+      meta: { cwd: '/memory/ada' },
+    });
+    const native = host.get('orchestrator-ada');
+    const authorized: string[] = [];
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      authorizeBorrow: (agent, role) => authorized.push(role + ':' + agent.session.id),
+    });
+    await adapter.runOrchestrator({
+      sessionId: 'orchestrator-ada',
+      resume: true,
+      bot: BOT,
+      message: '请核对发布状态',
+      inboundChannelId: 'dm-test',
+      inbox: '',
+      channels: {
+        read: () => [],
+        search: () => [],
+        send: async (input) => ({
+          id: 'bot-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: input.body,
+        }),
+      },
+      assignments: {
+        create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
+        list: () => [],
+        inspect: () => undefined,
+        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+      },
+    });
+    expect(authorized).toEqual(['orchestrator:orchestrator-ada']);
+    expect(host.resumeOptions).toHaveLength(0);
+    expect(
+      host.scopes.get('orchestrator-ada')?.tools.some((tool) => tool.name === 'create_assignment'),
+    ).toBe(true);
+    await adapter.close();
+    expect(host.disposed).toEqual([]);
+    expect(host.get('orchestrator-ada')).toBe(native);
+    expect(
+      host.scopes.get('orchestrator-ada')?.tools.some((tool) => tool.name === 'create_assignment'),
+    ).toBe(false);
+  });
+
   it('mounts the resolved agent preset inside every agent factory setup', async () => {
     const host = new FakeAgentHost();
     const mounted: Array<{ id: string | undefined; hasTools: boolean }> = [];

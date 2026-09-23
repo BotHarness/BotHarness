@@ -58,6 +58,11 @@ export class FakeAgentHost implements DshAgentHost {
   readonly scopes = new Map<string, FakeScope>();
   readonly sessions: FakeSession[] = [];
   readonly #cwdBySession = new Map<string, string | undefined>();
+  readonly #live = new Map<string, Agent>();
+
+  get(id: string): Agent | undefined {
+    return this.#live.get(String(id));
+  }
 
   constructor(
     private readonly orchestratorTurnEnd: TurnEndReason = { kind: 'completed' },
@@ -127,18 +132,31 @@ export class FakeAgentHost implements DshAgentHost {
     };
     const fakeContext = {
       on: () => () => undefined,
-      tools: { register: (tool: ToolDefinition) => void scope.tools.push(tool) },
+      tools: {
+        register: (tool: ToolDefinition) => {
+          scope.tools.push(tool);
+          return () => void scope.tools.splice(scope.tools.indexOf(tool), 1);
+        },
+      },
       systemPrompt: {
-        section: (section: { name: string; text: string }) => void scope.sections.push(section),
+        section: (section: { name: string; text: string }) => {
+          scope.sections.push(section);
+          return () => void scope.sections.splice(scope.sections.indexOf(section), 1);
+        },
       },
     };
+    Object.assign(fakeAgent, { ctx: fakeContext });
     await setup?.(fakeContext as unknown as Context, fakeAgent as unknown as Agent);
     this.scopes.set(sessionId, scope);
     this.sessions.push(session);
+    this.#live.set(sessionId, fakeAgent as unknown as Agent);
     this.hooks.onAgentCreated?.(fakeAgent);
     return {
       agent: fakeAgent as unknown as Agent,
-      dispose: async () => void this.disposed.push(sessionId),
+      dispose: async () => {
+        this.disposed.push(sessionId);
+        this.#live.delete(sessionId);
+      },
     };
   }
 

@@ -77,16 +77,18 @@ export function WorkspaceGrantsEntry({
           {error}
         </div>
       )}
-      {grants
-        .filter((grant) => grant.revokedAt === undefined)
-        .map((grant) => (
-          <div className="bh-workspace-grant" key={grant.id}>
-            <div className="bh-workspace-grant-title">
-              {grant.workspaceTitle} <Tag tone="neutral">workspace-write</Tag>
-            </div>
-            <div className="bh-workspace-grant-path" title={grant.workspacePath}>
-              {grant.workspacePath}
-            </div>
+      {grants.map((grant) => (
+        <div className="bh-workspace-grant" key={grant.id}>
+          <div className="bh-workspace-grant-title">
+            {grant.workspaceTitle}{' '}
+            <Tag tone="neutral">
+              {grant.revokedAt === undefined ? 'workspace-write' : t('grant.revoked')}
+            </Tag>
+          </div>
+          <div className="bh-workspace-grant-path" title={grant.workspacePath}>
+            {grant.workspacePath}
+          </div>
+          {grant.revokedAt === undefined ? (
             <Button
               variant="outline"
               disabled={busy !== undefined}
@@ -96,8 +98,11 @@ export function WorkspaceGrantsEntry({
             >
               {t('grant.revoke')}
             </Button>
-          </div>
-        ))}
+          ) : (
+            <div className="bh-note">{t('grant.stopRunning')}</div>
+          )}
+        </div>
+      ))}
       {workspaces
         .filter((workspace) => !activeIds.has(workspace.id))
         .map((workspace) => (

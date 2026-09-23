@@ -1,0 +1,82 @@
+import type { Session } from '@deepseek-ai/dsh-session';
+import type { SandboxPolicyService } from '@deepseek-ai/dsh-sandbox-policy';
+import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
+
+import type { BotHarnessCore } from '../plugin.js';
+
+/** One Host-owned check used before both model steps and individual tool calls. */
+export function grantExecutionDenial(
+  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
+  session: Session,
+  policy: SandboxPolicyService | undefined,
+  approval: ApprovalService | undefined,
+): string | undefined {
+  let owner = core.ownership.resolve(session.id);
+  if (owner === undefined) {
+    const parent = session.header.parentSession;
+    return session.id.startsWith('botharness-') ||
+      (parent !== undefined && core.ownership.resolve(parent) !== undefined)
+      ? 'BotHarness Session has no durable owner'
+      : undefined;
+  }
+  const seen = new Set<string>();
+  while (owner.parentSessionId !== undefined) {
+    if (seen.has(owner.sessionId)) return 'BotHarness Session ownership is cyclic';
+    seen.add(owner.sessionId);
+    const parent = core.ownership.resolve(owner.parentSessionId);
+    if (parent === undefined || parent.botSlug !== owner.botSlug) {
+      return 'BotHarness Session parent ownership is missing or inconsistent';
+    }
+    owner = parent;
+  }
+  if (policy === undefined || approval === undefined) {
+    return 'DSH permission services are unavailable for BotHarness Session';
+  }
+  if (policy.resolve({ session }).mode !== 'workspace-write') {
+    return 'BotHarness Session requires workspace-write permission';
+  }
+  if (approval.overrideOf(session) !== 'ask') {
+    return 'BotHarness Session requires ask approval policy';
+  }
+  if (owner.rootRole === 'orchestrator') {
+    const memoryCwd = core.registry.memoryDirFor(owner.botSlug);
+    return memoryCwd !== undefined && session.header.cwd === memoryCwd
+      ? undefined
+      : 'Orchestrator Session requires its Memory working directory';
+  }
+  if (owner.rootRole !== 'assignment') return 'Unknown BotHarness Session role';
+  const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
+  const permission = assignment?.permission;
+  if (permission === undefined || session.header.cwd !== permission.primaryCwd) {
+    return 'Assignment Session permission snapshot is missing or mismatched';
+  }
+  try {
+    const grant = core.grants.requireActive(owner.botSlug, permission.grantId);
+    if (
+      grant.workspaceId !== permission.workspaceId ||
+      grant.workspacePath !== permission.primaryCwd
+    ) {
+      return 'Assignment Workspace Grant no longer matches its permission snapshot';
+    }
+  } catch {
+    return 'Assignment Workspace Grant is missing, revoked, or unavailable';
+  }
+  return undefined;
+}
+
+/** The final DSH tool gate also blocks one-shot escalation hidden inside tool bodies. */
+export function grantToolExecutionDenial(
+  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
+  session: Session,
+  policy: SandboxPolicyService | undefined,
+  approval: ApprovalService | undefined,
+  args: unknown,
+): string | undefined {
+  const denial = grantExecutionDenial(core, session, policy, approval);
+  if (denial !== undefined) return denial;
+  if (core.ownership.resolve(session.id) === undefined) return undefined;
+  if (typeof args === 'object' && args !== null && 'sandbox_permissions' in args) {
+    return 'BotHarness Session cannot request sandbox permission escalation';
+  }
+  return undefined;
+}

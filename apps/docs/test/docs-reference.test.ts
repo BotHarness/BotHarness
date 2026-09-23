@@ -45,6 +45,7 @@ describe("generated developer reference", () => {
       { name: "agent/assistant-stream", direction: "consumes", operation: "on" },
       { name: "agent/created", direction: "consumes", operation: "on" },
       { name: "agent/disposed", direction: "consumes", operation: "on" },
+      { name: "agent/pre-step", direction: "consumes", operation: "on" },
       { name: "session/event", direction: "consumes", operation: "on" },
     ]);
   });
