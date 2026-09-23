@@ -259,6 +259,42 @@ window.__ModuleLoader__.load({
       };
     }
     //#endregion
+    //#region packages/computer/src/client/viewer-events.ts
+    /** Endpoint owning the bounded diagnostics ring (300 chars per detail). */
+    const VIEWER_EVENT_ENDPOINT = '/api/computer/diagnostics/viewer';
+    /** Stable machine-parseable line for one event. */
+    function viewerEventText(event) {
+      switch (event.type) {
+        case 'mount':
+          return 'viewer mount docked';
+        case 'overlay':
+          return event.open ? 'viewer overlay open' : 'viewer overlay closed';
+        case 'phase':
+          return `viewer phase ${event.from}>${event.to}`;
+        case 'auto-reload':
+          return `viewer auto-reload attempt=${String(event.attempt)}`;
+        case 'manual-retry':
+          return 'viewer manual-retry';
+        case 'loss-remount':
+          return `viewer loss-remount streak=${String(event.streak)}`;
+      }
+    }
+    /**
+     * Fire-and-forget post to the diagnostics route. Never throws — observability
+     * must not break the viewer — and defaults to the global fetch so call sites
+     * stay one argument.
+     */
+    async function reportViewerEvent(fetchImpl, detail) {
+      try {
+        await (fetchImpl ?? fetch)(VIEWER_EVENT_ENDPOINT, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ detail }),
+        });
+      } catch {}
+    }
+    //#endregion
     //#region packages/computer/src/client/locale.ts
     /** Locale namespace owning the Computer client's copy. */
     const LOCALE_NS = 'botharness-computer';
@@ -1661,13 +1697,42 @@ window.__ModuleLoader__.load({
       const wasReady = (0, react.useRef)(false);
       const autoReloads = (0, react.useRef)(0);
       const lossStreak = (0, react.useRef)(0);
+      const prevPhase = (0, react.useRef)(void 0);
+      const prevExpanded = (0, react.useRef)(false);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
       const phase = useStreamPhase(frameRef, reloadKey);
       const live = phase === 'live';
       const reconnect = () => {
+        reportViewerEvent(void 0, viewerEventText({ type: 'manual-retry' }));
         setReconnecting(true);
         setReloadKey((key) => key + 1);
       };
+      (0, react.useEffect)(() => {
+        reportViewerEvent(void 0, viewerEventText({ type: 'mount' }));
+      }, []);
+      (0, react.useEffect)(() => {
+        const fromPhase = prevPhase.current;
+        prevPhase.current = phase;
+        if (fromPhase !== void 0 && fromPhase !== phase)
+          reportViewerEvent(
+            void 0,
+            viewerEventText({
+              type: 'phase',
+              from: fromPhase,
+              to: phase,
+            }),
+          );
+        const wasExpanded = prevExpanded.current;
+        prevExpanded.current = expanded;
+        if (wasExpanded !== expanded)
+          reportViewerEvent(
+            void 0,
+            viewerEventText({
+              type: 'overlay',
+              open: expanded,
+            }),
+          );
+      }, [phase, expanded]);
       (0, react.useEffect)(() => {
         if (live) {
           wasReady.current = true;
@@ -1681,12 +1746,26 @@ window.__ModuleLoader__.load({
         if (!shouldRemountLoss(lossStreak.current)) return;
         wasReady.current = false;
         lossStreak.current = 0;
+        reportViewerEvent(
+          void 0,
+          viewerEventText({
+            type: 'loss-remount',
+            streak: 3,
+          }),
+        );
         setReconnecting(true);
         setReloadKey((key) => key + 1);
       }, [live]);
       (0, react.useEffect)(() => {
         if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
         autoReloads.current += 1;
+        reportViewerEvent(
+          void 0,
+          viewerEventText({
+            type: 'auto-reload',
+            attempt: autoReloads.current,
+          }),
+        );
         setReloadKey((key) => key + 1);
       }, [phase]);
       (0, react.useEffect)(() => {
