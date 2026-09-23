@@ -24,6 +24,29 @@ export function nextExpanded(action: ViewerAction): boolean {
 /** Stream health as projected by the frame tracker. */
 export type FramePhase = 'connecting' | 'live' | 'empty';
 
+/** Consecutive non-live ticks before the displayed phase leaves live. */
+export const PHASE_SMOOTH_AFTER = 2;
+
+/** Displayed phase plus its hysteresis streak. */
+export interface SmoothedPhase {
+  readonly phase: FramePhase;
+  readonly streak: number;
+}
+
+/**
+ * Display hysteresis for the phase: sub-hysteresis blips (resize
+ * renegotiation) never reach the overlay, title, or pill, while sustained
+ * changes flow through with at most one extra tick of lag. Raw tracker
+ * truth (loss/auto paths) never consults this.
+ */
+export function smoothPhase(shown: FramePhase, raw: FramePhase, streak: number): SmoothedPhase {
+  if (raw === 'live') return { phase: 'live', streak: 0 };
+  if (shown !== 'live') return { phase: raw, streak: 0 };
+  const next = streak + 1;
+  if (next >= PHASE_SMOOTH_AFTER) return { phase: raw, streak: next };
+  return { phase: shown, streak: next };
+}
+
 /** StateDot semantics for a phase (done / blue ring / red). */
 export function dotStateFor(phase: FramePhase): 'done' | 'ongoing' | 'error' {
   if (phase === 'live') return 'done';

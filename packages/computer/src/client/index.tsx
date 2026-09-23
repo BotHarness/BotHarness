@@ -13,6 +13,7 @@ import {
   dotStateFor,
   isExitReport,
   nextExpanded,
+  smoothPhase,
   statusKeyFor,
   stopKey,
   type FramePhase,
@@ -582,8 +583,22 @@ function RunningCard({
   const prevExpanded = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
-  const phase = useStreamPhase(frameRef, reloadKey);
-  const live = phase === 'live';
+  const rawPhase = useStreamPhase(frameRef, reloadKey);
+  const rawLive = rawPhase === 'live';
+  const [smooth, setSmooth] = useState<{ phase: FramePhase; streak: number }>({
+    phase: 'connecting',
+    streak: 0,
+  });
+  useEffect(() => {
+    setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak));
+  }, [rawPhase]);
+  useEffect(() => {
+    // A remounted document must never inherit the previous one's liveness.
+    setSmooth({ phase: 'connecting', streak: 0 });
+  }, [reloadKey]);
+  // Displayed phase: overlay, title, pill. Raw truth stays with the
+  // loss/auto paths and the diagnostics narrative below.
+  const phase = smooth.phase;
 
   const reconnect = (): void => {
     void reportViewerEvent(undefined, viewerEventText({ type: 'manual-retry' }));
@@ -599,11 +614,11 @@ function RunningCard({
 
   useEffect(() => {
     const fromPhase = prevPhase.current;
-    prevPhase.current = phase;
-    if (fromPhase !== undefined && fromPhase !== phase) {
+    prevPhase.current = rawPhase;
+    if (fromPhase !== undefined && fromPhase !== rawPhase) {
       void reportViewerEvent(
         undefined,
-        viewerEventText({ type: 'phase', from: fromPhase, to: phase }),
+        viewerEventText({ type: 'phase', from: fromPhase, to: rawPhase }),
       );
     }
     const wasExpanded = prevExpanded.current;
@@ -611,13 +626,13 @@ function RunningCard({
     if (wasExpanded !== expanded) {
       void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: expanded }));
     }
-  }, [phase, expanded]);
+  }, [rawPhase, expanded]);
 
   // A stream that disappears after being live remounts the viewer — but only
   // once the loss persists, so a single missed tick (GC pause, slow frame)
   // never restarts the whole SPA mid-negotiation.
   useEffect(() => {
-    if (live) {
+    if (rawLive) {
       wasReady.current = true;
       autoReloads.current = 0;
       lossStreak.current = 0;
@@ -635,20 +650,20 @@ function RunningCard({
     );
     setReconnecting(true);
     setReloadKey((key) => key + 1);
-  }, [live]);
+  }, [rawLive]);
 
   // A document that never went live most likely failed its first load while
   // the server was still booting — remount a bounded number of times, then
   // leave the manual retry.
   useEffect(() => {
-    if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+    if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return;
     autoReloads.current += 1;
     void reportViewerEvent(
       undefined,
       viewerEventText({ type: 'auto-reload', attempt: autoReloads.current }),
     );
     setReloadKey((key) => key + 1);
-  }, [phase]);
+  }, [rawPhase]);
 
   useEffect(() => {
     if (!expanded) return () => {};

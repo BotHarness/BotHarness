@@ -4,6 +4,7 @@ import {
   dotStateFor,
   isExitReport,
   nextExpanded,
+  smoothPhase,
   statusKeyFor,
   stopKey,
 } from '../src/client/viewer-state.js';
@@ -54,5 +55,26 @@ describe('start view note', () => {
     expect(isExitReport('')).toBe(false);
     expect(isExitReport('pull failed: network unreachable')).toBe(false);
     expect(isExitReport('exited code=137 (oom)')).toBe(false);
+  });
+});
+
+describe('display phase hysteresis', () => {
+  it('holds live through a single non-live tick', () => {
+    expect(smoothPhase('live', 'connecting', 0)).toEqual({ phase: 'live', streak: 1 });
+  });
+
+  it('leaves live on the second consecutive non-live tick', () => {
+    expect(smoothPhase('live', 'connecting', 1)).toEqual({ phase: 'connecting', streak: 2 });
+    expect(smoothPhase('live', 'empty', 1)).toEqual({ phase: 'empty', streak: 2 });
+  });
+
+  it('resets on live and passes non-live states straight through', () => {
+    expect(smoothPhase('live', 'live', 7)).toEqual({ phase: 'live', streak: 0 });
+    expect(smoothPhase('connecting', 'connecting', 0)).toEqual({
+      phase: 'connecting',
+      streak: 0,
+    });
+    expect(smoothPhase('connecting', 'empty', 0)).toEqual({ phase: 'empty', streak: 0 });
+    expect(smoothPhase('empty', 'connecting', 0)).toEqual({ phase: 'connecting', streak: 0 });
   });
 });
