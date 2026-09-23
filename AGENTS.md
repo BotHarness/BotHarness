@@ -86,7 +86,7 @@ Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the d
 
 ### UI guidelines
 
-Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens, `ui-primitives`, the native inset contract, and the measure-the-shell workflow (ADR-0028).
+Building or changing in-harness UI follows the `dsh-ui` skill: DSH tokens (central alias table, no inline hex), `ui-primitives`, the native inset contract, and the measure-the-shell workflow (ADR-0028).
 
 ### DSH development
 
