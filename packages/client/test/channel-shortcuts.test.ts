@@ -4,6 +4,7 @@ import {
   webBotModeShortcut,
   webChannelShortcutIndex,
   webChannelShortcutLabel,
+  webShortcutBlocked,
 } from '../src/client/channel-shortcuts.js';
 
 const alt = { alt: true, ctrl: false, meta: false, shift: false };
@@ -41,5 +42,18 @@ describe('web channel number shortcuts', () => {
     expect(webBotModeShortcut('Backquote', { ...alt, repeat: true })).toBe(false);
     expect(webBotModeShortcut('Backquote', { ...alt, prevented: true })).toBe(false);
     expect(webBotModeShortcut('Digit1', alt)).toBe(false);
+  });
+  it('blocks shortcuts while a native or ARIA modal is open', () => {
+    let selector = '';
+    const modalRoot = {
+      querySelector(value: string): object {
+        selector = value;
+        return {};
+      },
+    };
+    expect(webShortcutBlocked(null, modalRoot)).toBe(true);
+    expect(selector).toContain('dialog[open]');
+    expect(selector).toContain('[role="alertdialog"][aria-modal="true"]');
+    expect(webShortcutBlocked(null, { querySelector: () => null })).toBe(false);
   });
 });

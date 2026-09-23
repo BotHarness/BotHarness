@@ -39,7 +39,11 @@ import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
-import { webChannelShortcutIndex, webChannelShortcutLabel } from './channel-shortcuts.js';
+import {
+  webChannelShortcutIndex,
+  webChannelShortcutLabel,
+  webShortcutBlocked,
+} from './channel-shortcuts.js';
 import {
   reconcileChannelSelection,
   selectChannels,
@@ -670,15 +674,8 @@ export function BotSidebar({
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest('input, textarea, select, [contenteditable], [role="dialog"]')
-      ) {
-        return;
-      }
-      if (document.querySelector('[role="menu"], [role="dialog"][aria-modal="true"]') !== null) {
-        return;
-      }
+      if (webShortcutBlocked(event.target, document)) return;
+      if (document.querySelector('[role="menu"]') !== null) return;
       setChannelSelection((current) =>
         current.ids.length === 0 ? current : { ids: [], anchorId: undefined },
       );
@@ -888,13 +885,7 @@ export function BotSidebar({
         prevented: event.defaultPrevented,
       });
       if (index === undefined) return;
-      if (
-        event.target instanceof Element &&
-        event.target.closest('input, textarea, select, [contenteditable], [role="dialog"]')
-      ) {
-        return;
-      }
-      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null) return;
+      if (webShortcutBlocked(event.target, document)) return;
       const id = shortcutIdsRef.current[index];
       if (id === undefined) return;
       const channel = store.getSnapshot().channels.find((candidate) => candidate.id === id);

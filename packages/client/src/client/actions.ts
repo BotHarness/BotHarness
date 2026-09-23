@@ -817,7 +817,10 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       ) {
         return false;
       }
-      if (sameIds(order, current)) return true;
+      if (sameIds(order, current)) {
+        beforePublish();
+        return true;
+      }
       try {
         await setRosterPins(call, [...order]);
         beforePublish();

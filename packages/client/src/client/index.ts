@@ -19,7 +19,7 @@ import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
-import { webBotModeShortcut } from './channel-shortcuts.js';
+import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
@@ -99,13 +99,7 @@ export function apply(ctx: ClientContext): void {
       ) {
         return;
       }
-      if (
-        event.target instanceof Element &&
-        event.target.closest('input, textarea, select, [contenteditable], [role="dialog"]')
-      ) {
-        return;
-      }
-      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null) return;
+      if (webShortcutBlocked(event.target, document)) return;
       event.preventDefault();
       ctx.layout.selectPanel(store.getSnapshot().mode === 'bot' ? null : PANEL_ID);
     };

@@ -1,3 +1,23 @@
+const shortcutTargetSelector =
+  'input, textarea, select, [contenteditable], [role="dialog"], [role="alertdialog"], dialog';
+const openModalSelector =
+  '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"], dialog[open]';
+
+/** Keep navigation shortcuts out of edit fields and active modal UI. */
+export function webShortcutBlocked(
+  target: EventTarget | null,
+  root: { querySelector(selector: string): unknown },
+): boolean {
+  if (
+    typeof Element !== 'undefined' &&
+    target instanceof Element &&
+    target.closest(shortcutTargetSelector) !== null
+  ) {
+    return true;
+  }
+  return root.querySelector(openModalSelector) !== null;
+}
+
 /** Web keymap: Ctrl/Command+digits belong to browser tabs, so channels use Alt. */
 export function webChannelShortcutIndex(
   code: string,
