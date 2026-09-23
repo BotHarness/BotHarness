@@ -63,6 +63,12 @@ interface DockerComputerProviderOptions {
   readonly onEvent?: (detail: string) => void;
   /** Resolved at start time so a viewer can choose the desktop language. */
   readonly getLanguage?: () => string;
+  /** Probed for HTTP 200 before start reports running; defaults to global fetch. */
+  readonly fetchImpl?: typeof fetch;
+  /** Bound for the desktop-readiness wait; defaults to DESKTOP_READY_TIMEOUT_MS. */
+  readonly readyTimeoutMs?: number;
+  /** Wait primitive; defaults to setTimeout. Injected in tests for instant time. */
+  readonly sleepImpl?: (ms: number) => Promise<void>;
 }
 
 function combine(config: Partial<DockerComputerConfig> | undefined): DockerComputerConfig {
@@ -116,6 +122,12 @@ export function createPullTracker(now: () => number = Date.now): {
   };
 }
 
+/** Bound for the desktop-readiness wait inside start (staged, cancellable). */
+export const DESKTOP_READY_TIMEOUT_MS = 90_000;
+
+/** Per-attempt ceiling so a hung connection cannot block stop. */
+const DESKTOP_PROBE_TIMEOUT_MS = 3_000;
+
 /** Parses a docker size string (`2g`, `2gb`, `512m`, `1048576`) into bytes. */
 export function parseDockerSize(value: string): number | undefined {
   const match = /^(\d+(?:\.\d+)?)\s*([kmg]?b?)$/i.exec(value.trim());
@@ -137,7 +149,7 @@ export function createDockerComputerProvider(
   options: DockerComputerProviderOptions,
 ): ComputerProvider {
   const config = combine(options.config);
-  const { runner, onEvent, getLanguage } = options;
+  const { runner, onEvent, getLanguage, fetchImpl, readyTimeoutMs, sleepImpl } = options;
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
@@ -384,6 +396,47 @@ export function createDockerComputerProvider(
     }
   };
 
+  /**
+   * `docker start` returns as soon as the container process exists — the
+   * desktop (X, XFCE, Selkies) still needs seconds. Flipping `running` before
+   * the web endpoint serves mounts the viewer into a dead port, so every path
+   * into running waits here for HTTP 200 first: bounded, staged, and
+   * cancellable like the rest of start.
+   */
+  const waitForDesktop = async (): Promise<void> => {
+    const timeoutMs = readyTimeoutMs ?? DESKTOP_READY_TIMEOUT_MS;
+    const delay =
+      sleepImpl ?? ((ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms)));
+    const probeFetch = fetchImpl ?? globalThis.fetch;
+    phase = 'starting';
+    detail = '正在等待桌面响应…';
+    const startedAt = Date.now();
+    for (;;) {
+      throwIfCancelled();
+      try {
+        const response = await probeFetch(`http://127.0.0.1:${config.hostPort}/`, {
+          signal: AbortSignal.timeout(DESKTOP_PROBE_TIMEOUT_MS),
+        });
+        await response.arrayBuffer();
+        if (response.ok) return;
+      } catch {
+        // Not serving yet — keep waiting inside the bound.
+      }
+      if (Date.now() - startedAt > timeoutMs) {
+        fail(`桌面在 ${Math.round(timeoutMs / 1000)} 秒内未响应，请重试启动`);
+      }
+      await delay(1000);
+    }
+  };
+
+  /** Gate the desktop, then promote to running. */
+  const confirmRunning = async (): Promise<void> => {
+    await waitForDesktop();
+    phase = 'running';
+    detail = undefined;
+    running = true;
+  };
+
   const runStart = async (): Promise<void> => {
     cancelRequested = false;
     const probe = await probeRuntime();
@@ -394,8 +447,7 @@ export function createDockerComputerProvider(
     const existing = await inspect();
     throwIfCancelled();
     if (existing.state === 'running' && !(await recreateIfSpecChanged())) {
-      phase = 'running';
-      detail = undefined;
+      await confirmRunning();
       await ensureDesktopShortcut();
       await ensureSessionRestore();
       await ensureWorkspaceDir();
@@ -410,9 +462,7 @@ export function createDockerComputerProvider(
       if (start.code !== 0) {
         fail(start.stderr.trim() || 'docker start failed');
       }
-      phase = 'running';
-      detail = undefined;
-      running = true;
+      await confirmRunning();
       await ensureDesktopShortcut();
       await ensureSessionRestore();
       await ensureWorkspaceDir();
@@ -488,9 +538,7 @@ export function createDockerComputerProvider(
       detail = undefined;
       throw new Error('computer start cancelled');
     }
-    phase = 'running';
-    detail = undefined;
-    running = true;
+    await confirmRunning();
     await ensureDesktopShortcut();
     await ensureSessionRestore();
     await ensureWorkspaceDir();
@@ -543,7 +591,19 @@ export function createDockerComputerProvider(
         if (start.code !== 0) {
           fail(start.stderr.trim() || 'docker start failed');
         } else {
-          running = true;
+          // Soft gate: the archive is already written, and an unconfirmed
+          // desktop must never become a silent black-screen running — leave
+          // it unflagged (a later start re-gates) and record the evidence.
+          let confirmed = false;
+          try {
+            await waitForDesktop();
+            confirmed = true;
+          } catch {
+            onEvent?.('desktop readiness unconfirmed after export restart');
+          }
+          running = confirmed;
+          phase = 'idle';
+          detail = undefined;
         }
       }
     }
