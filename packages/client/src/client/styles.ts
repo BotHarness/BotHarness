@@ -53,6 +53,7 @@ export const CSS =
   gap: 8px;
 }
 .bh-rail-channel {
+  position: relative;
   display: flex;
   width: 36px;
   height: 36px;
@@ -508,6 +509,22 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
   grid-template-columns: repeat(auto-fit, minmax(76px, 1fr));
   gap: 6px 8px;
 }
+.bh-pinned-header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 20px;
+  padding: 0 4px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+  font-weight: 600;
+}
+.bh-pinned-header .bh-row-action {
+  width: 20px;
+  height: 20px;
+}
+
 .bh-pinned {
   display: flex;
   flex-direction: column;
@@ -531,6 +548,25 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
 .bh-pinned.bh-drag-source {
   opacity: 0.4;
 }
+.bh-pinned.bh-pin-drop-before::before,
+.bh-pinned.bh-pin-drop-after::after {
+  content: '';
+  position: absolute;
+  z-index: 1;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--bh-accent);
+  pointer-events: none;
+}
+.bh-pinned.bh-pin-drop-before::before {
+  left: 0;
+}
+.bh-pinned.bh-pin-drop-after::after {
+  right: 0;
+}
+
 .bh-pinned .bh-name {
   font-size: 12px;
   font-weight: 600;
@@ -786,6 +822,48 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
 .bh-channel-row:hover,
 .bh-channel-row.bh-selected {
   background: var(--bh-hover);
+}
+.bh-root .bh-multi-selected {
+  background: var(--bh-selected);
+  box-shadow: inset 0 0 0 1px var(--dsw-alias-border-l2);
+}
+.bh-contact,
+.bh-root .bh-channel-row {
+  position: relative;
+}
+.bh-shortcut-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  width: 20px;
+  height: 20px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 5px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
+  font: 11px/1 var(--dsw-font-family);
+  pointer-events: none;
+}
+.bh-shortcut-active .bh-state,
+.bh-shortcut-active .bh-channel-meta {
+  visibility: hidden;
+}
+.bh-pinned .bh-shortcut-badge {
+  top: 8px;
+  right: 5px;
+  transform: none;
+}
+.bh-rail-channel .bh-shortcut-badge {
+  top: -2px;
+  right: -2px;
+  transform: none;
+  width: 16px;
+  height: 16px;
+  font-size: 10px;
 }
 
 .bh-contact {
@@ -1362,15 +1440,53 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   --bh-channel-header-height: 53px;
 }
 .bh-topbar {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 3;
   display: flex;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px 52px 0;
+  pointer-events: none;
+}
+.bh-channel-island {
+  display: inline-flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  max-width: min(100%, 440px);
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 999px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  cursor: pointer;
+  pointer-events: auto;
+}
+.bh-channel-island:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-channel-island:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+.bh-channel-island > :first-child {
   flex: 0 0 auto;
-  min-height: var(--bh-channel-header-height);
+}
+.bh-chat-top-fade {
+  position: absolute;
+  inset: 0 0 auto;
+  z-index: 2;
+  height: 96px;
+  background: var(--dsw-alias-bg-base);
+  mask-image: linear-gradient(to bottom, var(--dsw-alias-label-primary) 16%, transparent 100%);
+  pointer-events: none;
 }
 .bh-topbar .bh-title {
+  flex: 1 1 auto;
+  min-width: 56px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1419,12 +1535,14 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   position: relative;
 }
 .bh-chat-body {
+  position: relative;
+  z-index: 1;
   flex: 1;
   min-height: 0;
   overflow: auto;
   display: flex;
   flex-direction: column;
-  padding: 14px 18px 10px;
+  padding: 74px 18px 10px;
   overscroll-behavior: contain;
 }
 .bh-chat-empty {
@@ -1708,7 +1826,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-radius: 20px;
 }
 .bh-composer-with-footer {
-  padding: 10px 54px 48px 44px;
+  padding: 10px 12px 48px;
   border-radius: 20px;
 }
 .bh-composer-reply {
@@ -1786,8 +1904,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   white-space: nowrap;
 }
 .bh-composer-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.bh-composer-add-file { position: absolute; left: 8px; bottom: 50%; transform: translateY(50%); width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 22px; line-height: 30px; cursor: pointer; transition: bottom 220ms var(--ds-ease-in-out), transform 220ms var(--ds-ease-in-out); }
-.bh-composer-with-footer .bh-composer-add-file { bottom: 10px; transform: translateY(0); }
+.bh-composer-add-file { position: absolute; left: 8px; bottom: 10px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 22px; line-height: 30px; cursor: pointer; }
 .bh-composer-add-file:hover { background: var(--dsw-alias-interactive-bg-active); }
 .bh-composer-add-file:disabled { opacity: .5; cursor: default; }
 .bh-composer-attachments { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 6px 7px 0; }
@@ -1799,6 +1916,8 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   min-width: 0;
   height: var(--bh-composer-body-height);
   overflow: hidden;
+}
+.bh-composer-first-expand .bh-composer-body {
   transition: height 220ms var(--ds-ease-in-out);
 }
 .bh-composer-input {
@@ -1827,18 +1946,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-composer-footer {
   position: absolute;
   right: 10px;
-  bottom: 50%;
+  bottom: 8px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  transform: translateY(50%);
-  transition:
-    bottom 220ms var(--ds-ease-in-out),
-    transform 220ms var(--ds-ease-in-out);
-}
-.bh-composer-with-footer .bh-composer-footer {
-  bottom: 8px;
-  transform: translateY(0);
 }
 .bh-send-btn {
   width: 34px;
@@ -1879,9 +1990,8 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: var(--bh-channel-header-height);
-  padding: 12px 44px 12px 14px;
-  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  min-height: 42px;
+  padding: 10px 44px 2px 14px;
 }
 .bh-channel-sidebar-title {
   flex: 1;

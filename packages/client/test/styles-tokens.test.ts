@@ -46,6 +46,14 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-section \+ \.bh-section \{\s*margin-top: 12px/);
     expect(source).toMatch(/\.bh-section-head:hover \.bh-row-actions,[^}]*display: inline-flex/);
   });
+  it('floats the channel island over a non-interactive fade without header dividers', () => {
+    expect(source).toMatch(/\.bh-topbar \{[^}]*position: absolute/);
+    expect(source).toMatch(/\.bh-channel-island:hover \{[^}]*background:/);
+    expect(source).toMatch(/\.bh-chat-top-fade \{[^}]*mask-image: linear-gradient\(/);
+    expect(source).toMatch(/\.bh-chat-top-fade \{[^}]*pointer-events: none/);
+    expect(source).not.toMatch(/\.bh-topbar \{[^}]*border-bottom:/);
+    expect(source).not.toMatch(/\.bh-channel-sidebar-head \{[^}]*border-bottom:/);
+  });
 
   it('keeps the glyph-free section header muted with a 12px block break', () => {
     expect(source).not.toContain('bh-arrow');
@@ -165,7 +173,7 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-composer \{[^}]*border-radius: 25px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*padding-bottom: 48px/);
     expect(source).toMatch(/\.bh-composer-expanded \{[^}]*border-radius: 20px/);
-    expect(source).toMatch(/\.bh-composer-with-footer \{[^}]*padding: 10px 54px 48px 44px/);
+    expect(source).toMatch(/\.bh-composer-with-footer \{[^}]*padding: 10px 12px 48px/);
     expect(source).toMatch(
       /\.bh-composer \{[^}]*background: var\(--dsw-alias-bg-module-platform\)/,
     );
@@ -177,12 +185,15 @@ describe('client styles', () => {
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
     expect(source).toMatch(/\.bh-composer-input \{[^}]*padding: 7px 8px 5px/);
     expect(source).not.toMatch(/\.bh-composer-input \{[^}]*transition:/);
+    expect(source).toMatch(/\.bh-composer-body \{[^}]*height: var\(--bh-composer-body-height\)/);
+    expect(source).not.toMatch(/\n\.bh-composer-body \{[^}]*transition:/);
     expect(source).toMatch(
-      /\.bh-composer-body \{[^}]*height: var\(--bh-composer-body-height\)[^}]*transition: height 220ms/,
+      /\.bh-composer-first-expand \.bh-composer-body \{[^}]*transition: height 220ms/,
     );
-    expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 50%/);
-    expect(source).toMatch(/\.bh-composer-with-footer \.bh-composer-add-file \{[^}]*bottom: 10px/);
-    expect(source).toMatch(/\.bh-composer-with-footer \.bh-composer-footer \{[^}]*bottom: 8px/);
+    expect(source).toMatch(/\.bh-composer-add-file \{[^}]*bottom: 10px/);
+    expect(source).toMatch(/\.bh-composer-footer \{[^}]*bottom: 8px/);
+    expect(source).not.toMatch(/\n\.bh-composer-add-file \{[^}]*transition:/);
+    expect(source).not.toMatch(/\n\.bh-composer-footer \{[^}]*transition:/);
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-add-file");
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-footer");
     expect(source).toContain("html[data-botharness-motion='reduce'] .bh-composer-body");

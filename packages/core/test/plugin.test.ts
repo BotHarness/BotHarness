@@ -250,6 +250,7 @@ describe('plugin entry', () => {
       'topReorder',
       'pinsSet',
       'hiddenSet',
+      'rosterBatch',
     ]);
   });
 

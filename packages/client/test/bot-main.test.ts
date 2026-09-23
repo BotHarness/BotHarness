@@ -127,9 +127,48 @@ describe('Bot main Assignment pane', () => {
 
     expect(markup).toContain('事项');
     expect(markup).toContain('收起 Channel sidebar');
+    expect(markup).toContain('class="bh-channel-island"');
+    expect(markup).toContain('aria-label="Ada — 收起 Channel sidebar"');
+    expect(markup).toContain('aria-controls="bh-channel-sidebar"');
+    expect(markup).toContain('class="bh-chat-top-fade"');
     expect(markup).not.toContain('研究发布状态');
     expect(markup).not.toContain('Ada 空闲');
     expect(markup).not.toContain('bh-composer-activity-status');
+  });
+
+  it('shows a group Channel name in the same sidebar-opening island', () => {
+    const previous = store.getSnapshot();
+    const channel = {
+      id: 'group-design',
+      type: 'group' as const,
+      name: '设计组',
+      members: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:01:00.000Z',
+    };
+    store.setRoster([], [channel]);
+    store.select({ kind: 'channel', channelId: channel.id });
+    store.setConversation({
+      status: 'ready',
+      channel,
+      messages: [],
+      error: undefined,
+      sending: false,
+    });
+    store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
+
+    const markup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
+
+    expect(markup).toContain('class="bh-channel-island"');
+    expect(markup).toContain('aria-label="设计组 — 收起 Channel sidebar"');
+    expect(markup).toContain('aria-controls="bh-channel-sidebar"');
+
+    store.setRoster(previous.bots, previous.channels);
+    store.select(previous.selection);
+    store.setConversation(previous.conversation);
+    store.setAssignments(previous.assignments);
   });
 
   it('renders an expanded entry body from the registered entry', () => {
