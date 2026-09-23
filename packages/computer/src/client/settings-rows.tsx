@@ -712,7 +712,7 @@ export function ComputerSettingsRows({
 
       <Row title={t('rows.importSection.title')} description={t('rows.importSection.description')}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          {confirming === 'import' ? (
+          {uploadName !== undefined ? null : confirming === 'import' ? (
             <button
               type="button"
               className="bh-settings-selector"
@@ -745,7 +745,7 @@ export function ComputerSettingsRows({
               }
             />
           )}
-          {confirming === 'import' && archives?.[0] !== undefined ? (
+          {uploadName === undefined && confirming === 'import' && archives?.[0] !== undefined ? (
             <button
               type="button"
               className="bh-settings-selector"
@@ -758,20 +758,22 @@ export function ComputerSettingsRows({
               {t('rows.authorizeImportConfirm')}
             </button>
           ) : null}
-          <label className="bh-settings-selector">
-            {t('rows.chooseFile')}
-            <input
-              type="file"
-              accept=".tar,application/x-tar"
-              hidden
-              disabled={busy !== undefined}
-              onChange={(event) => {
-                const file = event.target.files?.[0] ?? null;
-                event.target.value = '';
-                takeUploadFile(file);
-              }}
-            />
-          </label>
+          {uploadName !== undefined || confirming === 'import' ? null : (
+            <label className="bh-settings-selector">
+              {t('rows.chooseFile')}
+              <input
+                type="file"
+                accept=".tar,application/x-tar"
+                hidden
+                disabled={busy !== undefined}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = '';
+                  takeUploadFile(file);
+                }}
+              />
+            </label>
+          )}
           {uploadName === undefined ? null : (
             <>
               <button
@@ -794,21 +796,21 @@ export function ComputerSettingsRows({
               </button>
             </>
           )}
+          {selectedFile === undefined ? null : (
+            <div
+              className="bh-note"
+              style={{
+                flexBasis: '100%',
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {selectedFile}
+            </div>
+          )}
         </div>
-        {selectedFile === undefined ? null : (
-          <div
-            className="bh-note"
-            style={{
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-              maxWidth: '100%',
-              minWidth: 0,
-            }}
-          >
-            {selectedFile}
-          </div>
-        )}
       </Row>
 
       {busy !== undefined && phaseKey !== undefined ? (

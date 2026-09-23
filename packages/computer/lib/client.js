@@ -1072,19 +1072,20 @@ window.__ModuleLoader__.load({
               ],
             }),
           }),
-          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(Row, {
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
             title: t('rows.importSection.title'),
             description: t('rows.importSection.description'),
-            children: [
-              /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-                style: {
-                  display: 'flex',
-                  gap: 8,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                },
-                children: [
-                  confirming === 'import'
+            children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+              style: {
+                display: 'flex',
+                gap: 8,
+                alignItems: 'center',
+                flexWrap: 'wrap',
+              },
+              children: [
+                uploadName !== void 0
+                  ? null
+                  : confirming === 'import'
                     ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                         type: 'button',
                         className: 'bh-settings-selector',
@@ -1118,76 +1119,77 @@ window.__ModuleLoader__.load({
                           }),
                         },
                       ),
-                  confirming === 'import' && archives?.[0] !== void 0
-                    ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                        type: 'button',
-                        className: 'bh-settings-selector',
-                        disabled: busy !== void 0,
-                        onClick: () => {
-                          const file = archives[0];
-                          if (file !== void 0) runImport(file);
-                        },
-                        children: t('rows.authorizeImportConfirm'),
-                      })
-                    : null,
-                  /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('label', {
-                    className: 'bh-settings-selector',
-                    children: [
-                      t('rows.chooseFile'),
-                      /* @__PURE__ */ (0, react_jsx_runtime.jsx)('input', {
-                        type: 'file',
-                        accept: '.tar,application/x-tar',
-                        hidden: true,
-                        disabled: busy !== void 0,
-                        onChange: (event) => {
-                          const file = event.target.files?.[0] ?? null;
-                          event.target.value = '';
-                          takeUploadFile(file);
-                        },
-                      }),
-                    ],
-                  }),
-                  uploadName === void 0
-                    ? null
-                    : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
-                        children: [
-                          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                            type: 'button',
-                            className: 'bh-settings-selector',
-                            onClick: () => {
-                              setUploadName(void 0);
-                              uploadFile.current = null;
-                            },
-                            children: t('entry.cancel'),
-                          }),
-                          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                            type: 'button',
-                            className: 'bh-settings-selector',
-                            disabled: busy !== void 0,
-                            onClick: runUpload,
-                            children:
-                              busy === 'upload'
-                                ? t('rows.importing')
-                                : t('rows.authorizeImportConfirm'),
-                          }),
-                        ],
-                      }),
-                ],
-              }),
-              selectedFile === void 0
-                ? null
-                : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-                    className: 'bh-note',
-                    style: {
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      maxWidth: '100%',
-                      minWidth: 0,
-                    },
-                    children: selectedFile,
-                  }),
-            ],
+                uploadName === void 0 && confirming === 'import' && archives?.[0] !== void 0
+                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                      type: 'button',
+                      className: 'bh-settings-selector',
+                      disabled: busy !== void 0,
+                      onClick: () => {
+                        const file = archives[0];
+                        if (file !== void 0) runImport(file);
+                      },
+                      children: t('rows.authorizeImportConfirm'),
+                    })
+                  : null,
+                uploadName !== void 0 || confirming === 'import'
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('label', {
+                      className: 'bh-settings-selector',
+                      children: [
+                        t('rows.chooseFile'),
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('input', {
+                          type: 'file',
+                          accept: '.tar,application/x-tar',
+                          hidden: true,
+                          disabled: busy !== void 0,
+                          onChange: (event) => {
+                            const file = event.target.files?.[0] ?? null;
+                            event.target.value = '';
+                            takeUploadFile(file);
+                          },
+                        }),
+                      ],
+                    }),
+                uploadName === void 0
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                      children: [
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          onClick: () => {
+                            setUploadName(void 0);
+                            uploadFile.current = null;
+                          },
+                          children: t('entry.cancel'),
+                        }),
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          className: 'bh-settings-selector',
+                          disabled: busy !== void 0,
+                          onClick: runUpload,
+                          children:
+                            busy === 'upload'
+                              ? t('rows.importing')
+                              : t('rows.authorizeImportConfirm'),
+                        }),
+                      ],
+                    }),
+                selectedFile === void 0
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                      className: 'bh-note',
+                      style: {
+                        flexBasis: '100%',
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      },
+                      children: selectedFile,
+                    }),
+              ],
+            }),
           }),
           busy !== void 0 && phaseKey !== void 0
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
