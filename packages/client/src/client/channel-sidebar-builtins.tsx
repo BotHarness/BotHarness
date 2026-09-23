@@ -84,9 +84,20 @@ function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElemen
             </div>
             {selected.permission === undefined ? null : (
               <>
-                <div><dt>{t('grant.primaryCwd')}</dt><dd>{selected.permission.primaryCwd}</dd></div>
-                <div><dt>{t('grant.actualPermission')}</dt><dd>{selected.permission.mode} / {selected.permission.approval}</dd></div>
-                <div><dt>{t('grant.source')}</dt><dd>{selected.permission.grantId}</dd></div>
+                <div>
+                  <dt>{t('grant.primaryCwd')}</dt>
+                  <dd>{selected.permission.primaryCwd}</dd>
+                </div>
+                <div>
+                  <dt>{t('grant.actualPermission')}</dt>
+                  <dd>
+                    {selected.permission.mode} / {selected.permission.approval}
+                  </dd>
+                </div>
+                <div>
+                  <dt>{t('grant.source')}</dt>
+                  <dd>{selected.permission.grantId}</dd>
+                </div>
               </>
             )}
             <div>

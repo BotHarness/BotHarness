@@ -32,7 +32,10 @@ export interface DshWorkspaceLookup {
   list(): DshWorkspace[];
 }
 export class WorkspaceGrantError extends Error {
-  constructor(readonly code: 'unknown-workspace' | 'unavailable-workspace' | 'invalid-grant', message: string) {
+  constructor(
+    readonly code: 'unknown-workspace' | 'unavailable-workspace' | 'invalid-grant',
+    message: string,
+  ) {
     super(message);
     this.name = 'WorkspaceGrantError';
   }
@@ -84,13 +87,17 @@ export function createWorkspaceGrantStore(options: {
   const lookup = (): DshWorkspaceLookup => {
     const current = workspaces();
     if (current === undefined) {
-      throw new WorkspaceGrantError('unavailable-workspace', 'DSH Workspace registry is unavailable');
+      throw new WorkspaceGrantError(
+        'unavailable-workspace',
+        'DSH Workspace registry is unavailable',
+      );
     }
     return current;
   };
   const read = (botSlug: string, grantId: string): WorkspaceGrant | undefined => {
     const row = database.read((connection) =>
-      connection.prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
+      connection
+        .prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
         .get(botSlug, grantId),
     ) as GrantRow | undefined;
     return row === undefined ? undefined : toRecord(row);
@@ -98,7 +105,8 @@ export function createWorkspaceGrantStore(options: {
   return {
     list(botSlug) {
       const rows = database.read((connection) =>
-        connection.prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? ORDER BY created_at DESC, id')
+        connection
+          .prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? ORDER BY created_at DESC, id')
           .all(botSlug),
       ) as unknown as GrantRow[];
       return rows.map(toRecord);
@@ -109,31 +117,49 @@ export function createWorkspaceGrantStore(options: {
         throw new WorkspaceGrantError('unknown-workspace', 'Unknown DSH Workspace: ' + workspaceId);
       }
       if ((await workspace.status()) !== 'ok' || !isCurrentDirectory(workspace.path)) {
-        throw new WorkspaceGrantError('unavailable-workspace', 'DSH Workspace is unavailable: ' + workspaceId);
+        throw new WorkspaceGrantError(
+          'unavailable-workspace',
+          'DSH Workspace is unavailable: ' + workspaceId,
+        );
       }
       const at = now().toISOString();
-      const row = database.transaction((connection) => {
-        const existing = connection.prepare(
-          'SELECT * FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NULL',
-        ).get(botSlug, workspaceId) as unknown as GrantRow | undefined;
-        if (existing !== undefined) return existing;
-        const id = createId();
-        connection.prepare(
-          'INSERT INTO workspace_grants (id, bot_slug, workspace_id, workspace_path, workspace_title, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-        ).run(id, botSlug, workspaceId, workspace.path, workspace.title, at);
-        return connection.prepare('SELECT * FROM workspace_grants WHERE id = ?').get(id) as unknown as GrantRow;
-      }, ['workspace-grants']);
+      const row = database.transaction(
+        (connection) => {
+          const existing = connection
+            .prepare(
+              'SELECT * FROM workspace_grants WHERE bot_slug = ? AND workspace_id = ? AND revoked_at IS NULL',
+            )
+            .get(botSlug, workspaceId) as unknown as GrantRow | undefined;
+          if (existing !== undefined) return existing;
+          const id = createId();
+          connection
+            .prepare(
+              'INSERT INTO workspace_grants (id, bot_slug, workspace_id, workspace_path, workspace_title, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+            )
+            .run(id, botSlug, workspaceId, workspace.path, workspace.title, at);
+          return connection
+            .prepare('SELECT * FROM workspace_grants WHERE id = ?')
+            .get(id) as unknown as GrantRow;
+        },
+        ['workspace-grants'],
+      );
       return toRecord(row);
     },
     revoke(botSlug, grantId) {
       const at = now().toISOString();
-      const row = database.transaction((connection) => {
-        connection.prepare(
-          'UPDATE workspace_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE bot_slug = ? AND id = ?',
-        ).run(at, botSlug, grantId);
-        return connection.prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
-          .get(botSlug, grantId) as GrantRow | undefined;
-      }, ['workspace-grants']);
+      const row = database.transaction(
+        (connection) => {
+          connection
+            .prepare(
+              'UPDATE workspace_grants SET revoked_at = COALESCE(revoked_at, ?) WHERE bot_slug = ? AND id = ?',
+            )
+            .run(at, botSlug, grantId);
+          return connection
+            .prepare('SELECT * FROM workspace_grants WHERE bot_slug = ? AND id = ?')
+            .get(botSlug, grantId) as GrantRow | undefined;
+        },
+        ['workspace-grants'],
+      );
       if (row === undefined) {
         throw new WorkspaceGrantError('invalid-grant', 'Unknown Workspace Grant: ' + grantId);
       }
@@ -142,16 +168,28 @@ export function createWorkspaceGrantStore(options: {
     requireActive(botSlug, grantId) {
       const grant = read(botSlug, grantId);
       if (grant === undefined || grant.revokedAt !== undefined) {
-        throw new WorkspaceGrantError('invalid-grant', 'Workspace Grant is missing or revoked: ' + grantId);
+        throw new WorkspaceGrantError(
+          'invalid-grant',
+          'Workspace Grant is missing or revoked: ' + grantId,
+        );
       }
       const workspace = lookup().get(grant.workspaceId);
-      if (workspace === undefined || workspace.path !== grant.workspacePath || !isCurrentDirectory(workspace.path)) {
-        throw new WorkspaceGrantError('unavailable-workspace', 'Workspace Grant target is unavailable: ' + grantId);
+      if (
+        workspace === undefined ||
+        workspace.path !== grant.workspacePath ||
+        !isCurrentDirectory(workspace.path)
+      ) {
+        throw new WorkspaceGrantError(
+          'unavailable-workspace',
+          'Workspace Grant target is unavailable: ' + grantId,
+        );
       }
       return grant;
     },
     availableWorkspaces() {
-      return lookup().list().map(({ id, path, title }) => ({ id, path, title }));
+      return lookup()
+        .list()
+        .map(({ id, path, title }) => ({ id, path, title }));
     },
   };
 }

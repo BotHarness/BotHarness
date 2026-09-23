@@ -62,7 +62,6 @@ export interface DshAgentPresetHost {
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
-  defaultWorkspaceRoot: string;
   /**
    * Resolves the preset roster lazily: a service may mount after this plugin
    * applies, so the roster is looked up per agent creation, not captured once.
@@ -142,7 +141,6 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
 class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
-  readonly #defaultWorkspaceRoot: string;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
   readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
@@ -155,7 +153,6 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   constructor(options: DshBotAgentAdapterOptions) {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
-    this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
     this.#resolveAgentPresets = options.resolveAgentPresets;

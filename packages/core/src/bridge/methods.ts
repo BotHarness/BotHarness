@@ -32,7 +32,11 @@ import {
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import { MemoryPathError } from '../memory/jail.js';
-import { WorkspaceGrantError, type WorkspaceGrant, type WorkspaceGrantStore } from '../workspaces/grants.js';
+import {
+  WorkspaceGrantError,
+  type WorkspaceGrant,
+  type WorkspaceGrantStore,
+} from '../workspaces/grants.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -96,7 +100,9 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
-  workspaceOptions(payload: unknown): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
+  workspaceOptions(
+    payload: unknown,
+  ): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
@@ -735,7 +741,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('slug and workspaceId are required');
       }
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
-      if (deps.grants === undefined) return { ok: false, error: { code: 'unavailable', message: 'Workspace Grants are unavailable' } };
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
       try {
         return { ok: true, value: { grant: await deps.grants.create(slug, workspaceId) } };
       } catch (error) {
@@ -753,7 +763,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('slug and grantId are required');
       }
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
-      if (deps.grants === undefined) return { ok: false, error: { code: 'unavailable', message: 'Workspace Grants are unavailable' } };
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
       try {
         return { ok: true, value: { grant: deps.grants.revoke(slug, grantId) } };
       } catch (error) {
