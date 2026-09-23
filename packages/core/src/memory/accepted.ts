@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import type { PersonaBotRegistry } from '../bots/registry.js';
@@ -7,7 +7,6 @@ import { atomicWriteFile } from '../fs/atomic-write.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
 import { toMemoryRelativePath, toMemoryWritePath, resolveMemoryPath } from './jail.js';
-import { inspectMemoryRepository } from './repository.js';
 
 export type MemoryAcceptErrorCode =
   | 'memory-unavailable'
@@ -83,25 +82,36 @@ const MAX_FILE_BYTES = 1024 * 1024;
 const MAX_DIFF_BYTES = 4 * 1024 * 1024;
 
 function run(root: string, args: string[], maxBuffer = MAX_DIFF_BYTES): Buffer {
+  const env = { ...process.env };
+  for (const key of Object.keys(env)) {
+    if (key.startsWith('GIT_')) delete env[key];
+  }
   try {
     return execFileSync(
       'git',
       [
+        `--git-dir=${join(root, '.git')}`,
+        `--work-tree=${root}`,
+        '-c',
+        `core.worktree=${root}`,
         '-c',
         'core.hooksPath=/dev/null',
         '-c',
         'core.fsmonitor=false',
+        '-c',
+        'core.attributesFile=/dev/null',
         '-c',
         'commit.gpgsign=false',
         ...args,
       ],
       {
         cwd: root,
+        env,
         stdio: ['ignore', 'pipe', 'pipe'],
         maxBuffer,
       },
     );
-  } catch (error) {
+  } catch {
     throw new MemoryAcceptError(
       'memory-invalid',
       `Memory Git operation failed: ${args[0] ?? 'unknown'}`,
@@ -113,11 +123,35 @@ function output(root: string, args: string[]): string {
   return run(root, args).toString('utf8').trim();
 }
 
+function assertSafeGitMetadata(root: string): void {
+  const infoAttributes = join(root, '.git', 'info', 'attributes');
+  if (existsSync(infoAttributes)) {
+    if (lstatSync(infoAttributes).isSymbolicLink() || readFileSync(infoAttributes).length > 0) {
+      throw new MemoryAcceptError(
+        'memory-invalid',
+        'Memory Git attributes override is not allowed',
+      );
+    }
+  }
+  const localKeys = run(root, ['config', '--local', '--list', '--name-only', '-z'])
+    .toString('utf8')
+    .split('\0');
+  if (localKeys.some((key) => key.startsWith('filter.'))) {
+    throw new MemoryAcceptError('memory-invalid', 'Memory Git filter configuration is not allowed');
+  }
+}
+
 function repository(registry: PersonaBotRegistry, botSlug: string): string {
   const root = registry.memoryDirFor(botSlug);
-  if (root === undefined || inspectMemoryRepository({ memoryDir: root }).state !== 'ready') {
+  if (
+    root === undefined ||
+    !existsSync(join(root, '.git')) ||
+    !lstatSync(join(root, '.git')).isDirectory() ||
+    lstatSync(join(root, '.git')).isSymbolicLink()
+  ) {
     throw new MemoryAcceptError('memory-unavailable', `Memory Repository unavailable: ${botSlug}`);
   }
+  assertSafeGitMetadata(root);
   if (output(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']) !== 'main') {
     throw new MemoryAcceptError('memory-invalid', 'Memory Repository must be on main');
   }
@@ -133,6 +167,7 @@ function head(root: string): string {
 }
 
 function dirty(root: string): boolean {
+  assertSafeGitMetadata(root);
   return run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).length > 0;
 }
 
@@ -178,12 +213,16 @@ function validateCommit(root: string, sha: string): string {
     }
     const bytes = run(root, ['cat-file', 'blob', header[2]!], MAX_FILE_BYTES + 1);
     validateBytes(bytes, path);
+    if (path === '.gitattributes' && bytes.toString('utf8') !== '* text=auto eol=lf\n') {
+      throw new MemoryAcceptError('memory-invalid', 'Memory attributes changed');
+    }
     paths.push(path);
   }
   return JSON.stringify({ paths });
 }
 
 function validateWorktree(root: string): void {
+  assertSafeGitMetadata(root);
   const walk = (relativeDir: string): void => {
     for (const entry of readdirSync(join(root, relativeDir), { withFileTypes: true })) {
       if (relativeDir === '' && entry.name === '.git') continue;
@@ -201,7 +240,11 @@ function validateWorktree(root: string): void {
         if (size > MAX_FILE_BYTES) {
           throw new MemoryAcceptError('memory-invalid', `Memory file is too large: ${path}`);
         }
-        validateBytes(readFileSync(absolute), path);
+        const bytes = readFileSync(absolute);
+        validateBytes(bytes, path);
+        if (path === '.gitattributes' && bytes.toString('utf8') !== '* text=auto eol=lf\n') {
+          throw new MemoryAcceptError('memory-invalid', 'Memory attributes changed');
+        }
       } else {
         throw new MemoryAcceptError('memory-invalid', `Unsupported Memory entry: ${path}`);
       }
@@ -336,7 +379,9 @@ export function createMemoryAcceptance(options: {
     const sha = head(root);
     if (
       parentOf(root, sha) !== null ||
-      output(root, ['show', '-s', '--format=%s', sha]) !== 'Initialize memory repository'
+      output(root, ['show', '-s', '--format=%s', sha]) !== 'Initialize memory repository' ||
+      output(root, ['show', '-s', '--format=%an <%ae>%n%cn <%ce>', sha]) !==
+        'BotHarness <bot@botharness.local>\nBotHarness <bot@botharness.local>'
     ) {
       throw new MemoryAcceptError(
         'memory-conflict',
@@ -477,6 +522,12 @@ export function createMemoryAcceptance(options: {
       if (staged.length > 0) {
         run(root, ['commit', '--no-gpg-sign', '-m', `Memory update for ${input.sourceEventId}`]);
         const sha = head(root);
+        if (parentOf(root, sha) !== previous) {
+          throw new MemoryAcceptError(
+            'memory-conflict',
+            'Memory commit parent changed during reconciliation',
+          );
+        }
         commits.push({
           sha,
           parentSha: previous,
@@ -501,8 +552,7 @@ export function createMemoryAcceptance(options: {
     },
     snapshot(botSlug) {
       const root = repository(registry, botSlug);
-      const accepted = acceptedHead(botSlug);
-      if (accepted === null) return { head: null, files: [], provisional: dirty(root) };
+      const accepted = bootstrap(botSlug, root);
       const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
         .toString('utf8')
         .split('\0')
@@ -511,8 +561,7 @@ export function createMemoryAcceptance(options: {
     },
     readAccepted(botSlug, path) {
       const root = repository(registry, botSlug);
-      const accepted = acceptedHead(botSlug);
-      if (accepted === null) return undefined;
+      const accepted = bootstrap(botSlug, root);
       const relative = toMemoryWritePath(path);
       const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
         .toString('utf8')
@@ -523,7 +572,8 @@ export function createMemoryAcceptance(options: {
       return { path: relative, body: bytes.toString('utf8'), head: accepted };
     },
     history(botSlug, limit = 20) {
-      repository(registry, botSlug);
+      const root = repository(registry, botSlug);
+      bootstrap(botSlug, root);
       const bounded = Math.max(1, Math.min(limit, 100));
       const rows = database.read(
         (db) =>
@@ -593,8 +643,17 @@ export function createMemoryAcceptance(options: {
       if (run(root, ['diff', '--cached', '--name-only', '--', path]).length === 0) {
         throw new MemoryAcceptError('memory-conflict', 'Memory edit did not change the file');
       }
+      if (head(root) !== baseline) {
+        throw new MemoryAcceptError('memory-conflict', 'Memory head changed before Human commit');
+      }
       run(root, ['commit', '--no-gpg-sign', '-m', `Human Memory edit: ${path}`]);
       const sha = head(root);
+      if (parentOf(root, sha) !== baseline) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Human Memory commit has an unaccepted parent',
+        );
+      }
       const [accepted] = accept(
         input.botSlug,
         [

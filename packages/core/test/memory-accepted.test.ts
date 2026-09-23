@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 import { describe, expect, it } from 'vitest';
 
@@ -54,6 +55,31 @@ function git(root: string, ...args: string[]): string {
 }
 
 describe('accepted Memory Commit boundary', () => {
+  it('bootstraps a clean new repository when Human opens Memory first', () => {
+    const { database, memory, root } = fixture();
+    try {
+      const seed = git(root, 'rev-parse', 'HEAD');
+      expect(memory.snapshot('atlas')).toEqual({
+        head: seed,
+        files: [],
+        provisional: false,
+      });
+      expect(memory.history('atlas')).toMatchObject([
+        { sha: seed, actorKind: 'system', causeKind: 'repository-init' },
+      ]);
+      const saved = memory.saveHuman({
+        botSlug: 'atlas',
+        path: 'first.md',
+        body: 'Human first\n',
+        expectedHead: seed,
+        editId: 'human-first',
+      });
+      expect(saved.parentSha).toBe(seed);
+      expect(memory.readAccepted('atlas', 'first.md')?.body).toBe('Human first\n');
+    } finally {
+      database.close();
+    }
+  });
   it('accepts an ordinary Agent file write once and reads only accepted Git content', () => {
     const { database, registry, memory, root, addSource } = fixture();
     try {
@@ -186,11 +212,130 @@ describe('accepted Memory Commit boundary', () => {
       expect(() => another.memory.prepareTurn('atlas', 'session-atlas')).toThrow(
         /explicit legacy import/,
       );
-      expect(another.memory.history('atlas')).toEqual([]);
+      expect(() => another.memory.history('atlas')).toThrow(/explicit legacy import/);
     } finally {
       another.database.close();
     }
   });
+
+  it('refuses modified attributes before staging, so filters cannot run', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const marker = join(root, 'filter-ran');
+      addSource('event-filter');
+      memory.prepareTurn('atlas', 'session-atlas');
+      git(root, 'config', 'filter.evil.clean', 'touch filter-ran; cat');
+      writeFileSync(join(root, '.gitattributes'), '*.md filter=evil\n');
+      writeFileSync(join(root, 'fact.md'), 'fact\n');
+      expect(() =>
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-filter',
+        }),
+      ).toThrow(/filter configuration/);
+      expect(existsSync(marker)).toBe(false);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('refuses Git info attributes before staging', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const marker = join(root, 'filter-ran');
+      addSource('event-info');
+      memory.prepareTurn('atlas', 'session-atlas');
+      git(root, 'config', 'filter.evil.clean', 'touch filter-ran; cat');
+      writeFileSync(join(root, '.git', 'info', 'attributes'), '*.md filter=evil\n');
+      writeFileSync(join(root, 'fact.md'), 'fact\n');
+      expect(() =>
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-info',
+        }),
+      ).toThrow(/attributes override/);
+      expect(existsSync(marker)).toBe(false);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('ignores inherited Git repository redirect variables', () => {
+    const first = fixture();
+    const second = fixture();
+    const previousDir = process.env.GIT_DIR;
+    const previousWorkTree = process.env.GIT_WORK_TREE;
+    const seed = git(first.root, 'rev-parse', 'HEAD');
+    try {
+      process.env.GIT_DIR = join(second.root, '.git');
+      process.env.GIT_WORK_TREE = second.root;
+      expect(first.memory.snapshot('atlas').head).toBe(seed);
+      const saved = first.memory.saveHuman({
+        botSlug: 'atlas',
+        path: 'owned.md',
+        body: 'owned\n',
+        expectedHead: seed,
+        editId: 'redirected-env',
+      });
+      expect(first.memory.readAccepted('atlas', 'owned.md')?.head).toBe(saved.sha);
+      expect(existsSync(join(second.root, 'owned.md'))).toBe(false);
+    } finally {
+      if (previousDir === undefined) delete process.env.GIT_DIR;
+      else process.env.GIT_DIR = previousDir;
+      if (previousWorkTree === undefined) delete process.env.GIT_WORK_TREE;
+      else process.env.GIT_WORK_TREE = previousWorkTree;
+      first.database.close();
+      second.database.close();
+    }
+  });
+
+  it.skipIf(process.platform === 'win32')(
+    'rejects a Human commit whose actual parent raced ahead',
+    () => {
+      const { database, memory, root } = fixture();
+      const shim = mkdtempSync(join(tmpdir(), 'bh115-git-race-'));
+      const previousPath = process.env.PATH;
+      try {
+        const seed = memory.snapshot('atlas').head;
+        if (seed === null) throw new Error('Missing seed');
+        const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
+        const wrapper = join(shim, 'git');
+        writeFileSync(
+          wrapper,
+          `#!/bin/sh
+for arg in "$@"; do
+  if [ "$arg" = "commit" ] && [ ! -e "$PWD/.git/race-injected" ]; then
+    touch "$PWD/.git/race-injected"
+    printf "raw\n" > "$PWD/race.md"
+    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" read-tree HEAD
+    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" add race.md
+    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" -c core.hooksPath=/dev/null commit --no-gpg-sign -m "interleaved raw commit" >/dev/null
+  fi
+done
+exec "${realGit}" "$@"
+`,
+        );
+        chmodSync(wrapper, 0o755);
+        process.env.PATH = `${shim}:${previousPath ?? ''}`;
+        expect(() =>
+          memory.saveHuman({
+            botSlug: 'atlas',
+            path: 'human.md',
+            body: 'human\n',
+            expectedHead: seed,
+            editId: 'raced-human',
+          }),
+        ).toThrow(/unaccepted parent/);
+        expect(memory.history('atlas')).toHaveLength(1);
+      } finally {
+        process.env.PATH = previousPath;
+        rmSync(shim, { recursive: true, force: true });
+        database.close();
+      }
+    },
+  );
 
   it('rejects a divergent repeat of the same Source Event', () => {
     const { database, memory, root, addSource } = fixture();

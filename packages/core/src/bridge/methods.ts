@@ -31,6 +31,7 @@ import {
   type MemoryAcceptedSnapshot,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
+import { MemoryPathError } from '../memory/jail.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -342,6 +343,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (error instanceof MemoryAcceptError) {
         return { ok: false, error: { code: error.code, message: error.message } };
       }
+      if (error instanceof MemoryPathError) return invalidInput(error.message);
       throw error;
     }
   };
