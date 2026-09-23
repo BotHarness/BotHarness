@@ -144,11 +144,30 @@ const AUTHORIZATION_POINTS: readonly ComputerKey[] = [
   'entry.authorize.bind',
 ];
 
+/* @bh-computer-aliases:start — the bundle's only literal colours. Each entry
+   reads a DSH token; entries that need one carry an audited light-theme
+   fallback measured against @deepseek-ai/dsh-client-ui-theme (pinned
+   0.1.5-rc.2). Components must use these names, never inline hex or bare
+   var(--dsw-*). Enforced by client-tokens.test.ts. */
+const BH = {
+  labelPrimary: 'var(--dsw-alias-label-primary, #0f1115)',
+  labelPrimaryForeground: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+  borderL2: 'var(--dsw-alias-border-l2, #0000001a)',
+  borderL3: 'var(--dsw-alias-border-l3, #0000001f)',
+  borderL4: 'var(--dsw-alias-border-l4, #00000029)',
+  bgBase: 'var(--dsw-alias-bg-base, #ffffff)',
+  buttonPrimaryFill: 'var(--dsw-alias-button-primary-fill, #0f1115)',
+  buttonElevatedFill: 'var(--dsw-alias-button-elevated-fill, transparent)',
+  businessPrimary: 'var(--dsw-alias-state-business-primary, #4176e6)',
+  hoverScrim: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+} as const;
+/* @bh-computer-aliases:end */
+
 const noteStyle: CSSProperties = { opacity: 0.7, fontSize: 12, whiteSpace: 'pre-wrap' };
 const buttonStyle: CSSProperties = {
   padding: '4px 10px',
   borderRadius: 6,
-  border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
+  border: `1px solid ${BH.borderL3}`,
   background: 'transparent',
   color: 'inherit',
   cursor: 'pointer',
@@ -156,9 +175,9 @@ const buttonStyle: CSSProperties = {
 };
 const primaryButtonStyle: CSSProperties = {
   ...buttonStyle,
-  border: '1px solid var(--dsw-alias-button-primary-fill, #4d6bfe)',
-  background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
-  color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+  border: `1px solid ${BH.buttonPrimaryFill}`,
+  background: BH.buttonPrimaryFill,
+  color: BH.labelPrimaryForeground,
 };
 const terminalStyle: CSSProperties = {
   fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -337,15 +356,15 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
         inset: 0,
         display: 'grid',
         placeItems: 'center',
-        background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+        background: BH.hoverScrim,
         borderRadius: 8,
       }}
     >
       <Pill
         onClick={onOpen}
         style={{
-          background: 'var(--dsw-alias-state-business-primary, #4176e6)',
-          color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+          background: BH.businessPrimary,
+          color: BH.labelPrimaryForeground,
           height: 28,
           padding: '0 12px',
           fontSize: 13,
@@ -404,7 +423,7 @@ function ScaledFrame({
         ...(fit === 'width'
           ? {
               aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-              border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
+              border: `1px solid ${BH.borderL3}`,
               borderRadius: 8,
             }
           : { height: '100%' }),
@@ -500,9 +519,9 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
         height: 44,
         flex: '0 0 auto',
         padding: '0 8px 0 14px',
-        borderBottom: '1px solid var(--dsw-alias-border-l2, #eceef1)',
-        color: 'var(--dsw-alias-label-primary, #1c2024)',
-        background: 'var(--dsw-alias-bg-base, #ffffff)',
+        borderBottom: `1px solid ${BH.borderL2}`,
+        color: BH.labelPrimary,
+        background: BH.bgBase,
       }}
     >
       <StateDot state={dotStateFor(phase)} />
@@ -657,9 +676,9 @@ function RunningCard({
     height: 28,
     padding: '0 10px',
     borderRadius: 14,
-    border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
-    background: 'var(--dsw-alias-button-elevated-fill, transparent)',
-    color: 'var(--dsw-alias-label-primary, #1c2024)',
+    border: `1px solid ${BH.borderL3}`,
+    background: BH.buttonElevatedFill,
+    color: BH.labelPrimary,
     fontSize: 12,
     ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : { cursor: 'pointer' }),
   });
@@ -679,8 +698,8 @@ function RunningCard({
               zIndex: 100,
               display: 'flex',
               flexDirection: 'column',
-              background: 'var(--dsw-alias-bg-base, #ffffff)',
-              color: 'var(--dsw-alias-label-primary, #1c2024)',
+              background: BH.bgBase,
+              color: BH.labelPrimary,
             }
           : { display: 'flex', flexDirection: 'column', gap: 8 }
       }
@@ -735,7 +754,7 @@ function RunningCard({
             style={{
               fontSize: 13,
               fontWeight: 500,
-              color: 'var(--dsw-alias-label-primary, #1c2024)',
+              color: BH.labelPrimary,
               opacity: 0.9,
               textAlign: 'center',
             }}
@@ -866,7 +885,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
             overflow: 'hidden',
             height: 6,
             borderRadius: 3,
-            background: 'var(--dsw-alias-border-l4, #f2f3f5)',
+            background: BH.borderL4,
           }}
         >
           <div
@@ -875,7 +894,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
                 ? {
                     position: 'absolute',
                     inset: 0,
-                    background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
+                    background: BH.businessPrimary,
                   }
                 : {
                     position: 'absolute',
@@ -883,7 +902,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
                     top: 0,
                     bottom: 0,
                     width: `${String(progress.percent)}%`,
-                    background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
+                    background: BH.businessPrimary,
                   }
             }
           />
