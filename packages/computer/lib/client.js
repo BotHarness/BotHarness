@@ -865,6 +865,7 @@ window.__ModuleLoader__.load({
         setTransferNote(void 0);
         requestUpload(name)
           .then((token) => sendUploadBytes(token, file))
+          .then(() => importArchive(name))
           .then(() => {
             setTransferNote(t('rows.imported', { file: name }));
             setUploadName(void 0);
@@ -872,7 +873,7 @@ window.__ModuleLoader__.load({
           })
           .catch((error) => setTransferNote(String(error)))
           .finally(() => setBusy(void 0));
-      }, [uploadName, requestUpload, sendUploadBytes, t]);
+      }, [uploadName, requestUpload, sendUploadBytes, importArchive, t]);
       const openImport = (0, react.useCallback)(() => {
         listArchives()
           .then((files) => {

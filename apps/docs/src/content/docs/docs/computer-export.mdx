@@ -31,7 +31,7 @@ The Computer keeps its whole desktop — logins, bookmarks, downloads, and files
 On web deployments (no directory picker, no Host folder to open), transfer runs through the browser instead of Host paths:
 
 - After an export finishes, **Download** fetches the archive through the browser's save dialog — streamed, so a ~1 GB file never sits in memory. The export directory stays as the server-side listing location.
-- To import, **Choose archive file…** picks a local `.tar`, then **Authorize and import** streams it up and runs the standard import. Long archive names wrap with an ellipsis; the full name is one hover away.
+- To import, **Choose archive file…** picks a local `.tar`, then **Authorize and import** streams it up and runs the standard import. Long archive names wrap with an ellipsis; the full name is one hover away. An upload only replaces an existing archive once its bytes have fully arrived.
 
 ## Size and time expectations
 

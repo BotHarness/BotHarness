@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import { afterEach, describe, expect, it } from 'vitest';
 
-import { receiveUploadBody, streamArchiveResponse } from '../src/index.js';
+import { receiveUploadBody, storeUploadBody, streamArchiveResponse } from '../src/index.js';
 
 const dirs: string[] = [];
 
@@ -55,5 +55,27 @@ describe('transfer IO', () => {
   it('rejects an empty upload body and leaves no file', async () => {
     const dest = join(makeDir(), 'uploaded.tar');
     await expect(receiveUploadBody(null, dest)).rejects.toThrow();
+  });
+
+  it('stores uploads atomically past any existing archive', async () => {
+    const dir = makeDir();
+    const dest = join(dir, 'uploaded.tar');
+    await storeUploadBody(byteStream(['new-bytes']), dest);
+    expect(readFileSync(dest, 'utf8')).toBe('new-bytes');
+    expect(existsSync(`${dest}.part`)).toBe(false);
+  });
+
+  it('never truncates an existing archive when the stream tears', async () => {
+    const dir = makeDir();
+    const dest = join(dir, 'uploaded.tar');
+    writeFileSync(dest, 'original-bytes');
+    const torn = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.error(new Error('connection reset'));
+      },
+    });
+    await expect(storeUploadBody(torn, dest)).rejects.toThrow(/connection reset/);
+    expect(readFileSync(dest, 'utf8')).toBe('original-bytes');
+    expect(existsSync(`${dest}.part`)).toBe(false);
   });
 });

@@ -530,8 +530,11 @@ export function ComputerSettingsRows({
     setConfirming(undefined);
     setBusy('upload');
     setTransferNote(undefined);
+    // One click authorizes the whole chain; receipt and import run as two
+    // short calls so the import's minutes ride the normal progress display.
     void requestUpload(name)
       .then((token) => sendUploadBytes(token, file))
+      .then(() => importArchive(name))
       .then(() => {
         setTransferNote(t('rows.imported', { file: name }));
         setUploadName(undefined);
@@ -539,7 +542,7 @@ export function ComputerSettingsRows({
       })
       .catch((error: unknown) => setTransferNote(String(error)))
       .finally(() => setBusy(undefined));
-  }, [uploadName, requestUpload, sendUploadBytes, t]);
+  }, [uploadName, requestUpload, sendUploadBytes, importArchive, t]);
 
   const openImport = useCallback(() => {
     void listArchives()

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { createReadStream, createWriteStream, existsSync } from 'node:fs';
-import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { homedir } from 'node:os';
 import { basename, isAbsolute, join } from 'node:path';
@@ -150,6 +150,22 @@ export async function receiveUploadBody(
     await rm(destPath, { force: true });
     throw error;
   }
+}
+
+/**
+ * Stores an upload atomically: bytes land in a sidecar file first, so a
+ * torn write can never truncate an existing archive, then rename swaps it
+ * into place. Returns when the bytes are durable — the import itself runs
+ * as a separate short-lived call so no HTTP response stays open for the
+ * minutes an import takes.
+ */
+export async function storeUploadBody(
+  body: ReadableStream<Uint8Array> | null,
+  destPath: string,
+): Promise<void> {
+  const tmp = `${destPath}.part`;
+  await receiveUploadBody(body, tmp);
+  await rename(tmp, destPath);
 }
 
 /**
@@ -640,7 +656,9 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     );
 
     // Browser upload, step two: stream the bytes straight to disk (never
-    // buffered — archives run ~1GB), then run the standard import.
+    // buffered — archives run ~1GB) and report receipt at once. The client
+    // then runs the standard import as its own call, so this response never
+    // stays open for the minutes an import takes.
     const uploadContentRoute = {
       path: '/api/computer/upload-content',
       methods: ['POST'] as const,
@@ -649,18 +667,19 @@ export function apply(ctx: Context, config: ComputerConfig): void {
         const token = new URL(request.url).searchParams.get('token') ?? '';
         const dest = transferTokens.consume(token, 'upload');
         if (dest === undefined) return unknownToken('upload');
+        log(
+          `upload streaming in (panel): ${request.method} ` +
+            `content-type=${request.headers.get('content-type') ?? '?'} ` +
+            `length=${request.headers.get('content-length') ?? '?'} ` +
+            `encoding=${request.headers.get('transfer-encoding') ?? 'identity'}`,
+        );
         try {
-          await receiveUploadBody(request.body, dest);
+          await storeUploadBody(request.body, dest);
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
         }
         log(`upload received (panel): ${basename(dest)}`);
-        try {
-          await service.importFrom(dest);
-          return json({ ok: true });
-        } catch (error) {
-          return json({ ok: false, error: String(error) }, 500);
-        }
+        return json({ ok: true });
       },
     };
     connectionCtx.effect(
