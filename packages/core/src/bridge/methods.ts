@@ -16,6 +16,7 @@ import type {
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { isValidSlug } from '../bots/slug.js';
 import {
+  MAX_ROSTER_BATCH_SIZE,
   RosterStore,
   RosterUnavailableError,
   RosterUnknownSectionError,
@@ -97,6 +98,7 @@ export interface BridgeMethods {
   topReorder(payload: unknown): Promise<BridgeResult<{ topOrder: TopOrderEntry[] }>>;
   pinsSet(payload: unknown): Promise<BridgeResult<{ pins: string[] }>>;
   hiddenSet(payload: unknown): Promise<BridgeResult<{ hidden: string[] }>>;
+  rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
 }
 
 export interface BridgeMethodsDeps {
@@ -222,6 +224,15 @@ const topReorderPayload = z.object({
 });
 const pinsSetPayload = z.object({ pins: z.array(z.string()) });
 const hiddenSetPayload = z.object({ hidden: z.array(z.string()) });
+const rosterBatchPayload = z.object({
+  action: z.enum(['pin', 'unpin', 'hide', 'move']),
+  channelIds: z
+    .array(z.string().min(1))
+    .min(1)
+    .max(MAX_ROSTER_BATCH_SIZE)
+    .refine((ids) => new Set(ids).size === ids.length),
+  sectionId: z.union([z.string().min(1), z.null()]).optional(),
+});
 
 function asNonBlank(source: Record<string, unknown>, key: string): string | undefined {
   const value = source[key];
@@ -724,6 +735,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const parsed = hiddenSetPayload.safeParse(payload);
       if (!parsed.success) return invalidInput('invalid hiddenSet payload');
       return rosterWrite(async () => ({ hidden: await deps.roster.hiddenSet(parsed.data.hidden) }));
+    },
+    async rosterBatch(payload) {
+      const parsed = rosterBatchPayload.safeParse(payload);
+      if (!parsed.success) {
+        return invalidInput(`rosterBatch requires 1–${MAX_ROSTER_BATCH_SIZE} distinct channel ids`);
+      }
+      const { action, channelIds, sectionId } = parsed.data;
+      if (action !== 'move' && sectionId !== undefined) {
+        return invalidInput('sectionId is only valid for a rosterBatch move');
+      }
+      const channels = deps.channels.list();
+      const known = new Set(channels.map((channel) => channel.id));
+      if (channelIds.some((id) => !known.has(id))) {
+        return invalidInput('rosterBatch contains an unknown Channel');
+      }
+      const aliases = new Map(
+        channels.flatMap((channel) =>
+          channel.type === 'dm' && channel.botSlug !== undefined
+            ? [[channel.botSlug, channel.id] as const]
+            : [],
+        ),
+      );
+      const change =
+        action === 'move'
+          ? { action, channelIds, ...(sectionId == null ? {} : { sectionId }) }
+          : { action, channelIds };
+      return rosterWrite(() => deps.roster.applyBatch(change, (pin) => aliases.get(pin) ?? pin));
     },
   };
 }

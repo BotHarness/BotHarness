@@ -179,6 +179,48 @@ describe('roster bridge methods with storage', () => {
     ]);
   });
 
+  it('applies a bounded roster batch through one bridge request', async () => {
+    const { methods, fake } = await attached();
+    const first = methods.channelCreate({ name: 'Alpha', members: [] });
+    const second = methods.channelCreate({ name: 'Beta', members: [] });
+    const ids = [first, second].map((result) => (result.ok ? result.value.channel.id : ''));
+    const section = await methods.sectionCreate({ name: 'Target' });
+    const sectionId = section.ok ? section.value.section.id : '';
+
+    const pinned = await methods.rosterBatch({ action: 'pin', channelIds: ids });
+    expect(pinned).toMatchObject({ ok: true, value: { pins: ids } });
+    expect(fake.setCount()).toBe(2); // section creation + one batch pin
+
+    const moved = await methods.rosterBatch({
+      action: 'move',
+      channelIds: ids,
+      sectionId,
+    });
+    expect(moved).toMatchObject({
+      ok: true,
+      value: {
+        pins: [],
+        sections: [{ id: sectionId, channelIds: ids }],
+      },
+    });
+    expect(fake.records.get(sectionId)?.channelIds).toEqual(ids);
+    expect(fake.setCount()).toBe(3); // one global update for the whole move
+
+    expect(await methods.rosterBatch({ action: 'pin', channelIds: ['missing'] })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(
+      await methods.rosterBatch({
+        action: 'hide',
+        channelIds: Array.from({ length: 101 }, (_, index) => `c${index}`),
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.rosterBatch({ action: 'move', channelIds: ids, sectionId: 'missing' }),
+    ).toMatchObject({ ok: false, error: { code: 'not-found' } });
+  });
+
   it('rejects malformed payloads with invalid-input', async () => {
     const { methods } = await attached();
 

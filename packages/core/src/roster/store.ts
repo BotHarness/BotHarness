@@ -37,6 +37,17 @@ export interface RosterSnapshot {
   topOrder: TopOrderEntry[] | undefined;
 }
 
+/** Maximum channels changed by one roster command; never silently chunk a Human action. */
+export const MAX_ROSTER_BATCH_SIZE = 100;
+
+/** One application-defined roster operation applied as one Host command. */
+export interface RosterBatchChange {
+  action: 'pin' | 'unpin' | 'hide' | 'move';
+  channelIds: readonly string[];
+  /** Only meaningful for move; omitted means ungrouped. */
+  sectionId?: string;
+}
+
 /** The optional `storageDomain` capability the roster store opens through. */
 export interface RosterDomainFacility {
   open<S extends DomainSpec>(spec: S): Promise<Domain<S>>;
@@ -447,6 +458,97 @@ export class RosterStore {
       if (current !== undefined && sameEntries(next, current)) return next;
       await global.set(nextGlobalState(state, { topOrder: next }));
       return next;
+    });
+  }
+
+  /**
+   * Apply one multi-selection as one queued Host command and one committed
+   * notification. Pin/hide changes use one durable global write. Moving
+   * channels writes each affected section at most once, then one global
+   * record; the current storage-domain interface has no cross-record
+   * transaction, so readers must use the completion notification rather
+   * than treating intermediate domain/changed events as a roster snapshot.
+   */
+  applyBatch(
+    change: RosterBatchChange,
+    resolvePin: (pin: string) => string = (pin) => pin,
+  ): Promise<RosterSnapshot> {
+    return this.enqueue(async () => {
+      const ids = uniqueStrings(change.channelIds);
+      if (
+        ids.length === 0 ||
+        change.channelIds.length > MAX_ROSTER_BATCH_SIZE ||
+        ids.length !== change.channelIds.length
+      ) {
+        throw new RangeError(
+          `roster batch must contain 1–${MAX_ROSTER_BATCH_SIZE} distinct channels`,
+        );
+      }
+      const table = this.requireTable();
+      const global = this.requireGlobal();
+      const state = global.get();
+      const selected = new Set(ids);
+      const pins = uniqueStrings(state.pins.map(resolvePin));
+      if (change.action === 'pin') {
+        const existing = new Set(pins);
+        const next = [...pins, ...ids.filter((id) => !existing.has(id))];
+        if (!sameIds(next, state.pins)) {
+          await global.set(nextGlobalState(state, { pins: next }));
+        }
+        return this.snapshot();
+      }
+      if (change.action === 'hide') {
+        const hidden = uniqueStrings(state.hidden ?? []);
+        const existing = new Set(hidden);
+        const next = [...hidden, ...ids.filter((id) => !existing.has(id))];
+        if (!sameIds(next, state.hidden ?? [])) {
+          await global.set(nextGlobalState(state, { hidden: next }));
+        }
+        return this.snapshot();
+      }
+      const nextPins = pins.filter((id) => !selected.has(id));
+      if (change.action === 'unpin') {
+        if (!sameIds(nextPins, state.pins)) {
+          await global.set(nextGlobalState(state, { pins: nextPins }));
+        }
+        return this.snapshot();
+      }
+
+      const sectionId = change.sectionId;
+      if (sectionId !== undefined && table.get(sectionId) === undefined) {
+        throw new RosterUnknownSectionError(sectionId);
+      }
+      const updates: Array<[string, RosterSectionRecord]> = [];
+      for (const [id, record] of table.entries()) {
+        const remaining = record.channelIds.filter((candidate) => !selected.has(candidate));
+        const channelIds = id === sectionId ? [...remaining, ...ids] : remaining;
+        if (!sameIds(channelIds, record.channelIds)) {
+          updates.push([id, { name: record.name, channelIds }]);
+        }
+      }
+      for (const [id, record] of updates) await table.put(id, record);
+      const topOrder =
+        state.topOrder === undefined
+          ? undefined
+          : sanitizeTopOrder(
+              [
+                ...state.topOrder.filter(
+                  (entry) => entry.kind !== 'channel' || !selected.has(entry.id),
+                ),
+                ...(sectionId === undefined
+                  ? ids.map((id) => ({ kind: 'channel' as const, id }))
+                  : []),
+              ],
+              table,
+            );
+      if (
+        !sameIds(nextPins, state.pins) ||
+        (topOrder !== undefined &&
+          (state.topOrder === undefined || !sameEntries(topOrder, state.topOrder)))
+      ) {
+        await global.set(nextGlobalState(state, { pins: nextPins, topOrder }));
+      }
+      return this.snapshot();
     });
   }
 

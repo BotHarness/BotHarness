@@ -50,10 +50,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { BotSidebar, ChannelMoveMenu } from '../src/client/bot-sidebar.js';
+import { BotSidebar, BulkChannelMenu, ChannelMoveMenu } from '../src/client/bot-sidebar.js';
 import { UNGROUPED_MOVE_TARGET } from '../src/client/section-management.js';
 import type { BotModePrefsSnapshot } from '../src/client/bot-mode-prefs.js';
-import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
+import { PINNED_SORT_SCOPE_ID } from '../src/bot-mode-settings.js';
+import { zh, zhTranslate } from '../src/client/locale.js';
 import type { RosterConfig } from '../src/client/roster-config.js';
 import type { RosterSection, RosterSnapshot } from '../src/client/roster.js';
 import { store } from '../src/client/store.js';
@@ -121,7 +122,9 @@ function stubActions(): BridgeActions {
     renameSection: vi.fn(async () => true),
     removeSection: vi.fn(async () => true),
     setChannelPinned: vi.fn(async () => true),
+    reorderPinnedChannels: vi.fn(async () => true),
     setChannelHidden: vi.fn(async () => true),
+    batchRoster: vi.fn(async () => true),
     movePinnedChannel: vi.fn(async () => true),
     movePinnedChannelToFlat: vi.fn(async () => true),
     assignChannel: vi.fn(async () => true),
@@ -461,6 +464,44 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('placeholder="搜索 Bot 或频道"');
   });
 
+  it('sorts the pinned grid independently and offers a pinned sort menu', () => {
+    const older = {
+      ...FLAT_CHANNEL,
+      id: 'pin-old',
+      name: '旧置顶',
+      updatedAt: '2026-09-18T00:00:00.000Z',
+    };
+    const newer = {
+      ...FLAT_CHANNEL,
+      id: 'pin-new',
+      name: '新置顶',
+      updatedAt: '2026-09-19T12:00:00.000Z',
+    };
+    setRoster({ pins: [older.id, newer.id] });
+    store.setRoster([], [older, newer]);
+
+    const auto = renderSidebar();
+    expect(auto.indexOf('新置顶')).toBeLessThan(auto.indexOf('旧置顶'));
+    expect(auto).toContain('aria-label="置顶排序"');
+    const menu = menuWithLabel('置顶排序');
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'pinned-sort-label',
+      'updated',
+      'manual',
+      'inherit',
+    ]);
+    expect(menu.selectedId).toBe('inherit');
+    menu.onSelect?.('manual');
+    expect(setSectionSortMode).toHaveBeenCalledWith(PINNED_SORT_SCOPE_ID, 'manual');
+    prefs = { ...prefs, sortModes: { [PINNED_SORT_SCOPE_ID]: 'manual' } };
+    captured.menus.length = 0;
+    const manual = renderSidebar();
+    expect(manual.indexOf('旧置顶')).toBeLessThan(manual.indexOf('新置顶'));
+    expect(menuWithLabel('置顶排序').selectedId).toBe('manual');
+    menu.onSelect?.('inherit');
+    expect(setSectionSortMode).toHaveBeenCalledWith(PINNED_SORT_SCOPE_ID, undefined);
+  });
+
   it('renders the global sort menu from the shared policy store', () => {
     prefs = {
       motionPreference: 'system',
@@ -738,6 +779,92 @@ describe('bot sidebar rows', () => {
     expect(onCreateSection).toHaveBeenCalledWith('c-section');
   });
 
+  it('uses a count-aware bulk menu and keeps destructive deletion unavailable', () => {
+    const onPick = vi.fn();
+    const onPin = vi.fn();
+    const onHide = vi.fn();
+    const onCreateSection = vi.fn();
+    renderToStaticMarkup(
+      createElement(BulkChannelMenu, {
+        menu: {
+          channelId: DM_CHANNEL.id,
+          channelIds: [DM_CHANNEL.id, SECTION_CHANNEL.id],
+          x: 40,
+          y: 80,
+        },
+        sections: [section('s1', '工作流', [])],
+        itemsLabel: '2 个频道',
+        t: zhTranslate as never,
+        onPick,
+        onPin,
+        onHide,
+        onCreateSection,
+        onClose: vi.fn(),
+      }),
+    );
+    const menu = captured.menus.at(-1);
+    if (menu === undefined) throw new Error('bulk menu not rendered');
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'pin',
+      'bulk-pin-separator',
+      'move',
+      'bulk-action-separator',
+      'hide',
+    ]);
+    expect(menu.items[0]?.['label']).toBe('置顶 2 个频道');
+    expect(menu.items[2]?.['label']).toBe('将 2 个频道 移动到');
+    expect(menu.items[4]?.['label']).toBe('隐藏 2 个频道');
+    menu.onSelect?.('pin');
+    expect(onPin).toHaveBeenCalledOnce();
+    expect(onPin).toHaveBeenCalledWith(true);
+    menu.onSelect?.('s1');
+    expect(onPick).toHaveBeenCalledWith('s1');
+    menu.onSelect?.(UNGROUPED_MOVE_TARGET);
+    expect(onPick).toHaveBeenCalledWith(undefined);
+    menu.onSelect?.('new-section');
+    expect(onCreateSection).toHaveBeenCalledOnce();
+    menu.onSelect?.('hide');
+    expect(onHide).toHaveBeenCalledOnce();
+  });
+
+  it('offers bulk unpin and move for channels selected in the pin area', () => {
+    const onPick = vi.fn();
+    const onPin = vi.fn();
+    renderToStaticMarkup(
+      createElement(BulkChannelMenu, {
+        menu: {
+          channelId: DM_CHANNEL.id,
+          channelIds: [DM_CHANNEL.id, FLAT_CHANNEL.id],
+          x: 40,
+          y: 80,
+        },
+        sections: [section('s1', '工作流', [])],
+        itemsLabel: '2 个频道',
+        allPinned: true,
+        t: zhTranslate as never,
+        onPick,
+        onPin,
+        onCreateSection: vi.fn(),
+        onHide: vi.fn(),
+        onClose: vi.fn(),
+      }),
+    );
+    const menu = captured.menus.at(-1);
+    if (menu === undefined) throw new Error('pinned bulk menu not rendered');
+    expect(menu.items.map((item) => item['id'])).toEqual([
+      'unpin',
+      'bulk-pin-separator',
+      'move',
+      'bulk-action-separator',
+      'hide',
+    ]);
+    expect(menu.items[0]?.['label']).toBe('取消置顶 2 个频道');
+    menu.onSelect?.('unpin');
+    expect(onPin).toHaveBeenCalledOnce();
+    expect(onPin).toHaveBeenCalledWith(false);
+    menu.onSelect?.('s1');
+    expect(onPick).toHaveBeenCalledWith('s1');
+  });
   it('offers the same organization actions on ordinary and pinned Channel menus', () => {
     const onSetPinned = vi.fn();
     const onHide = vi.fn();

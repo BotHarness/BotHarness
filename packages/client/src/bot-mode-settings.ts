@@ -10,8 +10,11 @@ export const BOT_MODE_NAMESPACE = 'ui-bot-mode';
 /** Field carrying the global list sort mode. */
 export const BOT_MODE_SORT_FIELD = 'sortMode';
 
-/** Field carrying per-section sort modes; a missing section id inherits the global default. */
+/** Field carrying per-scope sort modes; a missing scope inherits the global default. */
 export const BOT_MODE_SORT_MODES_FIELD = 'sortModes';
+
+/** Reserved scope key for the pinned grid; section ids are Host-generated UUIDs. */
+export const PINNED_SORT_SCOPE_ID = 'pinned';
 
 /** Field carrying the Human-owned BotHarness motion preference. */
 export const BOT_MODE_MOTION_FIELD = 'motionPreference';
@@ -69,6 +72,6 @@ export interface BotModeSettings {
   botIcon: BotModeIcon;
   /** Global default the list follows. */
   sortMode: BotModeSortMode;
-  /** Per-section overrides by section id; a missing key inherits `sortMode`. */
+  /** Per-section and pinned-grid overrides; a missing key inherits `sortMode`. */
   sortModes: Record<string, BotModeSortMode>;
 }

@@ -195,6 +195,101 @@ describe('roster store', () => {
     expect(fake.setCount()).toBe(sets);
   });
 
+  it('applies pin, unpin, and hide batches with one write and notification each', async () => {
+    const fake = createFakeRosterDomain({
+      state: { pins: ['legacy-bot'], sectionOrder: [], topOrder: [] },
+    });
+    const onCommitted = vi.fn();
+    const store = createRosterStore({ onCommitted });
+    await store.attach(fake.facility);
+
+    const pinned = await store.applyBatch({ action: 'pin', channelIds: ['c1', 'c2'] }, (pin) =>
+      pin === 'legacy-bot' ? 'dm-legacy-bot' : pin,
+    );
+    expect(pinned.pins).toEqual(['dm-legacy-bot', 'c1', 'c2']);
+    expect(fake.setCount()).toBe(1);
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+
+    const unpinned = await store.applyBatch({ action: 'unpin', channelIds: ['c1', 'c2'] });
+    expect(unpinned.pins).toEqual(['dm-legacy-bot']);
+    expect(fake.setCount()).toBe(2);
+    expect(onCommitted).toHaveBeenCalledTimes(2);
+
+    const hidden = await store.applyBatch({ action: 'hide', channelIds: ['c1', 'c2'] });
+    expect(hidden.hidden).toEqual(['c1', 'c2']);
+    expect(fake.setCount()).toBe(3);
+    expect(onCommitted).toHaveBeenCalledTimes(3);
+
+    const maxIds = Array.from({ length: 100 }, (_, index) => `bulk-${index}`);
+    const fullBatch = await store.applyBatch({ action: 'pin', channelIds: maxIds });
+    expect(fullBatch.pins).toHaveLength(101);
+    expect(fake.setCount()).toBe(4);
+    expect(onCommitted).toHaveBeenCalledTimes(4);
+
+    await expect(
+      store.applyBatch({
+        action: 'pin',
+        channelIds: Array.from({ length: 101 }, (_, index) => `c${index}`),
+      }),
+    ).rejects.toBeInstanceOf(RangeError);
+    expect(fake.setCount()).toBe(4);
+    expect(onCommitted).toHaveBeenCalledTimes(4);
+  });
+
+  it('moves a batch across sections or back to loose with one final notification', async () => {
+    const fake = createFakeRosterDomain({
+      records: {
+        s1: { name: 'Source', channelIds: ['c1', 'c2', 'c5'] },
+        s2: { name: 'Target', channelIds: ['c3'] },
+      },
+      state: {
+        pins: ['c1', 'c2'],
+        sectionOrder: ['s1', 's2'],
+        topOrder: [
+          { kind: 'section', id: 's1' },
+          { kind: 'channel', id: 'c4' },
+          { kind: 'section', id: 's2' },
+        ],
+      },
+    });
+    const onCommitted = vi.fn();
+    const store = createRosterStore({ onCommitted });
+    await store.attach(fake.facility);
+
+    const grouped = await store.applyBatch({
+      action: 'move',
+      channelIds: ['c1', 'c2'],
+      sectionId: 's2',
+    });
+    expect(grouped.pins).toEqual([]);
+    expect(grouped.sections).toEqual([
+      { id: 's1', name: 'Source', channelIds: ['c5'] },
+      { id: 's2', name: 'Target', channelIds: ['c3', 'c1', 'c2'] },
+    ]);
+    expect(fake.putCount()).toBe(2);
+    expect(fake.setCount()).toBe(1);
+    expect(onCommitted).toHaveBeenCalledTimes(1);
+
+    const loose = await store.applyBatch({ action: 'move', channelIds: ['c1', 'c2'] });
+    expect(loose.sections[1]?.channelIds).toEqual(['c3']);
+    expect(loose.topOrder).toEqual([
+      { kind: 'section', id: 's1' },
+      { kind: 'channel', id: 'c4' },
+      { kind: 'section', id: 's2' },
+      { kind: 'channel', id: 'c1' },
+      { kind: 'channel', id: 'c2' },
+    ]);
+    expect(fake.putCount()).toBe(3);
+    expect(fake.setCount()).toBe(2);
+    expect(onCommitted).toHaveBeenCalledTimes(2);
+
+    await expect(
+      store.applyBatch({ action: 'move', channelIds: ['c1', 'c2'], sectionId: 'missing' }),
+    ).rejects.toBeInstanceOf(RosterUnknownSectionError);
+    expect(fake.putCount()).toBe(3);
+    expect(onCommitted).toHaveBeenCalledTimes(2);
+  });
+
   it('sets hidden Channel ids without changing their placement or writing no-ops', async () => {
     const fake = createFakeRosterDomain({
       records: { s1: { name: 'A', channelIds: ['c1'] } },

@@ -131,16 +131,24 @@ export function ChannelComposer({
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [fit, setFit] = useState<ComposerTextareaFit>({ expanded: false, height: 34 });
+  const [fit, setFit] = useState<ComposerTextareaFit & { animateFirstExpand: boolean }>({
+    expanded: false,
+    height: 34,
+    animateFirstExpand: false,
+  });
   const hasFooter = fit.expanded || reply !== undefined || attachments.length > 0;
 
   const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
     const nextFit = fitComposerTextarea(element);
-    setFit((current) =>
-      current.expanded === nextFit.expanded && current.height === nextFit.height
-        ? current
-        : nextFit,
-    );
+    setFit((current) => {
+      if (current.expanded === nextFit.expanded && current.height === nextFit.height) {
+        return current;
+      }
+      return {
+        ...nextFit,
+        animateFirstExpand: !current.expanded && nextFit.expanded,
+      };
+    });
   }, []);
 
   useEffect(() => {
@@ -175,7 +183,7 @@ export function ChannelComposer({
     <div className="bh-composer-shell">
       <PersonaBotActivityStatus activity={activity} t={t} />
       <div
-        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
+        className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${fit.animateFirstExpand ? ' bh-composer-first-expand' : ''}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
         data-layout={fit.expanded ? 'expanded' : 'compact'}
         style={{ '--bh-composer-body-height': `${fit.height}px` } as CSSProperties}
       >

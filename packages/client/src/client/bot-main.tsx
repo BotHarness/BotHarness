@@ -705,33 +705,43 @@ function ConversationView({
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
           <div className="bh-topbar">
-            {bot !== undefined ? (
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={bot.slug}
-                name={bot.displayName}
-                src={bot.avatar}
-                state={botActivity}
-                size={22}
-              />
-            ) : channelFacepile.length > 0 ? (
-              <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
-            ) : (
-              <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
-                #
-              </span>
-            )}
-            <span className="bh-title">{title}</span>
-            {bot === undefined || bot.roles.length === 0 ? null : (
-              <span className="bh-role-badges">
-                {bot.roles.map((role) => (
-                  <Tag key={role} tone="neutral">
-                    {role}
-                  </Tag>
-                ))}
-              </span>
-            )}
+            <button
+              type="button"
+              className="bh-channel-island"
+              aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
+              aria-controls="bh-channel-sidebar"
+              aria-expanded={sidebar.mode !== 'hidden'}
+              onClick={sidebar.toggle}
+            >
+              {bot !== undefined ? (
+                <PersonaBotAvatar
+                  t={t}
+                  personaBotId={bot.slug}
+                  name={bot.displayName}
+                  src={bot.avatar}
+                  state={botActivity}
+                  size={22}
+                />
+              ) : channelFacepile.length > 0 ? (
+                <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
+              ) : (
+                <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
+                  #
+                </span>
+              )}
+              <span className="bh-title">{title}</span>
+              {bot === undefined || bot.roles.length === 0 ? null : (
+                <span className="bh-role-badges">
+                  {bot.roles.map((role) => (
+                    <Tag key={role} tone="neutral">
+                      {role}
+                    </Tag>
+                  ))}
+                </span>
+              )}
+            </button>
           </div>
+          <div className="bh-chat-top-fade" aria-hidden="true" />
           <div className="bh-chat-body" ref={scrollRef} onScroll={onTimelineScroll}>
             {conversation.timeline.hasOlder ? (
               <div className="bh-timeline-top-sentinel">

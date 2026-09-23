@@ -266,6 +266,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
   hiddenSet(hidden: string[]): Promise<{ hidden: string[] }> {
     return unwrapAsync(this.methods.hiddenSet({ hidden }));
   }
+
+  rosterBatch(
+    action: 'pin' | 'unpin' | 'hide' | 'move',
+    channelIds: string[],
+    sectionId?: string | null,
+  ): Promise<RosterSnapshot> {
+    return unwrapAsync(this.methods.rosterBatch({ action, channelIds, sectionId }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -296,6 +304,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'topReorder',
   'pinsSet',
   'hiddenSet',
+  'rosterBatch',
 ]);
 
 /**

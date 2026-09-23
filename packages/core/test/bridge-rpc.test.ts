@@ -71,7 +71,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twenty-seven bridge endpoints for typert claims', () => {
+  it('marks exactly the twenty-eight bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -102,6 +102,7 @@ describe('bridge typert service', () => {
       'topReorder',
       'pinsSet',
       'hiddenSet',
+      'rosterBatch',
     ]);
   });
 
@@ -162,6 +163,7 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.topReorder)).toEqual(['order']);
     expect(parameterNames(service.pinsSet)).toEqual(['pins']);
     expect(parameterNames(service.hiddenSet)).toEqual(['hidden']);
+    expect(parameterNames(service.rosterBatch)).toEqual(['action', 'channelIds', 'sectionId']);
   });
 
   it('dispatches named arguments into the read model', async () => {

@@ -11,7 +11,7 @@ import {
 
 import { errorMessage } from './bridge.js';
 import { ungroupedLabel } from './labels.js';
-import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
+import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 import type { RosterSection } from './roster.js';
@@ -30,6 +30,16 @@ export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
     { id: 'manual', label: t('sort.manual') },
     { type: 'separator', id: 'roster-separator' },
     { id: 'hidden', label: t('hidden.manage') },
+  ];
+}
+
+/** Pinned-grid scope: inherit the global default or choose an independent mode. */
+export function pinnedSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
+  return [
+    { type: 'label', id: 'pinned-sort-label', text: t('pin.sort') },
+    { id: 'updated', label: t('sort.updated') },
+    { id: 'manual', label: t('sort.manual') },
+    { id: 'inherit', label: t('sort.inherit') },
   ];
 }
 

@@ -19,6 +19,7 @@ import './bot-settings-slot.js';
 import { BotMain, BotPanel } from './bot-main.js';
 import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
+import { webBotModeShortcut } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
@@ -81,6 +82,36 @@ export function apply(ctx: ClientContext): void {
     return mountMotionPolicyAttribute(prefs.source, document.documentElement);
   }, 'botharness: motion policy boundary');
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness: dictionaries');
+  ctx.effect(() => {
+    if (typeof document === 'undefined') return () => {};
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (
+        !webBotModeShortcut(event.code, {
+          alt: event.altKey,
+          ctrl: event.ctrlKey,
+          meta: event.metaKey,
+          shift: event.shiftKey,
+          altGraph: event.getModifierState('AltGraph'),
+          composing: event.isComposing,
+          repeat: event.repeat,
+          prevented: event.defaultPrevented,
+        })
+      ) {
+        return;
+      }
+      if (
+        event.target instanceof Element &&
+        event.target.closest('input, textarea, select, [contenteditable], [role="dialog"]')
+      ) {
+        return;
+      }
+      if (document.querySelector('[role="dialog"][aria-modal="true"]') !== null) return;
+      event.preventDefault();
+      ctx.layout.selectPanel(store.getSnapshot().mode === 'bot' ? null : PANEL_ID);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, 'botharness: Bot mode keyboard shortcut');
   ctx.effect(
     () => (typeof EventSource === 'undefined' ? () => {} : mountChannelLive(store, actions)),
     'botharness: Channel live subscription',
