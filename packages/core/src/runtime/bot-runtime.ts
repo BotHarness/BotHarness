@@ -15,7 +15,11 @@ import {
   type OperationalDatabaseOwner,
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
-import type { AssignmentPermissionSnapshot, WorkspaceGrant, WorkspaceGrantStore } from '../workspaces/grants.js';
+import type {
+  AssignmentPermissionSnapshot,
+  WorkspaceGrant,
+  WorkspaceGrantStore,
+} from '../workspaces/grants.js';
 
 export type AssignmentActivity = 'working' | 'idle' | 'error';
 export type AssignmentReportState =
@@ -264,12 +268,22 @@ interface SourceEventClaim {
 }
 
 function permissionFromRow(row: AssignmentRow): AssignmentPermissionSnapshot | undefined {
-  if (row.grant_id === null || row.workspace_id === null || row.primary_cwd === null ||
-      row.permission_mode !== 'workspace-write' || row.approval_policy !== 'ask' ||
-      row.preset_revision !== 0) return undefined;
+  if (
+    row.grant_id === null ||
+    row.workspace_id === null ||
+    row.primary_cwd === null ||
+    row.permission_mode !== 'workspace-write' ||
+    row.approval_policy !== 'ask' ||
+    row.preset_revision !== 0
+  )
+    return undefined;
   return {
-    grantId: row.grant_id, workspaceId: row.workspace_id, primaryCwd: row.primary_cwd,
-    mode: 'workspace-write', approval: 'ask', presetRevision: 0,
+    grantId: row.grant_id,
+    workspaceId: row.workspace_id,
+    primaryCwd: row.primary_cwd,
+    mode: 'workspace-write',
+    approval: 'ask',
+    presetRevision: 0,
   };
 }
 
@@ -451,7 +465,8 @@ class BotRuntimeImplementation implements BotRuntime {
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
-                  created_at, updated_at
+                  grant_id, workspace_id, primary_cwd, permission_mode,
+                  approval_policy, preset_revision, created_at, updated_at
              FROM assignments
             WHERE bot_slug = ?
             ORDER BY updated_at DESC, session_id ASC`,
@@ -475,7 +490,8 @@ class BotRuntimeImplementation implements BotRuntime {
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
-                  created_at, updated_at
+                  grant_id, workspace_id, primary_cwd, permission_mode,
+                  approval_policy, preset_revision, created_at, updated_at
              FROM assignments
             WHERE bot_slug = ? AND session_id = ?`,
         )
@@ -866,8 +882,12 @@ class BotRuntimeImplementation implements BotRuntime {
     if (this.#grants === undefined) throw new Error('Workspace Grants are unavailable');
     const grant = this.#grants.requireActive(bot.slug, grantId);
     const permission: AssignmentPermissionSnapshot = {
-      grantId: grant.id, workspaceId: grant.workspaceId, primaryCwd: grant.workspacePath,
-      mode: 'workspace-write', approval: 'ask', presetRevision: 0,
+      grantId: grant.id,
+      workspaceId: grant.workspaceId,
+      primaryCwd: grant.workspacePath,
+      mode: 'workspace-write',
+      approval: 'ask',
+      presetRevision: 0,
     };
     const key = input.key === undefined ? undefined : requireNonBlank(input.key, 'Continuity Key');
     if (key !== undefined) {
@@ -920,10 +940,19 @@ class BotRuntimeImplementation implements BotRuntime {
              ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
-            sessionId, sourceEventId, bot.slug, purpose, key ?? null,
-            permission.grantId, permission.workspaceId, permission.primaryCwd,
-            permission.mode, permission.approval, permission.presetRevision,
-            createdAt, createdAt,
+            sessionId,
+            sourceEventId,
+            bot.slug,
+            purpose,
+            key ?? null,
+            permission.grantId,
+            permission.workspaceId,
+            permission.primaryCwd,
+            permission.mode,
+            permission.approval,
+            permission.presetRevision,
+            createdAt,
+            createdAt,
           );
       },
       ['session-ownership', 'assignments'],
@@ -951,7 +980,10 @@ class BotRuntimeImplementation implements BotRuntime {
       throw new Error('Assignment has no valid Workspace Grant snapshot');
     }
     const grant = this.#grants.requireActive(bot.slug, permission.grantId);
-    if (grant.workspaceId !== permission.workspaceId || grant.workspacePath !== permission.primaryCwd) {
+    if (
+      grant.workspaceId !== permission.workspaceId ||
+      grant.workspacePath !== permission.primaryCwd
+    ) {
       throw new Error('Assignment Workspace Grant no longer matches its permission snapshot');
     }
     const text = requireNonBlank(input.text, 'Assignment Request text');

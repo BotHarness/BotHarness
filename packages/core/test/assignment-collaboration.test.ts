@@ -16,6 +16,8 @@ import {
   type OrchestratorAssignmentAccess,
 } from '../src/runtime/bot-runtime.js';
 import { FIXED_NOW, createTempRoot } from './helpers.js';
+import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
+import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
 
 /** Drives Assignment turns manually so tests can report and finish on demand. */
 class ManualAgents implements BotAgentAdapter {
@@ -81,6 +83,7 @@ function sourceEvents(owner: ReturnType<typeof mountOperationalDatabase>): Array
 
 async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Promise<{
   runtime: BotRuntime;
+  grants: WorkspaceGrantStore;
   agents: ManualAgents;
   owner: ReturnType<typeof mountOperationalDatabase>;
   home: string;
@@ -96,11 +99,13 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
   if (dm === undefined) throw new Error('DM missing');
   const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   const agents = new ManualAgents();
+  const grants = createTestWorkspaceGrants(owner, home);
   const runtime = createBotRuntime({
     database: owner,
     registry,
     channels,
     agents,
+    grants,
     now: FIXED_NOW,
     ...(options.assignmentConcurrencyLimit === undefined
       ? {}
@@ -108,6 +113,7 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
   });
   return {
     runtime,
+    grants,
     agents,
     owner,
     home,
@@ -131,8 +137,16 @@ describe('Assignment collaboration', () => {
     await admit('请同时处理两件事', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
-    const first = agents.access.create({ purpose: '调研 A 方向', key: 'research-a' });
-    const second = agents.access.create({ purpose: '调研 B 方向', key: 'research-b' });
+    const first = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '调研 A 方向',
+      key: 'research-a',
+    });
+    const second = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '调研 B 方向',
+      key: 'research-b',
+    });
 
     expect(first.outcome).toBe('created');
     expect(second.outcome).toBe('created');
@@ -148,7 +162,11 @@ describe('Assignment collaboration', () => {
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
-    const created = agents.access.create({ purpose: '调研 A 方向', key: 'research-a' });
+    const created = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '调研 A 方向',
+      key: 'research-a',
+    });
     if (created.outcome !== 'created') throw new Error('create failed');
     const sessionId = created.assignment.sessionId;
     agents.started[0]?.run.report({ state: 'completed', summary: 'A 方向完成' });
@@ -156,14 +174,56 @@ describe('Assignment collaboration', () => {
     await runtime.whenIdle();
     expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('idle');
 
-    const reused = agents.access.create({ purpose: '继续调研 A 方向', key: 'research-a' });
+    const reused = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '继续调研 A 方向',
+      key: 'research-a',
+    });
     expect(reused.outcome).toBe('reused');
     expect(reused.outcome === 'reused' && reused.assignment.sessionId).toBe(sessionId);
     expect(agents.resumed).toEqual([{ sessionId, text: '继续调研 A 方向' }]);
 
-    const busy = agents.access.create({ purpose: '再次调研 A 方向', key: 'research-a' });
+    const busy = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '再次调研 A 方向',
+      key: 'research-a',
+    });
     expect(busy.outcome).toBe('key-busy');
     expect(runtime.listAssignments('ada')).toHaveLength(1);
+    await close();
+  });
+
+  it('revocation blocks new and resumed work without rewriting an already running turn', async () => {
+    const { runtime, grants, agents, admit, close } = await setup();
+    await admit('开始调研', 'human-1');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '调研 A 方向',
+      key: 'research-a',
+    });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const sessionId = created.assignment.sessionId;
+    const permission = runtime.getAssignment('ada', sessionId)?.permission;
+    expect(permission?.mode).toBe('workspace-write');
+
+    grants.revoke('ada', TEST_GRANT_ID);
+    expect(() => access.create({ grantId: TEST_GRANT_ID, purpose: '新方向' })).toThrow(
+      /missing or revoked/,
+    );
+    expect(() => access.request({ sessionId, mode: 'next-turn', text: '继续' })).toThrow(
+      /missing or revoked/,
+    );
+    expect(() =>
+      access.create({ grantId: TEST_GRANT_ID, purpose: '继续', key: 'research-a' }),
+    ).toThrow(/missing or revoked/);
+    expect(runtime.getAssignment('ada', sessionId)?.permission).toEqual(permission);
+
+    await agents.started[0]!.run.report({ state: 'completed', summary: '已运行的事项完成' });
+    agents.finish(sessionId);
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', sessionId)?.latestReport?.summary).toBe('已运行的事项完成');
     await close();
   });
 
@@ -172,7 +232,7 @@ describe('Assignment collaboration', () => {
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
-    const created = agents.access.create({ purpose: '调研 A 方向' });
+    const created = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '调研 A 方向' });
     if (created.outcome !== 'created') throw new Error('create failed');
     const sessionId = created.assignment.sessionId;
     const run = agents.started[0]?.run;
@@ -209,7 +269,7 @@ describe('Assignment collaboration', () => {
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
-    const created = agents.access.create({ purpose: '调研 A 方向' });
+    const created = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '调研 A 方向' });
     if (created.outcome !== 'created') throw new Error('create failed');
     const sessionId = created.assignment.sessionId;
     const run = agents.started[0]?.run;
@@ -247,7 +307,7 @@ describe('Assignment collaboration', () => {
     const { runtime, agents, owner, home, admit, close } = await setup();
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
-    const created = agents.access.create({ purpose: '调研 A 方向' });
+    const created = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '调研 A 方向' });
     if (created.outcome !== 'created') throw new Error('create failed');
     const sessionId = created.assignment.sessionId;
     const run = agents.started[0]?.run;
@@ -278,8 +338,10 @@ describe('Assignment collaboration', () => {
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
-    expect(agents.access.create({ purpose: '调研 A 方向' }).outcome).toBe('created');
-    const refused = agents.access.create({ purpose: '调研 B 方向' });
+    expect(agents.access.create({ grantId: TEST_GRANT_ID, purpose: '调研 A 方向' }).outcome).toBe(
+      'created',
+    );
+    const refused = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '调研 B 方向' });
     expect(refused.outcome).toBe('capacity');
     expect(refused.outcome === 'capacity' && refused.message).toContain('retryable: true');
     expect(runtime.listAssignments('ada')).toHaveLength(1);

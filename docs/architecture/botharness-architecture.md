@@ -109,14 +109,15 @@ flowchart TB
   Portable --> Views
 ```
 
-| Module      | Owns                                                                                                    | Does not own                          |
-| ----------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| PersonaBot  | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容    |
-| Memory      | generic Git-backed repositories、semantic commits、operation events                                     | PersonaBot lifecycle、Inbox、Session  |
-| Messaging   | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials |
-| Assignments | Assignment Directory、Assignment Request/Delivery Intent、capacity admission、report/lifecycle routing  | DSH transcript、Subagent runtime      |
-| Portability | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式 |
-| Read models | 查询、分页、PersonaBot Activity Projection、Human Inbox、UI-friendly projection                         | 业务事实与写入规则                    |
+| Module           | Owns                                                                                                    | Does not own                             |
+| ---------------- | ------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| PersonaBot       | Host-owned ID、display name / role badges、lifecycle、explicit Session ownership                        | DSH Session lifecycle、Memory 内容       |
+| Memory           | generic Git-backed repositories、semantic commits、operation events                                     | PersonaBot lifecycle、Inbox、Session     |
+| Messaging        | Source Event、Channel placement、Inbox Admission、Attention、Trigger/Wake Policy、Service Grant、Outbox | Agent execution、provider credentials    |
+| Assignments      | Assignment Directory、Assignment Request/Delivery Intent、capacity admission、report/lifecycle routing  | DSH transcript、Subagent runtime         |
+| Workspace Grants | Human 对 DSH Workspace 的授权与撤销、Assignment 创建时的权限快照                                        | DSH Workspace registry、Session 权限实现 |
+| Portability      | SoulSnapshot、PersonaBot Export、Profile Backup/Restore/Transfer 协调                                   | credentials、可执行插件、DSH 私有格式    |
+| Read models      | 查询、分页、PersonaBot Activity Projection、Human Inbox、UI-friendly projection                         | 业务事实与写入规则                       |
 
 `botharness.db` 是 BotHarness core 的物理事务宿主，不是共享的 generic repository。Memory 内容与 commit 由 optional Git-backed Provider 掌管；每个 deep module 只通过自己的接口拥有表和不变量，跨模块流程由显式 command/port 协调。
 
@@ -179,6 +180,8 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 ## 5 · Orchestrator 与 Assignment control plane
 
 Human 不负责创建或选择执行 Conversation。PersonaBot DM 是唯一聊天入口：消息先成为 Source Event，经 Bot Inbox 交给 Orchestrator；Orchestrator 再决定直接回复，或在授权与 capacity 内创建、复用和管理多个 Assignment Session。普通 Orchestrator assistant final 只留在 DSH SessionPersistence；只有显式 Channel messaging command 才产生 Human-facing Channel message。该 command 从可信 Session ownership 推导 PersonaBot Actor，并验证目标 Channel membership，不接受模型自报 bot id 或 author。UI 只把 Assignment Session 按 purpose 和 state 投影到 `事项` 列表中，不会把 Orchestrator Session 显示成事项。
+
+Workspace Grant 是 application-defined 的持久授权记录：Human 在 PersonaBot DM 侧栏从现有 DSH Workspace 中选定一个目录，Host 通过 DSH Workspace registry 核验其稳定 ID、真实路径与可用状态，并在 `botharness.db` 中记录授权。Orchestrator 只在其 Memory Repository 内以 `workspace-write` / `ask` 运行；它可读取有效 Grant ID，却不能自行创建授权。每个新 Assignment 必须显式选择 Grant，在 Assignment Directory 固化 Grant ID、DSH Workspace ID、primary cwd 与 `workspace-write` / `ask` 快照；Agent Setup 将这些值设置到 DSH Session，Client 列表和详情展示该快照。Host 在创建、复用和再次请求 Assignment 前重新核验 Grant，撤销后不再唤醒或恢复该 Assignment；已运行的 turn 需要 Human 手动停止。DSH 0.1.5-rc.2 的 Typert 方法不暴露单个 Human 身份，因此当前授权来自经过 DSH 认证的本地 Client 连接，逐人审计仍待补齐；`danger-full-access` 尚未纳入此默认安全路径。
 
 右侧是 Channel sidebar（ADR-0053）：group Channel 显示成员与 Channel 管理 entries，DM 显示该 PersonaBot 的 entries（事项、Memory、Bot Inbox、Computer 等）；entries 由统一注册 seam 提供、可折叠、按声明顺序排列，未注册或不可用时直接不显示而不是占位。Chat 始终是中间的 Channel body。选择某个事项会打开只读详情；原始 DSH Session 仅通过显式次级操作进入。首个 tracer bullet 不依赖 Persona 或 Memory：创建仅有名称的 Bot，经真实 DM → Bot Inbox → Orchestrator Session → Assignment Session → Assignment Report 回流，在同一 DM 回复，并以最小列表/详情投影让 Human 验收。
 
