@@ -1175,22 +1175,20 @@ window.__ModuleLoader__.load({
                         }),
                       ],
                     }),
-                selectedFile === void 0
-                  ? null
-                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-                      className: 'bh-note',
-                      style: {
-                        flexBasis: '100%',
-                        minWidth: 0,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      },
-                      children: selectedFile,
-                    }),
               ],
             }),
           }),
+          selectedFile === void 0
+            ? null
+            : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                className: 'bh-note',
+                style: {
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                },
+                children: selectedFile,
+              }),
           busy !== void 0 && phaseKey !== void 0
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
                 className: 'bh-note',

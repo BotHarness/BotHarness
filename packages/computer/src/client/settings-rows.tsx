@@ -796,22 +796,21 @@ export function ComputerSettingsRows({
               </button>
             </>
           )}
-          {selectedFile === undefined ? null : (
-            <div
-              className="bh-note"
-              style={{
-                flexBasis: '100%',
-                minWidth: 0,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {selectedFile}
-            </div>
-          )}
         </div>
       </Row>
+
+      {selectedFile === undefined ? null : (
+        <div
+          className="bh-note"
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {selectedFile}
+        </div>
+      )}
 
       {busy !== undefined && phaseKey !== undefined ? (
         <div className="bh-note">
