@@ -1028,3 +1028,57 @@ describe('Docker storage migration notice', () => {
     expect(status.storage?.ignoredReason).toContain('Linux');
   });
 });
+
+describe('Docker bind-mount QA override', () => {
+  const OLD_ENV = process.env.BOTHARNESS_COMPUTER_FORCE_BIND;
+
+  function restoreEnv(): void {
+    if (OLD_ENV === undefined) delete process.env.BOTHARNESS_COMPUTER_FORCE_BIND;
+    else process.env.BOTHARNESS_COMPUTER_FORCE_BIND = OLD_ENV;
+  }
+
+  it('engages the bind path on macOS when the override is set', async () => {
+    process.env.BOTHARNESS_COMPUTER_FORCE_BIND = '1';
+    try {
+      const calls: string[][] = [];
+      const provider = createDockerComputerProvider({
+        runner: runnerWith((argv) => {
+          calls.push([...argv]);
+          if (argv[1] === 'info') return ok('27.0.0');
+          if (argv[1] === 'inspect') return fail('No such object');
+          if (argv[1] === 'image') return ok('webtop-image');
+          return ok('ok');
+        }),
+        config: { dataDir: '/tmp/bh-bind-test' },
+        platform: () => 'darwin',
+      });
+      await provider.start();
+      const run = calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm'));
+      expect((run ?? []).join(' ')).toContain('-v /tmp/bh-bind-test:/config');
+      const status = await provider.status();
+      expect(status.storage).toMatchObject({ kind: 'bind', target: '/tmp/bh-bind-test' });
+      expect(status.storage?.ignoredReason).toBeUndefined();
+    } finally {
+      restoreEnv();
+    }
+  });
+
+  it('leaves the macOS ignore path alone without the override', async () => {
+    delete process.env.BOTHARNESS_COMPUTER_FORCE_BIND;
+    try {
+      const provider = createDockerComputerProvider({
+        runner: runnerWith((argv) => {
+          if (argv[1] === 'info') return ok('27.0.0');
+          return fail('No such object');
+        }),
+        config: { dataDir: '/tmp/bh-bind-test' },
+        platform: () => 'darwin',
+      });
+      const status = await provider.status();
+      expect(status.storage?.kind).toBe('volume');
+      expect(status.storage?.ignoredReason).toContain('Linux');
+    } finally {
+      restoreEnv();
+    }
+  });
+});

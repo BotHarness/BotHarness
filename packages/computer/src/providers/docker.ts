@@ -198,7 +198,14 @@ export function createDockerComputerProvider(
 ): ComputerProvider {
   const config = combine(options.config);
   const { runner, onEvent, getLanguage, fetchImpl, readyTimeoutMs, sleepImpl } = options;
-  const platformName = (options.platform ?? (() => process.platform))();
+  // QA-only escape hatch for bind acceptance on non-Linux Hosts
+  // (BOTHARNESS_COMPUTER_FORCE_BIND=1 pretends to be Linux). Machine-local,
+  // never set it in production: on macOS/Windows the bind source still rides
+  // a virtual filesystem share, which is exactly what the guard excludes.
+  const platformName =
+    process.env.BOTHARNESS_COMPUTER_FORCE_BIND === '1'
+      ? 'linux'
+      : (options.platform ?? (() => process.platform))();
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
