@@ -28,6 +28,9 @@ export const zh = {
   'entry.authorize.volume': '创建/复用持久卷（登录态与文件保留在这台电脑上）',
   'entry.authorize.pull': '拉取镜像（首次约 1.2 GB 网络流量）并创建容器',
   'entry.authorize.bind': '把 Web VNC 绑定到 127.0.0.1 的本地端口，仅本机可访问',
+  'entry.authorize.storage': '存储位置：{target}',
+  'entry.authorize.storageBindRisk':
+    'Bind mount 把浏览器 profile（含 SQLite 与缓存）直接落在宿主目录；在 Docker Desktop / Colima 等虚拟文件共享下文件锁不可靠，可能损坏数据，仅建议 Linux 原生 Docker 使用。详见 Docker 文档：https://docs.docker.com/storage/bind-mounts/',
   'entry.phase.pulling': '正在拉取镜像',
   'entry.phase.starting': '正在启动',
   'entry.phase.stopping': '正在停止',
@@ -101,6 +104,9 @@ export const en: Record<keyof typeof zh, string> = {
   'entry.authorize.pull': 'Pull the image (about 1.2 GB the first time) and create the container',
   'entry.authorize.bind':
     'Bind the web VNC endpoint to a loopback port, reachable only from this machine',
+  'entry.authorize.storage': 'Storage location: {target}',
+  'entry.authorize.storageBindRisk':
+    'A bind mount places the browser profile (including SQLite and caches) directly on a host directory; file locking over virtual filesystem sharing (Docker Desktop, Colima, …) is unreliable and can corrupt data — recommended only for native Linux Docker. See the Docker docs: https://docs.docker.com/storage/bind-mounts/',
   'entry.phase.pulling': 'Pulling the image',
   'entry.phase.starting': 'Starting',
   'entry.phase.stopping': 'Stopping',

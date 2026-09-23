@@ -59,6 +59,20 @@ export interface ComputerStatus {
   readonly detail?: string;
   /** Present while a long operation reports progress. */
   readonly progress?: ComputerProgress;
+  /** Resolved persistent-storage location for the authorize view. */
+  readonly storage?: ComputerStorage;
+}
+
+/** Where the Computer's persistent store lives. */
+export interface ComputerStorage {
+  /** Named Docker volume, or a host bind mount (Linux opt-in). */
+  readonly kind: 'volume' | 'bind';
+  /** Volume name or absolute host directory. */
+  readonly target: string;
+  /** Set when a configured dataDir is ignored (e.g. off Linux). */
+  readonly ignoredReason?: string;
+  /** Set when the live mount differs from the resolved store. */
+  readonly migrationHint?: string;
 }
 
 export interface ComputerProvider {

@@ -263,3 +263,37 @@ describe('StreamOverlay selector', () => {
     expect(overlay({ phase: 'live', hovered: true })).toContain('打开大屏');
   });
 });
+
+describe('Computer authorize storage note', () => {
+  it('shows the resolved storage and bind risk on the authorize view', () => {
+    const html = view({
+      confirming: true,
+      storage: { kind: 'bind', target: '/srv/bh-computer' },
+    });
+    expect(html).toContain('/srv/bh-computer');
+    expect(html).toContain('SQLite');
+  });
+
+  it('hides the bind risk for volume storage', () => {
+    const html = view({
+      confirming: true,
+      storage: { kind: 'volume', target: 'botharness-computer-config' },
+    });
+    expect(html).toContain('botharness-computer-config');
+    expect(html).not.toContain('SQLite');
+  });
+});
+
+describe('Computer authorize migration notice', () => {
+  it('shows the migration hint on the authorize view', () => {
+    const html = view({
+      confirming: true,
+      storage: {
+        kind: 'bind',
+        target: '/srv/bh-new',
+        migrationHint: '存储位置已变更为 /srv/bh-new，运行中的容器保持不变',
+      },
+    });
+    expect(html).toContain('存储位置已变更');
+  });
+});

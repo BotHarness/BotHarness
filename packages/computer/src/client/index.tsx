@@ -42,6 +42,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
 
 import { COMPUTER_SETTINGS_NAMESPACE, type ComputerSettings } from '../settings.js';
+import type { ComputerStorage } from '../provider.js';
 import {
   ComputerSettingsPrefs,
   ComputerSettingsRows,
@@ -92,6 +93,7 @@ interface ComputerStatusPayload {
     readonly phase?: ComputerPhase;
     readonly detail?: string;
     readonly progress?: ComputerProgress;
+    readonly storage?: ComputerStorage;
   };
 }
 
@@ -798,6 +800,7 @@ export interface ComputerEntryViewProps {
   readonly nowTs: number;
   readonly error?: string;
   readonly botSlug?: string;
+  readonly storage?: ComputerStorage;
   readonly onStart: () => void;
   readonly onConfirmStart: () => void;
   readonly onStop: () => void;
@@ -820,6 +823,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     nowTs,
     error,
     botSlug,
+    storage,
     onStart,
     onConfirmStart,
     onStop,
@@ -840,6 +844,18 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
             <li key={point}>{t(point)}</li>
           ))}
         </ul>
+        {storage === undefined ? null : (
+          <div style={{ opacity: 0.85 }}>
+            {t('entry.authorize.storage', { target: storage.target })}
+            {storage.ignoredReason === undefined ? '' : `（${storage.ignoredReason}）`}
+          </div>
+        )}
+        {storage?.migrationHint === undefined ? null : (
+          <div style={{ opacity: 0.85 }}>{storage.migrationHint}</div>
+        )}
+        {storage?.kind === 'bind' ? (
+          <div style={{ opacity: 0.85 }}>{t('entry.authorize.storageBindRisk')}</div>
+        ) : null}
         <label style={{ display: 'flex', gap: 6, alignItems: 'center', opacity: 0.85 }}>
           <input type="checkbox" onChange={(event) => onApprove(event.target.checked)} />
           {t('entry.remember')}
@@ -1085,6 +1101,7 @@ function ComputerEntry({
       nowTs={nowTs}
       {...(error === undefined ? {} : { error })}
       {...(displayName === undefined ? {} : { botSlug: displayName })}
+      {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
       onStart={onStart}
       onConfirmStart={onConfirmStart}
       onStop={() => void act(STOP_ENDPOINT)}

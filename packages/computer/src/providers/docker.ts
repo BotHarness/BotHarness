@@ -8,7 +8,7 @@
  * @module @botharness/computer/providers/docker
  */
 
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 
 import type {
   ComputerPhase,
@@ -18,6 +18,7 @@ import type {
   ComputerRuntimeResult,
   ComputerRuntimeRunner,
   ComputerStatus,
+  ComputerStorage,
 } from '../provider.js';
 
 export interface DockerComputerConfig {
@@ -27,6 +28,11 @@ export interface DockerComputerConfig {
   /** Loopback port published from the container's web VNC port. */
   readonly hostPort: number;
   readonly containerPort: number;
+  /**
+   * Opt-in host directory bind-mounted at /config (Linux only). Empty keeps
+   * the named volume; set on other platforms it is ignored with a reason.
+   */
+  readonly dataDir: string;
   readonly cpus: number;
   readonly memory: string;
   readonly shmSize: string;
@@ -45,6 +51,7 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
+  dataDir: '',
   hostPort: 39_001,
   containerPort: 3000,
   cpus: 2,
@@ -63,6 +70,8 @@ interface DockerComputerProviderOptions {
   readonly onEvent?: (detail: string) => void;
   /** Resolved at start time so a viewer can choose the desktop language. */
   readonly getLanguage?: () => string;
+  /** Host platform for the Linux-only bind mount; defaults to process.platform. */
+  readonly platform?: () => string;
   /** Probed for HTTP 200 before start reports running; defaults to global fetch. */
   readonly fetchImpl?: typeof fetch;
   /** Bound for the desktop-readiness wait; defaults to DESKTOP_READY_TIMEOUT_MS. */
@@ -77,6 +86,45 @@ function combine(config: Partial<DockerComputerConfig> | undefined): DockerCompu
 
 function failure(detail: string): Error {
   return new Error(detail);
+}
+
+function platformDisplay(platform: string): string {
+  if (platform === 'darwin') return 'macOS';
+  if (platform === 'win32') return 'Windows';
+  return platform;
+}
+
+/**
+ * Resolves where the persistent store lives: the named volume by default, a
+ * host bind mount when dataDir is configured on Linux. Never throws — an
+ * unusable dataDir resolves to the volume with a reason the authorize view
+ * shows; start itself rejects a relative path loudly instead (see runStart).
+ */
+function resolveStorage(
+  config: Pick<DockerComputerConfig, 'dataDir' | 'volumeName'>,
+  platform: string,
+): ComputerStorage {
+  const dir = config.dataDir.trim();
+  if (dir === '') return { kind: 'volume', target: config.volumeName };
+  if (platform !== 'linux') {
+    return {
+      kind: 'volume',
+      target: config.volumeName,
+      ignoredReason: `dataDir 已忽略：bind mount 仅在 Linux 生效（当前：${platformDisplay(platform)}），继续使用命名卷`,
+    };
+  }
+  return { kind: 'bind', target: dir };
+}
+
+/** Parses one `Type Source Destination;` mount list for the /config mount. */
+function parseConfigMount(output: string): { type: string; source: string } | undefined {
+  for (const part of output.split(';')) {
+    const [type = '', source = '', dest = ''] = part.trim().split(/\s+/);
+    if (dest === '/config' && type !== '' && source !== '') {
+      return { type: type.toLowerCase(), source };
+    }
+  }
+  return undefined;
 }
 
 /**
@@ -150,6 +198,7 @@ export function createDockerComputerProvider(
 ): ComputerProvider {
   const config = combine(options.config);
   const { runner, onEvent, getLanguage, fetchImpl, readyTimeoutMs, sleepImpl } = options;
+  const platformName = (options.platform ?? (() => process.platform))();
   let phase: ComputerPhase = 'idle';
   let detail: string | undefined;
   let running = false;
@@ -238,6 +287,33 @@ export function createDockerComputerProvider(
     return result.code === 0 ? result.stdout.trim() : undefined;
   };
 
+  /** Removes the managed container or fails loudly; shared by recreate paths. */
+  const removeContainer = async (reason: string): Promise<void> => {
+    const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
+    if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
+    running = false;
+    observe('absent', reason);
+  };
+
+  /** The live /config mount the resolved storage calls for. */
+  const describeWant = (storage: ComputerStorage): { type: string; source: string } =>
+    storage.kind === 'bind'
+      ? { type: 'bind', source: storage.target }
+      : { type: 'volume', source: config.volumeName };
+
+  /** The container's live /config mount, or undefined when unknowable. */
+  const readConfigMount = async (): Promise<{ type: string; source: string } | undefined> => {
+    const mounts = await runner.run([
+      'docker',
+      'inspect',
+      '--format',
+      '{{range .Mounts}}{{.Type}} {{.Source}} {{.Destination}};{{end}}',
+      config.containerName,
+    ]);
+    if (mounts.code !== 0) return undefined;
+    return parseConfigMount(mounts.stdout);
+  };
+
   /**
    * `docker start` applies none of the `docker run` arguments, so a container
    * whose image or managed settings changed must be recreated — the named
@@ -246,7 +322,7 @@ export function createDockerComputerProvider(
    * would destroy work in progress, so it applies on the next creation.
    * Returns true when the container was removed.
    */
-  const recreateIfSpecChanged = async (): Promise<boolean> => {
+  const recreateIfSpecChanged = async (allowRebuild: boolean): Promise<boolean> => {
     const spec = await runner.run([
       'docker',
       'inspect',
@@ -274,12 +350,47 @@ export function createDockerComputerProvider(
       (expectedShm === undefined || shmSize.trim() === String(expectedShm)) &&
       pids.trim() === String(config.pidsLimit) &&
       managedEnv.every((entry) => envText.includes(entry));
-    if (matches) return false;
-    const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
-    if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
-    running = false;
-    observe('absent', `spec changed (${image.trim()} → ${config.image})`);
+    if (matches) return checkMountChanged(allowRebuild);
+    await removeContainer(`spec changed (${image.trim()} → ${config.image})`);
     return true;
+  };
+
+  /**
+   * A dataDir edit must not silently keep the old store — but it must never
+   * tear down a running desktop either. When the live mount differs and the
+   * container is stopped, recreate and say where the previous data stays;
+   * when it is running, leave it alone (the status hint carries the
+   * migration notice). Returns true when the container was removed.
+   */
+  const checkMountChanged = async (allowRebuild: boolean): Promise<boolean> => {
+    const storage = resolveStorage(config, platformName);
+    const want = describeWant(storage);
+    const current = await readConfigMount();
+    if (current === undefined || (current.type === want.type && current.source === want.source)) {
+      return false;
+    }
+    if (!allowRebuild) return false;
+    await removeContainer(
+      `storage changed (${current.type}:${current.source} → ${want.type}:${want.source}) — previous data stays behind; move it manually`,
+    );
+    return true;
+  };
+
+  /**
+   * Visible migration notice for a dataDir edit, computed fresh on every
+   * status poll for opt-in users only: a running desktop keeps its store
+   * while the notice names the pending target.
+   */
+  const migrationHint = async (state: string): Promise<string | undefined> => {
+    if (config.dataDir.trim() === '') return undefined;
+    const want = describeWant(resolveStorage(config, platformName));
+    const current = await readConfigMount();
+    if (current === undefined || (current.type === want.type && current.source === want.source)) {
+      return undefined;
+    }
+    return state === 'running'
+      ? `存储位置已变更为 ${want.source}，运行中的容器保持不变；停止后重建生效，旧数据需手工迁移`
+      : `存储位置已变更为 ${want.source}；下次启动将重建容器，旧数据需手工迁移`;
   };
 
   /**
@@ -444,16 +555,20 @@ export function createDockerComputerProvider(
     if (!probe.available) {
       fail(probe.detail ?? 'docker runtime is not available');
     }
+    const storage = resolveStorage(config, platformName);
+    if (storage.kind === 'bind' && !isAbsolute(storage.target)) {
+      fail(`dataDir must be an absolute path, got: ${storage.target}`);
+    }
     const existing = await inspect();
     throwIfCancelled();
-    if (existing.state === 'running' && !(await recreateIfSpecChanged())) {
+    if (existing.state === 'running' && !(await recreateIfSpecChanged(false))) {
       await confirmRunning();
       await ensureDesktopShortcut();
       await ensureSessionRestore();
       await ensureWorkspaceDir();
       return;
     }
-    if (existing.state === 'stopped' && !(await recreateIfSpecChanged())) {
+    if (existing.state === 'stopped' && !(await recreateIfSpecChanged(true))) {
       phase = 'starting';
       detail = '正在启动已有容器…';
       throwIfCancelled();
@@ -490,9 +605,16 @@ export function createDockerComputerProvider(
     }
     phase = 'starting';
     detail = '正在创建并启动容器…';
-    const volume = await runner.run(['docker', 'volume', 'create', config.volumeName]);
-    if (volume.code !== 0) {
-      fail(volume.stderr.trim() || 'docker volume create failed');
+    if (storage.kind === 'bind') {
+      const mk = await runner.run(['mkdir', '-p', storage.target]);
+      if (mk.code !== 0) {
+        fail(mk.stderr.trim() || `cannot prepare dataDir ${storage.target}`);
+      }
+    } else {
+      const volume = await runner.run(['docker', 'volume', 'create', config.volumeName]);
+      if (volume.code !== 0) {
+        fail(volume.stderr.trim() || 'docker volume create failed');
+      }
     }
     throwIfCancelled();
     const start = await runner.run([
@@ -524,7 +646,7 @@ export function createDockerComputerProvider(
       '-e',
       'PIXELFLUX_WAYLAND=false',
       '-v',
-      `${config.volumeName}:/config`,
+      `${storage.target}:/config`,
       config.image,
     ]);
     if (start.code !== 0) {
@@ -640,26 +762,35 @@ export function createDockerComputerProvider(
     probe: probeRuntime,
     async status(): Promise<ComputerStatus> {
       const probe = await probeRuntime();
+      const storage = resolveStorage(config, platformName);
+      const withStorage = (status: ComputerStatus): ComputerStatus => ({ ...status, storage });
       if (!probe.available) {
-        return probe.detail === undefined
-          ? { state: 'failed' }
-          : { state: 'failed', detail: probe.detail };
+        return withStorage(
+          probe.detail === undefined
+            ? { state: 'failed' }
+            : { state: 'failed', detail: probe.detail },
+        );
       }
       if (phase === 'pulling' || phase === 'starting') {
         const status: ComputerStatus = { state: 'absent', phase };
         const withProgress =
           pullProgress === undefined ? status : { ...status, progress: pullProgress };
-        return withDetail(withProgress);
+        return withStorage(withDetail(withProgress));
       }
       if (phase === 'failed') {
-        return withDetail({ state: 'failed', phase: 'failed' });
+        return withStorage(withDetail({ state: 'failed', phase: 'failed' }));
       }
       const status = await inspect();
       if (phase === 'stopping' || phase === 'exporting' || phase === 'importing') {
-        return withDetail({ ...status, phase });
+        return withStorage(withDetail({ ...status, phase }));
       }
       if (status.state === 'running') phase = 'running';
-      return status;
+      if (status.state === 'absent') return withStorage(status);
+      const hint = await migrationHint(status.state);
+      return {
+        ...status,
+        storage: hint === undefined ? storage : { ...storage, migrationHint: hint },
+      };
     },
     async start(): Promise<void> {
       if (operation !== undefined) return operation;

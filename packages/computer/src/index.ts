@@ -47,6 +47,11 @@ export interface ComputerConfig {
   language: string;
   /** Human-chosen directory that holds Computer exports; empty uses the built-in default. */
   exportDir: string;
+  /**
+   * Opt-in host directory bind-mounted at /config (Linux only); empty keeps
+   * the named volume. Changing it recreates the container without migrating data.
+   */
+  dataDir: string;
 }
 
 /** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
@@ -68,6 +73,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   language: DEFAULT_DOCKER_CONFIG.language,
   exportDir: '',
+  dataDir: '',
 };
 
 /** Runtime-editable fields; the plugin config supplies their base values. */
@@ -97,6 +103,9 @@ export const Config = Schema.object({
     .description(
       '导出目录；为空时回退到默认目录（~/Desktop/BotHarness Exports，无 Desktop 时为 ~/BotHarness Exports）',
     ),
+  dataDir: Schema.string()
+    .default(DEFAULT_CONFIG.dataDir)
+    .description('持久目录（仅 Linux 生效，bind mount 到 /config；为空时用命名卷）'),
 });
 
 /** Rejects archive names that could escape the configured export directory. */
@@ -193,6 +202,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       image: config.image,
       containerName: config.containerName,
       volumeName: config.volumeName,
+      dataDir: config.dataDir,
       hostPort: config.hostPort,
       cpus: config.cpus,
       memory: config.memory,
