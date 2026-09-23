@@ -224,6 +224,7 @@ describe('plugin entry', () => {
       remoteMethods(bridge as object).map((marker) => marker.exportName ?? marker.method),
     ).toEqual([
       'list',
+      'activitySnapshot',
       'get',
       'create',
       'update',

@@ -206,6 +206,8 @@ Assignment Request 的 `context-update`、`next-step`、`next-turn` 分别映射
 
 DSH SessionEvent 是 durable execution authority；BotHarness 不复制 tool call 或 assistant output 为第二套 Session fact。explicit Session Ownership 把 Session 归属到 PersonaBot 及 `orchestrator` / `assignment` root role，PersonaBot module 再把这些事实与 live liveness 折叠成一个可重建的 Activity Projection。Browser 首先经 Typert/API Gateway 查询 projection，随后消费带单调 revision 的 live update；revision 断档时重新查询，而不是由 Client 自己推导状态。
 
+首个 DM presence tracer（#120）由 Host 的 SessionEvent Projection 经 `botharness/activitySnapshot` Typert read method 输出 PersonaBot 聚合状态、Host generation 与单调 revision。Browser 在 Bot mode 可见时有界轮询并一次更新共享 store；置顶网格、普通 Channel 行和 DM composer 使用同一快照。Host 重启后换新 generation，并从 durable Session log 重建活动状态；live update 与断档恢复由 #121 接续。
+
 application-defined `botharness/personabot/activity` Cordis Event 在 projection 改变后以 `emit` 发出，供 Host 内的 Live2D、3D 或其他 Plugin 同步。Orchestrator 活跃时负责呈现；当它明确 `waiting-on-assignment` 时，活动来源切换为 Assignment：同类 tool kind 使用对应 effect，多类并行回退到通用 `working`。waiting、blocked、approval 与 informational attention 单独投影，不进入可配置 priority。
 
 Tool activity notification 只广播 `toolKind`、可选 `toolName`、SessionEvent reference 与 Tool 显式声明的 `publicDetail`；完整 arguments/result 由受控 Capability 按引用读取。Channel output commit 后另发 PersonaBot output notification，TTS 与说话动画消费该 public output，而不是任意 Tool 参数或尚未提交的草稿。

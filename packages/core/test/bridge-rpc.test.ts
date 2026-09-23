@@ -71,11 +71,12 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twenty-eight bridge endpoints for typert claims', () => {
+  it('marks exactly the twenty-nine bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
       'list',
+      'activitySnapshot',
       'get',
       'create',
       'update',
@@ -116,6 +117,7 @@ describe('bridge typert service', () => {
     const { service } = setup();
 
     expect(parameterNames(service.list)).toEqual(['query']);
+    expect(parameterNames(service.activitySnapshot)).toEqual([]);
     expect(parameterNames(service.get)).toEqual(['slug']);
     expect(parameterNames(service.create)).toEqual([
       'displayName',
@@ -174,6 +176,7 @@ describe('bridge typert service', () => {
     expect(registry.get('ada')).toBeDefined();
     expect(service.get('ada').bot.slug).toBe('ada');
     expect(service.list('ada').bots.map((bot) => bot.slug)).toEqual(['ada']);
+    expect(service.activitySnapshot().bots).toContainEqual({ slug: 'ada', state: 'idle' });
     expect(service.pause('ada').bot.paused).toBe(true);
     expect(service.resume('ada').bot.paused).toBeUndefined();
 

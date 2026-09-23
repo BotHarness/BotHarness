@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 export type SessionState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'done';
 
 export type AggregatedState = 'idle' | 'thinking' | 'working' | 'waiting' | 'blocked';
@@ -29,6 +31,8 @@ export interface BotStateTracker {
   setSessionState(slug: string, sessionId: string, state: SessionState): void;
   clearSession(slug: string, sessionId: string): void;
   snapshot(slug: string): BotStateSnapshot;
+  /** A new generation starts whenever the Host restarts. */
+  version(): { generation: string; revision: number };
   on(listener: (event: BotStateEvent) => void): () => void;
 }
 
@@ -52,6 +56,8 @@ export function aggregateSessionStates(sessions: Record<string, SessionState>): 
 export function createBotStateTracker(): BotStateTracker {
   const bots = new Map<string, Map<string, SessionState>>();
   const listeners = new Set<(event: BotStateEvent) => void>();
+  const generation = randomUUID();
+  let revision = 0;
 
   const sessionsOf = (slug: string): Map<string, SessionState> => {
     let sessions = bots.get(slug);
@@ -98,6 +104,7 @@ export function createBotStateTracker(): BotStateTracker {
       sessions.set(sessionId, state);
       const snapshot = snapshotOf(slug, sessions);
       if (previousState !== state) {
+        revision += 1;
         emit({ type: 'session-changed', slug, sessionId, state, snapshot });
       }
       emitAggregateIfChanged(slug, snapshot, previousAggregate);
@@ -107,12 +114,16 @@ export function createBotStateTracker(): BotStateTracker {
       if (sessions === undefined) return;
       const previousAggregate = aggregateSessionStates(toRecord(sessions));
       if (!sessions.delete(sessionId)) return;
+      revision += 1;
       const snapshot = snapshotOf(slug, sessions);
       emit({ type: 'session-removed', slug, sessionId, snapshot });
       emitAggregateIfChanged(slug, snapshot, previousAggregate);
     },
     snapshot(slug) {
       return snapshotOf(slug, bots.get(slug) ?? new Map());
+    },
+    version() {
+      return { generation, revision };
     },
     on(listener) {
       listeners.add(listener);

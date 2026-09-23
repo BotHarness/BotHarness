@@ -5,6 +5,14 @@ export type ClientMode = 'dsh' | 'bot';
 
 export type ClientStatus = 'idle' | 'loading' | 'ready' | 'error';
 
+export type PersonaBotActivityState = 'idle' | 'thinking' | 'working' | 'waiting' | 'blocked';
+
+export interface ActivitySnapshot {
+  generation: string;
+  revision: number;
+  bots: readonly { slug: string; state: PersonaBotActivityState }[];
+}
+
 export interface BotSummary {
   slug: string;
   displayName: string;
@@ -171,6 +179,7 @@ export interface RosterState {
 export interface ClientState {
   mode: ClientMode;
   bots: readonly BotSummary[];
+  activityVersion: { generation: string; revision: number } | undefined;
   channels: readonly ChannelSummary[];
   status: ClientStatus;
   error: string | undefined;
@@ -190,6 +199,7 @@ export interface ClientStore {
   setConfig(config: RosterConfig): void;
   setRosterStatus(status: ClientStatus, error: string | undefined): void;
   setRoster(bots: readonly BotSummary[], channels: readonly ChannelSummary[]): void;
+  setActivitySnapshot(snapshot: ActivitySnapshot): void;
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
@@ -244,6 +254,7 @@ export function createStore(): ClientStore {
   let state: ClientState = {
     mode: 'dsh',
     bots: [],
+    activityVersion: undefined,
     channels: [],
     status: 'idle',
     error: undefined,
@@ -255,6 +266,14 @@ export function createStore(): ClientStore {
     assignments: initialAssignments(),
   };
   const listeners = new Set<() => void>();
+  let activityBySlug: Map<string, PersonaBotActivityState> | undefined;
+  const withActivity = (bot: BotSummary): BotSummary => {
+    if (activityBySlug === undefined) return bot;
+    const aggregateState = activityBySlug.get(bot.slug);
+    return aggregateState === undefined || bot.aggregateState === aggregateState
+      ? bot
+      : { ...bot, aggregateState };
+  };
 
   const update = (patch: Partial<ClientState>): void => {
     state = { ...state, ...patch };
@@ -282,11 +301,25 @@ export function createStore(): ClientStore {
       update({ status, error });
     },
     setRoster(bots, channels) {
-      update({ bots, channels, status: 'ready', error: undefined });
+      update({ bots: bots.map(withActivity), channels, status: 'ready', error: undefined });
+    },
+    setActivitySnapshot(snapshot) {
+      const current = state.activityVersion;
+      if (current?.generation === snapshot.generation && snapshot.revision <= current.revision)
+        return;
+      activityBySlug = new Map(snapshot.bots.map((bot) => [bot.slug, bot.state]));
+      const bots = state.bots.map(withActivity);
+      update({
+        bots,
+        activityVersion: {
+          generation: snapshot.generation,
+          revision: snapshot.revision,
+        },
+      });
     },
     upsertBot(bot) {
       const existing = state.bots.filter((candidate) => candidate.slug !== bot.slug);
-      update({ bots: [bot, ...existing], status: 'ready', error: undefined });
+      update({ bots: [withActivity(bot), ...existing], status: 'ready', error: undefined });
     },
     setRosterState(patch) {
       update({ roster: { ...state.roster, ...patch } });

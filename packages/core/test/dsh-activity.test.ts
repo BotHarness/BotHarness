@@ -76,6 +76,33 @@ describe('DSH activity projection', () => {
     expect(ownership.resolve('child-of-unowned')).toBeUndefined();
   });
 
+  it('rebuilds the same owned activity after restart and ignores unowned Session facts', () => {
+    const ownership = createTestOwnership({
+      'owned-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+    });
+    const liveStates = createBotStateTracker();
+    const live = createDshActivityProjection({ ownership, states: liveStates });
+    live.handleSessionEvent('owned-1', event('tool/call'));
+    live.handleSessionEvent('unowned-1', event('tool/call'));
+    expect(liveStates.snapshot('ada').state).toBe('working');
+    expect(liveStates.version().revision).toBe(1);
+
+    const rebuiltStates = createBotStateTracker();
+    const restarted = createDshActivityProjection({ ownership, states: rebuiltStates });
+    const report = restarted.rebuild([
+      {
+        id: 'owned-1',
+        header: {},
+        snapshotEvents: () => [event('user/message'), event('tool/call')],
+      },
+      { id: 'unowned-1', header: {}, snapshotEvents: () => [event('tool/call')] },
+    ]);
+    expect(report).toEqual({ rebuilt: 1, attributed: 0, unowned: 1 });
+    expect(rebuiltStates.snapshot('ada')).toEqual(liveStates.snapshot('ada'));
+    expect(rebuiltStates.version().generation).not.toBe(liveStates.version().generation);
+    expect(rebuiltStates.version().revision).toBe(1);
+  });
+
   it('attributes lineage during a cold rebuild before deriving state', () => {
     const states = createBotStateTracker();
     const ownership = createTestOwnership({

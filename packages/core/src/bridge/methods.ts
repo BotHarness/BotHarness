@@ -51,6 +51,12 @@ export interface PersonaBotSummary {
   createdAt: string;
 }
 
+export interface PersonaBotActivitySnapshot {
+  generation: string;
+  revision: number;
+  bots: { slug: string; state: AggregatedState }[];
+}
+
 export interface PersonaBotDetail extends PersonaBotSummary {
   model?: string;
   preset?: string;
@@ -72,6 +78,7 @@ export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: Bridg
 
 export interface BridgeMethods {
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
+  activitySnapshot(payload: unknown): BridgeResult<PersonaBotActivitySnapshot>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -330,6 +337,14 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .map((record) => summarize(record, deps.states.snapshot(record.slug)));
       return { ok: true, value: { bots } };
+    },
+    activitySnapshot() {
+      const { generation, revision } = deps.states.version();
+      const bots = deps.registry.list().map((record) => ({
+        slug: record.slug,
+        state: deps.states.snapshot(record.slug).state,
+      }));
+      return { ok: true, value: { generation, revision, bots } };
     },
     get(payload) {
       const slug = asSlug(payload);
