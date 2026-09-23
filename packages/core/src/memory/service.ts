@@ -1,5 +1,7 @@
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
+import { createMemoryAcceptance, type MemoryAcceptance } from './accepted.js';
 import { inspectMemoryRepository, type MemoryRepositoryInspection } from './repository.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
 
@@ -10,10 +12,11 @@ export interface MemoryAgentRef {
 export interface MemoryServiceOptions {
   registry: PersonaBotRegistry;
   ownership: SessionOwnership;
+  database?: OperationalDatabaseOwner;
   now?: () => Date;
 }
 
-export interface MemoryService {
+export interface MemoryService extends MemoryAcceptance {
   /**
    * Resolve the Memory Repository of the PersonaBot that owns one Session.
    * Ownership is explicit; cwd, workspace membership, and UI selection never
@@ -38,6 +41,19 @@ export interface MemoryService {
 export function createMemoryService(options: MemoryServiceOptions): MemoryService {
   const { registry, ownership } = options;
   const stores = new Map<string, MemoryStore>();
+  const acceptance =
+    options.database === undefined
+      ? undefined
+      : createMemoryAcceptance({
+          registry,
+          ownership,
+          database: attachOperationalModule(options.database, 'memory'),
+          ...(options.now === undefined ? {} : { now: options.now }),
+        });
+  const requireAcceptance = (): MemoryAcceptance => {
+    if (acceptance === undefined) throw new Error('Memory acceptance storage is unavailable');
+    return acceptance;
+  };
 
   const memoryDirFor = (sessionId: string | undefined): string | undefined => {
     if (sessionId === undefined || sessionId.length === 0) return undefined;
@@ -82,6 +98,14 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
   };
 
   return {
+    prepareTurn: (botSlug, sessionId) => requireAcceptance().prepareTurn(botSlug, sessionId),
+    reconcileTurn: (input) => requireAcceptance().reconcileTurn(input),
+    abortTurn: (botSlug, sessionId) => requireAcceptance().abortTurn(botSlug, sessionId),
+    snapshot: (botSlug) => requireAcceptance().snapshot(botSlug),
+    readAccepted: (botSlug, path) => requireAcceptance().readAccepted(botSlug, path),
+    history: (botSlug, limit) => requireAcceptance().history(botSlug, limit),
+    diff: (botSlug, sha) => requireAcceptance().diff(botSlug, sha),
+    saveHuman: (input) => requireAcceptance().saveHuman(input),
     memoryDirFor,
     repositoryFor,
     personaForSession,

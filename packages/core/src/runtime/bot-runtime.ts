@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import type { MemoryService } from '../memory/service.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
@@ -176,6 +177,7 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
+  memory?: Pick<MemoryService, 'prepareTurn' | 'reconcileTurn' | 'abortTurn'>;
   /** Profile-scoped Channel attachment authority. */
   attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
@@ -346,6 +348,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
   readonly #agents: BotAgentAdapter;
+  readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
   readonly #now: () => Date;
   readonly #createSessionId: () => string;
@@ -366,6 +369,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#registry = options.registry;
     this.#channels = options.channels;
     this.#agents = options.agents;
+    this.#memory = options.memory;
     this.#attachments = options.attachments;
     this.#now = options.now ?? (() => new Date());
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
@@ -527,16 +531,27 @@ class BotRuntimeImplementation implements BotRuntime {
     inbox: string,
   ): Promise<void> {
     const markSideEffect = () => this.#markSideEffectStarted(sourceEventId);
-    await this.#agents.runOrchestrator({
-      sessionId: orchestrator.sessionId,
-      resume: orchestrator.resume,
-      bot,
-      message: body,
-      inbox,
-      inboundChannelId: channelId,
-      channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
-      assignments: this.#assignmentAccess(bot, sourceEventId),
-    });
+    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId);
+    try {
+      await this.#agents.runOrchestrator({
+        sessionId: orchestrator.sessionId,
+        resume: orchestrator.resume,
+        bot,
+        message: body,
+        inbox,
+        inboundChannelId: channelId,
+        channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
+        assignments: this.#assignmentAccess(bot, sourceEventId),
+      });
+      this.#memory?.reconcileTurn({
+        botSlug: bot.slug,
+        sessionId: orchestrator.sessionId,
+        sourceEventId,
+      });
+    } catch (error) {
+      this.#memory?.abortTurn(bot.slug, orchestrator.sessionId);
+      throw error;
+    }
   }
 
   #assignmentAccess(bot: PersonaBotRecord, sourceEventId: string): OrchestratorAssignmentAccess {

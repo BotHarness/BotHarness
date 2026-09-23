@@ -2092,6 +2092,94 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   transition: none;
 }
+.bh-memory-entry {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.bh-memory-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-memory-toolbar button,
+.bh-memory-editor button {
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 4px 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  cursor: pointer;
+}
+.bh-memory-toolbar button:hover,
+.bh-memory-editor button:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-memory-editor button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.bh-memory-files,
+.bh-memory-history {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.bh-memory-row {
+  width: 100%;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  text-align: left;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.bh-memory-row:hover {
+  background: var(--bh-hover);
+}
+.bh-memory-row-selected {
+  background: var(--bh-selected);
+}
+.bh-memory-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bh-memory-editor label,
+.bh-memory-history strong {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-memory-editor textarea {
+  width: 100%;
+  min-height: 140px;
+  resize: vertical;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font-family: var(--dsw-font-family-mono, monospace);
+  font-size: 12px;
+}
+.bh-memory-diff {
+  max-height: 240px;
+  margin: 0;
+  overflow: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+
 .bh-assignment-row {
   display: block;
   width: 100%;

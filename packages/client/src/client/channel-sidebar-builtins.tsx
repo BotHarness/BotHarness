@@ -6,6 +6,7 @@ import { PersonaBotAvatar } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
+import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary } from './store.js';
@@ -128,6 +129,13 @@ export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
 ): readonly ChannelSidebarEntry[] {
   return [
+    {
+      id: 'memory',
+      label: t('entry.memory'),
+      order: 5,
+      scope: 'personabot',
+      component: MemoryEntry,
+    },
     {
       id: 'assignments',
       label: t('entry.assignments'),

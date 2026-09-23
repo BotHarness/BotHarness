@@ -690,3 +690,103 @@ export async function setRosterHidden(
 ): Promise<void> {
   await unwrap(call, 'hiddenSet', { hidden }, signal);
 }
+
+export interface MemoryAcceptedCommit {
+  botSlug: string;
+  sha: string;
+  parentSha: string | null;
+  actorKind: 'agent' | 'human' | 'system';
+  actorId: string;
+  causeKind: 'source-event' | 'human-edit' | 'repository-init';
+  causeId: string;
+  validationResult: string;
+  acceptedAt: string;
+}
+
+export interface MemorySnapshot {
+  head: string | null;
+  files: string[];
+  provisional: boolean;
+}
+
+function parseMemoryCommit(value: unknown): MemoryAcceptedCommit {
+  const row = asRecord(value);
+  if (
+    row === undefined ||
+    typeof row['botSlug'] !== 'string' ||
+    typeof row['sha'] !== 'string' ||
+    !(row['parentSha'] === null || typeof row['parentSha'] === 'string') ||
+    !['agent', 'human', 'system'].includes(String(row['actorKind'])) ||
+    typeof row['actorId'] !== 'string' ||
+    !['source-event', 'human-edit', 'repository-init'].includes(String(row['causeKind'])) ||
+    typeof row['causeId'] !== 'string' ||
+    typeof row['validationResult'] !== 'string' ||
+    typeof row['acceptedAt'] !== 'string'
+  )
+    throw new Error('invalid accepted Memory Commit');
+  return row as unknown as MemoryAcceptedCommit;
+}
+
+export async function loadMemorySnapshot(
+  call: BridgeCall,
+  channelId: string,
+): Promise<MemorySnapshot> {
+  const response = asRecord(await unwrap(call, 'memorySnapshot', { channelId }));
+  const snapshot = asRecord(response?.['snapshot']);
+  if (
+    snapshot === undefined ||
+    !(snapshot['head'] === null || typeof snapshot['head'] === 'string') ||
+    !Array.isArray(snapshot['files']) ||
+    !snapshot['files'].every((path) => typeof path === 'string') ||
+    typeof snapshot['provisional'] !== 'boolean'
+  )
+    throw new Error('invalid Memory snapshot');
+  return snapshot as unknown as MemorySnapshot;
+}
+
+export async function loadMemoryFile(
+  call: BridgeCall,
+  channelId: string,
+  path: string,
+): Promise<{ path: string; body: string; head: string } | undefined> {
+  const response = asRecord(await unwrap(call, 'memoryFile', { channelId, path }));
+  if (response?.['file'] === undefined) return undefined;
+  const file = asRecord(response?.['file']);
+  if (
+    typeof file?.['path'] !== 'string' ||
+    typeof file['body'] !== 'string' ||
+    typeof file['head'] !== 'string'
+  )
+    throw new Error('invalid Memory file');
+  return file as { path: string; body: string; head: string };
+}
+
+export async function loadMemoryHistory(
+  call: BridgeCall,
+  channelId: string,
+): Promise<MemoryAcceptedCommit[]> {
+  const response = asRecord(await unwrap(call, 'memoryHistory', { channelId }));
+  const commits = response?.['commits'];
+  if (!Array.isArray(commits)) throw new Error('invalid Memory history');
+  return commits.map(parseMemoryCommit);
+}
+
+export async function loadMemoryDiff(
+  call: BridgeCall,
+  channelId: string,
+  sha: string,
+): Promise<string> {
+  const response = asRecord(await unwrap(call, 'memoryDiff', { channelId, sha }));
+  if (response?.['sha'] !== sha || typeof response['diff'] !== 'string') {
+    throw new Error('invalid Memory diff');
+  }
+  return response['diff'];
+}
+
+export async function saveMemoryFile(
+  call: BridgeCall,
+  input: { channelId: string; path: string; body: string; expectedHead: string; editId: string },
+): Promise<MemoryAcceptedCommit> {
+  const response = asRecord(await unwrap(call, 'memorySave', input));
+  return parseMemoryCommit(response?.['commit']);
+}
