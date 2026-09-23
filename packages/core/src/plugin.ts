@@ -30,7 +30,11 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
-import { createWorkspaceGrantStore, type DshWorkspaceLookup, type WorkspaceGrantStore } from './workspaces/grants.js';
+import {
+  createWorkspaceGrantStore,
+  type DshWorkspaceLookup,
+  type WorkspaceGrantStore,
+} from './workspaces/grants.js';
 import {
   createDshBotAgentAdapter,
   type DshAgentPresetHost,
@@ -177,7 +181,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
     defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
-    defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,

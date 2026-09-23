@@ -472,7 +472,8 @@ export const en = {
   'memory.diff': 'Commit diff',
   'entry.assignments': 'Assignments',
   'entry.workspaceGrants': 'Workspace Grants',
-  'grant.safeDefault': 'New Assignments can write only in their selected workspace. The Orchestrator can write only in its Memory Repository.',
+  'grant.safeDefault':
+    'New Assignments can write only in their selected workspace. The Orchestrator can write only in its Memory Repository.',
   'grant.loading': 'Loading workspaces…',
   'grant.noBot': 'Select a PersonaBot first.',
   'grant.noWorkspace': 'No DSH Workspaces yet. Add a Workspace in DSH first.',

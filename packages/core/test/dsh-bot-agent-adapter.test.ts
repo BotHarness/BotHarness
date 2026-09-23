@@ -20,7 +20,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       resolveAgentPresets: () => ({
@@ -67,7 +66,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: () => undefined,
@@ -111,7 +109,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
@@ -144,7 +141,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: (path) => void preparedWorkspaces.push(path),
@@ -293,7 +289,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
@@ -336,7 +331,6 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
       orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
       publishDraft: (event) => {

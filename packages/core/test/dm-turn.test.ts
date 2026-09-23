@@ -2,6 +2,7 @@ import { Context } from '@deepseek-ai/cordis';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { apply, type BotHarnessCore } from '../src/index.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { FakeAgentHost } from './dsh-agent-host-fixture.js';
 import { createTempRoot } from './helpers.js';
 
@@ -27,6 +28,7 @@ interface Harness {
 }
 
 function startHarness(): Harness {
+  const dshHome = process.env['DSH_HOME'] ?? '';
   const ctx = new Context();
   contexts.push(ctx);
   const host = new FakeAgentHost(
@@ -41,6 +43,20 @@ function startHarness(): Harness {
   ctx.provide('systemPrompt', { section: () => () => undefined });
   ctx.provide('sessions', { list: () => host.sessions });
   ctx.provide('agents', host as never);
+  ctx.provide('workspaceRegistry', {
+    get: (id: string) =>
+      id === 'test-workspace'
+        ? { id, path: dshHome, title: 'Test Workspace', status: async () => 'ok' as const }
+        : undefined,
+    list: () => [
+      {
+        id: 'test-workspace',
+        path: dshHome,
+        title: 'Test Workspace',
+        status: async () => 'ok' as const,
+      },
+    ],
+  } as never);
   ctx.provide('agentDefaultModel', {
     currentSelection: () => ({ provider: 'test', model: 'test' }),
   });
@@ -48,7 +64,24 @@ function startHarness(): Harness {
   apply(ctx, { enabled: true });
   const core = ctx.get('botharness') as BotHarnessCore | undefined;
   if (core === undefined) throw new Error('core was not provided');
-  return { ctx, host, core, dshHome: process.env['DSH_HOME'] ?? '' };
+  attachOperationalModule(core.operationalDatabase, 'dm-turn-grant-fixture').transaction(
+    (database) => {
+      database
+        .prepare(`INSERT OR IGNORE INTO workspace_grants
+      (id, bot_slug, workspace_id, workspace_path, workspace_title, created_at)
+      VALUES (?, ?, ?, ?, ?, ?)`)
+        .run(
+          'grant-1',
+          'ada',
+          'test-workspace',
+          dshHome,
+          'Test Workspace',
+          '2026-09-21T00:00:00.000Z',
+        );
+    },
+    ['workspace-grants'],
+  );
+  return { ctx, host, core, dshHome };
 }
 
 async function admitTurn(
@@ -106,10 +139,28 @@ describe('DM turn end to end', () => {
       'standard',
       'standard',
     ]);
+    expect(host.createOptions.map((options) => options.meta?.cwd)).toEqual([
+      `${dshHome}/botharness/bots/ada/memory`,
+      dshHome,
+    ]);
+    for (const session of host.sessions) {
+      expect(session.snapshotEvents(0, 2).map((event) => [event.type, event.data])).toEqual([
+        ['sandbox/mode', { mode: 'workspace-write' }],
+        ['approval/policy', { policy: 'ask' }],
+      ]);
+    }
 
     expect(core.runtime.listAssignments('ada')).toEqual([
       expect.objectContaining({
         purpose: '核对发布状态',
+        permission: {
+          grantId: 'grant-1',
+          workspaceId: 'test-workspace',
+          primaryCwd: dshHome,
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
         latestReport: expect.objectContaining({ state: 'completed', summary: '发布状态正常' }),
       }),
     ]);

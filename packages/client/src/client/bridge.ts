@@ -340,7 +340,8 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
   const latestReport = parseAssignmentReport(record['latestReport']);
   const permissionRecord = asRecord(record['permission']);
-  const permission = permissionRecord !== undefined &&
+  const permission =
+    permissionRecord !== undefined &&
     typeof permissionRecord['grantId'] === 'string' &&
     typeof permissionRecord['workspaceId'] === 'string' &&
     typeof permissionRecord['primaryCwd'] === 'string' &&
@@ -604,21 +605,36 @@ export interface WorkspaceGrantView extends WorkspaceOption {
 
 function parseWorkspaceOption(value: unknown): WorkspaceOption | undefined {
   const row = asRecord(value);
-  if (row === undefined || typeof row['id'] !== 'string' ||
-      typeof row['path'] !== 'string' || typeof row['title'] !== 'string') return undefined;
+  if (
+    row === undefined ||
+    typeof row['id'] !== 'string' ||
+    typeof row['path'] !== 'string' ||
+    typeof row['title'] !== 'string'
+  )
+    return undefined;
   return { id: row['id'], path: row['path'], title: row['title'] };
 }
 
 function parseWorkspaceGrant(value: unknown): WorkspaceGrantView | undefined {
   const row = asRecord(value);
-  if (row === undefined || typeof row['id'] !== 'string' ||
-      typeof row['botSlug'] !== 'string' || typeof row['workspaceId'] !== 'string' ||
-      typeof row['workspacePath'] !== 'string' || typeof row['workspaceTitle'] !== 'string' ||
-      typeof row['createdAt'] !== 'string') return undefined;
+  if (
+    row === undefined ||
+    typeof row['id'] !== 'string' ||
+    typeof row['botSlug'] !== 'string' ||
+    typeof row['workspaceId'] !== 'string' ||
+    typeof row['workspacePath'] !== 'string' ||
+    typeof row['workspaceTitle'] !== 'string' ||
+    typeof row['createdAt'] !== 'string'
+  )
+    return undefined;
   return {
-    id: row['id'], path: row['workspacePath'], title: row['workspaceTitle'],
-    botSlug: row['botSlug'], workspaceId: row['workspaceId'],
-    workspacePath: row['workspacePath'], workspaceTitle: row['workspaceTitle'],
+    id: row['id'],
+    path: row['workspacePath'],
+    title: row['workspaceTitle'],
+    botSlug: row['botSlug'],
+    workspaceId: row['workspaceId'],
+    workspacePath: row['workspacePath'],
+    workspaceTitle: row['workspaceTitle'],
     createdAt: row['createdAt'],
     ...(typeof row['revokedAt'] === 'string' ? { revokedAt: row['revokedAt'] } : {}),
   };
@@ -633,7 +649,10 @@ export async function loadWorkspaceOptions(call: BridgeCall): Promise<WorkspaceO
   });
 }
 
-export async function loadWorkspaceGrants(call: BridgeCall, slug: string): Promise<WorkspaceGrantView[]> {
+export async function loadWorkspaceGrants(
+  call: BridgeCall,
+  slug: string,
+): Promise<WorkspaceGrantView[]> {
   const rows = asRecord(await unwrap(call, 'grants', { slug }))?.['grants'];
   if (!Array.isArray(rows)) throw new Error('invalid grants response');
   return rows.flatMap((row) => {
@@ -642,14 +661,22 @@ export async function loadWorkspaceGrants(call: BridgeCall, slug: string): Promi
   });
 }
 
-export async function createWorkspaceGrant(call: BridgeCall, slug: string, workspaceId: string): Promise<WorkspaceGrantView> {
+export async function createWorkspaceGrant(
+  call: BridgeCall,
+  slug: string,
+  workspaceId: string,
+): Promise<WorkspaceGrantView> {
   const value = asRecord(await unwrap(call, 'grantCreate', { slug, workspaceId }))?.['grant'];
   const grant = parseWorkspaceGrant(value);
   if (grant === undefined) throw new Error('invalid grantCreate response');
   return grant;
 }
 
-export async function revokeWorkspaceGrant(call: BridgeCall, slug: string, grantId: string): Promise<WorkspaceGrantView> {
+export async function revokeWorkspaceGrant(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<WorkspaceGrantView> {
   const value = asRecord(await unwrap(call, 'grantRevoke', { slug, grantId }))?.['grant'];
   const grant = parseWorkspaceGrant(value);
   if (grant === undefined) throw new Error('invalid grantRevoke response');
