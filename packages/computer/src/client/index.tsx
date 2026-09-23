@@ -17,7 +17,13 @@ import {
   stopKey,
   type FramePhase,
 } from './viewer-state.js';
-import { nextStreamTracker, sampleSurface, type StreamTracker } from './frame-liveness.js';
+import {
+  nextStreamTracker,
+  sampleSurface,
+  shouldAutoReload,
+  shouldRemountLoss,
+  type StreamTracker,
+} from './frame-liveness.js';
 import {
   LOCALE_NS,
   PHASE_LABEL,
@@ -196,7 +202,7 @@ function useStreamPhase(iframeRef: RefObject<HTMLIFrameElement>, epoch: number):
   useEffect(() => {
     setPhase('connecting');
     let cancelled = false;
-    let tracker: StreamTracker = { misses: 0, quiet: 0 };
+    let tracker: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = (): void => {
       if (cancelled) return;
@@ -547,6 +553,8 @@ function RunningCard({
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
+  const autoReloads = useRef(0);
+  const lossStreak = useRef(0);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
   const phase = useStreamPhase(frameRef, reloadKey);
@@ -557,20 +565,34 @@ function RunningCard({
     setReloadKey((key) => key + 1);
   };
 
-  // A stream that disappears after being live (closed session, dropped socket)
-  // remounts the viewer so it reconnects on its own.
+  // A stream that disappears after being live remounts the viewer — but only
+  // once the loss persists, so a single missed tick (GC pause, slow frame)
+  // never restarts the whole SPA mid-negotiation.
   useEffect(() => {
     if (live) {
       wasReady.current = true;
+      autoReloads.current = 0;
+      lossStreak.current = 0;
       setReconnecting(false);
       return;
     }
-    if (wasReady.current) {
-      wasReady.current = false;
-      setReconnecting(true);
-      setReloadKey((key) => key + 1);
-    }
+    if (!wasReady.current) return;
+    lossStreak.current += 1;
+    if (!shouldRemountLoss(lossStreak.current)) return;
+    wasReady.current = false;
+    lossStreak.current = 0;
+    setReconnecting(true);
+    setReloadKey((key) => key + 1);
   }, [live]);
+
+  // A document that never went live most likely failed its first load while
+  // the server was still booting — remount a bounded number of times, then
+  // leave the manual retry.
+  useEffect(() => {
+    if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+    autoReloads.current += 1;
+    setReloadKey((key) => key + 1);
+  }, [phase]);
 
   useEffect(() => {
     if (!expanded) return () => {};

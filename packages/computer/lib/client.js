@@ -142,11 +142,29 @@ window.__ModuleLoader__.load({
           };
     }
     /**
+     * Remount the viewer after a loss only once the loss persists: a single
+     * missed tick (GC pause, slow first frame) must not restart the whole SPA —
+     * that churn is what kept post-start sessions from ever settling.
+     */
+    function shouldRemountLoss(lossStreak) {
+      return lossStreak >= 3;
+    }
+    /**
+     * Remount a bounded number of times when the document never went live at
+     * all: the first load most likely failed while the server was still booting
+     * (proxy 503/connection-refused serves a dead error page no tick can
+     * recover). Beyond the bound the manual retry stays.
+     */
+    function shouldAutoReload(phase, everLive, attempts) {
+      return phase === 'empty' && !everLive && attempts < 3;
+    }
+    /**
      * Projects one tick into the overlay phase:
-     * - unsized or upstream-busy ticks never go live (busy misses still age
-     *   toward empty, so a stuck connecting screen gets a retry); the pixel
-     *   baseline is preserved across them, so a change that arrived while vetoed
-     *   still counts once the veto clears;
+     * - unsized ticks never go live and age the miss budget (a dead first
+     *   document reaches empty fast, where auto-reload can rescue it);
+     * - upstream-busy ticks never go live but age a separate, patient budget, so
+     *   post-start negotiation flapping rides in connecting instead of forcing a
+     *   manual retry; the pixel baseline is preserved across them;
      * - a changed signature goes live immediately (second tick at the latest);
      * - unreadable pixels degrade to the old sized-only signal;
      * - a quiet, sized, static surface goes live after QUIET_TOLERANCE (a real
@@ -154,17 +172,32 @@ window.__ModuleLoader__.load({
      */
     function nextStreamTracker(prev, sample) {
       const signature = sample.signature;
-      if (!sample.sized || sample.busy) {
+      if (!sample.sized) {
         const misses = prev.misses + 1;
+        return {
+          tracker: withSignature(
+            {
+              misses,
+              busyStreak: 0,
+              quiet: 0,
+            },
+            signature,
+          ),
+          phase: misses >= 6 ? 'empty' : 'connecting',
+        };
+      }
+      if (sample.busy) {
+        const busyStreak = prev.busyStreak + 1;
         return {
           tracker: withPreviousSignature(
             {
-              misses,
+              misses: prev.misses,
+              busyStreak,
               quiet: 0,
             },
             prev,
           ),
-          phase: misses >= 6 ? 'empty' : 'connecting',
+          phase: busyStreak >= 30 ? 'empty' : 'connecting',
         };
       }
       if (signature !== void 0 && prev.lastSignature !== void 0 && signature !== prev.lastSignature)
@@ -172,6 +205,7 @@ window.__ModuleLoader__.load({
           tracker: withSignature(
             {
               misses: 0,
+              busyStreak: 0,
               quiet: 0,
             },
             signature,
@@ -182,6 +216,7 @@ window.__ModuleLoader__.load({
         return {
           tracker: {
             misses: 0,
+            busyStreak: 0,
             quiet: 0,
           },
           phase: 'live',
@@ -192,6 +227,7 @@ window.__ModuleLoader__.load({
           tracker: withSignature(
             {
               misses: 6,
+              busyStreak: 0,
               quiet,
             },
             signature,
@@ -203,6 +239,7 @@ window.__ModuleLoader__.load({
           tracker: withSignature(
             {
               misses: 0,
+              busyStreak: 0,
               quiet,
             },
             signature,
@@ -212,7 +249,8 @@ window.__ModuleLoader__.load({
       return {
         tracker: withSignature(
           {
-            misses: prev.misses + 1,
+            misses: prev.misses,
+            busyStreak: 0,
             quiet,
           },
           signature,
@@ -1085,6 +1123,7 @@ window.__ModuleLoader__.load({
         let cancelled = false;
         let tracker = {
           misses: 0,
+          busyStreak: 0,
           quiet: 0,
         };
         let timer;
@@ -1434,6 +1473,8 @@ window.__ModuleLoader__.load({
       const [reloadKey, setReloadKey] = (0, react.useState)(0);
       const [reconnecting, setReconnecting] = (0, react.useState)(false);
       const wasReady = (0, react.useRef)(false);
+      const autoReloads = (0, react.useRef)(0);
+      const lossStreak = (0, react.useRef)(0);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
       const phase = useStreamPhase(frameRef, reloadKey);
       const live = phase === 'live';
@@ -1444,15 +1485,24 @@ window.__ModuleLoader__.load({
       (0, react.useEffect)(() => {
         if (live) {
           wasReady.current = true;
+          autoReloads.current = 0;
+          lossStreak.current = 0;
           setReconnecting(false);
           return;
         }
-        if (wasReady.current) {
-          wasReady.current = false;
-          setReconnecting(true);
-          setReloadKey((key) => key + 1);
-        }
+        if (!wasReady.current) return;
+        lossStreak.current += 1;
+        if (!shouldRemountLoss(lossStreak.current)) return;
+        wasReady.current = false;
+        lossStreak.current = 0;
+        setReconnecting(true);
+        setReloadKey((key) => key + 1);
       }, [live]);
+      (0, react.useEffect)(() => {
+        if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+        autoReloads.current += 1;
+        setReloadKey((key) => key + 1);
+      }, [phase]);
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {

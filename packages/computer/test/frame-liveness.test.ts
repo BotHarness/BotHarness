@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  BUSY_EMPTY_AFTER,
   EMPTY_AFTER_MISSES,
+  LOSS_REMOUNT_AFTER,
+  MAX_AUTO_RELOAD,
   QUIET_ABANDON,
   QUIET_TOLERANCE,
   hashBytes,
   nextStreamTracker,
   sampleSurface,
+  shouldAutoReload,
+  shouldRemountLoss,
   upstreamBusy,
   type StreamSample,
   type StreamTracker,
@@ -17,6 +22,15 @@ function statusElement(text: string, hidden: boolean): unknown {
     textContent: text,
     classList: { contains: (name: string): boolean => (name === 'hidden' ? hidden : false) },
   };
+}
+
+function fakeContext(pixels: number[], contextNull: boolean | undefined): unknown {
+  return contextNull === true
+    ? null
+    : {
+        drawImage: () => undefined,
+        getImageData: () => ({ data: new Uint8ClampedArray(pixels) }),
+      };
 }
 
 function stubDoc(options: {
@@ -33,13 +47,7 @@ function stubDoc(options: {
         if (canvasWidth === undefined) return null;
         return {
           width: canvasWidth,
-          getContext: () =>
-            contextNull === true
-              ? null
-              : {
-                  drawImage: () => undefined,
-                  getImageData: () => ({ data: new Uint8ClampedArray(pixels ?? [0]) }),
-                },
+          getContext: () => fakeContext(pixels ?? [0], contextNull),
         };
       }
       if (id === 'status-display') {
@@ -53,19 +61,13 @@ function stubDoc(options: {
       return {
         width: 0,
         height: 0,
-        getContext: () =>
-          contextNull === true
-            ? null
-            : {
-                drawImage: () => undefined,
-                getImageData: () => ({ data: new Uint8ClampedArray(pixels ?? [0]) }),
-              },
+        getContext: () => fakeContext(pixels ?? [0], contextNull),
       };
     },
   } as unknown as Document;
 }
 
-const FRESH: StreamTracker = { misses: 0, quiet: 0 };
+const FRESH: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
 
 function tick(
   tracker: StreamTracker,
@@ -158,19 +160,23 @@ describe('nextStreamTracker', () => {
     }
     const empty = tick(tracker, { sized: false, busy: false });
     expect(empty.phase).toBe('empty');
+    // A quiet tick keeps its own budget — the unsized misses stay put.
     const live = tick(empty.tracker, { sized: true, busy: false, signature: 2 });
     expect(live.phase).toBe('connecting');
-    expect(live.tracker.misses).toBe(EMPTY_AFTER_MISSES + 1);
+    expect(live.tracker.misses).toBe(EMPTY_AFTER_MISSES);
+    expect(live.tracker.quiet).toBe(1);
   });
 
-  it('never goes live while the upstream reports busy', () => {
+  it('never goes live while the upstream reports busy, then ages out patiently', () => {
     let tracker: StreamTracker = FRESH;
-    for (let index = 0; index < EMPTY_AFTER_MISSES + 2; index += 1) {
+    for (let index = 1; index <= BUSY_EMPTY_AFTER; index += 1) {
       const next = tick(tracker, { sized: true, busy: true, signature: index });
       tracker = next.tracker;
-      if (index < EMPTY_AFTER_MISSES - 1) expect(next.phase).toBe('connecting');
+      if (index < BUSY_EMPTY_AFTER) expect(next.phase).toBe('connecting');
     }
-    expect(tracker.misses).toBe(EMPTY_AFTER_MISSES + 2);
+    expect(tracker.busyStreak).toBe(BUSY_EMPTY_AFTER);
+    // Busy ticks never consume the unsized budget.
+    expect(tracker.misses).toBe(0);
     expect(tick(tracker, { sized: true, busy: true, signature: 99 }).phase).toBe('empty');
   });
 
@@ -179,8 +185,7 @@ describe('nextStreamTracker', () => {
     expect(first.phase).toBe('connecting');
     const second = tick(first.tracker, { sized: true, busy: false, signature: 11 });
     expect(second.phase).toBe('live');
-    expect(second.tracker.misses).toBe(0);
-    expect(second.tracker.quiet).toBe(0);
+    expect(second.tracker).toMatchObject({ misses: 0, busyStreak: 0, quiet: 0 });
   });
 
   it('grants a quiet static desktop live after the tolerance, then gives up', () => {
@@ -212,10 +217,28 @@ describe('nextStreamTracker', () => {
     const quiet = tick(FRESH, { sized: true, busy: false, signature: 1 });
     const vetoed = tick(quiet.tracker, { sized: true, busy: true, signature: 2 });
     expect(vetoed.tracker.lastSignature).toBe(1);
+    expect(vetoed.tracker.busyStreak).toBe(1);
     // The same picture after the veto clears keeps counting quiet ticks…
     const settled = tick(vetoed.tracker, { sized: true, busy: false, signature: 1 });
     expect(settled.phase).toBe('connecting');
     // …while a genuinely new frame goes live at once.
     expect(tick(vetoed.tracker, { sized: true, busy: false, signature: 3 }).phase).toBe('live');
+  });
+});
+
+describe('remount guards', () => {
+  it('auto-reloads a never-live empty document a bounded number of times', () => {
+    expect(shouldAutoReload('empty', false, 0)).toBe(true);
+    expect(shouldAutoReload('empty', false, MAX_AUTO_RELOAD - 1)).toBe(true);
+    expect(shouldAutoReload('empty', false, MAX_AUTO_RELOAD)).toBe(false);
+    expect(shouldAutoReload('empty', true, 0)).toBe(false);
+    expect(shouldAutoReload('connecting', false, 0)).toBe(false);
+    expect(shouldAutoReload('live', false, 0)).toBe(false);
+  });
+
+  it('remounts after a loss only once it persists', () => {
+    expect(shouldRemountLoss(0)).toBe(false);
+    expect(shouldRemountLoss(LOSS_REMOUNT_AFTER - 1)).toBe(false);
+    expect(shouldRemountLoss(LOSS_REMOUNT_AFTER)).toBe(true);
   });
 });
