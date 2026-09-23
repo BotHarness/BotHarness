@@ -17,7 +17,12 @@ import { homedir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { devSecretEnvironment, devSecretInstructions, resolveDevSecret } from './dev-secret.mjs';
+import {
+  devSecretEnvironment,
+  devSecretInstructions,
+  profileDeepSeekCredential,
+  resolveDevSecret,
+} from './dev-secret.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -172,9 +177,10 @@ async function verifyPluginLayer(url, options) {
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const secret = resolveDevSecret();
-  if (secret === undefined) console.error(devSecretInstructions());
   mkdirSync(options.home, { recursive: true });
   const profileDir = ensureProfile(options);
+  const profileCredential = profileDeepSeekCredential(options.home) !== undefined;
+  if (secret === undefined && !profileCredential) console.error(devSecretInstructions());
   const { logPath } = launch(options, profileDir);
   const url = await waitForToken(logPath);
   const health = await verifyPluginLayer(url, options);
@@ -183,7 +189,11 @@ async function main() {
     log: logPath,
     home: options.home,
     worktree: options.worktree,
-    secret: secret?.source ?? 'missing (model calls will fail)',
+    secret:
+      secret?.source ??
+      (profileCredential
+        ? 'DSH profile credentials (verify with a real model call)'
+        : 'missing (model calls will fail)'),
     health,
     stop: `pkill -f "dsh --profile ${options.profile} --port ${options.port}"`,
   };

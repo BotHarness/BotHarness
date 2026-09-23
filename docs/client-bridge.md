@@ -2,9 +2,9 @@
 
 | 项       | 内容                                                                                                                                                                             |
 | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本     | v0.6（新增七个 roster 桥方法与 `storage-unavailable` 错误码，#66）                                                                                                               |
-| 日期     | 2026-09-20                                                                                                                                                                       |
-| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法 + `sessions` + 七个 roster 方法）                                                                         |
+| 版本     | v0.7（Roster 多选经单次 `rosterBatch` 提交，#215）                                                                                                                               |
+| 日期     | 2026-09-23                                                                                                                                                                       |
+| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法 + `sessions` + 十个 roster 方法）                                                                         |
 | 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/client` ↔ `@botharness/core` 的读模型契约                                                                                 |
 | 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）及其 2026-09-19 更新、ADR-0029 / ADR-0030（Channel 与本地 NDJSON 历史）、ADR-0034（持久化地图与主客分界，#66 落地陈列迁 Host） |
 | 设计权威 | `docs/architecture/botharness-architecture.md`；取舍与理由见相关 ADR                                                                                                             |
@@ -64,6 +64,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | `botharness/topReorder`      | `{ order }`                                                                                          | `{ topOrder }`                                                                  | section block 与未分组 Channel 的绝对混排；未知 id 丢弃、单一归属保持                             |
 | `botharness/pinsSet`         | `{ pins }`                                                                                           | `{ pins }`                                                                      | 置顶 Channel ID 列表；去重                                                                        |
 | `botharness/hiddenSet`       | `{ hidden }`                                                                                         | `{ hidden }`                                                                    | 隐藏 Channel ID 列表；去重；不改 pin、section 或 topOrder                                         |
+| `botharness/rosterBatch`     | `{ action, channelIds, sectionId? }`                                                                 | `RosterSnapshot`                                                                | 一次处理 1–100 个不同 Channel；pin/unpin/hide/move；move 可指定分组或未分组；一次完成通知         |
 
 `ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (PersonaBot IDs) / botSlug? (dm；当前 wire 键) / createdAt / updatedAt`；`ChannelListItem` 在它之上附加可选 `latestMessage`，由现有消息权威读取并投影给折叠 rail，不写回 `channel.json`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。当前 M3 bridge 仍以每 Channel 的 `messages.ndjson` 作为历史权威，只读写本地文件、不做投递，群聊暂不写 BOT 回复（v1.1 Channel 工具）；这是迁移前的实现事实，不是新架构终态。ADR-0037 与 #79/#80 会将 Messaging operational facts 单向迁入 `botharness.db`，迁移后不双写 NDJSON。`before` 是消息 id 游标：返回比该消息更旧的一页。
 
@@ -76,7 +77,9 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 `PersonaBotSummary` 含 `slug（内部 PersonaBot ID 的当前 wire 键）/ displayName / roles[] / description? / avatar? / paused? / aggregateState / workspaces / createdAt`；`PersonaBotDetail` 追加 `model? / preset? / memoryDir? / sessions`。`aggregateState` 为五态聚合，六态是客户端展示派生。委派（delegate）与记忆编辑不在已实现面：前者依赖工位会话，后者复用 `memory_*` 工具语义后另行补方法。
 
-`RosterSection` 含 `id / name / channelIds`（数组序 = 显示顺序）；`RosterSnapshot` 含 `pins / hidden / sectionOrder / topOrder? / sections`，其中 `pins` 与 `hidden` 的 canonical identifier 都是 Channel ID。陈列的权威是 Host storage 域 `botharness_roster`（json 后端、`version 1`、`layout: single`；global `{ pins, hidden?, sectionOrder, topOrder? }` + `sections` 表，ADR-0034），客户端不碰 Host 文件或 `ctx.storage`；各方法每次写入返回即已落盘，客户端写后重拉 `rosterGet`（不做乐观状态），旧 `roster.json` 只作一次性迁移源。隐藏只改变 roster navigation；恢复沿用未被改写的 pin/section/order。排序偏好不在本桥（#68 `ui-bot-mode` settings），折叠状态留浏览器本地。
+`RosterSection` 含 `id / name / channelIds`（数组序 = 显示顺序）；`RosterSnapshot` 含 `pins / hidden / sectionOrder / topOrder? / sections`，其中 `pins` 与 `hidden` 的 canonical identifier 都是 Channel ID。陈列的权威是 Host storage 域 `botharness_roster`（json 后端、`version 1`、`layout: single`；global `{ pins, hidden?, sectionOrder, topOrder? }` + `sections` 表，ADR-0034），客户端不碰 Host 文件或 `ctx.storage`；各方法每次写入返回即已落盘；单项写入后客户端重拉 `rosterGet`，多选使用 `rosterBatch` 返回的最终快照一次更新 UI（不做逐项乐观状态）。当前 storage-domain 不支持跨 section 记录的事务，批量移组会按受影响 section 各写一次，但只在整个 Host 命令完成后发出 roster 完成通知；失败时客户端重查快照，旧 `roster.json` 只作一次性迁移源。隐藏只改变 roster navigation；恢复沿用未被改写的 pin/section/order。排序偏好不在本桥（#68 `ui-bot-mode` settings），折叠状态留浏览器本地。
+
+置顶格按 `pins` 保存手动顺序，排序偏好使用 `ui-bot-mode.sortModes.pinned`；缺省时继承全局 `sortMode`。从置顶格拖动至另一置顶卡片时，仅调用一次 `pinsSet` 重排完整 Channel ID 列表，不改变置顶集合；Host 写入成功后再切换该 scope 为手动排序，并重读权威 roster。
 
 ## 4. 刷新与变更模型
 
@@ -114,11 +117,12 @@ M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实
 - **迭代客户端**：改 `packages/client` 后跑根 `pnpm build`，产出新的 `lib/client.js`；`dsh-client-hmr` 检测 bundle 字节变化（`ClientModuleRegistry.rebuilt` 重哈希 → revision 变化 → 推送新入口图），浏览器自动换新。仅 sourcemap 变化不触发重载。
 - **迭代 Host**：Cordis 插件注册都走 `ctx.effect`，vendored HMR 直接生效，无需重启。
 - **参考**：client-modules（bundle 路由、revision、`onRebuilt`/`onGraphChanged`）；extension-cookbook（plugin hot-reload）。
-- **Agent 一键实例**：`node scripts/dev-instance.mjs --home ~/.dsh-<name> --port <port> [--worktree <path>] [--build]` 自动完成「建 profile → 链接该 worktree 的包 → pnpm install → 注入机器级 `DEEPSEEK_API_KEY` → 后台启动 → 等待 token URL → 探测 `/api` 健康」，适合并行 worktree/端口/token 互不干扰；密钥来源与优先级见 `scripts/dev-secret.mjs`（env > `~/.config/botharness/dev.env` > macOS Keychain）。
+- **Agent 一键实例**：`node scripts/dev-instance.mjs --home ~/.dsh-<name> --port <port> [--worktree <path>] [--build]` 自动完成「建 profile → 链接该 worktree 的包 → pnpm install → 后台启动 → 等待 token URL → 探测 `/api` 健康」，适合并行 worktree/端口/token 互不干扰。若存在机器级共享密钥，会按 env > `~/.config/botharness/dev.env` > macOS Keychain 的顺序注入；否则 DSH 仍可从该 profile 的 `$DSH_HOME/.credentials.yaml` 读取密钥。启动摘要只报告检测到的来源，不代表模型请求已成功；判断可用性须实测一条真实 DM → 模型 → Channel 回复。
+- **共享测试密钥（一次）**：若已有一个可用的 DSH profile，先运行 `node scripts/dev-secret.mjs adopt-profile --home <该 profile 的 DSH_HOME>`。命令只从该 profile 的受保护 `.credentials.yaml` 提取 `DEEPSEEK_API_KEY`，以仅创建、不覆盖的方式写入本机 `~/.config/botharness/dev.env`（目录 0700、文件 0600），不打印密钥、不复制其他凭据。此后用 `dev-instance.mjs` 启动的每个新隔离 profile 都会自动继承该密钥；单次运行可用进程环境变量覆盖。直接运行 `dsh web` 不经过 AX 启动器，仍需继承环境变量或使用该 profile 自身的凭据。若共享文件权限过宽，启动器会拒绝读取；`node scripts/dev-secret.mjs check` 仅显示来源，不显示值。
 
 ## 8. 未决
 
-- 二十七个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 九个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet` 九个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 九个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson,read-position.json}`（ADR-0030）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
+- 二十八个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 九个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 九个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson,read-position.json}`（ADR-0030）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。

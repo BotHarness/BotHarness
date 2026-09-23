@@ -669,6 +669,21 @@ describe('bridge actions', () => {
     expect(writes).toEqual([['group-team'], ['group-team', 'dm-ada'], ['dm-ada']]);
   });
 
+  it('switches pinned scope to manual even when the drop matches stored pin order', async () => {
+    const pins = ['group-team', 'dm-ada'];
+    const pinsSet = vi.fn(() => ({ pins }));
+    const { actions } = setup({
+      rosterGet: () => ({ pins, sections: [], topOrder: [] }),
+      pinsSet,
+    });
+    await actions.load();
+
+    const beforePublish = vi.fn();
+    await expect(actions.reorderPinnedChannels([...pins], beforePublish)).resolves.toBe(true);
+    expect(beforePublish).toHaveBeenCalledOnce();
+    expect(pinsSet).not.toHaveBeenCalled();
+  });
+
   it('hides and restores a Channel without changing its pin, section, or flat order', async () => {
     const writes: string[][] = [];
     let hidden: string[] = [];

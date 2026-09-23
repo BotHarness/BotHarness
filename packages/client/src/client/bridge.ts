@@ -601,6 +601,26 @@ export async function loadRoster(call: BridgeCall, signal?: AbortSignal): Promis
   return parseRosterSnapshot(await unwrap(call, 'rosterGet', {}, signal));
 }
 
+/** One bounded, final-state roster mutation; the Host publishes one result. */
+export interface RosterBatchInput {
+  action: 'pin' | 'unpin' | 'hide' | 'move';
+  channelIds: readonly string[];
+  sectionId?: string;
+}
+
+export async function applyRosterBatch(
+  call: BridgeCall,
+  input: RosterBatchInput,
+  signal?: AbortSignal,
+): Promise<RosterSnapshot> {
+  const payload = {
+    action: input.action,
+    channelIds: [...input.channelIds],
+    ...(input.sectionId === undefined ? {} : { sectionId: input.sectionId }),
+  };
+  return parseRosterSnapshot(await unwrap(call, 'rosterBatch', payload, signal));
+}
+
 export async function createRosterSection(
   call: BridgeCall,
   name: string,

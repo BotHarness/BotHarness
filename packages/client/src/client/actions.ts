@@ -1,4 +1,5 @@
 import {
+  applyRosterBatch,
   assignRosterChannel,
   BridgeCallError,
   createGroupChannel,
@@ -24,6 +25,7 @@ import {
   setRosterPins,
   type BridgeCall,
   type CreatePersonaBotInput,
+  type RosterBatchInput,
 } from './bridge.js';
 import {
   planSectionChannelOrder,
@@ -68,8 +70,12 @@ export interface BridgeActions {
   removeSection(sectionId: string): Promise<boolean>;
   /** Add or remove one Channel from the durable pinned-grid order. */
   setChannelPinned(channelId: string, pinned: boolean): Promise<boolean>;
+  /** Reorder exactly the currently pinned Channels, preserving pin membership. */
+  reorderPinnedChannels(order: readonly string[], beforePublish: () => void): Promise<boolean>;
   /** Hide or restore one Channel without changing its pin, section, or order. */
   setChannelHidden(channelId: string, hidden: boolean): Promise<boolean>;
+  /** Apply one bounded multi-select operation and publish only its final roster snapshot. */
+  batchRoster(input: RosterBatchInput): Promise<boolean>;
   /** Unpin one Channel and place it at an exact position inside a section. */
   movePinnedChannel(
     channelId: string,
@@ -800,6 +806,32 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         await setRosterPins(call, next);
       });
     },
+    async reorderPinnedChannels(order, beforePublish) {
+      const snapshot = clientStore.getSnapshot();
+      const current = resolvePinnedChannelIds(snapshot.channels, snapshot.roster.pins);
+      const selected = new Set(order);
+      if (
+        order.length !== current.length ||
+        selected.size !== current.length ||
+        current.some((id) => !selected.has(id))
+      ) {
+        return false;
+      }
+      if (sameIds(order, current)) {
+        beforePublish();
+        return true;
+      }
+      try {
+        await setRosterPins(call, [...order]);
+        beforePublish();
+        await refreshRoster();
+        return true;
+      } catch (error) {
+        reportRosterFailure(error);
+        await refreshRoster();
+        return false;
+      }
+    },
     async setChannelHidden(channelId, hidden) {
       const current = [...clientStore.getSnapshot().roster.hidden];
       const next = hidden
@@ -809,6 +841,23 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       return rosterMutate(async () => {
         await setRosterHidden(call, next);
       });
+    },
+    async batchRoster(input) {
+      try {
+        const snapshot = await applyRosterBatch(call, input);
+        clientStore.setRosterState({
+          pins: snapshot.pins,
+          hidden: snapshot.hidden,
+          sections: snapshot.sections,
+          topOrder: snapshot.topOrder,
+          readOnly: false,
+        });
+        return true;
+      } catch (error) {
+        reportRosterFailure(error);
+        await refreshRoster();
+        return false;
+      }
     },
     async movePinnedChannel(channelId, sectionId, order) {
       const snapshot = clientStore.getSnapshot();
