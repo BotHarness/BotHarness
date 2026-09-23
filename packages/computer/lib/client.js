@@ -16,6 +16,34 @@ window.__ModuleLoader__.load({
     function nextExpanded(action) {
       return action === 'open';
     }
+    /**
+     * Display hysteresis for the phase: sub-hysteresis blips (resize
+     * renegotiation) never reach the overlay, title, or pill, while sustained
+     * changes flow through with at most one extra tick of lag. Raw tracker
+     * truth (loss/auto paths) never consults this.
+     */
+    function smoothPhase(shown, raw, streak) {
+      if (raw === 'live')
+        return {
+          phase: 'live',
+          streak: 0,
+        };
+      if (shown !== 'live')
+        return {
+          phase: raw,
+          streak: 0,
+        };
+      const next = streak + 1;
+      if (next >= 2)
+        return {
+          phase: raw,
+          streak: next,
+        };
+      return {
+        phase: shown,
+        streak: next,
+      };
+    }
     /** StateDot semantics for a phase (done / blue ring / red). */
     function dotStateFor(phase) {
       if (phase === 'live') return 'done';
@@ -1700,8 +1728,22 @@ window.__ModuleLoader__.load({
       const prevPhase = (0, react.useRef)(void 0);
       const prevExpanded = (0, react.useRef)(false);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
-      const phase = useStreamPhase(frameRef, reloadKey);
-      const live = phase === 'live';
+      const rawPhase = useStreamPhase(frameRef, reloadKey);
+      const rawLive = rawPhase === 'live';
+      const [smooth, setSmooth] = (0, react.useState)({
+        phase: 'connecting',
+        streak: 0,
+      });
+      (0, react.useEffect)(() => {
+        setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak));
+      }, [rawPhase]);
+      (0, react.useEffect)(() => {
+        setSmooth({
+          phase: 'connecting',
+          streak: 0,
+        });
+      }, [reloadKey]);
+      const phase = smooth.phase;
       const reconnect = () => {
         reportViewerEvent(void 0, viewerEventText({ type: 'manual-retry' }));
         setReconnecting(true);
@@ -1712,14 +1754,14 @@ window.__ModuleLoader__.load({
       }, []);
       (0, react.useEffect)(() => {
         const fromPhase = prevPhase.current;
-        prevPhase.current = phase;
-        if (fromPhase !== void 0 && fromPhase !== phase)
+        prevPhase.current = rawPhase;
+        if (fromPhase !== void 0 && fromPhase !== rawPhase)
           reportViewerEvent(
             void 0,
             viewerEventText({
               type: 'phase',
               from: fromPhase,
-              to: phase,
+              to: rawPhase,
             }),
           );
         const wasExpanded = prevExpanded.current;
@@ -1732,9 +1774,9 @@ window.__ModuleLoader__.load({
               open: expanded,
             }),
           );
-      }, [phase, expanded]);
+      }, [rawPhase, expanded]);
       (0, react.useEffect)(() => {
-        if (live) {
+        if (rawLive) {
           wasReady.current = true;
           autoReloads.current = 0;
           lossStreak.current = 0;
@@ -1755,9 +1797,9 @@ window.__ModuleLoader__.load({
         );
         setReconnecting(true);
         setReloadKey((key) => key + 1);
-      }, [live]);
+      }, [rawLive]);
       (0, react.useEffect)(() => {
-        if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+        if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return;
         autoReloads.current += 1;
         reportViewerEvent(
           void 0,
@@ -1767,7 +1809,7 @@ window.__ModuleLoader__.load({
           }),
         );
         setReloadKey((key) => key + 1);
-      }, [phase]);
+      }, [rawPhase]);
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {
