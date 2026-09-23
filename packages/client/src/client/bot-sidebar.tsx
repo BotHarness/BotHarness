@@ -21,7 +21,6 @@ import {
   IconSettingsOutline16,
   HoverCard,
   Menu,
-  StateDot,
   Tag,
   Tooltip,
   type MenuEntry,
@@ -59,7 +58,7 @@ import {
   type ScopeId,
   type SectionDropTarget,
 } from './channel-drag.js';
-import { botStateLabel, needsYou, toBotState, toStateDot } from './labels.js';
+import { botStateLabel, needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
@@ -364,7 +363,6 @@ function BotRow({
         </span>
         <span className="bh-msg">{bot.description ?? botStateLabel(botState, t)}</span>
       </span>
-      <StateDot state={toStateDot(botState)} size={8} className="bh-state" />
       {showShortcutHints && shortcut !== undefined ? (
         <kbd className="bh-shortcut-badge" aria-hidden="true">
           {shortcut.slice(4)}

@@ -2,6 +2,7 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
 import type {
+  ActivitySnapshot,
   AssignmentDetail,
   AssignmentReport,
   AssignmentReportState,
@@ -390,6 +391,51 @@ export function parseSessionSummaries(value: unknown): SessionSummary[] {
       },
     ];
   });
+}
+
+const ACTIVITY_STATES = new Set(['idle', 'thinking', 'working', 'waiting', 'blocked']);
+
+export function parseActivitySnapshot(value: unknown): ActivitySnapshot | undefined {
+  const record = asRecord(value);
+  const generation = record?.['generation'];
+  const revision = record?.['revision'];
+  const rawBots = record?.['bots'];
+  if (
+    typeof generation !== 'string' ||
+    generation.length === 0 ||
+    typeof revision !== 'number' ||
+    !Number.isSafeInteger(revision) ||
+    revision < 0 ||
+    !Array.isArray(rawBots)
+  )
+    return undefined;
+  const bots: ActivitySnapshot['bots'][number][] = [];
+  const seen = new Set<string>();
+  for (const value of rawBots) {
+    const bot = asRecord(value);
+    const slug = bot?.['slug'];
+    const state = bot?.['state'];
+    if (
+      typeof slug !== 'string' ||
+      slug.length === 0 ||
+      seen.has(slug) ||
+      typeof state !== 'string' ||
+      !ACTIVITY_STATES.has(state)
+    )
+      return undefined;
+    seen.add(slug);
+    bots.push({ slug, state: state as ActivitySnapshot['bots'][number]['state'] });
+  }
+  return { generation, revision, bots };
+}
+
+export async function loadActivitySnapshot(
+  call: BridgeCall,
+  signal?: AbortSignal,
+): Promise<ActivitySnapshot> {
+  const snapshot = parseActivitySnapshot(await unwrap(call, 'activitySnapshot', {}, signal));
+  if (snapshot === undefined) throw new Error('invalid activitySnapshot response');
+  return snapshot;
 }
 
 export async function loadBots(call: BridgeCall, signal?: AbortSignal): Promise<BotSummary[]> {

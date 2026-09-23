@@ -164,7 +164,8 @@ describe('client styles', () => {
 
   it('uses the shared product motion boundary instead of component media queries', () => {
     expect(source).not.toContain('prefers-reduced-motion');
-    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-persona-avatar::before");
+    expect(source).toContain("html[data-botharness-motion='reduce'] .bh-avatar-media");
+    expect(source).not.toContain(".bh-persona-avatar[data-active='true']::before");
     expect(source).toContain("html[data-botharness-motion='full'] .bh-motion-preview-sample i");
   });
 
@@ -179,9 +180,6 @@ describe('client styles', () => {
     );
     expect(source).toMatch(/\.bh-composer-shell \{[^}]*safe-area-inset-bottom/);
     expect(source).toMatch(/\.bh-composer-activity-facepile \.bh-persona-avatar[^}]*border: 0/);
-    expect(source).toMatch(
-      /\.bh-composer-activity-facepile \.bh-persona-avatar::before \{[^}]*display: none/,
-    );
     expect(source).toMatch(/\.bh-composer-input \{[^}]*max-height: 144px/);
     expect(source).toMatch(/\.bh-composer-input \{[^}]*padding: 7px 8px 5px/);
     expect(source).not.toMatch(/\.bh-composer-input \{[^}]*transition:/);

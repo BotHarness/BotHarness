@@ -9,6 +9,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
+import { mountActivityPolling } from './activity-poll.js';
 import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
 import { botIconMarkup } from './bot-icon.js';
@@ -106,6 +107,7 @@ export function apply(ctx: ClientContext): void {
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, 'botharness: Bot mode keyboard shortcut');
+  ctx.effect(() => mountActivityPolling(store, call), 'botharness: activity snapshot polling');
   ctx.effect(
     () => (typeof EventSource === 'undefined' ? () => {} : mountChannelLive(store, actions)),
     'botharness: Channel live subscription',

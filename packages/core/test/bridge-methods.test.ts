@@ -134,6 +134,30 @@ describe('bridge methods', () => {
     });
   });
 
+  it('returns one revisioned activity snapshot from the Host projection', () => {
+    const { registry, states, methods } = setup();
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bob', displayName: 'Bob' });
+    states.setSessionState('ada', 'owned-1', 'thinking');
+    const first = methods.activitySnapshot({});
+    expect(first).toMatchObject({
+      ok: true,
+      value: {
+        generation: expect.any(String),
+        revision: 1,
+        bots: expect.arrayContaining([
+          { slug: 'ada', state: 'thinking' },
+          { slug: 'bob', state: 'idle' },
+        ]),
+      },
+    });
+    states.setSessionState('ada', 'owned-1', 'working');
+    const next = methods.activitySnapshot({});
+    expect(next.ok && next.value.revision).toBe(2);
+    expect(next.ok && next.value.generation).toBe(first.ok && first.value.generation);
+    expect(next.ok && next.value.bots.find((bot) => bot.slug === 'ada')?.state).toBe('working');
+  });
+
   it('lists PersonaBots with their aggregate state', () => {
     const { registry, states, methods } = setup();
     registry.create({

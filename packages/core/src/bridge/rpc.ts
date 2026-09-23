@@ -7,6 +7,7 @@ import type {
   BridgeMethods,
   BridgeResult,
   ChannelListItem,
+  PersonaBotActivitySnapshot,
   PersonaBotDetail,
   PersonaBotSummary,
 } from './methods.js';
@@ -95,6 +96,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   list(query?: string): { bots: PersonaBotSummary[] } {
     return unwrap(this.methods.list({ query }));
+  }
+
+  activitySnapshot(): PersonaBotActivitySnapshot {
+    return unwrap(this.methods.activitySnapshot({}));
   }
 
   get(slug: string): { bot: PersonaBotDetail } {
@@ -278,6 +283,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
   'list',
+  'activitySnapshot',
   'get',
   'create',
   'update',

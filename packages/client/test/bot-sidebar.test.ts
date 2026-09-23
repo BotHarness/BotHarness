@@ -295,6 +295,13 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('研究');
     expect(markup).toContain('写作');
     expect(markup).toContain('文件研究助手');
+    expect(markup).toContain('data-state="working"');
+    expect(markup).not.toContain('bh-state');
+
+    store.setRoster([{ ...BOT, aggregateState: 'waiting' }], [DM_CHANNEL]);
+    const waiting = renderSidebar();
+    expect(waiting).toContain('bh-unread');
+    expect(waiting).not.toContain('bh-state');
   });
 
   it('keeps an empty pin target collapsed before a drag begins', () => {
