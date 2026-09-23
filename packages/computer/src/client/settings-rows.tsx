@@ -8,7 +8,7 @@
  * @module @botharness/computer/settings-rows
  */
 
-import { useCallback, useEffect, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import {
   IconChevronDownOutline14,
@@ -143,9 +143,19 @@ export interface ComputerSettingsFace {
   /** Open a directory with the Host's file manager. */
   openDirectory: (dir: string) => Promise<void>;
   /** Archive the Computer's store; `dir` overrides the configured directory. */
-  exportArchive: (dir?: string) => Promise<string>;
+  exportArchive: (dir?: string) => Promise<{ archive: string; downloadToken?: string }>;
+  /** Browser download URL for an export token; the save dialog picks the destination. */
+  downloadUrl: (downloadToken: string) => string;
   /** Restore an archive from the configured directory. */
   importArchive: (file: string) => Promise<void>;
+  /** Authorize a browser upload and mint its single-use token. */
+  requestUpload: (file: string) => Promise<string>;
+  /**
+   * Stream a file's bytes to an upload token. Mirrors DSH's own file-upload
+   * client: Blob bodies go over XMLHttpRequest (content-length, disk-streamed)
+   * instead of fetch+stream, which the transport mangles.
+   */
+  sendUploadBytes: (uploadToken: string, file: File) => Promise<void>;
   /** List the archives the configured directory holds. */
   listArchives: () => Promise<string[]>;
   /** Effective export directory reported by the Host, for the no-scope case. */
@@ -159,6 +169,9 @@ const IMPORT_ENDPOINT = '/api/computer/import';
 const EXPORTS_ENDPOINT = '/api/computer/exports';
 const STATUS_ENDPOINT = '/api/computer/status';
 const OPEN_DIR_ENDPOINT = '/api/computer/open-dir';
+const DOWNLOAD_ENDPOINT = '/api/computer/download';
+const UPLOAD_ENDPOINT = '/api/computer/upload';
+const UPLOAD_CONTENT_ENDPOINT = '/api/computer/upload-content';
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, { credentials: 'same-origin', ...init });
@@ -181,6 +194,7 @@ async function postAuthorized(url: string, body: Record<string, unknown> = {}): 
 export function createComputerSettingsFace(options: {
   prefs: ComputerSettingsPrefs;
   pickDirectory?: (() => Promise<string | null>) | undefined;
+  createXhr?: (() => XMLHttpRequest) | undefined;
 }): ComputerSettingsFace {
   const { prefs } = options;
   return {
@@ -192,18 +206,64 @@ export function createComputerSettingsFace(options: {
       await postAuthorized(OPEN_DIR_ENDPOINT, dir === '' ? {} : { dir });
     },
     exportArchive: async (dir) => {
-      const payload = await requestJson<{ archive?: string }>(EXPORT_ENDPOINT, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(
-          dir === undefined || dir === '' ? { authorize: true } : { authorize: true, dir },
-        ),
-      });
-      return payload.archive ?? '';
+      const payload = await requestJson<{ archive?: string; downloadToken?: string }>(
+        EXPORT_ENDPOINT,
+        {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(
+            dir === undefined || dir === '' ? { authorize: true } : { authorize: true, dir },
+          ),
+        },
+      );
+      return {
+        archive: payload.archive ?? '',
+        ...(payload.downloadToken === undefined ? {} : { downloadToken: payload.downloadToken }),
+      };
     },
+    downloadUrl: (downloadToken) =>
+      `${DOWNLOAD_ENDPOINT}?token=${encodeURIComponent(downloadToken)}`,
     importArchive: async (file) => {
       await postAuthorized(IMPORT_ENDPOINT, { file });
     },
+    requestUpload: async (file) => {
+      const payload = await requestJson<{ uploadToken?: string }>(UPLOAD_ENDPOINT, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ authorize: true, file }),
+      });
+      if (payload.uploadToken === undefined) throw new Error('upload not accepted');
+      return payload.uploadToken;
+    },
+    sendUploadBytes: (uploadToken, file) =>
+      new Promise<void>((resolve, reject) => {
+        const createXhr = options.createXhr ?? (() => new XMLHttpRequest());
+        const xhr = createXhr();
+        xhr.open('POST', `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`);
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('content-type', 'application/octet-stream');
+        xhr.onload = () => {
+          if (xhr.status !== 200) {
+            reject(new Error(`upload failed: HTTP ${String(xhr.status)}`));
+            return;
+          }
+          try {
+            const payload = JSON.parse(xhr.responseText) as {
+              ok?: unknown;
+              error?: unknown;
+            };
+            if (payload.ok === true) resolve();
+            else
+              reject(
+                new Error(typeof payload.error === 'string' ? payload.error : 'upload failed'),
+              );
+          } catch (error: unknown) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          }
+        };
+        xhr.onerror = () => reject(new Error('upload transport failed'));
+        xhr.send(file);
+      }),
     listArchives: async () => {
       const payload = await requestJson<{ files?: string[] }>(EXPORTS_ENDPOINT);
       return payload.files ?? [];
@@ -222,7 +282,7 @@ function Row({
 }: {
   readonly title: string;
   readonly description: string;
-  readonly children?: ReactElement | undefined;
+  readonly children?: ReactNode;
 }): ReactElement {
   return (
     <div className="bh-settings-row">
@@ -269,7 +329,10 @@ export function ComputerSettingsRows({
   pickDirectory,
   openDirectory,
   exportArchive,
+  downloadUrl,
   importArchive,
+  requestUpload,
+  sendUploadBytes,
   listArchives,
   hostExportDir,
 }: PropsRuntime<'botharness.settings.item'> &
@@ -279,7 +342,7 @@ export function ComputerSettingsRows({
   const [idleOpen, setIdleOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [archives, setArchives] = useState<readonly string[] | undefined>(undefined);
-  const [busy, setBusy] = useState<'export' | 'import' | undefined>(undefined);
+  const [busy, setBusy] = useState<'export' | 'import' | 'upload' | undefined>(undefined);
   const [confirming, setConfirming] = useState<'export' | 'import' | undefined>(undefined);
   const [exportTarget, setExportTarget] = useState<string | undefined>(undefined);
   const [manualOpen, setManualOpen] = useState(false);
@@ -287,6 +350,11 @@ export function ComputerSettingsRows({
   const [saving, setSaving] = useState(false);
   const [dirNote, setDirNote] = useState<string | undefined>(undefined);
   const [transferNote, setTransferNote] = useState<string | undefined>(undefined);
+  const [download, setDownload] = useState<{ archive: string; token: string } | undefined>(
+    undefined,
+  );
+  const [uploadName, setUploadName] = useState<string | undefined>(undefined);
+  const uploadFile = useRef<File | null>(null);
   const [pickerBroken, setPickerBroken] = useState(false);
   const [hostDir, setHostDir] = useState<string | undefined>(undefined);
   const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
@@ -421,9 +489,13 @@ export function ComputerSettingsRows({
     setConfirming(undefined);
     setBusy('export');
     setTransferNote(undefined);
+    setDownload(undefined);
     void exportArchive(exportTarget)
-      .then((archive) => {
+      .then(({ archive, downloadToken }) => {
         setTransferNote(archive === '' ? t('rows.exportedDone') : t('rows.exported', { archive }));
+        if (archive !== '' && downloadToken !== undefined) {
+          setDownload({ archive, token: downloadToken });
+        }
         if (autoOpen) void openDirectory(exportDir).catch(() => undefined);
       })
       .catch((error: unknown) => setTransferNote(String(error)))
@@ -444,6 +516,34 @@ export function ComputerSettingsRows({
     [importArchive, t],
   );
 
+  const takeUploadFile = useCallback((file: File | null) => {
+    if (file === null) return;
+    uploadFile.current = file;
+    setUploadName(file.name);
+    setTransferNote(undefined);
+  }, []);
+
+  const runUpload = useCallback(() => {
+    const file = uploadFile.current;
+    const name = uploadName;
+    if (file === null || name === undefined) return;
+    setConfirming(undefined);
+    setBusy('upload');
+    setTransferNote(undefined);
+    // One click authorizes the whole chain; receipt and import run as two
+    // short calls so the import's minutes ride the normal progress display.
+    void requestUpload(name)
+      .then((token) => sendUploadBytes(token, file))
+      .then(() => importArchive(name))
+      .then(() => {
+        setTransferNote(t('rows.imported', { file: name }));
+        setUploadName(undefined);
+        uploadFile.current = null;
+      })
+      .catch((error: unknown) => setTransferNote(String(error)))
+      .finally(() => setBusy(undefined));
+  }, [uploadName, requestUpload, sendUploadBytes, importArchive, t]);
+
   const openImport = useCallback(() => {
     void listArchives()
       .then((files) => {
@@ -457,6 +557,10 @@ export function ComputerSettingsRows({
   const openDir = useCallback(() => {
     void openDirectory(exportDir).catch((error: unknown) => setDirNote(String(error)));
   }, [exportDir, openDirectory]);
+
+  // Whatever the user picked to import — uploaded file first, listed archive
+  // second — shown once, truncated, instead of inside the authorize buttons.
+  const selectedFile = uploadName ?? (confirming === 'import' ? archives?.[0] : undefined);
 
   return (
     <div className="bh-settings-rows">
@@ -561,7 +665,7 @@ export function ComputerSettingsRows({
         />
       </Row>
 
-      <Row title={t('rows.transfer.title')} description={t('rows.transfer.description')}>
+      <Row title={t('rows.exportSection.title')} description={t('rows.exportSection.description')}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {confirming === 'export' ? (
             <>
@@ -592,7 +696,23 @@ export function ComputerSettingsRows({
                   : t('rows.export')}
             </button>
           )}
-          {confirming === 'import' ? (
+          {download === undefined ? null : (
+            <button
+              type="button"
+              className="bh-settings-selector"
+              onClick={() => {
+                globalThis.location?.assign(downloadUrl(download.token));
+              }}
+            >
+              {t('rows.download')}
+            </button>
+          )}
+        </div>
+      </Row>
+
+      <Row title={t('rows.importSection.title')} description={t('rows.importSection.description')}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {uploadName !== undefined ? null : confirming === 'import' ? (
             <button
               type="button"
               className="bh-settings-selector"
@@ -625,20 +745,72 @@ export function ComputerSettingsRows({
               }
             />
           )}
-          {confirming === 'import' && archives?.[0] !== undefined ? (
+          {uploadName === undefined && confirming === 'import' && archives?.[0] !== undefined ? (
             <button
               type="button"
               className="bh-settings-selector"
+              disabled={busy !== undefined}
               onClick={() => {
                 const file = archives[0];
                 if (file !== undefined) runImport(file);
               }}
             >
-              {t('rows.authorizeImport', { file: archives[0] })}
+              {t('rows.authorizeImportConfirm')}
             </button>
           ) : null}
+          {uploadName !== undefined || confirming === 'import' ? null : (
+            <label className="bh-settings-selector">
+              {t('rows.chooseFile')}
+              <input
+                type="file"
+                accept=".tar,application/x-tar"
+                hidden
+                disabled={busy !== undefined}
+                onChange={(event) => {
+                  const file = event.target.files?.[0] ?? null;
+                  event.target.value = '';
+                  takeUploadFile(file);
+                }}
+              />
+            </label>
+          )}
+          {uploadName === undefined ? null : (
+            <>
+              <button
+                type="button"
+                className="bh-settings-selector"
+                onClick={() => {
+                  setUploadName(undefined);
+                  uploadFile.current = null;
+                }}
+              >
+                {t('entry.cancel')}
+              </button>
+              <button
+                type="button"
+                className="bh-settings-selector"
+                disabled={busy !== undefined}
+                onClick={runUpload}
+              >
+                {busy === 'upload' ? t('rows.importing') : t('rows.authorizeImportConfirm')}
+              </button>
+            </>
+          )}
         </div>
       </Row>
+
+      {selectedFile === undefined ? null : (
+        <div
+          className="bh-note"
+          style={{
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {selectedFile}
+        </div>
+      )}
 
       {busy !== undefined && phaseKey !== undefined ? (
         <div className="bh-note">

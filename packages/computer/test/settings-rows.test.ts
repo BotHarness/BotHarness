@@ -121,7 +121,7 @@ describe('computer settings face', () => {
       calls.push({ url, init });
       const body =
         url === '/api/computer/export'
-          ? { ok: true, archive: '/exports/a.tar' }
+          ? { ok: true, archive: '/exports/a.tar', downloadToken: 'dl-1' }
           : url === '/api/computer/exports'
             ? { ok: true, files: ['a.tar'] }
             : url === '/api/computer/status'
@@ -137,7 +137,11 @@ describe('computer settings face', () => {
     const prefs = new ComputerSettingsPrefs();
     const face = createComputerSettingsFace({ prefs });
 
-    expect(await face.exportArchive()).toBe('/exports/a.tar');
+    expect(await face.exportArchive()).toEqual({
+      archive: '/exports/a.tar',
+      downloadToken: 'dl-1',
+    });
+    expect(face.downloadUrl('t 1/2')).toBe('/api/computer/download?token=t%201%2F2');
     await face.importArchive('a.tar');
     expect(await face.listArchives()).toEqual(['a.tar']);
     expect(await face.hostExportDir()).toBe('/exports');
@@ -174,7 +178,7 @@ describe('computer settings face', () => {
     });
     const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
 
-    expect(await face.exportArchive('/target')).toBe('/target/a.tar');
+    expect(await face.exportArchive('/target')).toEqual({ archive: '/target/a.tar' });
     await face.openDirectory('/target');
 
     const exportCall = calls.find((call) => call.url === '/api/computer/export');
@@ -185,6 +189,120 @@ describe('computer settings face', () => {
     const openCall = calls.find((call) => call.url === '/api/computer/open-dir');
     expect(JSON.parse(String(openCall?.init?.body))).toEqual({ authorize: true, dir: '/target' });
     expect(face.pickerAvailable).toBe(false);
+  });
+
+  it('requests an upload token and streams the file bytes by token', async () => {
+    const uploaded: { url: string; file: unknown }[] = [];
+    const xhr = {
+      headers: {} as Record<string, string>,
+      withCredentials: false,
+      status: 200,
+      responseText: '{"ok":true}',
+      onload: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      open(method: string, url: string): void {
+        expect(method).toBe('POST');
+        expect(url).toBe('/api/computer/upload-content?token=up-1');
+      },
+      setRequestHeader(name: string, value: string): void {
+        xhr.headers[name] = value;
+      },
+      send(file: unknown): void {
+        uploaded.push({ url: '/api/computer/upload-content?token=up-1', file });
+        xhr.onload?.();
+      },
+    };
+    vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
+      expect(url).toBe('/api/computer/upload');
+      expect(JSON.parse(String(init?.body))).toEqual({ authorize: true, file: 'a.tar' });
+      return Promise.resolve(
+        new Response(JSON.stringify({ ok: true, uploadToken: 'up-1' }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    });
+    const face = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => xhr as unknown as XMLHttpRequest,
+    });
+
+    expect(await face.requestUpload('a.tar')).toBe('up-1');
+    const file = new File(['chunk-1', 'chunk-2'], 'a.tar');
+    await face.sendUploadBytes('up-1', file);
+    // The Blob itself travels (XHR sets the length); nothing is stringified.
+    expect(uploaded).toHaveLength(1);
+    expect(uploaded[0]?.file).toBe(file);
+    expect(xhr.headers['content-type']).toBe('application/octet-stream');
+    expect(xhr.withCredentials).toBe(true);
+  });
+
+  class FakeXhr {
+    withCredentials = false;
+    status = 200;
+    responseText = '';
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    headers: Record<string, string> = {};
+    sent: unknown[] = [];
+    opened = { method: '', url: '' };
+
+    open(method: string, url: string): void {
+      this.opened = { method, url };
+    }
+
+    setRequestHeader(name: string, value: string): void {
+      this.headers[name] = value;
+    }
+
+    send(file: unknown): void {
+      this.sent.push(file);
+    }
+
+    respond(status: number, text: string): void {
+      this.status = status;
+      this.responseText = text;
+      this.onload?.();
+    }
+
+    abort(): void {
+      this.onerror?.();
+    }
+  }
+
+  function fakeXhr(): {
+    xhr: unknown;
+    sent: unknown[];
+    respond: (status: number, text: string) => void;
+    abort: () => void;
+  } {
+    const fake = new FakeXhr();
+    return {
+      xhr: fake,
+      sent: fake.sent,
+      respond: (status, text) => fake.respond(status, text),
+      abort: () => fake.abort(),
+    };
+  }
+
+  it('surfaces transport and server failures', async () => {
+    const broken = fakeXhr();
+    const faceBroken = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => broken.xhr as XMLHttpRequest,
+    });
+    const sending = faceBroken.sendUploadBytes('up-1', new File(['x'], 'a.tar'));
+    broken.abort();
+    await expect(sending).rejects.toThrow(/transport failed/);
+
+    const denied = fakeXhr();
+    const faceDenied = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => denied.xhr as XMLHttpRequest,
+    });
+    const deniedSending = faceDenied.sendUploadBytes('up-1', new File(['x'], 'a.tar'));
+    denied.respond(200, '{"ok":false,"error":"nope"}');
+    await expect(deniedSending).rejects.toThrow(/nope/);
   });
 });
 

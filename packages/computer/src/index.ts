@@ -1,16 +1,18 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { mkdir, readdir } from 'node:fs/promises';
+import { createReadStream, createWriteStream, existsSync } from 'node:fs';
+import { mkdir, readdir, rename, rm, stat } from 'node:fs/promises';
 import type { IncomingMessage } from 'node:http';
 import { homedir } from 'node:os';
-import { isAbsolute, join } from 'node:path';
-import type { Duplex } from 'node:stream';
+import { basename, isAbsolute, join } from 'node:path';
+import { Readable, type Duplex } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createComputerDiagnostics } from './diagnostics.js';
+import { createTransferTokens } from './transfer-tokens.js';
 import { createIdleWatcher } from './idle.js';
 import {
   COMPUTER_EXPORT_DIR_FIELD,
@@ -114,6 +116,59 @@ export function isSafeArchiveName(name: string): boolean {
 }
 
 /**
+ * Serves an archive file as a browser download: streams bytes with an
+ * attachment disposition so the save dialog picks the destination instead
+ * of buffering ~1GB in memory. Throws when the file is gone (the route
+ * maps it to 404).
+ */
+export async function streamArchiveResponse(archivePath: string): Promise<Response> {
+  const info = await stat(archivePath);
+  const body = Readable.toWeb(createReadStream(archivePath));
+  return new Response(body as BodyInit, {
+    status: 200,
+    headers: {
+      'content-type': 'application/x-tar',
+      'content-disposition': `attachment; filename="${basename(archivePath)}"`,
+      'content-length': String(info.size),
+    },
+  });
+}
+
+/**
+ * Writes a streaming upload body to disk without buffering it in memory;
+ * the caller runs the import afterwards. Cleans up a torn write.
+ */
+export async function receiveUploadBody(
+  body: ReadableStream<Uint8Array> | null,
+  destPath: string,
+): Promise<void> {
+  if (body === null) throw new Error('empty upload body');
+  const out = createWriteStream(destPath);
+  try {
+    await pipeline(body, out);
+  } catch (error) {
+    await rm(destPath, { force: true });
+    throw error;
+  }
+}
+
+/**
+ * Stores an upload atomically: bytes land in a sidecar file first, so a
+ * torn write can never truncate an existing archive, then rename swaps it
+ * into place. Returns when the bytes are durable — the import itself runs
+ * as a separate short-lived call so no HTTP response stays open for the
+ * minutes an import takes.
+ */
+export async function storeUploadBody(
+  body: ReadableStream<Uint8Array> | null,
+  destPath: string,
+): Promise<void> {
+  const tmp = `${destPath}.part`;
+  await receiveUploadBody(body, tmp);
+  await rename(tmp, destPath);
+}
+
+/**
  * The export directory used when none is configured: a folder under the
  * Desktop when it exists, else under the home directory. Pickerless
  * deployments (e.g. web) run read-only against whatever this resolves to.
@@ -192,6 +247,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
   if (!config.enabled) return;
 
   const diagnostics = createComputerDiagnostics();
+  const transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
   const provider = createDockerComputerProvider({
@@ -277,6 +333,10 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     const connection = (connectionCtx as unknown as { connection: HostConnectionLike }).connection;
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
+
+    /** Single-use capability tokens are the transfer auth; unknown means gone. */
+    const unknownToken = (kind: string): Response =>
+      json({ ok: false, code: 'unknown-token', error: `unknown or expired ${kind} token` }, 404);
 
     const statusRoute = {
       path: '/api/computer/status',
@@ -403,7 +463,11 @@ export function apply(ctx: Context, config: ComputerConfig): void {
           // otherwise create a root-owned path on Linux engines.
           await mkdir(exportDir, { recursive: true });
           const archive = await service.exportTo(exportDir);
-          return json({ ok: true, archive });
+          return json({
+            ok: true,
+            archive,
+            downloadToken: transferTokens.mint(archive, 'download'),
+          });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
         }
@@ -532,6 +596,95 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(importRoute),
       'botharness-computer: import route',
+    );
+
+    // Browser download for web deployments: the export response mints a
+    // single-use token bound to the archive, and this GET streams the bytes
+    // with an attachment disposition so the save dialog picks the
+    // destination. No Host path ever crosses into the page.
+    const downloadRoute = {
+      path: '/api/computer/download',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const token = new URL(request.url).searchParams.get('token') ?? '';
+        const archive = transferTokens.consume(token, 'download');
+        if (archive === undefined) return unknownToken('download');
+        try {
+          log(`download requested (panel): ${basename(archive)}`);
+          return await streamArchiveResponse(archive);
+        } catch {
+          return json(
+            { ok: false, code: 'archive-missing', error: 'archive is no longer available' },
+            404,
+          );
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(downloadRoute),
+      'botharness-computer: download route',
+    );
+
+    // Browser upload, step one: authorize + name the archive, mint the
+    // single-use token the byte stream below redeems.
+    const uploadRoute = {
+      path: '/api/computer/upload',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const body = await parseBody(request);
+        if (body.authorize !== true) return unauthorized();
+        const file = typeof body.file === 'string' ? body.file : '';
+        if (!isSafeArchiveName(file)) {
+          return json({ ok: false, code: 'invalid-archive', error: 'invalid archive name' }, 400);
+        }
+        const exportDir = resolveExportDir();
+        try {
+          await mkdir(exportDir, { recursive: true });
+          const uploadToken = transferTokens.mint(join(exportDir, file), 'upload');
+          log(`upload requested (panel): ${file}`);
+          return json({ ok: true, uploadToken });
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(uploadRoute),
+      'botharness-computer: upload route',
+    );
+
+    // Browser upload, step two: stream the bytes straight to disk (never
+    // buffered — archives run ~1GB) and report receipt at once. The client
+    // then runs the standard import as its own call, so this response never
+    // stays open for the minutes an import takes.
+    const uploadContentRoute = {
+      path: '/api/computer/upload-content',
+      methods: ['POST'] as const,
+      requestBody: 'streaming' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const token = new URL(request.url).searchParams.get('token') ?? '';
+        const dest = transferTokens.consume(token, 'upload');
+        if (dest === undefined) return unknownToken('upload');
+        log(
+          `upload streaming in (panel): ${request.method} ` +
+            `content-type=${request.headers.get('content-type') ?? '?'} ` +
+            `length=${request.headers.get('content-length') ?? '?'} ` +
+            `encoding=${request.headers.get('transfer-encoding') ?? 'identity'}`,
+        );
+        try {
+          await storeUploadBody(request.body, dest);
+        } catch (error) {
+          return json({ ok: false, error: String(error) }, 500);
+        }
+        log(`upload received (panel): ${basename(dest)}`);
+        return json({ ok: true });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(uploadContentRoute),
+      'botharness-computer: upload-content route',
     );
   });
 
