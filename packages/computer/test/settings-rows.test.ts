@@ -192,37 +192,117 @@ describe('computer settings face', () => {
   });
 
   it('requests an upload token and streams the file bytes by token', async () => {
-    const calls: { url: string; init: RequestInit | undefined }[] = [];
+    const uploaded: { url: string; file: unknown }[] = [];
+    const xhr = {
+      headers: {} as Record<string, string>,
+      withCredentials: false,
+      status: 200,
+      responseText: '{"ok":true}',
+      onload: null as (() => void) | null,
+      onerror: null as (() => void) | null,
+      open(method: string, url: string): void {
+        expect(method).toBe('POST');
+        expect(url).toBe('/api/computer/upload-content?token=up-1');
+      },
+      setRequestHeader(name: string, value: string): void {
+        xhr.headers[name] = value;
+      },
+      send(file: unknown): void {
+        uploaded.push({ url: '/api/computer/upload-content?token=up-1', file });
+        xhr.onload?.();
+      },
+    };
     vi.stubGlobal('fetch', (url: string, init?: RequestInit) => {
-      calls.push({ url, init });
-      const body = String(url).startsWith('/api/computer/upload-content')
-        ? { ok: true }
-        : { ok: true, uploadToken: 'up-1' };
+      expect(url).toBe('/api/computer/upload');
+      expect(JSON.parse(String(init?.body))).toEqual({ authorize: true, file: 'a.tar' });
       return Promise.resolve(
-        new Response(JSON.stringify(body), {
+        new Response(JSON.stringify({ ok: true, uploadToken: 'up-1' }), {
           status: 200,
           headers: { 'content-type': 'application/json' },
         }),
       );
     });
-    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
+    const face = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => xhr as unknown as XMLHttpRequest,
+    });
 
     expect(await face.requestUpload('a.tar')).toBe('up-1');
-    await face.sendUploadBytes('up-1', new File(['chunk-1', 'chunk-2'], 'a.tar'));
-    const initCall = calls.find((call) => call.url === '/api/computer/upload');
-    expect(JSON.parse(String(initCall?.init?.body))).toEqual({ authorize: true, file: 'a.tar' });
-    const putCall = calls.find((call) =>
-      String(call.url).startsWith('/api/computer/upload-content'),
-    );
-    expect(putCall?.init?.method).toBe('POST');
-    expect(String(putCall?.url)).toContain('token=up-1');
-    expect(putCall?.init?.body).toBeInstanceOf(ReadableStream);
+    const file = new File(['chunk-1', 'chunk-2'], 'a.tar');
+    await face.sendUploadBytes('up-1', file);
+    // The Blob itself travels (XHR sets the length); nothing is stringified.
+    expect(uploaded).toHaveLength(1);
+    expect(uploaded[0]?.file).toBe(file);
+    expect(xhr.headers['content-type']).toBe('application/octet-stream');
+    expect(xhr.withCredentials).toBe(true);
   });
 
-  it('reports when the browser cannot stream uploads', () => {
-    const face = createComputerSettingsFace({ prefs: new ComputerSettingsPrefs() });
-    expect(face.supportsStreamingUpload(new File(['x'], 'a.tar'))).toBe(true);
-    expect(face.supportsStreamingUpload({ name: 'a.tar' })).toBe(false);
+  class FakeXhr {
+    withCredentials = false;
+    status = 200;
+    responseText = '';
+    onload: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    headers: Record<string, string> = {};
+    sent: unknown[] = [];
+    opened = { method: '', url: '' };
+
+    open(method: string, url: string): void {
+      this.opened = { method, url };
+    }
+
+    setRequestHeader(name: string, value: string): void {
+      this.headers[name] = value;
+    }
+
+    send(file: unknown): void {
+      this.sent.push(file);
+    }
+
+    respond(status: number, text: string): void {
+      this.status = status;
+      this.responseText = text;
+      this.onload?.();
+    }
+
+    abort(): void {
+      this.onerror?.();
+    }
+  }
+
+  function fakeXhr(): {
+    xhr: unknown;
+    sent: unknown[];
+    respond: (status: number, text: string) => void;
+    abort: () => void;
+  } {
+    const fake = new FakeXhr();
+    return {
+      xhr: fake,
+      sent: fake.sent,
+      respond: (status, text) => fake.respond(status, text),
+      abort: () => fake.abort(),
+    };
+  }
+
+  it('surfaces transport and server failures', async () => {
+    const broken = fakeXhr();
+    const faceBroken = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => broken.xhr as XMLHttpRequest,
+    });
+    const sending = faceBroken.sendUploadBytes('up-1', new File(['x'], 'a.tar'));
+    broken.abort();
+    await expect(sending).rejects.toThrow(/transport failed/);
+
+    const denied = fakeXhr();
+    const faceDenied = createComputerSettingsFace({
+      prefs: new ComputerSettingsPrefs(),
+      createXhr: () => denied.xhr as XMLHttpRequest,
+    });
+    const deniedSending = faceDenied.sendUploadBytes('up-1', new File(['x'], 'a.tar'));
+    denied.respond(200, '{"ok":false,"error":"nope"}');
+    await expect(deniedSending).rejects.toThrow(/nope/);
   });
 });
 

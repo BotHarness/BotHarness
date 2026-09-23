@@ -327,7 +327,6 @@ window.__ModuleLoader__.load({
       'rows.import': '导入…',
       'rows.importing': '导入中…',
       'rows.chooseFile': '选择归档文件…',
-      'rows.uploadUnsupported': '浏览器不支持流式上传，请用 Chromium 系浏览器重试',
       'rows.cancelImport': '取消导入',
       'rows.authorizeImport': '授权并导入 {file}',
       'rows.exported': '已导出：{archive}',
@@ -408,7 +407,6 @@ window.__ModuleLoader__.load({
       'rows.import': 'Import…',
       'rows.importing': 'Importing…',
       'rows.chooseFile': 'Choose archive file…',
-      'rows.uploadUnsupported': 'This browser cannot stream uploads — retry in a Chromium browser',
       'rows.cancelImport': 'Cancel import',
       'rows.authorizeImport': 'Authorize and import {file}',
       'rows.exported': 'Exported: {archive}',
@@ -610,20 +608,31 @@ window.__ModuleLoader__.load({
           if (payload.uploadToken === void 0) throw new Error('upload not accepted');
           return payload.uploadToken;
         },
-        sendUploadBytes: async (uploadToken, file) => {
-          const response = await fetch(
-            `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`,
-            {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'content-type': 'application/x-tar' },
-              body: file.stream(),
-              duplex: 'half',
-            },
-          );
-          if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
-        },
-        supportsStreamingUpload: (file) => typeof file?.stream === 'function',
+        sendUploadBytes: (uploadToken, file) =>
+          new Promise((resolve, reject) => {
+            const xhr = (options.createXhr ?? (() => new XMLHttpRequest()))();
+            xhr.open('POST', `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`);
+            xhr.withCredentials = true;
+            xhr.setRequestHeader('content-type', 'application/octet-stream');
+            xhr.onload = () => {
+              if (xhr.status !== 200) {
+                reject(/* @__PURE__ */ new Error(`upload failed: HTTP ${String(xhr.status)}`));
+                return;
+              }
+              try {
+                const payload = JSON.parse(xhr.responseText);
+                if (payload.ok === true) resolve();
+                else
+                  reject(
+                    new Error(typeof payload.error === 'string' ? payload.error : 'upload failed'),
+                  );
+              } catch (error) {
+                reject(error instanceof Error ? error : new Error(String(error)));
+              }
+            };
+            xhr.onerror = () => reject(/* @__PURE__ */ new Error('upload transport failed'));
+            xhr.send(file);
+          }),
         listArchives: async () => {
           return (await requestJson$1(EXPORTS_ENDPOINT)).files ?? [];
         },
@@ -682,7 +691,6 @@ window.__ModuleLoader__.load({
       importArchive,
       requestUpload,
       sendUploadBytes,
-      supportsStreamingUpload,
       listArchives,
       hostExportDir,
     }) {
@@ -839,19 +847,12 @@ window.__ModuleLoader__.load({
         },
         [importArchive, t],
       );
-      const takeUploadFile = (0, react.useCallback)(
-        (file) => {
-          if (file === null) return;
-          if (!supportsStreamingUpload(file)) {
-            setTransferNote(t('rows.uploadUnsupported'));
-            return;
-          }
-          uploadFile.current = file;
-          setUploadName(file.name);
-          setTransferNote(void 0);
-        },
-        [supportsStreamingUpload, t],
-      );
+      const takeUploadFile = (0, react.useCallback)((file) => {
+        if (file === null) return;
+        uploadFile.current = file;
+        setUploadName(file.name);
+        setTransferNote(void 0);
+      }, []);
       const runUpload = (0, react.useCallback)(() => {
         const file = uploadFile.current;
         const name = uploadName;
@@ -860,14 +861,7 @@ window.__ModuleLoader__.load({
         setBusy('import');
         setTransferNote(void 0);
         requestUpload(name)
-          .then(async (token) => {
-            try {
-              await sendUploadBytes(token, file);
-            } catch (error) {
-              if (error instanceof TypeError) throw new Error(t('rows.uploadUnsupported'));
-              throw error;
-            }
-          })
+          .then((token) => sendUploadBytes(token, file))
           .then(() => {
             setTransferNote(t('rows.imported', { file: name }));
             setUploadName(void 0);
@@ -1150,11 +1144,21 @@ window.__ModuleLoader__.load({
                           className: 'bh-settings-selector',
                           onClick: runUpload,
                           children:
-                            busy === 'import'
-                              ? t('rows.importing')
-                              : t('rows.authorizeImport', { file: uploadName }),
+                            busy === 'import' ? t('rows.importing') : t('rows.authorizeImport'),
                         }),
                       ],
+                    }),
+                uploadName === void 0
+                  ? null
+                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                      className: 'bh-note',
+                      style: {
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        maxWidth: '100%',
+                      },
+                      children: uploadName,
                     }),
               ],
             }),

@@ -150,10 +150,12 @@ export interface ComputerSettingsFace {
   importArchive: (file: string) => Promise<void>;
   /** Authorize a browser upload and mint its single-use token. */
   requestUpload: (file: string) => Promise<string>;
-  /** Stream a file's bytes to an upload token (never buffered). */
+  /**
+   * Stream a file's bytes to an upload token. Mirrors DSH's own file-upload
+   * client: Blob bodies go over XMLHttpRequest (content-length, disk-streamed)
+   * instead of fetch+stream, which the transport mangles.
+   */
   sendUploadBytes: (uploadToken: string, file: File) => Promise<void>;
-  /** False where the browser cannot stream request bodies (needs Chromium). */
-  supportsStreamingUpload: (file: unknown) => boolean;
   /** List the archives the configured directory holds. */
   listArchives: () => Promise<string[]>;
   /** Effective export directory reported by the Host, for the no-scope case. */
@@ -192,6 +194,7 @@ async function postAuthorized(url: string, body: Record<string, unknown> = {}): 
 export function createComputerSettingsFace(options: {
   prefs: ComputerSettingsPrefs;
   pickDirectory?: (() => Promise<string | null>) | undefined;
+  createXhr?: (() => XMLHttpRequest) | undefined;
 }): ComputerSettingsFace {
   const { prefs } = options;
   return {
@@ -232,23 +235,35 @@ export function createComputerSettingsFace(options: {
       if (payload.uploadToken === undefined) throw new Error('upload not accepted');
       return payload.uploadToken;
     },
-    sendUploadBytes: async (uploadToken, file) => {
-      // `duplex: 'half'` is absent from this TS lib's RequestInit, but the
-      // runtime requires it for stream bodies — cast the init, not the body.
-      const response = await fetch(
-        `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`,
-        {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'content-type': 'application/x-tar' },
-          body: file.stream() as BodyInit,
-          duplex: 'half',
-        } as RequestInit,
-      );
-      if (!response.ok) throw new Error(`${String(response.status)} ${await response.text()}`);
-    },
-    supportsStreamingUpload: (file) =>
-      typeof (file as { stream?: unknown } | null)?.stream === 'function',
+    sendUploadBytes: (uploadToken, file) =>
+      new Promise<void>((resolve, reject) => {
+        const createXhr = options.createXhr ?? (() => new XMLHttpRequest());
+        const xhr = createXhr();
+        xhr.open('POST', `${UPLOAD_CONTENT_ENDPOINT}?token=${encodeURIComponent(uploadToken)}`);
+        xhr.withCredentials = true;
+        xhr.setRequestHeader('content-type', 'application/octet-stream');
+        xhr.onload = () => {
+          if (xhr.status !== 200) {
+            reject(new Error(`upload failed: HTTP ${String(xhr.status)}`));
+            return;
+          }
+          try {
+            const payload = JSON.parse(xhr.responseText) as {
+              ok?: unknown;
+              error?: unknown;
+            };
+            if (payload.ok === true) resolve();
+            else
+              reject(
+                new Error(typeof payload.error === 'string' ? payload.error : 'upload failed'),
+              );
+          } catch (error: unknown) {
+            reject(error instanceof Error ? error : new Error(String(error)));
+          }
+        };
+        xhr.onerror = () => reject(new Error('upload transport failed'));
+        xhr.send(file);
+      }),
     listArchives: async () => {
       const payload = await requestJson<{ files?: string[] }>(EXPORTS_ENDPOINT);
       return payload.files ?? [];
@@ -318,7 +333,6 @@ export function ComputerSettingsRows({
   importArchive,
   requestUpload,
   sendUploadBytes,
-  supportsStreamingUpload,
   listArchives,
   hostExportDir,
 }: PropsRuntime<'botharness.settings.item'> &
@@ -502,19 +516,12 @@ export function ComputerSettingsRows({
     [importArchive, t],
   );
 
-  const takeUploadFile = useCallback(
-    (file: File | null) => {
-      if (file === null) return;
-      if (!supportsStreamingUpload(file)) {
-        setTransferNote(t('rows.uploadUnsupported'));
-        return;
-      }
-      uploadFile.current = file;
-      setUploadName(file.name);
-      setTransferNote(undefined);
-    },
-    [supportsStreamingUpload, t],
-  );
+  const takeUploadFile = useCallback((file: File | null) => {
+    if (file === null) return;
+    uploadFile.current = file;
+    setUploadName(file.name);
+    setTransferNote(undefined);
+  }, []);
 
   const runUpload = useCallback(() => {
     const file = uploadFile.current;
@@ -524,16 +531,7 @@ export function ComputerSettingsRows({
     setBusy('import');
     setTransferNote(undefined);
     void requestUpload(name)
-      .then(async (token) => {
-        try {
-          await sendUploadBytes(token, file);
-        } catch (error: unknown) {
-          // Streaming request bodies fail as TypeError where the browser
-          // cannot send them (duplex half unavailable).
-          if (error instanceof TypeError) throw new Error(t('rows.uploadUnsupported'));
-          throw error;
-        }
-      })
+      .then((token) => sendUploadBytes(token, file))
       .then(() => {
         setTransferNote(t('rows.imported', { file: name }));
         setUploadName(undefined);
@@ -774,11 +772,22 @@ export function ComputerSettingsRows({
                 {t('entry.cancel')}
               </button>
               <button type="button" className="bh-settings-selector" onClick={runUpload}>
-                {busy === 'import'
-                  ? t('rows.importing')
-                  : t('rows.authorizeImport', { file: uploadName })}
+                {busy === 'import' ? t('rows.importing') : t('rows.authorizeImport')}
               </button>
             </>
+          )}
+          {uploadName === undefined ? null : (
+            <div
+              className="bh-note"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                maxWidth: '100%',
+              }}
+            >
+              {uploadName}
+            </div>
           )}
         </div>
       </Row>
