@@ -317,8 +317,10 @@ window.__ModuleLoader__.load({
       'rows.idle.title': '空闲停止',
       'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
       'rows.idle.minutes': '{minutes} 分钟',
-      'rows.transfer.title': '导出 / 导入',
-      'rows.transfer.description': '把 Computer 的持久存储打包成一个归档，或从归档恢复',
+      'rows.exportSection.title': '导出',
+      'rows.exportSection.description': '把 Computer 的持久存储打包成一个归档',
+      'rows.importSection.title': '导入',
+      'rows.importSection.description': '从归档恢复 Computer',
       'rows.export': '导出',
       'rows.exporting': '导出中…',
       'rows.download': '下载',
@@ -328,7 +330,7 @@ window.__ModuleLoader__.load({
       'rows.importing': '导入中…',
       'rows.chooseFile': '选择归档文件…',
       'rows.cancelImport': '取消导入',
-      'rows.authorizeImport': '授权并导入 {file}',
+      'rows.authorizeImportConfirm': '授权并导入',
       'rows.exported': '已导出：{archive}',
       'rows.exportedDone': '导出完成。',
       'rows.imported': '已从 {file} 导入并重启 Computer。',
@@ -396,9 +398,10 @@ window.__ModuleLoader__.load({
       'rows.idle.title': 'Idle stop',
       'rows.idle.description': 'How long the Computer waits without viewers before stopping',
       'rows.idle.minutes': '{minutes} min',
-      'rows.transfer.title': 'Export / import',
-      'rows.transfer.description':
-        'Pack the persistent store into one archive, or restore from one',
+      'rows.exportSection.title': 'Export',
+      'rows.exportSection.description': "Pack the Computer's persistent store into one archive",
+      'rows.importSection.title': 'Import',
+      'rows.importSection.description': 'Restore the Computer from an archive',
       'rows.export': 'Export',
       'rows.exporting': 'Exporting…',
       'rows.download': 'Download',
@@ -408,7 +411,7 @@ window.__ModuleLoader__.load({
       'rows.importing': 'Importing…',
       'rows.chooseFile': 'Choose archive file…',
       'rows.cancelImport': 'Cancel import',
-      'rows.authorizeImport': 'Authorize and import {file}',
+      'rows.authorizeImportConfirm': 'Authorize and import',
       'rows.exported': 'Exported: {archive}',
       'rows.exportedDone': 'Export complete.',
       'rows.imported': 'Imported {file} and restarted the Computer.',
@@ -858,7 +861,7 @@ window.__ModuleLoader__.load({
         const name = uploadName;
         if (file === null || name === void 0) return;
         setConfirming(void 0);
-        setBusy('import');
+        setBusy('upload');
         setTransferNote(void 0);
         requestUpload(name)
           .then((token) => sendUploadBytes(token, file))
@@ -882,6 +885,7 @@ window.__ModuleLoader__.load({
       const openDir = (0, react.useCallback)(() => {
         openDirectory(exportDir).catch((error) => setDirNote(String(error)));
       }, [exportDir, openDirectory]);
+      const selectedFile = uploadName ?? (confirming === 'import' ? archives?.[0] : void 0);
       return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
         className: 'bh-settings-rows',
         children: [
@@ -1013,8 +1017,8 @@ window.__ModuleLoader__.load({
             ),
           }),
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
-            title: t('rows.transfer.title'),
-            description: t('rows.transfer.description'),
+            title: t('rows.exportSection.title'),
+            description: t('rows.exportSection.description'),
             children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
               style: {
                 display: 'flex',
@@ -1054,51 +1058,6 @@ window.__ModuleLoader__.load({
                             ? t('rows.exportTo')
                             : t('rows.export'),
                     }),
-                confirming === 'import'
-                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                      type: 'button',
-                      className: 'bh-settings-selector',
-                      onClick: () => {
-                        setConfirming(void 0);
-                      },
-                      children: t('rows.cancelImport'),
-                    })
-                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                      _deepseek_ai_dsh_client_ui_primitives.Menu,
-                      {
-                        open: importOpen,
-                        portal: true,
-                        align: 'end',
-                        items: (archives ?? []).map((file) => ({
-                          id: file,
-                          label: file,
-                        })),
-                        onSelect: (id) => {
-                          setConfirming('import');
-                          setArchives([id]);
-                        },
-                        onClose: () => {
-                          setImportOpen(false);
-                        },
-                        anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
-                          label: busy === 'import' ? t('rows.importing') : t('rows.import'),
-                          open: importOpen,
-                          disabled: !hasDir || busy !== void 0,
-                          onToggle: openImport,
-                        }),
-                      },
-                    ),
-                confirming === 'import' && archives?.[0] !== void 0
-                  ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                      type: 'button',
-                      className: 'bh-settings-selector',
-                      onClick: () => {
-                        const file = archives[0];
-                        if (file !== void 0) runImport(file);
-                      },
-                      children: t('rows.authorizeImport', { file: archives[0] }),
-                    })
-                  : null,
                 download === void 0
                   ? null
                   : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
@@ -1109,59 +1068,125 @@ window.__ModuleLoader__.load({
                       },
                       children: t('rows.download'),
                     }),
-                /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('label', {
-                  className: 'bh-settings-selector',
-                  children: [
-                    t('rows.chooseFile'),
-                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)('input', {
-                      type: 'file',
-                      accept: '.tar,application/x-tar',
-                      hidden: true,
-                      disabled: busy !== void 0,
-                      onChange: (event) => {
-                        const file = event.target.files?.[0] ?? null;
-                        event.target.value = '';
-                        takeUploadFile(file);
-                      },
-                    }),
-                  ],
-                }),
-                uploadName === void 0
-                  ? null
-                  : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
-                      children: [
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                          type: 'button',
-                          className: 'bh-settings-selector',
-                          onClick: () => {
-                            setUploadName(void 0);
-                            uploadFile.current = null;
-                          },
-                          children: t('entry.cancel'),
-                        }),
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                          type: 'button',
-                          className: 'bh-settings-selector',
-                          onClick: runUpload,
-                          children:
-                            busy === 'import' ? t('rows.importing') : t('rows.authorizeImport'),
-                        }),
-                      ],
-                    }),
-                uploadName === void 0
-                  ? null
-                  : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-                      className: 'bh-note',
-                      style: {
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                        maxWidth: '100%',
-                      },
-                      children: uploadName,
-                    }),
               ],
             }),
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(Row, {
+            title: t('rows.importSection.title'),
+            description: t('rows.importSection.description'),
+            children: [
+              /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+                style: {
+                  display: 'flex',
+                  gap: 8,
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                },
+                children: [
+                  confirming === 'import'
+                    ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                        type: 'button',
+                        className: 'bh-settings-selector',
+                        onClick: () => {
+                          setConfirming(void 0);
+                        },
+                        children: t('rows.cancelImport'),
+                      })
+                    : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                        _deepseek_ai_dsh_client_ui_primitives.Menu,
+                        {
+                          open: importOpen,
+                          portal: true,
+                          align: 'end',
+                          items: (archives ?? []).map((file) => ({
+                            id: file,
+                            label: file,
+                          })),
+                          onSelect: (id) => {
+                            setConfirming('import');
+                            setArchives([id]);
+                          },
+                          onClose: () => {
+                            setImportOpen(false);
+                          },
+                          anchor: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(Selector, {
+                            label: busy === 'import' ? t('rows.importing') : t('rows.import'),
+                            open: importOpen,
+                            disabled: !hasDir || busy !== void 0,
+                            onToggle: openImport,
+                          }),
+                        },
+                      ),
+                  confirming === 'import' && archives?.[0] !== void 0
+                    ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                        type: 'button',
+                        className: 'bh-settings-selector',
+                        disabled: busy !== void 0,
+                        onClick: () => {
+                          const file = archives[0];
+                          if (file !== void 0) runImport(file);
+                        },
+                        children: t('rows.authorizeImportConfirm'),
+                      })
+                    : null,
+                  /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('label', {
+                    className: 'bh-settings-selector',
+                    children: [
+                      t('rows.chooseFile'),
+                      /* @__PURE__ */ (0, react_jsx_runtime.jsx)('input', {
+                        type: 'file',
+                        accept: '.tar,application/x-tar',
+                        hidden: true,
+                        disabled: busy !== void 0,
+                        onChange: (event) => {
+                          const file = event.target.files?.[0] ?? null;
+                          event.target.value = '';
+                          takeUploadFile(file);
+                        },
+                      }),
+                    ],
+                  }),
+                  uploadName === void 0
+                    ? null
+                    : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
+                        children: [
+                          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                            type: 'button',
+                            className: 'bh-settings-selector',
+                            onClick: () => {
+                              setUploadName(void 0);
+                              uploadFile.current = null;
+                            },
+                            children: t('entry.cancel'),
+                          }),
+                          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                            type: 'button',
+                            className: 'bh-settings-selector',
+                            disabled: busy !== void 0,
+                            onClick: runUpload,
+                            children:
+                              busy === 'upload'
+                                ? t('rows.importing')
+                                : t('rows.authorizeImportConfirm'),
+                          }),
+                        ],
+                      }),
+                ],
+              }),
+              selectedFile === void 0
+                ? null
+                : /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                    className: 'bh-note',
+                    style: {
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap',
+                      maxWidth: '100%',
+                      minWidth: 0,
+                    },
+                    children: selectedFile,
+                  }),
+            ],
           }),
           busy !== void 0 && phaseKey !== void 0
             ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {

@@ -8,7 +8,7 @@
  * @module @botharness/computer/settings-rows
  */
 
-import { useCallback, useEffect, useRef, useState, type ReactElement } from 'react';
+import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import {
   IconChevronDownOutline14,
@@ -282,7 +282,7 @@ function Row({
 }: {
   readonly title: string;
   readonly description: string;
-  readonly children?: ReactElement | undefined;
+  readonly children?: ReactNode;
 }): ReactElement {
   return (
     <div className="bh-settings-row">
@@ -342,7 +342,7 @@ export function ComputerSettingsRows({
   const [idleOpen, setIdleOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [archives, setArchives] = useState<readonly string[] | undefined>(undefined);
-  const [busy, setBusy] = useState<'export' | 'import' | undefined>(undefined);
+  const [busy, setBusy] = useState<'export' | 'import' | 'upload' | undefined>(undefined);
   const [confirming, setConfirming] = useState<'export' | 'import' | undefined>(undefined);
   const [exportTarget, setExportTarget] = useState<string | undefined>(undefined);
   const [manualOpen, setManualOpen] = useState(false);
@@ -528,7 +528,7 @@ export function ComputerSettingsRows({
     const name = uploadName;
     if (file === null || name === undefined) return;
     setConfirming(undefined);
-    setBusy('import');
+    setBusy('upload');
     setTransferNote(undefined);
     void requestUpload(name)
       .then((token) => sendUploadBytes(token, file))
@@ -554,6 +554,10 @@ export function ComputerSettingsRows({
   const openDir = useCallback(() => {
     void openDirectory(exportDir).catch((error: unknown) => setDirNote(String(error)));
   }, [exportDir, openDirectory]);
+
+  // Whatever the user picked to import — uploaded file first, listed archive
+  // second — shown once, truncated, instead of inside the authorize buttons.
+  const selectedFile = uploadName ?? (confirming === 'import' ? archives?.[0] : undefined);
 
   return (
     <div className="bh-settings-rows">
@@ -658,7 +662,7 @@ export function ComputerSettingsRows({
         />
       </Row>
 
-      <Row title={t('rows.transfer.title')} description={t('rows.transfer.description')}>
+      <Row title={t('rows.exportSection.title')} description={t('rows.exportSection.description')}>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {confirming === 'export' ? (
             <>
@@ -689,6 +693,22 @@ export function ComputerSettingsRows({
                   : t('rows.export')}
             </button>
           )}
+          {download === undefined ? null : (
+            <button
+              type="button"
+              className="bh-settings-selector"
+              onClick={() => {
+                globalThis.location?.assign(downloadUrl(download.token));
+              }}
+            >
+              {t('rows.download')}
+            </button>
+          )}
+        </div>
+      </Row>
+
+      <Row title={t('rows.importSection.title')} description={t('rows.importSection.description')}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {confirming === 'import' ? (
             <button
               type="button"
@@ -726,25 +746,15 @@ export function ComputerSettingsRows({
             <button
               type="button"
               className="bh-settings-selector"
+              disabled={busy !== undefined}
               onClick={() => {
                 const file = archives[0];
                 if (file !== undefined) runImport(file);
               }}
             >
-              {t('rows.authorizeImport', { file: archives[0] })}
+              {t('rows.authorizeImportConfirm')}
             </button>
           ) : null}
-          {download === undefined ? null : (
-            <button
-              type="button"
-              className="bh-settings-selector"
-              onClick={() => {
-                globalThis.location?.assign(downloadUrl(download.token));
-              }}
-            >
-              {t('rows.download')}
-            </button>
-          )}
           <label className="bh-settings-selector">
             {t('rows.chooseFile')}
             <input
@@ -771,25 +781,31 @@ export function ComputerSettingsRows({
               >
                 {t('entry.cancel')}
               </button>
-              <button type="button" className="bh-settings-selector" onClick={runUpload}>
-                {busy === 'import' ? t('rows.importing') : t('rows.authorizeImport')}
+              <button
+                type="button"
+                className="bh-settings-selector"
+                disabled={busy !== undefined}
+                onClick={runUpload}
+              >
+                {busy === 'upload' ? t('rows.importing') : t('rows.authorizeImportConfirm')}
               </button>
             </>
           )}
-          {uploadName === undefined ? null : (
-            <div
-              className="bh-note"
-              style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: '100%',
-              }}
-            >
-              {uploadName}
-            </div>
-          )}
         </div>
+        {selectedFile === undefined ? null : (
+          <div
+            className="bh-note"
+            style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              maxWidth: '100%',
+              minWidth: 0,
+            }}
+          >
+            {selectedFile}
+          </div>
+        )}
       </Row>
 
       {busy !== undefined && phaseKey !== undefined ? (
