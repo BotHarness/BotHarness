@@ -128,6 +128,21 @@ function parseConfigMount(output: string): { type: string; source: string } | un
 }
 
 /**
+ * Compares a live mount against the wanted store. Named volumes surface as
+ * host paths (`/var/lib/docker/volumes/<name>/_data`), so those compare by
+ * volume name; bind sources compare exactly.
+ */
+function mountMatches(
+  current: { type: string; source: string },
+  want: { type: string; source: string },
+): boolean {
+  if (current.type !== want.type) return false;
+  if (current.source === want.source) return true;
+  if (want.type !== 'volume' || !current.source.endsWith('/_data')) return false;
+  return basename(current.source.slice(0, -'/_data'.length)) === want.source;
+}
+
+/**
  * Turns `docker pull` plain progress into a coarse percentage (completed
  * layers over layers seen) plus the latest terminal line. Docker prints one
  * layer id per line in non-TTY mode; we never claim precision we do not have.
@@ -373,7 +388,7 @@ export function createDockerComputerProvider(
     const storage = resolveStorage(config, platformName);
     const want = describeWant(storage);
     const current = await readConfigMount();
-    if (current === undefined || (current.type === want.type && current.source === want.source)) {
+    if (current === undefined || mountMatches(current, want)) {
       return false;
     }
     if (!allowRebuild) return false;
@@ -392,7 +407,7 @@ export function createDockerComputerProvider(
     if (config.dataDir.trim() === '') return undefined;
     const want = describeWant(resolveStorage(config, platformName));
     const current = await readConfigMount();
-    if (current === undefined || (current.type === want.type && current.source === want.source)) {
+    if (current === undefined || mountMatches(current, want)) {
       return undefined;
     }
     return state === 'running'
