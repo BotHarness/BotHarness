@@ -29,6 +29,7 @@ import {
   MemoryAcceptError,
   type MemoryAcceptedCommit,
   type MemoryAcceptedSnapshot,
+  type MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import { MemoryPathError } from '../memory/jail.js';
@@ -103,6 +104,7 @@ export interface BridgeMethods {
   memoryHistory(payload: unknown): BridgeResult<{ commits: MemoryAcceptedCommit[] }>;
   memoryDiff(payload: unknown): BridgeResult<{ sha: string; diff: string }>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
+  memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
   sectionRename(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -769,6 +771,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           expectedHead,
           editId,
         }),
+      }));
+    },
+    memoryRepair(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const expectedHead = asNonBlank(source, 'expectedHead');
+      const repairId = asNonBlank(source, 'repairId');
+      if (
+        expectedHead === undefined ||
+        repairId === undefined ||
+        !/^[0-9a-f]{40}$/u.test(expectedHead) ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(repairId)
+      )
+        return invalidInput('valid expectedHead and repairId are required');
+      return memoryCall(() => ({
+        repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
     },
     rosterGet() {

@@ -13,6 +13,8 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
   const [sha, setSha] = useState<string>();
   const [diff, setDiff] = useState<string>();
   const [busy, setBusy] = useState(false);
+  const [confirmRepair, setConfirmRepair] = useState(false);
+  const [repairArchive, setRepairArchive] = useState<string>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
@@ -96,6 +98,26 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
     }
   };
 
+  const repair = async (): Promise<void> => {
+    if (snapshot?.head === null || snapshot?.head === undefined || busy) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const result = await actions.memoryRepair({
+        channelId,
+        expectedHead: snapshot.head,
+        repairId: crypto.randomUUID(),
+      });
+      setRepairArchive(result.backupPath);
+      setConfirmRepair(false);
+      setRefresh((value) => value + 1);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   return (
     <div className="bh-memory-entry">
       <div className="bh-memory-toolbar">
@@ -116,8 +138,28 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
           {snapshot.provisional ? (
             <div className="bh-note" role="status">
               {t('memory.provisional')}
+              {confirmRepair ? (
+                <div>
+                  <p>{t('memory.repairConfirm')}</p>
+                  <button type="button" disabled={busy} onClick={() => void repair()}>
+                    {busy ? t('memory.repairing') : t('memory.repairCommit')}
+                  </button>
+                  <button type="button" disabled={busy} onClick={() => setConfirmRepair(false)}>
+                    {t('memory.repairCancel')}
+                  </button>
+                </div>
+              ) : (
+                <button type="button" disabled={busy} onClick={() => setConfirmRepair(true)}>
+                  {t('memory.repair')}
+                </button>
+              )}
             </div>
           ) : null}
+          {repairArchive === undefined ? null : (
+            <div className="bh-note" role="status">
+              {t('memory.repairDone')} {repairArchive}
+            </div>
+          )}
           {snapshot.files.length === 0 ? (
             <div className="bh-note">{t('memory.empty')}</div>
           ) : (

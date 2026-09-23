@@ -703,6 +703,15 @@ export interface MemoryAcceptedCommit {
   acceptedAt: string;
 }
 
+export interface MemoryRepairEvent {
+  id: string;
+  acceptedHeadSha: string;
+  provisionalHeadSha: string;
+  backupPath: string;
+  status: 'started' | 'completed';
+  completedAt: string | null;
+}
+
 export interface MemorySnapshot {
   head: string | null;
   files: string[];
@@ -789,4 +798,23 @@ export async function saveMemoryFile(
 ): Promise<MemoryAcceptedCommit> {
   const response = asRecord(await unwrap(call, 'memorySave', input));
   return parseMemoryCommit(response?.['commit']);
+}
+
+export async function repairMemory(
+  call: BridgeCall,
+  input: { channelId: string; expectedHead: string; repairId: string },
+): Promise<MemoryRepairEvent> {
+  const response = asRecord(await unwrap(call, 'memoryRepair', input));
+  const repair = asRecord(response?.['repair']);
+  if (
+    repair === undefined ||
+    typeof repair['id'] !== 'string' ||
+    typeof repair['acceptedHeadSha'] !== 'string' ||
+    typeof repair['provisionalHeadSha'] !== 'string' ||
+    typeof repair['backupPath'] !== 'string' ||
+    repair['status'] !== 'completed' ||
+    typeof repair['completedAt'] !== 'string'
+  )
+    throw new Error('invalid Memory repair result');
+  return repair as unknown as MemoryRepairEvent;
 }

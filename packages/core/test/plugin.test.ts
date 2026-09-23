@@ -246,6 +246,7 @@ describe('plugin entry', () => {
       'memoryHistory',
       'memoryDiff',
       'memorySave',
+      'memoryRepair',
       'rosterGet',
       'sectionCreate',
       'sectionRename',

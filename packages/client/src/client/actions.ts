@@ -14,6 +14,7 @@ import {
   loadMemoryHistory,
   loadMemoryDiff,
   saveMemoryFile,
+  repairMemory,
   loadTimelinePage,
   loadReadPosition,
   markReadPosition,
@@ -31,6 +32,7 @@ import {
   type BridgeCall,
   type MemoryAcceptedCommit,
   type MemorySnapshot,
+  type MemoryRepairEvent,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -75,6 +77,11 @@ export interface BridgeActions {
   ): Promise<{ path: string; body: string; head: string } | undefined>;
   memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
   memoryDiff(channelId: string, sha: string): Promise<string>;
+  memoryRepair(input: {
+    channelId: string;
+    expectedHead: string;
+    repairId: string;
+  }): Promise<MemoryRepairEvent>;
   memorySave(input: {
     channelId: string;
     path: string;
@@ -606,6 +613,7 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     memoryHistory: (channelId) => loadMemoryHistory(call, channelId),
     memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
     memorySave: (input) => saveMemoryFile(call, input),
+    memoryRepair: (input) => repairMemory(call, input),
     async openAssignment(sessionId) {
       const selection = currentSelection();
       if (selection?.kind !== 'bot') return;

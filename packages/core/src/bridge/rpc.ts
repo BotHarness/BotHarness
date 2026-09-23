@@ -18,7 +18,11 @@ import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { SessionSummary } from '../sessions/source.js';
-import type { MemoryAcceptedCommit, MemoryAcceptedSnapshot } from '../memory/accepted.js';
+import type {
+  MemoryAcceptedCommit,
+  MemoryAcceptedSnapshot,
+  MemoryRepairEvent,
+} from '../memory/accepted.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
 export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
@@ -257,6 +261,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memorySave({ channelId, path, body, expectedHead, editId }));
   }
 
+  memoryRepair(
+    channelId: string,
+    expectedHead: string,
+    repairId: string,
+  ): { repair: MemoryRepairEvent } {
+    return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
+  }
+
   rosterGet(): RosterSnapshot {
     return unwrap(this.methods.rosterGet({}));
   }
@@ -330,6 +342,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memoryHistory',
   'memoryDiff',
   'memorySave',
+  'memoryRepair',
   'rosterGet',
   'sectionCreate',
   'sectionRename',

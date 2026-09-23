@@ -170,6 +170,21 @@ const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
         FOREIGN KEY (bot_slug, head_sha)
           REFERENCES memory_accepted_commits(bot_slug, sha)
       );
+      CREATE TABLE memory_repair_events (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        accepted_head_sha TEXT NOT NULL,
+        provisional_head_sha TEXT NOT NULL,
+        backup_path TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        actor_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind = 'human-repair'),
+        status TEXT NOT NULL CHECK (status IN ('started', 'completed')),
+        requested_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+      CREATE INDEX memory_repair_events_bot_time
+        ON memory_repair_events (bot_slug, requested_at DESC);
     `);
   },
 };

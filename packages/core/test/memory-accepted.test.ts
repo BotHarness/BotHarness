@@ -1,6 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { dirname, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
 import { describe, expect, it } from 'vitest';
@@ -127,6 +136,123 @@ describe('accepted Memory Commit boundary', () => {
         now: FIXED_NOW,
       });
       expect(reopened.history('atlas')[0]?.sha).toBe(accepted!.sha);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('archives failed-turn changes, restores the accepted head, and permits a later turn', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      addSource('event-failed');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'fact.md'), 'failed turn\n');
+      memory.abortTurn('atlas', 'session-atlas');
+      expect(memory.snapshot('atlas').provisional).toBe(true);
+      expect(() => memory.prepareTurn('atlas', 'session-atlas')).toThrow(/provisional/);
+
+      const repairId = '11111111-1111-4111-8111-111111111111';
+      const repaired = memory.repairHuman({
+        botSlug: 'atlas',
+        expectedHead: seed,
+        repairId,
+      });
+      expect(repaired).toMatchObject({
+        id: repairId,
+        acceptedHeadSha: seed,
+        actorKind: 'human',
+        causeKind: 'human-repair',
+        status: 'completed',
+      });
+      expect(readFileSync(join(repaired.backupPath, 'repository', 'fact.md'), 'utf8')).toBe(
+        'failed turn\n',
+      );
+      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
+      expect(memory.history('atlas')).toHaveLength(1);
+      expect(memory.repairHuman({ botSlug: 'atlas', expectedHead: seed, repairId })).toEqual(
+        repaired,
+      );
+      const row = attachOperationalModule(database, 'memory-test').read((db) =>
+        db.prepare('SELECT * FROM memory_repair_events WHERE id = ?').get(repairId),
+      );
+      expect(row).toMatchObject({ status: 'completed', provisional_head_sha: seed });
+
+      addSource('event-retry');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'fact.md'), 'successful turn\n');
+      const [accepted] = memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'event-retry',
+      });
+      expect(accepted?.parentSha).toBe(seed);
+      expect(memory.readAccepted('atlas', 'fact.md')?.body).toBe('successful turn\n');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('archives a raw commit left before database acceptance without adding it to accepted history', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      addSource('event-crashed');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'fact.md'), 'raw commit\n');
+      git(root, 'add', 'fact.md');
+      git(root, 'commit', '--no-gpg-sign', '-m', 'unfinished turn');
+      const raw = git(root, 'rev-parse', 'HEAD');
+      memory.abortTurn('atlas', 'session-atlas');
+      const repaired = memory.repairHuman({
+        botSlug: 'atlas',
+        expectedHead: seed,
+        repairId: '22222222-2222-4222-8222-222222222222',
+      });
+      expect(repaired.provisionalHeadSha).toBe(raw);
+      expect(git(join(repaired.backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
+      expect(memory.history('atlas').map((commit) => commit.sha)).toEqual([seed]);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('resumes an interrupted archive move and preserves a late write in the archived repository', () => {
+    const { database, memory, root } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      writeFileSync(join(root, 'before.md'), 'before\n');
+      const repairId = '33333333-3333-4333-8333-333333333333';
+      const backupPath = join(dirname(root), 'memory-repairs', repairId);
+      mkdirSync(backupPath, { recursive: true });
+      attachOperationalModule(database, 'memory-test').transaction((db) => {
+        db.prepare(`INSERT INTO memory_repair_events (
+          id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
+          actor_kind, actor_id, cause_kind, status, requested_at
+        ) VALUES (?, 'atlas', ?, ?, ?, 'human', 'authenticated-dsh-human',
+          'human-repair', 'started', ?)`).run(
+          repairId,
+          seed,
+          seed,
+          backupPath,
+          FIXED_NOW().toISOString(),
+        );
+      });
+      renameSync(root, join(backupPath, 'repository'));
+      writeFileSync(join(backupPath, 'repository', 'late.md'), 'late\n');
+      expect(memory.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
+      expect(memory.history('atlas')).toHaveLength(1);
+      const repaired = memory.repairHuman({
+        botSlug: 'atlas',
+        expectedHead: seed,
+        repairId: '44444444-4444-4444-8444-444444444444',
+      });
+      expect(repaired.id).toBe(repairId);
+      expect(repaired.status).toBe('completed');
+      expect(memory.snapshot('atlas').provisional).toBe(false);
+      expect(readFileSync(join(backupPath, 'repository', 'late.md'), 'utf8')).toBe('late\n');
+      expect(existsSync(join(root, 'late.md'))).toBe(false);
     } finally {
       database.close();
     }

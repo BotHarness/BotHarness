@@ -118,6 +118,9 @@ function stubActions(): BridgeActions {
     memoryFile: vi.fn(async () => undefined),
     memoryHistory: vi.fn(async () => []),
     memoryDiff: vi.fn(async () => ''),
+    memoryRepair: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
     memorySave: vi.fn(async () => {
       throw new Error('not configured');
     }),

@@ -106,6 +106,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     history: (botSlug, limit) => requireAcceptance().history(botSlug, limit),
     diff: (botSlug, sha) => requireAcceptance().diff(botSlug, sha),
     saveHuman: (input) => requireAcceptance().saveHuman(input),
+    repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,
     repositoryFor,
     personaForSession,

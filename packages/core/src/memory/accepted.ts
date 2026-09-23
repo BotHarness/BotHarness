@@ -1,5 +1,15 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
+import {
+  cpSync,
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  renameSync,
+  rmSync,
+} from 'node:fs';
 import { dirname, join } from 'node:path';
 
 import type { PersonaBotRegistry } from '../bots/registry.js';
@@ -36,6 +46,20 @@ export interface MemoryAcceptedCommit {
   acceptedAt: string;
 }
 
+export interface MemoryRepairEvent {
+  id: string;
+  botSlug: string;
+  acceptedHeadSha: string;
+  provisionalHeadSha: string;
+  backupPath: string;
+  actorKind: 'human';
+  actorId: string;
+  causeKind: 'human-repair';
+  status: 'started' | 'completed';
+  requestedAt: string;
+  completedAt: string | null;
+}
+
 export interface MemoryAcceptedSnapshot {
   head: string | null;
   files: string[];
@@ -57,6 +81,11 @@ export interface MemoryAcceptance {
   ): { path: string; body: string; head: string } | undefined;
   history(botSlug: string, limit?: number): MemoryAcceptedCommit[];
   diff(botSlug: string, sha: string): { sha: string; diff: string };
+  repairHuman(input: {
+    botSlug: string;
+    expectedHead: string;
+    repairId: string;
+  }): MemoryRepairEvent;
   saveHuman(input: {
     botSlug: string;
     path: string;
@@ -64,6 +93,20 @@ export interface MemoryAcceptance {
     expectedHead: string;
     editId: string;
   }): MemoryAcceptedCommit;
+}
+
+interface RepairRow {
+  id: string;
+  bot_slug: string;
+  accepted_head_sha: string;
+  provisional_head_sha: string;
+  backup_path: string;
+  actor_kind: 'human';
+  actor_id: string;
+  cause_kind: 'human-repair';
+  status: 'started' | 'completed';
+  requested_at: string;
+  completed_at: string | null;
 }
 
 interface AcceptedRow {
@@ -86,6 +129,8 @@ function run(root: string, args: string[], maxBuffer = MAX_DIFF_BYTES): Buffer {
   for (const key of Object.keys(env)) {
     if (key.startsWith('GIT_')) delete env[key];
   }
+  env.GIT_CONFIG_GLOBAL = '/dev/null';
+  env.GIT_CONFIG_NOSYSTEM = '1';
   try {
     return execFileSync(
       'git',
@@ -141,10 +186,8 @@ function assertSafeGitMetadata(root: string): void {
   }
 }
 
-function repository(registry: PersonaBotRegistry, botSlug: string): string {
-  const root = registry.memoryDirFor(botSlug);
+function verifiedRepository(root: string, botSlug: string): string {
   if (
-    root === undefined ||
     !existsSync(join(root, '.git')) ||
     !lstatSync(join(root, '.git')).isDirectory() ||
     lstatSync(join(root, '.git')).isSymbolicLink()
@@ -156,6 +199,14 @@ function repository(registry: PersonaBotRegistry, botSlug: string): string {
     throw new MemoryAcceptError('memory-invalid', 'Memory Repository must be on main');
   }
   return root;
+}
+
+function repository(registry: PersonaBotRegistry, botSlug: string): string {
+  const root = registry.memoryDirFor(botSlug);
+  if (root === undefined) {
+    throw new MemoryAcceptError('memory-unavailable', `Memory Repository unavailable: ${botSlug}`);
+  }
+  return verifiedRepository(root, botSlug);
 }
 
 function head(root: string): string {
@@ -267,6 +318,22 @@ function rowToCommit(row: AcceptedRow): MemoryAcceptedCommit {
   };
 }
 
+function rowToRepair(row: RepairRow): MemoryRepairEvent {
+  return {
+    id: row.id,
+    botSlug: row.bot_slug,
+    acceptedHeadSha: row.accepted_head_sha,
+    provisionalHeadSha: row.provisional_head_sha,
+    backupPath: row.backup_path,
+    actorKind: row.actor_kind,
+    actorId: row.actor_id,
+    causeKind: row.cause_kind,
+    status: row.status,
+    requestedAt: row.requested_at,
+    completedAt: row.completed_at,
+  };
+}
+
 function parentOf(root: string, sha: string): string | null {
   const parents = output(root, ['rev-list', '--parents', '-n', '1', sha]).split(' ');
   if (parents.length > 2)
@@ -283,6 +350,26 @@ export function createMemoryAcceptance(options: {
   const { registry, ownership, database } = options;
   const now = options.now ?? (() => new Date());
   const inFlight = new Map<string, string>();
+
+  const pendingRepair = (botSlug: string): RepairRow | undefined =>
+    database.read(
+      (db) =>
+        db
+          .prepare(
+            "SELECT * FROM memory_repair_events WHERE bot_slug = ? AND status = 'started' ORDER BY requested_at ASC LIMIT 1",
+          )
+          .get(botSlug) as RepairRow | undefined,
+    );
+
+  const readRepository = (botSlug: string): { root: string; repairing: boolean } => {
+    const pending = pendingRepair(botSlug);
+    if (pending === undefined) return { root: repository(registry, botSlug), repairing: false };
+    const canonical = registry.memoryDirFor(botSlug);
+    const archive = join(pending.backup_path, 'repository');
+    const root =
+      canonical !== undefined && existsSync(join(canonical, '.git')) ? canonical : archive;
+    return { root: verifiedRepository(root, botSlug), repairing: true };
+  };
 
   const acceptedHead = (botSlug: string): string | null =>
     database.read((db) => {
@@ -427,6 +514,9 @@ export function createMemoryAcceptance(options: {
 
   const prepareTurn = (botSlug: string, sessionId: string): void => {
     requireOwned(botSlug, sessionId);
+    if (pendingRepair(botSlug) !== undefined) {
+      throw new MemoryAcceptError('memory-conflict', 'Memory repair must finish before turn');
+    }
     const root = repository(registry, botSlug);
     const baseline = bootstrap(botSlug, root);
     if (head(root) !== baseline || dirty(root)) {
@@ -551,16 +641,20 @@ export function createMemoryAcceptance(options: {
       if (inFlight.get(botSlug) === sessionId) inFlight.delete(botSlug);
     },
     snapshot(botSlug) {
-      const root = repository(registry, botSlug);
+      const { root, repairing } = readRepository(botSlug);
       const accepted = bootstrap(botSlug, root);
       const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
         .toString('utf8')
         .split('\0')
         .filter((path) => path.endsWith('.md'));
-      return { head: accepted, files, provisional: dirty(root) || head(root) !== accepted };
+      return {
+        head: accepted,
+        files,
+        provisional: repairing || dirty(root) || head(root) !== accepted,
+      };
     },
     readAccepted(botSlug, path) {
-      const root = repository(registry, botSlug);
+      const { root } = readRepository(botSlug);
       const accepted = bootstrap(botSlug, root);
       const relative = toMemoryWritePath(path);
       const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
@@ -572,7 +666,7 @@ export function createMemoryAcceptance(options: {
       return { path: relative, body: bytes.toString('utf8'), head: accepted };
     },
     history(botSlug, limit = 20) {
-      const root = repository(registry, botSlug);
+      const { root } = readRepository(botSlug);
       bootstrap(botSlug, root);
       const bounded = Math.max(1, Math.min(limit, 100));
       const rows = database.read(
@@ -585,7 +679,7 @@ export function createMemoryAcceptance(options: {
       return rows.map(rowToCommit);
     },
     diff(botSlug, sha) {
-      const root = repository(registry, botSlug);
+      const { root } = readRepository(botSlug);
       const exists = database.read(
         (db) =>
           db
@@ -600,7 +694,134 @@ export function createMemoryAcceptance(options: {
       const patch = run(root, ['show', '--format=', '--no-ext-diff', sha], MAX_DIFF_BYTES);
       return { sha, diff: patch.toString('utf8') };
     },
+    repairHuman(input) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(input.repairId)) {
+        throw new MemoryAcceptError('memory-invalid', 'Valid Memory repair identity is required');
+      }
+      const root = registry.memoryDirFor(input.botSlug);
+      const baseline = acceptedHead(input.botSlug);
+      if (
+        root === undefined ||
+        baseline === null ||
+        baseline !== input.expectedHead ||
+        inFlight.has(input.botSlug)
+      ) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Accepted Memory changed or a turn is active',
+        );
+      }
+      const existing = database.read(
+        (db) =>
+          db.prepare('SELECT * FROM memory_repair_events WHERE id = ?').get(input.repairId) as
+            | RepairRow
+            | undefined,
+      );
+      if (existing !== undefined) {
+        if (existing.bot_slug !== input.botSlug || existing.accepted_head_sha !== baseline) {
+          throw new MemoryAcceptError('memory-conflict', 'Memory repair identity was already used');
+        }
+        if (existing.status === 'completed') return rowToRepair(existing);
+      }
+      let event = existing ?? pendingRepair(input.botSlug);
+      if (event === undefined) {
+        verifiedRepository(root, input.botSlug);
+        const provisionalHead = head(root);
+        if (provisionalHead === baseline && !dirty(root)) {
+          throw new MemoryAcceptError('memory-conflict', 'Memory has no provisional changes');
+        }
+        const parent = join(dirname(root), 'memory-repairs');
+        mkdirSync(parent, { recursive: true, mode: 0o700 });
+        const backupPath = join(parent, input.repairId);
+        if (existsSync(backupPath)) {
+          throw new MemoryAcceptError('memory-conflict', 'Memory repair archive already exists');
+        }
+        mkdirSync(backupPath, { mode: 0o700 });
+        const at = now().toISOString();
+        event = database.transaction(
+          (db) => {
+            db.prepare(`INSERT INTO memory_repair_events (
+            id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
+            actor_kind, actor_id, cause_kind, status, requested_at
+          ) VALUES (?, ?, ?, ?, ?, 'human', 'authenticated-dsh-human', 'human-repair', 'started', ?)`).run(
+              input.repairId,
+              input.botSlug,
+              baseline,
+              provisionalHead,
+              backupPath,
+              at,
+            );
+            return db
+              .prepare('SELECT * FROM memory_repair_events WHERE id = ?')
+              .get(input.repairId) as unknown as RepairRow;
+          },
+          ['memory-repair'],
+        );
+      }
+      const archive = join(event.backup_path, 'repository');
+      if (!existsSync(archive)) {
+        if (!existsSync(root)) {
+          throw new MemoryAcceptError(
+            'memory-invalid',
+            'Memory repair source and archive are missing',
+          );
+        }
+        verifiedRepository(root, input.botSlug);
+        if (head(root) !== event.provisional_head_sha) {
+          throw new MemoryAcceptError('memory-conflict', 'Memory HEAD changed before archive');
+        }
+        renameSync(root, archive);
+      }
+      verifiedRepository(archive, input.botSlug);
+      if (existsSync(root)) {
+        verifiedRepository(root, input.botSlug);
+        if (head(root) !== baseline || dirty(root)) {
+          throw new MemoryAcceptError('memory-conflict', 'Memory root changed during repair');
+        }
+      } else {
+        const staging = mkdtempSync(join(dirname(root), '.memory-restore-'));
+        try {
+          const restored = join(staging, 'repository');
+          cpSync(archive, restored, { recursive: true, dereference: false });
+          verifiedRepository(restored, input.botSlug);
+          run(restored, ['reset', '--hard', baseline]);
+          run(restored, ['clean', '-ffdx']);
+          if (head(restored) !== baseline || dirty(restored)) {
+            throw new MemoryAcceptError(
+              'memory-conflict',
+              'Memory repair did not restore accepted head',
+            );
+          }
+          if (existsSync(root)) {
+            throw new MemoryAcceptError('memory-conflict', 'Memory root reappeared during repair');
+          }
+          renameSync(restored, root);
+        } finally {
+          rmSync(staging, { recursive: true, force: true });
+        }
+      }
+      const at = now().toISOString();
+      return rowToRepair(
+        database.transaction(
+          (db) => {
+            db.prepare(
+              "UPDATE memory_repair_events SET status = 'completed', completed_at = ? WHERE id = ?",
+            ).run(at, event.id);
+            return db
+              .prepare('SELECT * FROM memory_repair_events WHERE id = ?')
+              .get(event.id) as unknown as RepairRow;
+          },
+          ['memory-repair'],
+        ),
+      );
+    },
     saveHuman(input) {
+      if (pendingRepair(input.botSlug) !== undefined) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Memory repair must finish before Human save',
+        );
+      }
       const root = repository(registry, input.botSlug);
       const priorEdit = database.read(
         (db) =>
