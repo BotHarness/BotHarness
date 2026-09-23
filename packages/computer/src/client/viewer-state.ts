@@ -49,3 +49,8 @@ export function statusKeyFor(phase: FramePhase, reconnecting: boolean): Computer
   if (phase === 'empty') return 'entry.noScreen';
   return reconnecting ? 'entry.reconnecting' : 'entry.connecting';
 }
+
+/** Locale key for the stop control (shared by the title bar and the card row). */
+export function stopKey(busy: boolean, stopping: boolean): ComputerKey {
+  return busy || stopping ? 'entry.stopping' : 'entry.stop';
+}

@@ -6,6 +6,7 @@ import {
   framePhase,
   nextExpanded,
   statusKeyFor,
+  stopKey,
 } from '../src/client/viewer-state.js';
 
 describe('viewer open/collapse state machine', () => {
@@ -59,5 +60,14 @@ describe('status projection for the title bar', () => {
     expect(statusKeyFor('live', false)).toBe('entry.live');
     expect(statusKeyFor('live', true)).toBe('entry.live');
     expect(statusKeyFor('empty', false)).toBe('entry.noScreen');
+  });
+});
+
+describe('stop control label', () => {
+  it('shows stop at rest and stopping while a stop is underway', () => {
+    expect(stopKey(false, false)).toBe('entry.stop');
+    expect(stopKey(true, false)).toBe('entry.stopping');
+    expect(stopKey(false, true)).toBe('entry.stopping');
+    expect(stopKey(true, true)).toBe('entry.stopping');
   });
 });

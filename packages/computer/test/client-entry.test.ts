@@ -139,7 +139,9 @@ describe('Computer entry states', () => {
 
   it('renders the live viewer, its connecting overlay, and stop while running', () => {
     const html = view({ state: 'running', botSlug: 'atlas' });
-    expect(html).toContain('<iframe');
+    // Exactly one iframe owns the stream in every layout (docked/fullscreen
+    // toggle only re-geometries the same element, never mounts a second one).
+    expect(html.match(/<iframe/g)).toHaveLength(1);
     expect(html).toContain('/botharness-computer/viewer/');
     expect(html).toContain('停止');
     expect(html).toContain('atlas 的屏幕');

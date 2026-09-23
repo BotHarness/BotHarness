@@ -5,9 +5,40 @@ window.__ModuleLoader__.load({
     var exports = module.exports;
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
     let react = require('react');
-    let react_dom = require('react-dom');
     let _deepseek_ai_dsh_client_ui_primitives = require('@deepseek-ai/dsh-client-ui-primitives');
     let react_jsx_runtime = require('react/jsx-runtime');
+    //#region packages/computer/src/client/viewer-state.ts
+    /**
+     * The overlay target for an action: open always targets the fullscreen
+     * overlay; collapse and Escape always target the resting entry — Escape is an
+     * absolute return, never a toggle, so pressing it while resting is a no-op
+     * that cannot blink the overlay open.
+     */
+    function nextExpanded(action) {
+      return action === 'open';
+    }
+    /** Derive the overlay phase from the tracker. */
+    function framePhase(ready, misses) {
+      if (ready) return 'live';
+      return misses >= 6 ? 'empty' : 'connecting';
+    }
+    /** StateDot semantics for a phase (done / blue ring / red). */
+    function dotStateFor(phase) {
+      if (phase === 'live') return 'done';
+      if (phase === 'empty') return 'error';
+      return 'ongoing';
+    }
+    /** Locale key for the title-bar/overlay status text. */
+    function statusKeyFor(phase, reconnecting) {
+      if (phase === 'live') return 'entry.live';
+      if (phase === 'empty') return 'entry.noScreen';
+      return reconnecting ? 'entry.reconnecting' : 'entry.connecting';
+    }
+    /** Locale key for the stop control (shared by the title bar and the card row). */
+    function stopKey(busy, stopping) {
+      return busy || stopping ? 'entry.stopping' : 'entry.stop';
+    }
+    //#endregion
     //#region packages/computer/src/client/locale.ts
     /** Locale namespace owning the Computer client's copy. */
     const LOCALE_NS = 'botharness-computer';
@@ -27,7 +58,6 @@ window.__ModuleLoader__.load({
       'entry.live': '已连接',
       'entry.noScreen': '暂无画面',
       'entry.openFullscreen': '打开大屏',
-      'entry.fullscreenOpened': '已在大屏打开',
       'entry.collapseFullscreen': '收起全屏',
       'entry.authorize': '授权并启动',
       'entry.cancel': '取消',
@@ -97,7 +127,6 @@ window.__ModuleLoader__.load({
       'entry.live': 'Connected',
       'entry.noScreen': 'No picture',
       'entry.openFullscreen': 'Open fullscreen',
-      'entry.fullscreenOpened': 'Open in fullscreen',
       'entry.collapseFullscreen': 'Leave fullscreen',
       'entry.authorize': 'Authorize and start',
       'entry.cancel': 'Cancel',
@@ -788,34 +817,6 @@ window.__ModuleLoader__.load({
       });
     }
     //#endregion
-    //#region packages/computer/src/client/viewer-state.ts
-    /**
-     * The overlay target for an action: open always targets the fullscreen
-     * overlay; collapse and Escape always target the resting entry — Escape is an
-     * absolute return, never a toggle, so pressing it while resting is a no-op
-     * that cannot blink the overlay open.
-     */
-    function nextExpanded(action) {
-      return action === 'open';
-    }
-    /** Derive the overlay phase from the tracker. */
-    function framePhase(ready, misses) {
-      if (ready) return 'live';
-      return misses >= 6 ? 'empty' : 'connecting';
-    }
-    /** StateDot semantics for a phase (done / blue ring / red). */
-    function dotStateFor(phase) {
-      if (phase === 'live') return 'done';
-      if (phase === 'empty') return 'error';
-      return 'ongoing';
-    }
-    /** Locale key for the title-bar/overlay status text. */
-    function statusKeyFor(phase, reconnecting) {
-      if (phase === 'live') return 'entry.live';
-      if (phase === 'empty') return 'entry.noScreen';
-      return reconnecting ? 'entry.reconnecting' : 'entry.connecting';
-    }
-    //#endregion
     //#region packages/computer/src/client/index.tsx
     const name = 'botharness-computer-client';
     /**
@@ -892,21 +893,16 @@ window.__ModuleLoader__.load({
      * Watches the same-origin viewer document: reports when its stream surface is
      * live and, after a loss (e.g. the Selkies session was closed from its own UI),
      * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
-     * reset the tracker so the new document starts back at "connecting".
+     * reset the tracker so the new document starts back at "connecting". The card
+     * stays mounted across docked/fullscreen toggles, so one tracker instance
+     * follows its single iframe for the whole Running lifetime.
      */
-    function useFrameReady(iframeRef, active, epoch) {
+    function useFrameReady(iframeRef, epoch) {
       const [tracker, setTracker] = (0, react.useState)({
         ready: false,
         misses: 0,
       });
       (0, react.useEffect)(() => {
-        if (!active) {
-          setTracker({
-            ready: false,
-            misses: 0,
-          });
-          return () => {};
-        }
         setTracker({
           ready: false,
           misses: 0,
@@ -946,7 +942,7 @@ window.__ModuleLoader__.load({
           cancelled = true;
           if (timer !== void 0) clearTimeout(timer);
         };
-      }, [iframeRef, active, epoch]);
+      }, [iframeRef, epoch]);
       return tracker;
     }
     /** Centered spinner over black; the shared connecting/retrying indicator. */
@@ -1207,17 +1203,16 @@ window.__ModuleLoader__.load({
       });
     }
     /**
-     * Running state: an AgentScreen-style resting card. While the stream connects
-     * (or reconnects) it shows the shared indicator; sustained silence becomes an
-     * explicit empty state with a retry; once live, a hover mask offers the blue
-     * Open pill, which expands to the fullscreen viewer (title bar with status +
-     * stop + collapse, Escape collapses, page scroll locked). Only one viewer
-     * iframe is mounted at a time — the resting card unmounts while the overlay
-     * is up — so the viewer WebSocket is never established twice.
+     * Running state: an AgentScreen-style card built around ONE viewer iframe. The
+     * shell keeps the same element mounted and only toggles its geometry — docked
+     * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
+     * the stream, never re-handshakes its WebSocket, and never resets "connecting".
+     * Docked, a hover mask offers the blue Open pill; expanded, the same frame
+     * fills the viewport under the title bar (Escape collapses, page scroll
+     * locked). Sustained silence becomes an explicit empty state with a retry.
      */
     function RunningCard({ t, botSlug, busy, stopping, onStop }) {
-      const inlineRef = (0, react.useRef)(null);
-      const fullRef = (0, react.useRef)(null);
+      const frameRef = (0, react.useRef)(null);
       const dialogRef = (0, react.useRef)(null);
       const [hovered, setHovered] = (0, react.useState)(false);
       const [expanded, setExpanded] = (0, react.useState)(false);
@@ -1225,19 +1220,12 @@ window.__ModuleLoader__.load({
       const [reconnecting, setReconnecting] = (0, react.useState)(false);
       const wasReady = (0, react.useRef)(false);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
-      const inlineFrame = useFrameReady(inlineRef, !expanded, reloadKey);
-      const fullFrame = useFrameReady(fullRef, expanded, reloadKey);
-      const tracker = expanded ? fullFrame : inlineFrame;
-      const ready = tracker.ready;
-      const phase = framePhase(tracker.ready, tracker.misses);
+      const { ready, misses } = useFrameReady(frameRef, reloadKey);
+      const phase = framePhase(ready, misses);
       const reconnect = () => {
         setReconnecting(true);
         setReloadKey((key) => key + 1);
       };
-      (0, react.useEffect)(() => {
-        wasReady.current = false;
-        setReconnecting(false);
-      }, [expanded]);
       (0, react.useEffect)(() => {
         if (ready) {
           wasReady.current = true;
@@ -1311,7 +1299,7 @@ window.__ModuleLoader__.load({
                 {
                   onClick: () => setExpanded(nextExpanded('open')),
                   style: {
-                    background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
+                    background: 'var(--dsw-alias-state-business-primary, #4176e6)',
                     color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
                     height: 28,
                     padding: '0 12px',
@@ -1329,149 +1317,149 @@ window.__ModuleLoader__.load({
               ),
             })
           : null);
+      const stopLabel = t(stopKey(busy, stopping));
+      const rowButton = (disabled) => ({
+        flex: 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 28,
+        padding: '0 10px',
+        borderRadius: 14,
+        border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
+        background: 'var(--dsw-alias-button-elevated-fill, transparent)',
+        color: 'var(--dsw-alias-label-primary, #1c2024)',
+        fontSize: 12,
+        ...(disabled
+          ? {
+              opacity: 0.4,
+              cursor: 'not-allowed',
+            }
+          : { cursor: 'pointer' }),
+      });
       return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        },
-        children: [
-          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-            role: openable ? 'button' : void 0,
-            tabIndex: openable ? 0 : void 0,
-            'aria-label': openable ? t('entry.openFullscreen') : statusText,
-            onMouseEnter: () => setHovered(true),
-            onMouseLeave: () => setHovered(false),
-            onClick: () => {
-              if (openable) setExpanded(nextExpanded('open'));
-            },
-            onKeyDown: (event) => {
-              if (!openable) return;
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              setExpanded(nextExpanded('open'));
-            },
-            style: {
-              position: 'relative',
-              cursor: openable ? 'pointer' : 'default',
-            },
-            children: expanded
-              ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-                  style: {
-                    position: 'relative',
-                    width: '100%',
-                    aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-                    display: 'grid',
-                    placeItems: 'center',
-                    border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
-                    borderRadius: 8,
-                    background: 'var(--dsw-alias-bg-layer-2, #f2f3f5)',
-                    color: 'var(--dsw-alias-label-secondary, #4e5969)',
-                    fontSize: 12.5,
-                  },
-                  children: t('entry.fullscreenOpened'),
-                })
-              : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
-                  children: [
-                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                      ScaledFrame,
-                      {
-                        title,
-                        interactive: false,
-                        iframeRef: inlineRef,
-                      },
-                      reloadKey,
-                    ),
-                    inlineOverlay,
-                  ],
-                }),
-          }),
-          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-            style: {
-              fontSize: 13,
-              fontWeight: 500,
-              color: 'var(--dsw-alias-label-primary, #1c2024)',
-              opacity: 0.9,
-            },
-            children: title,
-          }),
-          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-            style: {
+        ref: dialogRef,
+        role: expanded ? 'dialog' : void 0,
+        'aria-modal': expanded ? true : void 0,
+        'aria-label': expanded ? title : void 0,
+        tabIndex: expanded ? -1 : void 0,
+        style: expanded
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
               display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--dsw-alias-bg-base, #ffffff)',
+              color: 'var(--dsw-alias-label-primary, #1c2024)',
+            }
+          : {
+              display: 'flex',
+              flexDirection: 'column',
               gap: 8,
             },
-            children: [
-              /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
-                t,
-                busy,
-                stopping,
-                onStop,
-              }),
-              /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                _deepseek_ai_dsh_client_ui_primitives.Button,
-                {
-                  variant: 'ghost',
-                  size: 'sm',
-                  onClick: reconnect,
-                  title: t('entry.reconnect'),
-                  children: t('entry.reconnect'),
-                },
-              ),
-            ],
-          }),
+        children: [
           expanded
-            ? (0, react_dom.createPortal)(
-                /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-                  ref: dialogRef,
-                  role: 'dialog',
-                  'aria-modal': 'true',
-                  'aria-label': title,
-                  tabIndex: -1,
-                  style: {
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 100,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: 'var(--dsw-alias-bg-base, #ffffff)',
-                    color: 'var(--dsw-alias-label-primary, #1c2024)',
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                ViewerTitleBar,
+                {
+                  t,
+                  title,
+                  phase,
+                  reconnecting,
+                  busy,
+                  stopping,
+                  onStop,
+                  onCollapse: () => setExpanded(nextExpanded('collapse')),
+                },
+                'viewer-titlebar',
+              )
+            : null,
+          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+            'div',
+            {
+              role: openable ? 'button' : void 0,
+              tabIndex: openable ? 0 : void 0,
+              'aria-label': openable ? t('entry.openFullscreen') : statusText,
+              onMouseEnter: () => setHovered(true),
+              onMouseLeave: () => setHovered(false),
+              onClick: () => {
+                if (openable) setExpanded(nextExpanded('open'));
+              },
+              onKeyDown: (event) => {
+                if (!openable) return;
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                setExpanded(nextExpanded('open'));
+              },
+              style: expanded
+                ? {
+                    position: 'relative',
+                    flex: 1,
+                    minHeight: 0,
+                  }
+                : {
+                    position: 'relative',
+                    cursor: openable ? 'pointer' : 'default',
                   },
+              children: [
+                /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                  ScaledFrame,
+                  {
+                    title,
+                    interactive: expanded,
+                    fit: expanded ? 'contain' : 'width',
+                    iframeRef: frameRef,
+                  },
+                  reloadKey,
+                ),
+                expanded ? notice : inlineOverlay,
+              ],
+            },
+            'viewer-frame',
+          ),
+          expanded
+            ? null
+            : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+                react.Fragment,
+                {
                   children: [
-                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ViewerTitleBar, {
-                      t,
-                      title,
-                      phase,
-                      reconnecting,
-                      busy,
-                      stopping,
-                      onStop,
-                      onCollapse: () => setExpanded(nextExpanded('collapse')),
+                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                      style: {
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--dsw-alias-label-primary, #1c2024)',
+                        opacity: 0.9,
+                        textAlign: 'center',
+                      },
+                      children: title,
                     }),
                     /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
                       style: {
-                        position: 'relative',
-                        flex: 1,
-                        minHeight: 0,
+                        display: 'flex',
+                        gap: 8,
                       },
                       children: [
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                          ScaledFrame,
-                          {
-                            title,
-                            interactive: true,
-                            fit: 'contain',
-                            iframeRef: fullRef,
-                          },
-                          reloadKey,
-                        ),
-                        notice,
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          disabled: busy || stopping,
+                          onClick: onStop,
+                          style: rowButton(busy || stopping),
+                          children: stopLabel,
+                        }),
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          onClick: reconnect,
+                          title: t('entry.reconnect'),
+                          style: rowButton(false),
+                          children: t('entry.reconnect'),
+                        }),
                       ],
                     }),
                   ],
-                }),
-                document.body,
-              )
-            : null,
+                },
+                'viewer-chrome',
+              ),
         ],
       });
     }

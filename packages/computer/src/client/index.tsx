@@ -1,4 +1,5 @@
 import {
+  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -8,7 +9,14 @@ import {
   type ReactElement,
   type RefObject,
 } from 'react';
-import { createPortal } from 'react-dom';
+import {
+  dotStateFor,
+  framePhase,
+  nextExpanded,
+  statusKeyFor,
+  stopKey,
+  type FramePhase,
+} from './viewer-state.js';
 import {
   LOCALE_NS,
   PHASE_LABEL,
@@ -33,13 +41,6 @@ import {
   createComputerSettingsFace,
   type ComputerSettingsScope,
 } from './settings-rows.js';
-import {
-  dotStateFor,
-  framePhase,
-  nextExpanded,
-  statusKeyFor,
-  type FramePhase,
-} from './viewer-state.js';
 
 export const name = 'botharness-computer-client';
 
@@ -191,20 +192,14 @@ interface FrameTracker {
  * Watches the same-origin viewer document: reports when its stream surface is
  * live and, after a loss (e.g. the Selkies session was closed from its own UI),
  * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
- * reset the tracker so the new document starts back at "connecting".
+ * reset the tracker so the new document starts back at "connecting". The card
+ * stays mounted across docked/fullscreen toggles, so one tracker instance
+ * follows its single iframe for the whole Running lifetime.
  */
-function useFrameReady(
-  iframeRef: RefObject<HTMLIFrameElement>,
-  active: boolean,
-  epoch: number,
-): FrameTracker {
+function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): FrameTracker {
   const [tracker, setTracker] = useState<FrameTracker>({ ready: false, misses: 0 });
 
   useEffect(() => {
-    if (!active) {
-      setTracker({ ready: false, misses: 0 });
-      return () => {};
-    }
     setTracker({ ready: false, misses: 0 });
     let cancelled = false;
     let misses = 0;
@@ -239,7 +234,7 @@ function useFrameReady(
       cancelled = true;
       if (timer !== undefined) clearTimeout(timer);
     };
-  }, [iframeRef, active, epoch]);
+  }, [iframeRef, epoch]);
 
   return tracker;
 }
@@ -487,13 +482,13 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
 }
 
 /**
- * Running state: an AgentScreen-style resting card. While the stream connects
- * (or reconnects) it shows the shared indicator; sustained silence becomes an
- * explicit empty state with a retry; once live, a hover mask offers the blue
- * Open pill, which expands to the fullscreen viewer (title bar with status +
- * stop + collapse, Escape collapses, page scroll locked). Only one viewer
- * iframe is mounted at a time — the resting card unmounts while the overlay
- * is up — so the viewer WebSocket is never established twice.
+ * Running state: an AgentScreen-style card built around ONE viewer iframe. The
+ * shell keeps the same element mounted and only toggles its geometry — docked
+ * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
+ * the stream, never re-handshakes its WebSocket, and never resets "connecting".
+ * Docked, a hover mask offers the blue Open pill; expanded, the same frame
+ * fills the viewport under the title bar (Escape collapses, page scroll
+ * locked). Sustained silence becomes an explicit empty state with a retry.
  */
 function RunningCard({
   t,
@@ -508,8 +503,7 @@ function RunningCard({
   readonly stopping: boolean;
   readonly onStop: () => void;
 }): ReactElement {
-  const inlineRef = useRef<HTMLIFrameElement>(null);
-  const fullRef = useRef<HTMLIFrameElement>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -518,23 +512,13 @@ function RunningCard({
   const wasReady = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
-  const inlineFrame = useFrameReady(inlineRef, !expanded, reloadKey);
-  const fullFrame = useFrameReady(fullRef, expanded, reloadKey);
-  const tracker = expanded ? fullFrame : inlineFrame;
-  const ready = tracker.ready;
-  const phase = framePhase(tracker.ready, tracker.misses);
+  const { ready, misses } = useFrameReady(frameRef, reloadKey);
+  const phase = framePhase(ready, misses);
 
   const reconnect = (): void => {
     setReconnecting(true);
     setReloadKey((key) => key + 1);
   };
-
-  // Switching which frame is active is not a stream loss: reset the tracker so
-  // the newly active frame's first mount is not read as a reconnect.
-  useEffect(() => {
-    wasReady.current = false;
-    setReconnecting(false);
-  }, [expanded]);
 
   // A stream that disappears after being live (closed session, dropped socket)
   // remounts the viewer so it reconnects on its own.
@@ -616,7 +600,7 @@ function RunningCard({
         <Pill
           onClick={() => setExpanded(nextExpanded('open'))}
           style={{
-            background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
+            background: 'var(--dsw-alias-state-business-primary, #4176e6)',
             color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
             height: 28,
             padding: '0 12px',
@@ -630,9 +614,61 @@ function RunningCard({
       </div>
     ) : null);
 
+  // The shell keeps its children keyed so toggling docked ↔ fullscreen only
+  // mounts/unmounts the title bar and the card chrome — the frame (and its
+  // iframe) stays at key "viewer-frame" in both layouts and never remounts.
+  const stopLabel = t(stopKey(busy, stopping));
+  const rowButton = (disabled: boolean): CSSProperties => ({
+    flex: 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: 28,
+    padding: '0 10px',
+    borderRadius: 14,
+    border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
+    background: 'var(--dsw-alias-button-elevated-fill, transparent)',
+    color: 'var(--dsw-alias-label-primary, #1c2024)',
+    fontSize: 12,
+    ...(disabled ? { opacity: 0.4, cursor: 'not-allowed' } : { cursor: 'pointer' }),
+  });
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div
+      ref={dialogRef}
+      role={expanded ? 'dialog' : undefined}
+      aria-modal={expanded ? true : undefined}
+      aria-label={expanded ? title : undefined}
+      tabIndex={expanded ? -1 : undefined}
+      style={
+        expanded
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
+              display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--dsw-alias-bg-base, #ffffff)',
+              color: 'var(--dsw-alias-label-primary, #1c2024)',
+            }
+          : { display: 'flex', flexDirection: 'column', gap: 8 }
+      }
+    >
+      {expanded ? (
+        <ViewerTitleBar
+          key="viewer-titlebar"
+          t={t}
+          title={title}
+          phase={phase}
+          reconnecting={reconnecting}
+          busy={busy}
+          stopping={stopping}
+          onStop={onStop}
+          onCollapse={() => setExpanded(nextExpanded('collapse'))}
+        />
+      ) : null}
       <div
+        key="viewer-frame"
         role={openable ? 'button' : undefined}
         tabIndex={openable ? 0 : undefined}
         aria-label={openable ? t('entry.openFullscreen') : statusText}
@@ -647,91 +683,54 @@ function RunningCard({
           event.preventDefault();
           setExpanded(nextExpanded('open'));
         }}
-        style={{ position: 'relative', cursor: openable ? 'pointer' : 'default' }}
+        style={
+          expanded
+            ? { position: 'relative', flex: 1, minHeight: 0 }
+            : { position: 'relative', cursor: openable ? 'pointer' : 'default' }
+        }
       >
-        {expanded ? (
+        <ScaledFrame
+          key={reloadKey}
+          title={title}
+          interactive={expanded}
+          fit={expanded ? 'contain' : 'width'}
+          iframeRef={frameRef}
+        />
+        {expanded ? notice : inlineOverlay}
+      </div>
+      {expanded ? null : (
+        <Fragment key="viewer-chrome">
           <div
             style={{
-              position: 'relative',
-              width: '100%',
-              aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-              display: 'grid',
-              placeItems: 'center',
-              border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
-              borderRadius: 8,
-              background: 'var(--dsw-alias-bg-layer-2, #f2f3f5)',
-              color: 'var(--dsw-alias-label-secondary, #4e5969)',
-              fontSize: 12.5,
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--dsw-alias-label-primary, #1c2024)',
+              opacity: 0.9,
+              textAlign: 'center',
             }}
           >
-            {t('entry.fullscreenOpened')}
+            {title}
           </div>
-        ) : (
-          <>
-            <ScaledFrame key={reloadKey} title={title} interactive={false} iframeRef={inlineRef} />
-            {inlineOverlay}
-          </>
-        )}
-      </div>
-      <div
-        style={{
-          fontSize: 13,
-          fontWeight: 500,
-          color: 'var(--dsw-alias-label-primary, #1c2024)',
-          opacity: 0.9,
-        }}
-      >
-        {title}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
-        <Button variant="ghost" size="sm" onClick={reconnect} title={t('entry.reconnect')}>
-          {t('entry.reconnect')}
-        </Button>
-      </div>
-
-      {expanded
-        ? createPortal(
-            <div
-              ref={dialogRef}
-              role="dialog"
-              aria-modal="true"
-              aria-label={title}
-              tabIndex={-1}
-              style={{
-                position: 'fixed',
-                inset: 0,
-                zIndex: 100,
-                display: 'flex',
-                flexDirection: 'column',
-                background: 'var(--dsw-alias-bg-base, #ffffff)',
-                color: 'var(--dsw-alias-label-primary, #1c2024)',
-              }}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              disabled={busy || stopping}
+              onClick={onStop}
+              style={rowButton(busy || stopping)}
             >
-              <ViewerTitleBar
-                t={t}
-                title={title}
-                phase={phase}
-                reconnecting={reconnecting}
-                busy={busy}
-                stopping={stopping}
-                onStop={onStop}
-                onCollapse={() => setExpanded(nextExpanded('collapse'))}
-              />
-              <div style={{ position: 'relative', flex: 1, minHeight: 0 }}>
-                <ScaledFrame
-                  key={reloadKey}
-                  title={title}
-                  interactive
-                  fit="contain"
-                  iframeRef={fullRef}
-                />
-                {notice}
-              </div>
-            </div>,
-            document.body,
-          )
-        : null}
+              {stopLabel}
+            </button>
+            <button
+              type="button"
+              onClick={reconnect}
+              title={t('entry.reconnect')}
+              style={rowButton(false)}
+            >
+              {t('entry.reconnect')}
+            </button>
+          </div>
+        </Fragment>
+      )}
     </div>
   );
 }
