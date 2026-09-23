@@ -5,9 +5,48 @@ window.__ModuleLoader__.load({
     var exports = module.exports;
     Object.defineProperty(exports, Symbol.toStringTag, { value: 'Module' });
     let react = require('react');
-    let react_dom = require('react-dom');
     let _deepseek_ai_dsh_client_ui_primitives = require('@deepseek-ai/dsh-client-ui-primitives');
     let react_jsx_runtime = require('react/jsx-runtime');
+    //#region packages/computer/src/client/viewer-state.ts
+    /**
+     * The overlay target for an action: open targets the fullscreen overlay,
+     * collapse targets the resting entry. Fullscreen exits through the toolbar
+     * collapse button only — there is intentionally no Escape shortcut.
+     */
+    function nextExpanded(action) {
+      return action === 'open';
+    }
+    /** Derive the overlay phase from the tracker. */
+    function framePhase(ready, misses) {
+      if (ready) return 'live';
+      return misses >= 6 ? 'empty' : 'connecting';
+    }
+    /** StateDot semantics for a phase (done / blue ring / red). */
+    function dotStateFor(phase) {
+      if (phase === 'live') return 'done';
+      if (phase === 'empty') return 'error';
+      return 'ongoing';
+    }
+    /** Locale key for the title-bar/overlay status text. */
+    function statusKeyFor(phase, reconnecting) {
+      if (phase === 'live') return 'entry.live';
+      if (phase === 'empty') return 'entry.noScreen';
+      return reconnecting ? 'entry.reconnecting' : 'entry.connecting';
+    }
+    /** Locale key for the stop control (shared by the title bar and the card row). */
+    function stopKey(busy, stopping) {
+      return busy || stopping ? 'entry.stopping' : 'entry.stop';
+    }
+    /**
+     * Bare container exit reports ("exited code=137") are machine noise from a
+     * normal stop — the start view shows the friendly shared note instead, while
+     * real server details and client errors still surface.
+     */
+    const EXIT_REPORT = /^exited code=\d+$/;
+    function isExitReport(detail) {
+      return detail !== void 0 && EXIT_REPORT.test(detail);
+    }
+    //#endregion
     //#region packages/computer/src/client/locale.ts
     /** Locale namespace owning the Computer client's copy. */
     const LOCALE_NS = 'botharness-computer';
@@ -24,8 +63,9 @@ window.__ModuleLoader__.load({
       'entry.reconnect': '重新连接',
       'entry.connecting': '连接中',
       'entry.reconnecting': '正在重新连接',
+      'entry.live': '已连接',
+      'entry.noScreen': '暂无画面',
       'entry.openFullscreen': '打开大屏',
-      'entry.fullscreenOpened': '已在大屏打开',
       'entry.collapseFullscreen': '收起全屏',
       'entry.authorize': '授权并启动',
       'entry.cancel': '取消',
@@ -92,8 +132,9 @@ window.__ModuleLoader__.load({
       'entry.reconnect': 'Reconnect',
       'entry.connecting': 'Connecting',
       'entry.reconnecting': 'Reconnecting',
+      'entry.live': 'Connected',
+      'entry.noScreen': 'No picture',
       'entry.openFullscreen': 'Open fullscreen',
-      'entry.fullscreenOpened': 'Open in fullscreen',
       'entry.collapseFullscreen': 'Leave fullscreen',
       'entry.authorize': 'Authorize and start',
       'entry.cancel': 'Cancel',
@@ -825,7 +866,7 @@ window.__ModuleLoader__.load({
     const buttonStyle = {
       padding: '4px 10px',
       borderRadius: 6,
-      border: '1px solid var(--dsh-border, #3a3a3a)',
+      border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
       background: 'transparent',
       color: 'inherit',
       cursor: 'pointer',
@@ -833,9 +874,9 @@ window.__ModuleLoader__.load({
     };
     const primaryButtonStyle = {
       ...buttonStyle,
-      borderColor: 'var(--dsh-accent, #4d6bfe)',
-      background: 'var(--dsh-accent, #4d6bfe)',
-      color: '#fff',
+      border: '1px solid var(--dsw-alias-button-primary-fill, #4d6bfe)',
+      background: 'var(--dsw-alias-button-primary-fill, #4d6bfe)',
+      color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
     };
     const terminalStyle = {
       fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
@@ -843,6 +884,12 @@ window.__ModuleLoader__.load({
       opacity: 0.7,
       whiteSpace: 'pre-wrap',
       wordBreak: 'break-all',
+    };
+    const VIDEO_SURFACE = {
+      background: '#000000',
+      spinnerTrack: 'rgba(255, 255, 255, 0.18)',
+      spinnerArc: '#ffffff',
+      onVideo: '#ffffff',
     };
     /** Logical viewport the viewer renders at; the wrapper scales it to fit. */
     const DESIGN_WIDTH = 1280;
@@ -853,15 +900,21 @@ window.__ModuleLoader__.load({
     /**
      * Watches the same-origin viewer document: reports when its stream surface is
      * live and, after a loss (e.g. the Selkies session was closed from its own UI),
-     * reports the loss again so the caller can reconnect.
+     * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
+     * reset the tracker so the new document starts back at "connecting". The card
+     * stays mounted across docked/fullscreen toggles, so one tracker instance
+     * follows its single iframe for the whole Running lifetime.
      */
-    function useFrameReady(iframeRef, active) {
-      const [ready, setReady] = (0, react.useState)(false);
+    function useFrameReady(iframeRef, epoch) {
+      const [tracker, setTracker] = (0, react.useState)({
+        ready: false,
+        misses: 0,
+      });
       (0, react.useEffect)(() => {
-        if (!active) {
-          setReady(false);
-          return () => {};
-        }
+        setTracker({
+          ready: false,
+          misses: 0,
+        });
         let cancelled = false;
         let misses = 0;
         let timer;
@@ -879,10 +932,16 @@ window.__ModuleLoader__.load({
           }
           if (live) {
             misses = 0;
-            setReady(true);
+            setTracker({
+              ready: true,
+              misses: 0,
+            });
           } else {
             misses += 1;
-            if (misses >= 3) setReady(false);
+            setTracker({
+              ready: false,
+              misses,
+            });
           }
           timer = setTimeout(check, 1e3);
         };
@@ -891,8 +950,8 @@ window.__ModuleLoader__.load({
           cancelled = true;
           if (timer !== void 0) clearTimeout(timer);
         };
-      }, [iframeRef, active]);
-      return ready;
+      }, [iframeRef, epoch]);
+      return tracker;
     }
     /** Centered spinner over black; the shared connecting/retrying indicator. */
     function ScreenIndicator({ label = '连接中' }) {
@@ -906,8 +965,8 @@ window.__ModuleLoader__.load({
           inset: 0,
           display: 'grid',
           placeItems: 'center',
-          background: '#000',
-          color: '#fff',
+          background: VIDEO_SURFACE.background,
+          color: VIDEO_SURFACE.onVideo,
         },
         children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
           style: {
@@ -928,7 +987,7 @@ window.__ModuleLoader__.load({
                   cy: size / 2,
                   r: radius,
                   fill: 'none',
-                  stroke: 'rgba(255,255,255,0.18)',
+                  stroke: VIDEO_SURFACE.spinnerTrack,
                   strokeWidth: stroke,
                 }),
                 /* @__PURE__ */ (0, react_jsx_runtime.jsx)('circle', {
@@ -936,7 +995,7 @@ window.__ModuleLoader__.load({
                   cy: size / 2,
                   r: radius,
                   fill: 'none',
-                  stroke: '#fff',
+                  stroke: VIDEO_SURFACE.spinnerArc,
                   strokeWidth: stroke,
                   strokeLinecap: 'round',
                   strokeDasharray: `${String(circumference * 0.28)} ${String(circumference * 0.72)}`,
@@ -950,6 +1009,45 @@ window.__ModuleLoader__.load({
               },
               children: label,
             }),
+          ],
+        }),
+      });
+    }
+    /** Explicit "no picture" state once connecting has gone on too long. */
+    function ScreenEmpty({ t, onRetry }) {
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+        style: {
+          position: 'absolute',
+          inset: 0,
+          display: 'grid',
+          placeItems: 'center',
+          background: VIDEO_SURFACE.background,
+          color: VIDEO_SURFACE.onVideo,
+        },
+        children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+          style: {
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 12,
+          },
+          children: [
+            /* @__PURE__ */ (0, react_jsx_runtime.jsx)('span', {
+              style: {
+                fontSize: 12.5,
+                opacity: 0.75,
+              },
+              children: t('entry.noScreen'),
+            }),
+            /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+              _deepseek_ai_dsh_client_ui_primitives.Button,
+              {
+                variant: 'toolbar',
+                size: 'sm',
+                onClick: onRetry,
+                children: t('entry.reconnect'),
+              },
+            ),
           ],
         }),
       });
@@ -988,12 +1086,12 @@ window.__ModuleLoader__.load({
           ...(fit === 'width'
             ? {
                 aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-                border: '1px solid var(--dsh-border, #3a3a3a)',
+                border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
                 borderRadius: 8,
               }
             : { height: '100%' }),
           overflow: 'hidden',
-          background: '#000',
+          background: VIDEO_SURFACE.background,
         },
         children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)('iframe', {
           ref: iframeRef,
@@ -1044,15 +1142,86 @@ window.__ModuleLoader__.load({
         ],
       });
     }
+    /** The shared stop control (title bar + resting card), one definition. */
+    function StopButton({ t, busy, stopping, onStop }) {
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+        _deepseek_ai_dsh_client_ui_primitives.Button,
+        {
+          variant: 'ghost',
+          size: 'sm',
+          disabled: busy || stopping,
+          onClick: onStop,
+          children: busy || stopping ? t('entry.stopping') : t('entry.stop'),
+        },
+      );
+    }
     /**
-     * Running state: an AgentScreen-style resting card. While the stream connects
-     * (or reconnects) it shows the shared indicator; once live, a hover mask blocks
-     * input and offers 「打开」, which expands to the fullscreen viewer. Only one
-     * viewer iframe is mounted at a time.
+     * The fullscreen viewer's title bar: Bot name + stream status on the left,
+     * the stop control and collapse on the right. Exported for component tests.
+     */
+    function ViewerTitleBar(props) {
+      const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+        style: {
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          height: 44,
+          flex: '0 0 auto',
+          padding: '0 8px 0 14px',
+          borderBottom: '1px solid var(--dsw-alias-border-l2, #eceef1)',
+          color: 'var(--dsw-alias-label-primary, #1c2024)',
+          background: 'var(--dsw-alias-bg-base, #ffffff)',
+        },
+        children: [
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+            _deepseek_ai_dsh_client_ui_primitives.StateDot,
+            { state: dotStateFor(phase) },
+          ),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('strong', {
+            style: {
+              fontSize: 13,
+              fontWeight: 600,
+            },
+            children: title,
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('span', {
+            style: {
+              fontSize: 12,
+              opacity: 0.65,
+            },
+            children: t(statusKeyFor(phase, reconnecting)),
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('span', { style: { flex: 1 } }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
+            t,
+            busy,
+            stopping,
+            onStop,
+          }),
+          /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+            variant: 'ghost',
+            size: 'sm',
+            onClick: onCollapse,
+            'aria-label': t('entry.collapseFullscreen'),
+            title: t('entry.collapseFullscreen'),
+            children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {}),
+          }),
+        ],
+      });
+    }
+    /**
+     * Running state: an AgentScreen-style card built around ONE viewer iframe. The
+     * shell keeps the same element mounted and only toggles its geometry — docked
+     * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
+     * the stream, never re-handshakes its WebSocket, and never resets "connecting".
+     * Docked, a hover mask offers the blue Open pill; expanded, the same frame
+     * fills the viewport under the title bar (the toolbar collapse button returns
+     * to the card, page scroll locked). Sustained silence becomes an explicit
+     * empty state with a retry.
      */
     function RunningCard({ t, botSlug, busy, stopping, onStop }) {
-      const inlineRef = (0, react.useRef)(null);
-      const fullRef = (0, react.useRef)(null);
+      const frameRef = (0, react.useRef)(null);
       const dialogRef = (0, react.useRef)(null);
       const [hovered, setHovered] = (0, react.useState)(false);
       const [expanded, setExpanded] = (0, react.useState)(false);
@@ -1060,13 +1229,12 @@ window.__ModuleLoader__.load({
       const [reconnecting, setReconnecting] = (0, react.useState)(false);
       const wasReady = (0, react.useRef)(false);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
-      const inlineReady = useFrameReady(inlineRef, !expanded);
-      const fullReady = useFrameReady(fullRef, expanded);
-      const ready = expanded ? fullReady : inlineReady;
-      (0, react.useEffect)(() => {
-        wasReady.current = false;
-        setReconnecting(false);
-      }, [expanded]);
+      const { ready, misses } = useFrameReady(frameRef, reloadKey);
+      const phase = framePhase(ready, misses);
+      const reconnect = () => {
+        setReconnecting(true);
+        setReloadKey((key) => key + 1);
+      };
       (0, react.useEffect)(() => {
         if (ready) {
           wasReady.current = true;
@@ -1082,10 +1250,6 @@ window.__ModuleLoader__.load({
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {
-          if (event.key === 'Escape') {
-            setExpanded(false);
-            return;
-          }
           if (event.key !== 'Tab') return;
           const dialog = dialogRef.current;
           if (dialog === null) return;
@@ -1112,208 +1276,195 @@ window.__ModuleLoader__.load({
           document.body.style.overflow = '';
         };
       }, [expanded]);
-      const indicatorLabel = reconnecting ? t('entry.reconnecting') : t('entry.connecting');
-      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-        style: {
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 8,
-        },
-        children: [
-          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-            role: ready && !expanded ? 'button' : void 0,
-            tabIndex: ready && !expanded ? 0 : void 0,
-            'aria-label': ready ? t('entry.openFullscreen') : indicatorLabel,
-            onMouseEnter: () => setHovered(true),
-            onMouseLeave: () => setHovered(false),
-            onClick: () => {
-              if (ready && !expanded) setExpanded(true);
-            },
-            onKeyDown: (event) => {
-              if (!ready || expanded) return;
-              if (event.key !== 'Enter' && event.key !== ' ') return;
-              event.preventDefault();
-              setExpanded(true);
-            },
-            style: {
-              position: 'relative',
-              cursor: ready && !expanded ? 'pointer' : 'default',
-            },
-            children: expanded
-              ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+      const statusText = t(statusKeyFor(phase, reconnecting));
+      const openable = phase === 'live' && !expanded;
+      const notice =
+        phase === 'connecting'
+          ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: statusText })
+          : phase === 'empty'
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
+                t,
+                onRetry: reconnect,
+              })
+            : null;
+      const inlineOverlay =
+        notice ??
+        (hovered
+          ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+              style: {
+                position: 'absolute',
+                inset: 0,
+                display: 'grid',
+                placeItems: 'center',
+                background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+                borderRadius: 8,
+              },
+              children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+                _deepseek_ai_dsh_client_ui_primitives.Pill,
+                {
+                  onClick: () => setExpanded(nextExpanded('open')),
                   style: {
-                    position: 'relative',
-                    width: '100%',
-                    aspectRatio: `${String(DESIGN_WIDTH)} / ${String(DESIGN_HEIGHT)}`,
-                    display: 'grid',
-                    placeItems: 'center',
-                    border: '1px solid var(--dsh-border, #3a3a3a)',
-                    borderRadius: 8,
-                    background: '#000',
-                    color: '#fff',
-                    fontSize: 12.5,
-                    opacity: 0.8,
+                    background: 'var(--dsw-alias-state-business-primary, #4176e6)',
+                    color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+                    height: 28,
+                    padding: '0 12px',
+                    fontSize: 13,
+                    gap: 6,
                   },
-                  children: t('entry.fullscreenOpened'),
-                })
-              : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react_jsx_runtime.Fragment, {
                   children: [
                     /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                      ScaledFrame,
-                      {
-                        title,
-                        interactive: false,
-                        iframeRef: inlineRef,
-                      },
-                      reloadKey,
+                      _deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutline16,
+                      { size: 14 },
                     ),
-                    !inlineReady
-                      ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, {
-                          label: indicatorLabel,
-                        })
-                      : hovered
-                        ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-                            style: {
-                              position: 'absolute',
-                              inset: 0,
-                              display: 'grid',
-                              placeItems: 'center',
-                              background: 'rgba(17,19,24,0.18)',
-                              borderRadius: 8,
-                            },
-                            children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('span', {
-                              style: {
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '6px 12px',
-                                borderRadius: 999,
-                                background: 'var(--dsh-accent, #4d6bfe)',
-                                color: '#fff',
-                                fontSize: 12.5,
-                                fontWeight: 500,
-                              },
-                              children: ['⤢ ', t('entry.openFullscreen')],
-                            }),
-                          })
-                        : null,
+                    t('entry.openFullscreen'),
                   ],
-                }),
-          }),
-          /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-            style: {
-              fontSize: 13,
-              fontWeight: 500,
-              opacity: 0.9,
-            },
-            children: title,
-          }),
-          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-            style: {
+                },
+              ),
+            })
+          : null);
+      const stopLabel = t(stopKey(busy, stopping));
+      const rowButton = (disabled) => ({
+        flex: 1,
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: 28,
+        padding: '0 10px',
+        borderRadius: 14,
+        border: '1px solid var(--dsw-alias-border-l3, #e3e5e8)',
+        background: 'var(--dsw-alias-button-elevated-fill, transparent)',
+        color: 'var(--dsw-alias-label-primary, #1c2024)',
+        fontSize: 12,
+        ...(disabled
+          ? {
+              opacity: 0.4,
+              cursor: 'not-allowed',
+            }
+          : { cursor: 'pointer' }),
+      });
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
+        ref: dialogRef,
+        role: expanded ? 'dialog' : void 0,
+        'aria-modal': expanded ? true : void 0,
+        'aria-label': expanded ? title : void 0,
+        tabIndex: expanded ? -1 : void 0,
+        style: expanded
+          ? {
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
               display: 'flex',
+              flexDirection: 'column',
+              background: 'var(--dsw-alias-bg-base, #ffffff)',
+              color: 'var(--dsw-alias-label-primary, #1c2024)',
+            }
+          : {
+              display: 'flex',
+              flexDirection: 'column',
               gap: 8,
             },
-            children: [
-              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                type: 'button',
-                style: buttonStyle,
-                disabled: busy || stopping,
-                onClick: onStop,
-                children: busy || stopping ? t('entry.stopping') : t('entry.stop'),
-              }),
-              /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
-                type: 'button',
-                style: buttonStyle,
-                onClick: () => {
-                  setReconnecting(true);
-                  setReloadKey((key) => key + 1);
-                },
-                title: t('entry.reconnect'),
-                children: t('entry.reconnect'),
-              }),
-            ],
-          }),
+        children: [
           expanded
-            ? (0, react_dom.createPortal)(
-                /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-                  ref: dialogRef,
-                  role: 'dialog',
-                  'aria-modal': 'true',
-                  'aria-label': title,
-                  tabIndex: -1,
-                  style: {
-                    position: 'fixed',
-                    inset: 0,
-                    zIndex: 100,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    background: '#000',
-                    color: '#fff',
+            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                ViewerTitleBar,
+                {
+                  t,
+                  title,
+                  phase,
+                  reconnecting,
+                  busy,
+                  stopping,
+                  onStop,
+                  onCollapse: () => setExpanded(nextExpanded('collapse')),
+                },
+                'viewer-titlebar',
+              )
+            : null,
+          /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+            'div',
+            {
+              role: openable ? 'button' : void 0,
+              tabIndex: openable ? 0 : void 0,
+              'aria-label': openable ? t('entry.openFullscreen') : statusText,
+              onMouseEnter: () => setHovered(true),
+              onMouseLeave: () => setHovered(false),
+              onClick: () => {
+                if (openable) setExpanded(nextExpanded('open'));
+              },
+              onKeyDown: (event) => {
+                if (!openable) return;
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                setExpanded(nextExpanded('open'));
+              },
+              style: expanded
+                ? {
+                    position: 'relative',
+                    flex: 1,
+                    minHeight: 0,
+                  }
+                : {
+                    position: 'relative',
+                    cursor: openable ? 'pointer' : 'default',
                   },
+              children: [
+                /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                  ScaledFrame,
+                  {
+                    title,
+                    interactive: expanded,
+                    fit: expanded ? 'contain' : 'width',
+                    iframeRef: frameRef,
+                  },
+                  reloadKey,
+                ),
+                expanded ? notice : inlineOverlay,
+              ],
+            },
+            'viewer-frame',
+          ),
+          expanded
+            ? null
+            : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+                react.Fragment,
+                {
                   children: [
+                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+                      style: {
+                        fontSize: 13,
+                        fontWeight: 500,
+                        color: 'var(--dsw-alias-label-primary, #1c2024)',
+                        opacity: 0.9,
+                        textAlign: 'center',
+                      },
+                      children: title,
+                    }),
                     /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
                       style: {
                         display: 'flex',
-                        alignItems: 'center',
                         gap: 8,
-                        height: 44,
-                        flex: '0 0 auto',
-                        padding: '0 8px 0 14px',
-                        borderBottom: '1px solid var(--dsh-border, #2c2c2c)',
                       },
                       children: [
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('strong', {
-                          style: {
-                            fontSize: 13,
-                            fontWeight: 600,
-                          },
-                          children: title,
-                        }),
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('span', { style: { flex: 1 } }),
                         /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
                           type: 'button',
-                          onClick: () => setExpanded(false),
-                          'aria-label': t('entry.collapseFullscreen'),
-                          title: t('entry.collapseFullscreen'),
-                          style: {
-                            ...buttonStyle,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: 6,
-                          },
-                          children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(CollapseIcon, {}),
+                          disabled: busy || stopping,
+                          onClick: onStop,
+                          style: rowButton(busy || stopping),
+                          children: stopLabel,
                         }),
-                      ],
-                    }),
-                    /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
-                      style: {
-                        position: 'relative',
-                        flex: 1,
-                        minHeight: 0,
-                      },
-                      children: [
-                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                          ScaledFrame,
-                          {
-                            title,
-                            interactive: true,
-                            fit: 'contain',
-                            iframeRef: fullRef,
-                          },
-                          reloadKey,
-                        ),
-                        !fullReady
-                          ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, {
-                              label: indicatorLabel,
-                            })
-                          : null,
+                        /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
+                          type: 'button',
+                          onClick: reconnect,
+                          title: t('entry.reconnect'),
+                          style: rowButton(false),
+                          children: t('entry.reconnect'),
+                        }),
                       ],
                     }),
                   ],
-                }),
-                document.body,
-              )
-            : null,
+                },
+                'viewer-chrome',
+              ),
         ],
       });
     }
@@ -1436,7 +1587,7 @@ window.__ModuleLoader__.load({
                 overflow: 'hidden',
                 height: 6,
                 borderRadius: 3,
-                background: 'rgba(127,127,127,0.25)',
+                background: 'var(--dsw-alias-border-l4, #f2f3f5)',
               },
               children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
                 style:
@@ -1444,7 +1595,7 @@ window.__ModuleLoader__.load({
                     ? {
                         position: 'absolute',
                         inset: 0,
-                        background: 'var(--dsh-accent, #4d6bfe)',
+                        background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
                       }
                     : {
                         position: 'absolute',
@@ -1452,7 +1603,7 @@ window.__ModuleLoader__.load({
                         top: 0,
                         bottom: 0,
                         width: `${String(progress.percent)}%`,
-                        background: 'var(--dsh-accent, #4d6bfe)',
+                        background: 'var(--dsw-alias-state-business-primary, #1f6feb)',
                       },
               }),
             }),
@@ -1481,7 +1632,7 @@ window.__ModuleLoader__.load({
         children: [
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
             style: noteStyle,
-            children: error ?? detail ?? t(SHARED_NOTE_KEY),
+            children: error ?? (isExitReport(detail) ? void 0 : detail) ?? t(SHARED_NOTE_KEY),
           }),
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
             type: 'button',
@@ -1700,6 +1851,7 @@ window.__ModuleLoader__.load({
     //#endregion
     exports.ComputerEntryView = ComputerEntryView;
     exports.ScreenIndicator = ScreenIndicator;
+    exports.ViewerTitleBar = ViewerTitleBar;
     exports.apply = apply;
     exports.createComputerEntry = createComputerEntry;
     exports.inject = inject;
