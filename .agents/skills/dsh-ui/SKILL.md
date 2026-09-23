@@ -19,7 +19,7 @@ The in-harness UI is part of the shell, not a standalone app (ADR-0028): style w
 
 - **Native lookups beat intuition**: extract the shipped CSS from the installed packages before adding spacing or a control (`references/native-contract.md` has the recipe).
 - **One authority per concept**: one mode entry, one projection of state; a second entry point reads as a second feature.
-- **Tokens over literals**; the guard test enforces it.
+- **Tokens over literals**; the guard test enforces it. Centralise fallbacks in one delimited alias table per bundle (`@bh-<bundle>-aliases`, values audited against the pinned theme); components read table names, never inline hex or bare `var(--dsw-*)`. A missing DSH token gets a table entry with rationale; content-fixed colours (video letterbox) live in a separate delimited block with rationale.
 - **Baseline externals only** in the client bundle; adding one updates the bundle contract test in the same commit.
 - **Modes unwind**: shadows and listeners reconcile from a single store and dispose cleanly.
 
