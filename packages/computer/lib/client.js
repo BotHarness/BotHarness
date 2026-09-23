@@ -16,11 +16,6 @@ window.__ModuleLoader__.load({
     function nextExpanded(action) {
       return action === 'open';
     }
-    /** Derive the overlay phase from the tracker. */
-    function framePhase(ready, misses) {
-      if (ready) return 'live';
-      return misses >= 6 ? 'empty' : 'connecting';
-    }
     /** StateDot semantics for a phase (done / blue ring / red). */
     function dotStateFor(phase) {
       if (phase === 'live') return 'done';
@@ -45,6 +40,223 @@ window.__ModuleLoader__.load({
     const EXIT_REPORT = /^exited code=\d+$/;
     function isExitReport(detail) {
       return detail !== void 0 && EXIT_REPORT.test(detail);
+    }
+    /** Selkies' dedicated connection status line (a stable id, not minified). */
+    const STATUS_ELEMENT_ID = 'status-display';
+    /**
+     * Substrings of a busy upstream: the connecting screen, the disconnect
+     * retry, and failure states. Scoped to `#status-display` only, so sidebar
+     * copy (e.g. a Reconnect button) can never trip it. Note "Connected" matches
+     * none of these — `connecting` is deliberately not truncated to `connect`.
+     */
+    const BUSY_TEXT = /connecting|reconnect|disconnect|failed|error/i;
+    /** FNV-1a over raw bytes; the pixel-change detector below. */
+    function hashBytes(data) {
+      let hash = 2174524869;
+      for (let index = 0; index < data.length; index += 1) {
+        hash ^= data[index] ?? 0;
+        hash = Math.imul(hash, 16777619);
+      }
+      return hash >>> 0;
+    }
+    /**
+     * Whether Selkies itself reports busy. False when the status element is
+     * absent (unknown page), hidden, or showing a non-busy state — never throws,
+     * so a cross-origin or exotic document degrades to "quiet".
+     */
+    function upstreamBusy(doc) {
+      try {
+        const element = doc?.getElementById(STATUS_ELEMENT_ID);
+        if (element === null || element === void 0) return false;
+        if (element.classList.contains('hidden')) return false;
+        return BUSY_TEXT.test(element.textContent ?? '');
+      } catch {
+        return false;
+      }
+    }
+    function signatureOf(doc, surface) {
+      try {
+        const scratch = doc.createElement('canvas');
+        scratch.width = 16;
+        scratch.height = 16;
+        const context = scratch.getContext('2d', { willReadFrequently: true });
+        if (context === null) return void 0;
+        context.drawImage(surface, 0, 0, 16, 16);
+        return hashBytes(context.getImageData(0, 0, 16, 16).data);
+      } catch {
+        return;
+      }
+    }
+    /**
+     * Observes one frame of the viewer document: canvas size (the pre-#221
+     * signal), Selkies' own busy line, and a 16x16 pixel signature for change
+     * detection. Never throws; unreadable pixels degrade to `signature`
+     * undefined (the caller falls back to the sized-only signal).
+     */
+    function sampleSurface(doc) {
+      const busy = upstreamBusy(doc);
+      let sized = false;
+      let signature;
+      try {
+        const surface = doc?.getElementById('videoCanvas');
+        const videoWidth = surface?.videoWidth;
+        const canvasWidth = surface?.width;
+        sized =
+          surface !== null &&
+          surface !== void 0 &&
+          (typeof videoWidth === 'number'
+            ? videoWidth
+            : typeof canvasWidth === 'number'
+              ? canvasWidth
+              : 0) > 0;
+        if (sized && surface !== null && surface !== void 0 && doc !== null && doc !== void 0)
+          signature = signatureOf(doc, surface);
+      } catch {
+        signature = void 0;
+      }
+      return signature === void 0
+        ? {
+            sized,
+            busy,
+          }
+        : {
+            sized,
+            busy,
+            signature,
+          };
+    }
+    function withSignature(base, signature) {
+      return signature === void 0
+        ? { ...base }
+        : {
+            ...base,
+            lastSignature: signature,
+          };
+    }
+    function withPreviousSignature(base, prev) {
+      return prev.lastSignature === void 0
+        ? { ...base }
+        : {
+            ...base,
+            lastSignature: prev.lastSignature,
+          };
+    }
+    /**
+     * Remount the viewer after a loss only once the loss persists: a single
+     * missed tick (GC pause, slow first frame) must not restart the whole SPA —
+     * that churn is what kept post-start sessions from ever settling.
+     */
+    function shouldRemountLoss(lossStreak) {
+      return lossStreak >= 3;
+    }
+    /**
+     * Remount a bounded number of times when the document never went live at
+     * all: the first load most likely failed while the server was still booting
+     * (proxy 503/connection-refused serves a dead error page no tick can
+     * recover). Beyond the bound the manual retry stays.
+     */
+    function shouldAutoReload(phase, everLive, attempts) {
+      return phase === 'empty' && !everLive && attempts < 3;
+    }
+    /**
+     * Projects one tick into the overlay phase:
+     * - unsized ticks never go live and age the miss budget (a dead first
+     *   document reaches empty fast, where auto-reload can rescue it);
+     * - upstream-busy ticks never go live but age a separate, patient budget, so
+     *   post-start negotiation flapping rides in connecting instead of forcing a
+     *   manual retry; the pixel baseline is preserved across them;
+     * - a changed signature goes live immediately (second tick at the latest);
+     * - unreadable pixels degrade to the old sized-only signal;
+     * - a quiet, sized, static surface goes live after QUIET_TOLERANCE (a real
+     *   desktop idling) and gives up to empty after QUIET_ABANDON.
+     */
+    function nextStreamTracker(prev, sample) {
+      const signature = sample.signature;
+      if (!sample.sized) {
+        const misses = prev.misses + 1;
+        return {
+          tracker: withSignature(
+            {
+              misses,
+              busyStreak: 0,
+              quiet: 0,
+            },
+            signature,
+          ),
+          phase: misses >= 6 ? 'empty' : 'connecting',
+        };
+      }
+      if (sample.busy) {
+        const busyStreak = prev.busyStreak + 1;
+        return {
+          tracker: withPreviousSignature(
+            {
+              misses: prev.misses,
+              busyStreak,
+              quiet: 0,
+            },
+            prev,
+          ),
+          phase: busyStreak >= 30 ? 'empty' : 'connecting',
+        };
+      }
+      if (signature !== void 0 && prev.lastSignature !== void 0 && signature !== prev.lastSignature)
+        return {
+          tracker: withSignature(
+            {
+              misses: 0,
+              busyStreak: 0,
+              quiet: 0,
+            },
+            signature,
+          ),
+          phase: 'live',
+        };
+      if (signature === void 0)
+        return {
+          tracker: {
+            misses: 0,
+            busyStreak: 0,
+            quiet: 0,
+          },
+          phase: 'live',
+        };
+      const quiet = prev.quiet + 1;
+      if (quiet >= 120)
+        return {
+          tracker: withSignature(
+            {
+              misses: 6,
+              busyStreak: 0,
+              quiet,
+            },
+            signature,
+          ),
+          phase: 'empty',
+        };
+      if (quiet >= 4)
+        return {
+          tracker: withSignature(
+            {
+              misses: 0,
+              busyStreak: 0,
+              quiet,
+            },
+            signature,
+          ),
+          phase: 'live',
+        };
+      return {
+        tracker: withSignature(
+          {
+            misses: prev.misses,
+            busyStreak: 0,
+            quiet,
+          },
+          signature,
+        ),
+        phase: 'connecting',
+      };
     }
     //#endregion
     //#region packages/computer/src/client/locale.ts
@@ -898,51 +1110,34 @@ window.__ModuleLoader__.load({
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
     /**
-     * Watches the same-origin viewer document: reports when its stream surface is
-     * live and, after a loss (e.g. the Selkies session was closed from its own UI),
-     * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
-     * reset the tracker so the new document starts back at "connecting". The card
-     * stays mounted across docked/fullscreen toggles, so one tracker instance
-     * follows its single iframe for the whole Running lifetime.
+     * Follows the single viewer iframe for the whole Running lifetime: each tick
+     * samples the document (canvas size, Selkies busy line, pixel signature) and
+     * projects the overlay phase. `epoch` bumps (reconnect) reset the tracker so
+     * the new document starts back at "connecting". The card stays mounted across
+     * docked/fullscreen toggles, so one tracker instance never resets on open.
      */
-    function useFrameReady(iframeRef, epoch) {
-      const [tracker, setTracker] = (0, react.useState)({
-        ready: false,
-        misses: 0,
-      });
+    function useStreamPhase(iframeRef, epoch) {
+      const [phase, setPhase] = (0, react.useState)('connecting');
       (0, react.useEffect)(() => {
-        setTracker({
-          ready: false,
-          misses: 0,
-        });
+        setPhase('connecting');
         let cancelled = false;
-        let misses = 0;
+        let tracker = {
+          misses: 0,
+          busyStreak: 0,
+          quiet: 0,
+        };
         let timer;
         const check = () => {
           if (cancelled) return;
-          let live = false;
+          let doc = null;
           try {
-            const surface = (iframeRef.current?.contentDocument ?? null)?.getElementById(
-              'videoCanvas',
-            );
-            if (surface !== null)
-              live = (surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width) > 0;
+            doc = iframeRef.current?.contentDocument ?? null;
           } catch {
-            live = false;
+            doc = null;
           }
-          if (live) {
-            misses = 0;
-            setTracker({
-              ready: true,
-              misses: 0,
-            });
-          } else {
-            misses += 1;
-            setTracker({
-              ready: false,
-              misses,
-            });
-          }
+          const next = nextStreamTracker(tracker, sampleSurface(doc));
+          tracker = next.tracker;
+          setPhase(next.phase);
           timer = setTimeout(check, 1e3);
         };
         timer = setTimeout(check, 300);
@@ -951,7 +1146,7 @@ window.__ModuleLoader__.load({
           if (timer !== void 0) clearTimeout(timer);
         };
       }, [iframeRef, epoch]);
-      return tracker;
+      return phase;
     }
     /** Centered spinner over black; the shared connecting/retrying indicator. */
     function ScreenIndicator({ label = '连接中' }) {
@@ -1050,6 +1245,56 @@ window.__ModuleLoader__.load({
             ),
           ],
         }),
+      });
+    }
+    /**
+     * The single overlay selector for the stream surface: the connecting notice,
+     * the empty state with retry, the hover Open pill once live, nothing
+     * otherwise. Exported for component tests proving the overlay-vs-pill
+     * binding (a connecting stream never offers the pill).
+     */
+    function StreamOverlay(props) {
+      const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
+      if (phase === 'connecting')
+        return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, {
+          label: t(statusKeyFor(phase, reconnecting)),
+        });
+      if (phase === 'empty')
+        return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
+          t,
+          onRetry,
+        });
+      if (!hovered) return null;
+      return /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
+        style: {
+          position: 'absolute',
+          inset: 0,
+          display: 'grid',
+          placeItems: 'center',
+          background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+          borderRadius: 8,
+        },
+        children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
+          _deepseek_ai_dsh_client_ui_primitives.Pill,
+          {
+            onClick: onOpen,
+            style: {
+              background: 'var(--dsw-alias-state-business-primary, #4176e6)',
+              color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+              height: 28,
+              padding: '0 12px',
+              fontSize: 13,
+              gap: 6,
+            },
+            children: [
+              /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
+                _deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutline16,
+                { size: 14 },
+              ),
+              t('entry.openFullscreen'),
+            ],
+          },
+        ),
       });
     }
     /** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
@@ -1228,25 +1473,36 @@ window.__ModuleLoader__.load({
       const [reloadKey, setReloadKey] = (0, react.useState)(0);
       const [reconnecting, setReconnecting] = (0, react.useState)(false);
       const wasReady = (0, react.useRef)(false);
+      const autoReloads = (0, react.useRef)(0);
+      const lossStreak = (0, react.useRef)(0);
       const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
-      const { ready, misses } = useFrameReady(frameRef, reloadKey);
-      const phase = framePhase(ready, misses);
+      const phase = useStreamPhase(frameRef, reloadKey);
+      const live = phase === 'live';
       const reconnect = () => {
         setReconnecting(true);
         setReloadKey((key) => key + 1);
       };
       (0, react.useEffect)(() => {
-        if (ready) {
+        if (live) {
           wasReady.current = true;
+          autoReloads.current = 0;
+          lossStreak.current = 0;
           setReconnecting(false);
           return;
         }
-        if (wasReady.current) {
-          wasReady.current = false;
-          setReconnecting(true);
-          setReloadKey((key) => key + 1);
-        }
-      }, [ready]);
+        if (!wasReady.current) return;
+        lossStreak.current += 1;
+        if (!shouldRemountLoss(lossStreak.current)) return;
+        wasReady.current = false;
+        lossStreak.current = 0;
+        setReconnecting(true);
+        setReloadKey((key) => key + 1);
+      }, [live]);
+      (0, react.useEffect)(() => {
+        if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+        autoReloads.current += 1;
+        setReloadKey((key) => key + 1);
+      }, [phase]);
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {
@@ -1278,50 +1534,14 @@ window.__ModuleLoader__.load({
       }, [expanded]);
       const statusText = t(statusKeyFor(phase, reconnecting));
       const openable = phase === 'live' && !expanded;
-      const notice =
-        phase === 'connecting'
-          ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: statusText })
-          : phase === 'empty'
-            ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenEmpty, {
-                t,
-                onRetry: reconnect,
-              })
-            : null;
-      const inlineOverlay =
-        notice ??
-        (hovered
-          ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
-              style: {
-                position: 'absolute',
-                inset: 0,
-                display: 'grid',
-                placeItems: 'center',
-                background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
-                borderRadius: 8,
-              },
-              children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(
-                _deepseek_ai_dsh_client_ui_primitives.Pill,
-                {
-                  onClick: () => setExpanded(nextExpanded('open')),
-                  style: {
-                    background: 'var(--dsw-alias-state-business-primary, #4176e6)',
-                    color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
-                    height: 28,
-                    padding: '0 12px',
-                    fontSize: 13,
-                    gap: 6,
-                  },
-                  children: [
-                    /* @__PURE__ */ (0, react_jsx_runtime.jsx)(
-                      _deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutline16,
-                      { size: 14 },
-                    ),
-                    t('entry.openFullscreen'),
-                  ],
-                },
-              ),
-            })
-          : null);
+      const overlay = /* @__PURE__ */ (0, react_jsx_runtime.jsx)(StreamOverlay, {
+        phase,
+        reconnecting,
+        hovered: expanded ? false : hovered,
+        t,
+        onRetry: reconnect,
+        onOpen: () => setExpanded(nextExpanded('open')),
+      });
       const stopLabel = t(stopKey(busy, stopping));
       const rowButton = (disabled) => ({
         flex: 1,
@@ -1418,7 +1638,7 @@ window.__ModuleLoader__.load({
                   },
                   reloadKey,
                 ),
-                expanded ? notice : inlineOverlay,
+                overlay,
               ],
             },
             'viewer-frame',
@@ -1851,6 +2071,7 @@ window.__ModuleLoader__.load({
     //#endregion
     exports.ComputerEntryView = ComputerEntryView;
     exports.ScreenIndicator = ScreenIndicator;
+    exports.StreamOverlay = StreamOverlay;
     exports.ViewerTitleBar = ViewerTitleBar;
     exports.apply = apply;
     exports.createComputerEntry = createComputerEntry;

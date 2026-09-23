@@ -11,13 +11,19 @@ import {
 } from 'react';
 import {
   dotStateFor,
-  framePhase,
   isExitReport,
   nextExpanded,
   statusKeyFor,
   stopKey,
   type FramePhase,
 } from './viewer-state.js';
+import {
+  nextStreamTracker,
+  sampleSurface,
+  shouldAutoReload,
+  shouldRemountLoss,
+  type StreamTracker,
+} from './frame-liveness.js';
 import {
   LOCALE_NS,
   PHASE_LABEL,
@@ -183,51 +189,32 @@ const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
-/** Frame health: pixels seen yet, and consecutive silent checks so far. */
-interface FrameTracker {
-  readonly ready: boolean;
-  readonly misses: number;
-}
-
 /**
- * Watches the same-origin viewer document: reports when its stream surface is
- * live and, after a loss (e.g. the Selkies session was closed from its own UI),
- * reports the loss again so the caller can reconnect. `epoch` bumps (reconnect)
- * reset the tracker so the new document starts back at "connecting". The card
- * stays mounted across docked/fullscreen toggles, so one tracker instance
- * follows its single iframe for the whole Running lifetime.
+ * Follows the single viewer iframe for the whole Running lifetime: each tick
+ * samples the document (canvas size, Selkies busy line, pixel signature) and
+ * projects the overlay phase. `epoch` bumps (reconnect) reset the tracker so
+ * the new document starts back at "connecting". The card stays mounted across
+ * docked/fullscreen toggles, so one tracker instance never resets on open.
  */
-function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): FrameTracker {
-  const [tracker, setTracker] = useState<FrameTracker>({ ready: false, misses: 0 });
+function useStreamPhase(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): FramePhase {
+  const [phase, setPhase] = useState<FramePhase>('connecting');
 
   useEffect(() => {
-    setTracker({ ready: false, misses: 0 });
+    setPhase('connecting');
     let cancelled = false;
-    let misses = 0;
+    let tracker: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const check = (): void => {
       if (cancelled) return;
-      let live = false;
+      let doc: Document | null = null;
       try {
-        const doc = iframeRef.current?.contentDocument ?? null;
-        const surface = doc?.getElementById('videoCanvas') as
-          | HTMLVideoElement
-          | HTMLCanvasElement
-          | null;
-        if (surface !== null) {
-          const width = surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width;
-          live = width > 0;
-        }
+        doc = iframeRef.current?.contentDocument ?? null;
       } catch {
-        live = false;
+        doc = null;
       }
-      if (live) {
-        misses = 0;
-        setTracker({ ready: true, misses: 0 });
-      } else {
-        misses += 1;
-        setTracker({ ready: false, misses });
-      }
+      const next = nextStreamTracker(tracker, sampleSurface(doc));
+      tracker = next.tracker;
+      setPhase(next.phase);
       timer = setTimeout(check, 1000);
     };
     timer = setTimeout(check, 300);
@@ -237,7 +224,7 @@ function useFrameReady(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): 
     };
   }, [iframeRef, epoch]);
 
-  return tracker;
+  return phase;
 }
 
 /** Centered spinner over black; the shared connecting/retrying indicator. */
@@ -314,6 +301,60 @@ function ScreenEmpty({
           {t('entry.reconnect')}
         </Button>
       </div>
+    </div>
+  );
+}
+
+export interface StreamOverlayProps {
+  readonly phase: FramePhase;
+  readonly reconnecting: boolean;
+  /** The hover pill only exists on the docked card; fullscreen passes false. */
+  readonly hovered: boolean;
+  readonly t: ComputerTranslate;
+  readonly onRetry: () => void;
+  readonly onOpen: () => void;
+}
+
+/**
+ * The single overlay selector for the stream surface: the connecting notice,
+ * the empty state with retry, the hover Open pill once live, nothing
+ * otherwise. Exported for component tests proving the overlay-vs-pill
+ * binding (a connecting stream never offers the pill).
+ */
+export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
+  const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
+  if (phase === 'connecting') {
+    return <ScreenIndicator label={t(statusKeyFor(phase, reconnecting))} />;
+  }
+  if (phase === 'empty') {
+    return <ScreenEmpty t={t} onRetry={onRetry} />;
+  }
+  if (!hovered) return null;
+  return (
+    <div
+      style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'grid',
+        placeItems: 'center',
+        background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
+        borderRadius: 8,
+      }}
+    >
+      <Pill
+        onClick={onOpen}
+        style={{
+          background: 'var(--dsw-alias-state-business-primary, #4176e6)',
+          color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
+          height: 28,
+          padding: '0 12px',
+          fontSize: 13,
+          gap: 6,
+        }}
+      >
+        <IconFullscreenOutline16 size={14} />
+        {t('entry.openFullscreen')}
+      </Pill>
     </div>
   );
 }
@@ -512,30 +553,46 @@ function RunningCard({
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
+  const autoReloads = useRef(0);
+  const lossStreak = useRef(0);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
-  const { ready, misses } = useFrameReady(frameRef, reloadKey);
-  const phase = framePhase(ready, misses);
+  const phase = useStreamPhase(frameRef, reloadKey);
+  const live = phase === 'live';
 
   const reconnect = (): void => {
     setReconnecting(true);
     setReloadKey((key) => key + 1);
   };
 
-  // A stream that disappears after being live (closed session, dropped socket)
-  // remounts the viewer so it reconnects on its own.
+  // A stream that disappears after being live remounts the viewer — but only
+  // once the loss persists, so a single missed tick (GC pause, slow frame)
+  // never restarts the whole SPA mid-negotiation.
   useEffect(() => {
-    if (ready) {
+    if (live) {
       wasReady.current = true;
+      autoReloads.current = 0;
+      lossStreak.current = 0;
       setReconnecting(false);
       return;
     }
-    if (wasReady.current) {
-      wasReady.current = false;
-      setReconnecting(true);
-      setReloadKey((key) => key + 1);
-    }
-  }, [ready]);
+    if (!wasReady.current) return;
+    lossStreak.current += 1;
+    if (!shouldRemountLoss(lossStreak.current)) return;
+    wasReady.current = false;
+    lossStreak.current = 0;
+    setReconnecting(true);
+    setReloadKey((key) => key + 1);
+  }, [live]);
+
+  // A document that never went live most likely failed its first load while
+  // the server was still booting — remount a bounded number of times, then
+  // leave the manual retry.
+  useEffect(() => {
+    if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
+    autoReloads.current += 1;
+    setReloadKey((key) => key + 1);
+  }, [phase]);
 
   useEffect(() => {
     if (!expanded) return () => {};
@@ -577,41 +634,16 @@ function RunningCard({
 
   // Shared connecting/empty notice; the resting card falls through to the
   // hover mask only once the stream is actually live.
-  const notice =
-    phase === 'connecting' ? (
-      <ScreenIndicator label={statusText} />
-    ) : phase === 'empty' ? (
-      <ScreenEmpty t={t} onRetry={reconnect} />
-    ) : null;
-  const inlineOverlay =
-    notice ??
-    (hovered ? (
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          display: 'grid',
-          placeItems: 'center',
-          background: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
-          borderRadius: 8,
-        }}
-      >
-        <Pill
-          onClick={() => setExpanded(nextExpanded('open'))}
-          style={{
-            background: 'var(--dsw-alias-state-business-primary, #4176e6)',
-            color: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
-            height: 28,
-            padding: '0 12px',
-            fontSize: 13,
-            gap: 6,
-          }}
-        >
-          <IconFullscreenOutline16 size={14} />
-          {t('entry.openFullscreen')}
-        </Pill>
-      </div>
-    ) : null);
+  const overlay = (
+    <StreamOverlay
+      phase={phase}
+      reconnecting={reconnecting}
+      hovered={expanded ? false : hovered}
+      t={t}
+      onRetry={reconnect}
+      onOpen={() => setExpanded(nextExpanded('open'))}
+    />
+  );
 
   // The shell keeps its children keyed so toggling docked ↔ fullscreen only
   // mounts/unmounts the title bar and the card chrome — the frame (and its
@@ -695,7 +727,7 @@ function RunningCard({
           fit={expanded ? 'contain' : 'width'}
           iframeRef={frameRef}
         />
-        {expanded ? notice : inlineOverlay}
+        {overlay}
       </div>
       {expanded ? null : (
         <Fragment key="viewer-chrome">

@@ -1,7 +1,9 @@
 /**
- * Pure state machine for the Running card's viewer: open/collapse (including
- * Escape) and the stream's connecting → live → empty projection. Kept free of
- * DOM so the open/collapse/Esc contract is unit-testable without a browser.
+ * Pure state machine for the Running card's viewer: open/collapse targets,
+ * title-bar status/dot/label projections, and small copy predicates. Stream
+ * liveness itself (sized + pixels + Selkies status line) lives in
+ * `frame-liveness.ts`; this module stays free of DOM so its contract is
+ * unit-testable without a browser.
  * @module @botharness/computer/client/viewer-state
  */
 
@@ -21,19 +23,6 @@ export function nextExpanded(action: ViewerAction): boolean {
 
 /** Stream health as projected by the frame tracker. */
 export type FramePhase = 'connecting' | 'live' | 'empty';
-
-/**
- * Consecutive missed frame checks before the overlay admits there is no
- * picture: the tracker's first check lands at ~300ms and later checks every
- * ~1s, so six misses ≈ five seconds of silence.
- */
-export const EMPTY_AFTER_MISSES = 6;
-
-/** Derive the overlay phase from the tracker. */
-export function framePhase(ready: boolean, misses: number): FramePhase {
-  if (ready) return 'live';
-  return misses >= EMPTY_AFTER_MISSES ? 'empty' : 'connecting';
-}
 
 /** StateDot semantics for a phase (done / blue ring / red). */
 export function dotStateFor(phase: FramePhase): 'done' | 'ongoing' | 'error' {
