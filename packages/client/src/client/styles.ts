@@ -848,7 +848,6 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   font: 11px/1 var(--dsw-font-family);
   pointer-events: none;
 }
-.bh-shortcut-active .bh-state,
 .bh-shortcut-active .bh-channel-meta {
   visibility: hidden;
 }
@@ -936,8 +935,8 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   background: var(--bh-accent);
   flex: 0 0 auto;
 }
-.bh-state {
-  flex: 0 0 auto;
+.bh-contact .bh-persona-avatar::before {
+  content: none;
 }
 
 .bh-channel-mark {
