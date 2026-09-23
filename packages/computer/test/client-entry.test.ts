@@ -26,6 +26,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
 import {
   apply,
   ComputerEntryView,
+  StreamOverlay,
   ViewerTitleBar,
   type ComputerEntryViewProps,
 } from '../src/client/index.js';
@@ -226,5 +227,39 @@ describe('Fullscreen viewer title bar', () => {
     const html = titleBar({ stopping: true });
     expect(html).toContain('停止中');
     expect(html).toMatch(/<button[^>]*disabled/);
+  });
+});
+
+describe('StreamOverlay selector', () => {
+  function overlay(overrides: Partial<Parameters<typeof StreamOverlay>[0]> = {}): string {
+    return renderToStaticMarkup(
+      createElement(StreamOverlay, {
+        phase: 'connecting',
+        reconnecting: false,
+        hovered: false,
+        t,
+        onRetry: () => undefined,
+        onOpen: () => undefined,
+        ...overrides,
+      }),
+    );
+  }
+
+  it('shows the connecting notice with no pill while the stream is not live', () => {
+    const html = overlay({ phase: 'connecting', hovered: true });
+    expect(html).toContain('连接中');
+    expect(html).not.toContain('打开大屏');
+  });
+
+  it('shows the empty state with retry after sustained silence', () => {
+    const html = overlay({ phase: 'empty' });
+    expect(html).toContain('暂无画面');
+    expect(html).toContain('重新连接');
+    expect(html).not.toContain('打开大屏');
+  });
+
+  it('offers the Open pill only on a live hovered frame', () => {
+    expect(overlay({ phase: 'live', hovered: false })).toBe('');
+    expect(overlay({ phase: 'live', hovered: true })).toContain('打开大屏');
   });
 });

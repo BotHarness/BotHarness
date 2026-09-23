@@ -1,9 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  EMPTY_AFTER_MISSES,
   dotStateFor,
-  framePhase,
   isExitReport,
   nextExpanded,
   statusKeyFor,
@@ -17,23 +15,6 @@ describe('viewer open/collapse state machine', () => {
 
   it('collapse targets the resting entry', () => {
     expect(nextExpanded('collapse')).toBe(false);
-  });
-});
-
-describe('stream frame phase', () => {
-  it('is live as soon as the stream surface reports pixels', () => {
-    expect(framePhase(true, 0)).toBe('live');
-    expect(framePhase(true, 99)).toBe('live');
-  });
-
-  it('shows connecting while the first frames have not arrived', () => {
-    expect(framePhase(false, 0)).toBe('connecting');
-    expect(framePhase(false, EMPTY_AFTER_MISSES - 1)).toBe('connecting');
-  });
-
-  it('falls to an explicit empty state after sustained silence', () => {
-    expect(framePhase(false, EMPTY_AFTER_MISSES)).toBe('empty');
-    expect(framePhase(false, EMPTY_AFTER_MISSES + 5)).toBe('empty');
   });
 });
 
