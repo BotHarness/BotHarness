@@ -30,6 +30,7 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import { createWorkspaceGrantStore, type DshWorkspaceLookup, type WorkspaceGrantStore } from './workspaces/grants.js';
 import {
   createDshBotAgentAdapter,
   type DshAgentPresetHost,
@@ -78,6 +79,7 @@ export interface BotHarnessCore {
   live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
+  grants: WorkspaceGrantStore;
 }
 
 function unavailableAgentAdapter(): BotAgentAdapter {
@@ -98,6 +100,7 @@ export function createCore(
     dshHome?: string;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
+    workspaces?: () => DshWorkspaceLookup | undefined;
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -131,6 +134,10 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
   const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
+  const grants = createWorkspaceGrantStore({
+    database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
+    workspaces: options.workspaces ?? (() => undefined),
+  });
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   return {
@@ -140,6 +147,7 @@ export function createCore(
     states,
     ownership,
     memory,
+    grants,
     channels,
     attachments,
     live,
@@ -155,6 +163,7 @@ export function createCore(
       agents: options.agents ?? unavailableAgentAdapter(),
       memory,
       ownership,
+      grants,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
     }),
@@ -178,6 +187,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     dshHome,
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
+    workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
@@ -203,6 +213,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       memory: core.memory,
       roster: core.roster,
       runtime: core.runtime,
+      grants: core.grants,
     }),
   );
 

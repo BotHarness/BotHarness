@@ -19,6 +19,7 @@ import type { ChannelTimelinePage, TimelineDirection } from '../channels/timelin
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { SessionSummary } from '../sessions/source.js';
 import type { MemoryAcceptedCommit, MemoryAcceptedSnapshot } from '../memory/accepted.js';
+import type { WorkspaceGrant } from '../workspaces/grants.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
 export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
@@ -30,6 +31,9 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     duplicate: Record<string, never>;
     'not-found': Record<string, never>;
     'storage-unavailable': Record<string, never>;
+    'unknown-workspace': Record<string, never>;
+    'unavailable-workspace': Record<string, never>;
+    'invalid-grant': Record<string, never>;
   }
 }
 
@@ -224,6 +228,22 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.assignment({ slug, sessionId }));
   }
 
+  workspaceOptions(): { workspaces: { id: string; path: string; title: string }[] } {
+    return unwrap(this.methods.workspaceOptions({}));
+  }
+
+  grants(slug: string): { grants: WorkspaceGrant[] } {
+    return unwrap(this.methods.grants({ slug }));
+  }
+
+  grantCreate(slug: string, workspaceId: string): Promise<{ grant: WorkspaceGrant }> {
+    return unwrapAsync(this.methods.grantCreate({ slug, workspaceId }));
+  }
+
+  grantRevoke(slug: string, grantId: string): { grant: WorkspaceGrant } {
+    return unwrap(this.methods.grantRevoke({ slug, grantId }));
+  }
+
   sessions(slug: string): { sessions: SessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
   }
@@ -324,6 +344,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelSend',
   'assignments',
   'assignment',
+  'workspaceOptions',
+  'grants',
+  'grantCreate',
+  'grantRevoke',
   'sessions',
   'memorySnapshot',
   'memoryFile',

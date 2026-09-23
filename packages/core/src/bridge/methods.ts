@@ -32,6 +32,7 @@ import {
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import { MemoryPathError } from '../memory/jail.js';
+import { WorkspaceGrantError, type WorkspaceGrant, type WorkspaceGrantStore } from '../workspaces/grants.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -95,6 +96,10 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
+  workspaceOptions(payload: unknown): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
+  grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
+  grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
+  grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
@@ -124,6 +129,7 @@ export interface BridgeMethodsDeps {
   memory?: MemoryService;
   roster: RosterStore;
   runtime?: BotRuntime;
+  grants?: WorkspaceGrantStore;
   createBotId?: () => string;
 }
 
@@ -704,6 +710,58 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const assignment = deps.runtime?.getAssignment(slug, sessionId);
       if (assignment === undefined) return unknownAssignment(sessionId);
       return { ok: true, value: { assignment } };
+    },
+    workspaceOptions() {
+      try {
+        return { ok: true, value: { workspaces: deps.grants?.availableWorkspaces() ?? [] } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    },
+    grants(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return { ok: true, value: { grants: deps.grants?.list(slug) ?? [] } };
+    },
+    async grantCreate(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const workspaceId = asNonBlank(source, 'workspaceId');
+      if (slug === undefined || workspaceId === undefined) {
+        return invalidInput('slug and workspaceId are required');
+      }
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined) return { ok: false, error: { code: 'unavailable', message: 'Workspace Grants are unavailable' } };
+      try {
+        return { ok: true, value: { grant: await deps.grants.create(slug, workspaceId) } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    },
+    grantRevoke(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const grantId = asNonBlank(source, 'grantId');
+      if (slug === undefined || grantId === undefined) {
+        return invalidInput('slug and grantId are required');
+      }
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined) return { ok: false, error: { code: 'unavailable', message: 'Workspace Grants are unavailable' } };
+      try {
+        return { ok: true, value: { grant: deps.grants.revoke(slug, grantId) } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
     },
     sessions(payload) {
       const slug = asSlug(payload);

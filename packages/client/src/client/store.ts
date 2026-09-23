@@ -92,6 +92,14 @@ export interface AssignmentSummary {
   purpose: string;
   activity: AssignmentActivity;
   latestReport?: AssignmentReport;
+  permission?: {
+    grantId: string;
+    workspaceId: string;
+    primaryCwd: string;
+    mode: 'workspace-write';
+    approval: 'ask';
+    presetRevision: 0;
+  };
   createdAt: string;
   updatedAt: string;
 }

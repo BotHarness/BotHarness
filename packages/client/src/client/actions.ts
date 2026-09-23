@@ -7,6 +7,12 @@ import {
   createRosterSection,
   errorMessage,
   loadAssignment,
+  loadWorkspaceOptions,
+  loadWorkspaceGrants,
+  createWorkspaceGrant,
+  revokeWorkspaceGrant,
+  type WorkspaceOption,
+  type WorkspaceGrantView,
   loadAssignments,
   loadBots,
   loadMemorySnapshot,
@@ -82,6 +88,10 @@ export interface BridgeActions {
     expectedHead: string;
     editId: string;
   }): Promise<MemoryAcceptedCommit>;
+  listWorkspaceOptions(): Promise<WorkspaceOption[]>;
+  listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
+  createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
+  revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -344,6 +354,10 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
   };
 
   const actions: BridgeActions = {
+    listWorkspaceOptions: () => loadWorkspaceOptions(call),
+    listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
+    createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
+    revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {

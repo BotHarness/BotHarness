@@ -339,6 +339,23 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
   if (activity !== 'working' && activity !== 'idle' && activity !== 'error') return undefined;
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
   const latestReport = parseAssignmentReport(record['latestReport']);
+  const permissionRecord = asRecord(record['permission']);
+  const permission = permissionRecord !== undefined &&
+    typeof permissionRecord['grantId'] === 'string' &&
+    typeof permissionRecord['workspaceId'] === 'string' &&
+    typeof permissionRecord['primaryCwd'] === 'string' &&
+    permissionRecord['mode'] === 'workspace-write' &&
+    permissionRecord['approval'] === 'ask' &&
+    permissionRecord['presetRevision'] === 0
+      ? {
+          grantId: permissionRecord['grantId'],
+          workspaceId: permissionRecord['workspaceId'],
+          primaryCwd: permissionRecord['primaryCwd'],
+          mode: 'workspace-write' as const,
+          approval: 'ask' as const,
+          presetRevision: 0 as const,
+        }
+      : undefined;
   return {
     sessionId,
     purpose,
@@ -346,6 +363,7 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
     createdAt,
     updatedAt,
     ...(latestReport === undefined ? {} : { latestReport }),
+    ...(permission === undefined ? {} : { permission }),
   };
 }
 
@@ -567,6 +585,75 @@ export async function sendChannelMessage(
   const message = parseChannelMessage(asRecord(value)?.['message']);
   if (message === undefined) throw new Error('invalid channelSend response');
   return message;
+}
+
+export interface WorkspaceOption {
+  id: string;
+  path: string;
+  title: string;
+}
+
+export interface WorkspaceGrantView extends WorkspaceOption {
+  botSlug: string;
+  workspaceId: string;
+  workspacePath: string;
+  workspaceTitle: string;
+  createdAt: string;
+  revokedAt?: string;
+}
+
+function parseWorkspaceOption(value: unknown): WorkspaceOption | undefined {
+  const row = asRecord(value);
+  if (row === undefined || typeof row['id'] !== 'string' ||
+      typeof row['path'] !== 'string' || typeof row['title'] !== 'string') return undefined;
+  return { id: row['id'], path: row['path'], title: row['title'] };
+}
+
+function parseWorkspaceGrant(value: unknown): WorkspaceGrantView | undefined {
+  const row = asRecord(value);
+  if (row === undefined || typeof row['id'] !== 'string' ||
+      typeof row['botSlug'] !== 'string' || typeof row['workspaceId'] !== 'string' ||
+      typeof row['workspacePath'] !== 'string' || typeof row['workspaceTitle'] !== 'string' ||
+      typeof row['createdAt'] !== 'string') return undefined;
+  return {
+    id: row['id'], path: row['workspacePath'], title: row['workspaceTitle'],
+    botSlug: row['botSlug'], workspaceId: row['workspaceId'],
+    workspacePath: row['workspacePath'], workspaceTitle: row['workspaceTitle'],
+    createdAt: row['createdAt'],
+    ...(typeof row['revokedAt'] === 'string' ? { revokedAt: row['revokedAt'] } : {}),
+  };
+}
+
+export async function loadWorkspaceOptions(call: BridgeCall): Promise<WorkspaceOption[]> {
+  const rows = asRecord(await unwrap(call, 'workspaceOptions', {}))?.['workspaces'];
+  if (!Array.isArray(rows)) throw new Error('invalid workspaceOptions response');
+  return rows.flatMap((row) => {
+    const parsed = parseWorkspaceOption(row);
+    return parsed === undefined ? [] : [parsed];
+  });
+}
+
+export async function loadWorkspaceGrants(call: BridgeCall, slug: string): Promise<WorkspaceGrantView[]> {
+  const rows = asRecord(await unwrap(call, 'grants', { slug }))?.['grants'];
+  if (!Array.isArray(rows)) throw new Error('invalid grants response');
+  return rows.flatMap((row) => {
+    const parsed = parseWorkspaceGrant(row);
+    return parsed === undefined ? [] : [parsed];
+  });
+}
+
+export async function createWorkspaceGrant(call: BridgeCall, slug: string, workspaceId: string): Promise<WorkspaceGrantView> {
+  const value = asRecord(await unwrap(call, 'grantCreate', { slug, workspaceId }))?.['grant'];
+  const grant = parseWorkspaceGrant(value);
+  if (grant === undefined) throw new Error('invalid grantCreate response');
+  return grant;
+}
+
+export async function revokeWorkspaceGrant(call: BridgeCall, slug: string, grantId: string): Promise<WorkspaceGrantView> {
+  const value = asRecord(await unwrap(call, 'grantRevoke', { slug, grantId }))?.['grant'];
+  const grant = parseWorkspaceGrant(value);
+  if (grant === undefined) throw new Error('invalid grantRevoke response');
+  return grant;
 }
 
 export async function loadAssignments(
