@@ -42,6 +42,10 @@ Computer 的整套桌面——登录态、书签、下载与文件——都保�
 
 归档里含 Computer 的 Cookie 与已保存的登录态——敏感度等同浏览器配置备份，请相应地存放与传输。它是 profile 级的导出面，永远不并入 PersonaBot 导出。
 
+## 查看开发者诊断
+
+`GET /api/computer/diagnostics` 返回有界的生命周期、容器与 viewer 事件日志（新的在后）。viewer 卡片会在其中自述挂载、画面阶段变化、重连与重试——画面异常时先看这里，而不是猜。
+
 ## 参见
 
 - [ADR-0052](/dev/adr/0052-computer-storage-and-export) —— 存储留在具名卷上；可携带性是显式导出。

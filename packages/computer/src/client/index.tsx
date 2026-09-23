@@ -18,12 +18,14 @@ import {
   type FramePhase,
 } from './viewer-state.js';
 import {
+  LOSS_REMOUNT_AFTER,
   nextStreamTracker,
   sampleSurface,
   shouldAutoReload,
   shouldRemountLoss,
   type StreamTracker,
 } from './frame-liveness.js';
+import { reportViewerEvent, viewerEventText } from './viewer-events.js';
 import {
   LOCALE_NS,
   PHASE_LABEL,
@@ -576,15 +578,40 @@ function RunningCard({
   const wasReady = useRef(false);
   const autoReloads = useRef(0);
   const lossStreak = useRef(0);
+  const prevPhase = useRef<FramePhase | undefined>(undefined);
+  const prevExpanded = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
 
   const phase = useStreamPhase(frameRef, reloadKey);
   const live = phase === 'live';
 
   const reconnect = (): void => {
+    void reportViewerEvent(undefined, viewerEventText({ type: 'manual-retry' }));
     setReconnecting(true);
     setReloadKey((key) => key + 1);
   };
+
+  // Narrate lifecycle transitions into developer diagnostics (transitions
+  // only, never per-tick polls) so later debugging replays the card's story.
+  useEffect(() => {
+    void reportViewerEvent(undefined, viewerEventText({ type: 'mount' }));
+  }, []);
+
+  useEffect(() => {
+    const fromPhase = prevPhase.current;
+    prevPhase.current = phase;
+    if (fromPhase !== undefined && fromPhase !== phase) {
+      void reportViewerEvent(
+        undefined,
+        viewerEventText({ type: 'phase', from: fromPhase, to: phase }),
+      );
+    }
+    const wasExpanded = prevExpanded.current;
+    prevExpanded.current = expanded;
+    if (wasExpanded !== expanded) {
+      void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: expanded }));
+    }
+  }, [phase, expanded]);
 
   // A stream that disappears after being live remounts the viewer — but only
   // once the loss persists, so a single missed tick (GC pause, slow frame)
@@ -602,6 +629,10 @@ function RunningCard({
     if (!shouldRemountLoss(lossStreak.current)) return;
     wasReady.current = false;
     lossStreak.current = 0;
+    void reportViewerEvent(
+      undefined,
+      viewerEventText({ type: 'loss-remount', streak: LOSS_REMOUNT_AFTER }),
+    );
     setReconnecting(true);
     setReloadKey((key) => key + 1);
   }, [live]);
@@ -612,6 +643,10 @@ function RunningCard({
   useEffect(() => {
     if (!shouldAutoReload(phase, wasReady.current, autoReloads.current)) return;
     autoReloads.current += 1;
+    void reportViewerEvent(
+      undefined,
+      viewerEventText({ type: 'auto-reload', attempt: autoReloads.current }),
+    );
     setReloadKey((key) => key + 1);
   }, [phase]);
 

@@ -42,6 +42,10 @@ On web deployments (no directory picker, no Host folder to open), transfer runs 
 
 The archive contains the Computer's cookies and saved logins — the same sensitivity as a browser-profile backup. Store and transfer it accordingly. It is a profile-level facet and never part of a PersonaBot export.
 
+## Reading developer diagnostics
+
+`GET /api/computer/diagnostics` returns the bounded lifecycle, container, and viewer event log (newest last). The viewer card narrates its own mounts, stream phase changes, reloads, and retries there — start here when the picture misbehaves instead of guessing.
+
 ## See also
 
 - [ADR-0052](/dev/adr/0052-computer-storage-and-export) — storage stays on a named volume; portability is an explicit export.
