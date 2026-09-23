@@ -429,6 +429,7 @@ function ConversationView({
               ? `${composerFacepile[0]?.name ?? 'PersonaBot'} ${personaBotActivityLabel(composerFacepile[0]?.state ?? 'idle', t)}`
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
+  const hasComposerActivity = composerActivity !== undefined;
   const channelId = channel?.id;
   const scheduleReadMark = (): void => {
     const element = scrollRef.current;
@@ -543,7 +544,26 @@ function ConversationView({
       setUnseen((count) => count + conversation.revision - previousRevision);
     }
     lastRevision.current = conversation.revision;
-  }, [channelId, conversation.status, conversation.drafts, conversation.revision, messages]);
+  }, [
+    channelId,
+    hasComposerActivity,
+    conversation.status,
+    conversation.drafts,
+    conversation.revision,
+    messages,
+  ]);
+
+  useEffect(() => {
+    const element = scrollRef.current;
+    if (element === null || typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(() => {
+      if (followingLatest.current && !conversation.timeline.hasNewer) {
+        element.scrollTop = element.scrollHeight;
+      }
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [channelId, conversation.timeline.hasNewer]);
 
   useEffect(() => {
     if (conversation.timeline.olderError !== undefined) prependAnchor.current = null;
@@ -663,8 +683,12 @@ function ConversationView({
     )
       return;
     submitting.current = true;
-    followingLatest.current = true;
-    setUnseen(0);
+    const viewport = scrollRef.current;
+    followingLatest.current =
+      viewport !== null &&
+      !conversation.timeline.hasNewer &&
+      viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight <= 80;
+    if (followingLatest.current) setUnseen(0);
     const submittedFor = currentChannel.current;
     const submittedUploads = uploadItems;
     const previousFailures = new Set(
