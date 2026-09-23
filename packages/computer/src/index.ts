@@ -11,7 +11,10 @@ import type { Context } from '@deepseek-ai/cordis';
 import type { SettingsScope } from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
-import { createComputerDiagnostics } from './diagnostics.js';
+import { DIAGNOSTICS_LIMIT, createComputerDiagnostics, toLogEntry } from './diagnostics.js';
+// Deep relative import, not the package root: the log module is leaf-only
+// (node builtins) and must not pull core's barrel types into this bundle.
+import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
 import { createTransferTokens } from './transfer-tokens.js';
 import { createIdleWatcher } from './idle.js';
 import {
@@ -246,7 +249,24 @@ export const VIEWER_PREFIX = '/botharness-computer/viewer';
 export function apply(ctx: Context, config: ComputerConfig): void {
   if (!config.enabled) return;
 
-  const diagnostics = createComputerDiagnostics();
+  // Durable drain for the diagnostics ring (slice 1 of the operational log
+  // timeline): best effort — without a home, or when the file is unusable,
+  // the ring keeps serving reads on its own.
+  let logDb: LogDatabase | undefined;
+  try {
+    const home = process.env.DSH_HOME?.trim();
+    logDb =
+      home === undefined || home === ''
+        ? undefined
+        : openLogDatabase({ dir: join(home, 'botharness') });
+  } catch {
+    logDb = undefined;
+  }
+  const diagnostics = createComputerDiagnostics(DIAGNOSTICS_LIMIT, {
+    write: (event) => {
+      logDb?.write(toLogEntry(event, 'computer', 'profile-shared'));
+    },
+  });
   const transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
