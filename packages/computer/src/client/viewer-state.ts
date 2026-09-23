@@ -8,13 +8,12 @@
 import type { ComputerKey } from './locale.js';
 
 /** User/keyboard actions that move the fullscreen viewer. */
-export type ViewerAction = 'open' | 'collapse' | 'esc';
+export type ViewerAction = 'open' | 'collapse';
 
 /**
- * The overlay target for an action: open always targets the fullscreen
- * overlay; collapse and Escape always target the resting entry — Escape is an
- * absolute return, never a toggle, so pressing it while resting is a no-op
- * that cannot blink the overlay open.
+ * The overlay target for an action: open targets the fullscreen overlay,
+ * collapse targets the resting entry. Fullscreen exits through the toolbar
+ * collapse button only — there is intentionally no Escape shortcut.
  */
 export function nextExpanded(action: ViewerAction): boolean {
   return action === 'open';
@@ -53,4 +52,15 @@ export function statusKeyFor(phase: FramePhase, reconnecting: boolean): Computer
 /** Locale key for the stop control (shared by the title bar and the card row). */
 export function stopKey(busy: boolean, stopping: boolean): ComputerKey {
   return busy || stopping ? 'entry.stopping' : 'entry.stop';
+}
+
+/**
+ * Bare container exit reports ("exited code=137") are machine noise from a
+ * normal stop — the start view shows the friendly shared note instead, while
+ * real server details and client errors still surface.
+ */
+const EXIT_REPORT = /^exited code=\d+$/;
+
+export function isExitReport(detail: string | undefined): boolean {
+  return detail !== undefined && EXIT_REPORT.test(detail);
 }

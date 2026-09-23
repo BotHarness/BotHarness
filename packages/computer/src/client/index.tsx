@@ -12,6 +12,7 @@ import {
 import {
   dotStateFor,
   framePhase,
+  isExitReport,
   nextExpanded,
   statusKeyFor,
   stopKey,
@@ -487,8 +488,9 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
  * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
  * the stream, never re-handshakes its WebSocket, and never resets "connecting".
  * Docked, a hover mask offers the blue Open pill; expanded, the same frame
- * fills the viewport under the title bar (Escape collapses, page scroll
- * locked). Sustained silence becomes an explicit empty state with a retry.
+ * fills the viewport under the title bar (the toolbar collapse button returns
+ * to the card, page scroll locked). Sustained silence becomes an explicit
+ * empty state with a retry.
  */
 function RunningCard({
   t,
@@ -538,12 +540,9 @@ function RunningCard({
   useEffect(() => {
     if (!expanded) return () => {};
     const onKey = (event: KeyboardEvent): void => {
-      if (event.key === 'Escape') {
-        setExpanded(nextExpanded('esc'));
-        return;
-      }
-      // The viewer is a modal: keep Tab inside it instead of letting focus
-      // walk into the shell behind the overlay.
+      // Fullscreen exits through the toolbar collapse button only (no Escape
+      // shortcut): keep Tab inside the viewer instead of letting focus walk
+      // into the shell behind the overlay.
       if (event.key !== 'Tab') return;
       const dialog = dialogRef.current;
       if (dialog === null) return;
@@ -872,7 +871,9 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12 }}>
-      <div style={noteStyle}>{error ?? detail ?? t(SHARED_NOTE_KEY)}</div>
+      <div style={noteStyle}>
+        {error ?? (isExitReport(detail) ? undefined : detail) ?? t(SHARED_NOTE_KEY)}
+      </div>
       <button type="button" style={primaryButtonStyle} disabled={busy} onClick={onStart}>
         {busy ? t('entry.starting') : t('entry.start')}
       </button>

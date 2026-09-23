@@ -4,26 +4,19 @@ import {
   EMPTY_AFTER_MISSES,
   dotStateFor,
   framePhase,
+  isExitReport,
   nextExpanded,
   statusKeyFor,
   stopKey,
 } from '../src/client/viewer-state.js';
 
 describe('viewer open/collapse state machine', () => {
-  it('open always targets the expanded overlay', () => {
+  it('open targets the fullscreen overlay', () => {
     expect(nextExpanded('open')).toBe(true);
   });
 
-  it('collapse and Escape both target the resting entry', () => {
+  it('collapse targets the resting entry', () => {
     expect(nextExpanded('collapse')).toBe(false);
-    expect(nextExpanded('esc')).toBe(false);
-  });
-
-  it('esc is an absolute return, never a toggle (pressing it twice stays home)', () => {
-    // open → esc → esc: the second esc must not blink the overlay open.
-    expect(nextExpanded('open')).toBe(true);
-    expect(nextExpanded('esc')).toBe(false);
-    expect(nextExpanded('esc')).toBe(false);
   });
 });
 
@@ -69,5 +62,16 @@ describe('stop control label', () => {
     expect(stopKey(true, false)).toBe('entry.stopping');
     expect(stopKey(false, true)).toBe('entry.stopping');
     expect(stopKey(true, true)).toBe('entry.stopping');
+  });
+});
+
+describe('start view note', () => {
+  it('treats bare exit-code reports as machine noise', () => {
+    expect(isExitReport('exited code=137')).toBe(true);
+    expect(isExitReport('exited code=0')).toBe(true);
+    expect(isExitReport(undefined)).toBe(false);
+    expect(isExitReport('')).toBe(false);
+    expect(isExitReport('pull failed: network unreachable')).toBe(false);
+    expect(isExitReport('exited code=137 (oom)')).toBe(false);
   });
 });

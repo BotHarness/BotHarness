@@ -9,10 +9,9 @@ window.__ModuleLoader__.load({
     let react_jsx_runtime = require('react/jsx-runtime');
     //#region packages/computer/src/client/viewer-state.ts
     /**
-     * The overlay target for an action: open always targets the fullscreen
-     * overlay; collapse and Escape always target the resting entry — Escape is an
-     * absolute return, never a toggle, so pressing it while resting is a no-op
-     * that cannot blink the overlay open.
+     * The overlay target for an action: open targets the fullscreen overlay,
+     * collapse targets the resting entry. Fullscreen exits through the toolbar
+     * collapse button only — there is intentionally no Escape shortcut.
      */
     function nextExpanded(action) {
       return action === 'open';
@@ -37,6 +36,15 @@ window.__ModuleLoader__.load({
     /** Locale key for the stop control (shared by the title bar and the card row). */
     function stopKey(busy, stopping) {
       return busy || stopping ? 'entry.stopping' : 'entry.stop';
+    }
+    /**
+     * Bare container exit reports ("exited code=137") are machine noise from a
+     * normal stop — the start view shows the friendly shared note instead, while
+     * real server details and client errors still surface.
+     */
+    const EXIT_REPORT = /^exited code=\d+$/;
+    function isExitReport(detail) {
+      return detail !== void 0 && EXIT_REPORT.test(detail);
     }
     //#endregion
     //#region packages/computer/src/client/locale.ts
@@ -1208,8 +1216,9 @@ window.__ModuleLoader__.load({
      * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
      * the stream, never re-handshakes its WebSocket, and never resets "connecting".
      * Docked, a hover mask offers the blue Open pill; expanded, the same frame
-     * fills the viewport under the title bar (Escape collapses, page scroll
-     * locked). Sustained silence becomes an explicit empty state with a retry.
+     * fills the viewport under the title bar (the toolbar collapse button returns
+     * to the card, page scroll locked). Sustained silence becomes an explicit
+     * empty state with a retry.
      */
     function RunningCard({ t, botSlug, busy, stopping, onStop }) {
       const frameRef = (0, react.useRef)(null);
@@ -1241,10 +1250,6 @@ window.__ModuleLoader__.load({
       (0, react.useEffect)(() => {
         if (!expanded) return () => {};
         const onKey = (event) => {
-          if (event.key === 'Escape') {
-            setExpanded(nextExpanded('esc'));
-            return;
-          }
           if (event.key !== 'Tab') return;
           const dialog = dialogRef.current;
           if (dialog === null) return;
@@ -1627,7 +1632,7 @@ window.__ModuleLoader__.load({
         children: [
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)('div', {
             style: noteStyle,
-            children: error ?? detail ?? t(SHARED_NOTE_KEY),
+            children: error ?? (isExitReport(detail) ? void 0 : detail) ?? t(SHARED_NOTE_KEY),
           }),
           /* @__PURE__ */ (0, react_jsx_runtime.jsx)('button', {
             type: 'button',

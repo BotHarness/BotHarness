@@ -137,6 +137,18 @@ describe('Computer entry states', () => {
     expect(html).toContain('共享');
   });
 
+  it('hides bare exit-code reports behind the shared note in the start view', () => {
+    const html = view({ state: 'stopped', detail: 'exited code=137' });
+    expect(html).not.toContain('exited code=137');
+    expect(html).toContain('共享');
+    expect(html).toContain('启动');
+  });
+
+  it('keeps real server details visible in the start view', () => {
+    const html = view({ state: 'stopped', detail: 'pull failed: network unreachable' });
+    expect(html).toContain('pull failed: network unreachable');
+  });
+
   it('renders the live viewer, its connecting overlay, and stop while running', () => {
     const html = view({ state: 'running', botSlug: 'atlas' });
     // Exactly one iframe owns the stream in every layout (docked/fullscreen
