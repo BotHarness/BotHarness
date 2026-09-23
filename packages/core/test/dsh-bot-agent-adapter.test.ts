@@ -21,6 +21,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       resolveAgentPresets: () => ({
         mount: async (agentCtx, id) => {
@@ -67,6 +68,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: () => undefined,
     });
@@ -110,6 +112,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
 
@@ -125,7 +128,7 @@ describe('DSH Bot Agent adapter', () => {
         assignments: {
           create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
           grants: () => [],
-        list: () => [],
+          list: () => [],
           inspect: () => undefined,
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
         },
@@ -142,6 +145,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: (path) => void preparedWorkspaces.push(path),
     });
@@ -184,8 +188,12 @@ describe('DSH Bot Agent adapter', () => {
       bot: BOT,
       purpose: '核对发布状态',
       permission: {
-        grantId: 'grant-1', workspaceId: 'workspace-1', primaryCwd: '/project',
-        mode: 'workspace-write', approval: 'ask', presetRevision: 0,
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'workspace-write',
+        approval: 'ask',
+        presetRevision: 0,
       },
       report: async (input) => {
         reports.push(input);
@@ -203,14 +211,14 @@ describe('DSH Bot Agent adapter', () => {
     ]);
     expect(host.createOptions.every((options) => options.parentAgent === undefined)).toBe(true);
     expect(host.createOptions.map((options) => options.meta?.cwd)).toEqual([
-      '/runtime-workspaces/ada',
+      '/memory/ada',
       '/project',
     ]);
     expect(host.createOptions.map((options) => options.meta?.agentPreset)).toEqual([
       'standard',
       'standard',
     ]);
-    expect(preparedWorkspaces).toEqual(['/runtime-workspaces/ada']);
+    expect(preparedWorkspaces).toEqual(['/memory/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'create_assignment',
       'list_workspace_grants',
@@ -286,6 +294,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
     let reported = false;
@@ -294,8 +303,12 @@ describe('DSH Bot Agent adapter', () => {
       bot: BOT,
       purpose: '核对发布状态',
       permission: {
-        grantId: 'grant-1', workspaceId: 'workspace-1', primaryCwd: '/project',
-        mode: 'workspace-write', approval: 'ask', presetRevision: 0,
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'workspace-write',
+        approval: 'ask',
+        presetRevision: 0,
       },
       report: async (input: { state: string; summary: string }) => {
         reported = true;
@@ -324,6 +337,7 @@ describe('DSH Bot Agent adapter', () => {
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
       defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
       publishDraft: (event) => {
         if (event.type === 'update') drafts.push(event.draft.body);
@@ -355,7 +369,7 @@ describe('DSH Bot Agent adapter', () => {
         assignments: {
           create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
           grants: () => [],
-        list: () => [],
+          list: () => [],
           inspect: () => undefined,
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
         },

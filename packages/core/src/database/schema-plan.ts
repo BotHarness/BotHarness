@@ -198,6 +198,9 @@ export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
       ALTER TABLE assignments ADD COLUMN permission_mode TEXT;
       ALTER TABLE assignments ADD COLUMN approval_policy TEXT;
       ALTER TABLE assignments ADD COLUMN preset_revision INTEGER;
+    `);
+  },
+};
 
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,

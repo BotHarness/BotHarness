@@ -1,6 +1,5 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 
 import {
   installModelSelection,
@@ -292,7 +291,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             grant_id: {
               type: 'string',
               required: true,
-              description: 'Active Workspace Grant id from list_workspace_grants; raw paths are not accepted.',
+              description:
+                'Active Workspace Grant id from list_workspace_grants; raw paths are not accepted.',
             },
             key: {
               type: 'string',
@@ -333,7 +333,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       agentCtx.tools.register(
         defineTool({
           name: 'list_workspace_grants',
-          description: 'List Human-authorized Workspace Grants for this PersonaBot. Only active Grant ids can be passed to create_assignment.',
+          description:
+            'List Human-authorized Workspace Grants for this PersonaBot. Only active Grant ids can be passed to create_assignment.',
           parameters: {},
           output: {
             schema: { type: 'string' },
@@ -718,18 +719,17 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   }
 
   #resolveOrchestratorCwd(bot: PersonaBotRecord): string {
-    return this.#orchestratorCwd?.(bot) ?? join(this.#defaultWorkspaceRoot, bot.slug);
+    const cwd = this.#orchestratorCwd?.(bot);
+    if (cwd === undefined) {
+      throw new Error(`Memory workspace unavailable for Orchestrator ${bot.slug}`);
+    }
+    return cwd;
   }
 
   async #assignmentHandle(run: AssignmentAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const meta = createMeta(
-      run,
-      run.permission.primaryCwd,
-      undefined,
-      this.#defaultAgentPreset,
-    );
+    const meta = createMeta(run, run.permission.primaryCwd, undefined, this.#defaultAgentPreset);
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),

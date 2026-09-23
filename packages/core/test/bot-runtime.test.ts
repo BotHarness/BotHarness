@@ -21,6 +21,7 @@ import {
   type OrchestratorAgentRun,
 } from '../src/runtime/bot-runtime.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
+import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
 
 class DeterministicAgentAdapter implements BotAgentAdapter {
   readonly runs: Array<{ role: 'orchestrator' | 'assignment'; sessionId: string }> = [];
@@ -28,7 +29,10 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.runs.push({ role: 'orchestrator', sessionId: run.sessionId });
     if (run.message.trim().length > 0) {
-      const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+      const outcome = run.assignments.create({
+        grantId: TEST_GRANT_ID,
+        purpose: `调查并回答：${run.message}`,
+      });
       if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
       throw new Error(outcome.message);
     }
@@ -158,6 +162,7 @@ it('reads only a joined Channel image by durable message and attachment referenc
   let inspected = false;
   const runtime = createBotRuntime({
     database: owner,
+    grants: createTestWorkspaceGrants(owner, home),
     registry,
     channels,
     attachments,
@@ -235,6 +240,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -280,6 +286,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -339,7 +346,10 @@ describe('Bot runtime tracer bullet', () => {
         orchestratorAttempts += 1;
         if (run.message.trim().length > 0) {
           if (orchestratorAttempts === 1) throw new Error('TRANSPORT: DeepSeek API request failed');
-          const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+          const outcome = run.assignments.create({
+            grantId: TEST_GRANT_ID,
+            purpose: `调查并回答：${run.message}`,
+          });
           if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
           throw new Error(outcome.message);
         }
@@ -360,6 +370,7 @@ describe('Bot runtime tracer bullet', () => {
     };
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents,
@@ -443,13 +454,17 @@ describe('Bot runtime tracer bullet', () => {
     let assignmentRuns = 0;
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
         async runOrchestrator(run) {
           orchestratorAttempts += 1;
           if (run.message.trim().length > 0) {
-            const outcome = run.assignments.create({ purpose: '核对副作用' });
+            const outcome = run.assignments.create({
+              grantId: TEST_GRANT_ID,
+              purpose: '核对副作用',
+            });
             if (outcome.outcome === 'capacity' || outcome.outcome === 'key-busy') {
               throw new Error(outcome.message);
             }
@@ -536,6 +551,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -585,6 +601,7 @@ describe('Bot runtime tracer bullet', () => {
     const agents = new DeterministicAgentAdapter();
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents,
@@ -618,6 +635,14 @@ describe('Bot runtime tracer bullet', () => {
         sessionId: 'assignment-1',
         purpose: '调查并回答：请调查发布状态',
         activity: 'idle',
+        permission: {
+          grantId: TEST_GRANT_ID,
+          workspaceId: 'test-workspace',
+          primaryCwd: home,
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
         latestReport: expect.objectContaining({
           state: 'completed',
           summary: 'Assignment 已处理「调查并回答：请调查发布状态」',
@@ -634,6 +659,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const reopened = createBotRuntime({
       database: reopenedOwner,
+      grants: createTestWorkspaceGrants(reopenedOwner, home),
       registry,
       channels,
       agents: new DeterministicAgentAdapter(),
@@ -643,6 +669,14 @@ describe('Bot runtime tracer bullet', () => {
       expect.objectContaining({
         sessionId: 'assignment-1',
         activity: 'idle',
+        permission: {
+          grantId: TEST_GRANT_ID,
+          workspaceId: 'test-workspace',
+          primaryCwd: home,
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
         latestReport: expect.objectContaining({
           state: 'completed',
           summary: 'Assignment 已处理「调查并回答：请调查发布状态」',
@@ -680,6 +714,7 @@ describe('Bot runtime tracer bullet', () => {
     const sessionIds = ['orchestrator-ada', 'orchestrator-bob'];
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -734,6 +769,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -779,6 +815,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -845,6 +882,7 @@ describe('Bot runtime tracer bullet', () => {
 
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -898,6 +936,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -955,6 +994,7 @@ describe('Bot runtime tracer bullet', () => {
     const runs: string[] = [];
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
