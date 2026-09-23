@@ -239,13 +239,14 @@ flowchart TB
   Stage --> Target
 ```
 
-| Data                           | Authority                            | Portability                                                            |
-| ------------------------------ | ------------------------------------ | ---------------------------------------------------------------------- |
-| operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot inside manual profile backup                |
-| optional Memory repositories   | Git-backed Memory Provider           | selected SoulSnapshot / PersonaBot Export / profile backup             |
-| attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                       |
-| Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise declared omitted |
-| credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                |
+| Data                              | Authority                                                         | Portability                                                            |
+| --------------------------------- | ----------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| operational facts                 | `$DSH_HOME/botharness/botharness.db`                              | consistent SQLite snapshot inside manual profile backup                |
+| operational logs (debug timeline) | `$DSH_HOME/botharness/logs.db` (lightweight owner, rebuild-empty) | excluded from backup; emailable as-is                                  |
+| optional Memory repositories      | Git-backed Memory Provider                                        | selected SoulSnapshot / PersonaBot Export / profile backup             |
+| attachments / Soul bytes          | content-addressed files                                           | dependency-closed selected bytes                                       |
+| Session transcript / execution    | DSH SessionPersistence                                            | only through a verified DSH export adapter; otherwise declared omitted |
+| credentials and DSH settings      | DSH services                                                      | never copied; restore creates suspended rebind requests                |
 
 v1 只有两个备份动作：Export Profile 生成一个 self-contained `.botharness-backup`，Import Profile 选择一个文件。没有自动备份、scheduler、catalog、retention 或 incremental chain。Restore 总是在隔离 staging 中验证；成功后 PersonaBot 仍为 cold，provider authority suspended，Workspace/model/plugin dependencies 必须在目标机重新解析并由 Human 明确激活。
 
