@@ -3,6 +3,7 @@ import type { SandboxPolicyService } from '@deepseek-ai/dsh-sandbox-policy';
 import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 
 import type { BotHarnessCore } from '../plugin.js';
+import { NATIVE_FILE_TOOL_NAMES, nativeFileToolDenial } from './grant-native-tools.js';
 
 /** One Host-owned check used before both model steps and individual tool calls. */
 export function grantExecutionDenial(
@@ -64,12 +65,27 @@ export function grantExecutionDenial(
   return undefined;
 }
 
-/** The final DSH tool gate also blocks one-shot escalation hidden inside tool bodies. */
+const BOT_TOOL_NAMES = new Set([
+  'create_assignment',
+  'request_workspace_grant',
+  'list_workspace_grants',
+  'list_assignments',
+  'inspect_assignment',
+  'send_assignment_request',
+  'channel_read',
+  'channel_read_image',
+  'channel_search',
+  'channel_send',
+  'report_to_orchestrator',
+]);
+
+/** The final DSH tool gate denies every unconfined native capability for Bot-owned Sessions. */
 export function grantToolExecutionDenial(
   core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
   session: Session,
   policy: SandboxPolicyService | undefined,
   approval: ApprovalService | undefined,
+  name: string,
   args: unknown,
 ): string | undefined {
   const denial = grantExecutionDenial(core, session, policy, approval);
@@ -78,5 +94,7 @@ export function grantToolExecutionDenial(
   if (typeof args === 'object' && args !== null && 'sandbox_permissions' in args) {
     return 'BotHarness Session cannot request sandbox permission escalation';
   }
-  return undefined;
+  if (BOT_TOOL_NAMES.has(name)) return undefined;
+  if (NATIVE_FILE_TOOL_NAMES.has(name)) return nativeFileToolDenial(core, session, name, args);
+  return 'BotHarness Session cannot run an unconfined native tool: ' + name;
 }

@@ -364,7 +364,13 @@ describe('DSH Bot Agent adapter', () => {
     expect(orchestratorPrompt).toContain('Memory Repository');
     const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
     expect(assignmentPrompt).toContain('Assignment');
-    expect(assignmentPrompt).toContain('never write to the PersonaBot');
+    expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');
+    expect(host.scopes.get('orchestrator-ada')?.restrictions).toEqual([
+      { allow: ['read', 'read_image', 'write', 'edit', 'str_replace_editor', 'glob', 'grep'] },
+    ]);
+    expect(host.scopes.get('assignment-1')?.restrictions).toEqual([
+      { allow: ['read', 'read_image', 'write', 'edit', 'str_replace_editor', 'glob', 'grep'] },
+    ]);
     expect(assignmentPrompt).toContain('expects_reply');
 
     await adapter.close();

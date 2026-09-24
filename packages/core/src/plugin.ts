@@ -220,7 +220,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
   // A mode switch during an already-running step must be caught at the tool boundary.
-  ctx.tools.guard(({ agent, arguments: args }) =>
+  ctx.tools.guard(({ agent, name, arguments: args }) =>
     agent === undefined
       ? undefined
       : grantToolExecutionDenial(
@@ -228,6 +228,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           agent.session,
           ctx.get('sandboxPolicy'),
           ctx.get('approval'),
+          name,
           args,
         ),
   );

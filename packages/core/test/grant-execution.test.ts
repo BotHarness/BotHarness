@@ -65,17 +65,37 @@ describe('Workspace Grant execution boundary', () => {
   it('denies per-tool sandbox escalation even when standing policy remains safe', () => {
     const state = fixture();
     expect(
-      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, {
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'bash', {
         command: 'touch /outside',
         sandbox_permissions: 'danger-full-access',
         justification: 'retry',
       }),
     ).toMatch(/cannot request sandbox permission escalation/);
     expect(
-      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, {
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'bash', {
         command: 'pwd',
       }),
-    ).toBeUndefined();
+    ).toMatch(/unconfined native tool/);
+  });
+  it('keeps DSH native file tools and denies unconfined execution capabilities', () => {
+    const state = fixture();
+    for (const name of ['bash', 'terminal', 'run_code', 'create_subagent']) {
+      expect(
+        grantToolExecutionDenial(
+          state.core,
+          state.assignment,
+          state.policy,
+          state.approval,
+          name,
+          {},
+        ),
+      ).toMatch(/unconfined native tool/);
+    }
+    expect(
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'read', {
+        file_path: 'missing.txt',
+      }),
+    ).toMatch(/cannot be resolved|outside/);
   });
   it('fails closed if a BotHarness-created Session loses its durable owner', () => {
     const state = fixture();
@@ -106,7 +126,7 @@ describe('Workspace Grant execution boundary', () => {
       grantExecutionDenial(state.core, ordinary, state.policy, state.approval),
     ).toBeUndefined();
     expect(
-      grantToolExecutionDenial(state.core, ordinary, state.policy, state.approval, {
+      grantToolExecutionDenial(state.core, ordinary, state.policy, state.approval, 'bash', {
         sandbox_permissions: 'danger-full-access',
       }),
     ).toBeUndefined();

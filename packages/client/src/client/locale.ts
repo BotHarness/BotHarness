@@ -215,7 +215,7 @@ export const zh = {
   'entry.assignments': '事项',
   'entry.workspaceGrants': '工作区授权',
   'grant.safeDefault':
-    '这里管理文件夹授权；Orchestrator 的文件读取隔离仍在实现中。Memory Repository 是固定内部目录。',
+    '这里管理文件夹授权。Orchestrator 可读取有效授权文件夹；Memory Repository 是固定内部目录，且是唯一可写入位置。',
   'grant.memory': 'Memory Repository',
   'grant.internal': '内部 · 可读写',
   'grant.readAccess': '项目文件夹',
@@ -504,7 +504,7 @@ export const en = {
   'entry.assignments': 'Assignments',
   'entry.workspaceGrants': 'Workspace Grants',
   'grant.safeDefault':
-    'Folder Grants are managed here. Orchestrator file-read isolation is still in progress. Memory Repository is fixed.',
+    'Folder Grants are managed here. The Orchestrator can read active folders; its fixed Memory Repository is its only write location.',
   'grant.memory': 'Memory Repository',
   'grant.internal': 'Internal · read/write',
   'grant.readAccess': 'Project folder',

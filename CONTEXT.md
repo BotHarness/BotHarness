@@ -161,7 +161,7 @@ _Avoid_: PersonaBot export, backup file, disk image
 ### Memory
 
 **Memory**:
-Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. Agents work with those files through ordinary filesystem, Shell, search, and Git capabilities; an accepted Memory Commit makes changes effective.
+Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. The Orchestrator works with those files through its Memory-scoped file capability; an accepted Memory Commit makes changes effective. Unconfined Shell, search, and Git tools are unavailable to Bot-owned Sessions while their read boundary cannot be enforced.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **Memory Repository**:
