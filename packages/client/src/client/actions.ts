@@ -9,6 +9,12 @@ import {
   loadAssignment,
   loadAssignments,
   loadBots,
+  loadMemorySnapshot,
+  loadMemoryFile,
+  loadMemoryHistory,
+  loadMemoryDiff,
+  saveMemoryFile,
+  repairMemory,
   loadTimelinePage,
   loadReadPosition,
   markReadPosition,
@@ -24,6 +30,9 @@ import {
   setRosterHidden,
   setRosterPins,
   type BridgeCall,
+  type MemoryAcceptedCommit,
+  type MemorySnapshot,
+  type MemoryRepairEvent,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -61,6 +70,25 @@ export interface BridgeActions {
   refreshChannelMessages(channelId: string): Promise<void>;
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openAssignment(sessionId: string): Promise<void>;
+  memorySnapshot(channelId: string): Promise<MemorySnapshot>;
+  memoryFile(
+    channelId: string,
+    path: string,
+  ): Promise<{ path: string; body: string; head: string } | undefined>;
+  memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
+  memoryDiff(channelId: string, sha: string): Promise<string>;
+  memoryRepair(input: {
+    channelId: string;
+    expectedHead: string;
+    repairId: string;
+  }): Promise<MemoryRepairEvent>;
+  memorySave(input: {
+    channelId: string;
+    path: string;
+    body: string;
+    expectedHead: string;
+    editId: string;
+  }): Promise<MemoryAcceptedCommit>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -580,6 +608,12 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         },
       });
     },
+    memorySnapshot: (channelId) => loadMemorySnapshot(call, channelId),
+    memoryFile: (channelId, path) => loadMemoryFile(call, channelId, path),
+    memoryHistory: (channelId) => loadMemoryHistory(call, channelId),
+    memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
+    memorySave: (input) => saveMemoryFile(call, input),
+    memoryRepair: (input) => repairMemory(call, input),
     async openAssignment(sessionId) {
       const selection = currentSelection();
       if (selection?.kind !== 'bot') return;

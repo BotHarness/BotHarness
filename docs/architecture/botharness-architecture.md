@@ -94,6 +94,7 @@ flowchart TB
   Root --> Portable
   Root --> Views
   DB --> Bots
+  DB --> Memory
   DB --> Msg
   DB --> Assignments
   DB --> Portable
@@ -119,7 +120,7 @@ flowchart TB
 
 `botharness.db` 是 BotHarness core 的物理事务宿主，不是共享的 generic repository。Memory 内容与 commit 由 optional Git-backed Provider 掌管；每个 deep module 只通过自己的接口拥有表和不变量，跨模块流程由显式 command/port 协调。
 
-application-defined Memory Service 使用 `Consumer → Service Definition → Provider` capability seam。Provider 缺席时，PersonaBot 仍以系统定义的 base runtime prompt 完成 Chat、Orchestrator 与 Assignment 主链，Client 也不显示 Memory destination。Provider 存在时，所有 Markdown 文件语义平等：没有生成的或特殊的 `MEMORY.md`，也不会把从仓库内容推导出的状态注入 system prompt。可选 `persona.md` 随 Session 首次组装 system prompt 时冻结的快照进入该 Session，Human 的修改只对尚未生成快照的 Session 生效（ADR-0060）。Agent 通过普通文件工具探索仓库。每次 operation 经过 `memory/before-operation` waterfall 与 `memory/after-operation` notification；Git commit 才是 durable authority。
+application-defined Memory Service 使用 `Consumer → Service Definition → Provider` capability seam。Provider 缺席时，PersonaBot 仍以系统定义的 base runtime prompt 完成 Chat、Orchestrator 与 Assignment 主链，Client 也不显示 Memory destination。Provider 存在时，所有 Markdown 文件语义平等：没有生成的或特殊的 `MEMORY.md`，也不会把从仓库内容推导出的状态注入 system prompt。可选 `persona.md` 随 Session 首次组装 system prompt 时冻结的快照进入该 Session，Human 的修改只对尚未生成快照的 Session 生效（ADR-0060）。Agent 通过普通文件工具探索仓库。Agent 的普通文件工具会先留下 provisional 文件或 raw Git commit；成功完成 Orchestrator turn 后，Memory Service 以可信 Source Event 与 Session ownership 验证线性 Git lineage、UTF-8、大小和路径，再把 accepted Memory Commit（actor、cause、parent/head、validation result）写入 `botharness.db`。Git 对象保存文件字节，数据库 accepted ledger 决定哪些 commit 可供 DM Memory surface 的文件、历史与差异查询；raw Git history 不直接进入这条 Human 读路径。Human 保存携带 expected head，经同一验证和接受边界；并发变更与历史分叉显式拒绝。失败 turn 留下的 provisional 文件或 raw commit 会阻止下一次 Memory turn；Human 可通过 DM Memory 的明确修复命令先记录 started repair audit，再将原 repository 原子移入仓库外的受限归档，在独立副本恢复已接受 head，最后记录 completed。归档的 raw history 不进入 accepted ledger；中断的 repair 可凭 started 记录与归档重试。丢失进程内通知时以 Git 对象和 accepted ledger 恢复，不从文件 watcher 重建权威。现有 repo 如果只含符合 BotHarness 形状的初始化 commit，可接受为 system/repository-init；已经包含 raw 历史而没有 ledger 的 repo 需显式 legacy import，不能静默冒充可信历史。
 
 ## 3 · Host 启动、迁移与 recovery
 

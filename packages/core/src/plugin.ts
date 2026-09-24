@@ -139,7 +139,7 @@ export function createCore(
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
-  const memory = createMemoryService({ registry, ownership });
+  const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   return {
@@ -162,6 +162,7 @@ export function createCore(
       channels,
       attachments,
       agents: options.agents ?? unavailableAgentAdapter(),
+      memory,
       ownership,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
@@ -208,6 +209,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       channels: core.channels,
       sessions: createDshSessionSource(dshSessions),
       ownership: core.ownership,
+      memory: core.memory,
       roster: core.roster,
       runtime: core.runtime,
     }),

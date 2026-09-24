@@ -114,6 +114,16 @@ function stubActions(): BridgeActions {
     refreshChannelMessages: vi.fn(async () => undefined),
     dismissFailedMessage: vi.fn(() => false),
     openAssignment: vi.fn(async () => undefined),
+    memorySnapshot: vi.fn(async () => ({ head: null, files: [], provisional: false })),
+    memoryFile: vi.fn(async () => undefined),
+    memoryHistory: vi.fn(async () => []),
+    memoryDiff: vi.fn(async () => ''),
+    memoryRepair: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
+    memorySave: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),

@@ -18,6 +18,11 @@ import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { SessionSummary } from '../sessions/source.js';
+import type {
+  MemoryAcceptedCommit,
+  MemoryAcceptedSnapshot,
+  MemoryRepairEvent,
+} from '../memory/accepted.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
 export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
@@ -227,6 +232,43 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.sessions({ slug }));
   }
 
+  memorySnapshot(channelId: string): { snapshot: MemoryAcceptedSnapshot } {
+    return unwrap(this.methods.memorySnapshot({ channelId }));
+  }
+
+  memoryFile(
+    channelId: string,
+    path: string,
+  ): { file?: { path: string; body: string; head: string } } {
+    return unwrap(this.methods.memoryFile({ channelId, path }));
+  }
+
+  memoryHistory(channelId: string): { commits: MemoryAcceptedCommit[] } {
+    return unwrap(this.methods.memoryHistory({ channelId }));
+  }
+
+  memoryDiff(channelId: string, sha: string): { sha: string; diff: string } {
+    return unwrap(this.methods.memoryDiff({ channelId, sha }));
+  }
+
+  memorySave(
+    channelId: string,
+    path: string,
+    body: string,
+    expectedHead: string,
+    editId: string,
+  ): { commit: MemoryAcceptedCommit } {
+    return unwrap(this.methods.memorySave({ channelId, path, body, expectedHead, editId }));
+  }
+
+  memoryRepair(
+    channelId: string,
+    expectedHead: string,
+    repairId: string,
+  ): { repair: MemoryRepairEvent } {
+    return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
+  }
+
   rosterGet(): RosterSnapshot {
     return unwrap(this.methods.rosterGet({}));
   }
@@ -295,6 +337,12 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'assignments',
   'assignment',
   'sessions',
+  'memorySnapshot',
+  'memoryFile',
+  'memoryHistory',
+  'memoryDiff',
+  'memorySave',
+  'memoryRepair',
   'rosterGet',
   'sectionCreate',
   'sectionRename',

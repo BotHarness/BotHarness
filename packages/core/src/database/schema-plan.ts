@@ -143,6 +143,52 @@ const SESSION_PERSONA_SNAPSHOT_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
+  generation: 10,
+  module: 'memory',
+  description: 'Record accepted Memory Commit lineage and repository heads',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_accepted_commits (
+        bot_slug TEXT NOT NULL,
+        sha TEXT NOT NULL,
+        parent_sha TEXT,
+        actor_kind TEXT NOT NULL CHECK (actor_kind IN ('agent', 'human', 'system')),
+        actor_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind IN ('source-event', 'human-edit', 'repository-init')),
+        cause_id TEXT NOT NULL,
+        validation_result TEXT NOT NULL,
+        accepted_at TEXT NOT NULL,
+        PRIMARY KEY (bot_slug, sha)
+      );
+      CREATE INDEX memory_accepted_commits_history
+        ON memory_accepted_commits (bot_slug, accepted_at DESC, sha);
+      CREATE TABLE memory_accepted_heads (
+        bot_slug TEXT PRIMARY KEY,
+        head_sha TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (bot_slug, head_sha)
+          REFERENCES memory_accepted_commits(bot_slug, sha)
+      );
+      CREATE TABLE memory_repair_events (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        accepted_head_sha TEXT NOT NULL,
+        provisional_head_sha TEXT NOT NULL,
+        backup_path TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        actor_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind = 'human-repair'),
+        status TEXT NOT NULL CHECK (status IN ('started', 'completed')),
+        requested_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+      CREATE INDEX memory_repair_events_bot_time
+        ON memory_repair_events (bot_slug, requested_at DESC);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -152,4 +198,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SOURCE_EVENT_SIDE_EFFECT_MIGRATION,
   ASSIGNMENT_COLLABORATION_MIGRATION,
   SESSION_PERSONA_SNAPSHOT_MIGRATION,
+  MEMORY_ACCEPTED_COMMIT_MIGRATION,
 ]);

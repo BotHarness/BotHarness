@@ -25,6 +25,14 @@ import {
 } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
+import {
+  MemoryAcceptError,
+  type MemoryAcceptedCommit,
+  type MemoryAcceptedSnapshot,
+  type MemoryRepairEvent,
+} from '../memory/accepted.js';
+import type { MemoryService } from '../memory/service.js';
+import { MemoryPathError } from '../memory/jail.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -89,6 +97,14 @@ export interface BridgeMethods {
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
+  memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
+  memoryFile(
+    payload: unknown,
+  ): BridgeResult<{ file?: { path: string; body: string; head: string } }>;
+  memoryHistory(payload: unknown): BridgeResult<{ commits: MemoryAcceptedCommit[] }>;
+  memoryDiff(payload: unknown): BridgeResult<{ sha: string; diff: string }>;
+  memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
+  memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
   sectionRename(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -107,6 +123,7 @@ export interface BridgeMethodsDeps {
   channels: ChannelStore;
   sessions: BotSessionSource;
   ownership: SessionOwnership;
+  memory?: MemoryService;
   roster: RosterStore;
   runtime?: BotRuntime;
   createBotId?: () => string;
@@ -300,6 +317,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     } catch (error) {
       if (error instanceof RosterUnavailableError) return unavailable();
       if (error instanceof RosterUnknownSectionError) return unknownSection(error.sectionId);
+      throw error;
+    }
+  };
+
+  const dmMemory = (payload: unknown): { botSlug: string } | BridgeResult<never> => {
+    const channelId = asNonBlank(asObject(payload), 'channelId');
+    if (channelId === undefined) return invalidInput('channelId is required');
+    const channel = deps.channels.get(channelId);
+    if (channel === undefined) return unknownChannel(channelId);
+    if (channel.type !== 'dm' || channel.botSlug === undefined) {
+      return invalidInput('Memory is available only in a PersonaBot DM');
+    }
+    if (deps.registry.get(channel.botSlug) === undefined) return unknownBot(channel.botSlug);
+    return { botSlug: channel.botSlug };
+  };
+  const memoryCall = <T>(operation: () => T): BridgeResult<T> => {
+    if (deps.memory === undefined) {
+      return {
+        ok: false,
+        error: { code: 'memory-unavailable', message: 'Memory Service unavailable' },
+      };
+    }
+    try {
+      return { ok: true, value: operation() };
+    } catch (error) {
+      if (error instanceof MemoryAcceptError) {
+        return { ok: false, error: { code: error.code, message: error.message } };
+      }
+      if (error instanceof MemoryPathError) return invalidInput(error.message);
       throw error;
     }
   };
@@ -670,6 +716,79 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .filter((session) => deps.ownership.resolve(session.id)?.botSlug === slug)
         .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
       return { ok: true, value: { sessions } };
+    },
+    memorySnapshot(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      return memoryCall(() => ({ snapshot: deps.memory!.snapshot(scope.botSlug) }));
+    },
+    memoryFile(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const path = asNonBlank(asObject(payload), 'path');
+      if (path === undefined) return invalidInput('path is required');
+      return memoryCall(() => {
+        const file = deps.memory!.readAccepted(scope.botSlug, path);
+        return file === undefined ? {} : { file };
+      });
+    },
+    memoryHistory(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      return memoryCall(() => ({ commits: deps.memory!.history(scope.botSlug) }));
+    },
+    memoryDiff(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const sha = asNonBlank(asObject(payload), 'sha');
+      if (sha === undefined || !/^[0-9a-f]{40}$/u.test(sha))
+        return invalidInput('valid sha is required');
+      return memoryCall(() => deps.memory!.diff(scope.botSlug, sha));
+    },
+    memorySave(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const path = asNonBlank(source, 'path');
+      const body = source['body'];
+      const expectedHead = asNonBlank(source, 'expectedHead');
+      const editId = asNonBlank(source, 'editId');
+      if (
+        path === undefined ||
+        typeof body !== 'string' ||
+        expectedHead === undefined ||
+        editId === undefined ||
+        !/^[0-9a-f]{40}$/u.test(expectedHead) ||
+        editId.length > 100
+      ) {
+        return invalidInput('path, body, expectedHead, and editId are required');
+      }
+      return memoryCall(() => ({
+        commit: deps.memory!.saveHuman({
+          botSlug: scope.botSlug,
+          path,
+          body,
+          expectedHead,
+          editId,
+        }),
+      }));
+    },
+    memoryRepair(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const expectedHead = asNonBlank(source, 'expectedHead');
+      const repairId = asNonBlank(source, 'repairId');
+      if (
+        expectedHead === undefined ||
+        repairId === undefined ||
+        !/^[0-9a-f]{40}$/u.test(expectedHead) ||
+        !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u.test(repairId)
+      )
+        return invalidInput('valid expectedHead and repairId are required');
+      return memoryCall(() => ({
+        repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
+      }));
     },
     rosterGet() {
       try {
