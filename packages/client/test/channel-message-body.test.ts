@@ -10,6 +10,7 @@ import type { ChannelMessage } from '../src/client/store.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   MarkdownText: vi.fn(() => null),
+  Modal: () => null,
 }));
 
 function render(

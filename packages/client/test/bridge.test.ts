@@ -1577,3 +1577,53 @@ describe('bridge actions', () => {
     warn.mockRestore();
   });
 });
+
+describe('Workspace folder authorization action', () => {
+  it('uses the Host picker, DSH Workspace registration, and BotHarness Grant in that order', async () => {
+    const steps: string[] = [];
+    const grant = {
+      id: 'grant-1',
+      botSlug: 'ada',
+      workspaceId: 'workspace-1',
+      workspacePath: '/tmp/project',
+      workspaceTitle: 'project',
+      createdAt: '2026-09-24T00:00:00.000Z',
+    };
+    const call = bridgeCall({
+      grantCreate(payload) {
+        steps.push('grant');
+        expect(payload).toEqual({ slug: 'ada', workspaceId: 'workspace-1' });
+        return { grant };
+      },
+    });
+    const actions = createActions(call, createStore(), {
+      async pickDirectory() {
+        steps.push('pick');
+        return '/tmp/project';
+      },
+      async createWorkspace(input) {
+        steps.push('register');
+        expect(input).toEqual({ path: '/tmp/project' });
+        return { workspaceId: 'workspace-1' };
+      },
+    });
+
+    await expect(actions.addWorkspaceFolder('ada')).resolves.toMatchObject(grant);
+    expect(steps).toEqual(['pick', 'register', 'grant']);
+  });
+
+  it('does not register or grant a cancelled folder choice', async () => {
+    const createWorkspace = vi.fn(async () => ({ workspaceId: 'workspace-1' }));
+    const call: BridgeCall = vi.fn(async () => {
+      throw new Error('unexpected Grant call');
+    });
+    const actions = createActions(call, createStore(), {
+      pickDirectory: async () => null,
+      createWorkspace,
+    });
+
+    await expect(actions.addWorkspaceFolder('ada')).resolves.toBeUndefined();
+    expect(createWorkspace).not.toHaveBeenCalled();
+    expect(call).not.toHaveBeenCalled();
+  });
+});

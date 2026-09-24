@@ -140,6 +140,8 @@ function MessageGroupView({
   onContextMenu,
   onJumpReply,
   onRestoreFailed,
+  actions,
+  resolvedGrantRequests,
   t,
 }: {
   group: MessageGroup;
@@ -148,6 +150,8 @@ function MessageGroupView({
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
   onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
+  actions: BridgeActions;
+  resolvedGrantRequests: ReadonlySet<string>;
   t: BotHarnessTranslate;
 }): ReactElement {
   const first = group.messages[0]!;
@@ -210,7 +214,12 @@ function MessageGroupView({
                 data-group-position={position}
               >
                 <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
-                <ChannelMessageBody message={message} t={t} />
+                <ChannelMessageBody
+                  message={message}
+                  t={t}
+                  actions={actions}
+                  grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                />
               </div>
               <button
                 type="button"
@@ -797,6 +806,20 @@ function ConversationView({
                   ) : null}
                   <MessageGroupView
                     group={group}
+                    actions={actions}
+                    resolvedGrantRequests={
+                      new Set(
+                        displayMessages
+                          .filter(
+                            (item) =>
+                              item.author.kind === 'human' &&
+                              item.replyTo !== undefined &&
+                              (item.body.startsWith('已授权工作区「') ||
+                                item.body.startsWith('I authorized workspace “')),
+                          )
+                          .map((item) => item.replyTo!),
+                      )
+                    }
                     focusMessageId={conversation.focusMessageId}
                     bots={state.bots}
                     onContextMenu={(message, x, y) => {

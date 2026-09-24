@@ -130,6 +130,7 @@ export interface OrchestratorChannelAccess {
     maxBytes: number;
     signal?: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
+  requestGrant(reason: string): Promise<ChannelMessage>;
   send(input: {
     body: string;
     channelId?: string;
@@ -806,6 +807,24 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error(`Attachment ${ref.name} changed while being read`);
         }
         return { ref: downloaded.ref, data };
+      },
+      requestGrant: async (reason) => {
+        const channel = resolve();
+        if (channel.type !== 'dm' || channel.botSlug !== botSlug) {
+          throw new Error('Workspace Grant requests must be sent in this PersonaBot DM');
+        }
+        const body = requireNonBlank(reason, 'Workspace Grant request reason');
+        beforeSend();
+        const message: ChannelMessage = {
+          id: this.#createMessageId(),
+          at: this.#now().toISOString(),
+          author: { kind: 'bot', slug: botSlug },
+          body,
+          grantRequest: true,
+        };
+        const appended = await this.#channels.appendMessage(channel.id, message);
+        if (appended === undefined) throw new Error(`Channel disappeared: ${channel.id}`);
+        return appended;
       },
       send: async (input) => {
         const channel = resolve(input.channelId);

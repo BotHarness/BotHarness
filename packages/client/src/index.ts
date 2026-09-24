@@ -4,6 +4,7 @@ import Schema from '@deepseek-ai/schemastery';
 
 import {
   BOT_MODE_ICON_FIELD,
+  BOT_MODE_DEVELOPER_FIELD,
   BOT_MODE_ICONS,
   BOT_MODE_MOTION_FIELD,
   BOT_MODE_MOTION_PREFERENCES,
@@ -12,6 +13,7 @@ import {
   BOT_MODE_SORT_MODES,
   BOT_MODE_SORT_MODES_FIELD,
   DEFAULT_BOT_MODE_ICON,
+  DEFAULT_BOT_MODE_DEVELOPER,
   DEFAULT_BOT_MODE_MOTION,
   DEFAULT_BOT_MODE_SORT,
   type BotModeSettings,
@@ -25,6 +27,7 @@ export const BotModeSettingsSchema: Schema<
   BotModeSettings
 > = Schema.object({
   [BOT_MODE_ICON_FIELD]: Schema.union([...BOT_MODE_ICONS]).default(DEFAULT_BOT_MODE_ICON),
+  [BOT_MODE_DEVELOPER_FIELD]: Schema.boolean().default(DEFAULT_BOT_MODE_DEVELOPER),
   [BOT_MODE_MOTION_FIELD]: Schema.union([...BOT_MODE_MOTION_PREFERENCES]).default(
     DEFAULT_BOT_MODE_MOTION,
   ),

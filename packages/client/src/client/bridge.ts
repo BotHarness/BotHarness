@@ -258,6 +258,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (typeof body !== 'string') return undefined;
   const author = parseAuthor(record['author']);
   if (author === undefined) return undefined;
+  const grantRequest = record['grantRequest'];
+  if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
+    return undefined;
   const rawAttachments = record['attachments'];
   const attachments = Array.isArray(rawAttachments)
     ? rawAttachments.map(parseChannelAttachment)
@@ -290,6 +293,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(replyTo === undefined ? {} : { replyTo }),

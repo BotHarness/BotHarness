@@ -202,6 +202,7 @@ describe('bridge methods', () => {
     expect(result.ok && result.value.bot).toMatchObject({
       roles: ['研究'],
       description: '数学与计算',
+      memoryDir: registry.memoryDirFor('ada'),
     });
   });
 

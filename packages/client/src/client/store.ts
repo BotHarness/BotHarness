@@ -50,6 +50,7 @@ export interface ChannelMessage {
   at: string;
   author: ChannelAuthor;
   body: string;
+  grantRequest?: true;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;

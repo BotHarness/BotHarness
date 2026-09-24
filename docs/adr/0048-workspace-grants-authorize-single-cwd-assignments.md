@@ -5,6 +5,8 @@ Date: 2026-09-21
 
 # Workspace Grants authorize single-cwd Assignments
 
+ADR-0063 supersedes this decision's implied Orchestrator file-access boundary. The one-cwd Assignment and durable Grant provenance rules remain in force.
+
 A PersonaBot needs durable authority to reuse project directories without asking the Human again for every Assignment, while its Orchestrator must retain one stable home for Memory and coordination. BotHarness therefore defines **Workspace Grant** as an application-defined, PersonaBot-scoped authorization and keeps it separate from the DSH-native Workspace that identifies and attaches a directory to a Session.
 
 ## Decision

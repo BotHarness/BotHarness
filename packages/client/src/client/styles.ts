@@ -2092,6 +2092,157 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   transition: none;
 }
+.bh-workspace-grants {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+.bh-workspace-folder-table {
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+}
+.bh-workspace-folder-row + .bh-workspace-folder-row {
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-workspace-folder-main {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+}
+.bh-workspace-folder-toggle {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 9px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.bh-workspace-folder-toggle:hover,
+.bh-workspace-folder-remove:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-workspace-folder-chevron {
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  transform: rotate(-90deg);
+}
+.bh-workspace-folder-chevron.bh-expanded {
+  transform: rotate(0);
+}
+.bh-workspace-folder-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-workspace-folder-remove {
+  display: grid;
+  flex: none;
+  width: 34px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.bh-workspace-folder-remove:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-workspace-folder-toggle:focus-visible,
+.bh-workspace-folder-remove:focus-visible,
+.bh-folder-browser button:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+.bh-workspace-folder-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 0 10px 10px 32px;
+}
+.bh-workspace-folder-path {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-workspace-folder-secondary {
+  min-width: 0;
+}
+.bh-workspace-folder-secondary > summary {
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.bh-workspace-folder-secondary .bh-workspace-folder-table,
+.bh-workspace-folder-manual {
+  margin-top: 8px;
+}
+.bh-workspace-folder-manual {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+.bh-workspace-folder-manual input {
+  width: 100%;
+}
+.bh-folder-browser {
+  width: min(580px, calc(100vw - 32px));
+}
+.bh-folder-browser-crumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.bh-folder-browser-crumb {
+  border: 0;
+  border-radius: 6px;
+  padding: 4px 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.bh-folder-browser-crumb[aria-current='location'] {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-folder-browser-list {
+  min-height: 180px;
+  max-height: min(360px, 50vh);
+  overflow-y: auto;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+.bh-folder-browser-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  border: 0;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.bh-folder-browser-item:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-folder-browser-hidden {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  color: var(--dsw-alias-label-secondary);
+}
 .bh-memory-entry {
   display: flex;
   flex-direction: column;
@@ -2506,4 +2657,9 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
     padding-right: 0;
   }
 }
+/* Human approval in a Channel message uses the same Host folder browser as sidebar access. */
+.bh-grant-request-card { display: grid; gap: 12px; min-width: min(340px, 100%); }
+.bh-grant-request-title { font-weight: 600; }
+.bh-grant-request-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
+.bh-grant-request-card > button { justify-self: start; }
 `;

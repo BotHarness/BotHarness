@@ -102,6 +102,16 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    listHostFolders: vi.fn(async () => ({
+      path: '/',
+      home: '/',
+      crumbs: [],
+      entries: [],
+      truncated: false,
+    })),
+    addWorkspaceFolder: vi.fn(async () => undefined),
+    authorizeWorkspacePath: vi.fn(async () => ({ id: 'grant-1' }) as never),
+    memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
@@ -193,6 +203,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
@@ -251,6 +262,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -539,6 +551,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -580,6 +593,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -662,6 +676,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -674,6 +689,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -702,6 +718,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -715,6 +732,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},

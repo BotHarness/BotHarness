@@ -121,7 +121,7 @@ A single host directory a Session works in; it maps one-to-one to a DSH workspac
 _Avoid_: project, multi-root folder, group
 
 **Workspace Grant**:
-A durable, revocable, application-defined authorization that lets one PersonaBot use one resolved Workspace across Assignments. It is reusable after one Human approval and is neither a DSH Workspace nor a per-Assignment prompt.
+A durable, revocable, application-defined authorization for one PersonaBot and one resolved Workspace. Its Orchestrator may read that Workspace; an Assignment selected under the Grant may read and write it. The Grant is neither a DSH Workspace nor a per-Assignment prompt.
 _Avoid_: Service Grant, Workspace, one-time approval, cwd inference
 
 **Delegation**:

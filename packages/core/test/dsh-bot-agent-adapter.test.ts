@@ -39,6 +39,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => ({
           id: 'bot-1',
           at: BOT.createdAt,
@@ -92,6 +99,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => ({
           id: 'bot-1',
           at: BOT.createdAt,
@@ -132,6 +146,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => ({
           id: 'bot-1',
           at: BOT.createdAt,
@@ -174,7 +195,12 @@ describe('DSH Bot Agent adapter', () => {
         inboundChannelId: 'dm-test',
         inbox: '',
         message: '请核对发布状态',
-        channels: { read: () => [], search: () => [], send: async () => undefined as never },
+        channels: {
+          read: () => [],
+          search: () => [],
+          requestGrant: async () => undefined as never,
+          send: async () => undefined as never,
+        },
         assignments: {
           create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
           grants: () => [],
@@ -211,6 +237,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => {
           sends.push(input);
           return {
@@ -270,6 +303,7 @@ describe('DSH Bot Agent adapter', () => {
     expect(preparedWorkspaces).toEqual(['/memory/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'create_assignment',
+      'request_workspace_grant',
       'list_workspace_grants',
       'list_assignments',
       'inspect_assignment',
@@ -406,6 +440,13 @@ describe('DSH Bot Agent adapter', () => {
             return [];
           },
           search: () => [],
+          requestGrant: async (reason) => ({
+            id: 'grant-request-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: reason,
+            grantRequest: true,
+          }),
           send: async (input) => ({
             id: 'bot-1',
             at: BOT.createdAt,

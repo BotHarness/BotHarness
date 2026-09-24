@@ -6,6 +6,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 // Type-only: the `settingsScope` Context merge and the settings slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client';
 
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
@@ -33,7 +35,15 @@ import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers', 'layout', 'locale'];
+export const inject = [
+  'slots',
+  'connection',
+  'inputTriggers',
+  'layout',
+  'locale',
+  'uiWorkspace',
+  'workspaces',
+];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
@@ -52,7 +62,23 @@ export function apply(ctx: ClientContext): void {
   const storage = defaultStorage();
   const t = ctx.locale.bind(LOCALE_NS);
   const call = createBridgeCall(ctx);
-  const actions: BridgeActions = createActions(call, store);
+  const actions: BridgeActions = createActions(call, store, {
+    pickDirectory: () => {
+      const picker = ctx.get('uiWorkspace');
+      if (picker === undefined) throw new Error('DSH folder picker is unavailable');
+      return picker.pickDirectory();
+    },
+    listDirectory: (path, signal) => {
+      const picker = ctx.get('uiWorkspace');
+      if (picker === undefined) throw new Error('DSH folder browser is unavailable');
+      return picker.listDirectory(path, signal);
+    },
+    createWorkspace: (input) => {
+      const workspaces = ctx.get('workspaces');
+      if (workspaces === undefined) throw new Error('DSH Workspace controller is unavailable');
+      return workspaces.create(input);
+    },
+  });
   const prefs = new BotModePrefs(storage);
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
@@ -62,7 +88,9 @@ export function apply(ctx: ClientContext): void {
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
-      disposers = createChannelSidebarBuiltins(t).map((entry) => channelSidebar.register(entry));
+      disposers = createChannelSidebarBuiltins(t, prefs).map((entry) =>
+        channelSidebar.register(entry),
+      );
     };
     reconcile();
     const unsubscribe = ctx.locale.subscribe(reconcile);

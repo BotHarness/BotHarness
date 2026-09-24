@@ -121,7 +121,7 @@ Session 工作所在的单一 Host 目录；它与一个 DSH workspace 一一映
 _避免使用_：project、multi-root folder、group
 
 **Workspace Grant**：
-一种持久、可撤销、application-defined 的 authorization，允许一个 PersonaBot 跨多个 Assignment 使用一个已解析的 Workspace。Human 授权一次后可以复用；它既不是 DSH Workspace，也不是每个 Assignment 都要重复确认的 prompt。
+一种面向单个 PersonaBot 与单个已解析 Workspace 的持久、可撤销、application-defined 授权。其 Orchestrator 可读取该 Workspace；选用此授权的 Assignment 可读写它。它既不是 DSH Workspace，也不是逐事项确认的 prompt。
 _避免使用_：Service Grant、Workspace、one-time approval、cwd inference
 
 **Delegation**：

@@ -22,6 +22,7 @@ import {
 } from '../src/runtime/bot-runtime.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
+import { createWorkspaceGrantStore } from '../src/workspaces/grants.js';
 
 class DeterministicAgentAdapter implements BotAgentAdapter {
   readonly runs: Array<{ role: 'orchestrator' | 'assignment'; sessionId: string }> = [];
@@ -1035,4 +1036,85 @@ describe('Bot runtime tracer bullet', () => {
     expect(runs).toEqual([]);
     owner.close();
   });
+});
+
+it('requests a folder in the DM and resumes the same Orchestrator after Human authorization', async () => {
+  const home = createTempRoot('botharness-grant-request-');
+  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+  const dm = channels.getOrCreateDm('ada', 'Ada')!;
+  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  const grants = createWorkspaceGrantStore({
+    database: attachOperationalModule(owner, 'grant-request-test'),
+    now: FIXED_NOW,
+    createId: () => 'human-grant',
+    workspaces: () => ({
+      get: (id: string) =>
+        id === 'project'
+          ? { id, path: home, title: 'Project', status: async () => 'ok' as const }
+          : undefined,
+      list: () => [
+        { id: 'project', path: home, title: 'Project', status: async () => 'ok' as const },
+      ],
+    }),
+  });
+  let nextSession = 0;
+  const runtime = createBotRuntime({
+    database: owner,
+    registry,
+    channels,
+    grants,
+    agents: {
+      runOrchestrator: async (run) => {
+        const active = run.assignments.grants().find((grant) => grant.revokedAt === undefined);
+        if (active === undefined) {
+          await run.channels.requestGrant('需要项目文件夹以完成这项工作');
+        } else {
+          run.assignments.create({ purpose: '读取项目', grantId: active.id, key: 'project-read' });
+        }
+      },
+      runAssignment: async (run) => {
+        await run.report({ state: 'completed', summary: '项目已读取' });
+      },
+      requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+      close: async () => undefined,
+    },
+    now: FIXED_NOW,
+    createSessionId: () => `session-${++nextSession}`,
+    createEventId: () => `event-${++nextSession}`,
+    createMessageId: () => `message-${++nextSession}`,
+  });
+  await channels.appendMessage(dm.id, {
+    id: 'human-start',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: '读取项目',
+  });
+  await admit(runtime, { channelId: dm.id, messageId: 'human-start', body: '读取项目' });
+  const card = channels.readMessages(dm.id).find((message) => message.grantRequest === true);
+  expect(card).toMatchObject({
+    author: { kind: 'bot', slug: 'ada' },
+    body: '需要项目文件夹以完成这项工作',
+  });
+  expect(runtime.listAssignments('ada')).toHaveLength(0);
+  await grants.create('ada', 'project');
+  await channels.appendMessage(dm.id, {
+    id: 'human-approved',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: '已授权工作区「Project」，请继续处理之前的事项。',
+    replyTo: card!.id,
+  });
+  await admit(runtime, {
+    channelId: dm.id,
+    messageId: 'human-approved',
+    body: '已授权工作区「Project」，请继续处理之前的事项。',
+  });
+  await runtime.whenIdle();
+  expect(runtime.listAssignments('ada')).toHaveLength(1);
+  expect(runtime.listAssignments('ada')[0]?.permission?.grantId).toBe('human-grant');
+  expect(ownershipRows(owner).filter((row) => row.root_role === 'orchestrator')).toHaveLength(1);
+  await runtime.close();
+  owner.close();
 });

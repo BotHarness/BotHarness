@@ -30,6 +30,7 @@ function fakeHost(initial: Partial<BotModeScopeSnapshot> = {}) {
     status: 'ready',
     value: {
       botIcon: 'mascot' as const,
+      developerMode: false,
       motionPreference: 'system',
       sortMode: 'updated',
       sortModes: {},
@@ -71,6 +72,7 @@ describe('BOT-mode policy store', () => {
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -83,6 +85,7 @@ describe('BOT-mode policy store', () => {
     const scope = fakeHost({
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'reduce',
         sortMode: 'manual',
         sortModes: { s1: 'updated' },
@@ -95,6 +98,7 @@ describe('BOT-mode policy store', () => {
     expect(prefs.source.getSnapshot()).toEqual({
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'reduce',
       sortMode: 'manual',
       sortModes: { s1: 'updated' },
@@ -105,6 +109,7 @@ describe('BOT-mode policy store', () => {
     scope.push({
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
         sortModes: {},
@@ -137,6 +142,7 @@ describe('BOT-mode policy store', () => {
     expect(prefs.source.getSnapshot()).toMatchObject({
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'reduce',
     });
     expect(scope.set).toHaveBeenCalledWith('motionPreference', 'reduce');
@@ -144,6 +150,30 @@ describe('BOT-mode policy store', () => {
     scope.set.mockClear();
     prefs.setMotionPreference('reduce');
     expect(scope.set).not.toHaveBeenCalled();
+  });
+
+  it('keeps developer details off by default and persists an explicit toggle', () => {
+    const scope = fakeHost();
+    const prefs = new BotModePrefs();
+    prefs.attach(scope.host);
+
+    expect(prefs.source.getSnapshot().developerMode).toBe(false);
+    prefs.setDeveloperMode(true);
+    expect(prefs.source.getSnapshot().developerMode).toBe(true);
+    expect(scope.set).toHaveBeenCalledWith('developerMode', true);
+
+    scope.push({
+      value: {
+        botIcon: 'mascot',
+        developerMode: true,
+        motionPreference: 'system',
+        sortMode: 'updated',
+        sortModes: {},
+      },
+    });
+    expect(prefs.source.getSnapshot().developerMode).toBe(true);
+    prefs.setDeveloperMode(false);
+    expect(scope.set).toHaveBeenCalledWith('developerMode', false);
   });
 
   it('writes per-section overrides as path operations and clears back to inherit', () => {
@@ -170,6 +200,7 @@ describe('BOT-mode policy store', () => {
     const snapshot = {
       motionPreference: 'system' as const,
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full' as const,
       sortMode: 'updated' as const,
       sortModes: { s1: 'manual' as const },
@@ -237,6 +268,7 @@ describe('BOT-mode policy store', () => {
     scope.push({
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
         sortModes: {},
@@ -320,6 +352,7 @@ describe('legacy roster.json sort migration', () => {
     const scope = fakeHost({
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
         sortModes: { s1: 'updated' },
@@ -379,6 +412,7 @@ describe('roster migration sort-mode remap', () => {
       value: {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
+        developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
       },
@@ -451,6 +485,7 @@ describe('roster migration sort-mode remap', () => {
       value: {
         motionPreference: 'system',
         botIcon: 'mascot' as const,
+        developerMode: false,
         sortMode: 'updated',
         sortModes: { 'section-1': 'manual' },
       },

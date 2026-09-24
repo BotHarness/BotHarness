@@ -396,7 +396,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const record = deps.registry.get(slug);
       if (record === undefined) return unknownBot(slug);
-      return { ok: true, value: detailOf(record) };
+      const bot = detailOf(record).bot;
+      const memoryDir = deps.registry.memoryDirFor(slug);
+      return {
+        ok: true,
+        value: { bot: { ...bot, ...(memoryDir === undefined ? {} : { memoryDir }) } },
+      };
     },
     create(payload) {
       const source = asObject(payload);

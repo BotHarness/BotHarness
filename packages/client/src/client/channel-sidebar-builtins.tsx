@@ -1,8 +1,9 @@
-import type { ReactElement } from 'react';
+import { useSyncExternalStore, type ReactElement } from 'react';
 
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar } from './avatar.js';
+import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
@@ -11,6 +12,8 @@ import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotSummary } from './store.js';
+
+const inactiveSubscribe = (): (() => void) => () => {};
 
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
@@ -152,7 +155,15 @@ function MembersBadge(): ReactElement {
 /** Entries BotHarness itself contributes to the Channel sidebar. */
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
+  prefs?: BotModePrefs,
 ): readonly ChannelSidebarEntry[] {
+  function WorkspaceGrantsWithPrefs(props: ChannelSidebarEntryProps): ReactElement {
+    const developerMode = useSyncExternalStore(
+      prefs?.source.subscribe ?? inactiveSubscribe,
+      () => prefs?.source.getSnapshot().developerMode ?? false,
+    );
+    return <WorkspaceGrantsEntry {...props} developerMode={developerMode} />;
+  }
   return [
     {
       id: 'memory',
@@ -174,7 +185,7 @@ export function createChannelSidebarBuiltins(
       label: t('entry.workspaceGrants'),
       order: 20,
       scope: 'personabot',
-      component: WorkspaceGrantsEntry,
+      component: WorkspaceGrantsWithPrefs,
     },
     {
       id: 'members',

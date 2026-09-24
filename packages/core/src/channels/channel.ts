@@ -32,6 +32,8 @@ export interface ChannelMessage {
   at: string;
   author: ChannelMessageAuthor;
   body: string;
+  /** Durable Host-authored request to authorize a folder for this PersonaBot. */
+  grantRequest?: true;
   attachments?: ChannelAttachmentRef[];
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
@@ -102,6 +104,13 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (typeof message['id'] !== 'string' || message['id'].length === 0) return false;
   if (typeof message['at'] !== 'string' || message['at'].length === 0) return false;
   if (typeof message['body'] !== 'string') return false;
+  if (
+    message['grantRequest'] !== undefined &&
+    (message['grantRequest'] !== true ||
+      !isChannelMessageAuthor(message['author']) ||
+      (message['author'] as ChannelMessageAuthor).kind !== 'bot')
+  )
+    return false;
   const attachments = message['attachments'];
   if (
     attachments !== undefined &&
