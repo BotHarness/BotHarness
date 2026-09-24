@@ -380,6 +380,29 @@ function requireNonBlank(value: string, name: string): string {
   return normalized;
 }
 
+function sessionFailureDetails(error: unknown): { code?: string; status?: number; detail: string } {
+  const raw = error instanceof Error ? error.message : String(error);
+  const clean = Array.from(raw, (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code < 32 || code === 127 ? ' ' : character;
+  })
+    .join('')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 600);
+  const match = /^([A-Z][A-Z0-9_-]{1,31}):\s*(.+)$/u.exec(clean);
+  const detail = (match?.[2] ?? clean) || 'Unknown session error';
+  const status =
+    typeof error === 'object' && error !== null && 'status' in error
+      ? (error as { status?: unknown }).status
+      : undefined;
+  return {
+    ...(match === null ? {} : { code: match[1] }),
+    ...(typeof status === 'number' ? { status } : {}),
+    detail,
+  };
+}
+
 class BotRuntimeImplementation implements BotRuntime {
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
@@ -551,6 +574,13 @@ class BotRuntimeImplementation implements BotRuntime {
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
       this.#markSourceEventFailed(claim.sourceEventId);
+      await this.#publishSessionFailure({
+        channelId,
+        botSlug: bot.slug,
+        sessionId: orchestrator.sessionId,
+        role: 'orchestrator',
+        error,
+      });
       throw error;
     }
     const handledAt = this.#now().toISOString();
@@ -597,6 +627,34 @@ class BotRuntimeImplementation implements BotRuntime {
     } catch (error) {
       this.#memory?.abortTurn(bot.slug, orchestrator.sessionId);
       throw error;
+    }
+  }
+
+  async #publishSessionFailure(input: {
+    channelId: string;
+    botSlug: string;
+    sessionId: string;
+    role: 'orchestrator' | 'assignment';
+    error: unknown;
+    context?: string;
+  }): Promise<void> {
+    const details = sessionFailureDetails(input.error);
+    const failure = {
+      role: input.role,
+      sessionId: input.sessionId,
+      ...details,
+      ...(input.context === undefined ? {} : { context: input.context }),
+    };
+    const result = await this.#channels.appendMessage(input.channelId, {
+      id: `session-failure-${randomUUID()}`,
+      at: this.#now().toISOString(),
+      author: { kind: 'bot', slug: input.botSlug },
+      body: `Session failed: ${details.code === undefined ? '' : details.code + ': '}${details.detail}`,
+      format: 'text',
+      sessionFailure: failure,
+    });
+    if (result === undefined) {
+      throw new Error('Could not publish Session failure: Channel is missing');
     }
   }
 
@@ -1066,8 +1124,22 @@ class BotRuntimeImplementation implements BotRuntime {
       try {
         await task();
         this.#setActivity(sessionId, 'idle');
-      } catch {
+      } catch (error) {
         this.#setActivity(sessionId, 'error');
+        const row = this.#assignmentRow(undefined, sessionId);
+        if (row !== undefined) {
+          const channel = this.#dmChannel(row.bot_slug);
+          if (channel !== undefined) {
+            await this.#publishSessionFailure({
+              channelId: channel.id,
+              botSlug: row.bot_slug,
+              sessionId,
+              role: 'assignment',
+              error,
+              context: row.purpose,
+            });
+          }
+        }
       }
     })();
     const tracked = run.then(
@@ -1200,6 +1272,13 @@ class BotRuntimeImplementation implements BotRuntime {
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
+      await this.#publishSessionFailure({
+        channelId: channel.id,
+        botSlug,
+        sessionId: orchestrator.sessionId,
+        role: 'orchestrator',
+        error,
+      });
       throw error;
     }
   }

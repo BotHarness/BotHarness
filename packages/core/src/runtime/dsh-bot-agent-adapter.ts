@@ -142,7 +142,11 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return;
   if (reason.kind === 'error') {
-    throw new Error(`${reason.error.code}: ${reason.error.message}`);
+    const failure = new Error(`${reason.error.code}: ${reason.error.message}`);
+    if ('status' in reason.error && typeof reason.error.status === 'number') {
+      Object.assign(failure, { status: reason.error.status });
+    }
+    throw failure;
   }
   throw new Error(`Agent turn ended without completion: ${reason.kind}`);
 }

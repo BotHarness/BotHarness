@@ -112,6 +112,73 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
   }>;
 }
 
+it('publishes failed Orchestrator and Assignment turns into the owning DM', async () => {
+  const home = createTempRoot('botharness-turn-failure-');
+  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+  const dm = channels.getOrCreateDm('ada', 'Ada');
+  expect(dm).toBeDefined();
+  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  let attempts = 0;
+  const agents: BotAgentAdapter = {
+    async runOrchestrator(run) {
+      attempts += 1;
+      if (attempts === 1) throw new Error('QUOTA: Insufficient Balance (request_id: test-123)');
+      if (attempts === 2) throw new Error('TRANSPORT: retry outage');
+      const outcome = run.assignments.create({ grantId: TEST_GRANT_ID, purpose: '检查余额' });
+      expect(outcome.outcome).toBe('created');
+    },
+    async runAssignment() {
+      throw new Error('TRANSPORT: provider unavailable');
+    },
+    requestAssignment(run) {
+      return { delivery: 'followup', done: this.runAssignment(run) };
+    },
+    async close() {},
+  };
+  const runtime = createBotRuntime({
+    database: owner,
+    grants: createTestWorkspaceGrants(owner, home),
+    registry,
+    channels,
+    agents,
+    now: FIXED_NOW,
+  });
+  const input = { channelId: dm!.id, messageId: 'human-error', body: '检查余额' };
+  await expect(admit(runtime, input)).rejects.toThrow(/Insufficient Balance/);
+  let notices = channels
+    .readMessages(dm!.id)
+    .filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(1);
+  expect(notices[0]?.sessionFailure).toMatchObject({
+    role: 'orchestrator',
+    code: 'QUOTA',
+    detail: 'Insufficient Balance (request_id: test-123)',
+  });
+  await expect(admit(runtime, input)).rejects.toThrow(/retry outage/);
+  notices = channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(2);
+  expect(
+    notices.find((message) => message.sessionFailure?.detail === 'retry outage'),
+  ).toBeDefined();
+  await expect(admit(runtime, input)).resolves.toBeUndefined();
+  await runtime.whenIdle();
+  notices = channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(3);
+  expect(
+    notices.find((message) => message.sessionFailure?.role === 'assignment')?.sessionFailure,
+  ).toMatchObject({
+    role: 'assignment',
+    code: 'TRANSPORT',
+    detail: 'provider unavailable',
+    context: '检查余额',
+  });
+  expect(runtime.listAssignments('ada')[0]?.activity).toBe('error');
+  await runtime.close();
+  owner.close();
+});
+
 it('reads only a joined Channel image by durable message and attachment reference', async () => {
   const home = createTempRoot('botharness-bot-runtime-image-read-');
   const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
@@ -320,9 +387,15 @@ describe('Bot runtime tracer bullet', () => {
         side_effect_started_at: null,
       },
     ]);
-    expect(channels.readMessages(dm!.id).map((message) => message.id)).toEqual([
-      'human-invalid-reply',
-    ]);
+    expect(
+      channels
+        .readMessages(dm!.id)
+        .filter((message) => message.author.kind === 'human')
+        .map((message) => message.id),
+    ).toEqual(['human-invalid-reply']);
+    expect(
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
     await runtime.close();
     owner.close();
   });
@@ -404,8 +477,8 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     expect(assignmentRuns).toBe(0);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
-    ).toEqual([]);
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
     await runtime.whenIdle();
@@ -422,8 +495,8 @@ describe('Bot runtime tracer bullet', () => {
     expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
-    ).toEqual([expect.objectContaining({ id: 'bot-retry' })]);
+      channels.readMessages(dm!.id).filter((message) => message.id === 'bot-retry'),
+    ).toHaveLength(1);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
     await runtime.whenIdle();
@@ -431,7 +504,7 @@ describe('Bot runtime tracer bullet', () => {
     expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
+      channels.readMessages(dm!.id).filter((message) => message.id === 'bot-retry'),
     ).toHaveLength(1);
 
     await runtime.close();
@@ -525,10 +598,13 @@ describe('Bot runtime tracer bullet', () => {
     expect(
       channels
         .readMessages(dm!.id)
-        .filter((message) => message.author.kind === 'bot')
+        .filter((message) => message.author.kind === 'bot' && message.sessionFailure === undefined)
         .map((message) => message.body)
         .sort(),
     ).toEqual(['副作用已完成', '副作用已开始'].sort());
+    expect(
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
 
     await runtime.close();
     owner.close();

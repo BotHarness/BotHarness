@@ -28,6 +28,15 @@ export interface ChannelReplyPreview {
   body: string;
 }
 
+export interface SessionFailureCard {
+  role: 'orchestrator' | 'assignment';
+  sessionId: string;
+  code?: string;
+  status?: number;
+  detail: string;
+  context?: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -37,6 +46,8 @@ export interface ChannelMessage {
   grantRequest?: true;
   /** One exact live DSH tool call waiting for Human approval. */
   toolApprovalRequest?: ToolApprovalRequestCard;
+  /** Human-facing projection of a failed DSH Session turn. */
+  sessionFailure?: SessionFailureCard;
   /** Human's durable decision; the DSH approval itself remains one-shot and live. */
   toolApprovalDecision?: ToolApprovalDecision;
   attachments?: ChannelAttachmentRef[];
@@ -132,6 +143,27 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       typeof request['cwd'] !== 'string' ||
       typeof request['input'] !== 'string' ||
       (request['role'] !== 'orchestrator' && request['role'] !== 'assignment')
+    )
+      return false;
+  }
+  const failure = message['sessionFailure'];
+  if (failure !== undefined) {
+    if (
+      typeof failure !== 'object' ||
+      failure === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot'
+    )
+      return false;
+    const notice = failure as Record<string, unknown>;
+    if (
+      (notice['role'] !== 'orchestrator' && notice['role'] !== 'assignment') ||
+      typeof notice['sessionId'] !== 'string' ||
+      notice['sessionId'].length === 0 ||
+      typeof notice['detail'] !== 'string' ||
+      notice['detail'].length === 0 ||
+      (notice['code'] !== undefined && typeof notice['code'] !== 'string') ||
+      (notice['status'] !== undefined && typeof notice['status'] !== 'number') ||
+      (notice['context'] !== undefined && typeof notice['context'] !== 'string')
     )
       return false;
   }

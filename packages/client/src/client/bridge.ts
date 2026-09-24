@@ -284,6 +284,29 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       input: request['input'],
     };
   }
+  let sessionFailure: ChannelMessage['sessionFailure'];
+  if (record['sessionFailure'] !== undefined) {
+    const failure = asRecord(record['sessionFailure']);
+    if (
+      failure === undefined ||
+      author.kind !== 'bot' ||
+      (failure['role'] !== 'orchestrator' && failure['role'] !== 'assignment') ||
+      typeof failure['sessionId'] !== 'string' ||
+      typeof failure['detail'] !== 'string' ||
+      (failure['code'] !== undefined && typeof failure['code'] !== 'string') ||
+      (failure['status'] !== undefined && typeof failure['status'] !== 'number') ||
+      (failure['context'] !== undefined && typeof failure['context'] !== 'string')
+    )
+      return undefined;
+    sessionFailure = {
+      role: failure['role'],
+      sessionId: failure['sessionId'],
+      detail: failure['detail'],
+      ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
+      ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
+      ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
+    };
+  }
   const rawAttachments = record['attachments'];
   const attachments = Array.isArray(rawAttachments)
     ? rawAttachments.map(parseChannelAttachment)
@@ -337,6 +360,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     body,
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
+    ...(sessionFailure === undefined ? {} : { sessionFailure }),
     ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),

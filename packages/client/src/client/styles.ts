@@ -2662,6 +2662,21 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-grant-request-title { font-weight: 600; }
 .bh-grant-request-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-grant-request-card > button { justify-self: start; }
+.bh-session-failure-card {
+  display: grid;
+  gap: 8px;
+  min-width: min(340px, 100%);
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 10px;
+  background: var(--dsw-alias-button-elevated-fill);
+}
+.bh-session-failure-title { font-weight: 600; }
+.bh-session-failure-context, .bh-session-failure-detail {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.bh-session-failure-session > code { display: block; margin-top: 6px; overflow-wrap: anywhere; }
 .bh-tool-approval-card { display: grid; gap: 10px; min-width: min(340px, 100%); }
 .bh-tool-approval-input {
   margin: 0;

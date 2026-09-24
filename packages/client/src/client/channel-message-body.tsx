@@ -13,6 +13,34 @@ const ChannelMarkdownText = MarkdownText as unknown as (
   props: Parameters<typeof MarkdownText>[0],
 ) => ReactElement;
 
+function SessionFailureNotice({
+  message,
+  t,
+}: {
+  message: ChannelMessage;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const failure = message.sessionFailure!;
+  return (
+    <div className="bh-session-failure-card" role="alert">
+      <div className="bh-session-failure-title">{t('failure.title')}</div>
+      <div className="bh-note">
+        {failure.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
+        {failure.code === undefined ? null : <> · {failure.code}</>}
+        {failure.status === undefined ? null : <> · HTTP {failure.status}</>}
+      </div>
+      {failure.context === undefined ? null : (
+        <div className="bh-session-failure-context">{failure.context}</div>
+      )}
+      <div className="bh-session-failure-detail">{failure.detail}</div>
+      <details className="bh-session-failure-session">
+        <summary>{t('failure.sessionDetails')}</summary>
+        <code>{failure.sessionId}</code>
+      </details>
+    </div>
+  );
+}
+
 function ToolApprovalCard({
   message,
   actions,
@@ -260,6 +288,7 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.sessionFailure !== undefined) return <SessionFailureNotice message={message} t={t} />;
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {
     return (
       <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />

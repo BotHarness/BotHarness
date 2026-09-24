@@ -59,6 +59,15 @@ export interface ToolApprovalDecision {
   outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
 }
 
+export interface SessionFailureCard {
+  role: 'orchestrator' | 'assignment';
+  sessionId: string;
+  code?: string;
+  status?: number;
+  detail: string;
+  context?: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -66,6 +75,7 @@ export interface ChannelMessage {
   body: string;
   grantRequest?: true;
   toolApprovalRequest?: ToolApprovalRequestCard;
+  sessionFailure?: SessionFailureCard;
   toolApprovalDecision?: ToolApprovalDecision;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
