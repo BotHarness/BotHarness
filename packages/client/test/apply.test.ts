@@ -111,7 +111,7 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
     },
     inject: (_deps: string[], callback: (ctx: unknown) => unknown) => {
       if (withSettings) {
-        callback({ ...scoped, settingsScope: { bind: () => fakeScope() } });
+        callback({ ...scoped, configForms: { get: () => fakeScope() } });
       }
       return () => undefined;
     },
@@ -153,7 +153,7 @@ describe('client apply', () => {
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 
-  it('registers the BotHarness settings section only while settingsScope is served', () => {
+  it('registers the BotHarness settings section only while configForms is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];

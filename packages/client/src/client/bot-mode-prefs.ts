@@ -31,7 +31,7 @@ import {
 
 /** Path-addressed edit accepted by the settings scope (`set`/`unset` inside the namespace). */
 export type BotModePathOp =
-  | { op: 'set'; path: readonly string[]; value: unknown }
+  | { op: 'set'; path: readonly string[]; value: string }
   | { op: 'unset'; path: readonly string[] };
 
 /** Sync state of the Host settings scope the policy consumes. */
@@ -52,8 +52,8 @@ export interface BotModeScopeSnapshot {
 export interface BotModeScope {
   getSnapshot(): BotModeScopeSnapshot;
   subscribe(listener: () => void): () => void;
-  set(field: string, value: unknown): Promise<void>;
-  mutate(ops: readonly BotModePathOp[], expectedRevision?: number): Promise<void>;
+  set(field: string, value: unknown): Promise<boolean | void>;
+  mutate(ops: readonly BotModePathOp[], expectedRevision?: number): Promise<boolean | void>;
 }
 
 /** Live BOT-mode preference published to the sidebar menu and the Settings row. */
@@ -418,7 +418,7 @@ export class BotModePrefs {
   }
 
   /** Report a write failure instead of dropping it silently. */
-  private persist(operation: Promise<void>): void {
+  private persist(operation: Promise<boolean | void>): void {
     operation.catch((error: unknown) => {
       console.warn('botharness: failed to persist the BOT-mode preference', error);
     });

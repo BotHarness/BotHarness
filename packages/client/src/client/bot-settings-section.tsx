@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 
-import { IconChevronDownOutline14, Menu, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular, Menu, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   InjectFace,
   PropsLocale,
@@ -168,7 +168,7 @@ export function BotSettingsSection({
               }}
             >
               {t(motionLabel)}
-              <IconChevronDownOutline14 className="bh-settings-chevron" />
+              <IconChevronDownOutlineRegular className="bh-settings-chevron" />
             </button>
           }
         />
@@ -205,7 +205,7 @@ export function BotSettingsSection({
               }}
             >
               {t(sortLabel)}
-              <IconChevronDownOutline14 className="bh-settings-chevron" />
+              <IconChevronDownOutlineRegular className="bh-settings-chevron" />
             </button>
           }
         />

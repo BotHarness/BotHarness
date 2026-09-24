@@ -8,7 +8,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -152,7 +152,7 @@ export function ChannelSidebarEntrySection({
           className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
           aria-hidden="true"
         >
-          <IconChevronDownOutline14 size={14} />
+          <IconChevronDownOutlineRegular size={14} />
         </span>
         <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
         {Badge === undefined ? null : (

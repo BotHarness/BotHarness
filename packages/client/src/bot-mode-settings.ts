@@ -5,7 +5,7 @@
  */
 
 /** Settings namespace owning BOT-mode view preferences. */
-export const BOT_MODE_NAMESPACE = 'ui-bot-mode';
+export const BOT_MODE_NAMESPACE = 'botharness-client';
 
 /** Field carrying the global list sort mode. */
 export const BOT_MODE_SORT_FIELD = 'sortMode';
