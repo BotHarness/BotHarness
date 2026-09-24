@@ -7,6 +7,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   LOG_DB_FILENAME,
+  LOG_DB_VERSION,
   LOG_DEFAULT_MAX_AGE_MS,
   LOG_DEFAULT_MAX_ROWS,
   openLogDatabase,
@@ -53,7 +54,7 @@ describe('operational log database', () => {
             version: number;
           }
         ).version;
-        expect(version).toBe(1);
+        expect(version).toBe(LOG_DB_VERSION);
       } finally {
         database.close();
       }
@@ -344,6 +345,50 @@ describe('operational log database', () => {
       } finally {
         check.close();
       }
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('round-trips JSON payloads', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      logs.write({
+        plugin: 'channel',
+        owner: 'bot:atlas',
+        kind: 'lifecycle',
+        detail: 'assignment created',
+        payload: '{"assignment":"sess-9","channel":"dm:atlas"}',
+      });
+      const database = new DatabaseSync(join(dir, LOG_DB_FILENAME));
+      try {
+        const rows = database.prepare('SELECT payload FROM log_entries').all() as {
+          payload: string | null;
+        }[];
+        expect(rows).toEqual([{ payload: '{"assignment":"sess-9","channel":"dm:atlas"}' }]);
+      } finally {
+        database.close();
+      }
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('rejects non-JSON payloads at the CHECK constraint', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(() =>
+        logs.write({
+          plugin: 'channel',
+          owner: 'bot:atlas',
+          kind: 'lifecycle',
+          detail: 'x',
+          payload: 'not json{{{',
+        }),
+      ).toThrow();
+      expect(rowsOf(dir)).toEqual([]);
     } finally {
       logs.close();
     }
