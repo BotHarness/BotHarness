@@ -37,6 +37,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Channel Bot bubbles now use the former Human grey surface, while Human bubbles use the DSH theme’s inverse neutral palette with readable text, reply excerpts, and file attachments in both light and dark themes ([#255](https://github.com/BotHarness/BotHarness/issues/255)).
 - Operational logs gained a durable home: a lightweight `logs.db` beside the profile (versioned schema, rebuild-empty worst case, 50k rows + 30 days lazy retention, owner-scoped reads) that the Computer diagnostics ring now drains into, so debugging survives restarts ([#240](https://github.com/BotHarness/BotHarness/issues/240), [ADR-0063](docs/adr/0063-operational-log-database.md)).
 - The Computer viewer now narrates its lifecycle (mounts, stream phases, reloads, retries) into the developer diagnostics log, so a later debugging session replays the card's story without a browser ([#234](https://github.com/BotHarness/BotHarness/issues/234)).
 - On web deployments, Computer export/import now runs through the browser: a **Download** button fetches the finished archive via the save dialog (streamed), and **Choose archive file…** streams a local `.tar` up for import — no Host path typing, with single-use transfer tokens and an explicit note where streaming upload needs Chromium ([#212](https://github.com/BotHarness/BotHarness/issues/212)).
