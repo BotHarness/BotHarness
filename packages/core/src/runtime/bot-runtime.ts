@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { MemoryService } from '../memory/service.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
@@ -15,6 +16,11 @@ import {
   type OperationalDatabaseOwner,
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
+import type {
+  AssignmentPermissionSnapshot,
+  WorkspaceGrant,
+  WorkspaceGrantStore,
+} from '../workspaces/grants.js';
 
 export type AssignmentActivity = 'working' | 'idle' | 'error';
 export type AssignmentReportState =
@@ -49,6 +55,7 @@ export interface AssignmentSummary {
   latestReport?: AssignmentReport;
   continuityKey?: string;
   openAsk?: AssignmentOpenAsk;
+  permission?: AssignmentPermissionSnapshot;
   createdAt: string;
   updatedAt: string;
 }
@@ -69,7 +76,8 @@ export interface AssignmentRequestOutcome {
 }
 
 export interface OrchestratorAssignmentAccess {
-  create(input: { purpose: string; key?: string }): AssignmentCreateOutcome;
+  create(input: { purpose: string; key?: string; grantId: string }): AssignmentCreateOutcome;
+  grants(): WorkspaceGrant[];
   list(): AssignmentSummary[];
   inspect(sessionId: string): AssignmentDetail | undefined;
   request(input: {
@@ -98,6 +106,7 @@ export interface AssignmentAgentRun {
   purpose: string;
   /** An addressed request into an existing Session rather than an initial turn. */
   resume?: boolean;
+  permission: AssignmentPermissionSnapshot;
   report(input: AssignmentReportInput): Promise<AssignmentReport>;
 }
 
@@ -122,6 +131,7 @@ export interface OrchestratorChannelAccess {
     maxBytes: number;
     signal?: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
+  requestGrant(reason: string): Promise<ChannelMessage>;
   send(input: {
     body: string;
     channelId?: string;
@@ -182,6 +192,9 @@ export interface BotRuntimeOptions {
   attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
   ownership?: SessionOwnership;
+  /** Human-owned Workspace Grant authority; Assignment creation fails closed when absent. */
+  grants?: WorkspaceGrantStore;
+  assignmentAccess?: AssignmentAccessStore;
   /** Explicit run-configuration root recorded as each Session's cwd reference. */
   workspaceRoot?: string;
   /**
@@ -210,6 +223,12 @@ interface AssignmentRow {
   continuity_key: string | null;
   open_ask_source_event_id: string | null;
   open_ask_at: string | null;
+  grant_id: string | null;
+  workspace_id: string | null;
+  primary_cwd: string | null;
+  permission_mode: string | null;
+  approval_policy: string | null;
+  preset_revision: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -251,6 +270,26 @@ interface SourceEventClaim {
   reconciliationRequired?: true;
 }
 
+function permissionFromRow(row: AssignmentRow): AssignmentPermissionSnapshot | undefined {
+  if (
+    row.grant_id === null ||
+    row.workspace_id === null ||
+    row.primary_cwd === null ||
+    (row.permission_mode !== 'workspace-write' && row.permission_mode !== 'danger-full-access') ||
+    row.approval_policy !== (row.permission_mode === 'workspace-write' ? 'ask' : 'never') ||
+    row.preset_revision === null
+  )
+    return undefined;
+  return {
+    grantId: row.grant_id,
+    workspaceId: row.workspace_id,
+    primaryCwd: row.primary_cwd,
+    mode: row.permission_mode,
+    approval: row.approval_policy,
+    presetRevision: row.preset_revision,
+  };
+}
+
 function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
   const latestReport =
     row.latest_report_state === null ||
@@ -281,6 +320,7 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
     ...(latestReport === undefined ? {} : { latestReport }),
     ...(row.continuity_key === null ? {} : { continuityKey: row.continuity_key }),
     ...(openAsk === undefined ? {} : { openAsk }),
+    ...(permissionFromRow(row) === undefined ? {} : { permission: permissionFromRow(row)! }),
   };
 }
 
@@ -340,9 +380,34 @@ function requireNonBlank(value: string, name: string): string {
   return normalized;
 }
 
+function sessionFailureDetails(error: unknown): { code?: string; status?: number; detail: string } {
+  const raw = error instanceof Error ? error.message : String(error);
+  const clean = Array.from(raw, (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code < 32 || code === 127 ? ' ' : character;
+  })
+    .join('')
+    .replace(/\s+/gu, ' ')
+    .trim()
+    .slice(0, 600);
+  const match = /^([A-Z][A-Z0-9_-]{1,31}):\s*(.+)$/u.exec(clean);
+  const detail = (match?.[2] ?? clean) || 'Unknown session error';
+  const status =
+    typeof error === 'object' && error !== null && 'status' in error
+      ? (error as { status?: unknown }).status
+      : undefined;
+  return {
+    ...(match === null ? {} : { code: match[1] }),
+    ...(typeof status === 'number' ? { status } : {}),
+    detail,
+  };
+}
+
 class BotRuntimeImplementation implements BotRuntime {
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
+  readonly #grants: WorkspaceGrantStore | undefined;
+  readonly #assignmentAccessPresetStore: AssignmentAccessStore | undefined;
   readonly #workspaceRoot: string | undefined;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
@@ -361,6 +426,8 @@ class BotRuntimeImplementation implements BotRuntime {
 
   constructor(options: BotRuntimeOptions) {
     this.#database = attachOperationalModule(options.database, 'bot-runtime');
+    this.#grants = options.grants;
+    this.#assignmentAccessPresetStore = options.assignmentAccess;
     this.#ownership =
       options.ownership ??
       createSessionOwnership(attachOperationalModule(options.database, 'session-ownership'));
@@ -426,7 +493,8 @@ class BotRuntimeImplementation implements BotRuntime {
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
-                  created_at, updated_at
+                  grant_id, workspace_id, primary_cwd, permission_mode,
+                  approval_policy, preset_revision, created_at, updated_at
              FROM assignments
             WHERE bot_slug = ?
             ORDER BY updated_at DESC, session_id ASC`,
@@ -450,7 +518,8 @@ class BotRuntimeImplementation implements BotRuntime {
           `SELECT session_id, source_event_id, bot_slug, purpose, activity,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
-                  created_at, updated_at
+                  grant_id, workspace_id, primary_cwd, permission_mode,
+                  approval_policy, preset_revision, created_at, updated_at
              FROM assignments
             WHERE bot_slug = ? AND session_id = ?`,
         )
@@ -505,6 +574,13 @@ class BotRuntimeImplementation implements BotRuntime {
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
       this.#markSourceEventFailed(claim.sourceEventId);
+      await this.#publishSessionFailure({
+        channelId,
+        botSlug: bot.slug,
+        sessionId: orchestrator.sessionId,
+        role: 'orchestrator',
+        error,
+      });
       throw error;
     }
     const handledAt = this.#now().toISOString();
@@ -554,6 +630,34 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
+  async #publishSessionFailure(input: {
+    channelId: string;
+    botSlug: string;
+    sessionId: string;
+    role: 'orchestrator' | 'assignment';
+    error: unknown;
+    context?: string;
+  }): Promise<void> {
+    const details = sessionFailureDetails(input.error);
+    const failure = {
+      role: input.role,
+      sessionId: input.sessionId,
+      ...details,
+      ...(input.context === undefined ? {} : { context: input.context }),
+    };
+    const result = await this.#channels.appendMessage(input.channelId, {
+      id: `session-failure-${randomUUID()}`,
+      at: this.#now().toISOString(),
+      author: { kind: 'bot', slug: input.botSlug },
+      body: `Session failed: ${details.code === undefined ? '' : details.code + ': '}${details.detail}`,
+      format: 'text',
+      sessionFailure: failure,
+    });
+    if (result === undefined) {
+      throw new Error('Could not publish Session failure: Channel is missing');
+    }
+  }
+
   #assignmentAccess(bot: PersonaBotRecord, sourceEventId: string): OrchestratorAssignmentAccess {
     // Creating or waking an Assignment Session crosses into DSH, so the current
     // attempt is no longer safely replayable once either starts.
@@ -564,6 +668,7 @@ class BotRuntimeImplementation implements BotRuntime {
         if (outcome.outcome === 'created' || outcome.outcome === 'reused') markSideEffect();
         return outcome;
       },
+      grants: () => this.#grants?.list(bot.slug) ?? [],
       list: () => this.listAssignments(bot.slug),
       inspect: (sessionId) => this.getAssignment(bot.slug, sessionId),
       request: (input) => {
@@ -765,6 +870,24 @@ class BotRuntimeImplementation implements BotRuntime {
         }
         return { ref: downloaded.ref, data };
       },
+      requestGrant: async (reason) => {
+        const channel = resolve();
+        if (channel.type !== 'dm' || channel.botSlug !== botSlug) {
+          throw new Error('Workspace Grant requests must be sent in this PersonaBot DM');
+        }
+        const body = requireNonBlank(reason, 'Workspace Grant request reason');
+        beforeSend();
+        const message: ChannelMessage = {
+          id: this.#createMessageId(),
+          at: this.#now().toISOString(),
+          author: { kind: 'bot', slug: botSlug },
+          body,
+          grantRequest: true,
+        };
+        const appended = await this.#channels.appendMessage(channel.id, message);
+        if (appended === undefined) throw new Error(`Channel disappeared: ${channel.id}`);
+        return appended;
+      },
       send: async (input) => {
         const channel = resolve(input.channelId);
         const body = input.body;
@@ -833,12 +956,30 @@ class BotRuntimeImplementation implements BotRuntime {
   #createOrReuseAssignment(
     bot: PersonaBotRecord,
     sourceEventId: string,
-    input: { purpose: string; key?: string },
+    input: { purpose: string; key?: string; grantId: string },
   ): AssignmentCreateOutcome {
     const purpose = requireNonBlank(input.purpose, 'Assignment purpose');
+    const grantId = requireNonBlank(input.grantId, 'Workspace Grant id');
+    if (this.#grants === undefined) throw new Error('Workspace Grants are unavailable');
+    const grant = this.#grants.requireActive(bot.slug, grantId);
+    const access = this.#assignmentAccessPresetStore?.get(bot.slug) ?? {
+      mode: 'workspace-write' as const,
+      revision: 0,
+    };
+    const permission: AssignmentPermissionSnapshot = {
+      grantId: grant.id,
+      workspaceId: grant.workspaceId,
+      primaryCwd: grant.workspacePath,
+      mode: access.mode,
+      approval: access.mode === 'danger-full-access' ? 'never' : 'ask',
+      presetRevision: access.revision,
+    };
     const key = input.key === undefined ? undefined : requireNonBlank(input.key, 'Continuity Key');
     if (key !== undefined) {
       const holder = this.#assignmentByKey(bot.slug, key);
+      if (holder !== undefined && holder.grant_id !== grant.id) {
+        throw new Error('Continuity Key belongs to an Assignment with a different Workspace Grant');
+      }
       if (holder !== undefined && holder.activity === 'idle') {
         this.#requestAssignment(bot, {
           sessionId: holder.session_id,
@@ -867,7 +1008,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const createdAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
-        const cwdReference = this.#cwdReference(bot);
+        const cwdReference = permission.primaryCwd;
         this.#ownership.claimWithin(database, {
           sessionId,
           botSlug: bot.slug,
@@ -879,10 +1020,25 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `INSERT INTO assignments (
                session_id, source_event_id, bot_slug, purpose, activity, continuity_key,
-               created_at, updated_at
-             ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?)`,
+               grant_id, workspace_id, primary_cwd, permission_mode, approval_policy,
+               preset_revision, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
-          .run(sessionId, sourceEventId, bot.slug, purpose, key ?? null, createdAt, createdAt);
+          .run(
+            sessionId,
+            sourceEventId,
+            bot.slug,
+            purpose,
+            key ?? null,
+            permission.grantId,
+            permission.workspaceId,
+            permission.primaryCwd,
+            permission.mode,
+            permission.approval,
+            permission.presetRevision,
+            createdAt,
+            createdAt,
+          );
       },
       ['session-ownership', 'assignments'],
     );
@@ -891,6 +1047,7 @@ class BotRuntimeImplementation implements BotRuntime {
         sessionId,
         bot,
         purpose,
+        permission,
         report: async (report) => this.#recordReport(bot.slug, sessionId, report),
       }),
     );
@@ -903,6 +1060,17 @@ class BotRuntimeImplementation implements BotRuntime {
   ): AssignmentRequestOutcome {
     const row = this.#assignmentRow(bot.slug, input.sessionId);
     if (row === undefined) throw new Error(`Unknown Assignment Session: ${input.sessionId}`);
+    const permission = permissionFromRow(row);
+    if (permission === undefined || this.#grants === undefined) {
+      throw new Error('Assignment has no valid Workspace Grant snapshot');
+    }
+    const grant = this.#grants.requireActive(bot.slug, permission.grantId);
+    if (
+      grant.workspaceId !== permission.workspaceId ||
+      grant.workspacePath !== permission.primaryCwd
+    ) {
+      throw new Error('Assignment Workspace Grant no longer matches its permission snapshot');
+    }
     const text = requireNonBlank(input.text, 'Assignment Request text');
     if (row.activity === 'error') {
       throw new Error(
@@ -934,6 +1102,7 @@ class BotRuntimeImplementation implements BotRuntime {
       bot,
       purpose: text,
       resume: true,
+      permission,
       report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
     };
     const delivery = this.#agents.requestAssignment(run);
@@ -955,8 +1124,22 @@ class BotRuntimeImplementation implements BotRuntime {
       try {
         await task();
         this.#setActivity(sessionId, 'idle');
-      } catch {
+      } catch (error) {
         this.#setActivity(sessionId, 'error');
+        const row = this.#assignmentRow(undefined, sessionId);
+        if (row !== undefined) {
+          const channel = this.#dmChannel(row.bot_slug);
+          if (channel !== undefined) {
+            await this.#publishSessionFailure({
+              channelId: channel.id,
+              botSlug: row.bot_slug,
+              sessionId,
+              role: 'assignment',
+              error,
+              context: row.purpose,
+            });
+          }
+        }
       }
     })();
     const tracked = run.then(
@@ -1089,6 +1272,13 @@ class BotRuntimeImplementation implements BotRuntime {
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
+      await this.#publishSessionFailure({
+        channelId: channel.id,
+        botSlug,
+        sessionId: orchestrator.sessionId,
+        role: 'orchestrator',
+        error,
+      });
       throw error;
     }
   }

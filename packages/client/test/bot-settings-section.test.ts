@@ -4,12 +4,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const captured = vi.hoisted(() => ({
   menus: [] as Array<Record<string, unknown>>,
+  switches: [] as Array<Record<string, unknown>>,
 }));
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
     IconChevronDownOutline14: stub,
+    Switch: (props: Record<string, unknown>) => {
+      captured.switches.push(props);
+      return null;
+    },
     Menu: (props: Record<string, unknown>) => {
       captured.menus.push(props);
       return props['anchor'];
@@ -27,6 +32,7 @@ function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -41,6 +47,7 @@ function renderSection(
   setSortMode: (mode: string) => void = () => undefined,
   setMotionPreference: (preference: string) => void = () => undefined,
   setBotIcon: (icon: string) => void = () => undefined,
+  setDeveloperMode: (enabled: boolean) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
     createElement(BotSettingsSection, {
@@ -51,6 +58,7 @@ function renderSection(
       setSortMode: setSortMode as never,
       setMotionPreference: setMotionPreference as never,
       setBotIcon: setBotIcon as never,
+      setDeveloperMode: setDeveloperMode as never,
     } as never),
   );
 }
@@ -81,9 +89,19 @@ function iconMenu(): Record<string, unknown> {
 
 beforeEach(() => {
   captured.menus.length = 0;
+  captured.switches.length = 0;
 });
 
 describe('BotHarness settings section', () => {
+  it('renders the native developer switch and sends its next value', () => {
+    const setDeveloperMode = vi.fn();
+    const markup = renderSection(snapshot(), undefined, undefined, undefined, setDeveloperMode);
+    expect(markup).toContain('开发者模式');
+    expect(captured.switches[0]).toMatchObject({ checked: false, label: '开发者模式' });
+    (captured.switches[0]?.['onChange'] as (enabled: boolean) => void)(true);
+    expect(setDeveloperMode).toHaveBeenCalledWith(true);
+  });
+
   it('renders the row copy and the selected mode from the shared store', () => {
     const markup = renderSection(snapshot({ sortMode: 'manual' }));
 

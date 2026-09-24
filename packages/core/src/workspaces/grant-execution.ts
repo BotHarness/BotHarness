@@ -1,0 +1,115 @@
+import type { Session } from '@deepseek-ai/dsh-session';
+import type { SandboxPolicyService } from '@deepseek-ai/dsh-sandbox-policy';
+import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
+
+import type { BotHarnessCore } from '../plugin.js';
+import { NATIVE_FILE_TOOL_NAMES, nativeFileToolDenial } from './grant-native-tools.js';
+
+/** One Host-owned check used before both model steps and individual tool calls. */
+export function grantExecutionDenial(
+  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
+  session: Session,
+  policy: SandboxPolicyService | undefined,
+  approval: ApprovalService | undefined,
+): string | undefined {
+  let owner = core.ownership.resolve(session.id);
+  if (owner === undefined) {
+    const parent = session.header.parentSession;
+    return session.id.startsWith('botharness-') ||
+      (parent !== undefined && core.ownership.resolve(parent) !== undefined)
+      ? 'BotHarness Session has no durable owner'
+      : undefined;
+  }
+  const seen = new Set<string>();
+  while (owner.parentSessionId !== undefined) {
+    if (seen.has(owner.sessionId)) return 'BotHarness Session ownership is cyclic';
+    seen.add(owner.sessionId);
+    const parent = core.ownership.resolve(owner.parentSessionId);
+    if (parent === undefined || parent.botSlug !== owner.botSlug) {
+      return 'BotHarness Session parent ownership is missing or inconsistent';
+    }
+    owner = parent;
+  }
+  if (policy === undefined || approval === undefined) {
+    return 'DSH permission services are unavailable for BotHarness Session';
+  }
+  const mode = policy.resolve({ session }).mode;
+  const approvalPolicy = approval.overrideOf(session);
+  if (owner.rootRole === 'orchestrator') {
+    if (mode !== 'workspace-write' || approvalPolicy !== 'ask') {
+      return 'Orchestrator Session requires workspace-write and ask';
+    }
+    const memoryCwd = core.registry.memoryDirFor(owner.botSlug);
+    return memoryCwd !== undefined && session.header.cwd === memoryCwd
+      ? undefined
+      : 'Orchestrator Session requires its Memory working directory';
+  }
+  if (owner.rootRole !== 'assignment') return 'Unknown BotHarness Session role';
+  const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
+  const permission = assignment?.permission;
+  if (permission === undefined || session.header.cwd !== permission.primaryCwd) {
+    return 'Assignment Session permission snapshot is missing or mismatched';
+  }
+  if (mode !== permission.mode || approvalPolicy !== permission.approval) {
+    return 'Assignment Session permission mode differs from its snapshot';
+  }
+  try {
+    const grant = core.grants.requireActive(owner.botSlug, permission.grantId);
+    if (
+      grant.workspaceId !== permission.workspaceId ||
+      grant.workspacePath !== permission.primaryCwd
+    ) {
+      return 'Assignment Workspace Grant no longer matches its permission snapshot';
+    }
+  } catch {
+    return 'Assignment Workspace Grant is missing, revoked, or unavailable';
+  }
+  return undefined;
+}
+
+const BOT_TOOL_NAMES = new Set([
+  'create_assignment',
+  'request_workspace_grant',
+  'list_workspace_grants',
+  'list_assignments',
+  'inspect_assignment',
+  'send_assignment_request',
+  'channel_read',
+  'channel_read_image',
+  'channel_search',
+  'channel_send',
+  'report_to_orchestrator',
+]);
+
+export function requiresHumanToolApproval(name: string): boolean {
+  return !BOT_TOOL_NAMES.has(name) && !NATIVE_FILE_TOOL_NAMES.has(name);
+}
+
+/** The final DSH tool gate denies every unconfined native capability for Bot-owned Sessions. */
+export function grantToolExecutionDenial(
+  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
+  session: Session,
+  policy: SandboxPolicyService | undefined,
+  approval: ApprovalService | undefined,
+  name: string,
+  args: unknown,
+  allowedOnce = false,
+): string | undefined {
+  const denial = grantExecutionDenial(core, session, policy, approval);
+  if (denial !== undefined) return denial;
+  if (core.ownership.resolve(session.id) === undefined) return undefined;
+  if (typeof args === 'object' && args !== null && 'sandbox_permissions' in args) {
+    return 'BotHarness Session cannot request sandbox permission escalation';
+  }
+  if (BOT_TOOL_NAMES.has(name)) return undefined;
+  const owner = core.ownership.resolve(session.id);
+  if (
+    owner?.rootRole === 'assignment' &&
+    core.runtime.getAssignment(owner.botSlug, owner.sessionId)?.permission?.mode ===
+      'danger-full-access'
+  )
+    return undefined;
+  if (NATIVE_FILE_TOOL_NAMES.has(name)) return nativeFileToolDenial(core, session, name, args);
+  if (allowedOnce) return undefined;
+  return 'BotHarness Session cannot run an unconfined native tool: ' + name;
+}

@@ -21,6 +21,9 @@ import {
   type OrchestratorAgentRun,
 } from '../src/runtime/bot-runtime.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
+import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
+import { createWorkspaceGrantStore } from '../src/workspaces/grants.js';
+import { createAssignmentAccessStore } from '../src/workspaces/assignment-access.js';
 
 class DeterministicAgentAdapter implements BotAgentAdapter {
   readonly runs: Array<{ role: 'orchestrator' | 'assignment'; sessionId: string }> = [];
@@ -28,7 +31,10 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.runs.push({ role: 'orchestrator', sessionId: run.sessionId });
     if (run.message.trim().length > 0) {
-      const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+      const outcome = run.assignments.create({
+        grantId: TEST_GRANT_ID,
+        purpose: `调查并回答：${run.message}`,
+      });
       if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
       throw new Error(outcome.message);
     }
@@ -106,6 +112,73 @@ function sourceEvents(owner: OperationalDatabaseOwner): Array<{
   }>;
 }
 
+it('publishes failed Orchestrator and Assignment turns into the owning DM', async () => {
+  const home = createTempRoot('botharness-turn-failure-');
+  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+  const dm = channels.getOrCreateDm('ada', 'Ada');
+  expect(dm).toBeDefined();
+  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  let attempts = 0;
+  const agents: BotAgentAdapter = {
+    async runOrchestrator(run) {
+      attempts += 1;
+      if (attempts === 1) throw new Error('QUOTA: Insufficient Balance (request_id: test-123)');
+      if (attempts === 2) throw new Error('TRANSPORT: retry outage');
+      const outcome = run.assignments.create({ grantId: TEST_GRANT_ID, purpose: '检查余额' });
+      expect(outcome.outcome).toBe('created');
+    },
+    async runAssignment() {
+      throw new Error('TRANSPORT: provider unavailable');
+    },
+    requestAssignment(run) {
+      return { delivery: 'followup', done: this.runAssignment(run) };
+    },
+    async close() {},
+  };
+  const runtime = createBotRuntime({
+    database: owner,
+    grants: createTestWorkspaceGrants(owner, home),
+    registry,
+    channels,
+    agents,
+    now: FIXED_NOW,
+  });
+  const input = { channelId: dm!.id, messageId: 'human-error', body: '检查余额' };
+  await expect(admit(runtime, input)).rejects.toThrow(/Insufficient Balance/);
+  let notices = channels
+    .readMessages(dm!.id)
+    .filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(1);
+  expect(notices[0]?.sessionFailure).toMatchObject({
+    role: 'orchestrator',
+    code: 'QUOTA',
+    detail: 'Insufficient Balance (request_id: test-123)',
+  });
+  await expect(admit(runtime, input)).rejects.toThrow(/retry outage/);
+  notices = channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(2);
+  expect(
+    notices.find((message) => message.sessionFailure?.detail === 'retry outage'),
+  ).toBeDefined();
+  await expect(admit(runtime, input)).resolves.toBeUndefined();
+  await runtime.whenIdle();
+  notices = channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined);
+  expect(notices).toHaveLength(3);
+  expect(
+    notices.find((message) => message.sessionFailure?.role === 'assignment')?.sessionFailure,
+  ).toMatchObject({
+    role: 'assignment',
+    code: 'TRANSPORT',
+    detail: 'provider unavailable',
+    context: '检查余额',
+  });
+  expect(runtime.listAssignments('ada')[0]?.activity).toBe('error');
+  await runtime.close();
+  owner.close();
+});
+
 it('reads only a joined Channel image by durable message and attachment reference', async () => {
   const home = createTempRoot('botharness-bot-runtime-image-read-');
   const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
@@ -158,6 +231,7 @@ it('reads only a joined Channel image by durable message and attachment referenc
   let inspected = false;
   const runtime = createBotRuntime({
     database: owner,
+    grants: createTestWorkspaceGrants(owner, home),
     registry,
     channels,
     attachments,
@@ -235,6 +309,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -280,6 +355,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -311,9 +387,15 @@ describe('Bot runtime tracer bullet', () => {
         side_effect_started_at: null,
       },
     ]);
-    expect(channels.readMessages(dm!.id).map((message) => message.id)).toEqual([
-      'human-invalid-reply',
-    ]);
+    expect(
+      channels
+        .readMessages(dm!.id)
+        .filter((message) => message.author.kind === 'human')
+        .map((message) => message.id),
+    ).toEqual(['human-invalid-reply']);
+    expect(
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
     await runtime.close();
     owner.close();
   });
@@ -339,7 +421,10 @@ describe('Bot runtime tracer bullet', () => {
         orchestratorAttempts += 1;
         if (run.message.trim().length > 0) {
           if (orchestratorAttempts === 1) throw new Error('TRANSPORT: DeepSeek API request failed');
-          const outcome = run.assignments.create({ purpose: `调查并回答：${run.message}` });
+          const outcome = run.assignments.create({
+            grantId: TEST_GRANT_ID,
+            purpose: `调查并回答：${run.message}`,
+          });
           if (outcome.outcome === 'created' || outcome.outcome === 'reused') return;
           throw new Error(outcome.message);
         }
@@ -360,6 +445,7 @@ describe('Bot runtime tracer bullet', () => {
     };
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents,
@@ -391,8 +477,8 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     expect(assignmentRuns).toBe(0);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
-    ).toEqual([]);
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
     await runtime.whenIdle();
@@ -409,8 +495,8 @@ describe('Bot runtime tracer bullet', () => {
     expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
-    ).toEqual([expect.objectContaining({ id: 'bot-retry' })]);
+      channels.readMessages(dm!.id).filter((message) => message.id === 'bot-retry'),
+    ).toHaveLength(1);
 
     await expect(admit(runtime, input)).resolves.toBeUndefined();
     await runtime.whenIdle();
@@ -418,7 +504,7 @@ describe('Bot runtime tracer bullet', () => {
     expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
-      channels.readMessages(dm!.id).filter((message) => message.author.kind === 'bot'),
+      channels.readMessages(dm!.id).filter((message) => message.id === 'bot-retry'),
     ).toHaveLength(1);
 
     await runtime.close();
@@ -443,13 +529,17 @@ describe('Bot runtime tracer bullet', () => {
     let assignmentRuns = 0;
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
         async runOrchestrator(run) {
           orchestratorAttempts += 1;
           if (run.message.trim().length > 0) {
-            const outcome = run.assignments.create({ purpose: '核对副作用' });
+            const outcome = run.assignments.create({
+              grantId: TEST_GRANT_ID,
+              purpose: '核对副作用',
+            });
             if (outcome.outcome === 'capacity' || outcome.outcome === 'key-busy') {
               throw new Error(outcome.message);
             }
@@ -508,10 +598,13 @@ describe('Bot runtime tracer bullet', () => {
     expect(
       channels
         .readMessages(dm!.id)
-        .filter((message) => message.author.kind === 'bot')
+        .filter((message) => message.author.kind === 'bot' && message.sessionFailure === undefined)
         .map((message) => message.body)
         .sort(),
     ).toEqual(['副作用已完成', '副作用已开始'].sort());
+    expect(
+      channels.readMessages(dm!.id).filter((message) => message.sessionFailure !== undefined),
+    ).toHaveLength(1);
 
     await runtime.close();
     owner.close();
@@ -536,6 +629,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -585,6 +679,7 @@ describe('Bot runtime tracer bullet', () => {
     const agents = new DeterministicAgentAdapter();
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents,
@@ -618,6 +713,14 @@ describe('Bot runtime tracer bullet', () => {
         sessionId: 'assignment-1',
         purpose: '调查并回答：请调查发布状态',
         activity: 'idle',
+        permission: {
+          grantId: TEST_GRANT_ID,
+          workspaceId: 'test-workspace',
+          primaryCwd: home,
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
         latestReport: expect.objectContaining({
           state: 'completed',
           summary: 'Assignment 已处理「调查并回答：请调查发布状态」',
@@ -634,6 +737,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const reopened = createBotRuntime({
       database: reopenedOwner,
+      grants: createTestWorkspaceGrants(reopenedOwner, home),
       registry,
       channels,
       agents: new DeterministicAgentAdapter(),
@@ -643,6 +747,14 @@ describe('Bot runtime tracer bullet', () => {
       expect.objectContaining({
         sessionId: 'assignment-1',
         activity: 'idle',
+        permission: {
+          grantId: TEST_GRANT_ID,
+          workspaceId: 'test-workspace',
+          primaryCwd: home,
+          mode: 'workspace-write',
+          approval: 'ask',
+          presetRevision: 0,
+        },
         latestReport: expect.objectContaining({
           state: 'completed',
           summary: 'Assignment 已处理「调查并回答：请调查发布状态」',
@@ -651,6 +763,60 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     await reopened.close();
     reopenedOwner.close();
+  });
+
+  it('freezes each new Assignment access mode while later Bot preset changes leave old Sessions intact', async () => {
+    const home = createTempRoot('botharness-bot-runtime-access-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const access = createAssignmentAccessStore(attachOperationalModule(owner, 'assignment-access'));
+    access.set('ada', 'danger-full-access');
+    const ids = ['orchestrator-ada', 'assignment-danger', 'assignment-safe'];
+    const runtime = createBotRuntime({
+      database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
+      assignmentAccess: access,
+      registry,
+      channels,
+      agents: new DeterministicAgentAdapter(),
+      now: FIXED_NOW,
+      createSessionId: () => ids.shift() ?? 'unexpected-session',
+    });
+    await channels.appendMessage(dm.id, {
+      id: 'human-danger',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'first',
+    });
+    await admit(runtime, { channelId: dm.id, messageId: 'human-danger', body: 'first' });
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', 'assignment-danger')?.permission).toMatchObject({
+      mode: 'danger-full-access',
+      approval: 'never',
+      presetRevision: 1,
+    });
+    access.set('ada', 'workspace-write');
+    await channels.appendMessage(dm.id, {
+      id: 'human-safe',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'second',
+    });
+    await admit(runtime, { channelId: dm.id, messageId: 'human-safe', body: 'second' });
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', 'assignment-danger')?.permission?.mode).toBe(
+      'danger-full-access',
+    );
+    expect(runtime.getAssignment('ada', 'assignment-safe')?.permission).toMatchObject({
+      mode: 'workspace-write',
+      approval: 'ask',
+      presetRevision: 2,
+    });
+    await runtime.close();
+    owner.close();
   });
 
   it('owns Sessions explicitly and records the run cwd as evidence, not identity', async () => {
@@ -680,6 +846,7 @@ describe('Bot runtime tracer bullet', () => {
     const sessionIds = ['orchestrator-ada', 'orchestrator-bob'];
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -734,6 +901,7 @@ describe('Bot runtime tracer bullet', () => {
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -779,6 +947,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -845,6 +1014,7 @@ describe('Bot runtime tracer bullet', () => {
 
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -898,6 +1068,7 @@ describe('Bot runtime tracer bullet', () => {
     });
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -955,6 +1126,7 @@ describe('Bot runtime tracer bullet', () => {
     const runs: string[] = [];
     const runtime = createBotRuntime({
       database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
       registry,
       channels,
       agents: {
@@ -995,4 +1167,85 @@ describe('Bot runtime tracer bullet', () => {
     expect(runs).toEqual([]);
     owner.close();
   });
+});
+
+it('requests a folder in the DM and resumes the same Orchestrator after Human authorization', async () => {
+  const home = createTempRoot('botharness-grant-request-');
+  const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+  expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+  const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+  const dm = channels.getOrCreateDm('ada', 'Ada')!;
+  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  const grants = createWorkspaceGrantStore({
+    database: attachOperationalModule(owner, 'grant-request-test'),
+    now: FIXED_NOW,
+    createId: () => 'human-grant',
+    workspaces: () => ({
+      get: (id: string) =>
+        id === 'project'
+          ? { id, path: home, title: 'Project', status: async () => 'ok' as const }
+          : undefined,
+      list: () => [
+        { id: 'project', path: home, title: 'Project', status: async () => 'ok' as const },
+      ],
+    }),
+  });
+  let nextSession = 0;
+  const runtime = createBotRuntime({
+    database: owner,
+    registry,
+    channels,
+    grants,
+    agents: {
+      runOrchestrator: async (run) => {
+        const active = run.assignments.grants().find((grant) => grant.revokedAt === undefined);
+        if (active === undefined) {
+          await run.channels.requestGrant('需要项目文件夹以完成这项工作');
+        } else {
+          run.assignments.create({ purpose: '读取项目', grantId: active.id, key: 'project-read' });
+        }
+      },
+      runAssignment: async (run) => {
+        await run.report({ state: 'completed', summary: '项目已读取' });
+      },
+      requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+      close: async () => undefined,
+    },
+    now: FIXED_NOW,
+    createSessionId: () => `session-${++nextSession}`,
+    createEventId: () => `event-${++nextSession}`,
+    createMessageId: () => `message-${++nextSession}`,
+  });
+  await channels.appendMessage(dm.id, {
+    id: 'human-start',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: '读取项目',
+  });
+  await admit(runtime, { channelId: dm.id, messageId: 'human-start', body: '读取项目' });
+  const card = channels.readMessages(dm.id).find((message) => message.grantRequest === true);
+  expect(card).toMatchObject({
+    author: { kind: 'bot', slug: 'ada' },
+    body: '需要项目文件夹以完成这项工作',
+  });
+  expect(runtime.listAssignments('ada')).toHaveLength(0);
+  await grants.create('ada', 'project');
+  await channels.appendMessage(dm.id, {
+    id: 'human-approved',
+    at: FIXED_NOW().toISOString(),
+    author: { kind: 'human' },
+    body: '已授权工作区「Project」，请继续处理之前的事项。',
+    replyTo: card!.id,
+  });
+  await admit(runtime, {
+    channelId: dm.id,
+    messageId: 'human-approved',
+    body: '已授权工作区「Project」，请继续处理之前的事项。',
+  });
+  await runtime.whenIdle();
+  expect(runtime.listAssignments('ada')).toHaveLength(1);
+  expect(runtime.listAssignments('ada')[0]?.permission?.grantId).toBe('human-grant');
+  expect(ownershipRows(owner).filter((row) => row.root_role === 'orchestrator')).toHaveLength(1);
+  await runtime.close();
+  owner.close();
 });

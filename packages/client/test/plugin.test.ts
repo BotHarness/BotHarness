@@ -12,24 +12,28 @@ describe('@botharness/client host half', () => {
     expect(BotModeSettingsSchema({})).toEqual({
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       sortMode: 'updated',
       sortModes: {},
     });
     expect(BotModeSettingsSchema({ sortMode: 'manual' })).toEqual({
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       sortMode: 'manual',
       sortModes: {},
     });
     expect(BotModeSettingsSchema({ sortModes: { s1: 'manual' } })).toEqual({
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
     });
     expect(BotModeSettingsSchema({ motionPreference: 'full' })).toMatchObject({
       motionPreference: 'full',
       botIcon: 'mascot' as const,
+      developerMode: false,
     });
   });
 

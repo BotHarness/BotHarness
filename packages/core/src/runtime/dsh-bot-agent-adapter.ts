@@ -1,9 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 
 import {
   installModelSelection,
+  type Agent,
   type AgentHandle,
   type AssistantStreamFrame,
   type CreateAgentOptions,
@@ -14,6 +14,8 @@ import { AttachmentId, type ImageMediaType } from '@deepseek-ai/dsh-attachment';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
+import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
@@ -34,19 +36,25 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 ];
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
-You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting, and record durable facts yourself with ordinary file, Shell, grep, and git capabilities inside your working directory. Reading an Assignment report never writes memory for you — you decide what to persist.
-create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
+You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
+Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
-Work in your own working directory with the tools available in this Agent scope, and never write to the PersonaBot's Memory Repository — only the Orchestrator owns memory.
+Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
+Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
+If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
+
+const DANGER_ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
+The Human explicitly enabled dangerous full access before this Assignment was created. Native tools may access files outside the selected Workspace Grant and do not ask for each call. Keep actions within the Orchestrator's requested task; report any wider file access. The selected Grant still identifies this Assignment and revoking it stops future calls. Only the Orchestrator owns PersonaBot memory unless your task explicitly requires interacting with it.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
 If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
 
 export interface DshAgentHost {
   create(options: CreateAgentOptions): Promise<AgentHandle>;
   resume(options: ResumeAgentOptions): Promise<AgentHandle>;
+  get?(id: ReturnType<typeof SessionId>): Agent | undefined;
 }
 
 /**
@@ -61,7 +69,6 @@ export interface DshAgentPresetHost {
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
-  defaultWorkspaceRoot: string;
   /**
    * Resolves the preset roster lazily: a service may mount after this plugin
    * applies, so the roster is looked up per agent creation, not captured once.
@@ -80,6 +87,8 @@ export interface DshBotAgentAdapterOptions {
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   ensureWorkspace?: (path: string) => void;
   publishDraft?: (event: ChannelDraftEvent) => void;
+  /** Validate a foreign live Agent before attaching BotHarness role behavior. */
+  authorizeBorrow?: (agent: Agent, role: 'orchestrator' | 'assignment') => void;
 }
 
 export interface DshDefaultModelHost {
@@ -102,10 +111,10 @@ function agentOptions(
 function createMeta(
   run: OrchestratorAgentRun | AssignmentAgentRun,
   cwd: string,
-  ensureWorkspace: (path: string) => void,
+  ensureWorkspace: ((path: string) => void) | undefined,
   defaultAgentPreset: string | undefined,
 ) {
-  ensureWorkspace(cwd);
+  ensureWorkspace?.(cwd);
   const agentPreset = run.bot.preset ?? defaultAgentPreset;
   return {
     cwd,
@@ -133,7 +142,11 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return;
   if (reason.kind === 'error') {
-    throw new Error(`${reason.error.code}: ${reason.error.message}`);
+    const failure = new Error(`${reason.error.code}: ${reason.error.message}`);
+    if ('status' in reason.error && typeof reason.error.status === 'number') {
+      Object.assign(failure, { status: reason.error.status });
+    }
+    throw failure;
   }
   throw new Error(`Agent turn ended without completion: ${reason.kind}`);
 }
@@ -141,9 +154,11 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
 class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
-  readonly #defaultWorkspaceRoot: string;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
+  readonly #authorizeBorrow:
+    | ((agent: Agent, role: 'orchestrator' | 'assignment') => void)
+    | undefined;
   readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
@@ -154,9 +169,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   constructor(options: DshBotAgentAdapterOptions) {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
-    this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
+    this.#authorizeBorrow = options.authorizeBorrow;
     this.#resolveAgentPresets = options.resolveAgentPresets;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
@@ -266,15 +281,28 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
-    const setup: NonNullable<CreateAgentOptions['setup']> = async (agentCtx) => {
-      await this.#composePreset(agentCtx, run.bot);
-      installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-      agentCtx.systemPrompt.section({
+    const borrowedDisposers: Array<() => void> = [];
+    const setup = async (agentCtx: Context, agent: Agent, borrowed = false): Promise<void> => {
+      setSandboxMode(agent.session, 'workspace-write');
+      setApprovalPolicy(agent.session, 'ask');
+      if (!borrowed) {
+        await this.#composePreset(agentCtx, run.bot);
+        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+      }
+      const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+        const dispose = agentCtx.tools.register(tool);
+        if (borrowed) borrowedDisposers.push(dispose);
+        return dispose;
+      };
+      const disposePresentation = agentCtx.tools.presentAs('native');
+      if (borrowed) borrowedDisposers.push(disposePresentation);
+      const disposeRolePrompt = agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
         order: ROLE_PROMPT_ORDER,
         text: ORCHESTRATOR_PROMPT,
       });
-      agentCtx.tools.register(
+      if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+      registerTool(
         defineTool({
           name: 'create_assignment',
           description:
@@ -284,6 +312,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               required: true,
               description: 'A concise, bounded description of the work to complete.',
+            },
+            grant_id: {
+              type: 'string',
+              required: true,
+              description:
+                'Active Workspace Grant id from list_workspace_grants; raw paths are not accepted.',
             },
             key: {
               type: 'string',
@@ -302,6 +336,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             }
             const outcome = active.run.assignments.create({
               purpose: args.purpose,
+              grantId: args.grant_id,
               ...(args.key === undefined ? {} : { key: args.key }),
             });
             if (outcome.outcome === 'created' || outcome.outcome === 'reused') {
@@ -320,7 +355,52 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
+        defineTool({
+          name: 'request_workspace_grant',
+          description:
+            'Ask the Human in this PersonaBot DM to authorize a folder so the current task can continue. Use only when no active Workspace Grant fits; this does not create an Assignment.',
+          parameters: {
+            reason: {
+              type: 'string',
+              required: true,
+              description: 'Briefly explain which work needs folder access.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('request_workspace_grant: Orchestrator run is unavailable');
+            }
+            const message = await active.run.channels.requestGrant(args.reason);
+            return `Sent Workspace Grant request card ${message.id}; wait for Human authorization.`;
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'list_workspace_grants',
+          description:
+            'List Human-authorized Workspace Grants for this PersonaBot. Only active Grant ids can be passed to create_assignment.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('list_workspace_grants: Orchestrator run is unavailable');
+            }
+            return JSON.stringify(active.run.assignments.grants());
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'list_assignments',
           description:
@@ -339,7 +419,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'inspect_assignment',
           description:
@@ -367,7 +447,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'send_assignment_request',
           description:
@@ -419,7 +499,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_read',
           description:
@@ -451,7 +531,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_read_image',
           description:
@@ -574,7 +654,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_search',
           description:
@@ -603,7 +683,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'channel_send',
           description:
@@ -662,10 +742,28 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'orchestrator');
+      try {
+        await setup(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const options = { agentOptions: resolvedAgentOptions, setup };
     const meta = createMeta(
       run,
-      this.#resolveCwd(run.bot, 'orchestrator'),
+      this.#resolveOrchestratorCwd(run.bot),
       this.#ensureWorkspace,
       this.#defaultAgentPreset,
     );
@@ -689,37 +787,51 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     await presets.mount(agentCtx, bot.preset ?? this.#defaultAgentPreset);
   }
 
-  #resolveCwd(bot: PersonaBotRecord, role: 'orchestrator' | 'assignment'): string {
-    if (role === 'orchestrator') {
-      const explicit = this.#orchestratorCwd?.(bot);
-      if (explicit !== undefined) return explicit;
+  #resolveOrchestratorCwd(bot: PersonaBotRecord): string {
+    const cwd = this.#orchestratorCwd?.(bot);
+    if (cwd === undefined) {
+      throw new Error(`Memory workspace unavailable for Orchestrator ${bot.slug}`);
     }
-    return bot.workspaces[0] ?? join(this.#defaultWorkspaceRoot, bot.slug);
+    return cwd;
   }
 
   async #assignmentHandle(run: AssignmentAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const meta = createMeta(
-      run,
-      this.#resolveCwd(run.bot, 'assignment'),
-      this.#ensureWorkspace,
-      this.#defaultAgentPreset,
-    );
+    const meta = createMeta(run, run.permission.primaryCwd, undefined, this.#defaultAgentPreset);
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
+    const borrowedDisposers: Array<() => void> = [];
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),
       ...(meta === undefined ? {} : { meta }),
       agentOptions: resolvedAgentOptions,
-      setup: async (agentCtx) => {
-        await this.#composePreset(agentCtx, run.bot);
-        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-        agentCtx.systemPrompt.section({
+      setup: async (agentCtx, agent, borrowed = false) => {
+        if (agent.session.header.cwd !== run.permission.primaryCwd) {
+          throw new Error('Assignment Session cwd differs from its Workspace Grant snapshot');
+        }
+        setSandboxMode(agent.session, run.permission.mode);
+        setApprovalPolicy(agent.session, run.permission.approval);
+        if (!borrowed) {
+          await this.#composePreset(agentCtx, run.bot);
+          installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+        }
+        const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+          const dispose = agentCtx.tools.register(tool);
+          if (borrowed) borrowedDisposers.push(dispose);
+          return dispose;
+        };
+        const disposePresentation = agentCtx.tools.presentAs('native');
+        if (borrowed) borrowedDisposers.push(disposePresentation);
+        const disposeRolePrompt = agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
           order: ROLE_PROMPT_ORDER,
-          text: ASSIGNMENT_PROMPT,
+          text:
+            run.permission.mode === 'danger-full-access'
+              ? DANGER_ASSIGNMENT_PROMPT
+              : ASSIGNMENT_PROMPT,
         });
-        agentCtx.tools.register(
+        if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+        registerTool(
           defineTool({
             name: 'report_to_orchestrator',
             description:
@@ -770,6 +882,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         );
       },
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'assignment');
+      try {
+        await (
+          createOptions.setup as (ctx: Context, agent: Agent, borrowed: boolean) => Promise<void>
+        )(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const handle =
       run.resume === true
         ? await this.#agents.resume({

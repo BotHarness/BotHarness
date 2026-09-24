@@ -258,6 +258,55 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (typeof body !== 'string') return undefined;
   const author = parseAuthor(record['author']);
   if (author === undefined) return undefined;
+  const grantRequest = record['grantRequest'];
+  if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
+    return undefined;
+  let toolApprovalRequest: ChannelMessage['toolApprovalRequest'];
+  if (record['toolApprovalRequest'] !== undefined) {
+    const request = asRecord(record['toolApprovalRequest']);
+    if (
+      request === undefined ||
+      author.kind !== 'bot' ||
+      typeof request['sessionId'] !== 'string' ||
+      typeof request['callId'] !== 'string' ||
+      typeof request['toolName'] !== 'string' ||
+      typeof request['cwd'] !== 'string' ||
+      typeof request['input'] !== 'string' ||
+      (request['role'] !== 'orchestrator' && request['role'] !== 'assignment')
+    )
+      return undefined;
+    toolApprovalRequest = {
+      sessionId: request['sessionId'],
+      callId: request['callId'],
+      toolName: request['toolName'],
+      role: request['role'],
+      cwd: request['cwd'],
+      input: request['input'],
+    };
+  }
+  let sessionFailure: ChannelMessage['sessionFailure'];
+  if (record['sessionFailure'] !== undefined) {
+    const failure = asRecord(record['sessionFailure']);
+    if (
+      failure === undefined ||
+      author.kind !== 'bot' ||
+      (failure['role'] !== 'orchestrator' && failure['role'] !== 'assignment') ||
+      typeof failure['sessionId'] !== 'string' ||
+      typeof failure['detail'] !== 'string' ||
+      (failure['code'] !== undefined && typeof failure['code'] !== 'string') ||
+      (failure['status'] !== undefined && typeof failure['status'] !== 'number') ||
+      (failure['context'] !== undefined && typeof failure['context'] !== 'string')
+    )
+      return undefined;
+    sessionFailure = {
+      role: failure['role'],
+      sessionId: failure['sessionId'],
+      detail: failure['detail'],
+      ...(typeof failure['code'] === 'string' ? { code: failure['code'] } : {}),
+      ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
+      ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
+    };
+  }
   const rawAttachments = record['attachments'];
   const attachments = Array.isArray(rawAttachments)
     ? rawAttachments.map(parseChannelAttachment)
@@ -274,6 +323,25 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   const replyTo = record['replyTo'];
   if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0))
     return undefined;
+  let toolApprovalDecision: ChannelMessage['toolApprovalDecision'];
+  if (record['toolApprovalDecision'] !== undefined) {
+    const decision = asRecord(record['toolApprovalDecision']);
+    if (
+      decision === undefined ||
+      author.kind !== 'human' ||
+      typeof decision['requestMessageId'] !== 'string' ||
+      (decision['outcome'] !== 'allowed-once' &&
+        decision['outcome'] !== 'allowed-always-exact' &&
+        decision['outcome'] !== 'allowed-always-all' &&
+        decision['outcome'] !== 'rejected') ||
+      replyTo !== decision['requestMessageId']
+    )
+      return undefined;
+    toolApprovalDecision = {
+      requestMessageId: decision['requestMessageId'],
+      outcome: decision['outcome'],
+    };
+  }
   const rawPreview = record['replyToPreview'];
   let replyToPreview: ChannelMessage['replyToPreview'];
   if (rawPreview === null) {
@@ -290,6 +358,10 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(grantRequest === true ? { grantRequest: true as const } : {}),
+    ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
+    ...(sessionFailure === undefined ? {} : { sessionFailure }),
+    ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(replyTo === undefined ? {} : { replyTo }),
@@ -339,6 +411,26 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
   if (activity !== 'working' && activity !== 'idle' && activity !== 'error') return undefined;
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
   const latestReport = parseAssignmentReport(record['latestReport']);
+  const permissionRecord = asRecord(record['permission']);
+  const permission =
+    permissionRecord !== undefined &&
+    typeof permissionRecord['grantId'] === 'string' &&
+    typeof permissionRecord['workspaceId'] === 'string' &&
+    typeof permissionRecord['primaryCwd'] === 'string' &&
+    (permissionRecord['mode'] === 'workspace-write' ||
+      permissionRecord['mode'] === 'danger-full-access') &&
+    permissionRecord['approval'] ===
+      (permissionRecord['mode'] === 'workspace-write' ? 'ask' : 'never') &&
+    typeof permissionRecord['presetRevision'] === 'number'
+      ? {
+          grantId: permissionRecord['grantId'],
+          workspaceId: permissionRecord['workspaceId'],
+          primaryCwd: permissionRecord['primaryCwd'],
+          mode: permissionRecord['mode'] as 'workspace-write' | 'danger-full-access',
+          approval: permissionRecord['approval'] as 'ask' | 'never',
+          presetRevision: permissionRecord['presetRevision'] as number,
+        }
+      : undefined;
   return {
     sessionId,
     purpose,
@@ -346,6 +438,7 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
     createdAt,
     updatedAt,
     ...(latestReport === undefined ? {} : { latestReport }),
+    ...(permission === undefined ? {} : { permission }),
   };
 }
 
@@ -567,6 +660,195 @@ export async function sendChannelMessage(
   const message = parseChannelMessage(asRecord(value)?.['message']);
   if (message === undefined) throw new Error('invalid channelSend response');
   return message;
+}
+
+export interface AssignmentAccessPresetView {
+  botSlug: string;
+  mode: 'workspace-write' | 'danger-full-access';
+  revision: number;
+  changedAt?: string;
+}
+export async function loadAssignmentAccess(
+  call: BridgeCall,
+  slug: string,
+): Promise<AssignmentAccessPresetView> {
+  const response = asRecord(await unwrap(call, 'assignmentAccessGet', { slug }));
+  const preset = asRecord(response?.['preset']);
+  if (
+    preset?.['botSlug'] !== slug ||
+    (preset['mode'] !== 'workspace-write' && preset['mode'] !== 'danger-full-access') ||
+    typeof preset['revision'] !== 'number'
+  )
+    throw new Error('invalid assignmentAccessGet response');
+  return preset as unknown as AssignmentAccessPresetView;
+}
+export async function setAssignmentAccess(
+  call: BridgeCall,
+  slug: string,
+  mode: AssignmentAccessPresetView['mode'],
+  acknowledgeRisk: boolean,
+): Promise<AssignmentAccessPresetView> {
+  const response = asRecord(
+    await unwrap(call, 'assignmentAccessSet', { slug, mode, acknowledgeRisk }),
+  );
+  const preset = asRecord(response?.['preset']);
+  if (preset?.['botSlug'] !== slug || preset['mode'] !== mode)
+    throw new Error('invalid assignmentAccessSet response');
+  return preset as unknown as AssignmentAccessPresetView;
+}
+
+export interface ToolApprovalRuleView {
+  id: string;
+  botSlug: string;
+  role: 'orchestrator' | 'assignment';
+  scopeKey: string;
+  kind: 'exact' | 'all-opaque';
+  toolName: string;
+  input: string;
+  createdAt: string;
+  revokedAt?: string;
+}
+export async function loadToolApprovalRules(
+  call: BridgeCall,
+  slug: string,
+): Promise<ToolApprovalRuleView[]> {
+  const response = asRecord(await unwrap(call, 'toolApprovalRules', { slug }));
+  const rules = response?.['rules'];
+  if (!Array.isArray(rules)) throw new Error('invalid toolApprovalRules response');
+  return rules as ToolApprovalRuleView[];
+}
+export async function revokeToolApprovalRule(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<void> {
+  const response = asRecord(await unwrap(call, 'toolApprovalRuleRevoke', { slug, id }));
+  if (asRecord(response?.['rule'])?.['id'] !== id)
+    throw new Error('invalid toolApprovalRuleRevoke response');
+}
+
+export async function loadToolApprovalStatus(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<'pending' | 'expired'> {
+  const response = asRecord(await unwrap(call, 'toolApprovalStatus', { channelId, messageId }));
+  const status = response?.['status'];
+  if (status !== 'pending' && status !== 'expired') {
+    throw new Error('invalid toolApprovalStatus response');
+  }
+  return status;
+}
+
+export async function decideToolApproval(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+): Promise<void> {
+  const response = asRecord(
+    await unwrap(call, 'toolApprovalDecide', {
+      channelId,
+      messageId,
+      outcome,
+    }),
+  );
+  if (response?.['accepted'] !== true) throw new Error('Tool approval was not accepted');
+}
+
+export interface WorkspaceOption {
+  id: string;
+  path: string;
+  title: string;
+}
+
+export interface WorkspaceGrantView extends WorkspaceOption {
+  botSlug: string;
+  workspaceId: string;
+  workspacePath: string;
+  workspaceTitle: string;
+  createdAt: string;
+  revokedAt?: string;
+}
+
+function parseWorkspaceOption(value: unknown): WorkspaceOption | undefined {
+  const row = asRecord(value);
+  if (
+    row === undefined ||
+    typeof row['id'] !== 'string' ||
+    typeof row['path'] !== 'string' ||
+    typeof row['title'] !== 'string'
+  )
+    return undefined;
+  return { id: row['id'], path: row['path'], title: row['title'] };
+}
+
+function parseWorkspaceGrant(value: unknown): WorkspaceGrantView | undefined {
+  const row = asRecord(value);
+  if (
+    row === undefined ||
+    typeof row['id'] !== 'string' ||
+    typeof row['botSlug'] !== 'string' ||
+    typeof row['workspaceId'] !== 'string' ||
+    typeof row['workspacePath'] !== 'string' ||
+    typeof row['workspaceTitle'] !== 'string' ||
+    typeof row['createdAt'] !== 'string'
+  )
+    return undefined;
+  return {
+    id: row['id'],
+    path: row['workspacePath'],
+    title: row['workspaceTitle'],
+    botSlug: row['botSlug'],
+    workspaceId: row['workspaceId'],
+    workspacePath: row['workspacePath'],
+    workspaceTitle: row['workspaceTitle'],
+    createdAt: row['createdAt'],
+    ...(typeof row['revokedAt'] === 'string' ? { revokedAt: row['revokedAt'] } : {}),
+  };
+}
+
+export async function loadWorkspaceOptions(call: BridgeCall): Promise<WorkspaceOption[]> {
+  const rows = asRecord(await unwrap(call, 'workspaceOptions', {}))?.['workspaces'];
+  if (!Array.isArray(rows)) throw new Error('invalid workspaceOptions response');
+  return rows.flatMap((row) => {
+    const parsed = parseWorkspaceOption(row);
+    return parsed === undefined ? [] : [parsed];
+  });
+}
+
+export async function loadWorkspaceGrants(
+  call: BridgeCall,
+  slug: string,
+): Promise<WorkspaceGrantView[]> {
+  const rows = asRecord(await unwrap(call, 'grants', { slug }))?.['grants'];
+  if (!Array.isArray(rows)) throw new Error('invalid grants response');
+  return rows.flatMap((row) => {
+    const parsed = parseWorkspaceGrant(row);
+    return parsed === undefined ? [] : [parsed];
+  });
+}
+
+export async function createWorkspaceGrant(
+  call: BridgeCall,
+  slug: string,
+  workspaceId: string,
+): Promise<WorkspaceGrantView> {
+  const value = asRecord(await unwrap(call, 'grantCreate', { slug, workspaceId }))?.['grant'];
+  const grant = parseWorkspaceGrant(value);
+  if (grant === undefined) throw new Error('invalid grantCreate response');
+  return grant;
+}
+
+export async function revokeWorkspaceGrant(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<WorkspaceGrantView> {
+  const value = asRecord(await unwrap(call, 'grantRevoke', { slug, grantId }))?.['grant'];
+  const grant = parseWorkspaceGrant(value);
+  if (grant === undefined) throw new Error('invalid grantRevoke response');
+  return grant;
 }
 
 export async function loadAssignments(

@@ -33,6 +33,17 @@ import {
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import { MemoryPathError } from '../memory/jail.js';
+import {
+  WorkspaceGrantError,
+  type WorkspaceGrant,
+  type WorkspaceGrantStore,
+} from '../workspaces/grants.js';
+import type { ChannelToolApproval } from '../workspaces/tool-approval.js';
+import type { ToolApprovalRuleStore, ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
+import type {
+  AssignmentAccessStore,
+  AssignmentAccessPreset,
+} from '../workspaces/assignment-access.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -96,6 +107,18 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
+  workspaceOptions(
+    payload: unknown,
+  ): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
+  grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
+  grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
+  grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
+  assignmentAccessGet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
+  assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
+  toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
+  toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
@@ -126,6 +149,10 @@ export interface BridgeMethodsDeps {
   memory?: MemoryService;
   roster: RosterStore;
   runtime?: BotRuntime;
+  grants?: WorkspaceGrantStore;
+  toolApproval?: ChannelToolApproval;
+  toolRules?: ToolApprovalRuleStore;
+  assignmentAccess?: AssignmentAccessStore;
   createBotId?: () => string;
 }
 
@@ -384,7 +411,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const record = deps.registry.get(slug);
       if (record === undefined) return unknownBot(slug);
-      return { ok: true, value: detailOf(record) };
+      const bot = detailOf(record).bot;
+      const memoryDir = deps.registry.memoryDirFor(slug);
+      return {
+        ok: true,
+        value: { bot: { ...bot, ...(memoryDir === undefined ? {} : { memoryDir }) } },
+      };
     },
     create(payload) {
       const source = asObject(payload);
@@ -706,6 +738,155 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const assignment = deps.runtime?.getAssignment(slug, sessionId);
       if (assignment === undefined) return unknownAssignment(sessionId);
       return { ok: true, value: { assignment } };
+    },
+    workspaceOptions() {
+      try {
+        return { ok: true, value: { workspaces: deps.grants?.availableWorkspaces() ?? [] } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    },
+    grants(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return { ok: true, value: { grants: deps.grants?.list(slug) ?? [] } };
+    },
+    async grantCreate(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const workspaceId = asNonBlank(source, 'workspaceId');
+      if (slug === undefined || workspaceId === undefined) {
+        return invalidInput('slug and workspaceId are required');
+      }
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
+      try {
+        return { ok: true, value: { grant: await deps.grants.create(slug, workspaceId) } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    },
+    grantRevoke(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const grantId = asNonBlank(source, 'grantId');
+      if (slug === undefined || grantId === undefined) {
+        return invalidInput('slug and grantId are required');
+      }
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
+      try {
+        return { ok: true, value: { grant: deps.grants.revoke(slug, grantId) } };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError) {
+          return { ok: false, error: { code: error.code, message: error.message } };
+        }
+        throw error;
+      }
+    },
+    assignmentAccessGet(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return {
+        ok: true,
+        value: {
+          preset: deps.assignmentAccess?.get(slug) ?? {
+            botSlug: slug,
+            mode: 'workspace-write',
+            revision: 0,
+          },
+        },
+      };
+    },
+    assignmentAccessSet(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const mode = source['mode'];
+      if (slug === undefined || (mode !== 'workspace-write' && mode !== 'danger-full-access'))
+        return invalidInput('slug and valid mode are required');
+      if (mode === 'danger-full-access' && source['acknowledgeRisk'] !== true)
+        return invalidInput('Dangerous access requires explicit Human risk acknowledgement');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.assignmentAccess === undefined)
+        return invalidInput('Assignment access is unavailable');
+      return { ok: true, value: { preset: deps.assignmentAccess.set(slug, mode) } };
+    },
+    toolApprovalRules(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return { ok: true, value: { rules: deps.toolRules?.list(slug) ?? [] } };
+    },
+    toolApprovalRuleRevoke(payload) {
+      const slug = asSlug(payload);
+      const id = asNonBlank(asObject(payload), 'id');
+      if (slug === undefined || id === undefined) return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const rule = deps.toolRules?.revoke(slug, id);
+      return rule === undefined
+        ? invalidInput('Unknown tool approval rule')
+        : { ok: true, value: { rule } };
+    },
+    toolApprovalStatus(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (channelId === undefined || messageId === undefined) {
+        return invalidInput('channelId and messageId are required');
+      }
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined) {
+        return invalidInput('Tool approval is available only in a PersonaBot DM');
+      }
+      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+        return invalidInput('Unknown tool approval request');
+      }
+      return {
+        ok: true,
+        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+      };
+    },
+    async toolApprovalDecide(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      const outcome = source['outcome'];
+      if (
+        channelId === undefined ||
+        messageId === undefined ||
+        (outcome !== 'allowed-once' &&
+          outcome !== 'allowed-always-exact' &&
+          outcome !== 'allowed-always-all' &&
+          outcome !== 'rejected')
+      ) {
+        return invalidInput('channelId, messageId, and a valid outcome are required');
+      }
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined) {
+        return invalidInput('Tool approval is available only in a PersonaBot DM');
+      }
+      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+        return invalidInput('Unknown tool approval request');
+      }
+      const accepted = await deps.toolApproval?.decide(channel.botSlug, messageId, outcome);
+      if (accepted !== true) return invalidInput('Tool approval request is no longer pending');
+      return { ok: true, value: { accepted: true } };
     },
     sessions(payload) {
       const slug = asSlug(payload);

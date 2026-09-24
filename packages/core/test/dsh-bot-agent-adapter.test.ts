@@ -1,4 +1,5 @@
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
+import { SessionId } from '@deepseek-ai/dsh-session';
 
 import { describe, expect, it } from 'vitest';
 
@@ -14,13 +15,72 @@ const ASSIGNMENT = {
 };
 
 describe('DSH Bot Agent adapter', () => {
+  it('borrows a native resumed BotHarness Agent and releases only its role registrations', async () => {
+    const host = new FakeAgentHost();
+    await host.create({
+      sessionId: SessionId('orchestrator-ada'),
+      meta: { cwd: '/memory/ada' },
+    });
+    const native = host.get('orchestrator-ada');
+    const authorized: string[] = [];
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      authorizeBorrow: (agent, role) => authorized.push(role + ':' + agent.session.id),
+    });
+    await adapter.runOrchestrator({
+      sessionId: 'orchestrator-ada',
+      resume: true,
+      bot: BOT,
+      message: '请核对发布状态',
+      inboundChannelId: 'dm-test',
+      inbox: '',
+      channels: {
+        read: () => [],
+        search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
+        send: async (input) => ({
+          id: 'bot-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: input.body,
+        }),
+      },
+      assignments: {
+        create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
+        list: () => [],
+        inspect: () => undefined,
+        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+      },
+    });
+    expect(authorized).toEqual(['orchestrator:orchestrator-ada']);
+    expect(host.resumeOptions).toHaveLength(0);
+    expect(
+      host.scopes.get('orchestrator-ada')?.tools.some((tool) => tool.name === 'create_assignment'),
+    ).toBe(true);
+    await adapter.close();
+    expect(host.disposed).toEqual([]);
+    expect(host.get('orchestrator-ada')).toBe(native);
+    expect(
+      host.scopes.get('orchestrator-ada')?.tools.some((tool) => tool.name === 'create_assignment'),
+    ).toBe(false);
+  });
+
   it('mounts the resolved agent preset inside every agent factory setup', async () => {
     const host = new FakeAgentHost();
     const mounted: Array<{ id: string | undefined; hasTools: boolean }> = [];
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       resolveAgentPresets: () => ({
         mount: async (agentCtx, id) => {
@@ -39,6 +99,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => ({
           id: 'bot-1',
           at: BOT.createdAt,
@@ -50,6 +117,7 @@ describe('DSH Bot Agent adapter', () => {
       inbox: '',
       assignments: {
         create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
         list: () => [],
         inspect: () => undefined,
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
@@ -65,7 +133,7 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: () => undefined,
     });
@@ -78,6 +146,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => ({
           id: 'bot-1',
           at: BOT.createdAt,
@@ -89,6 +164,7 @@ describe('DSH Bot Agent adapter', () => {
       inbox: '',
       assignments: {
         create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
         list: () => [],
         inspect: () => undefined,
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
@@ -107,7 +183,7 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
 
@@ -119,9 +195,15 @@ describe('DSH Bot Agent adapter', () => {
         inboundChannelId: 'dm-test',
         inbox: '',
         message: '请核对发布状态',
-        channels: { read: () => [], search: () => [], send: async () => undefined as never },
+        channels: {
+          read: () => [],
+          search: () => [],
+          requestGrant: async () => undefined as never,
+          send: async () => undefined as never,
+        },
         assignments: {
           create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+          grants: () => [],
           list: () => [],
           inspect: () => undefined,
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
@@ -138,7 +220,7 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       defaultAgentPreset: 'standard',
       ensureWorkspace: (path) => void preparedWorkspaces.push(path),
     });
@@ -155,6 +237,13 @@ describe('DSH Bot Agent adapter', () => {
       channels: {
         read: () => [],
         search: () => [],
+        requestGrant: async (reason) => ({
+          id: 'grant-request-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: reason,
+          grantRequest: true,
+        }),
         send: async (input) => {
           sends.push(input);
           return {
@@ -170,6 +259,7 @@ describe('DSH Bot Agent adapter', () => {
           expect(input.purpose).toBe('核对发布状态');
           return { outcome: 'created', assignment: ASSIGNMENT };
         },
+        grants: () => [],
         list: () => [],
         inspect: () => undefined,
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
@@ -179,6 +269,14 @@ describe('DSH Bot Agent adapter', () => {
       sessionId: 'assignment-1',
       bot: BOT,
       purpose: '核对发布状态',
+      permission: {
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'workspace-write',
+        approval: 'ask',
+        presetRevision: 0,
+      },
       report: async (input) => {
         reports.push(input);
         return { ...input, at: BOT.createdAt };
@@ -195,16 +293,18 @@ describe('DSH Bot Agent adapter', () => {
     ]);
     expect(host.createOptions.every((options) => options.parentAgent === undefined)).toBe(true);
     expect(host.createOptions.map((options) => options.meta?.cwd)).toEqual([
-      '/runtime-workspaces/ada',
-      '/runtime-workspaces/ada',
+      '/memory/ada',
+      '/project',
     ]);
     expect(host.createOptions.map((options) => options.meta?.agentPreset)).toEqual([
       'standard',
       'standard',
     ]);
-    expect(preparedWorkspaces).toEqual(['/runtime-workspaces/ada', '/runtime-workspaces/ada']);
+    expect(preparedWorkspaces).toEqual(['/memory/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'create_assignment',
+      'request_workspace_grant',
+      'list_workspace_grants',
       'list_assignments',
       'inspect_assignment',
       'send_assignment_request',
@@ -264,11 +364,43 @@ describe('DSH Bot Agent adapter', () => {
     expect(orchestratorPrompt).toContain('Memory Repository');
     const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
     expect(assignmentPrompt).toContain('Assignment');
-    expect(assignmentPrompt).toContain('never write to the PersonaBot');
+    expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');
+    expect(host.scopes.get('orchestrator-ada')?.restrictions).toEqual([]);
+    expect(host.scopes.get('assignment-1')?.restrictions).toEqual([]);
+    expect(assignmentPrompt).toContain('unless the Human has saved a matching automatic rule');
     expect(assignmentPrompt).toContain('expects_reply');
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
+  });
+
+  it('uses a distinct prompt for a dangerous Assignment snapshot', async () => {
+    const host = new FakeAgentHost();
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    await adapter.runAssignment({
+      sessionId: 'assignment-danger',
+      bot: BOT,
+      purpose: 'Run pwd',
+      permission: {
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'danger-full-access',
+        approval: 'never',
+        presetRevision: 1,
+      },
+      report: async (input) => ({ ...input, at: BOT.createdAt }),
+    });
+    const prompt = host.scopes.get('assignment-danger')?.sections[0]?.text ?? '';
+    expect(prompt).toContain('The Human explicitly enabled dangerous full access');
+    expect(prompt).toContain('do not ask for each call');
+    expect(prompt).not.toContain('require Human approval');
+    await adapter.close();
   });
 
   it('follows up a settled Assignment instead of steering a stale run', async () => {
@@ -276,7 +408,7 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
     });
     let reported = false;
@@ -284,6 +416,14 @@ describe('DSH Bot Agent adapter', () => {
       sessionId: 'assignment-1',
       bot: BOT,
       purpose: '核对发布状态',
+      permission: {
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'workspace-write',
+        approval: 'ask',
+        presetRevision: 0,
+      },
       report: async (input: { state: string; summary: string }) => {
         reported = true;
         return { ...input, at: BOT.createdAt };
@@ -310,7 +450,7 @@ describe('DSH Bot Agent adapter', () => {
     const adapter = createDshBotAgentAdapter({
       agents: host,
       defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      defaultWorkspaceRoot: '/runtime-workspaces',
+      orchestratorCwd: () => '/memory/ada',
       ensureWorkspace: () => undefined,
       publishDraft: (event) => {
         if (event.type === 'update') drafts.push(event.draft.body);
@@ -332,6 +472,13 @@ describe('DSH Bot Agent adapter', () => {
             return [];
           },
           search: () => [],
+          requestGrant: async (reason) => ({
+            id: 'grant-request-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: reason,
+            grantRequest: true,
+          }),
           send: async (input) => ({
             id: 'bot-1',
             at: BOT.createdAt,
@@ -341,6 +488,7 @@ describe('DSH Bot Agent adapter', () => {
         },
         assignments: {
           create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+          grants: () => [],
           list: () => [],
           inspect: () => undefined,
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),

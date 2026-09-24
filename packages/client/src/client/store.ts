@@ -45,11 +45,38 @@ export interface ChannelAttachmentRef {
   size: number;
 }
 
+export interface ToolApprovalRequestCard {
+  sessionId: string;
+  callId: string;
+  toolName: string;
+  role: 'orchestrator' | 'assignment';
+  cwd: string;
+  input: string;
+}
+
+export interface ToolApprovalDecision {
+  requestMessageId: string;
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
+}
+
+export interface SessionFailureCard {
+  role: 'orchestrator' | 'assignment';
+  sessionId: string;
+  code?: string;
+  status?: number;
+  detail: string;
+  context?: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
   author: ChannelAuthor;
   body: string;
+  grantRequest?: true;
+  toolApprovalRequest?: ToolApprovalRequestCard;
+  sessionFailure?: SessionFailureCard;
+  toolApprovalDecision?: ToolApprovalDecision;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;
@@ -92,6 +119,14 @@ export interface AssignmentSummary {
   purpose: string;
   activity: AssignmentActivity;
   latestReport?: AssignmentReport;
+  permission?: {
+    grantId: string;
+    workspaceId: string;
+    primaryCwd: string;
+    mode: 'workspace-write' | 'danger-full-access';
+    approval: 'ask' | 'never';
+    presetRevision: number;
+  };
   createdAt: string;
   updatedAt: string;
 }

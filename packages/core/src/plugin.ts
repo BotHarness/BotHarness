@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-agent';
 import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
+import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
@@ -39,6 +40,25 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import {
+  grantExecutionDenial,
+  grantToolExecutionDenial,
+  requiresHumanToolApproval,
+} from './workspaces/grant-execution.js';
+import { ChannelToolApproval } from './workspaces/tool-approval.js';
+import {
+  createAssignmentAccessStore,
+  type AssignmentAccessStore,
+} from './workspaces/assignment-access.js';
+import {
+  createToolApprovalRuleStore,
+  type ToolApprovalRuleStore,
+} from './workspaces/tool-approval-rules.js';
+import {
+  createWorkspaceGrantStore,
+  type DshWorkspaceLookup,
+  type WorkspaceGrantStore,
+} from './workspaces/grants.js';
 import {
   createDshBotAgentAdapter,
   type DshAgentPresetHost,
@@ -87,6 +107,9 @@ export interface BotHarnessCore {
   live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
+  grants: WorkspaceGrantStore;
+  toolRules: ToolApprovalRuleStore;
+  assignmentAccess: AssignmentAccessStore;
 }
 
 function unavailableAgentAdapter(): BotAgentAdapter {
@@ -107,6 +130,7 @@ export function createCore(
     dshHome?: string;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
+    workspaces?: () => DshWorkspaceLookup | undefined;
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -140,6 +164,16 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
   const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
+  const grants = createWorkspaceGrantStore({
+    database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
+    workspaces: options.workspaces ?? (() => undefined),
+  });
+  const toolRules = createToolApprovalRuleStore(
+    attachOperationalModule(operationalDatabase, 'tool-approval-rules'),
+  );
+  const assignmentAccess = createAssignmentAccessStore(
+    attachOperationalModule(operationalDatabase, 'assignment-access'),
+  );
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   return {
@@ -149,6 +183,9 @@ export function createCore(
     states,
     ownership,
     memory,
+    grants,
+    toolRules,
+    assignmentAccess,
     channels,
     attachments,
     live,
@@ -164,6 +201,8 @@ export function createCore(
       agents: options.agents ?? unavailableAgentAdapter(),
       memory,
       ownership,
+      grants,
+      assignmentAccess,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
     }),
@@ -177,22 +216,142 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
     defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
-    defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     publishDraft: (event) => publishDraft(event),
+    authorizeBorrow: (agent, role) => {
+      const owner = core.ownership.resolve(agent.session.id);
+      if (owner?.rootRole !== role) throw new Error('BotHarness Agent role mismatch');
+      const denial = grantExecutionDenial(
+        core,
+        agent.session,
+        ctx.get('sandboxPolicy'),
+        ctx.get('approval'),
+      );
+      if (denial !== undefined) throw new Error(denial);
+    },
   });
   const core = createCore({
     dshHome,
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
+    workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
+
+  const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
+    grantExecutionDenial(core, session, ctx.get('sandboxPolicy'), ctx.get('approval'));
+  // Native DSH prompt/resume also enters this waterfall, including after a Host restart.
+  ctx.on(
+    'agent/pre-step',
+    async ({ agent }, next) =>
+      permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
+    { global: true },
+  );
+  const toolApproval = new ChannelToolApproval(
+    core.channels,
+    core.ownership,
+    core.toolRules,
+    (agent, owner) => {
+      const cwd = agent.session.header.cwd ?? '';
+      if (owner.rootRole === 'assignment') {
+        const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
+        const grantId = assignment?.permission?.grantId;
+        return grantId === undefined ? undefined : JSON.stringify(['assignment', cwd, grantId]);
+      }
+      const activeIds = core.grants
+        .list(owner.botSlug)
+        .filter((grant) => grant.revokedAt === undefined)
+        .map((grant) => grant.id)
+        .sort();
+      return JSON.stringify(['orchestrator', cwd, activeIds]);
+    },
+  );
+  const approvedCalls = new Set<symbol>();
+  ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
+  ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
+    global: true,
+  });
+  ctx.on(
+    'tools/pre-execute',
+    async (execution, next) => {
+      const agent = execution.agent;
+      if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
+        return next();
+      if (!requiresHumanToolApproval(execution.name)) return next();
+      const denial = permissionDenial(agent.session);
+      if (denial !== undefined) return { kind: 'deny', reason: denial };
+      if (
+        typeof execution.arguments === 'object' &&
+        execution.arguments !== null &&
+        'sandbox_permissions' in execution.arguments
+      ) {
+        return {
+          kind: 'deny',
+          reason: 'BotHarness Session cannot request sandbox permission escalation',
+        };
+      }
+      const owner = core.ownership.resolve(agent.session.id);
+      const snapshot =
+        owner?.rootRole === 'assignment'
+          ? core.runtime.getAssignment(owner.botSlug, owner.sessionId)?.permission
+          : undefined;
+      if (snapshot?.mode === 'danger-full-access') return next();
+      const approval = ctx.get('approval') as ApprovalService | undefined;
+      const untrack = toolApproval.track(execution);
+      if (approval === undefined || untrack === undefined) {
+        return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
+      }
+      try {
+        const outcome = await approval.request({
+          agent,
+          toolName: execution.name,
+          callId: execution.callId,
+          reason: 'This tool call may access files outside the authorized folder.',
+          signal: execution.signal,
+        });
+        if (outcome !== 'allowed-once') {
+          return { kind: 'deny', reason: 'Human approval was ' + outcome };
+        }
+        if (!toolApproval.validAfterDecision(agent, execution.callId))
+          return { kind: 'deny', reason: 'Approval rule scope changed' };
+        approvedCalls.add(execution.token);
+        return await next();
+      } catch {
+        return { kind: 'deny', reason: 'Human approval is unavailable' };
+      } finally {
+        untrack();
+      }
+    },
+    { global: true },
+  );
+  // Every call is rechecked after the Human's decision; a revoked Assignment still fails.
+  ctx.tools.guard(({ agent, name, arguments: args, token }) => {
+    const allowedOnce = approvedCalls.delete(token);
+    return agent === undefined
+      ? undefined
+      : grantToolExecutionDenial(
+          core,
+          agent.session,
+          ctx.get('sandboxPolicy'),
+          ctx.get('approval'),
+          name,
+          args,
+          allowedOnce,
+        );
+  });
+  ctx.on(
+    'tools/result',
+    (execution) => {
+      approvedCalls.delete(execution.token);
+    },
+    { global: true },
+  );
 
   ctx.on(
     'agent/assistant-stream',
@@ -212,6 +371,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       memory: core.memory,
       roster: core.roster,
       runtime: core.runtime,
+      grants: core.grants,
+      toolApproval,
+      toolRules: core.toolRules,
+      assignmentAccess: core.assignmentAccess,
     }),
   );
 

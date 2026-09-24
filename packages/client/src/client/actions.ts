@@ -7,6 +7,20 @@ import {
   createRosterSection,
   errorMessage,
   loadAssignment,
+  loadWorkspaceOptions,
+  loadWorkspaceGrants,
+  loadToolApprovalRules,
+  loadAssignmentAccess,
+  setAssignmentAccess,
+  type AssignmentAccessPresetView,
+  revokeToolApprovalRule,
+  type ToolApprovalRuleView,
+  createWorkspaceGrant,
+  revokeWorkspaceGrant,
+  loadToolApprovalStatus,
+  decideToolApproval,
+  type WorkspaceOption,
+  type WorkspaceGrantView,
   loadAssignments,
   loadBots,
   loadMemorySnapshot,
@@ -57,7 +71,19 @@ import type {
   ConversationSelection,
 } from './store.js';
 
+export interface HostDirectoryListing {
+  path: string;
+  home: string;
+  crumbs: { name: string; path: string; hidden: boolean }[];
+  entries: { name: string; path: string; hidden: boolean }[];
+  truncated: boolean;
+}
+
 export interface BridgeActions {
+  listHostFolders(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
+  addWorkspaceFolder(slug: string): Promise<WorkspaceGrantView | undefined>;
+  authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
+  memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
@@ -89,6 +115,24 @@ export interface BridgeActions {
     expectedHead: string;
     editId: string;
   }): Promise<MemoryAcceptedCommit>;
+  listWorkspaceOptions(): Promise<WorkspaceOption[]>;
+  listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
+  createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
+  revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
+  assignmentAccess(slug: string): Promise<AssignmentAccessPresetView>;
+  setAssignmentAccess(
+    slug: string,
+    mode: AssignmentAccessPresetView['mode'],
+    acknowledgeRisk: boolean,
+  ): Promise<AssignmentAccessPresetView>;
+  listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
+  revokeToolApprovalRule(slug: string, id: string): Promise<void>;
+  toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  decideToolApproval(
+    channelId: string,
+    messageId: string,
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+  ): Promise<void>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -184,7 +228,15 @@ function mergeLatestWindow(
   return { messages, keptPrefix: overlap >= 0 };
 }
 
-export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
+export function createActions(
+  call: BridgeCall,
+  clientStore: ClientStore,
+  folderAccess?: {
+    pickDirectory(): Promise<string | null>;
+    listDirectory?(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
+    createWorkspace(input: { path: string }): Promise<{ workspaceId: string }>;
+  },
+): BridgeActions {
   const failedByChannel = new Map<string, ChannelMessage[]>();
   const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
   const remainingFailures = (
@@ -351,6 +403,42 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
   };
 
   const actions: BridgeActions = {
+    listHostFolders(path, signal) {
+      if (folderAccess?.listDirectory === undefined)
+        throw new Error('DSH folder browser is unavailable');
+      return folderAccess.listDirectory(path, signal);
+    },
+    async addWorkspaceFolder(slug) {
+      if (folderAccess === undefined) throw new Error('DSH folder picker is unavailable');
+      const path = await folderAccess.pickDirectory();
+      if (path === null) return undefined;
+      const workspace = await folderAccess.createWorkspace({ path });
+      return createWorkspaceGrant(call, slug, workspace.workspaceId);
+    },
+    async authorizeWorkspacePath(slug, path) {
+      if (folderAccess === undefined) throw new Error('DSH Workspace controller is unavailable');
+      const workspace = await folderAccess.createWorkspace({ path });
+      return createWorkspaceGrant(call, slug, workspace.workspaceId);
+    },
+    async memoryDirectory(slug) {
+      const result = await call('get', { slug });
+      if (!result.ok) throw new BridgeCallError(result.error.code, result.error.message);
+      const bot = (result.value as { bot?: { memoryDir?: unknown } }).bot;
+      return typeof bot?.memoryDir === 'string' ? bot.memoryDir : undefined;
+    },
+    listWorkspaceOptions: () => loadWorkspaceOptions(call),
+    listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
+    createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
+    revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
+    assignmentAccess: (slug) => loadAssignmentAccess(call, slug),
+    setAssignmentAccess: (slug, mode, acknowledgeRisk) =>
+      setAssignmentAccess(call, slug, mode, acknowledgeRisk),
+    listToolApprovalRules: (slug) => loadToolApprovalRules(call, slug),
+    revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
+    toolApprovalStatus: (channelId, messageId) =>
+      loadToolApprovalStatus(call, channelId, messageId),
+    decideToolApproval: (channelId, messageId, outcome) =>
+      decideToolApproval(call, channelId, messageId, outcome),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {

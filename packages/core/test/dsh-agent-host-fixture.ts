@@ -16,6 +16,7 @@ export interface FakeSession {
   id: string;
   header: { cwd?: string; createdAt: number };
   seq: number;
+  append(type: string, data: unknown): void;
   snapshotEvents(
     fromSeq?: number,
     toSeqExclusive?: number,
@@ -39,6 +40,7 @@ export interface FakeAgentHostHooks {
 
 interface FakeScope {
   tools: ToolDefinition[];
+  restrictions: Array<{ allow?: readonly string[]; deny?: readonly string[] }>;
   sections: Array<{ name: string; text: string }>;
 }
 
@@ -57,6 +59,11 @@ export class FakeAgentHost implements DshAgentHost {
   readonly scopes = new Map<string, FakeScope>();
   readonly sessions: FakeSession[] = [];
   readonly #cwdBySession = new Map<string, string | undefined>();
+  readonly #live = new Map<string, Agent>();
+
+  get(id: string): Agent | undefined {
+    return this.#live.get(String(id));
+  }
 
   constructor(
     private readonly orchestratorTurnEnd: TurnEndReason = { kind: 'completed' },
@@ -81,7 +88,7 @@ export class FakeAgentHost implements DshAgentHost {
     cwd: string | undefined,
     setup: CreateAgentOptions['setup'] | ResumeAgentOptions['setup'],
   ): Promise<AgentHandle> {
-    const scope: FakeScope = { tools: [], sections: [] };
+    const scope: FakeScope = { tools: [], restrictions: [], sections: [] };
     const messages: Message[] = [];
     const events: FakeEvent[] = [];
     const session: FakeSession = {
@@ -93,6 +100,13 @@ export class FakeAgentHost implements DshAgentHost {
       get seq() {
         return events.length;
       },
+      append: (type, data) =>
+        this.#emit(session, events, {
+          type,
+          data,
+          seq: events.length,
+          time: session.header.createdAt,
+        }),
       snapshotEvents: (fromSeq = 0, toSeqExclusive = events.length) =>
         events.slice(fromSeq, toSeqExclusive),
     };
@@ -119,18 +133,49 @@ export class FakeAgentHost implements DshAgentHost {
     };
     const fakeContext = {
       on: () => () => undefined,
-      tools: { register: (tool: ToolDefinition) => void scope.tools.push(tool) },
+      tools: {
+        schemas: (viewingAgent: unknown) =>
+          viewingAgent === undefined
+            ? []
+            : [
+                'read',
+                'read_image',
+                'write',
+                'edit',
+                'str_replace_editor',
+                'glob',
+                'grep',
+                'bash',
+              ].map((name) => ({ name })),
+        presentAs: (_mode: 'native') => () => undefined,
+        restrict: (filter: { allow?: readonly string[]; deny?: readonly string[] }) => {
+          scope.restrictions.push(filter);
+          return () => void scope.restrictions.splice(scope.restrictions.indexOf(filter), 1);
+        },
+        register: (tool: ToolDefinition) => {
+          scope.tools.push(tool);
+          return () => void scope.tools.splice(scope.tools.indexOf(tool), 1);
+        },
+      },
       systemPrompt: {
-        section: (section: { name: string; text: string }) => void scope.sections.push(section),
+        section: (section: { name: string; text: string }) => {
+          scope.sections.push(section);
+          return () => void scope.sections.splice(scope.sections.indexOf(section), 1);
+        },
       },
     };
+    Object.assign(fakeAgent, { ctx: fakeContext });
     await setup?.(fakeContext as unknown as Context, fakeAgent as unknown as Agent);
     this.scopes.set(sessionId, scope);
     this.sessions.push(session);
+    this.#live.set(sessionId, fakeAgent as unknown as Agent);
     this.hooks.onAgentCreated?.(fakeAgent);
     return {
       agent: fakeAgent as unknown as Agent,
-      dispose: async () => void this.disposed.push(sessionId),
+      dispose: async () => {
+        this.disposed.push(sessionId);
+        this.#live.delete(sessionId);
+      },
     };
   }
 
@@ -142,7 +187,10 @@ export class FakeAgentHost implements DshAgentHost {
   async #drive(scope: FakeScope, messages: Message[]): Promise<void> {
     const createAssignment = scope.tools.find((tool) => tool.name === 'create_assignment');
     if (createAssignment !== undefined) {
-      await createAssignment.execute({ purpose: '核对发布状态' }, {} as ToolRunContext);
+      await createAssignment.execute(
+        { purpose: '核对发布状态', grant_id: 'grant-1' },
+        {} as ToolRunContext,
+      );
       const channelSend = scope.tools.find((tool) => tool.name === 'channel_send');
       await channelSend?.execute({ body: '发布状态已经核对完成。' }, {} as ToolRunContext);
       messages.push(

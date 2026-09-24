@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { BOT_GLYPH_SVG, botBackdropUri, botIconMarkup } from '../src/client/bot-icon.js';
 import { findBotNavCell, installBotNavIcon, isBotNavLabel } from '../src/client/bot-icon-nav.js';
-import { openBotSettings } from '../src/client/bot-settings-open.js';
+import { openBotSettings, openModelsSettings } from '../src/client/bot-settings-open.js';
 
 describe('bot icon markup', () => {
   it('serves the mascot as palette-matched artwork', () => {
@@ -198,6 +198,25 @@ describe('settings nav tagging', () => {
     expect(trigger.clicks).toBe(1);
     expect(bot.clicks).toBe(1);
     expect(general.clicks).toBe(0);
+  });
+
+  it('opens native Models from a failure action', () => {
+    const models = fakeNavCell('模型');
+    const bot = fakeNavCell('Bot 设置');
+    const trigger = fakeElement('button');
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    trigger.setAttribute('aria-expanded', 'false');
+    const document = {
+      body: fakeElement('body'),
+      querySelectorAll: (selector: string) => (selector === 'button' ? [bot, models] : []),
+      querySelector: (selector: string) =>
+        selector === 'button[aria-haspopup="dialog"]' ? trigger : null,
+    };
+
+    openModelsSettings(document as never);
+    expect(trigger.clicks).toBe(1);
+    expect(models.clicks).toBe(1);
+    expect(bot.clicks).toBe(0);
   });
 
   it('leaves an already-open Settings dialog alone', () => {

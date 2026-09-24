@@ -189,6 +189,83 @@ const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
   },
 };
 
+/** Reserved after #115's accepted-Memory migration (generation 10). */
+export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
+  generation: 11,
+  module: 'workspace-grants',
+  description: 'Record Human Workspace Grants and immutable Assignment permission provenance',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE workspace_grants (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        workspace_path TEXT NOT NULL,
+        workspace_title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+      CREATE UNIQUE INDEX workspace_grants_active_target
+        ON workspace_grants (bot_slug, workspace_id) WHERE revoked_at IS NULL;
+      ALTER TABLE assignments ADD COLUMN grant_id TEXT REFERENCES workspace_grants(id);
+      ALTER TABLE assignments ADD COLUMN workspace_id TEXT;
+      ALTER TABLE assignments ADD COLUMN primary_cwd TEXT;
+      ALTER TABLE assignments ADD COLUMN permission_mode TEXT;
+      ALTER TABLE assignments ADD COLUMN approval_policy TEXT;
+      ALTER TABLE assignments ADD COLUMN preset_revision INTEGER;
+    `);
+  },
+};
+
+export const TOOL_APPROVAL_RULE_MIGRATION: SchemaMigration = {
+  generation: 12,
+  module: 'tool-approval-rules',
+  description: 'Persist revocable Human rules for native tool approval',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE tool_approval_rules (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('orchestrator', 'assignment')),
+        scope_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('exact', 'all-opaque')),
+        tool_name TEXT NOT NULL,
+        input TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        revoked_at TEXT
+      );
+      CREATE INDEX tool_approval_rules_lookup
+        ON tool_approval_rules (bot_slug, role, scope_key, active, revoked_at);
+    `);
+  },
+};
+
+export const ASSIGNMENT_ACCESS_MIGRATION: SchemaMigration = {
+  generation: 13,
+  module: 'assignment-access',
+  description: 'Persist Human-owned per-Bot Assignment access preset and audit',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_assignment_access (
+        bot_slug TEXT PRIMARY KEY,
+        mode TEXT NOT NULL CHECK (mode IN ('workspace-write', 'danger-full-access')),
+        revision INTEGER NOT NULL,
+        changed_at TEXT NOT NULL
+      );
+      CREATE TABLE bot_assignment_access_events (
+        bot_slug TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        prior_mode TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        changed_at TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        PRIMARY KEY (bot_slug, revision)
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -199,4 +276,7 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_COLLABORATION_MIGRATION,
   SESSION_PERSONA_SNAPSHOT_MIGRATION,
   MEMORY_ACCEPTED_COMMIT_MIGRATION,
+  WORKSPACE_GRANT_MIGRATION,
+  TOOL_APPROVAL_RULE_MIGRATION,
+  ASSIGNMENT_ACCESS_MIGRATION,
 ]);

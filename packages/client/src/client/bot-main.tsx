@@ -22,7 +22,7 @@ import {
   type ChannelComposerActivity,
   type ChannelComposerUpload,
 } from './channel-composer.js';
-import { ChannelMessageBody } from './channel-message-body.js';
+import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -140,6 +140,10 @@ function MessageGroupView({
   onContextMenu,
   onJumpReply,
   onRestoreFailed,
+  actions,
+  resolvedGrantRequests,
+  toolApprovalDecisions,
+  nativeChatT,
   t,
 }: {
   group: MessageGroup;
@@ -148,7 +152,14 @@ function MessageGroupView({
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
   onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
+  actions: BridgeActions;
+  resolvedGrantRequests: ReadonlySet<string>;
+  toolApprovalDecisions: ReadonlyMap<
+    string,
+    'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected'
+  >;
   t: BotHarnessTranslate;
+  nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const first = group.messages[0]!;
   const last = group.messages.at(-1)!;
@@ -210,7 +221,14 @@ function MessageGroupView({
                 data-group-position={position}
               >
                 <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
-                <ChannelMessageBody message={message} t={t} />
+                <ChannelMessageBody
+                  message={message}
+                  t={t}
+                  nativeChatT={nativeChatT}
+                  actions={actions}
+                  grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                  toolApprovalDecision={toolApprovalDecisions.get(message.id)}
+                />
               </div>
               <button
                 type="button"
@@ -344,11 +362,13 @@ function ConversationView({
   state,
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const sidebar = useChannelSidebar(state);
@@ -797,6 +817,31 @@ function ConversationView({
                   ) : null}
                   <MessageGroupView
                     group={group}
+                    actions={actions}
+                    nativeChatT={nativeChatT}
+                    resolvedGrantRequests={
+                      new Set(
+                        displayMessages
+                          .filter(
+                            (item) =>
+                              item.author.kind === 'human' &&
+                              item.replyTo !== undefined &&
+                              (item.body.startsWith('已授权工作区「') ||
+                                item.body.startsWith('I authorized workspace “')),
+                          )
+                          .map((item) => item.replyTo!),
+                      )
+                    }
+                    toolApprovalDecisions={
+                      new Map(
+                        displayMessages
+                          .filter((item) => item.toolApprovalDecision !== undefined)
+                          .map((item) => [
+                            item.toolApprovalDecision!.requestMessageId,
+                            item.toolApprovalDecision!.outcome,
+                          ]),
+                      )
+                    }
                     focusMessageId={conversation.focusMessageId}
                     bots={state.bots}
                     onContextMenu={(message, x, y) => {
@@ -938,24 +983,36 @@ function ConversationView({
 export function BotMain({
   actions,
   channelSidebar,
+  nativeChatT,
   t = zhTranslate,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
-  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} t={t} />;
+  return (
+    <ConversationView
+      state={state}
+      actions={actions}
+      channelSidebar={channelSidebar}
+      nativeChatT={nativeChatT}
+      t={t}
+    />
+  );
 }
 
 export function BotPanel({
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   useEffect(() => {
@@ -964,5 +1021,7 @@ export function BotPanel({
       store.setMode('dsh');
     };
   }, []);
-  return <BotMain actions={actions} channelSidebar={channelSidebar} t={t} />;
+  return (
+    <BotMain actions={actions} channelSidebar={channelSidebar} nativeChatT={nativeChatT} t={t} />
+  );
 }

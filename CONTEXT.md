@@ -121,8 +121,16 @@ A single host directory a Session works in; it maps one-to-one to a DSH workspac
 _Avoid_: project, multi-root folder, group
 
 **Workspace Grant**:
-A durable, revocable, application-defined authorization that lets one PersonaBot use one resolved Workspace across Assignments. It is reusable after one Human approval and is neither a DSH Workspace nor a per-Assignment prompt.
+A durable, revocable, application-defined authorization for one PersonaBot and one resolved Workspace. Its Orchestrator may read that Workspace; an Assignment selected under the Grant may read and write it. The Grant is neither a DSH Workspace nor a per-Assignment prompt.
 _Avoid_: Service Grant, Workspace, one-time approval, cwd inference
+
+**Tool Approval Rule**:
+A Human-saved, revocable instruction to answer future DSH approval requests automatically for one PersonaBot role and Workspace Grant scope. An exact rule matches the native tool name and complete input; an all-opaque rule covers every opaque native tool in that scope. Each matching call still receives its own DSH approval decision and audit event.
+_Avoid_: Workspace Grant, provider Service Grant, sandbox preset, inferred command similarity
+
+**Assignment Access Preset**:
+A Human-controlled per-PersonaBot choice applied when a new Assignment is created. The default is DSH workspace-write with ask; dangerous full access is an explicit opt-in to DSH danger-full-access with never. The chosen mode is frozen in each Assignment's permission snapshot, while its selected Workspace Grant remains required.
+_Avoid_: Workspace Grant, in-place Session mode switch, Orchestrator permission
 
 **Delegation**:
 Handing responsibility to a PersonaBot from a Chat or the Roster. Its Orchestrator may answer directly or create or reuse one or more Assignment Sessions.
@@ -165,7 +173,7 @@ _Avoid_: PersonaBot export, backup file, disk image
 ### Memory
 
 **Memory**:
-Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. Agents work with those files through ordinary filesystem, Shell, search, and Git capabilities; an accepted Memory Commit makes changes effective.
+Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. The Orchestrator works with those files through its Memory-scoped file capability; an accepted Memory Commit makes changes effective. Unconfined Shell, search, and Git tools are unavailable to Bot-owned Sessions while their read boundary cannot be enforced.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **Memory Repository**:

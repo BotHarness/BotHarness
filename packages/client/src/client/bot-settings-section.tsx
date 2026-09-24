@@ -1,6 +1,6 @@
 import { useState, type ReactElement, type ReactNode } from 'react';
 
-import { IconChevronDownOutline14, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutline14, Menu, Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {
   InjectFace,
   PropsLocale,
@@ -92,6 +92,7 @@ export function BotSettingsSection({
   setMotionPreference,
   setSortMode,
   setBotIcon,
+  setDeveloperMode,
 }: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
@@ -207,6 +208,17 @@ export function BotSettingsSection({
               <IconChevronDownOutline14 className="bh-settings-chevron" />
             </button>
           }
+        />
+      </div>
+      <div className="bh-settings-row bh-developer-row">
+        <div className="bh-settings-row-text">
+          <div className="bh-settings-row-title">{t('developer.row.title')}</div>
+          <div className="bh-settings-row-desc">{t('developer.row.description')}</div>
+        </div>
+        <Switch
+          checked={prefs.developerMode}
+          onChange={setDeveloperMode}
+          label={t('developer.row.title')}
         />
       </div>
       {/* The slot contract types its ReactNode against the DSH client's React

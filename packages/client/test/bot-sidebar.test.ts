@@ -102,6 +102,16 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    listHostFolders: vi.fn(async () => ({
+      path: '/',
+      home: '/',
+      crumbs: [],
+      entries: [],
+      truncated: false,
+    })),
+    addWorkspaceFolder: vi.fn(async () => undefined),
+    authorizeWorkspacePath: vi.fn(async () => ({ id: 'grant-1' }) as never),
+    memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
@@ -124,6 +134,43 @@ function stubActions(): BridgeActions {
     memorySave: vi.fn(async () => {
       throw new Error('not configured');
     }),
+    listWorkspaceOptions: vi.fn(async () => []),
+    listWorkspaceGrants: vi.fn(async () => []),
+    createWorkspaceGrant: vi.fn(async () => ({
+      id: 'grant-1',
+      path: '/project',
+      title: 'Project',
+      botSlug: 'atlas',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: AT,
+    })),
+    assignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    setAssignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    listToolApprovalRules: vi.fn(async () => []),
+    revokeToolApprovalRule: vi.fn(async () => undefined),
+    toolApprovalStatus: vi.fn(async () => 'expired' as const),
+    decideToolApproval: vi.fn(async () => undefined),
+    revokeWorkspaceGrant: vi.fn(async () => ({
+      id: 'grant-1',
+      path: '/project',
+      title: 'Project',
+      botSlug: 'atlas',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: AT,
+      revokedAt: AT,
+    })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
@@ -170,6 +217,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
@@ -228,6 +276,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -516,6 +565,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -557,6 +607,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -639,6 +690,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -651,6 +703,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -679,6 +732,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -692,6 +746,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},

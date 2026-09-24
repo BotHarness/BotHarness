@@ -65,6 +65,7 @@ function fakeScope(): FakeScope {
       status: 'ready',
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
         sortModes: {},

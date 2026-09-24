@@ -2,10 +2,12 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 
 import {
   BOT_MODE_ICON_FIELD,
+  BOT_MODE_DEVELOPER_FIELD,
   BOT_MODE_MOTION_FIELD,
   BOT_MODE_SORT_FIELD,
   BOT_MODE_SORT_MODES_FIELD,
   DEFAULT_BOT_MODE_ICON,
+  DEFAULT_BOT_MODE_DEVELOPER,
   DEFAULT_BOT_MODE_MOTION,
   DEFAULT_BOT_MODE_SORT,
   isBotModeIcon,
@@ -56,6 +58,8 @@ export interface BotModeScope {
 
 /** Live BOT-mode preference published to the sidebar menu and the Settings row. */
 export interface BotModePrefsSnapshot {
+  /** Human-owned toggle for diagnostic Bot-mode details. */
+  developerMode: boolean;
   /** Human-owned preference persisted in the shared settings namespace. */
   motionPreference: BotModeMotionPreference;
   /** Human-owned Bot mark used by the app sidebar and the Settings navigation. */
@@ -93,6 +97,8 @@ export interface BotModePrefsFace {
   setMotionPreference: (preference: BotModeMotionPreference) => void;
   /** Change the Bot mark used across BotHarness surfaces. */
   setBotIcon: (icon: BotModeIcon) => void;
+  /** Show or hide diagnostic controls and history. */
+  setDeveloperMode: (enabled: boolean) => void;
   /** Change the global BOT-mode list sort mode. */
   setSortMode: (mode: BotModeSortMode) => void;
   /** Override one section's sort mode; `undefined` returns it to `inherit`. */
@@ -111,6 +117,9 @@ export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
     },
     setBotIcon: (icon) => {
       prefs.setBotIcon(icon);
+    },
+    setDeveloperMode: (enabled) => {
+      prefs.setDeveloperMode(enabled);
     },
     setSortMode: (mode) => {
       prefs.setSortMode(mode);
@@ -177,6 +186,7 @@ export class BotModePrefs {
     this.source = createSnapshotStore<BotModePrefsSnapshot>({
       motionPreference: DEFAULT_BOT_MODE_MOTION,
       botIcon: DEFAULT_BOT_MODE_ICON,
+      developerMode: DEFAULT_BOT_MODE_DEVELOPER,
       effectiveMotion: resolveEffectiveMotion(DEFAULT_BOT_MODE_MOTION, this.systemReduced),
       sortMode: DEFAULT_BOT_MODE_SORT,
       sortModes: {},
@@ -256,6 +266,15 @@ export class BotModePrefs {
       draft.botIcon = icon;
     });
     if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_ICON_FIELD, icon));
+  }
+
+  /** Publish and persist the diagnostic UI toggle. */
+  setDeveloperMode(enabled: boolean): void {
+    if (this.source.getSnapshot().developerMode === enabled) return;
+    this.source.update((draft) => {
+      draft.developerMode = enabled;
+    });
+    if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_DEVELOPER_FIELD, enabled));
   }
 
   /**
@@ -354,6 +373,7 @@ export class BotModePrefs {
         draft.sortMode = section.sortMode;
         draft.sortModes = { ...section.sortModes };
         draft.botIcon = isBotModeIcon(section.botIcon) ? section.botIcon : DEFAULT_BOT_MODE_ICON;
+        draft.developerMode = section.developerMode === true;
       }
     });
     this.migrate(scope);
