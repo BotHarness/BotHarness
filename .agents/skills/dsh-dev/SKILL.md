@@ -17,25 +17,21 @@ The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). 
 
 ## Dev loop (WSL, fnm node)
 
+Use the worktree's local `@deepseek-ai/dsh@0.1.7-rc.2`, not a global `dsh` binary. The launcher checks the installed version, creates an isolated Web Profile, links all Bundle members as dependencies, enables only the `deepseekbot` umbrella, and probes the authenticated API.
+
 ```bash
-export DSH_HOME="$HOME/.dsh-m35"
-corepack pnpm --dir "$DSH_HOME/profiles/web-dev" add "link:$PWD/packages/core" "link:$PWD/packages/client"
-dsh plugin --profile web-dev add ./packages/deepseekbot
-pnpm build                                    # client: dsh-client-hmr pushes the new revision; host: rides Cordis HMR
-setsid nohup dsh --profile web-dev --no-open > /tmp/dsh-web.log 2>&1 &
+corepack pnpm build
+node scripts/dev-instance.mjs --home /tmp/bh-rc2-web --port 31967 --json
+corepack pnpm dev:client
 ```
 
-- The boot prints a **one-shot token URL** — it rotates on every restart; reopen the URL after restarting.
-- Start with `setsid nohup … &`; a plain `&` dies with the wrapper shell.
-- After a restart, **verify the boot before trusting it**: `references/debugging-playbook.md` §1 (cookie + API probe). A half-booted instance serves the UI but 404s every API.
-- Link `@botharness/core` and `@botharness/client` as ordinary profile dependencies, then add only the `deepseekbot` umbrella through `dsh plugin`. Before boot, verify `dsh.profile.bundles` contains `deepseekbot` but not either member package.
-- Bundle **member** changes need a restart; host code is HMR-live; client code needs `pnpm build`.
-- **Agent one-shot instance**: `node scripts/dev-instance.mjs --home ~/.dsh-<name> --port <port> [--worktree <path>] [--build] [--json]` does the whole ritual (profile from the web template, bundle links to that worktree, install, machine-local `DEEPSEEK_API_KEY`, detached launch, token URL, `/api` probe). Secret resolution: `$DEEPSEEK_API_KEY` > `~/.config/botharness/dev.env` > Keychain `botharness-deepseek`; check with `node scripts/dev-secret.mjs check`. Never write the key into the repo.
-- **First-time shared key adoption**: when an existing protected DSH profile already has the working key but new profiles do not, run `node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>` once. It writes only `DEEPSEEK_API_KEY` to private `~/.config/botharness/dev.env` (0600, create-only); subsequent `dev-instance.mjs` boots inject it into every new isolated profile. Do not print, log, or copy the credential store; see `docs/client-bridge.md` §7. Bare `dsh web` does not run this helper.
+The launch summary includes the Host PID and local login URL. For Client edits, open the Web tab with `?botharness-dev-reload=1`: tsdown rebuilds the linked Client bundle, and this opt-in dev mode refreshes the page when RC2 publishes a rebuilt frame. The native RC2 Client HMR stream reaches the browser, but the active BotHarness shadow slot currently stays mounted without this fallback. For Host edits, build, stop that exact PID, then start the helper again with the same home and port; RC2 Host hot replacement is disabled. Follow `docs/client-bridge.md` §7 for the complete steps and measured timings.
+
+The helper injects a shared machine-local DeepSeek key when available; `node scripts/dev-secret.mjs check` reports its source without a value. Existing Profile credentials are another DSH source. Confirm model access with a real DM reply. `node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>` copies only the DeepSeek reference into a private local file for later isolated Profiles.
 
 ## Profile model
 
-- Isolated `DSH_HOME` (ours: `~/.dsh-m35`); profiles live in `$DSH_HOME/profiles/<name>`: `package.json` (`dsh.profile.bundles`), `cordis.yml`, user patch layer `cordis.patch.yml`, `node_modules` (our bundles via `link:`).
+- Isolated `DSH_HOME` (one directory per worktree/port); profiles live in `$DSH_HOME/profiles/<name>`: `package.json` (`dsh.profile.bundles`), `cordis.yml`, user patch layer `cordis.patch.yml`, `node_modules` (our bundles via `link:`).
 - `dsh web …` initializes the **`web` template** (`dsh-base` + `dsh-web-app`); a bare `dsh --profile <new>` initializes the minimal template (`dsh-base` only). Our `web-dev` = web template + `deepseekbot`.
 - **Always pass `DSH_HOME`** — without it commands silently target `~/.dsh` and initialize profiles there.
 - `cordis.patch.yml` is the bisect tool: disable a plugin (`- id: botharness-core` / `disabled: true`) or override config, no reinstall needed.
@@ -62,16 +58,18 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 | 13 | Connection Fetch route registered without its /api prefix | An authenticated GET to the stream returns generic `not found` even though the plugin loads and unary RPC works | `connection.fetch.register({ path })` matches the full pathname. Register `/api/botharness/stream`, not `/botharness/stream`; verify the exact route in a running Host. This is distinct from and does not replace the API gateway's RPC interceptor (#141). |
 | 14 | `ctx.uiWorkspace.pickDirectory()` throws on a deployment without a picker | `TypeError: Cannot read properties of undefined (reading 'pick')` at call time, although `ctx.inject(['uiWorkspace'])` succeeded and the workspace service answers | The `ui-workspace` client service is provided even when no directory-picker pair is mounted (the web-app bundle's `-auto` chooser mounts one asynchronously; a profile can also end up with none). Treat the picker as optional: probe it, catch the failure, and offer a manual path fallback instead of a dead button. Diagnosed in #168. |
 
-| 13 | One-shot login token needs two visits | hand-rolled `curl`/`fetch` against `/api` gets `401`, then `404 not found`, although the server is healthy | The first visit arms the login, the second returns the session cookie. A pre-flight health check (e.g. `dev-instance.mjs`'s own probe) **consumes** the token, so a manual API drive needs a fresh instance started without a probe; then reuse the cookie jar. |
+| 13 | One-shot login token needs two visits | hand-rolled `curl`/`fetch` against `/api` gets `401`, then `404 not found`, although the server is healthy | The first visit arms the login, the second returns the session cookie. The launch token remains valid for that Host process; the helper also saves a private cookie jar for automated probes. Use the login URL in a browser or the jar for authenticated API calls. |
 | 14 | Driving the bridge by hand | plugin endpoints look absent (`404 not found`) while native `/api/settings/describe` answers `200` | The bridge namespace is `botharness` (the short `n` in an early comment is stale): POST `/api/botharness/<method>` with `method: "botharness/<method>"`. Probe native and plugin endpoints separately before blaming the plugin layer. |
 | 15 | `setsid` on macOS | a manual restart script dies with `command not found: setsid` | This checkout also runs on darwin. Use `scripts/dev-instance.mjs` (detached spawn) or a `( nohup … & )` subshell; never a bare `&`. |
 | 16 | Streaming Fetch route also registered for GET | POST file upload commits, but an authenticated GET for the file returns an empty HTTP 400 | In pinned DSH `connection`'s HTTP bridge, `requestBody: 'streaming'` constructs a Fetch `Request` with a body for every method; Fetch rejects a GET body before the handler runs. Register distinct exact paths: a streaming POST upload route and a buffered GET download route. Rebuild and restart the Host after changing route registration, then verify both methods in a real browser (#146). |
 | 17 | No process-injected dev key is mistaken for no model access | `dev-instance.mjs` reported “model calls will fail,” yet a PersonaBot DM received a real streamed DeepSeek reply | `dsh-credentials-local` resolves inherited environment before `$DSH_HOME/.credentials.yaml`, then project/home `.env`. The AX helper now distinguishes a shared injected key from a profile credential. Confirm the profile source without printing values, then prove usability with a real DM → model → committed Channel reply. |
 | 18 | Runtime skill without explicit `source` lists but never loads | Skill appears in `<available_skills>`; every model `skill({name})` fails `Error: loaded skill "…" source must be a string` | Pinned `dsh-skill` `register()` defaults `provider` (→ `"runtime"`) but not `source`, while `validateDefinition` on the `get()` path requires both as strings. Always pass explicit `source` (e.g. `'runtime'`) and `provider` in `ctx.skills.register()`. Diagnosed live from an exported session zip (`session.v3.jsonl` tool/result) in #248. |
 
+| 19 | Global DSH CLI shadows the worktree's RC2 dependency | The Profile serves 0.1.5 Web assets while the plugin was built against 0.1.7; Bot mode crashes with React's invalid element error because runtime icon exports differ | Launch through `scripts/dev-instance.mjs`, which runs and version-checks the target worktree's local CLI. Verify the browser's served Web asset and Profile before diagnosing UI data. |
+| 20 | RC2 Client rebuilt frame does not remount the active BotHarness shadow slot | `pnpm dev:client` rebuilds in ~0.1 s and `/plugins/events` broadcasts the new revision, but the open Bot mode still shows the old tree | Open the local Web tab with `?botharness-dev-reload=1`. BotHarness's opt-in development listener performs a full page refresh on its own rebuilt frame; reopen Bot mode after refresh. |
 ## Reference
 
-- **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.1.5-rc.2`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.
+- **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.1.7-rc.2`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.
 - `references/debugging-playbook.md` — boot verification, status-code semantics, WS mux probe, bisect recipes, headless puppeteer probe.
 - `references/probe-web.mjs` — headless browser probe (console errors, failed requests, WS, internal fetch); run from the repo.
 - `dsh-ui` skill — in-harness UI rules; `docs/client-bridge.md` §7 — dev loop; ADR-0023 / #50 — bridge transport contract.

@@ -10,7 +10,7 @@ const captured = vi.hoisted(() => ({
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
-    IconChevronDownOutline14: stub,
+    IconChevronDownOutlineRegular: stub,
     Switch: (props: Record<string, unknown>) => {
       captured.switches.push(props);
       return null;

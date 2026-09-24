@@ -1,9 +1,9 @@
 import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
 import {
   Button,
-  IconChevronDownOutline14,
-  IconCloseOutline16,
-  IconFolderOpenOutline16,
+  IconChevronDownOutlineRegular,
+  IconCloseOutlineRegular,
+  IconFolderOpenOutlineRegular,
   Input,
   Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -58,7 +58,7 @@ function FolderRow({
           aria-controls={detailId}
           onClick={() => setExpanded((value) => !value)}
         >
-          <IconChevronDownOutline14
+          <IconChevronDownOutlineRegular
             size={14}
             className={
               expanded ? 'bh-workspace-folder-chevron bh-expanded' : 'bh-workspace-folder-chevron'
@@ -77,7 +77,7 @@ function FolderRow({
             disabled={disabled}
             onClick={remove}
           >
-            <IconCloseOutline16 size={16} />
+            <IconCloseOutlineRegular size={16} />
           </button>
         )}
       </div>
@@ -200,7 +200,7 @@ export function FolderBrowser({
               disabled={busy || loading}
               onClick={() => navigate(entry.path)}
             >
-              <IconFolderOpenOutline16 size={16} />
+              <IconFolderOpenOutlineRegular size={16} />
               <span>{entry.name}</span>
             </button>
           ))}
@@ -525,7 +525,7 @@ export function WorkspaceGrantsEntry({
                         mutate(rule.id, () => actions.revokeToolApprovalRule(botSlug, rule.id))
                       }
                     >
-                      <IconCloseOutline16 />
+                      <IconCloseOutlineRegular />
                     </button>
                   </div>
                   <details className="bh-workspace-folder-secondary">

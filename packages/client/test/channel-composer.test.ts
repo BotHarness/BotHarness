@@ -9,7 +9,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     ...props
   }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & { icon?: unknown }>) =>
     createElement('button', props, children),
-  IconSendOutline16: () => null,
+  IconSendOutlineRegular: () => null,
 }));
 
 import {

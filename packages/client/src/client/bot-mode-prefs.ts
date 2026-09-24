@@ -31,8 +31,8 @@ import {
 
 /** Path-addressed edit accepted by the settings scope (`set`/`unset` inside the namespace). */
 export type BotModePathOp =
-  | { op: 'set'; path: readonly string[]; value: string }
-  | { op: 'unset'; path: readonly string[] };
+  | { op: 'set'; path: string[]; value: string }
+  | { op: 'unset'; path: string[] };
 
 /** Sync state of the Host settings scope the policy consumes. */
 export interface BotModeScopeSnapshot {

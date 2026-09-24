@@ -17,17 +17,17 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     createElement('span', { 'data-icon': name, className: props.className });
   return {
     Button: (props: { children?: ReactNode }) => createElement('button', null, props.children),
-    IconAgentPresetOutline16: icon('IconAgentPresetOutline16'),
-    IconCheckOutline16: icon('IconCheckOutline16'),
-    IconChevronDownOutline14: icon('IconChevronDownOutline14'),
+    IconAgentPresetOutlineRegular: icon('IconAgentPresetOutlineRegular'),
+    IconCheckOutlineRegular: icon('IconCheckOutlineRegular'),
+    IconChevronDownOutlineRegular: icon('IconChevronDownOutlineRegular'),
     IconCloseFill14: icon('IconCloseFill14'),
-    IconEditOutline16: icon('IconEditOutline16'),
-    IconEllipsisOutline16: icon('IconEllipsisOutline16'),
-    IconFolderOpenOutline16: icon('IconFolderOpenOutline16'),
-    IconNewChatOutline16: icon('IconNewChatOutline16'),
-    IconPlusOutline16: icon('IconPlusOutline16'),
-    IconSearchOutline16: icon('IconSearchOutline16'),
-    IconTrashOutline16: icon('IconTrashOutline16'),
+    IconEditOutlineRegular: icon('IconEditOutlineRegular'),
+    IconEllipsisOutlineRegular: icon('IconEllipsisOutlineRegular'),
+    IconFolderOpenOutlineRegular: icon('IconFolderOpenOutlineRegular'),
+    IconNewChatOutlineRegular: icon('IconNewChatOutlineRegular'),
+    IconPlusOutlineRegular: icon('IconPlusOutlineRegular'),
+    IconSearchOutlineRegular: icon('IconSearchOutlineRegular'),
+    IconTrashOutlineRegular: icon('IconTrashOutlineRegular'),
     IconTriangleRightFill14: icon('IconTriangleRightFill14'),
     HoverCard: (props: { anchor: ReactNode; content: ReactNode }) =>
       createElement('span', { 'data-hover-card': 'true' }, props.anchor, props.content),
@@ -310,7 +310,7 @@ describe('bot sidebar rows', () => {
     expect(markup).not.toContain('bh-arrow');
     expect(markup).not.toContain('bh-row-slot');
     expect(markup).toContain('bh-section-name');
-    expect(markup).toContain('data-icon="IconChevronDownOutline14"');
+    expect(markup).toContain('data-icon="IconChevronDownOutlineRegular"');
     expect(markup).toContain('bh-section-chevron');
     expect(markup).not.toContain('bh-chevron-collapsed');
     expect(markup).toContain('bh-row-actions');
@@ -497,9 +497,9 @@ describe('bot sidebar rows', () => {
 
   it('orders the header icons search, ellipsis, plus', () => {
     const markup = renderSidebar();
-    const search = markup.indexOf('data-icon="IconSearchOutline16"');
-    const ellipsis = markup.indexOf('data-icon="IconEllipsisOutline16"');
-    const plus = markup.indexOf('data-icon="IconPlusOutline16"');
+    const search = markup.indexOf('data-icon="IconSearchOutlineRegular"');
+    const ellipsis = markup.indexOf('data-icon="IconEllipsisOutlineRegular"');
+    const plus = markup.indexOf('data-icon="IconPlusOutlineRegular"');
 
     expect(search).toBeGreaterThan(-1);
     expect(ellipsis).toBeGreaterThan(search);

@@ -16,9 +16,9 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
       captured.buttons.push(props);
       return null;
     },
-    IconCheckOutline16: icon('IconCheckOutline16'),
-    IconEditOutline16: stub,
-    IconTrashOutline16: stub,
+    IconCheckOutlineRegular: icon('IconCheckOutlineRegular'),
+    IconEditOutlineRegular: stub,
+    IconTrashOutlineRegular: stub,
     Modal: (props: Record<string, unknown>) => {
       captured.modals.push(props);
       return props['open'] === true
@@ -147,13 +147,13 @@ describe('channel move menu', () => {
   it('marks the current scope with the trailing check and only that row', () => {
     const label = (item: MenuItem): string => renderToStaticMarkup(item.label as never);
     const inSection = (moveItem('s2').submenu ?? []).map(label);
-    expect(inSection[2]).toContain('data-icon="IconCheckOutline16"');
-    expect(inSection[1]).not.toContain('data-icon="IconCheckOutline16"');
-    expect(inSection[3]).not.toContain('data-icon="IconCheckOutline16"');
+    expect(inSection[2]).toContain('data-icon="IconCheckOutlineRegular"');
+    expect(inSection[1]).not.toContain('data-icon="IconCheckOutlineRegular"');
+    expect(inSection[3]).not.toContain('data-icon="IconCheckOutlineRegular"');
 
     const ungrouped = (moveItem(undefined).submenu ?? []).map(label);
-    expect(ungrouped[3]).toContain('data-icon="IconCheckOutline16"');
-    expect(ungrouped[0]).not.toContain('data-icon="IconCheckOutline16"');
+    expect(ungrouped[3]).toContain('data-icon="IconCheckOutlineRegular"');
+    expect(ungrouped[0]).not.toContain('data-icon="IconCheckOutlineRegular"');
   });
 });
 
