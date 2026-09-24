@@ -457,6 +457,75 @@ function ScaledFrame({
 }
 
 /** minimize-2: two arrows converging, used to collapse the fullscreen viewer. */
+/** One operational-log row as the read API returns it. */
+export interface RecentLogRow {
+  readonly id: number;
+  readonly ts: number;
+  readonly plugin: string;
+  readonly owner: string;
+  readonly kind: string;
+  readonly detail: string;
+}
+
+/** Pure newest-first list; the container supplies rows and the empty state. */
+export function RecentLogsList({
+  entries,
+}: {
+  readonly entries: readonly RecentLogRow[];
+}): ReactElement {
+  return (
+    <div style={terminalStyle}>
+      {entries.map((entry) => (
+        <div key={entry.id}>
+          {new Date(entry.ts).toLocaleTimeString()} [{entry.kind}] {entry.detail}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Collapsed "recent activity" section under the resting card chrome.
+ * Fetches once on first expand; a closed section costs no requests.
+ */
+export function RecentLogs({ t }: { readonly t: ComputerTranslate }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState<readonly RecentLogRow[] | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!open || entries !== undefined || failed) return () => {};
+    let cancelled = false;
+    requestJson<{ entries: RecentLogRow[] }>('/api/computer/logs?limit=10')
+      .then((result) => {
+        if (!cancelled) setEntries(result.entries);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, entries, failed]);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(!open)} style={buttonStyle}>
+        {t('entry.recentLogs')}
+      </button>
+      {open ? (
+        failed ? (
+          <div style={noteStyle}>{t('entry.recentLogs.failed')}</div>
+        ) : entries === undefined ? (
+          <div style={noteStyle}>…</div>
+        ) : entries.length === 0 ? (
+          <div style={noteStyle}>{t('entry.recentLogs.empty')}</div>
+        ) : (
+          <RecentLogsList entries={entries} />
+        )
+      ) : null}
+    </div>
+  );
+}
+
 function CollapseIcon(): ReactElement {
   return (
     <svg
@@ -816,6 +885,7 @@ function RunningCard({
               {t('entry.reconnect')}
             </button>
           </div>
+          <RecentLogs t={t} />
         </Fragment>
       )}
     </div>

@@ -86,7 +86,35 @@ export interface OpenLogDatabaseOptions {
 export interface LogDatabase {
   /** Append one entry and lazily prune past retention. Synchronous. */
   write(entry: LogEntryInput): void;
+  /** Read newest-first; filters are all optional AND-ed matches. Synchronous. */
+  query(filter?: LogQuery): LogEntry[];
   close(): void;
+}
+
+/** One stored row: the written fact plus its identity. */
+export interface LogEntry extends LogEntryInput {
+  readonly id: number;
+  readonly ts: number;
+}
+
+/** Default read window; absurd or invalid limits fall back here, never error. */
+export const LOG_QUERY_DEFAULT_LIMIT = 100;
+/** Upper bound on a single read so a viewer cannot ask for the whole file. */
+export const LOG_QUERY_MAX_LIMIT = 1000;
+
+/** Optional AND-ed filters for a newest-first read. */
+export interface LogQuery {
+  readonly plugin?: string;
+  readonly owner?: LogOwnerScope;
+  /**
+   * Causation-entity match: equals against principal, bot,
+   * orchestrator_session, or assignment_session (OR). Trace lookup stays
+   * exact-match capable through this same field when callers pass a trace id.
+   */
+  readonly entity?: string;
+  /** Epoch milliseconds; only rows with ts at or after this. */
+  readonly since?: number;
+  readonly limit?: number;
 }
 
 /** Shipped forward migrations, oldest first — always consulted. */
@@ -271,6 +299,74 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
       } catch {
         swap(openOrRebuild());
         writeRow(entry);
+      }
+    },
+    query(filter?: LogQuery): LogEntry[] {
+      const conditions: string[] = [];
+      const params: (string | number)[] = [];
+      if (filter?.plugin !== undefined && filter.plugin !== '') {
+        conditions.push('plugin = ?');
+        params.push(filter.plugin);
+      }
+      if (filter?.owner !== undefined) {
+        conditions.push('owner = ?');
+        params.push(filter.owner);
+      }
+      if (filter?.entity !== undefined && filter.entity !== '') {
+        conditions.push(
+          '(principal = ? OR bot = ? OR orchestrator_session = ? OR assignment_session = ? OR trace_id = ?)',
+        );
+        params.push(filter.entity, filter.entity, filter.entity, filter.entity, filter.entity);
+      }
+      if (filter?.since !== undefined && Number.isFinite(filter.since)) {
+        conditions.push('ts >= ?');
+        params.push(filter.since);
+      }
+      const limit =
+        filter?.limit !== undefined &&
+        Number.isInteger(filter.limit) &&
+        filter.limit > 0 &&
+        filter.limit <= LOG_QUERY_MAX_LIMIT
+          ? filter.limit
+          : LOG_QUERY_DEFAULT_LIMIT;
+      const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+      try {
+        const rows = database
+          .prepare(
+            `SELECT id, ts, plugin, owner, kind, detail, principal, bot, orchestrator_session, assignment_session, trace_id, payload FROM log_entries ${where} ORDER BY ts DESC, id DESC LIMIT ?`,
+          )
+          .all(...params, limit) as {
+          id: number;
+          ts: number;
+          plugin: string;
+          owner: string;
+          kind: string;
+          detail: string;
+          principal: string | null;
+          bot: string | null;
+          orchestrator_session: string | null;
+          assignment_session: string | null;
+          trace_id: string | null;
+          payload: string | null;
+        }[];
+        return rows.map((row): LogEntry => ({
+          id: row.id,
+          ts: row.ts,
+          plugin: row.plugin,
+          owner: row.owner as LogOwnerScope,
+          kind: row.kind,
+          detail: row.detail,
+          ...(row.principal === null ? {} : { principal: row.principal }),
+          ...(row.bot === null ? {} : { bot: row.bot }),
+          ...(row.orchestrator_session === null
+            ? {}
+            : { orchestratorSession: row.orchestrator_session }),
+          ...(row.assignment_session === null ? {} : { assignmentSession: row.assignment_session }),
+          ...(row.trace_id === null ? {} : { traceId: row.trace_id }),
+          ...(row.payload === null ? {} : { payload: row.payload }),
+        }));
+      } catch {
+        return [];
       }
     },
     close(): void {
