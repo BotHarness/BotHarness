@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
@@ -24,6 +24,7 @@ interface Stubs {
   systemPrompt: { section: ReturnType<typeof vi.fn> };
   sessions: { list: ReturnType<typeof vi.fn> };
   agents: { create: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
+  skills: { register: ReturnType<typeof vi.fn> };
 }
 
 const contexts: Context[] = [];
@@ -48,11 +49,13 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
     systemPrompt: { section: vi.fn(() => () => undefined) },
     sessions: { list: vi.fn(() => []) },
     agents: { create: vi.fn(), resume: vi.fn() },
+    skills: { register: vi.fn(() => () => undefined) },
   };
   ctx.provide('tools', stubs.tools);
   ctx.provide('systemPrompt', stubs.systemPrompt);
   ctx.provide('sessions', stubs.sessions);
   ctx.provide('agents', stubs.agents as never);
+  ctx.provide('skills', stubs.skills);
   return { ctx, stubs };
 }
 
@@ -71,6 +74,7 @@ describe('plugin entry', () => {
     expect(ctx.get('botharnessBridge')).toBeUndefined();
     expect(stubs.tools.register).not.toHaveBeenCalled();
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
+    expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 
   it('provides the core without model-visible memory tools', () => {
@@ -89,6 +93,32 @@ describe('plugin entry', () => {
       runtime: expect.anything(),
     });
     expect(stubs.tools.register).not.toHaveBeenCalled();
+  });
+
+  it('registers the operational-logs skill for model-only reading', async () => {
+    const { ctx, stubs } = createStubContext();
+
+    apply(ctx, { enabled: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(stubs.skills.register).toHaveBeenCalledTimes(1);
+    const registration = stubs.skills.register.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(registration).toMatchObject({
+      name: 'reading-operational-logs',
+      invocation: { modelInvocable: true, userInvocable: false },
+      // The loader validates source/provider as strings on get(): an omitted
+      // source lists fine but fails every model load (#248 live diagnosis).
+      source: 'runtime',
+      provider: 'botharness-core',
+    });
+    expect(typeof registration['description']).toBe('string');
+    expect(typeof registration['content']).toBe('string');
+    expect(registration['content']).toBe(
+      readFileSync(
+        new URL('../../../docs/dev/guides/reading-operational-logs.md', import.meta.url),
+        'utf8',
+      ),
+    );
   });
 
   it('rebuilds the activity projection from owned Session logs and follows live events', () => {

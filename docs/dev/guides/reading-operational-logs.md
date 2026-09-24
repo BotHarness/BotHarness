@@ -19,7 +19,12 @@ $DSH_HOME/botharness/logs.db
 ## Open read-only, never write
 
 - Prefer a read-only open (e.g. Node `new DatabaseSync(path, { readOnly: true })`,
-  or SQLite URI `file:<path>?immutable=1` once `-wal`/`-shm` exist alongside).
+  or SQLite URI `file:<path>?mode=ro`). This reads the `-wal` normally and
+  never takes a write lock.
+- Do NOT use `immutable=1` on the live file: it tells SQLite to ignore the
+  `-wal`, which yields a stale or even table-less view (verified live: the
+  schema itself can live in the WAL). Immutable opens are only for
+  fully-checkpointed copies.
 - Never write, checkpoint, or migrate from an agent session. The Host owns the
   single write connection.
 - Never copy `logs.db` alone for offline analysis: without its `-wal` sidecar
