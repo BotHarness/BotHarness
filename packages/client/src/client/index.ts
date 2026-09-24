@@ -103,7 +103,7 @@ export function apply(ctx: ClientContext): void {
   }, 'botharness: Channel sidebar entries');
 
   ctx.effect(installStyles, 'botharness: client styles');
-  ctx.effect(mountDevClientRefresh, 'botharness: opt-in development refresh');
+  ctx.effect(mountDevClientRefresh, 'botharness: local development refresh');
   ctx.effect(
     () => prefs.attachSystemMotion(browserSystemMotionSource()),
     'botharness: system motion preference',
