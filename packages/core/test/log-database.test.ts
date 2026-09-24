@@ -173,6 +173,82 @@ describe('operational log database', () => {
     expect(LOG_DEFAULT_MAX_AGE_MS).toBe(30 * 24 * 60 * 60 * 1000);
   });
 
+  it('round-trips correlation dimensions, null by default', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'x' });
+      logs.write({
+        plugin: 'channel',
+        owner: 'bot:atlas',
+        kind: 'lifecycle',
+        detail: 'y',
+        principal: 'human-1',
+        bot: 'atlas',
+        orchestratorSession: 'sess-1',
+        assignmentSession: 'sess-2',
+        traceId: 'trace-1',
+      });
+      const database = new DatabaseSync(join(dir, LOG_DB_FILENAME));
+      try {
+        const rows = database
+          .prepare(
+            'SELECT principal, bot, orchestrator_session AS orchestratorSession, assignment_session AS assignmentSession, trace_id AS traceId FROM log_entries ORDER BY id',
+          )
+          .all() as {
+          principal: string | null;
+          bot: string | null;
+          orchestratorSession: string | null;
+          assignmentSession: string | null;
+          traceId: string | null;
+        }[];
+        expect(rows).toEqual([
+          {
+            principal: null,
+            bot: null,
+            orchestratorSession: null,
+            assignmentSession: null,
+            traceId: null,
+          },
+          {
+            principal: 'human-1',
+            bot: 'atlas',
+            orchestratorSession: 'sess-1',
+            assignmentSession: 'sess-2',
+            traceId: 'trace-1',
+          },
+        ]);
+      } finally {
+        database.close();
+      }
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('groups one operation by trace id', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      logs.write({ plugin: 'a', owner: 'profile-shared', kind: 'k', detail: '1', traceId: 't' });
+      logs.write({ plugin: 'b', owner: 'bot:x', kind: 'k', detail: '2', traceId: 't' });
+      logs.write({ plugin: 'a', owner: 'profile-shared', kind: 'k', detail: '3' });
+      const database = new DatabaseSync(join(dir, LOG_DB_FILENAME));
+      try {
+        const details = (
+          database
+            .prepare('SELECT detail FROM log_entries WHERE trace_id = ? ORDER BY id')
+            .all('t') as { detail: string }[]
+        ).map((row) => row.detail);
+        expect(details).toEqual(['1', '2']);
+      } finally {
+        database.close();
+      }
+    } finally {
+      logs.close();
+    }
+  });
+
   it('migrates an older generation forward instead of wiping it', () => {
     const dir = makeDir();
     const now = Date.now();
@@ -193,7 +269,14 @@ describe('operational log database', () => {
         {
           from: 0,
           migrate: (db) => {
-            db.exec('CREATE INDEX log_entries_ts ON log_entries (ts);');
+            db.exec(`
+              ALTER TABLE log_entries ADD COLUMN principal TEXT;
+              ALTER TABLE log_entries ADD COLUMN bot TEXT;
+              ALTER TABLE log_entries ADD COLUMN orchestrator_session TEXT;
+              ALTER TABLE log_entries ADD COLUMN assignment_session TEXT;
+              ALTER TABLE log_entries ADD COLUMN trace_id TEXT;
+              CREATE INDEX log_entries_ts ON log_entries (ts);
+            `);
           },
         },
       ],
