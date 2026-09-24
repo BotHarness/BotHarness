@@ -3,15 +3,11 @@
  *
  * The RC2 Host publishes rebuilt frames, but replacing an active BotHarness
  * shadow slot can leave the old React tree on screen. A full document refresh
- * is predictable during UI development and leaves normal installations alone.
+ * is predictable during local UI development and leaves remote installations alone.
  */
 export function mountDevClientRefresh(): () => void {
   if (typeof window === 'undefined' || typeof EventSource === 'undefined') return () => {};
-  const flag = 'botharness:dev-reload';
-  if (new URLSearchParams(window.location.search).get('botharness-dev-reload') === '1') {
-    window.sessionStorage.setItem(flag, '1');
-  }
-  if (window.sessionStorage.getItem(flag) !== '1') return () => {};
+  if (!['127.0.0.1', 'localhost'].includes(window.location.hostname)) return () => {};
   const source = new EventSource('plugins/events');
   const onMessage = (event: MessageEvent<string>): void => {
     try {

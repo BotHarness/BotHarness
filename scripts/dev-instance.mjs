@@ -33,11 +33,17 @@ function dshCommand(worktree) {
   }
   const expected = JSON.parse(readFileSync(join(worktree, 'package.json'), 'utf8'))
     .devDependencies?.['@deepseek-ai/dsh'];
-  const actual = JSON.parse(readFileSync(join(installedRoot, 'package.json'), 'utf8')).version;
+  const actual = installedDshVersion(worktree);
   if (actual !== expected) {
     throw new Error(`local DSH CLI mismatch: expected ${expected}, found ${actual}`);
   }
   return [process.execPath, cli];
+}
+
+function installedDshVersion(worktree) {
+  return JSON.parse(
+    readFileSync(join(worktree, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), 'utf8'),
+  ).version;
 }
 
 function parseArgs(argv) {
@@ -111,12 +117,7 @@ function ensureProfile(options) {
   );
   if (existsSync(profileCliManifest)) {
     const profileVersion = JSON.parse(readFileSync(profileCliManifest, 'utf8')).version;
-    const localVersion = JSON.parse(
-      readFileSync(
-        join(options.worktree, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'),
-        'utf8',
-      ),
-    ).version;
+    const localVersion = installedDshVersion(options.worktree);
     if (profileVersion !== localVersion) {
       throw new Error(
         `Profile was created with DSH ${profileVersion}, but this worktree uses ${localVersion}; choose a fresh --home`,
@@ -191,7 +192,7 @@ async function verifyPluginLayer(url, options) {
   const login = await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const setCookie = login.headers.get('set-cookie');
   if (setCookie !== null) writeFileSync(jar, setCookie);
-  const probe = await fetch(`${base}/api/settings/describe`, {
+  const probe = await fetch(`${base}/api/botharness/list`, {
     signal: AbortSignal.timeout(10_000),
     method: 'POST',
     headers: {
@@ -201,12 +202,17 @@ async function verifyPluginLayer(url, options) {
     body: JSON.stringify({
       type: 'client-request',
       rpcId: 'dev-instance-probe',
-      method: 'settings/describe',
+      method: 'botharness/list',
       payload: { args: {} },
     }),
   });
-  const text = await probe.text();
-  return { status: probe.status, ok: probe.status === 200 && text.includes('server-response') };
+  const envelope = await probe.json().catch(() => undefined);
+  return {
+    status: probe.status,
+    ok: probe.status === 200 && envelope?.result?.ok === true,
+    error:
+      envelope?.result?.error?.code ?? (envelope === undefined ? 'invalid-response' : undefined),
+  };
 }
 
 async function main() {
@@ -219,6 +225,12 @@ async function main() {
   const { child, logPath } = launch(options);
   const url = await waitForToken(logPath);
   const health = await verifyPluginLayer(url, options);
+  if (!health.ok) {
+    child.kill();
+    throw new Error(
+      `BotHarness API is unavailable (HTTP ${health.status}, ${health.error ?? 'unknown'}); see ${logPath}`,
+    );
+  }
   const summary = {
     pid: child.pid,
     url,

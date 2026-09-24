@@ -120,7 +120,7 @@ corepack pnpm dev:client
 ```
 
 - 启动器从 Web 模板创建 Profile，将 Core、Client 和 DeepSeekBot 本地链接；只有 umbrella Bundle `deepseekbot` 出现在 `dsh.profile.bundles`。它检查认证 API Gateway，JSON 摘要包含进程 PID、健康状态和本地登录 URL。登录 URL 仅用于本机浏览器，不写入 Issue 或日志。
-- 打开登录 URL 后，在地址栏加 `?botharness-dev-reload=1` 启用当前标签页的开发刷新。监听器只构建 Client bundle；DSH RC2 Host 会推送 rebuilt 事件，但当前 BotHarness shadow slot 未在原生 Client HMR 中重挂载，因此此显式开发开关在事件到达时整页刷新。一般 UI 改动不需要重启 Host；刷新会回到原生页面，重新点击 Bot mode 即可。此开关不影响普通安装。
+- 在本机打开登录 URL，运行 `pnpm dev:client` 后，Client bundle 改动会自动构建并刷新页面。DSH RC2 虽推送 rebuilt 事件，但当前 BotHarness shadow slot 不会被原生 Client HMR 重挂载，因此本机 Client 在该事件到达时整页刷新。一般 UI 改动无需重启 Host；刷新后重新点击 Bot mode。
 - Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。RC2 的 Host 热替换当前关闭；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
 - 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。
 - 自动回归：`node scripts/e2e-rc2-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。

@@ -37,7 +37,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
-- The local BotHarness development path now targets DSH 0.1.7 RC2: isolated Web Profiles use the worktree's verified CLI, linked Client edits can rebuild and refresh automatically, and Host edits use an explicit restart; real Web creation and Git Memory survive that restart ([#265](https://github.com/BotHarness/BotHarness/issues/265)).
+- Local BotHarness development now supports DSH 0.1.7 RC2 Web Profiles, with automatic Client refresh and a documented Host restart path ([#265](https://github.com/BotHarness/BotHarness/issues/265)).
 
 - Channel Bot bubbles now use the former Human grey surface, while Human bubbles use the DSH theme’s inverse neutral palette with readable text, reply excerpts, and file attachments in both light and dark themes ([#255](https://github.com/BotHarness/BotHarness/issues/255)).
 - Operational logs gained a durable home: a lightweight `logs.db` beside the profile (versioned schema, rebuild-empty worst case, 50k rows + 30 days lazy retention, owner-scoped reads) that the Computer diagnostics ring now drains into, so debugging survives restarts ([#240](https://github.com/BotHarness/BotHarness/issues/240), [ADR-0063](docs/adr/0063-operational-log-database.md)).

@@ -37,7 +37,7 @@
 
 ### Changed
 
-- BotHarness 本地开发路径现以 DSH 0.1.7 RC2 为目标：隔离 Web Profile 使用经过版本校验的工作树 CLI，本地链接的 Client 改动可自动构建并刷新，Host 改动按明确步骤重启；真实 Web 创建的 PersonaBot 与 Git Memory 在重启后仍可读取（[#265](https://github.com/BotHarness/BotHarness/issues/265)）。
+- BotHarness 本地开发现支持 DSH 0.1.7 RC2 Web Profile：Client 改动可自动刷新，Host 改动有明确的重启步骤（[#265](https://github.com/BotHarness/BotHarness/issues/265)）。
 
 - Channel 的 Bot 消息气泡改用原先 Human 的灰色底；Human 气泡则使用 DSH 主题的反色中性色，浅色主题近黑、深色主题近白，文字、引用摘要和文件附件在两种主题下均保持可读（[#255](https://github.com/BotHarness/BotHarness/issues/255)）。
 - 运行日志有了持久家：profile 旁的轻量 `logs.db`（版本化 schema、最坏重建空库、5 万行 + 30 天懒清理、按 owner 域读），Computer 诊断 ring 现会写入它，排障可跨重启（[#240](https://github.com/BotHarness/BotHarness/issues/240)、[ADR-0063](docs/adr/0063-operational-log-database.md)）。
