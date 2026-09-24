@@ -14,7 +14,7 @@ import { DatabaseSync } from 'node:sqlite';
 export const LOG_DB_FILENAME = 'logs.db';
 
 /** Schema generation this code reads and writes. */
-export const LOG_DB_VERSION = 1;
+export const LOG_DB_VERSION = 2;
 
 /** Locked retention defaults (ADR-0063): 50k rows, 30 days. */
 export const LOG_DEFAULT_MAX_ROWS = 50_000;
@@ -55,6 +55,12 @@ export interface LogEntryInput {
   readonly assignmentSession?: string;
   /** One end-to-end operation instance spanning plugins, if any. */
   readonly traceId?: string;
+  /**
+   * Plugin-specific structured extras as JSON text. Fixed dimensions live
+   * in columns; this is the documented overflow for per-plugin shapes the
+   * table does not model. Must be valid JSON when present (enforced).
+   */
+  readonly payload?: string;
 }
 
 /** One forward-migration step from a previous generation. */
@@ -83,6 +89,18 @@ export interface LogDatabase {
   close(): void;
 }
 
+/** Shipped forward migrations, oldest first — always consulted. */
+const BUILTIN_MIGRATIONS: readonly LogMigration[] = [
+  {
+    from: 1,
+    migrate: (database) => {
+      database.exec(`
+        ALTER TABLE log_entries ADD COLUMN payload TEXT CHECK (payload IS NULL OR json_valid(payload));
+      `);
+    },
+  },
+];
+
 function dbPath(dir: string): string {
   return join(dir, LOG_DB_FILENAME);
 }
@@ -105,7 +123,8 @@ function createSchema(database: DatabaseSync): void {
       bot TEXT,
       orchestrator_session TEXT,
       assignment_session TEXT,
-      trace_id TEXT
+      trace_id TEXT,
+      payload TEXT CHECK (payload IS NULL OR json_valid(payload))
     ) STRICT;
     CREATE INDEX log_entries_ts ON log_entries (ts);
     CREATE INDEX log_entries_plugin_owner ON log_entries (plugin, owner);
@@ -147,7 +166,11 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
   const now = options.now ?? Date.now;
   const maxRows = options.maxRows ?? LOG_DEFAULT_MAX_ROWS;
   const maxAgeMs = options.maxAgeMs ?? LOG_DEFAULT_MAX_AGE_MS;
-  const migrations = options.migrations ?? [];
+  // Built-in history first, caller extras after: every shipped generation
+  // stays reachable no matter which options the caller passes.
+  const chain = [...BUILTIN_MIGRATIONS, ...(options.migrations ?? [])].sort(
+    (a, b) => a.from - b.from,
+  );
   const path = dbPath(options.dir);
 
   /** Destroy and recreate; the only recovery this store knows. */
@@ -166,7 +189,7 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
     if (from > LOG_DB_VERSION) return false;
     let version = from;
     while (version < LOG_DB_VERSION) {
-      const step = migrations.find((m) => m.from === version);
+      const step = chain.find((m) => m.from === version);
       if (step === undefined) return false;
       step.migrate(database);
       version += 1;
@@ -215,7 +238,7 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
     const at = entry.ts ?? now();
     database
       .prepare(
-        'INSERT INTO log_entries (ts, plugin, owner, kind, detail, principal, bot, orchestrator_session, assignment_session, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        'INSERT INTO log_entries (ts, plugin, owner, kind, detail, principal, bot, orchestrator_session, assignment_session, trace_id, payload) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       )
       .run(
         at,
@@ -228,6 +251,7 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
         entry.orchestratorSession ?? null,
         entry.assignmentSession ?? null,
         entry.traceId ?? null,
+        entry.payload ?? null,
       );
     database.prepare('DELETE FROM log_entries WHERE ts < ?').run(at - maxAgeMs);
     database
