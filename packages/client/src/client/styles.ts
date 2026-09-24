@@ -9,6 +9,14 @@ export const CSS =
   --bh-hover: var(--dsw-alias-interactive-bg-hover);
   --bh-selected: var(--dsw-specific-sidebar-nav-item-active);
   /* @bh-brand-aliases:end */
+  /* @bh-memory-graph-aliases:start — the pinned DSH theme has no radius
+     variables; these match its measured 4/6/10px native controls. */
+  --bh-memory-radius-chip: 4px;
+  --bh-memory-radius-count: 5px;
+  --bh-memory-radius-row: 6px;
+  --bh-memory-radius-card: 10px;
+  --bh-memory-font-code: var(--dsw-font-markdown-code-block-font-family);
+  /* @bh-memory-graph-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
 }
@@ -2732,4 +2740,199 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-tool-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .bh-tool-approval-confirm, .bh-access-warning { display: grid; gap: 8px; padding: 10px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 8px; }
 .bh-assignment-access-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+
+.bh-memory-history {
+  gap: 0;
+  margin-top: 8px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-memory-graph-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+}
+.bh-memory-graph-heading strong {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.bh-memory-graph-count {
+  padding: 0 5px;
+  border-radius: var(--bh-memory-radius-count);
+  background: var(--dsw-alias-button-ghost-active-fill);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+  line-height: 17px;
+}
+.bh-memory-graph-meta {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  margin-bottom: 3px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+.bh-memory-graph-branch {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-memory-graph-dirty {
+  flex: none;
+}
+.bh-memory-graph-list {
+  min-width: 0;
+  overflow-x: auto;
+}
+.bh-memory-graph-row {
+  display: flex;
+  align-items: stretch;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 46px;
+  gap: 8px;
+  border: 0;
+  border-radius: var(--bh-memory-radius-row);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  padding: 0 4px;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-memory-graph-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-memory-graph-row[aria-pressed='true'] {
+  background: var(--bh-selected);
+}
+.bh-memory-graph-svg {
+  flex: none;
+  display: block;
+  align-self: stretch;
+  overflow: visible;
+}
+.bh-memory-graph-svg path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.bh-memory-graph-svg path[data-lane='0'],
+.bh-memory-graph-svg circle[data-lane='0'] { stroke: var(--dsw-alias-state-business-primary); }
+.bh-memory-graph-svg path[data-lane='1'],
+.bh-memory-graph-svg circle[data-lane='1'] { stroke: var(--dsw-alias-state-warn-primary); }
+.bh-memory-graph-svg path[data-lane='2'],
+.bh-memory-graph-svg circle[data-lane='2'] { stroke: var(--dsw-alias-state-success-primary); }
+.bh-memory-graph-svg path[data-lane='3'],
+.bh-memory-graph-svg circle[data-lane='3'] { stroke: var(--dsw-alias-state-error-primary); }
+.bh-memory-graph-svg circle {
+  stroke-width: 1.5;
+  fill: var(--dsw-alias-state-business-primary);
+}
+.bh-memory-graph-svg circle[data-lane='1'] { fill: var(--dsw-alias-state-warn-primary); }
+.bh-memory-graph-svg circle[data-lane='2'] { fill: var(--dsw-alias-state-success-primary); }
+.bh-memory-graph-svg circle[data-lane='3'] { fill: var(--dsw-alias-state-error-primary); }
+.bh-memory-graph-svg circle[data-head='true'] {
+  fill: var(--dsw-alias-bg-base);
+  stroke-width: 2;
+}
+.bh-memory-graph-text {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 0 8px;
+}
+.bh-memory-graph-top {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+.bh-memory-graph-subject {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  line-height: 16px;
+}
+.bh-memory-graph-detail {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 7px;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+  line-height: 16px;
+}
+.bh-memory-graph-hash {
+  font-family: var(--bh-memory-font-code);
+  font-variant-numeric: tabular-nums;
+}
+.bh-memory-ref {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  max-width: 84px;
+  height: 16px;
+  overflow: hidden;
+  padding: 0 6px;
+  border-radius: var(--bh-memory-radius-chip);
+  background: var(--dsw-alias-button-ghost-active-fill);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-memory-ref[data-current='true'] {
+  background: var(--dsw-alias-state-business-tertiary);
+  color: var(--dsw-alias-state-business-primary);
+}
+.bh-memory-graph-head-label {
+  color: var(--dsw-alias-state-business-primary);
+  font-weight: 600;
+}
+.bh-memory-commit-status {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-memory-commit-status-needs-repair {
+  color: var(--dsw-alias-state-warn-primary);
+}
+.bh-memory-commit-status-pending {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-memory-graph-more {
+  border: 0;
+  background: transparent;
+  padding: 8px 4px;
+  color: var(--dsw-alias-label-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+.bh-memory-graph-more:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 20px 28px; color: var(--dsw-alias-label-primary); }
+.bh-memory-commit-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.bh-memory-commit-header button { border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-row); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); padding: 7px 10px; cursor: pointer; }
+.bh-memory-commit-header div { display: flex; flex-direction: column; gap: 2px; }
+.bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-memory-commit-files { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }
+.bh-memory-commit-files strong { font-size: 12px; color: var(--dsw-alias-label-secondary); margin-bottom: 3px; }
+.bh-memory-commit-file { display: flex; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.bh-memory-file-status { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); }
+.bh-memory-commit-code { overflow: auto; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-card); padding: 10px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.6; white-space: pre; }
+.bh-memory-commit-code > div { padding: 0 14px; min-height: 1.55em; }
+.bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
+.bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
+.bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
 `;

@@ -66,6 +66,30 @@ export interface MemoryAcceptedSnapshot {
   provisional: boolean;
 }
 
+/** A raw Git view; acceptance remains an independent authority. */
+export interface MemoryGitCommit {
+  sha: string;
+  parents: string[];
+  subject: string;
+  authoredAt: string;
+  branches: string[];
+  status: 'accepted' | 'pending' | 'needs-repair';
+}
+
+export interface MemoryGitGraph {
+  head: string;
+  currentBranch: string | null;
+  dirty: boolean;
+  commits: MemoryGitCommit[];
+  hasMore: boolean;
+}
+
+export interface MemoryGitCommitDiff {
+  sha: string;
+  files: { path: string; status: string }[];
+  diff: string;
+}
+
 export interface MemoryAcceptance {
   prepareTurn(botSlug: string, sessionId: string): void;
   reconcileTurn(input: {
@@ -81,6 +105,8 @@ export interface MemoryAcceptance {
   ): { path: string; body: string; head: string } | undefined;
   history(botSlug: string, limit?: number): MemoryAcceptedCommit[];
   diff(botSlug: string, sha: string): { sha: string; diff: string };
+  gitGraph(botSlug: string, offset?: number): MemoryGitGraph;
+  gitCommitDiff(botSlug: string, sha: string): MemoryGitCommitDiff;
   repairHuman(input: {
     botSlug: string;
     expectedHead: string;
@@ -369,6 +395,23 @@ export function createMemoryAcceptance(options: {
     const root =
       canonical !== undefined && existsSync(join(canonical, '.git')) ? canonical : archive;
     return { root: verifiedRepository(root, botSlug), repairing: true };
+  };
+
+  const graphRepository = (botSlug: string): string => {
+    const root = registry.memoryDirFor(botSlug);
+    if (
+      root === undefined ||
+      !existsSync(join(root, '.git')) ||
+      !lstatSync(join(root, '.git')).isDirectory() ||
+      lstatSync(join(root, '.git')).isSymbolicLink()
+    ) {
+      throw new MemoryAcceptError(
+        'memory-unavailable',
+        `Memory Repository unavailable: ${botSlug}`,
+      );
+    }
+    assertSafeGitMetadata(root);
+    return root;
   };
 
   const acceptedHead = (botSlug: string): string | null =>
@@ -664,6 +707,141 @@ export function createMemoryAcceptance(options: {
       const bytes = run(root, ['show', `${accepted}:${relative}`], MAX_FILE_BYTES + 1);
       validateBytes(bytes, relative);
       return { path: relative, body: bytes.toString('utf8'), head: accepted };
+    },
+    gitGraph(botSlug, offset = 0) {
+      if (!Number.isInteger(offset) || offset < 0 || offset > 10_000) {
+        throw new MemoryAcceptError('memory-invalid', 'Invalid Memory graph offset');
+      }
+      const root = graphRepository(botSlug);
+      const branchMap = new Map<string, string[]>();
+      for (const line of output(root, [
+        'for-each-ref',
+        '--format=%(objectname) %(refname:short)',
+        'refs/heads',
+      ]).split('\n')) {
+        if (line.length === 0) continue;
+        const separator = line.indexOf(' ');
+        if (separator < 0) continue;
+        const sha = line.slice(0, separator);
+        branchMap.set(sha, [...(branchMap.get(sha) ?? []), line.slice(separator + 1)]);
+      }
+      const currentHead = head(root);
+      let currentBranch: string | null;
+      try {
+        currentBranch = output(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
+      } catch {
+        currentBranch = null;
+      }
+      const acceptedCurrent = acceptedHead(botSlug);
+      const repairing =
+        pendingRepair(botSlug)?.provisional_head_sha ??
+        (currentBranch === 'main' && acceptedCurrent !== null && currentHead !== acceptedCurrent
+          ? currentHead
+          : undefined);
+      const lines = output(root, [
+        'log',
+        '--branches',
+        'HEAD',
+        '--topo-order',
+        `--skip=${offset}`,
+        '--max-count=61',
+        '--format=%H%x1f%P%x1f%s%x1f%aI',
+      ])
+        .split('\n')
+        .filter(Boolean);
+      const displayedShas = lines.slice(0, 60).map((line) => line.slice(0, 40));
+      const accepted = database.read((db) => {
+        const lookup = db.prepare(
+          'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
+        );
+        return new Set(
+          displayedShas.filter((sha) => {
+            if (!/^[0-9a-f]{40}$/u.test(sha)) return false;
+            return lookup.get(botSlug, sha) !== undefined;
+          }),
+        );
+      });
+      const commits = lines.slice(0, 60).map((line): MemoryGitCommit => {
+        const [sha = '', parents = '', subject = '', authoredAt = ''] = line.split('\x1f');
+        if (!/^[0-9a-f]{40}$/u.test(sha))
+          throw new MemoryAcceptError('memory-invalid', 'Invalid Memory Git commit');
+        return {
+          sha,
+          parents: parents === '' ? [] : parents.split(' '),
+          subject,
+          authoredAt,
+          branches: branchMap.get(sha) ?? [],
+          status: sha === repairing ? 'needs-repair' : accepted.has(sha) ? 'accepted' : 'pending',
+        };
+      });
+      return {
+        head: currentHead,
+        currentBranch,
+        dirty: dirty(root),
+        commits,
+        hasMore: lines.length > 60,
+      };
+    },
+    gitCommitDiff(botSlug, sha) {
+      if (!/^[0-9a-f]{40}$/u.test(sha)) {
+        throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
+      }
+      const root = graphRepository(botSlug);
+      let objectType: string;
+      try {
+        objectType = output(root, ['cat-file', '-t', sha]);
+      } catch {
+        throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
+      }
+      if (objectType !== 'commit') {
+        throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
+      }
+      const containing = output(root, ['branch', '--contains', sha, '--format=%(refname:short)']);
+      let reachableFromHead = false;
+      try {
+        run(root, ['merge-base', '--is-ancestor', sha, 'HEAD']);
+        reachableFromHead = true;
+      } catch {
+        // A side branch can be selected while HEAD remains elsewhere.
+      }
+      if (containing.length === 0 && !reachableFromHead) {
+        throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
+      }
+      const parents = output(root, ['rev-list', '--parents', '-n', '1', sha]).split(' ').slice(1);
+      const firstParent = parents[0];
+      const range = firstParent === undefined ? [sha] : [firstParent, sha];
+      const nameStatus = run(
+        root,
+        firstParent === undefined
+          ? [
+              'diff-tree',
+              '--root',
+              '--no-renames',
+              '--no-commit-id',
+              '--name-status',
+              '-r',
+              '-z',
+              sha,
+            ]
+          : ['diff', '--no-renames', '--name-status', '-z', ...range],
+      )
+        .toString('utf8')
+        .split('\0')
+        .filter(Boolean);
+      const files: MemoryGitCommitDiff['files'] = [];
+      for (let index = 0; index < nameStatus.length; index += 2) {
+        files.push({ status: nameStatus[index] ?? '', path: nameStatus[index + 1] ?? '' });
+      }
+      return {
+        sha,
+        files,
+        diff: output(
+          root,
+          firstParent === undefined
+            ? ['show', '--format=', '--no-ext-diff', '--no-textconv', '--no-renames', '--root', sha]
+            : ['diff', '--no-ext-diff', '--no-textconv', '--no-renames', ...range],
+        ),
+      };
     },
     history(botSlug, limit = 20) {
       const { root } = readRepository(botSlug);

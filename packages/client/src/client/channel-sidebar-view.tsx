@@ -176,12 +176,16 @@ export function ChannelSidebar({
   actions,
   controller,
   t,
+  onMemoryCommitSelect,
+  selectedMemoryCommitSha,
 }: {
   registry: ChannelSidebarRegistry;
   state: ClientState;
   actions: BridgeActions;
   controller: ChannelSidebarController;
   t: BotHarnessTranslate;
+  onMemoryCommitSelect?: ((sha: string) => void) | undefined;
+  selectedMemoryCommitSha?: string | undefined;
 }): ReactElement | null {
   const selection = state.selection;
   const channel = state.conversation.channel;
@@ -215,6 +219,8 @@ export function ChannelSidebar({
     botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
     actions,
     t,
+    onMemoryCommitSelect,
+    selectedMemoryCommitSha,
   };
   const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (

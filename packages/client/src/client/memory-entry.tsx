@@ -1,37 +1,69 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
-import type { MemoryAcceptedCommit, MemorySnapshot } from './bridge.js';
+import type { MemoryGitGraph, MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import {
+  layoutMemoryGitLanes,
+  memoryGraphLaneX,
+  memoryGraphRailPath,
+  MEMORY_GRAPH_LANE_WIDTH,
+  MEMORY_GRAPH_NODE_Y,
+  MEMORY_GRAPH_ROW_HEIGHT,
+} from './memory-git-lanes.js';
 
-export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps): ReactElement {
+export function MemoryEntry({
+  actions,
+  channelId,
+  onMemoryCommitSelect,
+  selectedMemoryCommitSha,
+  t,
+}: ChannelSidebarEntryProps): ReactElement {
   const [refresh, setRefresh] = useState(0);
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
-  const [history, setHistory] = useState<MemoryAcceptedCommit[]>([]);
+  const [graph, setGraph] = useState<MemoryGitGraph>();
+  const [loadingMore, setLoadingMore] = useState(false);
   const [path, setPath] = useState<string>();
   const [file, setFile] = useState<{ path: string; body: string; head: string }>();
   const [draft, setDraft] = useState('');
-  const [sha, setSha] = useState<string>();
-  const [diff, setDiff] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [confirmRepair, setConfirmRepair] = useState(false);
   const [repairArchive, setRepairArchive] = useState<string>();
   const [error, setError] = useState<string>();
+  const [snapshotError, setSnapshotError] = useState<string>();
+  const [graphError, setGraphError] = useState<string>();
+  const lanes = layoutMemoryGitLanes(graph?.commits ?? []);
 
   useEffect(() => {
     let active = true;
     setError(undefined);
+    setSnapshotError(undefined);
+    setGraphError(undefined);
     setSnapshot(undefined);
-    void Promise.all([actions.memorySnapshot(channelId), actions.memoryHistory(channelId)])
-      .then(([next, commits]) => {
+    setGraph(undefined);
+    void actions
+      .memorySnapshot(channelId)
+      .then((next) => {
         if (!active) return;
         setSnapshot(next);
-        setHistory(commits);
         setPath((current) =>
           current !== undefined && next.files.includes(current) ? current : next.files[0],
         );
       })
       .catch((failure: unknown) => {
-        if (active) setError(failure instanceof Error ? failure.message : String(failure));
+        if (active) setSnapshotError(failure instanceof Error ? failure.message : String(failure));
+      })
+      .finally(() => {
+        // Snapshot may bootstrap the seed acceptance fact. On a side branch it
+        // rejects, but the raw graph remains independently readable.
+        if (!active) return;
+        void actions
+          .memoryGitGraph(channelId, 0)
+          .then((next) => {
+            if (active) setGraph(next);
+          })
+          .catch((failure: unknown) => {
+            if (active) setGraphError(failure instanceof Error ? failure.message : String(failure));
+          });
       });
     return () => {
       active = false;
@@ -59,23 +91,18 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
     };
   }, [actions, channelId, path, refresh]);
 
-  useEffect(() => {
-    let active = true;
-    setDiff(undefined);
-    if (sha !== undefined) {
-      void actions
-        .memoryDiff(channelId, sha)
-        .then((next) => {
-          if (active) setDiff(next);
-        })
-        .catch((failure: unknown) => {
-          if (active) setError(failure instanceof Error ? failure.message : String(failure));
-        });
+  const loadMore = async (): Promise<void> => {
+    if (graph === undefined || !graph.hasMore || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const next = await actions.memoryGitGraph(channelId, graph.commits.length);
+      setGraph({ ...next, commits: [...graph.commits, ...next.commits] });
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setLoadingMore(false);
     }
-    return () => {
-      active = false;
-    };
-  }, [actions, channelId, sha]);
+  };
 
   const save = async (): Promise<void> => {
     if (file === undefined || busy || draft === file.body) return;
@@ -89,7 +116,7 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
         expectedHead: file.head,
         editId: crypto.randomUUID(),
       });
-      setSha(commit.sha);
+      onMemoryCommitSelect?.(commit.sha);
       setRefresh((value) => value + 1);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
@@ -132,7 +159,15 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
         </div>
       )}
       {snapshot === undefined ? (
-        <div className="bh-note">{t('memory.loading')}</div>
+        snapshotError === undefined ? (
+          <div className="bh-note">{t('memory.loading')}</div>
+        ) : graph !== undefined && graph.currentBranch !== 'main' ? (
+          <div className="bh-note">{t('memory.acceptedOnMainOnly')}</div>
+        ) : (
+          <div className="bh-error" role="alert">
+            {snapshotError}
+          </div>
+        )
       ) : (
         <>
           {snapshot.provisional ? (
@@ -197,31 +232,150 @@ export function MemoryEntry({ actions, channelId, t }: ChannelSidebarEntryProps)
               </button>
             </div>
           )}
-          <div className="bh-memory-history">
-            <strong>{t('memory.history')}</strong>
-            {history.map((commit) => (
-              <button
-                type="button"
-                key={commit.sha}
-                className={
-                  commit.sha === sha ? 'bh-memory-row bh-memory-row-selected' : 'bh-memory-row'
-                }
-                aria-pressed={commit.sha === sha}
-                onClick={() => setSha(commit.sha)}
-                title={commit.sha}
-              >
-                {commit.sha.slice(0, 7)} · {commit.actorKind} ·{' '}
-                {new Date(commit.acceptedAt).toLocaleString()}
-              </button>
-            ))}
-            {diff === undefined ? null : (
-              <pre className="bh-memory-diff" aria-label={t('memory.diff')}>
-                {diff}
-              </pre>
-            )}
-          </div>
         </>
       )}
+      <div className="bh-memory-history">
+        <div className="bh-memory-graph-heading">
+          <strong>{t('memory.gitGraph')}</strong>
+          {graph === undefined ? null : (
+            <span className="bh-memory-graph-count">
+              {graph.commits.length}
+              {graph.hasMore ? '+' : ''}
+            </span>
+          )}
+        </div>
+        {graph === undefined ? (
+          graphError === undefined ? (
+            <div className="bh-note">{t('memory.loading')}</div>
+          ) : (
+            <div className="bh-error" role="alert">
+              {graphError}
+            </div>
+          )
+        ) : (
+          <>
+            <div className="bh-memory-graph-meta">
+              <span className="bh-memory-graph-branch">
+                {graph.currentBranch === null ? t('memory.detached') : graph.currentBranch}
+              </span>
+              {graph.dirty ? (
+                <span className="bh-memory-graph-dirty"> · {t('memory.dirty')}</span>
+              ) : null}
+            </div>
+            <div className="bh-memory-graph-list" role="list" aria-label={t('memory.gitGraph')}>
+              {graph.commits.map((commit, index) => {
+                const row = lanes[index]!;
+                const width = row.width * MEMORY_GRAPH_LANE_WIDTH;
+                return (
+                  <button
+                    type="button"
+                    role="listitem"
+                    key={commit.sha}
+                    className={
+                      commit.sha === selectedMemoryCommitSha
+                        ? 'bh-memory-graph-row bh-memory-row-selected'
+                        : 'bh-memory-graph-row'
+                    }
+                    aria-pressed={commit.sha === selectedMemoryCommitSha}
+                    onClick={() => onMemoryCommitSelect?.(commit.sha)}
+                    title={commit.sha}
+                  >
+                    <svg
+                      className="bh-memory-graph-svg"
+                      width={width}
+                      height={MEMORY_GRAPH_ROW_HEIGHT}
+                      viewBox={'0 0 ' + width + ' ' + MEMORY_GRAPH_ROW_HEIGHT}
+                      aria-hidden="true"
+                    >
+                      {row.through.map((lane) => (
+                        <path
+                          key={'through-' + lane}
+                          data-lane={lane % 4}
+                          d={
+                            'M ' +
+                            memoryGraphLaneX(lane) +
+                            ' -0.5 V ' +
+                            (MEMORY_GRAPH_ROW_HEIGHT + 0.5)
+                          }
+                        />
+                      ))}
+                      {row.fromAbove ? (
+                        <path
+                          data-lane={row.lane % 4}
+                          d={'M ' + memoryGraphLaneX(row.lane) + ' -0.5 V ' + MEMORY_GRAPH_NODE_Y}
+                        />
+                      ) : null}
+                      {row.joins.map((lane) => (
+                        <path
+                          key={'join-' + lane}
+                          data-lane={lane % 4}
+                          d={memoryGraphRailPath(lane, row.lane, 'incoming')}
+                        />
+                      ))}
+                      {row.toParents.map((lane, parentIndex) => (
+                        <path
+                          key={'parent-' + parentIndex}
+                          data-lane={lane % 4}
+                          d={memoryGraphRailPath(row.lane, lane, 'outgoing')}
+                        />
+                      ))}
+                      <circle
+                        cx={memoryGraphLaneX(row.lane)}
+                        cy={MEMORY_GRAPH_NODE_Y}
+                        r={commit.sha === graph.head ? 4 : 3.5}
+                        data-lane={row.lane % 4}
+                        data-head={commit.sha === graph.head || undefined}
+                      />
+                    </svg>
+                    <span className="bh-memory-graph-text">
+                      <span className="bh-memory-graph-top">
+                        <span className="bh-memory-graph-subject">{commit.subject}</span>
+                        {commit.branches.map((branch) => (
+                          <span
+                            key={branch}
+                            className="bh-memory-ref"
+                            data-current={branch === graph.currentBranch || undefined}
+                            title={branch}
+                          >
+                            {branch}
+                          </span>
+                        ))}
+                      </span>
+                      <span className="bh-memory-graph-detail">
+                        <span className="bh-memory-graph-hash">{commit.sha.slice(0, 7)}</span>
+                        {commit.sha === graph.head ? (
+                          <span className="bh-memory-graph-head-label">HEAD</span>
+                        ) : null}
+                        <span
+                          className={
+                            'bh-memory-commit-status bh-memory-commit-status-' + commit.status
+                          }
+                        >
+                          {commit.status === 'accepted'
+                            ? t('memory.gitStatus.accepted')
+                            : commit.status === 'needs-repair'
+                              ? t('memory.gitStatus.needs-repair')
+                              : t('memory.gitStatus.pending')}
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+            {graph.hasMore ? (
+              <button
+                type="button"
+                className="bh-memory-graph-more"
+                disabled={loadingMore}
+                onClick={() => void loadMore()}
+              >
+                {loadingMore ? t('memory.loading') : t('memory.loadMore')}
+              </button>
+            ) : null}
+          </>
+        )}
+      </div>
     </div>
   );
 }

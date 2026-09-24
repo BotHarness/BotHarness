@@ -21,6 +21,8 @@ import type { SessionSummary } from '../sessions/source.js';
 import type {
   MemoryAcceptedCommit,
   MemoryAcceptedSnapshot,
+  MemoryGitGraph,
+  MemoryGitCommitDiff,
   MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
@@ -308,6 +310,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryDiff({ channelId, sha }));
   }
 
+  memoryGitGraph(channelId: string, offset: number): MemoryGitGraph {
+    return unwrap(this.methods.memoryGitGraph({ channelId, offset }));
+  }
+
+  memoryGitCommitDiff(channelId: string, sha: string): MemoryGitCommitDiff {
+    return unwrap(this.methods.memoryGitCommitDiff({ channelId, sha }));
+  }
+
   memorySave(
     channelId: string,
     path: string,
@@ -408,6 +418,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memoryFile',
   'memoryHistory',
   'memoryDiff',
+  'memoryGitGraph',
+  'memoryGitCommitDiff',
   'memorySave',
   'memoryRepair',
   'rosterGet',

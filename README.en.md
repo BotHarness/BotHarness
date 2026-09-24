@@ -22,8 +22,10 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 
 ## Inspiration
 
-- **Grok Bot**: every Bot has its own computer, memory, state, and works autonomously
-- **DeepSeek Harness**: a plugin host that carries other plugins
+- [**Grok Bot**](https://x.ai/bot): inspiration for persistent Bots that people can message and delegate work to like teammates
+- [**Rakazo**](https://github.com/elie222/rakazo): an open-source reference for persistent AI teammates, conversations, and memory
+- [**deepseek-harness-workbench-plugin**](https://github.com/loadingvx/deepseek-harness-workbench-plugin): visual reference for Memory Git graph rails, commit lists, and diff presentation
+- [**DeepSeek Harness**](https://github.com/deepseek-ai/deepseek-harness): the plugin host for BotHarness
 
 ## Development
 

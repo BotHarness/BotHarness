@@ -12,6 +12,8 @@ export interface ChannelSidebarEntryProps {
   channelId: string;
   botSlug: string | undefined;
   actions: BridgeActions;
+  onMemoryCommitSelect?: ((sha: string) => void) | undefined;
+  selectedMemoryCommitSha?: string | undefined;
   /** Locale-bound translate of the BotHarness namespace. */
   t: BotHarnessTranslate;
 }
