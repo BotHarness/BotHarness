@@ -1644,9 +1644,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-bubble {
   width: fit-content;
   max-width: 100%;
-  border: 1px solid var(--dsw-alias-border-l2);
+  border: 1px solid transparent;
   border-radius: 18px;
-  background: var(--dsw-alias-button-elevated-fill);
+  background: var(--dsw-alias-interactive-bg-active);
+  color: var(--dsw-alias-label-primary);
   padding: 8px 12px;
 }
 .bh-bubble[data-group-position='first'] {
@@ -1674,8 +1675,8 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-top-right-radius: 5px;
 }
 .bh-bubble-me {
-  background: var(--dsw-alias-interactive-bg-active);
-  border-color: transparent;
+  background: var(--dsw-alias-label-primary);
+  color: var(--dsw-alias-label-primary-foreground);
 }
 .bh-bubble-pending {
   opacity: 0.55;
@@ -1710,6 +1711,17 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   outline: 2px solid var(--dsw-alias-label-primary);
   outline-offset: 2px;
 }
+.bh-bubble-me .bh-bubble-reply {
+  border-left-color: color-mix(in srgb, currentColor 60%, transparent);
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  color: inherit;
+}
+.bh-bubble-me .bh-bubble-reply:hover {
+  background: color-mix(in srgb, currentColor 16%, transparent);
+}
+.bh-bubble-me .bh-bubble-reply:focus-visible {
+  outline-color: currentColor;
+}
 .bh-bubble-reply-unavailable {
   cursor: default;
 }
@@ -1731,6 +1743,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-message-image-link { display: block; max-width: min(100%, 360px); }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
 .bh-message-file { display: inline-flex; align-items: center; gap: 5px; min-width: 0; width: fit-content; max-width: 100%; padding: 7px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: inherit; overflow-wrap: anywhere; }
+.bh-bubble-me .bh-message-file { border-color: color-mix(in srgb, currentColor 35%, transparent); }
 .bh-bubble-body {
   white-space: pre-wrap;
   word-break: break-word;
