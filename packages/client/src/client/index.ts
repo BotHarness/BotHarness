@@ -61,6 +61,7 @@ function installStyles(): () => void {
 export function apply(ctx: ClientContext): void {
   const storage = defaultStorage();
   const t = ctx.locale.bind(LOCALE_NS);
+  const nativeChatT = ctx.locale.bind('chat');
   const call = createBridgeCall(ctx);
   const actions: BridgeActions = createActions(call, store, {
     pickDirectory: () => {
@@ -229,7 +230,7 @@ export function apply(ctx: ClientContext): void {
         name: 'main',
         key: PANEL_ID,
         locale: LOCALE_NS,
-        inject: () => ({ actions, channelSidebar }),
+        inject: () => ({ actions, channelSidebar, nativeChatT }),
       },
       BotPanel,
     ),
@@ -259,7 +260,7 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions, channelSidebar }),
+          inject: () => ({ actions, channelSidebar, nativeChatT }),
         },
         BotMain,
       ),

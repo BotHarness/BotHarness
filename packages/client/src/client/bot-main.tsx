@@ -22,7 +22,7 @@ import {
   type ChannelComposerActivity,
   type ChannelComposerUpload,
 } from './channel-composer.js';
-import { ChannelMessageBody } from './channel-message-body.js';
+import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -143,6 +143,7 @@ function MessageGroupView({
   actions,
   resolvedGrantRequests,
   toolApprovalDecisions,
+  nativeChatT,
   t,
 }: {
   group: MessageGroup;
@@ -158,6 +159,7 @@ function MessageGroupView({
     'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected'
   >;
   t: BotHarnessTranslate;
+  nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const first = group.messages[0]!;
   const last = group.messages.at(-1)!;
@@ -222,6 +224,7 @@ function MessageGroupView({
                 <ChannelMessageBody
                   message={message}
                   t={t}
+                  nativeChatT={nativeChatT}
                   actions={actions}
                   grantRequestResolved={resolvedGrantRequests.has(message.id)}
                   toolApprovalDecision={toolApprovalDecisions.get(message.id)}
@@ -359,11 +362,13 @@ function ConversationView({
   state,
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const sidebar = useChannelSidebar(state);
@@ -813,6 +818,7 @@ function ConversationView({
                   <MessageGroupView
                     group={group}
                     actions={actions}
+                    nativeChatT={nativeChatT}
                     resolvedGrantRequests={
                       new Set(
                         displayMessages
@@ -977,24 +983,36 @@ function ConversationView({
 export function BotMain({
   actions,
   channelSidebar,
+  nativeChatT,
   t = zhTranslate,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
-  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} t={t} />;
+  return (
+    <ConversationView
+      state={state}
+      actions={actions}
+      channelSidebar={channelSidebar}
+      nativeChatT={nativeChatT}
+      t={t}
+    />
+  );
 }
 
 export function BotPanel({
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   useEffect(() => {
@@ -1003,5 +1021,7 @@ export function BotPanel({
       store.setMode('dsh');
     };
   }, []);
-  return <BotMain actions={actions} channelSidebar={channelSidebar} t={t} />;
+  return (
+    <BotMain actions={actions} channelSidebar={channelSidebar} nativeChatT={nativeChatT} t={t} />
+  );
 }

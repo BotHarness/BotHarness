@@ -1,8 +1,14 @@
 import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
-import { Button, MarkdownText, type MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  MarkdownText,
+  StateDot,
+  type MarkdownLabels,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { channelAttachmentUrl, errorMessage } from './bridge.js';
+import { openModelsSettings } from './bot-settings-open.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -13,28 +19,81 @@ const ChannelMarkdownText = MarkdownText as unknown as (
   props: Parameters<typeof MarkdownText>[0],
 ) => ReactElement;
 
+export type NativeChatFailureText = (key: 'message.turnError' | 'message.failure.auth') => string;
+
+function failureSummary(
+  failure: NonNullable<ChannelMessage['sessionFailure']>,
+  t: BotHarnessTranslate,
+  nativeChatT?: NativeChatFailureText,
+): string {
+  switch (failure.code) {
+    case 'AUTH':
+      return nativeChatT?.('message.failure.auth') ?? t('failure.auth');
+    case 'MISSING_CREDENTIAL':
+      return t('failure.missingCredential');
+    case 'INVALID_CREDENTIAL':
+      return t('failure.invalidCredential');
+    case 'QUOTA':
+      return t('failure.quota');
+    case 'RATE_LIMIT':
+      return t('failure.rateLimit');
+    case 'TRANSPORT':
+      return t('failure.transport');
+    case 'TIMEOUT':
+      return t('failure.timeout');
+    case 'SERVER':
+      return t('failure.server');
+    default:
+      return t('failure.generic');
+  }
+}
+
 function SessionFailureNotice({
   message,
   t,
+  nativeChatT,
 }: {
   message: ChannelMessage;
   t: BotHarnessTranslate;
+  nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const failure = message.sessionFailure!;
+  const title = nativeChatT?.('message.turnError') ?? t('failure.title');
+  const needsModels = ['AUTH', 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL', 'QUOTA'].includes(
+    failure.code ?? '',
+  );
   return (
-    <div className="bh-session-failure-card" role="alert">
-      <div className="bh-session-failure-title">{t('failure.title')}</div>
-      <div className="bh-note">
-        {failure.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
-        {failure.code === undefined ? null : <> · {failure.code}</>}
-        {failure.status === undefined ? null : <> · HTTP {failure.status}</>}
+    <div className="bh-session-failure-row" role="alert">
+      <div className="bh-session-failure-heading">
+        <StateDot state="error" />
+        <span className="bh-session-failure-title">{title}</span>
+        <span className="bh-session-failure-summary">
+          {failureSummary(failure, t, nativeChatT)}
+        </span>
+        {failure.code === undefined ? null : (
+          <code className="bh-session-failure-code">{failure.code}</code>
+        )}
       </div>
       {failure.context === undefined ? null : (
-        <div className="bh-session-failure-context">{failure.context}</div>
+        <div className="bh-session-failure-context">
+          {t('failure.assignmentContext', { context: failure.context })}
+        </div>
       )}
-      <div className="bh-session-failure-detail">{failure.detail}</div>
-      <details className="bh-session-failure-session">
-        <summary>{t('failure.sessionDetails')}</summary>
+      {needsModels ? (
+        <Button variant="outline" onClick={() => openModelsSettings()}>
+          {t('failure.openModels')}
+        </Button>
+      ) : null}
+      <details className="bh-session-failure-details">
+        <summary>{t('failure.details')}</summary>
+        <div>
+          {t('failure.role', {
+            role:
+              failure.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator'),
+          })}
+        </div>
+        {failure.status === undefined ? null : <div>HTTP {failure.status}</div>}
+        <div className="bh-session-failure-raw">{failure.detail}</div>
         <code>{failure.sessionId}</code>
       </details>
     </div>
@@ -265,11 +324,13 @@ export function ChannelMessageBody({
   actions,
   grantRequestResolved = false,
   toolApprovalDecision,
+  nativeChatT,
 }: {
   message: ChannelMessage;
   t: BotHarnessTranslate;
   actions?: BridgeActions;
   grantRequestResolved?: boolean;
+  nativeChatT?: NativeChatFailureText | undefined;
   toolApprovalDecision?:
     | 'allowed-once'
     | 'allowed-always-exact'
@@ -288,7 +349,8 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
-  if (message.sessionFailure !== undefined) return <SessionFailureNotice message={message} t={t} />;
+  if (message.sessionFailure !== undefined)
+    return <SessionFailureNotice message={message} t={t} nativeChatT={nativeChatT} />;
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {
     return (
       <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />
