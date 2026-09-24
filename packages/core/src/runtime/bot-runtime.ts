@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { MemoryService } from '../memory/service.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
@@ -193,6 +194,7 @@ export interface BotRuntimeOptions {
   ownership?: SessionOwnership;
   /** Human-owned Workspace Grant authority; Assignment creation fails closed when absent. */
   grants?: WorkspaceGrantStore;
+  assignmentAccess?: AssignmentAccessStore;
   /** Explicit run-configuration root recorded as each Session's cwd reference. */
   workspaceRoot?: string;
   /**
@@ -273,18 +275,18 @@ function permissionFromRow(row: AssignmentRow): AssignmentPermissionSnapshot | u
     row.grant_id === null ||
     row.workspace_id === null ||
     row.primary_cwd === null ||
-    row.permission_mode !== 'workspace-write' ||
-    row.approval_policy !== 'ask' ||
-    row.preset_revision !== 0
+    (row.permission_mode !== 'workspace-write' && row.permission_mode !== 'danger-full-access') ||
+    row.approval_policy !== (row.permission_mode === 'workspace-write' ? 'ask' : 'never') ||
+    row.preset_revision === null
   )
     return undefined;
   return {
     grantId: row.grant_id,
     workspaceId: row.workspace_id,
     primaryCwd: row.primary_cwd,
-    mode: 'workspace-write',
-    approval: 'ask',
-    presetRevision: 0,
+    mode: row.permission_mode,
+    approval: row.approval_policy,
+    presetRevision: row.preset_revision,
   };
 }
 
@@ -382,6 +384,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #database: OperationalDatabaseModulePort;
   readonly #ownership: SessionOwnership;
   readonly #grants: WorkspaceGrantStore | undefined;
+  readonly #assignmentAccessPresetStore: AssignmentAccessStore | undefined;
   readonly #workspaceRoot: string | undefined;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
@@ -401,6 +404,7 @@ class BotRuntimeImplementation implements BotRuntime {
   constructor(options: BotRuntimeOptions) {
     this.#database = attachOperationalModule(options.database, 'bot-runtime');
     this.#grants = options.grants;
+    this.#assignmentAccessPresetStore = options.assignmentAccess;
     this.#ownership =
       options.ownership ??
       createSessionOwnership(attachOperationalModule(options.database, 'session-ownership'));
@@ -900,13 +904,17 @@ class BotRuntimeImplementation implements BotRuntime {
     const grantId = requireNonBlank(input.grantId, 'Workspace Grant id');
     if (this.#grants === undefined) throw new Error('Workspace Grants are unavailable');
     const grant = this.#grants.requireActive(bot.slug, grantId);
+    const access = this.#assignmentAccessPresetStore?.get(bot.slug) ?? {
+      mode: 'workspace-write' as const,
+      revision: 0,
+    };
     const permission: AssignmentPermissionSnapshot = {
       grantId: grant.id,
       workspaceId: grant.workspaceId,
       primaryCwd: grant.workspacePath,
-      mode: 'workspace-write',
-      approval: 'ask',
-      presetRevision: 0,
+      mode: access.mode,
+      approval: access.mode === 'danger-full-access' ? 'never' : 'ask',
+      presetRevision: access.revision,
     };
     const key = input.key === undefined ? undefined : requireNonBlank(input.key, 'Continuity Key');
     if (key !== undefined) {

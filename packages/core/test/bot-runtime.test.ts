@@ -23,6 +23,7 @@ import {
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
 import { createWorkspaceGrantStore } from '../src/workspaces/grants.js';
+import { createAssignmentAccessStore } from '../src/workspaces/assignment-access.js';
 
 class DeterministicAgentAdapter implements BotAgentAdapter {
   readonly runs: Array<{ role: 'orchestrator' | 'assignment'; sessionId: string }> = [];
@@ -686,6 +687,60 @@ describe('Bot runtime tracer bullet', () => {
     ]);
     await reopened.close();
     reopenedOwner.close();
+  });
+
+  it('freezes each new Assignment access mode while later Bot preset changes leave old Sessions intact', async () => {
+    const home = createTempRoot('botharness-bot-runtime-access-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const access = createAssignmentAccessStore(attachOperationalModule(owner, 'assignment-access'));
+    access.set('ada', 'danger-full-access');
+    const ids = ['orchestrator-ada', 'assignment-danger', 'assignment-safe'];
+    const runtime = createBotRuntime({
+      database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
+      assignmentAccess: access,
+      registry,
+      channels,
+      agents: new DeterministicAgentAdapter(),
+      now: FIXED_NOW,
+      createSessionId: () => ids.shift() ?? 'unexpected-session',
+    });
+    await channels.appendMessage(dm.id, {
+      id: 'human-danger',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'first',
+    });
+    await admit(runtime, { channelId: dm.id, messageId: 'human-danger', body: 'first' });
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', 'assignment-danger')?.permission).toMatchObject({
+      mode: 'danger-full-access',
+      approval: 'never',
+      presetRevision: 1,
+    });
+    access.set('ada', 'workspace-write');
+    await channels.appendMessage(dm.id, {
+      id: 'human-safe',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'second',
+    });
+    await admit(runtime, { channelId: dm.id, messageId: 'human-safe', body: 'second' });
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', 'assignment-danger')?.permission?.mode).toBe(
+      'danger-full-access',
+    );
+    expect(runtime.getAssignment('ada', 'assignment-safe')?.permission).toMatchObject({
+      mode: 'workspace-write',
+      approval: 'ask',
+      presetRevision: 2,
+    });
+    await runtime.close();
+    owner.close();
   });
 
   it('owns Sessions explicitly and records the run cwd as evidence, not identity', async () => {

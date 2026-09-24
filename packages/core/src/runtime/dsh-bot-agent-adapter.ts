@@ -42,7 +42,12 @@ Assignment reports and questions arrive in the [Bot Inbox] block of your next tu
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
-Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Wait for the decision before continuing.
+Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
+Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
+If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
+
+const DANGER_ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
+The Human explicitly enabled dangerous full access before this Assignment was created. Native tools may access files outside the selected Workspace Grant and do not ask for each call. Keep actions within the Orchestrator's requested task; report any wider file access. The selected Grant still identifies this Assignment and revoking it stops future calls. Only the Orchestrator owns PersonaBot memory unless your task explicitly requires interacting with it.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
 If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
 
@@ -816,7 +821,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         const disposeRolePrompt = agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
           order: ROLE_PROMPT_ORDER,
-          text: ASSIGNMENT_PROMPT,
+          text:
+            run.permission.mode === 'danger-full-access'
+              ? DANGER_ASSIGNMENT_PROMPT
+              : ASSIGNMENT_PROMPT,
         });
         if (borrowed) borrowedDisposers.push(disposeRolePrompt);
         registerTool(

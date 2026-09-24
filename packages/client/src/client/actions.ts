@@ -9,6 +9,12 @@ import {
   loadAssignment,
   loadWorkspaceOptions,
   loadWorkspaceGrants,
+  loadToolApprovalRules,
+  loadAssignmentAccess,
+  setAssignmentAccess,
+  type AssignmentAccessPresetView,
+  revokeToolApprovalRule,
+  type ToolApprovalRuleView,
   createWorkspaceGrant,
   revokeWorkspaceGrant,
   loadToolApprovalStatus,
@@ -113,11 +119,19 @@ export interface BridgeActions {
   listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
   createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
   revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
+  assignmentAccess(slug: string): Promise<AssignmentAccessPresetView>;
+  setAssignmentAccess(
+    slug: string,
+    mode: AssignmentAccessPresetView['mode'],
+    acknowledgeRisk: boolean,
+  ): Promise<AssignmentAccessPresetView>;
+  listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
+  revokeToolApprovalRule(slug: string, id: string): Promise<void>;
   toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
   decideToolApproval(
     channelId: string,
     messageId: string,
-    outcome: 'allowed-once' | 'rejected',
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<void>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
@@ -416,6 +430,11 @@ export function createActions(
     listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
     createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
     revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
+    assignmentAccess: (slug) => loadAssignmentAccess(call, slug),
+    setAssignmentAccess: (slug, mode, acknowledgeRisk) =>
+      setAssignmentAccess(call, slug, mode, acknowledgeRisk),
+    listToolApprovalRules: (slug) => loadToolApprovalRules(call, slug),
+    revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
     toolApprovalStatus: (channelId, messageId) =>
       loadToolApprovalStatus(call, channelId, messageId),
     decideToolApproval: (channelId, messageId, outcome) =>

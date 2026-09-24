@@ -38,6 +38,14 @@ import {
 } from './workspaces/grant-execution.js';
 import { ChannelToolApproval } from './workspaces/tool-approval.js';
 import {
+  createAssignmentAccessStore,
+  type AssignmentAccessStore,
+} from './workspaces/assignment-access.js';
+import {
+  createToolApprovalRuleStore,
+  type ToolApprovalRuleStore,
+} from './workspaces/tool-approval-rules.js';
+import {
   createWorkspaceGrantStore,
   type DshWorkspaceLookup,
   type WorkspaceGrantStore,
@@ -91,6 +99,8 @@ export interface BotHarnessCore {
   roster: RosterStore;
   runtime: BotRuntime;
   grants: WorkspaceGrantStore;
+  toolRules: ToolApprovalRuleStore;
+  assignmentAccess: AssignmentAccessStore;
 }
 
 function unavailableAgentAdapter(): BotAgentAdapter {
@@ -149,6 +159,12 @@ export function createCore(
     database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
     workspaces: options.workspaces ?? (() => undefined),
   });
+  const toolRules = createToolApprovalRuleStore(
+    attachOperationalModule(operationalDatabase, 'tool-approval-rules'),
+  );
+  const assignmentAccess = createAssignmentAccessStore(
+    attachOperationalModule(operationalDatabase, 'assignment-access'),
+  );
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   return {
@@ -159,6 +175,8 @@ export function createCore(
     ownership,
     memory,
     grants,
+    toolRules,
+    assignmentAccess,
     channels,
     attachments,
     live,
@@ -175,6 +193,7 @@ export function createCore(
       memory,
       ownership,
       grants,
+      assignmentAccess,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
     }),
@@ -225,7 +244,25 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
     { global: true },
   );
-  const toolApproval = new ChannelToolApproval(core.channels, core.ownership);
+  const toolApproval = new ChannelToolApproval(
+    core.channels,
+    core.ownership,
+    core.toolRules,
+    (agent, owner) => {
+      const cwd = agent.session.header.cwd ?? '';
+      if (owner.rootRole === 'assignment') {
+        const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
+        const grantId = assignment?.permission?.grantId;
+        return grantId === undefined ? undefined : JSON.stringify(['assignment', cwd, grantId]);
+      }
+      const activeIds = core.grants
+        .list(owner.botSlug)
+        .filter((grant) => grant.revokedAt === undefined)
+        .map((grant) => grant.id)
+        .sort();
+      return JSON.stringify(['orchestrator', cwd, activeIds]);
+    },
+  );
   const approvedCalls = new Set<symbol>();
   ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
   ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
@@ -250,6 +287,12 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           reason: 'BotHarness Session cannot request sandbox permission escalation',
         };
       }
+      const owner = core.ownership.resolve(agent.session.id);
+      const snapshot =
+        owner?.rootRole === 'assignment'
+          ? core.runtime.getAssignment(owner.botSlug, owner.sessionId)?.permission
+          : undefined;
+      if (snapshot?.mode === 'danger-full-access') return next();
       const approval = ctx.get('approval') as ApprovalService | undefined;
       const untrack = toolApproval.track(execution);
       if (approval === undefined || untrack === undefined) {
@@ -266,6 +309,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         if (outcome !== 'allowed-once') {
           return { kind: 'deny', reason: 'Human approval was ' + outcome };
         }
+        if (!toolApproval.validAfterDecision(agent, execution.callId))
+          return { kind: 'deny', reason: 'Approval rule scope changed' };
         approvedCalls.add(execution.token);
         return await next();
       } catch {
@@ -319,6 +364,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
       grants: core.grants,
       toolApproval,
+      toolRules: core.toolRules,
+      assignmentAccess: core.assignmentAccess,
     }),
   );
 

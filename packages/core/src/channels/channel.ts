@@ -146,7 +146,10 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     const decision = toolDecision as Record<string, unknown>;
     if (
       typeof decision['requestMessageId'] !== 'string' ||
-      (decision['outcome'] !== 'allowed-once' && decision['outcome'] !== 'rejected') ||
+      (decision['outcome'] !== 'allowed-once' &&
+        decision['outcome'] !== 'allowed-always-exact' &&
+        decision['outcome'] !== 'allowed-always-all' &&
+        decision['outcome'] !== 'rejected') ||
       message['replyTo'] !== decision['requestMessageId']
     )
       return false;

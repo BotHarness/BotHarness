@@ -146,6 +146,18 @@ function stubActions(): BridgeActions {
       workspaceTitle: 'Project',
       createdAt: AT,
     })),
+    assignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    setAssignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    listToolApprovalRules: vi.fn(async () => []),
+    revokeToolApprovalRule: vi.fn(async () => undefined),
     toolApprovalStatus: vi.fn(async () => 'expired' as const),
     decideToolApproval: vi.fn(async () => undefined),
     revokeWorkspaceGrant: vi.fn(async () => ({

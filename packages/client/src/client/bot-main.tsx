@@ -153,7 +153,10 @@ function MessageGroupView({
   onJumpReply(messageId: string): void;
   actions: BridgeActions;
   resolvedGrantRequests: ReadonlySet<string>;
-  toolApprovalDecisions: ReadonlyMap<string, 'allowed-once' | 'rejected'>;
+  toolApprovalDecisions: ReadonlyMap<
+    string,
+    'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected'
+  >;
   t: BotHarnessTranslate;
 }): ReactElement {
   const first = group.messages[0]!;

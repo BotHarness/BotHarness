@@ -367,11 +367,40 @@ describe('DSH Bot Agent adapter', () => {
     expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');
     expect(host.scopes.get('orchestrator-ada')?.restrictions).toEqual([]);
     expect(host.scopes.get('assignment-1')?.restrictions).toEqual([]);
-    expect(assignmentPrompt).toContain('one-time Human approval');
+    expect(assignmentPrompt).toContain('unless the Human has saved a matching automatic rule');
     expect(assignmentPrompt).toContain('expects_reply');
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
+  });
+
+  it('uses a distinct prompt for a dangerous Assignment snapshot', async () => {
+    const host = new FakeAgentHost();
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    await adapter.runAssignment({
+      sessionId: 'assignment-danger',
+      bot: BOT,
+      purpose: 'Run pwd',
+      permission: {
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'danger-full-access',
+        approval: 'never',
+        presetRevision: 1,
+      },
+      report: async (input) => ({ ...input, at: BOT.createdAt }),
+    });
+    const prompt = host.scopes.get('assignment-danger')?.sections[0]?.text ?? '';
+    expect(prompt).toContain('The Human explicitly enabled dangerous full access');
+    expect(prompt).toContain('do not ask for each call');
+    expect(prompt).not.toContain('require Human approval');
+    await adapter.close();
   });
 
   it('follows up a settled Assignment instead of steering a stale run', async () => {

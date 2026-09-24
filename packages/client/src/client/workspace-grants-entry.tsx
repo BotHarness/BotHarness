@@ -5,15 +5,31 @@ import {
   IconCloseOutline16,
   IconFolderOpenOutline16,
   Input,
+  Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import type { HostDirectoryListing } from './actions.js';
-import type { WorkspaceGrantView, WorkspaceOption } from './bridge.js';
+import type {
+  WorkspaceGrantView,
+  WorkspaceOption,
+  ToolApprovalRuleView,
+  AssignmentAccessPresetView,
+} from './bridge.js';
 import { errorMessage } from './bridge.js';
 import { Modal } from './modal.js';
 
 export const WORKSPACE_GRANTS_CHANGED = 'botharness/workspace-grants-changed';
+
+function approvalRulePath(rule: ToolApprovalRuleView): string {
+  try {
+    const scope = JSON.parse(rule.scopeKey) as unknown;
+    if (Array.isArray(scope) && typeof scope[1] === 'string') return scope[1];
+  } catch {
+    // An older rule still remains revocable even if its scope shape changes.
+  }
+  return rule.scopeKey;
+}
 
 function FolderRow({
   name,
@@ -220,6 +236,9 @@ export function WorkspaceGrantsEntry({
 }: ChannelSidebarEntryProps & { developerMode?: boolean }): ReactElement {
   const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([]);
   const [grants, setGrants] = useState<WorkspaceGrantView[]>([]);
+  const [rules, setRules] = useState<ToolApprovalRuleView[]>([]);
+  const [access, setAccess] = useState<AssignmentAccessPresetView>();
+  const [confirmDanger, setConfirmDanger] = useState(false);
   const [memoryDir, setMemoryDir] = useState<string | undefined>();
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPath, setManualPath] = useState('');
@@ -229,14 +248,18 @@ export function WorkspaceGrantsEntry({
   const [loading, setLoading] = useState(true);
 
   const refresh = async (slug: string): Promise<void> => {
-    const [available, owned, memory] = await Promise.all([
+    const [available, owned, memory, ruleRows, preset] = await Promise.all([
       actions.listWorkspaceOptions(),
       actions.listWorkspaceGrants(slug),
       actions.memoryDirectory(slug),
+      actions.listToolApprovalRules(slug),
+      actions.assignmentAccess(slug),
     ]);
     setWorkspaces(available);
     setGrants(owned);
     setMemoryDir(memory);
+    setRules(ruleRows);
+    setAccess(preset);
   };
 
   useEffect(() => {
@@ -258,12 +281,16 @@ export function WorkspaceGrantsEntry({
       actions.listWorkspaceOptions(),
       actions.listWorkspaceGrants(botSlug),
       actions.memoryDirectory(botSlug),
+      actions.listToolApprovalRules(botSlug),
+      actions.assignmentAccess(botSlug),
     ]).then(
-      ([available, owned, memory]) => {
+      ([available, owned, memory, ruleRows, preset]) => {
         if (cancelled) return;
         setWorkspaces(available);
         setGrants(owned);
         setMemoryDir(memory);
+        setRules(ruleRows);
+        setAccess(preset);
         setLoading(false);
       },
       (cause: unknown) => {
@@ -415,6 +442,103 @@ export function WorkspaceGrantsEntry({
             {revoked.map((grant) => (
               <FolderRow key={grant.id} name={grant.workspaceTitle} path={grant.workspacePath} />
             ))}
+          </div>
+        </details>
+      )}
+      <div className="bh-assignment-access-row">
+        <div>
+          <div className="bh-grant-request-title">{t('access.title')}</div>
+          <div className="bh-note">{t('access.description')}</div>
+        </div>
+        <Switch
+          checked={access?.mode === 'danger-full-access'}
+          disabled={loading || busy !== undefined}
+          onChange={(checked) => {
+            if (checked) {
+              setConfirmDanger(true);
+            } else {
+              setConfirmDanger(false);
+              mutate('safe-access', () =>
+                actions.setAssignmentAccess(botSlug, 'workspace-write', false),
+              );
+            }
+          }}
+          label={t('access.title')}
+        />
+      </div>
+      {access?.mode === 'danger-full-access' ? (
+        <div className="bh-access-warning" role="status">
+          {t('access.activeWarning')}
+        </div>
+      ) : null}
+      {confirmDanger ? (
+        <div className="bh-access-warning" role="group" aria-label={t('access.confirmTitle')}>
+          <div className="bh-grant-request-title">{t('access.confirmTitle')}</div>
+          <div className="bh-note">{t('access.confirmRisk')}</div>
+          <div className="bh-tool-approval-actions">
+            <Button
+              variant="primary"
+              disabled={busy !== undefined}
+              onClick={() =>
+                mutate('danger-access', async () => {
+                  await actions.setAssignmentAccess(botSlug, 'danger-full-access', true);
+                  setConfirmDanger(false);
+                })
+              }
+            >
+              {t('access.confirmEnable')}
+            </Button>
+            <Button
+              variant="outline"
+              disabled={busy !== undefined}
+              onClick={() => setConfirmDanger(false)}
+            >
+              {t('approval.cancel')}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+      {rules.filter((rule) => rule.revokedAt === undefined).length === 0 ? null : (
+        <details className="bh-workspace-folder-secondary">
+          <summary>{t('approval.rulesTitle')}</summary>
+          <div className="bh-workspace-folder-table">
+            {rules
+              .filter((rule) => rule.revokedAt === undefined)
+              .map((rule) => (
+                <div key={rule.id} className="bh-workspace-folder-row">
+                  <div className="bh-workspace-folder-main">
+                    <span className="bh-workspace-folder-toggle">
+                      {rule.kind === 'exact'
+                        ? t('approval.exactRule', { tool: rule.toolName })
+                        : t('approval.allRule')}
+                      {' · '}
+                      {rule.role === 'assignment'
+                        ? t('approval.assignment')
+                        : t('approval.orchestrator')}
+                    </span>
+                    <button
+                      type="button"
+                      className="bh-workspace-folder-remove"
+                      aria-label={t('approval.revokeRule')}
+                      disabled={busy !== undefined}
+                      onClick={() =>
+                        mutate(rule.id, () => actions.revokeToolApprovalRule(botSlug, rule.id))
+                      }
+                    >
+                      <IconCloseOutline16 />
+                    </button>
+                  </div>
+                  <details className="bh-workspace-folder-secondary">
+                    <summary>{t('approval.ruleDetails')}</summary>
+                    <div className="bh-note">
+                      {t('approval.cwd', { path: approvalRulePath(rule) })}
+                    </div>
+                    {rule.kind === 'exact' ? (
+                      <pre className="bh-tool-approval-input">{rule.input}</pre>
+                    ) : null}
+                  </details>
+                </div>
+              ))}
           </div>
         </details>
       )}

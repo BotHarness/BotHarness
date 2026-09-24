@@ -97,6 +97,11 @@ function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElemen
                     {selected.permission.mode} / {selected.permission.approval}
                   </dd>
                 </div>
+                {selected.permission.mode === 'danger-full-access' ? (
+                  <div className="bh-access-warning" role="status">
+                    {t('access.sessionWarning')}
+                  </div>
+                ) : null}
                 <div>
                   <dt>{t('grant.source')}</dt>
                   <dd>{selected.permission.grantId}</dd>

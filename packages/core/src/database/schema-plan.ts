@@ -217,6 +217,55 @@ export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
   },
 };
 
+export const TOOL_APPROVAL_RULE_MIGRATION: SchemaMigration = {
+  generation: 12,
+  module: 'tool-approval-rules',
+  description: 'Persist revocable Human rules for native tool approval',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE tool_approval_rules (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('orchestrator', 'assignment')),
+        scope_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('exact', 'all-opaque')),
+        tool_name TEXT NOT NULL,
+        input TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        revoked_at TEXT
+      );
+      CREATE INDEX tool_approval_rules_lookup
+        ON tool_approval_rules (bot_slug, role, scope_key, active, revoked_at);
+    `);
+  },
+};
+
+export const ASSIGNMENT_ACCESS_MIGRATION: SchemaMigration = {
+  generation: 13,
+  module: 'assignment-access',
+  description: 'Persist Human-owned per-Bot Assignment access preset and audit',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_assignment_access (
+        bot_slug TEXT PRIMARY KEY,
+        mode TEXT NOT NULL CHECK (mode IN ('workspace-write', 'danger-full-access')),
+        revision INTEGER NOT NULL,
+        changed_at TEXT NOT NULL
+      );
+      CREATE TABLE bot_assignment_access_events (
+        bot_slug TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        prior_mode TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        changed_at TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        PRIMARY KEY (bot_slug, revision)
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -228,4 +277,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_PERSONA_SNAPSHOT_MIGRATION,
   MEMORY_ACCEPTED_COMMIT_MIGRATION,
   WORKSPACE_GRANT_MIGRATION,
+  TOOL_APPROVAL_RULE_MIGRATION,
+  ASSIGNMENT_ACCESS_MIGRATION,
 ]);

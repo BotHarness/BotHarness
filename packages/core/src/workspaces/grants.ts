@@ -16,9 +16,9 @@ export interface AssignmentPermissionSnapshot {
   grantId: string;
   workspaceId: string;
   primaryCwd: string;
-  mode: 'workspace-write';
-  approval: 'ask';
-  presetRevision: 0;
+  mode: 'workspace-write' | 'danger-full-access';
+  approval: 'ask' | 'never';
+  presetRevision: number;
 }
 
 export interface DshWorkspace {

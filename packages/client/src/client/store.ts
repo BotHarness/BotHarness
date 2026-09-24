@@ -56,7 +56,7 @@ export interface ToolApprovalRequestCard {
 
 export interface ToolApprovalDecision {
   requestMessageId: string;
-  outcome: 'allowed-once' | 'rejected';
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
 }
 
 export interface ChannelMessage {
@@ -113,9 +113,9 @@ export interface AssignmentSummary {
     grantId: string;
     workspaceId: string;
     primaryCwd: string;
-    mode: 'workspace-write';
-    approval: 'ask';
-    presetRevision: 0;
+    mode: 'workspace-write' | 'danger-full-access';
+    approval: 'ask' | 'never';
+    presetRevision: number;
   };
   createdAt: string;
   updatedAt: string;

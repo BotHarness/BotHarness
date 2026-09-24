@@ -39,7 +39,7 @@ function fixture() {
       token: Symbol('call'),
       signal,
     }) as ToolExecution;
-  return { broker, channels, messages, agent, execution };
+  return { broker, channels, ownership, messages, agent, execution };
 }
 
 describe('Channel tool approval', () => {
@@ -102,6 +102,32 @@ describe('Channel tool approval', () => {
     expect(state.broker.status(botSlug, state.messages[0]!.id)).toBe('expired');
     expect(await state.broker.decide(botSlug, state.messages[0]!.id, 'allowed-once')).toBe(false);
     untrack?.();
+  });
+
+  it('uses a Human-saved exact rule for later calls and loses it after revoke', async () => {
+    const state = fixture();
+    let active = true;
+    const rules = {
+      match: vi.fn((input: { toolName: string; input: string }) =>
+        active && input.toolName === 'bash' && input.input.includes('pwd')
+          ? { id: 'rule-1' }
+          : undefined,
+      ),
+      createPending: vi.fn(),
+      activate: vi.fn(),
+      revoke: vi.fn(),
+      list: vi.fn(),
+    } as unknown as import('../src/workspaces/tool-approval-rules.js').ToolApprovalRuleStore;
+    const broker = new ChannelToolApproval(state.channels, state.ownership, rules);
+    broker.track(state.execution());
+    expect(await broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' })).toBe(
+      'allowed-once',
+    );
+    expect(broker.validAfterDecision(state.agent, 'call-1')).toBe(true);
+    expect(state.messages).toHaveLength(0);
+    active = false;
+    expect(broker.validAfterDecision(state.agent, 'call-1')).toBe(false);
+    broker.close();
   });
 
   it('declines requests that do not match the exact tracked Agent and tool', async () => {

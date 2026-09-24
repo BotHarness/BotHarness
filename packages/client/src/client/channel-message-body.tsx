@@ -21,7 +21,12 @@ function ToolApprovalCard({
 }: {
   message: ChannelMessage;
   actions: BridgeActions;
-  decision?: 'allowed-once' | 'rejected' | undefined;
+  decision?:
+    | 'allowed-once'
+    | 'allowed-always-exact'
+    | 'allowed-always-all'
+    | 'rejected'
+    | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const request = message.toolApprovalRequest!;
@@ -30,6 +35,7 @@ function ToolApprovalCard({
     decision === undefined ? 'loading' : 'decided',
   );
   const [busy, setBusy] = useState(false);
+  const [confirmAll, setConfirmAll] = useState(false);
   const [error, setError] = useState<string | undefined>();
   useEffect(() => {
     if (decision !== undefined) {
@@ -50,7 +56,9 @@ function ToolApprovalCard({
       active = false;
     };
   }, [actions, botSlug, decision, message.id]);
-  const decide = (outcome: 'allowed-once' | 'rejected'): void => {
+  const decide = (
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+  ): void => {
     if (botSlug === undefined || busy || status !== 'pending') return;
     setBusy(true);
     setError(undefined);
@@ -86,22 +94,43 @@ function ToolApprovalCard({
       <div className="bh-note">{t('approval.risk')}</div>
       {decision !== undefined ? (
         <div role="status" className="bh-note">
-          {decision === 'allowed-once' ? t('approval.approved') : t('approval.rejected')}
+          {decision === 'rejected'
+            ? t('approval.rejected')
+            : decision === 'allowed-once'
+              ? t('approval.approved')
+              : t('approval.ruleSaved')}
         </div>
-      ) : status === 'pending' ? (
+      ) : status === 'pending' && !confirmAll ? (
         <div className="bh-tool-approval-actions">
           <Button variant="primary" disabled={busy} onClick={() => decide('allowed-once')}>
             {t('approval.allowOnce')}
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => decide('allowed-always-exact')}>
+            {t('approval.allowExact')}
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(true)}>
+            {t('approval.allowAll')}
           </Button>
           <Button variant="outline" disabled={busy} onClick={() => decide('rejected')}>
             {t('approval.reject')}
           </Button>
         </div>
-      ) : (
+      ) : confirmAll && status === 'pending' ? null : (
         <div role="status" className="bh-note">
           {status === 'loading' ? t('approval.loading') : t('approval.expired')}
         </div>
       )}
+      {confirmAll && status === 'pending' ? (
+        <div className="bh-tool-approval-confirm" role="group" aria-label={t('approval.allowAll')}>
+          <div className="bh-note">{t('approval.allowAllRisk')}</div>
+          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-always-all')}>
+            {t('approval.confirmAll')}
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => setConfirmAll(false)}>
+            {t('approval.cancel')}
+          </Button>
+        </div>
+      ) : null}
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}
@@ -213,7 +242,12 @@ export function ChannelMessageBody({
   t: BotHarnessTranslate;
   actions?: BridgeActions;
   grantRequestResolved?: boolean;
-  toolApprovalDecision?: 'allowed-once' | 'rejected' | undefined;
+  toolApprovalDecision?:
+    | 'allowed-once'
+    | 'allowed-always-exact'
+    | 'allowed-always-all'
+    | 'rejected'
+    | undefined;
 }): ReactElement {
   const labels = useMemo<MarkdownLabels>(
     () => ({

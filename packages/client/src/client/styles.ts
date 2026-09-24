@@ -2676,4 +2676,6 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   color: var(--dsw-alias-label-primary);
 }
 .bh-tool-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bh-tool-approval-confirm, .bh-access-warning { display: grid; gap: 8px; padding: 10px; border: 0.5px solid var(--dsw-alias-border-l3); border-radius: 8px; }
+.bh-assignment-access-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 `;

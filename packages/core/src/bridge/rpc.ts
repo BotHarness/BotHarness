@@ -24,6 +24,11 @@ import type {
   MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
+import type { ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
+import type {
+  AssignmentAccessPreset,
+  AssignmentAccessMode,
+} from '../workspaces/assignment-access.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
 export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
@@ -248,6 +253,26 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.grantRevoke({ slug, grantId }));
   }
 
+  assignmentAccessGet(slug: string): { preset: AssignmentAccessPreset } {
+    return unwrap(this.methods.assignmentAccessGet({ slug }));
+  }
+
+  assignmentAccessSet(
+    slug: string,
+    mode: AssignmentAccessMode,
+    acknowledgeRisk: boolean,
+  ): { preset: AssignmentAccessPreset } {
+    return unwrap(this.methods.assignmentAccessSet({ slug, mode, acknowledgeRisk }));
+  }
+
+  toolApprovalRules(slug: string): { rules: ToolApprovalRule[] } {
+    return unwrap(this.methods.toolApprovalRules({ slug }));
+  }
+
+  toolApprovalRuleRevoke(slug: string, id: string): { rule: ToolApprovalRule } {
+    return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
+  }
+
   toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
     return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
   }
@@ -255,7 +280,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
   toolApprovalDecide(
     channelId: string,
     messageId: string,
-    outcome: 'allowed-once' | 'rejected',
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<{ accepted: boolean }> {
     return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
   }
@@ -372,6 +397,10 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'grants',
   'grantCreate',
   'grantRevoke',
+  'assignmentAccessGet',
+  'assignmentAccessSet',
+  'toolApprovalRules',
+  'toolApprovalRuleRevoke',
   'toolApprovalStatus',
   'toolApprovalDecide',
   'sessions',

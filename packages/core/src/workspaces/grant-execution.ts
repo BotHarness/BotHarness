@@ -33,13 +33,12 @@ export function grantExecutionDenial(
   if (policy === undefined || approval === undefined) {
     return 'DSH permission services are unavailable for BotHarness Session';
   }
-  if (policy.resolve({ session }).mode !== 'workspace-write') {
-    return 'BotHarness Session requires workspace-write permission';
-  }
-  if (approval.overrideOf(session) !== 'ask') {
-    return 'BotHarness Session requires ask approval policy';
-  }
+  const mode = policy.resolve({ session }).mode;
+  const approvalPolicy = approval.overrideOf(session);
   if (owner.rootRole === 'orchestrator') {
+    if (mode !== 'workspace-write' || approvalPolicy !== 'ask') {
+      return 'Orchestrator Session requires workspace-write and ask';
+    }
     const memoryCwd = core.registry.memoryDirFor(owner.botSlug);
     return memoryCwd !== undefined && session.header.cwd === memoryCwd
       ? undefined
@@ -50,6 +49,9 @@ export function grantExecutionDenial(
   const permission = assignment?.permission;
   if (permission === undefined || session.header.cwd !== permission.primaryCwd) {
     return 'Assignment Session permission snapshot is missing or mismatched';
+  }
+  if (mode !== permission.mode || approvalPolicy !== permission.approval) {
+    return 'Assignment Session permission mode differs from its snapshot';
   }
   try {
     const grant = core.grants.requireActive(owner.botSlug, permission.grantId);
@@ -100,6 +102,13 @@ export function grantToolExecutionDenial(
     return 'BotHarness Session cannot request sandbox permission escalation';
   }
   if (BOT_TOOL_NAMES.has(name)) return undefined;
+  const owner = core.ownership.resolve(session.id);
+  if (
+    owner?.rootRole === 'assignment' &&
+    core.runtime.getAssignment(owner.botSlug, owner.sessionId)?.permission?.mode ===
+      'danger-full-access'
+  )
+    return undefined;
   if (NATIVE_FILE_TOOL_NAMES.has(name)) return nativeFileToolDenial(core, session, name, args);
   if (allowedOnce) return undefined;
   return 'BotHarness Session cannot run an unconfined native tool: ' + name;

@@ -39,6 +39,11 @@ import {
   type WorkspaceGrantStore,
 } from '../workspaces/grants.js';
 import type { ChannelToolApproval } from '../workspaces/tool-approval.js';
+import type { ToolApprovalRuleStore, ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
+import type {
+  AssignmentAccessStore,
+  AssignmentAccessPreset,
+} from '../workspaces/assignment-access.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -108,6 +113,10 @@ export interface BridgeMethods {
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
+  assignmentAccessGet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
+  assignmentAccessSet(payload: unknown): BridgeResult<{ preset: AssignmentAccessPreset }>;
+  toolApprovalRules(payload: unknown): BridgeResult<{ rules: ToolApprovalRule[] }>;
+  toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
   toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
@@ -142,6 +151,8 @@ export interface BridgeMethodsDeps {
   runtime?: BotRuntime;
   grants?: WorkspaceGrantStore;
   toolApproval?: ChannelToolApproval;
+  toolRules?: ToolApprovalRuleStore;
+  assignmentAccess?: AssignmentAccessStore;
   createBotId?: () => string;
 }
 
@@ -788,6 +799,50 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         throw error;
       }
     },
+    assignmentAccessGet(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return {
+        ok: true,
+        value: {
+          preset: deps.assignmentAccess?.get(slug) ?? {
+            botSlug: slug,
+            mode: 'workspace-write',
+            revision: 0,
+          },
+        },
+      };
+    },
+    assignmentAccessSet(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const mode = source['mode'];
+      if (slug === undefined || (mode !== 'workspace-write' && mode !== 'danger-full-access'))
+        return invalidInput('slug and valid mode are required');
+      if (mode === 'danger-full-access' && source['acknowledgeRisk'] !== true)
+        return invalidInput('Dangerous access requires explicit Human risk acknowledgement');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.assignmentAccess === undefined)
+        return invalidInput('Assignment access is unavailable');
+      return { ok: true, value: { preset: deps.assignmentAccess.set(slug, mode) } };
+    },
+    toolApprovalRules(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return { ok: true, value: { rules: deps.toolRules?.list(slug) ?? [] } };
+    },
+    toolApprovalRuleRevoke(payload) {
+      const slug = asSlug(payload);
+      const id = asNonBlank(asObject(payload), 'id');
+      if (slug === undefined || id === undefined) return invalidInput('slug and id are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const rule = deps.toolRules?.revoke(slug, id);
+      return rule === undefined
+        ? invalidInput('Unknown tool approval rule')
+        : { ok: true, value: { rule } };
+    },
     toolApprovalStatus(payload) {
       const source = asObject(payload);
       const channelId = asNonBlank(source, 'channelId');
@@ -815,7 +870,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (
         channelId === undefined ||
         messageId === undefined ||
-        (outcome !== 'allowed-once' && outcome !== 'rejected')
+        (outcome !== 'allowed-once' &&
+          outcome !== 'allowed-always-exact' &&
+          outcome !== 'allowed-always-all' &&
+          outcome !== 'rejected')
       ) {
         return invalidInput('channelId, messageId, and a valid outcome are required');
       }

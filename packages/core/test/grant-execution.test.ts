@@ -23,21 +23,37 @@ function fixture() {
     workspaceId: 'workspace-1',
     workspacePath: cwd,
   }));
+  const getAssignment = vi.fn(() => ({
+    permission: {
+      grantId,
+      workspaceId: 'workspace-1',
+      primaryCwd: cwd,
+      mode: 'workspace-write',
+      approval: 'ask',
+      presetRevision: 0,
+    },
+  }));
+  const overrideOf = vi.fn(() => 'ask');
   const core = {
     ownership: { resolve },
-    runtime: {
-      getAssignment: vi.fn(() => ({
-        permission: { grantId, workspaceId: 'workspace-1', primaryCwd: cwd },
-      })),
-    },
+    runtime: { getAssignment },
     grants: { requireActive },
     registry: { memoryDirFor: vi.fn(() => '/tmp/memory') },
   } as never;
   const resolvePolicy = vi.fn(() => ({ mode: 'workspace-write' }));
   const policy = { resolve: resolvePolicy } as never;
-  const approval = { overrideOf: vi.fn(() => 'ask') } as never;
+  const approval = { overrideOf } as never;
   const assignment = { id: assignmentSessionId, header: { cwd } } as never;
-  return { core, policy, approval, assignment, requireActive, resolvePolicy };
+  return {
+    core,
+    policy,
+    approval,
+    assignment,
+    requireActive,
+    resolvePolicy,
+    getAssignment,
+    overrideOf,
+  };
 }
 
 describe('Workspace Grant execution boundary', () => {
@@ -59,7 +75,44 @@ describe('Workspace Grant execution boundary', () => {
     state.resolvePolicy.mockReturnValue({ mode: 'danger-full-access' });
     expect(
       grantExecutionDenial(state.core, state.assignment, state.policy, state.approval),
-    ).toMatch(/workspace-write/);
+    ).toMatch(/mode differs/);
+  });
+
+  it('honors an immutable dangerous Assignment snapshot but still checks its Grant', () => {
+    const state = fixture();
+    state.getAssignment.mockReturnValue({
+      permission: {
+        grantId,
+        workspaceId: 'workspace-1',
+        primaryCwd: cwd,
+        mode: 'danger-full-access',
+        approval: 'never',
+        presetRevision: 1,
+      },
+    });
+    state.resolvePolicy.mockReturnValue({ mode: 'danger-full-access' });
+    state.overrideOf.mockReturnValue('never');
+    expect(
+      grantExecutionDenial(state.core, state.assignment, state.policy, state.approval),
+    ).toBeUndefined();
+    expect(
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'read', {
+        file_path: '/outside/secret.txt',
+      }),
+    ).toBeUndefined();
+    expect(
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'bash', {
+        command: 'pwd',
+      }),
+    ).toBeUndefined();
+    state.requireActive.mockImplementation(() => {
+      throw new Error('revoked');
+    });
+    expect(
+      grantToolExecutionDenial(state.core, state.assignment, state.policy, state.approval, 'bash', {
+        command: 'pwd',
+      }),
+    ).toMatch(/revoked/);
   });
 
   it('denies per-tool sandbox escalation even when standing policy remains safe', () => {

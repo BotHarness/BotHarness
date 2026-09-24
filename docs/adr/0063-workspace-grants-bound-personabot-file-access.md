@@ -17,11 +17,15 @@ BotHarness checks the effective read and write roots for path-addressed native f
 
 The Human-facing right pane shows Memory as a fixed internal row and active granted folders as removable read-access rows, with an Add folder action. Revoked records remain available as history, not duplicate active rows.
 
+A Human may save a BotHarness Tool Approval Rule from a paused Channel approval card. The exact rule matches the full native tool name and serialized input; the broader rule covers all opaque native tools for that Bot, root role, and current Grant scope. Neither rule grants a Workspace, changes DSH's native tool body, or silently approves a different Bot. Each matching call still enters DSH `approval/request` and receives `allowed-once`, preserving per-call Session audit. Revoking the rule stops the next matching call; changing or revoking the Grant changes the scope and invalidates the former match. Command regex and inferred similarity are deferred until a Human can inspect and edit an explicit pattern.
+
+Each PersonaBot also has a Human-controlled Assignment Access Preset. The safe default creates new Assignments with DSH `workspace-write + ask`. Explicit dangerous opt-in creates subsequent Assignments with DSH `danger-full-access + never`, bypassing BotHarness file-path and opaque-tool gates after the selected Grant and Session snapshot are checked. The Orchestrator stays in the safe mode, and existing Assignments retain their frozen mode. The UI requires a separate risk confirmation and keeps an active warning visible. Turning the preset off affects new Assignments only; revoking an Assignment's Grant still stops its future calls.
+
 ## Scope and trade-offs
 
 This narrows the Human's earlier proposal that the Orchestrator directly read and write every granted folder. Project writes remain attributable to one Assignment and its single Grant. It supersedes ADR-0048's implication that Orchestrator access is confined merely by Memory cwd; ADR-0048's one-Grant-per-Assignment and durable provenance decisions remain.
 
-The existing danger-full-access proposal explicitly bypasses default-safe filesystem confinement. It cannot be presented as Grant-scoped access: any future opt-out requires separate Human confirmation and persistent risk labeling. Orchestrator never inherits that preset. A multi-root writable Orchestrator and a multi-cwd Assignment remain outside this decision.
+The dangerous Assignment preset explicitly bypasses default-safe filesystem confinement. It is not Grant-scoped file confinement: the Grant remains required for Assignment identity and revocation, while the opted-in Session may access outside its folder. Separate Human confirmation and persistent risk labeling are required. Orchestrator never inherits that preset. A multi-root writable Orchestrator and a multi-cwd Assignment remain outside this decision.
 
 ## First enforced slice
 

@@ -307,7 +307,10 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       decision === undefined ||
       author.kind !== 'human' ||
       typeof decision['requestMessageId'] !== 'string' ||
-      (decision['outcome'] !== 'allowed-once' && decision['outcome'] !== 'rejected') ||
+      (decision['outcome'] !== 'allowed-once' &&
+        decision['outcome'] !== 'allowed-always-exact' &&
+        decision['outcome'] !== 'allowed-always-all' &&
+        decision['outcome'] !== 'rejected') ||
       replyTo !== decision['requestMessageId']
     )
       return undefined;
@@ -390,16 +393,18 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
     typeof permissionRecord['grantId'] === 'string' &&
     typeof permissionRecord['workspaceId'] === 'string' &&
     typeof permissionRecord['primaryCwd'] === 'string' &&
-    permissionRecord['mode'] === 'workspace-write' &&
-    permissionRecord['approval'] === 'ask' &&
-    permissionRecord['presetRevision'] === 0
+    (permissionRecord['mode'] === 'workspace-write' ||
+      permissionRecord['mode'] === 'danger-full-access') &&
+    permissionRecord['approval'] ===
+      (permissionRecord['mode'] === 'workspace-write' ? 'ask' : 'never') &&
+    typeof permissionRecord['presetRevision'] === 'number'
       ? {
           grantId: permissionRecord['grantId'],
           workspaceId: permissionRecord['workspaceId'],
           primaryCwd: permissionRecord['primaryCwd'],
-          mode: 'workspace-write' as const,
-          approval: 'ask' as const,
-          presetRevision: 0 as const,
+          mode: permissionRecord['mode'] as 'workspace-write' | 'danger-full-access',
+          approval: permissionRecord['approval'] as 'ask' | 'never',
+          presetRevision: permissionRecord['presetRevision'] as number,
         }
       : undefined;
   return {
@@ -633,6 +638,71 @@ export async function sendChannelMessage(
   return message;
 }
 
+export interface AssignmentAccessPresetView {
+  botSlug: string;
+  mode: 'workspace-write' | 'danger-full-access';
+  revision: number;
+  changedAt?: string;
+}
+export async function loadAssignmentAccess(
+  call: BridgeCall,
+  slug: string,
+): Promise<AssignmentAccessPresetView> {
+  const response = asRecord(await unwrap(call, 'assignmentAccessGet', { slug }));
+  const preset = asRecord(response?.['preset']);
+  if (
+    preset?.['botSlug'] !== slug ||
+    (preset['mode'] !== 'workspace-write' && preset['mode'] !== 'danger-full-access') ||
+    typeof preset['revision'] !== 'number'
+  )
+    throw new Error('invalid assignmentAccessGet response');
+  return preset as unknown as AssignmentAccessPresetView;
+}
+export async function setAssignmentAccess(
+  call: BridgeCall,
+  slug: string,
+  mode: AssignmentAccessPresetView['mode'],
+  acknowledgeRisk: boolean,
+): Promise<AssignmentAccessPresetView> {
+  const response = asRecord(
+    await unwrap(call, 'assignmentAccessSet', { slug, mode, acknowledgeRisk }),
+  );
+  const preset = asRecord(response?.['preset']);
+  if (preset?.['botSlug'] !== slug || preset['mode'] !== mode)
+    throw new Error('invalid assignmentAccessSet response');
+  return preset as unknown as AssignmentAccessPresetView;
+}
+
+export interface ToolApprovalRuleView {
+  id: string;
+  botSlug: string;
+  role: 'orchestrator' | 'assignment';
+  scopeKey: string;
+  kind: 'exact' | 'all-opaque';
+  toolName: string;
+  input: string;
+  createdAt: string;
+  revokedAt?: string;
+}
+export async function loadToolApprovalRules(
+  call: BridgeCall,
+  slug: string,
+): Promise<ToolApprovalRuleView[]> {
+  const response = asRecord(await unwrap(call, 'toolApprovalRules', { slug }));
+  const rules = response?.['rules'];
+  if (!Array.isArray(rules)) throw new Error('invalid toolApprovalRules response');
+  return rules as ToolApprovalRuleView[];
+}
+export async function revokeToolApprovalRule(
+  call: BridgeCall,
+  slug: string,
+  id: string,
+): Promise<void> {
+  const response = asRecord(await unwrap(call, 'toolApprovalRuleRevoke', { slug, id }));
+  if (asRecord(response?.['rule'])?.['id'] !== id)
+    throw new Error('invalid toolApprovalRuleRevoke response');
+}
+
 export async function loadToolApprovalStatus(
   call: BridgeCall,
   channelId: string,
@@ -650,7 +720,7 @@ export async function decideToolApproval(
   call: BridgeCall,
   channelId: string,
   messageId: string,
-  outcome: 'allowed-once' | 'rejected',
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
 ): Promise<void> {
   const response = asRecord(
     await unwrap(call, 'toolApprovalDecide', {

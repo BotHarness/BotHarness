@@ -124,6 +124,14 @@ _避免使用_：project、multi-root folder、group
 一种面向单个 PersonaBot 与单个已解析 Workspace 的持久、可撤销、application-defined 授权。其 Orchestrator 可读取该 Workspace；选用此授权的 Assignment 可读写它。它既不是 DSH Workspace，也不是逐事项确认的 prompt。
 _避免使用_：Service Grant、Workspace、one-time approval、cwd inference
 
+**Tool Approval Rule**：
+Human 保存且可撤销的规则，针对一个 PersonaBot 角色与 Workspace Grant 范围，自动回答后续 DSH 审批请求。精确规则匹配原生工具名称与完整输入；全部不透明工具规则覆盖该范围内所有无法按路径核对的原生工具。每次命中仍产生独立的 DSH 审批决定与审计事件。
+_避免使用_：Workspace Grant、Provider Service Grant、sandbox preset、推断的命令相似性
+
+**Assignment Access Preset**：
+Human 为单个 PersonaBot 选择、在新建 Assignment 时应用的权限预设。默认是 DSH workspace-write 与 ask；危险完全访问需要明确开启 DSH danger-full-access 与 never。所选模式固化在每个 Assignment 的权限快照中，仍须选择有效 Workspace Grant。
+_避免使用_：Workspace Grant、就地切换 Session 模式、Orchestrator 权限
+
 **Delegation**：
 从 Chat 或 Roster 把责任交给 PersonaBot。其 Orchestrator 可以直接回答，也可以创建或复用一个或多个 Assignment Session。
 _避免使用_：direct Session creation、task entity、job entity

@@ -6,7 +6,8 @@ import type { ApprovalOutcome } from '@deepseek-ai/dsh-user-approval';
 
 import { dmChannelId, type ChannelMessage } from '../channels/channel.js';
 import type { ChannelStore } from '../channels/store.js';
-import type { SessionOwnership } from '../sessions/ownership.js';
+import type { SessionOwnership, SessionOwnershipRecord } from '../sessions/ownership.js';
+import type { ToolApprovalRuleStore } from './tool-approval-rules.js';
 
 export interface ToolApprovalRequestCard {
   sessionId: string;
@@ -19,15 +20,22 @@ export interface ToolApprovalRequestCard {
 
 export interface ToolApprovalDecision {
   requestMessageId: string;
-  outcome: 'allowed-once' | 'rejected';
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
 }
 
-type TrackedCall = ToolApprovalRequestCard & { botSlug: string; agent: Agent };
+type TrackedCall = ToolApprovalRequestCard & {
+  botSlug: string;
+  agent: Agent;
+  scopeKey: string;
+  automatic?: boolean;
+};
 type Pending = {
   botSlug: string;
   channelId: string;
   resolve(outcome: ApprovalOutcome): void;
   signal?: AbortSignal;
+  sessionId: string;
+  callId: string;
   abort(): void;
   deciding: boolean;
 };
@@ -53,12 +61,22 @@ function inputOf(execution: ToolExecution): string | undefined {
 export class ChannelToolApproval {
   readonly #channels: ChannelStore;
   readonly #ownership: SessionOwnership;
+  readonly #rules: ToolApprovalRuleStore | undefined;
+  readonly #scope: (agent: Agent, owner: SessionOwnershipRecord) => string | undefined;
   readonly #tracked = new Map<string, TrackedCall>();
   readonly #pending = new Map<string, Pending>();
 
-  constructor(channels: ChannelStore, ownership: SessionOwnership) {
+  constructor(
+    channels: ChannelStore,
+    ownership: SessionOwnership,
+    rules?: ToolApprovalRuleStore,
+    scope?: (agent: Agent, owner: SessionOwnershipRecord) => string | undefined,
+  ) {
     this.#channels = channels;
     this.#ownership = ownership;
+    this.#rules = rules;
+    this.#scope =
+      scope ?? ((agent, owner) => JSON.stringify([owner.rootRole, agent.session.header.cwd]));
   }
 
   track(execution: ToolExecution): (() => void) | undefined {
@@ -74,6 +92,8 @@ export class ChannelToolApproval {
     const input = inputOf(execution);
     const cwd = agent.session.header.cwd;
     if (input === undefined || cwd === undefined) return undefined;
+    const scopeKey = this.#scope(agent, owner);
+    if (scopeKey === undefined) return undefined;
     const key = callKey(agent.session.id, execution.callId);
     this.#tracked.set(key, {
       agent,
@@ -84,6 +104,7 @@ export class ChannelToolApproval {
       role: owner.rootRole,
       cwd,
       input,
+      scopeKey,
     });
     return () => {
       if (this.#tracked.get(key)?.agent === agent) this.#tracked.delete(key);
@@ -106,6 +127,13 @@ export class ChannelToolApproval {
       return undefined;
     }
     if (request.signal?.aborted) return 'cancelled';
+    const owner = this.#ownership.resolve(request.agent.session.id);
+    if (owner === undefined || this.#scope(request.agent, owner) !== tracked.scopeKey)
+      return 'unavailable';
+    if (this.#rules?.match(tracked) !== undefined) {
+      tracked.automatic = true;
+      return 'allowed-once';
+    }
     const channelId = dmChannelId(tracked.botSlug);
     if (this.#channels.get(channelId)?.botSlug !== tracked.botSlug) return 'unavailable';
     const message: ChannelMessage = {
@@ -129,6 +157,8 @@ export class ChannelToolApproval {
     const pending: Pending = {
       botSlug: tracked.botSlug,
       channelId,
+      sessionId: tracked.sessionId,
+      callId: tracked.callId,
       resolve,
       ...(request.signal === undefined ? {} : { signal: request.signal }),
       abort: () => this.#settle(message.id, 'cancelled'),
@@ -147,6 +177,18 @@ export class ChannelToolApproval {
     }
   }
 
+  validAfterDecision(agent: Agent, callId: string): boolean {
+    const tracked = this.#tracked.get(callKey(agent.session.id, callId));
+    if (tracked === undefined || tracked.agent !== agent) return false;
+    if (!tracked.automatic) return true;
+    const owner = this.#ownership.resolve(agent.session.id);
+    return (
+      owner !== undefined &&
+      this.#scope(agent, owner) === tracked.scopeKey &&
+      this.#rules?.match(tracked) !== undefined
+    );
+  }
+
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
     return this.#pending.get(messageId)?.botSlug === botSlug ? 'pending' : 'expired';
   }
@@ -154,7 +196,7 @@ export class ChannelToolApproval {
   async decide(
     botSlug: string,
     messageId: string,
-    outcome: 'allowed-once' | 'rejected',
+    outcome: ToolApprovalDecision['outcome'],
   ): Promise<boolean> {
     const pending = this.#pending.get(messageId);
     if (pending === undefined || pending.botSlug !== botSlug || pending.deciding) return false;
@@ -164,18 +206,49 @@ export class ChannelToolApproval {
     }
     pending.deciding = true;
     try {
+      const tracked = this.#tracked.get(callKey(pending.sessionId, pending.callId));
+      if (tracked === undefined || tracked.botSlug !== botSlug) return false;
+      const owner = this.#ownership.resolve(tracked.sessionId);
+      if (owner === undefined || this.#scope(tracked.agent, owner) !== tracked.scopeKey)
+        return false;
+      const kind =
+        outcome === 'allowed-always-exact'
+          ? 'exact'
+          : outcome === 'allowed-always-all'
+            ? 'all-opaque'
+            : undefined;
+      const rule =
+        kind === undefined
+          ? undefined
+          : this.#rules?.createPending({
+              botSlug,
+              role: tracked.role,
+              scopeKey: tracked.scopeKey,
+              kind,
+              toolName: kind === 'exact' ? tracked.toolName : '*',
+              input: kind === 'exact' ? tracked.input : '',
+            });
+      if (kind !== undefined && rule === undefined) return false;
       const decision: ChannelMessage = {
         id: randomUUID(),
         at: new Date().toISOString(),
         author: { kind: 'human' },
-        body: outcome === 'allowed-once' ? '已批准这一次工具调用' : '已拒绝这一次工具调用',
+        body:
+          outcome === 'rejected'
+            ? '已拒绝这一次工具调用'
+            : kind === undefined
+              ? '已批准这一次工具调用'
+              : '已保存自动批准规则并批准这一次调用',
         replyTo: messageId,
         toolApprovalDecision: { requestMessageId: messageId, outcome },
       };
-      if ((await this.#channels.appendMessage(pending.channelId, decision)) === undefined)
+      if ((await this.#channels.appendMessage(pending.channelId, decision)) === undefined) {
+        if (rule !== undefined) this.#rules?.revoke(botSlug, rule.id);
         return false;
+      }
+      if (rule !== undefined) this.#rules?.activate(botSlug, rule.id);
       if (this.#pending.get(messageId) !== pending || pending.signal?.aborted) return false;
-      this.#settle(messageId, outcome);
+      this.#settle(messageId, outcome === 'rejected' ? 'rejected' : 'allowed-once');
       return true;
     } finally {
       pending.deciding = false;
