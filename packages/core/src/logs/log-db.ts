@@ -20,6 +20,16 @@ export const LOG_DB_VERSION = 1;
 export const LOG_DEFAULT_MAX_ROWS = 50_000;
 export const LOG_DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Cap for stored details; longer text is truncated with a marker. */
+export const LOG_DETAIL_MAX_CHARS = 4000;
+const TRUNCATION_MARKER = '…[truncated]';
+
+/** Truncate overlong details so one noisy writer cannot bloat the file. */
+export function truncateDetail(detail: string): string {
+  if (detail.length <= LOG_DETAIL_MAX_CHARS) return detail;
+  return `${detail.slice(0, LOG_DETAIL_MAX_CHARS)}${TRUNCATION_MARKER}`;
+}
+
 /** Who may read an entry: shared profile resources or one bot. */
 export type LogOwnerScope = 'profile-shared' | `bot:${string}`;
 
@@ -100,6 +110,20 @@ function createSchema(database: DatabaseSync): void {
     CREATE INDEX log_entries_ts ON log_entries (ts);
     CREATE INDEX log_entries_plugin_owner ON log_entries (plugin, owner);
     CREATE INDEX log_entries_trace ON log_entries (trace_id);
+    CREATE INDEX log_entries_owner ON log_entries (owner);
+  `);
+}
+
+/**
+ * Indexes are performance-only, not versioned: heal them idempotently on
+ * every open so pre-index databases gain them without a migration.
+ */
+function ensureIndexes(database: DatabaseSync): void {
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS log_entries_ts ON log_entries (ts);
+    CREATE INDEX IF NOT EXISTS log_entries_plugin_owner ON log_entries (plugin, owner);
+    CREATE INDEX IF NOT EXISTS log_entries_trace ON log_entries (trace_id);
+    CREATE INDEX IF NOT EXISTS log_entries_owner ON log_entries (owner);
   `);
 }
 
@@ -158,8 +182,14 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
       try {
         database.exec('PRAGMA journal_mode = WAL;');
         const version = readVersion(database);
-        if (version === LOG_DB_VERSION) return database;
-        if (version !== undefined && migrateForward(database, version)) return database;
+        if (version === LOG_DB_VERSION) {
+          ensureIndexes(database);
+          return database;
+        }
+        if (version !== undefined && migrateForward(database, version)) {
+          ensureIndexes(database);
+          return database;
+        }
       } catch {
         // Fall through to rebuild below.
       }
@@ -192,7 +222,7 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
         entry.plugin,
         entry.owner,
         entry.kind,
-        entry.detail,
+        truncateDetail(entry.detail),
         entry.principal ?? null,
         entry.bot ?? null,
         entry.orchestratorSession ?? null,

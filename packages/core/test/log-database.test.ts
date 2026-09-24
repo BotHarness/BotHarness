@@ -302,4 +302,50 @@ describe('operational log database', () => {
       logs.close();
     }
   });
+
+  it('truncates overlong details with a marker', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      const long = 'x'.repeat(4001);
+      logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: long });
+      logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'short' });
+      const stored = rowsOf(dir).map((row) => row.detail);
+      expect(stored[0]).toBe(`${'x'.repeat(4000)}…[truncated]`);
+      expect(stored[1]).toBe('short');
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('heals a missing owner index without a migration', () => {
+    const dir = makeDir();
+    const database = new DatabaseSync(join(dir, LOG_DB_FILENAME));
+    try {
+      database.exec(`
+        CREATE TABLE log_schema (singleton INTEGER PRIMARY KEY CHECK (singleton = 1), version INTEGER NOT NULL) STRICT;
+        INSERT INTO log_schema (singleton, version) VALUES (1, 1);
+        CREATE TABLE log_entries (id INTEGER PRIMARY KEY, ts INTEGER NOT NULL, plugin TEXT NOT NULL, owner TEXT NOT NULL, kind TEXT NOT NULL, detail TEXT NOT NULL, principal TEXT, bot TEXT, orchestrator_session TEXT, assignment_session TEXT, trace_id TEXT) STRICT;
+        CREATE INDEX log_entries_ts ON log_entries (ts);
+      `);
+    } finally {
+      database.close();
+    }
+    const logs = openLogDatabase({ dir });
+    try {
+      const check = new DatabaseSync(join(dir, LOG_DB_FILENAME));
+      try {
+        const names = (
+          check.prepare("SELECT name FROM sqlite_master WHERE type = 'index'").all() as {
+            name: string;
+          }[]
+        ).map((row) => row.name);
+        expect(names).toContain('log_entries_owner');
+      } finally {
+        check.close();
+      }
+    } finally {
+      logs.close();
+    }
+  });
 });
