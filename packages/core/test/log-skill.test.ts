@@ -7,6 +7,8 @@ import {
   LOGS_SKILL_DESCRIPTION,
   LOGS_SKILL_INVOCATION,
   LOGS_SKILL_NAME,
+  LOGS_SKILL_PROVIDER,
+  LOGS_SKILL_SOURCE,
   LOGS_SKILL_WHEN_TO_USE,
 } from '../src/logs/skill.js';
 
@@ -22,6 +24,13 @@ describe('operational logs skill', () => {
 
   it('is model-only: never a Human command-palette entry', () => {
     expect(LOGS_SKILL_INVOCATION).toEqual({ modelInvocable: true, userInvocable: false });
+  });
+
+  it('carries loader-required source and provider strings', () => {
+    expect(typeof LOGS_SKILL_SOURCE).toBe('string');
+    expect(LOGS_SKILL_SOURCE.length).toBeGreaterThan(0);
+    expect(typeof LOGS_SKILL_PROVIDER).toBe('string');
+    expect(LOGS_SKILL_PROVIDER.length).toBeGreaterThan(0);
   });
 
   it('registers the guide text byte-for-byte (single source)', () => {

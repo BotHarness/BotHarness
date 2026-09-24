@@ -23,6 +23,8 @@ import {
   LOGS_SKILL_DESCRIPTION,
   LOGS_SKILL_INVOCATION,
   LOGS_SKILL_NAME,
+  LOGS_SKILL_PROVIDER,
+  LOGS_SKILL_SOURCE,
   LOGS_SKILL_WHEN_TO_USE,
 } from './logs/skill.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
@@ -228,6 +230,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
               readonly modelInvocable: boolean;
               readonly userInvocable: boolean;
             };
+            readonly source: string;
+            readonly provider: string;
           }): () => void;
         };
       }
@@ -240,6 +244,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           whenToUse: LOGS_SKILL_WHEN_TO_USE,
           content: LOGS_SKILL_CONTENT,
           invocation: LOGS_SKILL_INVOCATION,
+          source: LOGS_SKILL_SOURCE,
+          provider: LOGS_SKILL_PROVIDER,
         }),
       'botharness: operational logs skill',
     );

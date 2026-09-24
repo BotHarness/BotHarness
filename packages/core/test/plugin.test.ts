@@ -106,6 +106,10 @@ describe('plugin entry', () => {
     expect(registration).toMatchObject({
       name: 'reading-operational-logs',
       invocation: { modelInvocable: true, userInvocable: false },
+      // The loader validates source/provider as strings on get(): an omitted
+      // source lists fine but fails every model load (#248 live diagnosis).
+      source: 'runtime',
+      provider: 'botharness-core',
     });
     expect(typeof registration['description']).toBe('string');
     expect(typeof registration['content']).toBe('string');

@@ -23,6 +23,18 @@ export const LOGS_SKILL_INVOCATION = {
   userInvocable: false,
 } as const;
 
+/**
+ * Discovery bucket shown in the catalog. `register()` defaults an omitted
+ * provider to `"runtime"` but never fills `source` — and the loader's
+ * `validateDefinition` throws `source must be a string` on `get()`, so a
+ * skill without an explicit source lists fine but never loads (diagnosed
+ * live in #248: catalog showed the skill, two model `skill()` calls failed).
+ */
+export const LOGS_SKILL_SOURCE = 'runtime';
+
+/** Attribution for the loaded body; kept distinct from the default. */
+export const LOGS_SKILL_PROVIDER = 'botharness-core';
+
 export const LOGS_SKILL_CONTENT = `# Reading operational logs as an agent
 
 Product meaning: [ADR-0063](../adr/0063-operational-log-database.md) (topology),
