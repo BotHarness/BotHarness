@@ -14,7 +14,12 @@ import Schema from '@deepseek-ai/schemastery';
 import { DIAGNOSTICS_LIMIT, createComputerDiagnostics, toLogEntry } from './diagnostics.js';
 // Deep relative import, not the package root: the log module is leaf-only
 // (node builtins) and must not pull core's barrel types into this bundle.
-import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
+import {
+  openLogDatabase,
+  type LogDatabase,
+  type LogOwnerScope,
+  type LogQuery,
+} from '../../core/src/logs/log-db.js';
 import { createTransferTokens } from './transfer-tokens.js';
 import { createIdleWatcher } from './idle.js';
 import {
@@ -567,6 +572,40 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(viewerEventRoute),
       'botharness-computer: viewer diagnostics route',
+    );
+
+    // Operational-log read side (slice 2 of the timeline): newest-first rows
+    // from logs.db with optional plugin/owner/entity/since/limit filters.
+    // Same trust domain as the diagnostics GET above — the in-harness web
+    // client on this host — so no extra authorize gate; without a home there
+    // is no durable store and the answer is an empty list.
+    const logsRoute = {
+      path: '/api/computer/logs',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const params = new URL(request.url).searchParams;
+        const sinceRaw = params.get('since');
+        const limitRaw = params.get('limit');
+        const since = sinceRaw === null || sinceRaw === '' ? undefined : Number(sinceRaw);
+        const limit = limitRaw === null || limitRaw === '' ? undefined : Number(limitRaw);
+        const plugin = params.get('plugin');
+        const owner = params.get('owner');
+        const entity = params.get('entity');
+        const filter: LogQuery = Object.assign(
+          {},
+          plugin === null || plugin === '' ? null : { plugin },
+          owner === null || owner === '' ? null : { owner: owner as LogOwnerScope },
+          entity === null || entity === '' ? null : { entity },
+          since === undefined ? null : { since },
+          limit === undefined ? null : { limit },
+        );
+        return json({ ok: true, entries: logDb?.query(filter) ?? [] });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(logsRoute),
+      'botharness-computer: operational logs route',
     );
 
     const exportsRoute = {

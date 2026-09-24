@@ -394,3 +394,129 @@ describe('operational log database', () => {
     }
   });
 });
+
+describe('operational log query', () => {
+  function seed(dir: string): void {
+    const logs = openLogDatabase({ dir });
+    try {
+      logs.write({
+        plugin: 'computer',
+        owner: 'profile-shared',
+        kind: 'lifecycle',
+        detail: 'start requested',
+        ts: 1000,
+      });
+      logs.write({
+        plugin: 'computer',
+        owner: 'bot:atlas',
+        kind: 'viewer',
+        detail: 'phase connecting>live',
+        ts: 2000,
+        bot: 'atlas',
+      });
+      logs.write({
+        plugin: 'channel',
+        owner: 'bot:atlas',
+        kind: 'delivery',
+        detail: 'send failed',
+        ts: 2000,
+        principal: 'atlas',
+        traceId: 'trace-1',
+      });
+      logs.write({
+        plugin: 'computer',
+        owner: 'profile-shared',
+        kind: 'lifecycle',
+        detail: 'stop requested',
+        ts: 3000,
+        assignmentSession: 'sess-7',
+      });
+    } finally {
+      logs.close();
+    }
+  }
+
+  it('returns rows newest-first with id tiebreak', () => {
+    const dir = makeDir();
+    seed(dir);
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(logs.query().map((row) => row.detail)).toEqual([
+        'stop requested',
+        'send failed',
+        'phase connecting>live',
+        'start requested',
+      ]);
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('filters by plugin and owner', () => {
+    const dir = makeDir();
+    seed(dir);
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(logs.query({ plugin: 'channel' }).map((row) => row.detail)).toEqual(['send failed']);
+      expect(logs.query({ owner: 'bot:atlas' }).map((row) => row.detail)).toEqual([
+        'send failed',
+        'phase connecting>live',
+      ]);
+      expect(
+        logs.query({ plugin: 'computer', owner: 'profile-shared' }).map((row) => row.detail),
+      ).toEqual(['stop requested', 'start requested']);
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('matches entity across causation columns', () => {
+    const dir = makeDir();
+    seed(dir);
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(logs.query({ entity: 'atlas' }).map((row) => row.detail)).toEqual([
+        'send failed',
+        'phase connecting>live',
+      ]);
+      expect(logs.query({ entity: 'sess-7' }).map((row) => row.detail)).toEqual(['stop requested']);
+      expect(logs.query({ entity: 'nobody' })).toEqual([]);
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('applies since and limit', () => {
+    const dir = makeDir();
+    seed(dir);
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(logs.query({ since: 2000 }).map((row) => row.detail)).toEqual([
+        'stop requested',
+        'send failed',
+        'phase connecting>live',
+      ]);
+      expect(logs.query({ since: 9999 })).toEqual([]);
+      expect(logs.query({ limit: 2 }).map((row) => row.detail)).toEqual([
+        'stop requested',
+        'send failed',
+      ]);
+      // Absurd and invalid limits fall back to the default window, not an error.
+      expect(logs.query({ limit: 5000 })).toHaveLength(4);
+      expect(logs.query({ limit: 0 })).toHaveLength(4);
+    } finally {
+      logs.close();
+    }
+  });
+
+  it('returns an empty list on an empty store', () => {
+    const dir = makeDir();
+    const logs = openLogDatabase({ dir });
+    try {
+      expect(logs.query()).toEqual([]);
+      expect(logs.query({ plugin: 'computer', since: 1000, limit: 10 })).toEqual([]);
+    } finally {
+      logs.close();
+    }
+  });
+});

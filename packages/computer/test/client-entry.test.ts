@@ -26,6 +26,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
 import {
   apply,
   ComputerEntryView,
+  RecentLogs,
+  RecentLogsList,
   StreamOverlay,
   ViewerTitleBar,
   type ComputerEntryViewProps,
@@ -295,5 +297,41 @@ describe('Computer authorize migration notice', () => {
       },
     });
     expect(html).toContain('存储位置已变更');
+  });
+});
+
+describe('Recent operational logs', () => {
+  it('renders rows with kind and detail', () => {
+    const html = renderToStaticMarkup(
+      createElement(RecentLogsList, {
+        entries: [
+          {
+            id: 2,
+            ts: 3000,
+            plugin: 'computer',
+            owner: 'profile-shared',
+            kind: 'lifecycle',
+            detail: 'stop requested',
+          },
+          {
+            id: 1,
+            ts: 1000,
+            plugin: 'computer',
+            owner: 'profile-shared',
+            kind: 'lifecycle',
+            detail: 'start requested',
+          },
+        ],
+      }),
+    );
+    expect(html).toContain('[lifecycle] stop requested');
+    expect(html).toContain('[lifecycle] start requested');
+    expect(html.indexOf('stop requested')).toBeLessThan(html.indexOf('start requested'));
+  });
+
+  it('renders the collapsed toggle without fetching', () => {
+    const html = renderToStaticMarkup(createElement(RecentLogs, { t }));
+    expect(html).toContain('近期动态');
+    expect(html).not.toContain('暂无运行记录');
   });
 });
