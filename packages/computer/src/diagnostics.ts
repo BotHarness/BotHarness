@@ -5,6 +5,10 @@
  * @module @botharness/computer/diagnostics
  */
 
+// Deep relative import, not the package root: the log module is leaf-only
+// (node builtins) and must not pull core's barrel types into this bundle.
+import type { LogOwnerScope } from '../../core/src/logs/log-db.js';
+
 export interface ComputerDiagnosticEvent {
   readonly at: string;
   readonly kind: 'lifecycle' | 'container' | 'viewer';
@@ -24,7 +28,7 @@ export interface ComputerDiagnosticsSink {
 /** Durable row shape for the operational log database. */
 export interface ComputerLogEntry {
   readonly plugin: string;
-  readonly owner: string;
+  readonly owner: LogOwnerScope;
   readonly kind: string;
   readonly detail: string;
   readonly ts: number;
@@ -37,7 +41,7 @@ export interface ComputerLogEntry {
 export function toLogEntry(
   event: ComputerDiagnosticEvent,
   plugin: string,
-  owner: string,
+  owner: LogOwnerScope,
 ): ComputerLogEntry {
   const ts = Date.parse(event.at);
   return {

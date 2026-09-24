@@ -20,6 +20,16 @@ export const LOG_DB_VERSION = 1;
 export const LOG_DEFAULT_MAX_ROWS = 50_000;
 export const LOG_DEFAULT_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
 
+/** Cap for stored details; longer text is truncated with a marker. */
+export const LOG_DETAIL_MAX_CHARS = 4000;
+const TRUNCATION_MARKER = '…[truncated]';
+
+/** Truncate overlong details so one noisy writer cannot bloat the file. */
+export function truncateDetail(detail: string): string {
+  if (detail.length <= LOG_DETAIL_MAX_CHARS) return detail;
+  return `${detail.slice(0, LOG_DETAIL_MAX_CHARS)}${TRUNCATION_MARKER}`;
+}
+
 /** Who may read an entry: shared profile resources or one bot. */
 export type LogOwnerScope = 'profile-shared' | `bot:${string}`;
 
@@ -31,6 +41,20 @@ export interface LogEntryInput {
   readonly detail: string;
   /** Epoch milliseconds; defaults to now. */
   readonly ts?: number;
+  /**
+   * Causation links, orthogonal to the read-scoping `owner`: a row can be
+   * profile-readable yet attributed to the bot/session/run that caused it.
+   * All nullable — computer's own rows carry none today.
+   */
+  readonly principal?: string;
+  /** PersonaBot slug that caused this entry, if any. */
+  readonly bot?: string;
+  /** Orchestrator Session id (1:1 with its PersonaBot), if any. */
+  readonly orchestratorSession?: string;
+  /** Assignment Session id, if any. */
+  readonly assignmentSession?: string;
+  /** One end-to-end operation instance spanning plugins, if any. */
+  readonly traceId?: string;
 }
 
 /** One forward-migration step from a previous generation. */
@@ -76,10 +100,30 @@ function createSchema(database: DatabaseSync): void {
       plugin TEXT NOT NULL,
       owner TEXT NOT NULL,
       kind TEXT NOT NULL,
-      detail TEXT NOT NULL
+      detail TEXT NOT NULL,
+      principal TEXT,
+      bot TEXT,
+      orchestrator_session TEXT,
+      assignment_session TEXT,
+      trace_id TEXT
     ) STRICT;
     CREATE INDEX log_entries_ts ON log_entries (ts);
     CREATE INDEX log_entries_plugin_owner ON log_entries (plugin, owner);
+    CREATE INDEX log_entries_trace ON log_entries (trace_id);
+    CREATE INDEX log_entries_owner ON log_entries (owner);
+  `);
+}
+
+/**
+ * Indexes are performance-only, not versioned: heal them idempotently on
+ * every open so pre-index databases gain them without a migration.
+ */
+function ensureIndexes(database: DatabaseSync): void {
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS log_entries_ts ON log_entries (ts);
+    CREATE INDEX IF NOT EXISTS log_entries_plugin_owner ON log_entries (plugin, owner);
+    CREATE INDEX IF NOT EXISTS log_entries_trace ON log_entries (trace_id);
+    CREATE INDEX IF NOT EXISTS log_entries_owner ON log_entries (owner);
   `);
 }
 
@@ -138,8 +182,14 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
       try {
         database.exec('PRAGMA journal_mode = WAL;');
         const version = readVersion(database);
-        if (version === LOG_DB_VERSION) return database;
-        if (version !== undefined && migrateForward(database, version)) return database;
+        if (version === LOG_DB_VERSION) {
+          ensureIndexes(database);
+          return database;
+        }
+        if (version !== undefined && migrateForward(database, version)) {
+          ensureIndexes(database);
+          return database;
+        }
       } catch {
         // Fall through to rebuild below.
       }
@@ -164,8 +214,21 @@ export function openLogDatabase(options: OpenLogDatabaseOptions): LogDatabase {
   const writeRow = (entry: LogEntryInput): void => {
     const at = entry.ts ?? now();
     database
-      .prepare('INSERT INTO log_entries (ts, plugin, owner, kind, detail) VALUES (?, ?, ?, ?, ?)')
-      .run(at, entry.plugin, entry.owner, entry.kind, entry.detail);
+      .prepare(
+        'INSERT INTO log_entries (ts, plugin, owner, kind, detail, principal, bot, orchestrator_session, assignment_session, trace_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      )
+      .run(
+        at,
+        entry.plugin,
+        entry.owner,
+        entry.kind,
+        truncateDetail(entry.detail),
+        entry.principal ?? null,
+        entry.bot ?? null,
+        entry.orchestratorSession ?? null,
+        entry.assignmentSession ?? null,
+        entry.traceId ?? null,
+      );
     database.prepare('DELETE FROM log_entries WHERE ts < ?').run(at - maxAgeMs);
     database
       .prepare(

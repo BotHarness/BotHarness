@@ -9,7 +9,7 @@ BotHarness needs a durable home for operational logs (plugin lifecycle transitio
 
 ## Decision
 
-1. **Separate SQLite file** at `$DSH_HOME/botharness/logs.db`, owned by a logging module that owns its tables. Shape sketch: `(ts, plugin, entity, kind, detail)` plus indexes; details stay short structured text under the existing no-secrets rule.
+1. **Separate SQLite file** at `$DSH_HOME/botharness/logs.db`, owned by a logging module that owns its tables. Shape: `(ts, plugin, owner, kind, detail)` plus nullable causation links (`principal`, `bot`, `orchestrator_session`, `assignment_session`, `trace_id`); owner is the read boundary, links state causation. Indexed `(ts)`, `(plugin, owner)`, `(trace_id)`; details stay short structured text under the existing no-secrets rule.
 2. **Excluded from backup and restore.** The backup manifest never includes it; Managed Restore never reads it. A Human debugging session is: stop worrying, copy the file, send it. This is the point: sharing `logs.db` never exposes roster, bindings, policies, or inbox content.
 3. **This scopes ADR-0041, not overturns it.** ADR-0041 weighed operational _state_ (registry, roster, policies: low-volume, must-back-up, must-migrate-atomically) and rejected multiple files for it. Logs are a materially different workload — high-volume append-only, explicitly non-backed-up, shareable for debugging. Same reasoning, different facts.
 4. **Lightweight migration, not the owner machinery.** A version table plus best-effort forward migration; no Profile Writer Lease, no staged-copy activation, no fail-closed recovery. Rationale: a disposable debug store must never block Host boot. Worst case rebuilds empty.
