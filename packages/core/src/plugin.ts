@@ -18,6 +18,13 @@ import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
+import {
+  LOGS_SKILL_CONTENT,
+  LOGS_SKILL_DESCRIPTION,
+  LOGS_SKILL_INVOCATION,
+  LOGS_SKILL_NAME,
+  LOGS_SKILL_WHEN_TO_USE,
+} from './logs/skill.js';
 import { createChannelStore, type ChannelStore } from './channels/store.js';
 import {
   attachOperationalModule,
@@ -203,6 +210,40 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
     }),
   );
+
+  // Operational-log reader skill (issue #248, Q6): model-only runtime
+  // registration in the global layer, so every agent scope sees one
+  // directory line and loads the guide body on demand. Runs only when the
+  // skills service is composed; the unregister disposer rides the effect.
+  ctx.inject(['skills'], (skillsCtx) => {
+    const skills = (
+      skillsCtx as unknown as {
+        skills: {
+          register(skill: {
+            readonly name: string;
+            readonly description: string;
+            readonly whenToUse: string;
+            readonly content: string;
+            readonly invocation: {
+              readonly modelInvocable: boolean;
+              readonly userInvocable: boolean;
+            };
+          }): () => void;
+        };
+      }
+    ).skills;
+    skillsCtx.effect(
+      () =>
+        skills.register({
+          name: LOGS_SKILL_NAME,
+          description: LOGS_SKILL_DESCRIPTION,
+          whenToUse: LOGS_SKILL_WHEN_TO_USE,
+          content: LOGS_SKILL_CONTENT,
+          invocation: LOGS_SKILL_INVOCATION,
+        }),
+      'botharness: operational logs skill',
+    );
+  });
 
   // The shared /api carrier authenticates this exact Fetch route.
   ctx.inject(['connection'], (connectionCtx) => {
