@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import { Button, MarkdownText, type MarkdownLabels } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -12,6 +12,104 @@ import { store, type ChannelMessage } from './store.js';
 const ChannelMarkdownText = MarkdownText as unknown as (
   props: Parameters<typeof MarkdownText>[0],
 ) => ReactElement;
+
+function ToolApprovalCard({
+  message,
+  actions,
+  decision,
+  t,
+}: {
+  message: ChannelMessage;
+  actions: BridgeActions;
+  decision?: 'allowed-once' | 'rejected' | undefined;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const request = message.toolApprovalRequest!;
+  const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
+  const [status, setStatus] = useState<'loading' | 'pending' | 'expired' | 'decided'>(
+    decision === undefined ? 'loading' : 'decided',
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+  useEffect(() => {
+    if (decision !== undefined) {
+      setStatus('decided');
+      return;
+    }
+    if (botSlug === undefined) return;
+    let active = true;
+    void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
+      (value) => {
+        if (active) setStatus(value);
+      },
+      () => {
+        if (active) setStatus('expired');
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug, decision, message.id]);
+  const decide = (outcome: 'allowed-once' | 'rejected'): void => {
+    if (botSlug === undefined || busy || status !== 'pending') return;
+    setBusy(true);
+    setError(undefined);
+    const channelId = 'dm-' + botSlug;
+    if (store.getSnapshot().conversation.channel?.id !== channelId) {
+      setError(t('approval.channelChanged'));
+      setBusy(false);
+      return;
+    }
+    void actions
+      .decideToolApproval(channelId, message.id, outcome)
+      .then(
+        () => setStatus('decided'),
+        (cause: unknown) => {
+          setError(errorMessage(cause));
+          void actions
+            .toolApprovalStatus(channelId, message.id)
+            .then(setStatus, () => setStatus('expired'));
+        },
+      )
+      .finally(() => setBusy(false));
+  };
+  return (
+    <div className="bh-tool-approval-card">
+      <div className="bh-grant-request-title">{t('approval.requestTitle')}</div>
+      <div className="bh-note">
+        {request.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
+        {' · '}
+        {request.toolName}
+      </div>
+      <div className="bh-note">{t('approval.cwd', { path: request.cwd })}</div>
+      <pre className="bh-tool-approval-input">{request.input}</pre>
+      <div className="bh-note">{t('approval.risk')}</div>
+      {decision !== undefined ? (
+        <div role="status" className="bh-note">
+          {decision === 'allowed-once' ? t('approval.approved') : t('approval.rejected')}
+        </div>
+      ) : status === 'pending' ? (
+        <div className="bh-tool-approval-actions">
+          <Button variant="primary" disabled={busy} onClick={() => decide('allowed-once')}>
+            {t('approval.allowOnce')}
+          </Button>
+          <Button variant="outline" disabled={busy} onClick={() => decide('rejected')}>
+            {t('approval.reject')}
+          </Button>
+        </div>
+      ) : (
+        <div role="status" className="bh-note">
+          {status === 'loading' ? t('approval.loading') : t('approval.expired')}
+        </div>
+      )}
+      {error === undefined ? null : (
+        <div className="bh-error" role="alert">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function GrantRequestCard({
   message,
@@ -109,11 +207,13 @@ export function ChannelMessageBody({
   t,
   actions,
   grantRequestResolved = false,
+  toolApprovalDecision,
 }: {
   message: ChannelMessage;
   t: BotHarnessTranslate;
   actions?: BridgeActions;
   grantRequestResolved?: boolean;
+  toolApprovalDecision?: 'allowed-once' | 'rejected' | undefined;
 }): ReactElement {
   const labels = useMemo<MarkdownLabels>(
     () => ({
@@ -126,6 +226,11 @@ export function ChannelMessageBody({
     [t],
   );
   const format = message.format ?? (message.author.kind === 'human' ? 'text' : 'markdown');
+  if (message.toolApprovalRequest !== undefined && actions !== undefined) {
+    return (
+      <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />
+    );
+  }
   if (message.grantRequest === true && actions !== undefined) {
     return (
       <GrantRequestCard message={message} actions={actions} resolved={grantRequestResolved} t={t} />

@@ -38,6 +38,7 @@ import {
   type WorkspaceGrant,
   type WorkspaceGrantStore,
 } from '../workspaces/grants.js';
+import type { ChannelToolApproval } from '../workspaces/tool-approval.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   AssignmentDetail,
@@ -107,6 +108,8 @@ export interface BridgeMethods {
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
+  toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
@@ -138,6 +141,7 @@ export interface BridgeMethodsDeps {
   roster: RosterStore;
   runtime?: BotRuntime;
   grants?: WorkspaceGrantStore;
+  toolApproval?: ChannelToolApproval;
   createBotId?: () => string;
 }
 
@@ -783,6 +787,48 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         }
         throw error;
       }
+    },
+    toolApprovalStatus(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (channelId === undefined || messageId === undefined) {
+        return invalidInput('channelId and messageId are required');
+      }
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined) {
+        return invalidInput('Tool approval is available only in a PersonaBot DM');
+      }
+      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+        return invalidInput('Unknown tool approval request');
+      }
+      return {
+        ok: true,
+        value: { status: deps.toolApproval?.status(channel.botSlug, messageId) ?? 'expired' },
+      };
+    },
+    async toolApprovalDecide(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      const outcome = source['outcome'];
+      if (
+        channelId === undefined ||
+        messageId === undefined ||
+        (outcome !== 'allowed-once' && outcome !== 'rejected')
+      ) {
+        return invalidInput('channelId, messageId, and a valid outcome are required');
+      }
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined) {
+        return invalidInput('Tool approval is available only in a PersonaBot DM');
+      }
+      if (deps.channels.message(channelId, messageId)?.toolApprovalRequest === undefined) {
+        return invalidInput('Unknown tool approval request');
+      }
+      const accepted = await deps.toolApproval?.decide(channel.botSlug, messageId, outcome);
+      if (accepted !== true) return invalidInput('Tool approval request is no longer pending');
+      return { ok: true, value: { accepted: true } };
     },
     sessions(payload) {
       const slug = asSlug(payload);

@@ -2662,4 +2662,18 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-grant-request-title { font-weight: 600; }
 .bh-grant-request-reason { white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-grant-request-card > button { justify-self: start; }
+.bh-tool-approval-card { display: grid; gap: 10px; min-width: min(340px, 100%); }
+.bh-tool-approval-input {
+  margin: 0;
+  padding: 10px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-tool-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 `;

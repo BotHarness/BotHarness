@@ -244,6 +244,8 @@ describe('plugin entry', () => {
       'grants',
       'grantCreate',
       'grantRevoke',
+      'toolApprovalStatus',
+      'toolApprovalDecide',
       'sessions',
       'memorySnapshot',
       'memoryFile',

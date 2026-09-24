@@ -76,6 +76,31 @@ describe('Workspace Grant execution boundary', () => {
         command: 'pwd',
       }),
     ).toMatch(/unconfined native tool/);
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        state.assignment,
+        state.policy,
+        state.approval,
+        'bash',
+        { command: 'pwd' },
+        true,
+      ),
+    ).toBeUndefined();
+    state.requireActive.mockImplementation(() => {
+      throw new Error('revoked');
+    });
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        state.assignment,
+        state.policy,
+        state.approval,
+        'bash',
+        { command: 'pwd' },
+        true,
+      ),
+    ).toMatch(/revoked/);
   });
   it('keeps DSH native file tools and denies unconfined execution capabilities', () => {
     const state = fixture();

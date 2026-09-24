@@ -1,4 +1,5 @@
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
+import type { ToolApprovalDecision, ToolApprovalRequestCard } from '../workspaces/tool-approval.js';
 
 export type ChannelType = 'dm' | 'group';
 
@@ -34,6 +35,10 @@ export interface ChannelMessage {
   body: string;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
+  /** One exact live DSH tool call waiting for Human approval. */
+  toolApprovalRequest?: ToolApprovalRequestCard;
+  /** Human's durable decision; the DSH approval itself remains one-shot and live. */
+  toolApprovalDecision?: ToolApprovalDecision;
   attachments?: ChannelAttachmentRef[];
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
@@ -111,6 +116,41 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       (message['author'] as ChannelMessageAuthor).kind !== 'bot')
   )
     return false;
+  const toolRequest = message['toolApprovalRequest'];
+  if (toolRequest !== undefined) {
+    if (
+      typeof toolRequest !== 'object' ||
+      toolRequest === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot'
+    )
+      return false;
+    const request = toolRequest as Record<string, unknown>;
+    if (
+      typeof request['sessionId'] !== 'string' ||
+      typeof request['callId'] !== 'string' ||
+      typeof request['toolName'] !== 'string' ||
+      typeof request['cwd'] !== 'string' ||
+      typeof request['input'] !== 'string' ||
+      (request['role'] !== 'orchestrator' && request['role'] !== 'assignment')
+    )
+      return false;
+  }
+  const toolDecision = message['toolApprovalDecision'];
+  if (toolDecision !== undefined) {
+    if (
+      typeof toolDecision !== 'object' ||
+      toolDecision === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'human'
+    )
+      return false;
+    const decision = toolDecision as Record<string, unknown>;
+    if (
+      typeof decision['requestMessageId'] !== 'string' ||
+      (decision['outcome'] !== 'allowed-once' && decision['outcome'] !== 'rejected') ||
+      message['replyTo'] !== decision['requestMessageId']
+    )
+      return false;
+  }
   const attachments = message['attachments'];
   if (
     attachments !== undefined &&

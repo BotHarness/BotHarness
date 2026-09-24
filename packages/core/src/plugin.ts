@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-agent';
 import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
+import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
@@ -30,7 +31,12 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
-import { grantExecutionDenial, grantToolExecutionDenial } from './workspaces/grant-execution.js';
+import {
+  grantExecutionDenial,
+  grantToolExecutionDenial,
+  requiresHumanToolApproval,
+} from './workspaces/grant-execution.js';
+import { ChannelToolApproval } from './workspaces/tool-approval.js';
 import {
   createWorkspaceGrantStore,
   type DshWorkspaceLookup,
@@ -219,9 +225,61 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
     { global: true },
   );
-  // A mode switch during an already-running step must be caught at the tool boundary.
-  ctx.tools.guard(({ agent, name, arguments: args }) =>
-    agent === undefined
+  const toolApproval = new ChannelToolApproval(core.channels, core.ownership);
+  const approvedCalls = new Set<symbol>();
+  ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
+  ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
+    global: true,
+  });
+  ctx.on(
+    'tools/pre-execute',
+    async (execution, next) => {
+      const agent = execution.agent;
+      if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
+        return next();
+      if (!requiresHumanToolApproval(execution.name)) return next();
+      const denial = permissionDenial(agent.session);
+      if (denial !== undefined) return { kind: 'deny', reason: denial };
+      if (
+        typeof execution.arguments === 'object' &&
+        execution.arguments !== null &&
+        'sandbox_permissions' in execution.arguments
+      ) {
+        return {
+          kind: 'deny',
+          reason: 'BotHarness Session cannot request sandbox permission escalation',
+        };
+      }
+      const approval = ctx.get('approval') as ApprovalService | undefined;
+      const untrack = toolApproval.track(execution);
+      if (approval === undefined || untrack === undefined) {
+        return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
+      }
+      try {
+        const outcome = await approval.request({
+          agent,
+          toolName: execution.name,
+          callId: execution.callId,
+          reason: 'This tool call may access files outside the authorized folder.',
+          signal: execution.signal,
+        });
+        if (outcome !== 'allowed-once') {
+          return { kind: 'deny', reason: 'Human approval was ' + outcome };
+        }
+        approvedCalls.add(execution.token);
+        return await next();
+      } catch {
+        return { kind: 'deny', reason: 'Human approval is unavailable' };
+      } finally {
+        untrack();
+      }
+    },
+    { global: true },
+  );
+  // Every call is rechecked after the Human's decision; a revoked Assignment still fails.
+  ctx.tools.guard(({ agent, name, arguments: args, token }) => {
+    const allowedOnce = approvedCalls.delete(token);
+    return agent === undefined
       ? undefined
       : grantToolExecutionDenial(
           core,
@@ -230,7 +288,15 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           ctx.get('approval'),
           name,
           args,
-        ),
+          allowedOnce,
+        );
+  });
+  ctx.on(
+    'tools/result',
+    (execution) => {
+      approvedCalls.delete(execution.token);
+    },
+    { global: true },
   );
 
   ctx.on(
@@ -252,6 +318,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       roster: core.roster,
       runtime: core.runtime,
       grants: core.grants,
+      toolApproval,
     }),
   );
 

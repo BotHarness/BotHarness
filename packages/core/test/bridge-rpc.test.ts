@@ -71,7 +71,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the thirty-seven bridge endpoints for typert claims', () => {
+  it('marks exactly the thirty-nine bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -96,6 +96,8 @@ describe('bridge typert service', () => {
       'grants',
       'grantCreate',
       'grantRevoke',
+      'toolApprovalStatus',
+      'toolApprovalDecide',
       'sessions',
       'memorySnapshot',
       'memoryFile',

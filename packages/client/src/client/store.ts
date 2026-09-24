@@ -45,12 +45,28 @@ export interface ChannelAttachmentRef {
   size: number;
 }
 
+export interface ToolApprovalRequestCard {
+  sessionId: string;
+  callId: string;
+  toolName: string;
+  role: 'orchestrator' | 'assignment';
+  cwd: string;
+  input: string;
+}
+
+export interface ToolApprovalDecision {
+  requestMessageId: string;
+  outcome: 'allowed-once' | 'rejected';
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
   author: ChannelAuthor;
   body: string;
   grantRequest?: true;
+  toolApprovalRequest?: ToolApprovalRequestCard;
+  toolApprovalDecision?: ToolApprovalDecision;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;

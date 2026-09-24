@@ -365,12 +365,9 @@ describe('DSH Bot Agent adapter', () => {
     const assignmentPrompt = host.scopes.get('assignment-1')?.sections[0]?.text ?? '';
     expect(assignmentPrompt).toContain('Assignment');
     expect(assignmentPrompt).toContain('Never access another workspace or the PersonaBot');
-    expect(host.scopes.get('orchestrator-ada')?.restrictions).toEqual([
-      { allow: ['read', 'read_image', 'write', 'edit', 'str_replace_editor', 'glob', 'grep'] },
-    ]);
-    expect(host.scopes.get('assignment-1')?.restrictions).toEqual([
-      { allow: ['read', 'read_image', 'write', 'edit', 'str_replace_editor', 'glob', 'grep'] },
-    ]);
+    expect(host.scopes.get('orchestrator-ada')?.restrictions).toEqual([]);
+    expect(host.scopes.get('assignment-1')?.restrictions).toEqual([]);
+    expect(assignmentPrompt).toContain('one-time Human approval');
     expect(assignmentPrompt).toContain('expects_reply');
 
     await adapter.close();

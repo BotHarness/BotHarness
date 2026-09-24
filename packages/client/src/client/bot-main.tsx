@@ -142,6 +142,7 @@ function MessageGroupView({
   onRestoreFailed,
   actions,
   resolvedGrantRequests,
+  toolApprovalDecisions,
   t,
 }: {
   group: MessageGroup;
@@ -152,6 +153,7 @@ function MessageGroupView({
   onJumpReply(messageId: string): void;
   actions: BridgeActions;
   resolvedGrantRequests: ReadonlySet<string>;
+  toolApprovalDecisions: ReadonlyMap<string, 'allowed-once' | 'rejected'>;
   t: BotHarnessTranslate;
 }): ReactElement {
   const first = group.messages[0]!;
@@ -219,6 +221,7 @@ function MessageGroupView({
                   t={t}
                   actions={actions}
                   grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                  toolApprovalDecision={toolApprovalDecisions.get(message.id)}
                 />
               </div>
               <button
@@ -818,6 +821,16 @@ function ConversationView({
                                 item.body.startsWith('I authorized workspace “')),
                           )
                           .map((item) => item.replyTo!),
+                      )
+                    }
+                    toolApprovalDecisions={
+                      new Map(
+                        displayMessages
+                          .filter((item) => item.toolApprovalDecision !== undefined)
+                          .map((item) => [
+                            item.toolApprovalDecision!.requestMessageId,
+                            item.toolApprovalDecision!.outcome,
+                          ]),
                       )
                     }
                     focusMessageId={conversation.focusMessageId}

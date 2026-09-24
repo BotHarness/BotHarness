@@ -146,6 +146,8 @@ function stubActions(): BridgeActions {
       workspaceTitle: 'Project',
       createdAt: AT,
     })),
+    toolApprovalStatus: vi.fn(async () => 'expired' as const),
+    decideToolApproval: vi.fn(async () => undefined),
     revokeWorkspaceGrant: vi.fn(async () => ({
       id: 'grant-1',
       path: '/project',

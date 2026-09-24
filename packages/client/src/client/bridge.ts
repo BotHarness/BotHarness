@@ -261,6 +261,29 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   const grantRequest = record['grantRequest'];
   if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
     return undefined;
+  let toolApprovalRequest: ChannelMessage['toolApprovalRequest'];
+  if (record['toolApprovalRequest'] !== undefined) {
+    const request = asRecord(record['toolApprovalRequest']);
+    if (
+      request === undefined ||
+      author.kind !== 'bot' ||
+      typeof request['sessionId'] !== 'string' ||
+      typeof request['callId'] !== 'string' ||
+      typeof request['toolName'] !== 'string' ||
+      typeof request['cwd'] !== 'string' ||
+      typeof request['input'] !== 'string' ||
+      (request['role'] !== 'orchestrator' && request['role'] !== 'assignment')
+    )
+      return undefined;
+    toolApprovalRequest = {
+      sessionId: request['sessionId'],
+      callId: request['callId'],
+      toolName: request['toolName'],
+      role: request['role'],
+      cwd: request['cwd'],
+      input: request['input'],
+    };
+  }
   const rawAttachments = record['attachments'];
   const attachments = Array.isArray(rawAttachments)
     ? rawAttachments.map(parseChannelAttachment)
@@ -277,6 +300,22 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   const replyTo = record['replyTo'];
   if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0))
     return undefined;
+  let toolApprovalDecision: ChannelMessage['toolApprovalDecision'];
+  if (record['toolApprovalDecision'] !== undefined) {
+    const decision = asRecord(record['toolApprovalDecision']);
+    if (
+      decision === undefined ||
+      author.kind !== 'human' ||
+      typeof decision['requestMessageId'] !== 'string' ||
+      (decision['outcome'] !== 'allowed-once' && decision['outcome'] !== 'rejected') ||
+      replyTo !== decision['requestMessageId']
+    )
+      return undefined;
+    toolApprovalDecision = {
+      requestMessageId: decision['requestMessageId'],
+      outcome: decision['outcome'],
+    };
+  }
   const rawPreview = record['replyToPreview'];
   let replyToPreview: ChannelMessage['replyToPreview'];
   if (rawPreview === null) {
@@ -294,6 +333,8 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     author,
     body,
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
+    ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
+    ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(replyTo === undefined ? {} : { replyTo }),
@@ -590,6 +631,35 @@ export async function sendChannelMessage(
   const message = parseChannelMessage(asRecord(value)?.['message']);
   if (message === undefined) throw new Error('invalid channelSend response');
   return message;
+}
+
+export async function loadToolApprovalStatus(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<'pending' | 'expired'> {
+  const response = asRecord(await unwrap(call, 'toolApprovalStatus', { channelId, messageId }));
+  const status = response?.['status'];
+  if (status !== 'pending' && status !== 'expired') {
+    throw new Error('invalid toolApprovalStatus response');
+  }
+  return status;
+}
+
+export async function decideToolApproval(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+  outcome: 'allowed-once' | 'rejected',
+): Promise<void> {
+  const response = asRecord(
+    await unwrap(call, 'toolApprovalDecide', {
+      channelId,
+      messageId,
+      outcome,
+    }),
+  );
+  if (response?.['accepted'] !== true) throw new Error('Tool approval was not accepted');
 }
 
 export interface WorkspaceOption {

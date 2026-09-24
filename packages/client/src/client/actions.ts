@@ -11,6 +11,8 @@ import {
   loadWorkspaceGrants,
   createWorkspaceGrant,
   revokeWorkspaceGrant,
+  loadToolApprovalStatus,
+  decideToolApproval,
   type WorkspaceOption,
   type WorkspaceGrantView,
   loadAssignments,
@@ -111,6 +113,12 @@ export interface BridgeActions {
   listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
   createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
   revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
+  toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  decideToolApproval(
+    channelId: string,
+    messageId: string,
+    outcome: 'allowed-once' | 'rejected',
+  ): Promise<void>;
   send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -408,6 +416,10 @@ export function createActions(
     listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
     createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
     revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
+    toolApprovalStatus: (channelId, messageId) =>
+      loadToolApprovalStatus(call, channelId, messageId),
+    decideToolApproval: (channelId, messageId, outcome) =>
+      decideToolApproval(call, channelId, messageId, outcome),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {

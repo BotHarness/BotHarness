@@ -79,6 +79,10 @@ const BOT_TOOL_NAMES = new Set([
   'report_to_orchestrator',
 ]);
 
+export function requiresHumanToolApproval(name: string): boolean {
+  return !BOT_TOOL_NAMES.has(name) && !NATIVE_FILE_TOOL_NAMES.has(name);
+}
+
 /** The final DSH tool gate denies every unconfined native capability for Bot-owned Sessions. */
 export function grantToolExecutionDenial(
   core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
@@ -87,6 +91,7 @@ export function grantToolExecutionDenial(
   approval: ApprovalService | undefined,
   name: string,
   args: unknown,
+  allowedOnce = false,
 ): string | undefined {
   const denial = grantExecutionDenial(core, session, policy, approval);
   if (denial !== undefined) return denial;
@@ -96,5 +101,6 @@ export function grantToolExecutionDenial(
   }
   if (BOT_TOOL_NAMES.has(name)) return undefined;
   if (NATIVE_FILE_TOOL_NAMES.has(name)) return nativeFileToolDenial(core, session, name, args);
+  if (allowedOnce) return undefined;
   return 'BotHarness Session cannot run an unconfined native tool: ' + name;
 }

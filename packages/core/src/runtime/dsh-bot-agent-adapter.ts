@@ -12,14 +12,13 @@ import {
 } from '@deepseek-ai/dsh-agent';
 import { AttachmentId, type ImageMediaType } from '@deepseek-ai/dsh-attachment';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
-import { SessionId, type Session, type SessionLogOffset } from '@deepseek-ai/dsh-session';
+import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
-import { NATIVE_FILE_TOOL_NAMES } from '../workspaces/grant-native-tools.js';
 import type {
   AssignmentAgentRun,
   AssignmentReportState,
@@ -37,24 +36,15 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 ];
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
-You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and code execution are unavailable until a confined provider is installed. Reading an Assignment report never writes memory for you — you decide what to persist.
+You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
 Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
-Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Native Shell and code execution are unavailable until a confined provider is installed.
+Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Wait for the decision before continuing.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
 If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
-
-/** Keep DSH file tools; hide unrelated inherited tools from Bot-owned Sessions. */
-function restrictNativeTools(agentCtx: Context, agent: Agent): () => void {
-  const allow = agentCtx.tools
-    .schemas(agent)
-    .map((schema) => schema.name)
-    .filter((name) => NATIVE_FILE_TOOL_NAMES.has(name));
-  return agentCtx.tools.restrict({ allow });
-}
 
 export interface DshAgentHost {
   create(options: CreateAgentOptions): Promise<AgentHandle>;
@@ -297,8 +287,6 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       };
       const disposePresentation = agentCtx.tools.presentAs('native');
       if (borrowed) borrowedDisposers.push(disposePresentation);
-      const disposeRestriction = restrictNativeTools(agentCtx, agent);
-      if (borrowed) borrowedDisposers.push(disposeRestriction);
       const disposeRolePrompt = agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
         order: ROLE_PROMPT_ORDER,
@@ -825,8 +813,6 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         };
         const disposePresentation = agentCtx.tools.presentAs('native');
         if (borrowed) borrowedDisposers.push(disposePresentation);
-        const disposeRestriction = restrictNativeTools(agentCtx, agent);
-        if (borrowed) borrowedDisposers.push(disposeRestriction);
         const disposeRolePrompt = agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
           order: ROLE_PROMPT_ORDER,
