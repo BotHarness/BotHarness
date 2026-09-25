@@ -102,7 +102,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 ## 6. 客户端包与 bundle 约束
 
-- **独立包** `@botharness/client`（DSH 默认是「同一包两半侧」，本仓库按 ADR-0023 显式偏离）：package.json 声明 `dsh.client = { platform: 'web', inject: [...] }` 与 `exports['./client']`，并作为独立 Loader entry 挂载。
+- **独立包** `@botharness/client`（DSH 默认是「同一包两半侧」，本仓库按 ADR-0023 显式偏离）：package.json 声明 `dsh.client = { platform: 'web', inject: [] }` 与 `exports['./client']`，并作为独立 Loader entry 挂载。
 - **产物格式**：lazy-CJS closure factory，入口 `lib/client.js`，自注册 `window.__ModuleLoader__.load({ id: '@botharness/client', factory: (require) => { … } })`，带 sourcemap。
 - **外置基线**：只外置 shell 注入的模块表（`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`）；其余依赖（含 blobatar）全部内联。
 - **纯净门禁**：跨插件只允许 `import type`，不得值导入；跨包协作走 Cordis 服务或 slot。
@@ -124,6 +124,14 @@ corepack pnpm dev:client
 - Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。RC2 的 Host 热替换当前关闭；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
 - 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。
 - 自动回归：`node scripts/e2e-rc2-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。
+
+### Windows Desktop 检查点
+
+在原生 Windows checkout 执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm build`，再从官方 Desktop 的插件页选择本地 `packages/deepseekbot`，启用插件并重启应用及 Host。`pnpm-workspace.yaml` 只放行 Desktop 安装实际需要执行的 native postinstall。用独立 `DSH_HOME` 保持 profile 与日常使用隔离；本机 AX 密钥只通过启动进程的 `DEEPSEEK_API_KEY` 环境变量注入，不写入仓库或 issue。
+
+官方 RC2 的 Desktop 开发菜单有「重新加载页面」和「重启应用及 Host」，两者都不构建源码；Host 修改须先构建，再重启应用及 Host。[官方 Desktop 开发说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.7-rc.2/apps/desktop/README.md#develop)。
+
+当前 BotHarness 的 `sidebar.workspaces`/`main` shadow slot 在 Desktop 的原生 Client HMR 后仍可能保留旧 React 树；对 `dsh-app://app` 在 `rebuilt` 事件上立即整页刷新，以及在该次 HMR 后手动刷新，都曾导致 `@botharness/client: import failed` 的启动失败。日常 UI 改动继续在隔离 Web Profile 使用 `dev:client`；Desktop 检查点停止 watcher、显式 `pnpm build`、重启应用及 Host 后验收。崩溃报告在 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`；检查 renderer console 后从「重启」或受控冷启动恢复，保留已安装插件。此限制不影响冷启动下的本地 Workspace 选择、PersonaBot 创建与重启持久化。
 
 ## 8. 未决
 

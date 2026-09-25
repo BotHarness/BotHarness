@@ -81,6 +81,7 @@
 
 ### Fixed
 
+- 修复 Windows 上全新 BotHarness 数据库的初始化；官方 DSH RC2 Desktop 现可添加本地工作区并创建 PersonaBot，不再因此进入恢复模式（[#266](https://github.com/BotHarness/BotHarness/issues/266)）。
 - Orchestrator 或 Assignment 回合失败时，PersonaBot 私聊会留下持久的本地化提示和 DSH 错误码；提供方原始报错与 Session 身份按需展开，密钥与余额问题可直接打开模型设置（[#116](https://github.com/BotHarness/BotHarness/issues/116)）。
 
 - 修复目录选择器被拒绝（如 Web 部署）时 Computer 的端到端导出：导出目录回退到内置默认（`~/Desktop/BotHarness Exports`，无 Desktop 时为 `~/BotHarness Exports`）并只读展示、无需输入路径；设置 scope 仍为空时行内持续跟踪该 Host 解析路径（打开目录 / 导出 / 导入对其保持可用）；选择器失败后直接切到该固定目录继续导出；导出完成后自动在宿主机文件管理器中打开目录。在有选择器的部署上，保存手工路径有进行中状态与成功/失败提示，相对路径会被明确拒绝，Host 拒绝写入时会显示错误而不是假成功（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
