@@ -42,6 +42,8 @@ export interface ChannelMessage {
   at: string;
   author: ChannelMessageAuthor;
   body: string;
+  /** Exact Human-selected branch from the Memory UI; opens a coordination turn. */
+  memorySwitchTarget?: string;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
   /** One exact live DSH tool call waiting for Human approval. */
@@ -120,6 +122,15 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
   if (typeof message['id'] !== 'string' || message['id'].length === 0) return false;
   if (typeof message['at'] !== 'string' || message['at'].length === 0) return false;
   if (typeof message['body'] !== 'string') return false;
+  const switchTarget = message['memorySwitchTarget'];
+  if (
+    switchTarget !== undefined &&
+    (typeof switchTarget !== 'string' ||
+      switchTarget.length === 0 ||
+      switchTarget.length > 255 ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'human')
+  )
+    return false;
   if (
     message['grantRequest'] !== undefined &&
     (message['grantRequest'] !== true ||

@@ -65,6 +65,44 @@ function git(root: string, ...args: string[]): string {
 }
 
 describe('accepted Memory Commit boundary', () => {
+  it('coordinates a dirty switch without accepting or discarding the staged work', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      git(root, 'branch', 'history', seed);
+      writeFileSync(join(root, 'draft.md'), 'Staged work\n');
+      git(root, 'add', 'draft.md');
+      writeFileSync(join(root, 'draft.md'), 'Unfinished worktree edit\n');
+      writeFileSync(join(root, 'extra.md'), 'Untracked work\n');
+      addSource('event-coordinate');
+      memory.prepareTurn('atlas', 'session-atlas', { coordinateBranchSwitch: true });
+      expect(() =>
+        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
+      ).toThrow(/unfinished changes/);
+      expect(git(root, 'branch', '--show-current')).toBe('main');
+      expect(git(root, 'diff', '--cached', '--name-only')).toBe('draft.md');
+      expect(git(root, 'show', ':draft.md')).toBe('Staged work');
+      expect(git(root, 'diff', '--name-only')).toBe('draft.md');
+      expect(readFileSync(join(root, 'draft.md'), 'utf8')).toBe('Unfinished worktree edit\n');
+      expect(readFileSync(join(root, 'extra.md'), 'utf8')).toBe('Untracked work\n');
+      git(root, 'stash', 'push', '--include-untracked', '-m', 'Assignment checkpoint');
+      expect(
+        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
+      ).toMatchObject({ from: 'main', to: 'history', head: seed });
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-coordinate',
+        }),
+      ).toEqual([]);
+      expect(git(root, 'stash', 'list')).toContain('Assignment checkpoint');
+      expect(git(root, 'stash', 'show', '--include-untracked', '-p')).toContain('Untracked work');
+      expect(git(root, 'branch', '--show-current')).toBe('history');
+    } finally {
+      database.close();
+    }
+  });
   it('migrates an existing accepted main head to branch-scoped storage', () => {
     const home = createTempRoot('botharness-memory-migration-');
     const previousPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));

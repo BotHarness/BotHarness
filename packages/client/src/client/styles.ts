@@ -16,6 +16,7 @@ export const CSS =
   --bh-memory-radius-row: 6px;
   --bh-memory-radius-card: 10px;
   --bh-memory-font-code: var(--dsw-font-markdown-code-block-font-family);
+  --bh-memory-label-muted: var(--dsw-alias-label-secondary);
   /* @bh-memory-graph-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
@@ -2792,14 +2793,26 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   color: var(--dsw-alias-label-secondary);
 
 }
-.bh-memory-branch-control select {
-  min-width: 0;
+.bh-memory-branch-picker {
+  display: block;
   flex: 1;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: var(--bh-memory-radius-row);
-  padding: 4px 6px;
-  background: var(--dsw-alias-bg-base);
-  color: var(--dsw-alias-label-primary);
+  min-width: 0;
+}
+.bh-memory-branch-picker > span {
+  display: flex;
+  min-width: 0;
+}
+.bh-memory-branch-picker input {
+  min-width: 0;
+  width: 100%;
+}
+.bh-memory-branch-menu {
+  min-width: 180px;
+}
+.bh-memory-branch-empty {
+  padding: 8px 12px;
+  color: var(--bh-memory-label-muted);
+  font-size: 12px;
 }
 
 .bh-memory-graph-list {

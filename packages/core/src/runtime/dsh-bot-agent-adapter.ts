@@ -18,6 +18,7 @@ import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import { MemoryAcceptError } from '../memory/accepted.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
 import type {
   AssignmentAgentRun,
@@ -37,7 +38,7 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
 You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
-Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. When the Human explicitly asks to continue from a historical Memory commit, call memory_continue_from_commit with the exact commit SHA and requested new branch name; then read from the switched working tree in the same Session. A pending raw commit remains unaccepted and needs repair before later turns. If Git refuses because of unfinished work, explain the conflict and coordinate it; never discard changes.
+Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. When the Human explicitly asks to continue from a historical Memory commit, call memory_continue_from_commit with the exact commit SHA and requested new branch name; then read from the switched working tree in the same Session. A pending raw commit remains unaccepted and needs repair before later turns. If a Memory branch switch is blocked, do not claim success. Use list_assignments and inspect_assignment to identify relevant active work, then send_assignment_request in next-step mode to ask the affected Assignment to pause at a safe point, preserve its own workspace work, and report; Assignments must never edit Memory. Report the target branch and conflict in the Channel. After sending the request, call channel_send with the target branch, Assignment id, and coordination progress. After the report, inspect the Memory Git state, preserve unfinished Memory with a named native Git stash including untracked files when safe, and retry memory_switch_branch. If coordination cannot make the switch safe, report the target and the blocked reason. Never reset, force-checkout, or discard changes.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
@@ -333,8 +334,29 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               return JSON.stringify({ outcome: 'switched', ...result });
             } catch (error) {
               const detail = error instanceof Error ? error.message : String(error);
-              await active.run.channels.send({ body: `记忆分支切换失败：${detail}` });
-              return JSON.stringify({ outcome: 'failed', branch: args.branch, detail });
+              const blocked =
+                error instanceof MemoryAcceptError && error.code === 'memory-conflict';
+              const workingAssignments = blocked
+                ? active.run.assignments
+                    .list()
+                    .filter((assignment) => assignment.activity === 'working')
+                    .map((assignment) => ({
+                      sessionId: assignment.sessionId,
+                      purpose: assignment.purpose,
+                      workspace: assignment.permission?.primaryCwd,
+                    }))
+                : [];
+              await active.run.channels.send({
+                body: blocked
+                  ? `记忆分支 ${args.branch} 尚未切换：${detail}。当前分支与未完成改动已保留。`
+                  : `记忆分支 ${args.branch} 切换失败：${detail}`,
+              });
+              return JSON.stringify({
+                outcome: blocked ? 'blocked' : 'failed',
+                branch: args.branch,
+                detail,
+                workingAssignments,
+              });
             }
           },
         }),
