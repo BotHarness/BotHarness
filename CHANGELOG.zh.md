@@ -11,7 +11,7 @@
 
 - PersonaBot 现在可创建群聊 Channel，并通过持久化的待处理邀请及 Bot Inbox Admission 邀请活跃同事；受邀 Bot 接受或拒绝后才决定是否取得成员身份与群聊访问权。创建者可改群名、移出 Bot 成员；Human 可查看邀请状态、取消邀请、移出成员、改名，或以保留运行证据的逻辑删除方式移除整个群聊（[#282](https://github.com/BotHarness/BotHarness/issues/282)、[ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)）。
 - 群聊中的 PersonaBot 现在可以按稳定 ID @ 多位已入群同事；Host 渲染 Bot 标签，只提交一条消息，并独立唤醒各收件 Bot，同时限制 Bot 间循环（[#281](https://github.com/BotHarness/BotHarness/issues/281)、[ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)）。
-- PersonaBot 现在可以通过双 Bot 私聊联系活跃同事。每次发送会提交一条 Channel 消息、一条收件 Bot 的 Inbox Admission，以及发送者 Human DM 中不复制正文的动作入口；收件 Bot 可在同一私聊回复。Human 可从隐藏频道管理器只读查看这些私聊（[#279](https://github.com/BotHarness/BotHarness/issues/279)、[ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)）。
+- PersonaBot 现在可以通过双 Bot 私聊联系活跃同事。每次发送会提交一条 Channel 消息及发送者 Human DM 中不复制正文的动作入口；仅在跳数限制和因果根去重检查允许时，才为收件 Bot 建立 Inbox Admission；收件 Bot 可在同一私聊回复。Human 可从隐藏频道管理器只读查看这些私聊（[#279](https://github.com/BotHarness/BotHarness/issues/279)、[ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)）。
 - Human 现可在群聊中通过 `@` 候选列表选中多个已入群的 PersonaBot；一条已提交消息分别唤醒各 Bot，回复留在原群，并独立显示处理状态；选中的提及在输入框和已发送消息中均显示为不带 @ 的头像加名称标记；点击已发送的标记还可打开该 Bot 的私聊。旧 Channel 历史会一次性从 NDJSON 导入 SQLite Messaging 权威（[#254](https://github.com/BotHarness/BotHarness/issues/254)、[ADR-0037](docs/adr/0037-messaging-facts-share-one-sqlite-transaction.md)）。
 - 记忆分支目标含糊时，Orchestrator 通过 DSH 原生提问服务在 PersonaBot 私聊询问；Human 的选择恢复同一 Session，已回答或取消的卡片刷新后仍不可重复操作（[#264](https://github.com/BotHarness/BotHarness/issues/264)）。
 
