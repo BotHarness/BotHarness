@@ -1,16 +1,6 @@
 import { execFileSync } from 'node:child_process';
-import {
-  chmodSync,
-  existsSync,
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  renameSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { tmpdir } from 'node:os';
 
 import { describe, expect, it } from 'vitest';
 
@@ -20,21 +10,25 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { defineSchemaPlan } from '../src/database/schema.js';
 import { createMemoryService } from '../src/memory/service.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
+import { toMemoryRelativePath } from '../src/memory/jail.js';
 import { createSessionOwnership } from '../src/sessions/ownership.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 
+function git(root: string, ...args: string[]): string {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+}
+
 function fixture() {
-  const dshHome = createTempRoot('botharness-memory-accepted-');
-  const database = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  const home = createTempRoot('botharness-memory-git-');
+  const database = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
   const registry = createPersonaBotRegistry({
-    rootDir: join(dshHome, 'botharness', 'bots'),
+    rootDir: join(home, 'bots'),
     initializeMemory(memoryDir) {
       const result = ensureMemoryRepository({ memoryDir });
       return result.ok ? { ok: true } : { ok: false, message: result.message };
     },
   });
-  const created = registry.create({ slug: 'atlas', displayName: 'Atlas' });
-  expect(created.ok).toBe(true);
+  expect(registry.create({ slug: 'atlas', displayName: 'Atlas' }).ok).toBe(true);
   const ownership = createSessionOwnership(attachOperationalModule(database, 'session-ownership'));
   ownership.claim({
     sessionId: 'session-atlas',
@@ -43,67 +37,51 @@ function fixture() {
     at: FIXED_NOW().toISOString(),
   });
   const source = attachOperationalModule(database, 'memory-test');
-  const addSource = (sourceEventId: string) =>
+  const addSource = (id: string) =>
     source.transaction((db) => {
       db.prepare(`INSERT INTO source_events (
-      source_event_id, source_kind, bot_slug, channel_id, message_id,
-      body, created_at, attempt_state
-    ) VALUES (?, 'human-message', 'atlas', 'dm-atlas', ?, 'remember', ?, 'running')`).run(
-        sourceEventId,
-        sourceEventId,
+        source_event_id, source_kind, bot_slug, channel_id, message_id,
+        body, created_at, attempt_state
+      ) VALUES (?, 'human-message', 'atlas', 'dm-atlas', ?, 'remember', ?, 'running')`).run(
+        id,
+        id,
         FIXED_NOW().toISOString(),
       );
     });
   const memory = createMemoryService({ registry, ownership, database, now: FIXED_NOW });
   const root = registry.memoryDirFor('atlas');
   if (root === undefined) throw new Error('Memory root missing');
-  return { database, registry, memory, root, addSource };
+  return { home, database, registry, ownership, memory, root, addSource };
 }
 
-function git(root: string, ...args: string[]): string {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+function makeExternalRepository(home: string) {
+  const remote = join(home, 'external');
+  mkdirSync(remote);
+  git(remote, 'init', '-b', 'main');
+  git(remote, 'config', 'user.name', 'External Author');
+  git(remote, 'config', 'user.email', 'external@example.com');
+  mkdirSync(join(remote, 'src'));
+  mkdirSync(join(remote, '.github'));
+  writeFileSync(join(remote, 'src', 'memory.ts'), 'export const memory = "remote";\n');
+  writeFileSync(join(remote, '.github', 'notes.md'), 'Git metadata-style directory is data.\n');
+  writeFileSync(join(remote, 'logo.bin'), Buffer.from([0, 1, 2, 255]));
+  git(remote, 'add', '-A');
+  git(remote, 'commit', '-m', 'External root');
+  git(remote, 'switch', '-c', 'history');
+  writeFileSync(join(remote, 'history.md'), 'Older branch memory\n');
+  git(remote, 'add', 'history.md');
+  git(remote, 'commit', '-m', 'History branch');
+  const historyHead = git(remote, 'rev-parse', 'HEAD');
+  git(remote, 'switch', 'main');
+  writeFileSync(join(remote, 'main.md'), 'Main branch memory\n');
+  git(remote, 'add', 'main.md');
+  git(remote, 'commit', '-m', 'Main branch');
+  git(remote, 'merge', '--no-ff', 'history', '-m', 'Merge memory histories');
+  return { remote, head: git(remote, 'rev-parse', 'HEAD'), historyHead };
 }
 
-describe('accepted Memory Commit boundary', () => {
-  it('coordinates a dirty switch without accepting or discarding the staged work', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      git(root, 'branch', 'history', seed);
-      writeFileSync(join(root, 'draft.md'), 'Staged work\n');
-      git(root, 'add', 'draft.md');
-      writeFileSync(join(root, 'draft.md'), 'Unfinished worktree edit\n');
-      writeFileSync(join(root, 'extra.md'), 'Untracked work\n');
-      addSource('event-coordinate');
-      memory.prepareTurn('atlas', 'session-atlas', { coordinateBranchSwitch: true });
-      expect(() =>
-        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
-      ).toThrow(/unfinished changes/);
-      expect(git(root, 'branch', '--show-current')).toBe('main');
-      expect(git(root, 'diff', '--cached', '--name-only')).toBe('draft.md');
-      expect(git(root, 'show', ':draft.md')).toBe('Staged work');
-      expect(git(root, 'diff', '--name-only')).toBe('draft.md');
-      expect(readFileSync(join(root, 'draft.md'), 'utf8')).toBe('Unfinished worktree edit\n');
-      expect(readFileSync(join(root, 'extra.md'), 'utf8')).toBe('Untracked work\n');
-      git(root, 'stash', 'push', '--include-untracked', '-m', 'Assignment checkpoint');
-      expect(
-        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
-      ).toMatchObject({ from: 'main', to: 'history', head: seed });
-      expect(
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-coordinate',
-        }),
-      ).toEqual([]);
-      expect(git(root, 'stash', 'list')).toContain('Assignment checkpoint');
-      expect(git(root, 'stash', 'show', '--include-untracked', '-p')).toContain('Untracked work');
-      expect(git(root, 'branch', '--show-current')).toBe('history');
-    } finally {
-      database.close();
-    }
-  });
-  it('migrates an existing accepted main head to branch-scoped storage', () => {
+describe('current Git working tree is Memory', () => {
+  it('migrates an older recorded main checkpoint to branch-scoped storage', () => {
     const home = createTempRoot('botharness-memory-migration-');
     const previousPlan = defineSchemaPlan(
       BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 14),
@@ -132,895 +110,177 @@ describe('accepted Memory Commit boundary', () => {
             .all('atlas'),
         ),
       ).toEqual([{ branch_name: 'main', head_sha: sha }]);
-      port.transaction((db) => {
-        db.prepare(
-          'INSERT INTO memory_accepted_heads (bot_slug, branch_name, head_sha, updated_at) VALUES (?, ?, ?, ?)',
-        ).run('atlas', 'history', sha, FIXED_NOW().toISOString());
-      });
-      expect(
-        port.read((db) =>
-          db
-            .prepare(
-              'SELECT branch_name FROM memory_accepted_heads WHERE bot_slug = ? ORDER BY branch_name',
-            )
-            .all('atlas'),
-        ),
-      ).toEqual([{ branch_name: 'history' }, { branch_name: 'main' }]);
     } finally {
       owner.close();
       rmSync(home, { recursive: true, force: true });
     }
   });
-  it('shows local Git branches and opens the diff of a pending commit without accepting it', () => {
-    const { database, registry, memory, root } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      git(root, 'switch', '-c', 'experiment', seed);
-      writeFileSync(join(root, 'branch-note.md'), 'Branch memory\n', 'utf8');
-      git(root, 'add', 'branch-note.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Branch memory',
-      );
-      const branchSha = git(root, 'rev-parse', 'HEAD');
-      git(root, 'switch', 'main');
-      writeFileSync(join(root, 'main-note.md'), 'Main memory\n', 'utf8');
-      git(root, 'add', 'main-note.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Main memory',
-      );
-      const mainSha = git(root, 'rev-parse', 'HEAD');
 
-      const graph = memory.gitGraph('atlas', 0);
-      expect(graph.currentBranch).toBe('main');
-      expect(graph.head).toBe(mainSha);
-      expect(graph.commits).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ sha: mainSha, branches: ['main'], status: 'needs-repair' }),
-        ]),
-      );
-      expect(graph.commits).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({ sha: branchSha, branches: ['experiment'], status: 'pending' }),
-          expect.objectContaining({ sha: seed, branches: [], status: 'accepted' }),
-        ]),
-      );
-      expect(memory.gitCommitDiff('atlas', branchSha).files).toEqual([
-        { path: 'branch-note.md', status: 'A' },
-      ]);
-      expect(memory.gitCommitDiff('atlas', branchSha).diff).toContain('+Branch memory');
-      expect(memory.history('atlas').map((commit) => commit.sha)).toEqual([seed]);
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.gitGraph('atlas', 0).commits).toEqual(graph.commits);
-      expect(memory.gitGraph('atlas', 1).commits).toHaveLength(2);
-      expect(() => memory.gitGraph('atlas', 10_001)).toThrow(/offset/);
-      expect(() => memory.gitCommitDiff('atlas', 'not-a-sha')).toThrow(/Unknown Memory Git commit/);
-      expect(() => memory.gitCommitDiff('atlas', '0'.repeat(40))).toThrow(
-        /Unknown Memory Git commit/,
-      );
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'merge',
-        '--no-ff',
-        'experiment',
-        '-m',
-        'Merge experiment',
-      );
-      const mergeSha = git(root, 'rev-parse', 'HEAD');
-      expect(memory.gitCommitDiff('atlas', mergeSha).files).toContainEqual({
-        path: 'branch-note.md',
-        status: 'A',
-      });
-      expect(memory.gitCommitDiff('atlas', mergeSha).diff).toContain('+Branch memory');
-    } finally {
-      database.close();
-    }
-  });
-
-  it('continues an accepted historical commit on a new branch without changing the old branch', () => {
-    const { database, registry, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      addSource('event-main');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'state.md'), 'Newer memory\n');
-      const [newer] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-main',
-      });
-      addSource('event-continue');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(
-        memory.continueFromCommit({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sha: seed,
-          branch: 'earlier',
-        }),
-      ).toMatchObject({ from: 'main', to: 'earlier', head: seed, accepted: true });
-      expect(git(root, 'branch', '--show-current')).toBe('earlier');
-      expect(existsSync(join(root, 'state.md'))).toBe(false);
-      expect(git(root, 'rev-parse', 'main')).toBe(newer?.sha);
-      expect(
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-continue',
-        }),
-      ).toEqual([]);
-      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.gitGraph('atlas').currentBranch).toBe('earlier');
-      expect(reopened.gitGraph('atlas').branches).toEqual(['earlier', 'main']);
-    } finally {
-      database.close();
-    }
-  });
-  it('keeps a raw branch point pending after creation, reconciliation, and restart', () => {
-    const { database, registry, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      git(root, 'switch', '-c', 'raw-source');
-      writeFileSync(join(root, 'raw.md'), 'Raw historical content\n');
-      git(root, 'add', 'raw.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Raw point',
-      );
-      const raw = git(root, 'rev-parse', 'HEAD');
-      git(root, 'switch', 'main');
-      addSource('event-raw-continue');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(
-        memory.continueFromCommit({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sha: raw,
-          branch: 'raw-review',
-        }),
-      ).toMatchObject({ head: raw, accepted: false });
-      expect(readFileSync(join(root, 'raw.md'), 'utf8')).toBe('Raw historical content\n');
-      expect(
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-raw-continue',
-        }),
-      ).toEqual([]);
-      expect(memory.history('atlas').map((item) => item.sha)).toEqual([seed]);
-      expect(memory.snapshot('atlas').provisional).toBe(true);
-      expect(memory.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
-        'needs-repair',
-      );
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.gitGraph('atlas').currentBranch).toBe('raw-review');
-      expect(reopened.gitGraph('atlas').branches).toEqual(['main', 'raw-review', 'raw-source']);
-      expect(reopened.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
-        'needs-repair',
-      );
-      expect(() => reopened.prepareTurn('atlas', 'session-atlas')).toThrow(/provisional changes/);
-      const repaired = reopened.repairHuman({
-        botSlug: 'atlas',
-        expectedHead: seed,
-        repairId: '55555555-5555-4555-8555-555555555555',
-      });
-      expect(repaired.status).toBe('completed');
-      expect(git(root, 'branch', '--show-current')).toBe('raw-review');
-      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
-      expect(git(root, 'rev-parse', 'raw-source')).toBe(raw);
-      expect(git(join(repaired.backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
-      expect(reopened.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
-        'pending',
-      );
-      reopened.prepareTurn('atlas', 'session-atlas');
-      reopened.abortTurn('atlas', 'session-atlas');
-    } finally {
-      database.close();
-    }
-  });
-
-  it('refuses invalid, existing, or unknown branch points without changing refs', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      addSource('event-reject');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const create = (branch: string, sha = seed) =>
-        memory.continueFromCommit({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sha,
-          branch,
-        });
-      expect(() => create('bad..name')).toThrow(/Invalid Memory branch name/);
-      expect(() => create('main')).toThrow(/already exists/);
-      expect(() => create('new-history', '0'.repeat(40))).toThrow(/Unknown Memory Git commit/);
-      expect(git(root, 'branch', '--show-current')).toBe('main');
-      expect(git(root, 'branch', '--list')).toBe('* main');
-      memory.abortTurn('atlas', 'session-atlas');
-    } finally {
-      database.close();
-    }
-  });
-  it('switches to an accepted historical branch and accepts later work there without changing main', () => {
-    const { database, registry, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      addSource('event-main');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'state.md'), 'Main memory\n');
-      const [mainCommit] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-main',
-      });
-      expect(mainCommit?.parentSha).toBe(seed);
-      git(root, 'branch', 'review', seed);
-
-      addSource('event-switch');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(
-        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'review' }),
-      ).toMatchObject({ from: 'main', to: 'review', head: seed });
-      expect(git(root, 'branch', '--show-current')).toBe('review');
-      expect(existsSync(join(root, 'state.md'))).toBe(false);
-      expect(
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-switch',
-        }),
-      ).toEqual([]);
-      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
-
-      addSource('event-review');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'state.md'), 'Review memory\n');
-      const [reviewCommit] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-review',
-      });
-      expect(reviewCommit?.parentSha).toBe(seed);
-      expect(memory.readAccepted('atlas', 'state.md')?.body).toBe('Review memory\n');
-      expect(
-        memory.gitGraph('atlas').commits.find((item) => item.sha === reviewCommit?.sha)?.status,
-      ).toBe('accepted');
-
-      addSource('event-return');
-      memory.prepareTurn('atlas', 'session-atlas');
-      memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'main' });
-      memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-return',
-      });
-      expect(readFileSync(join(root, 'state.md'), 'utf8')).toBe('Main memory\n');
-      expect(memory.snapshot('atlas').head).toBe(mainCommit?.sha);
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.gitGraph('atlas').currentBranch).toBe('main');
-      expect(
-        reopened.gitGraph('atlas').commits.find((item) => item.sha === reviewCommit?.sha)?.status,
-      ).toBe('accepted');
-    } finally {
-      database.close();
-    }
-  });
-
-  it('refuses to leave a branch with an unaccepted commit from the active turn', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      git(root, 'branch', 'history', 'HEAD');
-      addSource('event-unaccepted');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'unaccepted.md'), 'Not yet accepted\n');
-      git(root, 'add', 'unaccepted.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Unaccepted memory',
-      );
-      expect(() =>
-        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
-      ).toThrow(/unaccepted commits/);
-      expect(git(root, 'branch', '--show-current')).toBe('main');
-      memory.abortTurn('atlas', 'session-atlas');
-    } finally {
-      database.close();
-    }
-  });
-  it('preserves unfinished edits and rejects a pending branch tip without accepting it', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      git(root, 'branch', 'pending', seed);
-      git(root, 'switch', 'pending');
-      writeFileSync(join(root, 'pending.md'), 'Raw pending\n');
-      git(root, 'add', 'pending.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Pending memory',
-      );
-      const pendingSha = git(root, 'rev-parse', 'HEAD');
-      git(root, 'switch', 'main');
-      addSource('event-pending');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(() =>
-        memory.switchBranch({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          branch: 'pending',
-        }),
-      ).toThrow(/not accepted/);
-      expect(git(root, 'branch', '--show-current')).toBe('main');
-      expect(memory.gitGraph('atlas').commits.find((item) => item.sha === pendingSha)?.status).toBe(
-        'pending',
-      );
-      memory.abortTurn('atlas', 'session-atlas');
-
-      addSource('event-dirty');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'unfinished.md'), 'Preserve me\n');
-      expect(() =>
-        memory.switchBranch({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          branch: 'pending',
-        }),
-      ).toThrow(/unfinished/);
-      expect(readFileSync(join(root, 'unfinished.md'), 'utf8')).toBe('Preserve me\n');
-      expect(git(root, 'branch', '--show-current')).toBe('main');
-      memory.abortTurn('atlas', 'session-atlas');
-    } finally {
-      database.close();
-    }
-  });
-
-  it('bootstraps a clean new repository when Human opens Memory first', () => {
+  it('shows ordinary text, code, and binary files before a commit', () => {
     const { database, memory, root } = fixture();
     try {
       const seed = git(root, 'rev-parse', 'HEAD');
-      expect(memory.snapshot('atlas')).toEqual({
+      writeFileSync(join(root, 'note.md'), 'Uncommitted memory\n');
+      writeFileSync(join(root, 'code.ts'), 'export const answer = 42;\n');
+      writeFileSync(join(root, 'image.bin'), Buffer.from([0, 255]));
+      const snapshot = memory.snapshot('atlas');
+      expect(snapshot.head).toBe(seed);
+      expect(snapshot.provisional).toBe(false);
+      expect(snapshot.files).toEqual(expect.arrayContaining(['note.md', 'code.ts', 'image.bin']));
+      expect(memory.readAccepted('atlas', 'code.ts')?.body).toBe('export const answer = 42;\n');
+      expect(memory.readAccepted('atlas', 'image.bin')).toMatchObject({
+        path: 'image.bin',
         head: seed,
-        files: [],
-        provisional: false,
+        binary: true,
       });
-      expect(memory.history('atlas')).toMatchObject([
-        { sha: seed, actorKind: 'system', causeKind: 'repository-init' },
-      ]);
+      expect(git(root, 'status', '--porcelain')).toContain('code.ts');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('follows a native fetch and reset to an unrelated merged history without admission', () => {
+    const { home, database, registry, ownership, memory, root, addSource } = fixture();
+    try {
+      const external = makeExternalRepository(home);
+      const seed = memory.snapshot('atlas').head;
+      git(root, 'remote', 'add', 'origin', external.remote);
+      git(root, 'fetch', 'origin');
+      git(root, 'reset', '--hard', 'origin/main');
+      git(root, 'branch', 'history', 'origin/history');
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(external.head);
+      expect(memory.snapshot('atlas')).toMatchObject({ head: external.head, provisional: false });
+      expect(memory.snapshot('atlas').files).toEqual(
+        expect.arrayContaining(['src/memory.ts', '.github/notes.md', 'logo.bin', 'history.md']),
+      );
+      expect(memory.readAccepted('atlas', 'src/memory.ts')?.body).toContain('"remote"');
+      expect(memory.readAccepted('atlas', '.github/notes.md')?.body).toContain('data');
+      expect(memory.readAccepted('atlas', 'logo.bin')?.binary).toBe(true);
+      const graph = memory.gitGraph('atlas');
+      expect(graph.currentBranch).toBe('main');
+      expect(graph.head).toBe(external.head);
+      expect(graph.branches).toEqual(expect.arrayContaining(['main', 'history']));
+      expect(graph.commits.find((commit) => commit.sha === external.head)?.parents).toHaveLength(2);
+      expect(graph.commits.some((commit) => commit.sha === seed)).toBe(false);
+
+      addSource('observe-external');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const checkpoints = memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'observe-external',
+      });
+      expect(checkpoints).toHaveLength(1);
+      expect(checkpoints[0]?.sha).toBe(external.head);
+      expect(checkpoints[0]?.actorId).toBe('session-atlas');
+      expect(memory.snapshot('atlas').head).toBe(external.head);
+      const reopened = createMemoryService({ registry, ownership, database, now: FIXED_NOW });
+      expect(reopened.readAccepted('atlas', 'src/memory.ts')?.body).toContain('"remote"');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('switches to an unrecorded local branch and reads its files in the same Session', () => {
+    const { home, database, memory, root, addSource } = fixture();
+    try {
+      const external = makeExternalRepository(home);
+      git(root, 'remote', 'add', 'origin', external.remote);
+      git(root, 'fetch', 'origin');
+      git(root, 'reset', '--hard', 'origin/main');
+      git(root, 'branch', 'history', 'origin/history');
+      addSource('switch-history');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const switched = memory.switchBranch({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        branch: 'history',
+      });
+      expect(switched.head).toBe(external.historyHead);
+      expect(readFileSync(join(root, 'history.md'), 'utf8')).toBe('Older branch memory\n');
+      expect(memory.readAccepted('atlas', 'history.md')?.body).toBe('Older branch memory\n');
+      expect(memory.snapshot('atlas').head).toBe(external.historyHead);
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'switch-history',
+      });
+      expect(memory.gitGraph('atlas').currentBranch).toBe('history');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('keeps a failed-turn edit visible and permits the next turn without changing Git', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head;
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'unfinished.md'), 'Visible now\n');
+      memory.abortTurn('atlas', 'session-atlas');
+      expect(memory.readAccepted('atlas', 'unfinished.md')?.body).toBe('Visible now\n');
+      expect(memory.snapshot('atlas').head).toBe(seed);
+      expect(memory.gitGraph('atlas').dirty).toBe(true);
+      addSource('next-turn');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'next-turn',
+        }),
+      ).toEqual([]);
+      expect(git(root, 'status', '--porcelain')).toContain('unfinished.md');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('lets the Human edit a code file on a raw branch and records the resulting commit', () => {
+    const { home, database, memory, root } = fixture();
+    try {
+      const external = makeExternalRepository(home);
+      git(root, 'remote', 'add', 'origin', external.remote);
+      git(root, 'fetch', 'origin');
+      git(root, 'reset', '--hard', 'origin/main');
       const saved = memory.saveHuman({
         botSlug: 'atlas',
-        path: 'first.md',
-        body: 'Human first\n',
-        expectedHead: seed,
-        editId: 'human-first',
+        path: 'src/memory.ts',
+        body: 'export const memory = "human";\n',
+        expectedHead: external.head,
+        editId: 'edit-code',
       });
-      expect(saved.parentSha).toBe(seed);
-      expect(memory.readAccepted('atlas', 'first.md')?.body).toBe('Human first\n');
-    } finally {
-      database.close();
-    }
-  });
-  it('accepts an ordinary Agent file write once and reads only accepted Git content', () => {
-    const { database, registry, memory, root, addSource } = fixture();
-    try {
-      addSource('event-1');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'fact.md'), '# Acme renewal\n', 'utf8');
-      expect(memory.snapshot('atlas')).toEqual({
-        head: git(root, 'rev-parse', 'HEAD'),
-        files: [],
-        provisional: true,
-      });
-      const [accepted] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-1',
-      });
-      expect(accepted).toMatchObject({
-        actorKind: 'agent',
-        actorId: 'session-atlas',
-        causeKind: 'source-event',
-        causeId: 'event-1',
-        parentSha: expect.stringMatching(/^[0-9a-f]{40}$/),
-      });
-      expect(memory.snapshot('atlas')).toEqual({
-        head: accepted!.sha,
-        files: ['fact.md'],
-        provisional: false,
-      });
-      expect(memory.readAccepted('atlas', 'fact.md')).toEqual({
-        path: 'fact.md',
-        body: '# Acme renewal\n',
-        head: accepted!.sha,
-      });
-      expect(memory.history('atlas').map((item) => item.sha)).toEqual([
-        accepted!.sha,
-        accepted!.parentSha,
-      ]);
-      expect(memory.diff('atlas', accepted!.sha).diff).toContain('+# Acme renewal');
-      expect(memory.reconcileTurn).toBeDefined();
-
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.history('atlas')[0]?.sha).toBe(accepted!.sha);
+      expect(saved.actorKind).toBe('human');
+      expect(saved.parentSha).toBe(external.head);
+      expect(memory.readAccepted('atlas', 'src/memory.ts')?.body).toContain('"human"');
+      expect(memory.gitGraph('atlas').head).toBe(saved.sha);
     } finally {
       database.close();
     }
   });
 
-  it('archives failed-turn changes, restores the accepted head, and permits a later turn', () => {
-    const { database, memory, root, addSource } = fixture();
+  it('keeps the Git directory and symlink escapes outside the Memory file API', () => {
+    const { home, database, memory, root } = fixture();
     try {
-      const seed = memory.snapshot('atlas').head!;
-      addSource('event-failed');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'fact.md'), 'failed turn\n');
-      memory.abortTurn('atlas', 'session-atlas');
-      expect(memory.snapshot('atlas').provisional).toBe(true);
-      expect(() => memory.prepareTurn('atlas', 'session-atlas')).toThrow(/provisional/);
-
-      const repairId = '11111111-1111-4111-8111-111111111111';
-      const repaired = memory.repairHuman({
-        botSlug: 'atlas',
-        expectedHead: seed,
-        repairId,
-      });
-      expect(repaired).toMatchObject({
-        id: repairId,
-        acceptedHeadSha: seed,
-        actorKind: 'human',
-        causeKind: 'human-repair',
-        status: 'completed',
-      });
-      expect(readFileSync(join(repaired.backupPath, 'repository', 'fact.md'), 'utf8')).toBe(
-        'failed turn\n',
-      );
-      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
-      expect(memory.history('atlas')).toHaveLength(1);
-      expect(memory.repairHuman({ botSlug: 'atlas', expectedHead: seed, repairId })).toEqual(
-        repaired,
-      );
-      const row = attachOperationalModule(database, 'memory-test').read((db) =>
-        db.prepare('SELECT * FROM memory_repair_events WHERE id = ?').get(repairId),
-      );
-      expect(row).toMatchObject({ status: 'completed', provisional_head_sha: seed });
-
-      addSource('event-retry');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'fact.md'), 'successful turn\n');
-      const [accepted] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-retry',
-      });
-      expect(accepted?.parentSha).toBe(seed);
-      expect(memory.readAccepted('atlas', 'fact.md')?.body).toBe('successful turn\n');
+      expect(toMemoryRelativePath('.github/notes.md')).toBe('.github/notes.md');
+      expect(() => toMemoryRelativePath('.git/config')).toThrow(/reserved/);
+      const outside = join(home, 'secret.txt');
+      writeFileSync(outside, 'outside\n');
+      symlinkSync(outside, join(root, 'escape.txt'));
+      expect(memory.snapshot('atlas').files).toContain('escape.txt');
+      expect(() => memory.readAccepted('atlas', 'escape.txt')).toThrow(/escapes/);
+      expect(existsSync(join(dirname(root), 'secret.txt'))).toBe(false);
     } finally {
       database.close();
     }
   });
 
-  it('archives a raw commit left before database acceptance without adding it to accepted history', () => {
-    const { database, memory, root, addSource } = fixture();
+  it('requires an owning Orchestrator Session for turn observation', () => {
+    const { database, memory } = fixture();
     try {
-      const seed = memory.snapshot('atlas').head!;
-      addSource('event-crashed');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'fact.md'), 'raw commit\n');
-      git(root, 'add', 'fact.md');
-      git(root, 'commit', '--no-gpg-sign', '-m', 'unfinished turn');
-      const raw = git(root, 'rev-parse', 'HEAD');
-      memory.abortTurn('atlas', 'session-atlas');
-      const repaired = memory.repairHuman({
-        botSlug: 'atlas',
-        expectedHead: seed,
-        repairId: '22222222-2222-4222-8222-222222222222',
-      });
-      expect(repaired.provisionalHeadSha).toBe(raw);
-      expect(git(join(repaired.backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
-      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
-      expect(memory.history('atlas').map((commit) => commit.sha)).toEqual([seed]);
-    } finally {
-      database.close();
-    }
-  });
-
-  it('resumes an interrupted archive move and preserves a late write in the archived repository', () => {
-    const { database, memory, root } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      writeFileSync(join(root, 'before.md'), 'before\n');
-      const repairId = '33333333-3333-4333-8333-333333333333';
-      const backupPath = join(dirname(root), 'memory-repairs', repairId);
-      mkdirSync(backupPath, { recursive: true });
-      attachOperationalModule(database, 'memory-test').transaction((db) => {
-        db.prepare(`INSERT INTO memory_repair_events (
-          id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
-          actor_kind, actor_id, cause_kind, status, requested_at
-        ) VALUES (?, 'atlas', ?, ?, ?, 'human', 'authenticated-dsh-human',
-          'human-repair', 'started', ?)`).run(
-          repairId,
-          seed,
-          seed,
-          backupPath,
-          FIXED_NOW().toISOString(),
-        );
-      });
-      renameSync(root, join(backupPath, 'repository'));
-      writeFileSync(join(backupPath, 'repository', 'late.md'), 'late\n');
-      expect(memory.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
-      expect(memory.history('atlas')).toHaveLength(1);
-      const repaired = memory.repairHuman({
-        botSlug: 'atlas',
-        expectedHead: seed,
-        repairId: '44444444-4444-4444-8444-444444444444',
-      });
-      expect(repaired.id).toBe(repairId);
-      expect(repaired.status).toBe('completed');
-      expect(memory.snapshot('atlas').provisional).toBe(false);
-      expect(readFileSync(join(backupPath, 'repository', 'late.md'), 'utf8')).toBe('late\n');
-      expect(existsSync(join(root, 'late.md'))).toBe(false);
-    } finally {
-      database.close();
-    }
-  });
-
-  it('resumes side-branch Human Repair from an archived repository after a restart', () => {
-    const { database, registry, memory, root } = fixture();
-    try {
-      const seed = memory.snapshot('atlas').head!;
-      git(root, 'switch', '-c', 'raw-side');
-      writeFileSync(join(root, 'raw.md'), 'Raw side memory\n');
-      git(root, 'add', 'raw.md');
-      git(
-        root,
-        '-c',
-        'user.name=Tester',
-        '-c',
-        'user.email=test@example.com',
-        'commit',
-        '-m',
-        'Raw side',
-      );
-      const raw = git(root, 'rev-parse', 'HEAD');
-      expect(memory.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
-      const repairId = '66666666-6666-4666-8666-666666666666';
-      const backupPath = join(dirname(root), 'memory-repairs', repairId);
-      mkdirSync(backupPath, { recursive: true });
-      attachOperationalModule(database, 'memory-test').transaction((db) => {
-        db.prepare(`INSERT INTO memory_repair_events (
-          id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
-          actor_kind, actor_id, cause_kind, status, requested_at
-        ) VALUES (?, 'atlas', ?, ?, ?, 'human', 'authenticated-dsh-human',
-          'human-repair', 'started', ?)`).run(
-          repairId,
-          seed,
-          raw,
-          backupPath,
-          FIXED_NOW().toISOString(),
-        );
-      });
-      renameSync(root, join(backupPath, 'repository'));
-      const reopened = createMemoryService({
-        registry,
-        ownership: ownershipOf(database),
-        database,
-        now: FIXED_NOW,
-      });
-      expect(reopened.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
-      const repaired = reopened.repairHuman({
-        botSlug: 'atlas',
-        expectedHead: seed,
-        repairId: '77777777-7777-4777-8777-777777777777',
-      });
-      expect(repaired.id).toBe(repairId);
-      expect(git(root, 'branch', '--show-current')).toBe('raw-side');
-      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
-      expect(git(join(backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
-      expect(reopened.snapshot('atlas').provisional).toBe(false);
-    } finally {
-      database.close();
-    }
-  });
-  it('does not execute repository hooks for an Agent commit or Human save', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const marker = join(root, 'hook-ran');
-      const hook = join(root, '.git', 'hooks', 'pre-commit');
-      mkdirSync(join(root, '.git', 'hooks'), { recursive: true });
-      writeFileSync(hook, `#!/bin/sh\ntouch "${marker}"\n`, 'utf8');
-      chmodSync(hook, 0o755);
-
-      addSource('event-2');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'fact.md'), 'first\n');
-      const [agent] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-2',
-      });
-      expect(agent).toBeDefined();
-      expect(existsSync(marker)).toBe(false);
-      const human = memory.saveHuman({
-        botSlug: 'atlas',
-        path: 'fact.md',
-        body: 'second\n',
-        expectedHead: agent!.sha,
-        editId: 'edit-1',
-      });
-      expect(human.actorKind).toBe('human');
-      expect(human.causeKind).toBe('human-edit');
-      expect(existsSync(marker)).toBe(false);
-      expect(
-        memory.saveHuman({
-          botSlug: 'atlas',
-          path: 'fact.md',
-          body: 'second\n',
-          expectedHead: agent!.sha,
-          editId: 'edit-1',
-        }).sha,
-      ).toBe(human.sha);
-      expect(() =>
-        memory.saveHuman({
-          botSlug: 'atlas',
-          path: 'fact.md',
-          body: 'third\n',
-          expectedHead: agent!.sha,
-          editId: 'edit-2',
-        }),
-      ).toThrow(/changed since/);
-    } finally {
-      database.close();
-    }
-  });
-
-  it('rejects invalid UTF-8 and never accepts a raw historical commit as repository initialization', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      addSource('event-3');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'invalid.md'), Buffer.from([0xff]));
-      expect(() =>
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-3',
-        }),
-      ).toThrow(/not UTF-8/);
-      expect(memory.history('atlas')).toHaveLength(1);
-      memory.abortTurn('atlas', 'session-atlas');
-    } finally {
-      database.close();
-    }
-
-    const another = fixture();
-    try {
-      writeFileSync(join(another.root, 'raw.md'), 'untrusted\n');
-      git(another.root, 'add', 'raw.md');
-      git(another.root, 'commit', '--no-gpg-sign', '-m', 'raw commit');
-      another.addSource('event-4');
-      expect(() => another.memory.prepareTurn('atlas', 'session-atlas')).toThrow(
-        /explicit legacy import/,
-      );
-      expect(() => another.memory.history('atlas')).toThrow(/explicit legacy import/);
-    } finally {
-      another.database.close();
-    }
-  });
-
-  it('refuses modified attributes before staging, so filters cannot run', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const marker = join(root, 'filter-ran');
-      addSource('event-filter');
-      memory.prepareTurn('atlas', 'session-atlas');
-      git(root, 'config', 'filter.evil.clean', 'touch filter-ran; cat');
-      writeFileSync(join(root, '.gitattributes'), '*.md filter=evil\n');
-      writeFileSync(join(root, 'fact.md'), 'fact\n');
-      expect(() =>
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-filter',
-        }),
-      ).toThrow(/filter configuration/);
-      expect(existsSync(marker)).toBe(false);
-    } finally {
-      database.close();
-    }
-  });
-
-  it('refuses Git info attributes before staging', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      const marker = join(root, 'filter-ran');
-      addSource('event-info');
-      memory.prepareTurn('atlas', 'session-atlas');
-      git(root, 'config', 'filter.evil.clean', 'touch filter-ran; cat');
-      writeFileSync(join(root, '.git', 'info', 'attributes'), '*.md filter=evil\n');
-      writeFileSync(join(root, 'fact.md'), 'fact\n');
-      expect(() =>
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-info',
-        }),
-      ).toThrow(/attributes override/);
-      expect(existsSync(marker)).toBe(false);
-    } finally {
-      database.close();
-    }
-  });
-
-  it('ignores inherited Git repository redirect variables', () => {
-    const first = fixture();
-    const second = fixture();
-    const previousDir = process.env.GIT_DIR;
-    const previousWorkTree = process.env.GIT_WORK_TREE;
-    const seed = git(first.root, 'rev-parse', 'HEAD');
-    try {
-      process.env.GIT_DIR = join(second.root, '.git');
-      process.env.GIT_WORK_TREE = second.root;
-      expect(first.memory.snapshot('atlas').head).toBe(seed);
-      const saved = first.memory.saveHuman({
-        botSlug: 'atlas',
-        path: 'owned.md',
-        body: 'owned\n',
-        expectedHead: seed,
-        editId: 'redirected-env',
-      });
-      expect(first.memory.readAccepted('atlas', 'owned.md')?.head).toBe(saved.sha);
-      expect(existsSync(join(second.root, 'owned.md'))).toBe(false);
-    } finally {
-      if (previousDir === undefined) delete process.env.GIT_DIR;
-      else process.env.GIT_DIR = previousDir;
-      if (previousWorkTree === undefined) delete process.env.GIT_WORK_TREE;
-      else process.env.GIT_WORK_TREE = previousWorkTree;
-      first.database.close();
-      second.database.close();
-    }
-  });
-
-  it.skipIf(process.platform === 'win32')(
-    'rejects a Human commit whose actual parent raced ahead',
-    () => {
-      const { database, memory, root } = fixture();
-      const shim = mkdtempSync(join(tmpdir(), 'bh115-git-race-'));
-      const previousPath = process.env.PATH;
-      try {
-        const seed = memory.snapshot('atlas').head;
-        if (seed === null) throw new Error('Missing seed');
-        const realGit = execFileSync('which', ['git'], { encoding: 'utf8' }).trim();
-        const wrapper = join(shim, 'git');
-        writeFileSync(
-          wrapper,
-          `#!/bin/sh
-for arg in "$@"; do
-  if [ "$arg" = "commit" ] && [ ! -e "$PWD/.git/race-injected" ]; then
-    touch "$PWD/.git/race-injected"
-    printf "raw\n" > "$PWD/race.md"
-    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" read-tree HEAD
-    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" add race.md
-    GIT_INDEX_FILE="$PWD/.git/race-index" "${realGit}" -c core.hooksPath=/dev/null commit --no-gpg-sign -m "interleaved raw commit" >/dev/null
-  fi
-done
-exec "${realGit}" "$@"
-`,
-        );
-        chmodSync(wrapper, 0o755);
-        process.env.PATH = `${shim}:${previousPath ?? ''}`;
-        expect(() =>
-          memory.saveHuman({
-            botSlug: 'atlas',
-            path: 'human.md',
-            body: 'human\n',
-            expectedHead: seed,
-            editId: 'raced-human',
-          }),
-        ).toThrow(/unaccepted parent/);
-        expect(memory.history('atlas')).toHaveLength(1);
-      } finally {
-        process.env.PATH = previousPath;
-        rmSync(shim, { recursive: true, force: true });
-        database.close();
-      }
-    },
-  );
-
-  it('rejects a divergent repeat of the same Source Event', () => {
-    const { database, memory, root, addSource } = fixture();
-    try {
-      addSource('event-5');
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'one.md'), 'one\n');
-      const [first] = memory.reconcileTurn({
-        botSlug: 'atlas',
-        sessionId: 'session-atlas',
-        sourceEventId: 'event-5',
-      });
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-5',
-        })[0]?.sha,
-      ).toBe(first?.sha);
-      memory.prepareTurn('atlas', 'session-atlas');
-      writeFileSync(join(root, 'two.md'), 'two\n');
-      expect(() =>
-        memory.reconcileTurn({
-          botSlug: 'atlas',
-          sessionId: 'session-atlas',
-          sourceEventId: 'event-5',
-        }),
-      ).toThrow(/already accepted/);
+      expect(() => memory.prepareTurn('atlas', 'unowned')).toThrow(/does not own/);
     } finally {
       database.close();
     }
   });
 });
-
-function ownershipOf(database: ReturnType<typeof mountOperationalDatabase>) {
-  return createSessionOwnership(attachOperationalModule(database, 'session-ownership'));
-}

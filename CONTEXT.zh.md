@@ -171,15 +171,15 @@ _避免使用_：PersonaBot export、backup file、disk image
 ### Memory（记忆）
 
 **Memory**：
-保存在每个 PersonaBot 创建时自动生成的 Memory Repository 中、由普通且便于 Human 阅读的 Markdown 文件组成的持久知识。Agent 通过普通 filesystem、Shell、search 与 Git capability 操作这些文件；只有被接受的 Memory Commit 才让变更正式生效。
+PersonaBot 当前检出的 Memory Repository 工作树中的持久知识。普通文件（包括代码与二进制文件）在 Git 或文件工具改变工作树后立即成为当前记忆，不需要额外“接纳”。Orchestrator 在访问边界内通过原生文件、搜索、Shell 和 Git 能力探索它。
 _避免使用_：knowledge base、vector store、RAG、database、context
 
 **Memory Repository**：
-由 PersonaBot 拥有、在 PersonaBot 创建时自动生成，并固定作为其 Orchestrator Session working directory 的 Memory 文件 Git repository。其 lifecycle 跟随 PersonaBot，但 archive、export、restore 与 purge 仍是显式操作。
+PersonaBot 拥有的普通 Git 仓库，在创建 PersonaBot 时自动生成，并作为其 Orchestrator Session 的 working directory。分支、合并与文件历史由 Git 管理；archive、export、restore 和 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
 **Topic file**：
-Memory Repository 中专门记录一个主题——例如某个 customer、process 或 decision——的 Memory 文件。
+Memory Repository 中专门记录某一主题（例如 customer、process 或 decision）的文件。这是一种组织约定，不限制仓库中的文件类型。
 _避免使用_：note、document、page、record
 
 **Customer profile**：
@@ -187,16 +187,16 @@ _避免使用_：note、document、page、record
 _避免使用_：CRM record、account、contact sheet
 
 **Memory Service**：
-拥有 Memory Repository lifecycle、validation、reconciliation、accepted commit、history 与 query 的 application-defined capability。v1 中它服务 runtime 与 Human-facing Consumer，但不暴露 model-callable Memory read/write Tool。
+拥有 repository identity 和 lifecycle、可信 Session 访问、Host-to-Client 文件与 Git 查询，以及审计/恢复检查点的 application-defined capability。它不为当前仓库内容设置第二道接纳门槛，也不暴露 model-callable Memory CRUD Tool。
 _避免使用_：Memory tool、filesystem watcher、Git event source、generic repository
 
 **Memory Commit**：
-一项被接受的 Git commit，以带 actor 与 cause attribution 的方式让一组一致的 Memory 文件变更正式生效。尚未 commit 的 working-tree change 是 provisional state，不改变 Session 已冻结的 persona、history projection 或 Memory event。
-_避免使用_：file save、filesystem event、raw Git commit、auto-save
+Memory Repository 中的普通 Git commit。Git 作者和拓扑保持原样；BotHarness 可以另记一次可信操作结束时的 HEAD、actor 与 cause，作为审计/恢复检查点，而不是文件成为记忆的许可。
+_避免使用_：accepted commit、file save、filesystem event、auto-save
 
-**Memory Reconciliation**：
-Memory Service 用于校验 repository state，并依据 Memory invariant 接受或拒绝 candidate Git commit 的过程。live Cordis Event 描述 reconciliation 与 accepted Memory Commit，绝不会把 `.git` filesystem activity 当作 durable fact。
-_避免使用_：filesystem watch、background distillation、event-sourced Git
+**Memory Observation**：
+Orchestrator 的可信操作结束后，对 Memory Repository HEAD 的记录。观察不会暂存、提交、拒绝或隐藏当前工作树文件。
+_避免使用_：commit acceptance、filesystem watch、background distillation
 
 **Attachment**：
 随 Source Event 接收的 content-addressed 文件；所有引用它的 Channel 或 PersonaBot 共同保留唯一一份。只有 PersonaBot 主动将该文件保存在自己的 Memory 或 Workspace 中时，它才拥有单独副本。

@@ -173,15 +173,15 @@ _Avoid_: PersonaBot export, backup file, disk image
 ### Memory
 
 **Memory**:
-Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. The Orchestrator works with those files through its Memory-scoped file capability; an accepted Memory Commit makes changes effective. Unconfined Shell, search, and Git tools are unavailable to Bot-owned Sessions while their read boundary cannot be enforced.
+Persistent knowledge in the PersonaBot's checked-out Memory Repository working tree. Ordinary files, including code and binary files, become current Memory as soon as Git or a file tool changes the worktree; no additional acceptance step is required. The Orchestrator explores it through native file, search, Shell, and Git capabilities within its access boundary.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **Memory Repository**:
-A PersonaBot-owned Git repository of Memory files, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Its lifecycle follows the PersonaBot while archive, export, restore, and purge remain explicit operations.
+A PersonaBot-owned ordinary Git repository, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Git controls branches, merges, and file history; archive, export, restore, and purge remain explicit PersonaBot operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
 **Topic file**:
-A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository.
+A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository. It is a convention, not a restriction on repository file types.
 _Avoid_: note, document, page, record
 
 **Customer profile**:
@@ -189,16 +189,16 @@ The north-star topic file: one per customer, holding timeline, key facts, commit
 _Avoid_: CRM record, account, contact sheet
 
 **Memory Service**:
-The application-defined capability that owns Memory Repository lifecycle, validation, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
+The application-defined capability that owns repository identity and lifecycle, trusted Session access, Host-to-Client file and Git queries, and audit/recovery checkpoints. It does not define a second admission gate for current repository contents or expose model-callable Memory CRUD Tools.
 _Avoid_: Memory tool, filesystem watcher, Git event source, generic repository
 
 **Memory Commit**:
-An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change a Session's frozen persona, history projections, or Memory events.
-_Avoid_: file save, filesystem event, raw Git commit, auto-save
+An ordinary Git commit in a Memory Repository. Git authorship and topology remain intact. BotHarness may record the HEAD observed after a trusted operation with its own actor and cause; the record is an audit/recovery checkpoint, not permission for the file to become Memory.
+_Avoid_: accepted commit, file save, filesystem event, auto-save
 
-**Memory Reconciliation**:
-The Memory Service process that validates repository state and accepts or rejects candidate Git commits against Memory invariants. Live Cordis Events describe reconciliation and accepted Memory Commits; they never treat `.git` filesystem activity as durable fact.
-_Avoid_: filesystem watch, background distillation, event-sourced Git
+**Memory Observation**:
+A trusted record of the Memory Repository HEAD after an Orchestrator operation. Observation does not stage, commit, reject, or hide current working-tree files.
+_Avoid_: commit acceptance, filesystem watch, background distillation
 
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.

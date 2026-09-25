@@ -101,10 +101,7 @@ export interface OrchestratorAgentRun {
   assignments: OrchestratorAssignmentAccess;
   memory?: {
     switchBranch(branch: string): { from: string; to: string; head: string };
-    continueFromCommit(
-      sha: string,
-      branch: string,
-    ): { from: string; to: string; head: string; accepted: boolean };
+    continueFromCommit(sha: string, branch: string): { from: string; to: string; head: string };
   };
 }
 

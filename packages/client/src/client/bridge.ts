@@ -1232,7 +1232,7 @@ export async function loadMemoryFile(
   call: BridgeCall,
   channelId: string,
   path: string,
-): Promise<{ path: string; body: string; head: string } | undefined> {
+): Promise<{ path: string; body: string; head: string; binary?: boolean } | undefined> {
   const response = asRecord(await unwrap(call, 'memoryFile', { channelId, path }));
   if (response?.['file'] === undefined) return undefined;
   const file = asRecord(response?.['file']);
@@ -1242,7 +1242,9 @@ export async function loadMemoryFile(
     typeof file['head'] !== 'string'
   )
     throw new Error('invalid Memory file');
-  return file as { path: string; body: string; head: string };
+  if (file['binary'] !== undefined && typeof file['binary'] !== 'boolean')
+    throw new Error('invalid Memory file');
+  return file as { path: string; body: string; head: string; binary?: boolean };
 }
 
 export async function loadMemoryHistory(

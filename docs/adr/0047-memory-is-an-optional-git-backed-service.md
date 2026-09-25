@@ -5,7 +5,7 @@ Date: 2026-09-21
 
 # Memory is a default Git-backed Service with file-first Agent access
 
-> Superseded in part by ADR-0060: pinned bodies, the pin budget, and any generated index are gone; Persona is delivered to a Session's system prompt from a per-Session snapshot, and the Agent explores the repository with ordinary file tools.
+> Superseded in part by ADR-0060 and ADR-0068. ADR-0068 makes the checked-out Git working tree current Memory, including code and binary files, without an accepted-commit gate. Earlier accepted-commit, Markdown-only, and branch-admission paragraphs below remain historical rationale.
 
 ## Original decision (superseded in part by the update below)
 
