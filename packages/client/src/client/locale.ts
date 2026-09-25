@@ -212,6 +212,12 @@ export const zh = {
   'memory.saving': '正在保存…',
   'memory.history': '提交历史',
   'memory.gitGraph': 'Git 历史',
+  'memory.branch': '分支',
+  'memory.switchBranch': '切换',
+  'memory.branchRequested': '已发送切换请求：',
+  'memory.branchRequestFailed': '无法发送切换请求，请重试。',
+  'memory.branchSwitchPrompt':
+    '请把这个 PersonaBot 的 Memory Repository 切换到已有分支 {branch}。切换后，请在同一个 Orchestrator Session 使用原生读取工具读取新分支的 PERSONA.md，并在此频道报告第一行和当前分支。如有未完成工作或 Git 拒绝切换，请保留改动并说明冲突。',
   'memory.acceptedOnMainOnly': '当前分支暂不能预览已验收记忆文件；Git 历史仍可查看。',
   'memory.detached': '分离 HEAD',
   'memory.dirty': '有未提交改动',
@@ -557,6 +563,12 @@ export const en = {
   'memory.saving': 'Saving…',
   'memory.history': 'Commit history',
   'memory.gitGraph': 'Git history',
+  'memory.branch': 'Branch',
+  'memory.switchBranch': 'Switch',
+  'memory.branchRequested': 'Switch requested:',
+  'memory.branchRequestFailed': 'Could not send the switch request. Try again.',
+  'memory.branchSwitchPrompt':
+    'Switch this PersonaBot Memory Repository to the existing branch {branch}. Then use the native file read tool in this same Orchestrator Session to read the new branch PERSONA.md and report its first line and current branch in this Channel. Preserve unfinished work; if Git refuses, explain the conflict here.',
   'memory.acceptedOnMainOnly':
     'Accepted Memory file preview is unavailable on this branch; Git history remains visible.',
   'memory.detached': 'Detached HEAD',

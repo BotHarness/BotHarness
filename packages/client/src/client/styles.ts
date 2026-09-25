@@ -2783,6 +2783,25 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-graph-dirty {
   flex: none;
 }
+.bh-memory-branch-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  margin: 2px 0 8px;
+  color: var(--dsw-alias-label-secondary);
+
+}
+.bh-memory-branch-control select {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: var(--bh-memory-radius-row);
+  padding: 4px 6px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+
 .bh-memory-graph-list {
   min-width: 0;
   overflow-x: auto;

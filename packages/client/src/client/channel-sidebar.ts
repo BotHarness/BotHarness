@@ -10,6 +10,7 @@ export type ChannelSidebarScope = 'channel' | 'personabot';
 export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;
   channelId: string;
+  conversationRevision?: number;
   botSlug: string | undefined;
   actions: BridgeActions;
   onMemoryCommitSelect?: ((sha: string) => void) | undefined;

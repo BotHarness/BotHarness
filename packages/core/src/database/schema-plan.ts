@@ -266,6 +266,29 @@ export const ASSIGNMENT_ACCESS_MIGRATION: SchemaMigration = {
   },
 };
 
+export const MEMORY_BRANCH_HEAD_MIGRATION: SchemaMigration = {
+  generation: 14,
+  module: 'memory',
+  description: 'Track the accepted Memory head independently for each local branch',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_accepted_heads_by_branch (
+        bot_slug TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        head_sha TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (bot_slug, branch_name),
+        FOREIGN KEY (bot_slug, head_sha)
+          REFERENCES memory_accepted_commits(bot_slug, sha)
+      );
+      INSERT INTO memory_accepted_heads_by_branch (bot_slug, branch_name, head_sha, updated_at)
+        SELECT bot_slug, 'main', head_sha, updated_at FROM memory_accepted_heads;
+      DROP TABLE memory_accepted_heads;
+      ALTER TABLE memory_accepted_heads_by_branch RENAME TO memory_accepted_heads;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -279,4 +302,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   WORKSPACE_GRANT_MIGRATION,
   TOOL_APPROVAL_RULE_MIGRATION,
   ASSIGNMENT_ACCESS_MIGRATION,
+  MEMORY_BRANCH_HEAD_MIGRATION,
 ]);

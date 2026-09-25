@@ -64,6 +64,7 @@ describe('bridge transport', () => {
           return {
             head: sha,
             currentBranch: 'main',
+            branches: ['main'],
             dirty: false,
             hasMore: false,
             commits: [

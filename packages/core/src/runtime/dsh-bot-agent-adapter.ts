@@ -37,7 +37,7 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
 You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
-Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
+Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. If Git refuses because of unfinished work, explain the conflict and coordinate it; never discard changes.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
 Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
@@ -302,6 +302,43 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         text: ORCHESTRATOR_PROMPT,
       });
       if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+      registerTool(
+        defineTool({
+          name: 'memory_switch_branch',
+          description:
+            'Switch this PersonaBot Memory Repository to an existing, accepted local Git branch. Use for a clear Human branch-switch request; do not create or reset branches.',
+          parameters: {
+            branch: {
+              type: 'string',
+              required: true,
+              description: 'Exact existing local branch name.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('memory_switch_branch: Orchestrator run is unavailable');
+            }
+            if (active.run.memory === undefined) throw new Error('Memory is unavailable');
+            await active.run.channels.send({ body: `正在切换记忆分支：${args.branch}` });
+            try {
+              const result = active.run.memory.switchBranch(args.branch);
+              await active.run.channels.send({
+                body: `记忆分支已从 ${result.from} 切换到 ${result.to}（${result.head.slice(0, 12)}）。`,
+              });
+              return JSON.stringify({ outcome: 'switched', ...result });
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : String(error);
+              await active.run.channels.send({ body: `记忆分支切换失败：${detail}` });
+              return JSON.stringify({ outcome: 'failed', branch: args.branch, detail });
+            }
+          },
+        }),
+      );
       registerTool(
         defineTool({
           name: 'create_assignment',
