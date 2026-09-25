@@ -105,6 +105,8 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     readAccepted: (botSlug, path) => requireAcceptance().readAccepted(botSlug, path),
     history: (botSlug, limit) => requireAcceptance().history(botSlug, limit),
     diff: (botSlug, sha) => requireAcceptance().diff(botSlug, sha),
+    gitGraph: (botSlug, offset) => requireAcceptance().gitGraph(botSlug, offset),
+    gitCommitDiff: (botSlug, sha) => requireAcceptance().gitCommitDiff(botSlug, sha),
     saveHuman: (input) => requireAcceptance().saveHuman(input),
     repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,

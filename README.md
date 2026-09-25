@@ -22,8 +22,10 @@
 
 ## 灵感
 
-- **Grok Bot**：每个 Bot 有自己的电脑、记忆、状态、自主工作
-- **DeepSeek Harness**：插件宿主，承载其他插件
+- [**Grok Bot**](https://x.ai/bot)：持久 Bot 与像同事一样沟通、委派工作的产品灵感
+- [**Rakazo**](https://github.com/elie222/rakazo)：开源的持久 AI 队友、对话与记忆体验参考
+- [**deepseek-harness-workbench-plugin**](https://github.com/loadingvx/deepseek-harness-workbench-plugin)：Memory Git graph 的分支线、提交列表与 diff 呈现参考
+- [**DeepSeek Harness**](https://github.com/deepseek-ai/deepseek-harness)：BotHarness 的插件宿主
 
 ## 开发
 

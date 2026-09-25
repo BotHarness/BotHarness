@@ -29,6 +29,8 @@ import {
   MemoryAcceptError,
   type MemoryAcceptedCommit,
   type MemoryAcceptedSnapshot,
+  type MemoryGitGraph,
+  type MemoryGitCommitDiff,
   type MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
@@ -126,6 +128,8 @@ export interface BridgeMethods {
   ): BridgeResult<{ file?: { path: string; body: string; head: string } }>;
   memoryHistory(payload: unknown): BridgeResult<{ commits: MemoryAcceptedCommit[] }>;
   memoryDiff(payload: unknown): BridgeResult<{ sha: string; diff: string }>;
+  memoryGitGraph(payload: unknown): BridgeResult<MemoryGitGraph>;
+  memoryGitCommitDiff(payload: unknown): BridgeResult<MemoryGitCommitDiff>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
@@ -925,6 +929,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (sha === undefined || !/^[0-9a-f]{40}$/u.test(sha))
         return invalidInput('valid sha is required');
       return memoryCall(() => deps.memory!.diff(scope.botSlug, sha));
+    },
+    memoryGitGraph(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const offset = asObject(payload)['offset'];
+      if (
+        offset !== undefined &&
+        (!Number.isInteger(offset) || Number(offset) < 0 || Number(offset) > 10_000)
+      )
+        return invalidInput('valid offset is required');
+      return memoryCall(() => deps.memory!.gitGraph(scope.botSlug, Number(offset ?? 0)));
+    },
+    memoryGitCommitDiff(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const sha = asNonBlank(asObject(payload), 'sha');
+      if (sha === undefined || !/^[0-9a-f]{40}$/u.test(sha))
+        return invalidInput('valid sha is required');
+      return memoryCall(() => deps.memory!.gitCommitDiff(scope.botSlug, sha));
     },
     memorySave(payload) {
       const scope = dmMemory(payload);

@@ -128,6 +128,14 @@ function stubActions(): BridgeActions {
     memoryFile: vi.fn(async () => undefined),
     memoryHistory: vi.fn(async () => []),
     memoryDiff: vi.fn(async () => ''),
+    memoryGitGraph: vi.fn(async () => ({
+      head: '',
+      currentBranch: 'main',
+      dirty: false,
+      commits: [],
+      hasMore: false,
+    })),
+    memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');
     }),

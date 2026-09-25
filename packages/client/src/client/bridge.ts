@@ -985,6 +985,29 @@ export interface MemoryAcceptedCommit {
   acceptedAt: string;
 }
 
+export interface MemoryGitCommit {
+  sha: string;
+  parents: string[];
+  subject: string;
+  authoredAt: string;
+  branches: string[];
+  status: 'accepted' | 'pending' | 'needs-repair';
+}
+
+export interface MemoryGitGraph {
+  head: string;
+  currentBranch: string | null;
+  dirty: boolean;
+  commits: MemoryGitCommit[];
+  hasMore: boolean;
+}
+
+export interface MemoryGitCommitDiff {
+  sha: string;
+  files: { path: string; status: string }[];
+  diff: string;
+}
+
 export interface MemoryRepairEvent {
   id: string;
   acceptedHeadSha: string;
@@ -1072,6 +1095,56 @@ export async function loadMemoryDiff(
     throw new Error('invalid Memory diff');
   }
   return response['diff'];
+}
+
+export async function loadMemoryGitGraph(
+  call: BridgeCall,
+  channelId: string,
+  offset: number,
+): Promise<MemoryGitGraph> {
+  const response = asRecord(await unwrap(call, 'memoryGitGraph', { channelId, offset }));
+  if (
+    typeof response?.['head'] !== 'string' ||
+    !(response['currentBranch'] === null || typeof response['currentBranch'] === 'string') ||
+    typeof response['dirty'] !== 'boolean' ||
+    typeof response['hasMore'] !== 'boolean' ||
+    !Array.isArray(response['commits']) ||
+    !response['commits'].every((value) => {
+      const commit = asRecord(value);
+      return (
+        commit !== undefined &&
+        typeof commit['sha'] === 'string' &&
+        Array.isArray(commit['parents']) &&
+        commit['parents'].every((item) => typeof item === 'string') &&
+        typeof commit['subject'] === 'string' &&
+        typeof commit['authoredAt'] === 'string' &&
+        Array.isArray(commit['branches']) &&
+        commit['branches'].every((item) => typeof item === 'string') &&
+        ['accepted', 'pending', 'needs-repair'].includes(String(commit['status']))
+      );
+    })
+  )
+    throw new Error('invalid Memory Git graph');
+  return response as unknown as MemoryGitGraph;
+}
+
+export async function loadMemoryGitCommitDiff(
+  call: BridgeCall,
+  channelId: string,
+  sha: string,
+): Promise<MemoryGitCommitDiff> {
+  const response = asRecord(await unwrap(call, 'memoryGitCommitDiff', { channelId, sha }));
+  if (
+    response?.['sha'] !== sha ||
+    typeof response['diff'] !== 'string' ||
+    !Array.isArray(response['files']) ||
+    !response['files'].every((value) => {
+      const file = asRecord(value);
+      return typeof file?.['path'] === 'string' && typeof file['status'] === 'string';
+    })
+  )
+    throw new Error('invalid Memory Git commit diff');
+  return response as unknown as MemoryGitCommitDiff;
 }
 
 export async function saveMemoryFile(

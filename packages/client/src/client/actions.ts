@@ -27,6 +27,8 @@ import {
   loadMemoryFile,
   loadMemoryHistory,
   loadMemoryDiff,
+  loadMemoryGitGraph,
+  loadMemoryGitCommitDiff,
   saveMemoryFile,
   repairMemory,
   loadTimelinePage,
@@ -46,6 +48,8 @@ import {
   type BridgeCall,
   type MemoryAcceptedCommit,
   type MemorySnapshot,
+  type MemoryGitGraph,
+  type MemoryGitCommitDiff,
   type MemoryRepairEvent,
   type CreatePersonaBotInput,
   type RosterBatchInput,
@@ -103,6 +107,8 @@ export interface BridgeActions {
   ): Promise<{ path: string; body: string; head: string } | undefined>;
   memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
   memoryDiff(channelId: string, sha: string): Promise<string>;
+  memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
+  memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   memoryRepair(input: {
     channelId: string;
     expectedHead: string;
@@ -700,6 +706,8 @@ export function createActions(
     memoryFile: (channelId, path) => loadMemoryFile(call, channelId, path),
     memoryHistory: (channelId) => loadMemoryHistory(call, channelId),
     memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
+    memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
+    memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     memorySave: (input) => saveMemoryFile(call, input),
     memoryRepair: (input) => repairMemory(call, input),
     async openAssignment(sessionId) {
