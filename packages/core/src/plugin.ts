@@ -38,6 +38,7 @@ import {
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
+import { cloneMemoryRepository } from './memory/clone.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
@@ -139,6 +140,7 @@ export function createCore(
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({
     rootDir,
+    cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {
       const repository = ensureMemoryRepository({ memoryDir });
       return repository.ok

@@ -128,6 +128,14 @@ export const zh = {
   'bot.create.inSection': '在「{name}」中创建 PersonaBot',
   'bot.create.description': '名称用于列表和 @；内部身份由系统生成。岗位和简介均可留空。',
   'bot.create.creating': '创建中',
+  'bot.create.importing': '正在克隆仓库…',
+  'bot.create.source.label': '记忆来源',
+  'bot.create.source.empty': '从空白创建',
+  'bot.create.source.git': '从 Git 仓库导入',
+  'bot.create.gitUrl.label': 'Git 仓库地址',
+  'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
+  'bot.create.gitUrl.hint':
+    '支持 HTTPS、SSH 和 git@host:path；私有仓库使用 Host 已配置的 Git 凭证。',
   'bot.create.name.label': '名称',
   'bot.create.name.placeholder': '例如：小研',
   'bot.create.roles.label': '岗位 / 职位（可选）',
@@ -142,6 +150,9 @@ export const zh = {
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
   'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
+  'bot.create.error.gitUrl': '请输入有效的 HTTPS 或 SSH 仓库地址。',
+  'bot.create.error.clone': '克隆失败。请检查仓库地址、网络和 Host 的 Git 凭证。',
+  'bot.create.error.cloneTimeout': '克隆超时。请检查网络或改用较小的仓库重试。',
   'main.author.human': '你',
   'main.date.locale': 'zh-CN',
   'message.copy': '复制消息',
@@ -506,6 +517,14 @@ export const en = {
   'bot.create.description':
     'The name is used in lists and @mentions; the internal identity is generated. Roles and description may stay empty.',
   'bot.create.creating': 'Creating',
+  'bot.create.importing': 'Cloning repository…',
+  'bot.create.source.label': 'Memory source',
+  'bot.create.source.empty': 'Start empty',
+  'bot.create.source.git': 'Import Git repository',
+  'bot.create.gitUrl.label': 'Git repository URL',
+  'bot.create.gitUrl.placeholder': 'https://github.com/owner/repo.git',
+  'bot.create.gitUrl.hint':
+    'HTTPS, SSH, and git@host:path are supported. Private repositories use Git credentials configured on the Host.',
   'bot.create.name.label': 'Name',
   'bot.create.name.placeholder': 'e.g. Xiao Yan',
   'bot.create.roles.label': 'Roles (optional)',
@@ -521,6 +540,11 @@ export const en = {
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
   'bot.create.error.gitMissing':
     'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
+  'bot.create.error.gitUrl': 'Enter a valid HTTPS or SSH repository URL.',
+  'bot.create.error.clone':
+    'Clone failed. Check the URL, network, and Git credentials on the Host.',
+  'bot.create.error.cloneTimeout':
+    'Clone timed out. Check the network or retry with a smaller repository.',
   'main.author.human': 'You',
   'main.date.locale': 'en-US',
   'message.copy': 'Copy message',

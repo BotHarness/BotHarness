@@ -52,6 +52,7 @@ export interface CreatePersonaBotInput {
   displayName: string;
   roles: string[];
   description?: string;
+  gitUrl?: string;
 }
 
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
@@ -635,7 +636,12 @@ export async function createPersonaBot(
   input: CreatePersonaBotInput,
   signal?: AbortSignal,
 ): Promise<BotSummary> {
-  const value = await unwrap(call, 'create', { ...input }, signal);
+  const value = await unwrap(
+    call,
+    input.gitUrl === undefined ? 'create' : 'createFromGit',
+    { ...input },
+    signal,
+  );
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
   return bot;

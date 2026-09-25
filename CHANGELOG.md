@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - In a Group Channel, a Human can select multiple joined PersonaBots with `@`; one committed message wakes each Bot independently, their replies stay in the Group, each processing state is visible, selected mentions appear as avatar-and-name badges without the @ sigil in both the draft and sent message, and clicking a sent badge opens that Bot’s DM. Existing Channel history moves once from NDJSON into the SQLite Messaging authority ([#254](https://github.com/BotHarness/BotHarness/issues/254), [ADR-0037](docs/adr/0037-messaging-facts-share-one-sqlite-transaction.md)).
 - A PersonaBot's checked-out Memory Git working tree is now its current memory: native Git can bring in unrelated histories, merges, code, and binary files without a second admission step. The Channel Memory view shows current files and all local branch history; binary files stay read-only in its text preview ([#115](https://github.com/BotHarness/BotHarness/issues/115), [ADR-0068](docs/adr/0068-git-working-tree-is-current-memory.md)).
 - When a Memory branch request is ambiguous, the Orchestrator asks through DSH's native question service in the PersonaBot DM; the Human's choice resumes the same Session, and answered or cancelled cards stay closed after refresh ([#264](https://github.com/BotHarness/BotHarness/issues/264)).
@@ -136,6 +137,7 @@ Consolidated the implemented foundation and public documentation that preceded D
 
 ### Added
 
+- PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Added durable PersonaBot identity, file-based Memory tools, and the BOT-mode creation flow ([#22](https://github.com/BotHarness/BotHarness/pull/22), [#98](https://github.com/BotHarness/BotHarness/pull/98)).
 - Added the BOT-mode Channel shell, roster sections, per-scope sorting and drag movement, with durable Host-side arrangement ([#51](https://github.com/BotHarness/BotHarness/pull/51), [#64](https://github.com/BotHarness/BotHarness/pull/64), [#72](https://github.com/BotHarness/BotHarness/pull/72), [#73](https://github.com/BotHarness/BotHarness/pull/73), [#95](https://github.com/BotHarness/BotHarness/pull/95)).
 
