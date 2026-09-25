@@ -78,6 +78,11 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read_image',
   'channel_search',
   'list_bot_contacts',
+  'group_create',
+  'group_invite_bot',
+  'group_invite_respond',
+  'group_rename',
+  'group_remove_member',
   'bot_dm_send',
   'channel_send',
   // Native DSH question transport does not access the filesystem.

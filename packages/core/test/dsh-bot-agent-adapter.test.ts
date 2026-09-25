@@ -14,6 +14,24 @@ const ASSIGNMENT = {
   updatedAt: '2026-09-17T00:00:00.000Z',
 };
 
+const groupTools = {
+  createGroup: (): never => {
+    throw new Error('unexpected Group creation');
+  },
+  inviteGroup: (): never => {
+    throw new Error('unexpected Group invitation');
+  },
+  respondToGroupInvite: (): never => {
+    throw new Error('unexpected Group response');
+  },
+  renameGroup: (): never => {
+    throw new Error('unexpected Group rename');
+  },
+  removeGroupMember: (): never => {
+    throw new Error('unexpected Group removal');
+  },
+};
+
 describe('DSH Bot Agent adapter', () => {
   it('borrows a native resumed BotHarness Agent and releases only its role registrations', async () => {
     const host = new FakeAgentHost();
@@ -37,6 +55,7 @@ describe('DSH Bot Agent adapter', () => {
       inboundChannelId: 'dm-test',
       inbox: '',
       channels: {
+        ...groupTools,
         contacts: () => [],
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
@@ -101,6 +120,7 @@ describe('DSH Bot Agent adapter', () => {
       bot: BOT,
       message: '你好',
       channels: {
+        ...groupTools,
         contacts: () => [],
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
@@ -152,6 +172,7 @@ describe('DSH Bot Agent adapter', () => {
       bot: { ...BOT, preset: 'cordis' },
       message: '你好',
       channels: {
+        ...groupTools,
         contacts: () => [],
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
@@ -208,6 +229,7 @@ describe('DSH Bot Agent adapter', () => {
         inbox: '',
         message: '请核对发布状态',
         channels: {
+          ...groupTools,
           contacts: () => [],
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
@@ -251,6 +273,7 @@ describe('DSH Bot Agent adapter', () => {
       inbox: '',
       message: '请核对发布状态',
       channels: {
+        ...groupTools,
         contacts: () => [],
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
@@ -334,6 +357,11 @@ describe('DSH Bot Agent adapter', () => {
       'channel_read_image',
       'channel_search',
       'list_bot_contacts',
+      'group_create',
+      'group_invite_bot',
+      'group_invite_respond',
+      'group_rename',
+      'group_remove_member',
       'bot_dm_send',
       'channel_send',
     ]);
@@ -489,6 +517,7 @@ describe('DSH Bot Agent adapter', () => {
         inbox: '',
         message: '请核对发布状态',
         channels: {
+          ...groupTools,
           contacts: () => [],
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');

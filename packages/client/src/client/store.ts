@@ -23,6 +23,15 @@ export interface ChannelSummary {
   name: string;
   members: string[];
   botSlug?: string;
+  ownerBotSlug?: string;
+  invitations?: Array<{
+    id: string;
+    targetBotSlug: string;
+    inviterBotSlug: string;
+    status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    createdAt: string;
+    respondedAt?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   /** Latest durable message projected by the Channel list query for compact previews. */

@@ -104,6 +104,9 @@ export interface BridgeMethods {
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
+  channelGroupInviteCancel(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupMemberRemove(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
   channelMarkRead(payload: unknown): Promise<BridgeResult<{ position: ChannelReadPosition }>>;
@@ -402,6 +405,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     if (slug === undefined) return invalidInput('slug is required');
     const result = deps.registry.setPaused(slug, paused);
     if (!result.ok) return unknownBot(slug);
+    if (paused) deps.channels.cancelInvitationsForBot(slug);
     return { ok: true, value: detailOf(result.record) };
   };
 
@@ -582,6 +586,46 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channel = deps.channels.rename(channelId, name);
       if (channel === undefined) return unknownChannel(channelId);
       return { ok: true, value: { channel, ...(bot === undefined ? {} : { bot }) } };
+    },
+    channelGroupInviteCancel(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const invitationId = asNonBlank(source, 'invitationId');
+      if (channelId === undefined || invitationId === undefined)
+        return invalidInput('channelId and invitationId are required');
+      try {
+        return {
+          ok: true,
+          value: { channel: deps.channels.cancelGroupInvite(channelId, invitationId) },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    channelGroupMemberRemove(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const botSlug = asNonBlank(source, 'botSlug');
+      if (channelId === undefined || botSlug === undefined || !isValidSlug(botSlug))
+        return invalidInput('valid channelId and botSlug are required');
+      try {
+        return {
+          ok: true,
+          value: { channel: deps.channels.removeGroupMember(channelId, botSlug) },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    channelGroupDelete(payload) {
+      const channelId = asNonBlank(asObject(payload), 'channelId');
+      if (channelId === undefined) return invalidInput('channelId is required');
+      try {
+        deps.channels.deleteGroup(channelId);
+        return { ok: true, value: { deleted: true } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     channelMessages(payload) {
       const source = asObject(payload);

@@ -674,11 +674,11 @@ export function createMemoryAcceptance(options: {
         )) ||
       (!['human-message', 'assignment-report'].includes(source?.source_kind ?? '') &&
         !(
-          source?.source_kind === 'bot-message' &&
+          (source?.source_kind === 'bot-message' || source?.source_kind === 'system-message') &&
           database.read((db) =>
             db
               .prepare(
-                `SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ? AND reason IN ('bot-dm', 'group-mention')`,
+                `SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ? AND reason IN ('bot-dm', 'group-mention', 'group-invite')`,
               )
               .get(input.sourceEventId, input.botSlug),
           )

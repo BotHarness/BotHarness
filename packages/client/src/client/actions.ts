@@ -3,6 +3,9 @@ import {
   assignRosterChannel,
   BridgeCallError,
   createGroupChannel,
+  cancelGroupInvitation,
+  removeGroupMember,
+  deleteGroupChannel,
   createPersonaBot,
   createRosterSection,
   errorMessage,
@@ -158,6 +161,9 @@ export interface BridgeActions {
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
+  cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
+  removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
+  deleteGroupChannel(channelId: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -277,8 +283,17 @@ export function createActions(
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
     try {
-      const snapshot = await loadRoster(call, signal);
+      const [snapshot, channels] = await Promise.all([
+        loadRoster(call, signal),
+        loadChannels(call, signal),
+      ]);
       if (signal?.aborted === true) return;
+      const current = clientStore.getSnapshot().conversation.channel;
+      clientStore.setRoster(clientStore.getSnapshot().bots, channels);
+      if (current !== undefined) {
+        const updated = channels.find((item) => item.id === current.id);
+        if (updated !== undefined) clientStore.setConversation({ channel: updated });
+      }
       clientStore.setRosterState({
         pins: snapshot.pins,
         hidden: snapshot.hidden,
@@ -934,6 +949,42 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: channel rename failed', error);
+        return false;
+      }
+    },
+    async cancelGroupInvitation(channelId, invitationId) {
+      try {
+        const channel = await cancelGroupInvitation(call, channelId, invitationId);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group invitation cancellation failed', error);
+        return false;
+      }
+    },
+    async removeGroupMember(channelId, botSlug) {
+      try {
+        const channel = await removeGroupMember(call, channelId, botSlug);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group member removal failed', error);
+        return false;
+      }
+    },
+    async deleteGroupChannel(channelId) {
+      try {
+        await deleteGroupChannel(call, channelId);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.select(undefined);
+        await actions.load();
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group deletion failed', error);
         return false;
       }
     },

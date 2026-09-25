@@ -163,6 +163,32 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
   const createdAt = record['createdAt'];
   const updatedAt = record['updatedAt'];
   const latestMessage = parseChannelMessage(record['latestMessage']);
+  const invitations = Array.isArray(record['invitations'])
+    ? record['invitations'].flatMap((value: unknown) => {
+        const item = asRecord(value);
+        if (
+          item === undefined ||
+          typeof item['id'] !== 'string' ||
+          typeof item['targetBotSlug'] !== 'string' ||
+          typeof item['inviterBotSlug'] !== 'string' ||
+          !['pending', 'accepted', 'declined', 'cancelled'].includes(String(item['status'])) ||
+          typeof item['createdAt'] !== 'string'
+        )
+          return [];
+        return [
+          {
+            id: item['id'],
+            targetBotSlug: item['targetBotSlug'],
+            inviterBotSlug: item['inviterBotSlug'],
+            status: item['status'] as 'pending' | 'accepted' | 'declined' | 'cancelled',
+            createdAt: item['createdAt'],
+            ...(typeof item['respondedAt'] === 'string'
+              ? { respondedAt: item['respondedAt'] }
+              : {}),
+          },
+        ];
+      })
+    : undefined;
   return {
     id,
     type,
@@ -171,6 +197,8 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
     createdAt: typeof createdAt === 'string' ? createdAt : '',
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
+    ...(typeof record['ownerBotSlug'] === 'string' ? { ownerBotSlug: record['ownerBotSlug'] } : {}),
+    ...(invitations === undefined ? {} : { invitations }),
     ...(latestMessage === undefined ? {} : { latestMessage }),
   };
 }
@@ -706,6 +734,34 @@ export async function renameChannel(
   if (channel === undefined) throw new Error('invalid channelRename response');
   const bot = parseBotSummary(value?.['bot']);
   return { channel, ...(bot === undefined ? {} : { bot }) };
+}
+
+export async function cancelGroupInvitation(
+  call: BridgeCall,
+  channelId: string,
+  invitationId: string,
+): Promise<ChannelSummary> {
+  const value = asRecord(
+    await unwrap(call, 'channelGroupInviteCancel', { channelId, invitationId }),
+  );
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupInviteCancel response');
+  return channel;
+}
+
+export async function removeGroupMember(
+  call: BridgeCall,
+  channelId: string,
+  botSlug: string,
+): Promise<ChannelSummary> {
+  const value = asRecord(await unwrap(call, 'channelGroupMemberRemove', { channelId, botSlug }));
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupMemberRemove response');
+  return channel;
+}
+
+export async function deleteGroupChannel(call: BridgeCall, channelId: string): Promise<void> {
+  await unwrap(call, 'channelGroupDelete', { channelId });
 }
 
 export async function loadChannelMessages(
