@@ -105,7 +105,9 @@ describe('accepted Memory Commit boundary', () => {
   });
   it('migrates an existing accepted main head to branch-scoped storage', () => {
     const home = createTempRoot('botharness-memory-migration-');
-    const previousPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
+    const previousPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 14),
+    );
     const sha = 'a'.repeat(40);
     let owner = mountOperationalDatabase({ dshHome: home, schemaPlan: previousPlan });
     try {

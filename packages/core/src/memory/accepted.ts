@@ -666,8 +666,13 @@ export function createMemoryAcceptance(options: {
           .get(input.sourceEventId) as { bot_slug: string; source_kind: string } | undefined,
     );
     if (
-      source?.bot_slug !== input.botSlug ||
-      !['human-message', 'assignment-report'].includes(source.source_kind)
+      (source?.bot_slug !== input.botSlug &&
+        !database.read((db) =>
+          db
+            .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ?')
+            .get(input.sourceEventId, input.botSlug),
+        )) ||
+      !['human-message', 'assignment-report'].includes(source?.source_kind ?? '')
     ) {
       throw new MemoryAcceptError(
         'memory-conflict',

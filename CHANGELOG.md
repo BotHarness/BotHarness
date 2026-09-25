@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- In a Group Channel, a Human can select multiple joined PersonaBots with `@`; one committed message wakes each Bot independently, their replies stay in the Group, each processing state is visible, selected mentions appear as avatar-and-name badges without the @ sigil in both the draft and sent message, and clicking a sent badge opens that Bot’s DM. Existing Channel history moves once from NDJSON into the SQLite Messaging authority ([#254](https://github.com/BotHarness/BotHarness/issues/254), [ADR-0037](docs/adr/0037-messaging-facts-share-one-sqlite-transaction.md)).
 - When a Memory branch request is ambiguous, the Orchestrator asks through DSH's native question service in the PersonaBot DM; the Human's choice resumes the same Session, and answered or cancelled cards stay closed after refresh ([#264](https://github.com/BotHarness/BotHarness/issues/264)).
 
 - When a Memory branch switch encounters unfinished changes, the Orchestrator can coordinate affected Assignments, preserve work in a named Git stash, and retry in the same Session; the DM branch picker now filters local branches as the Human types ([#263](https://github.com/BotHarness/BotHarness/issues/263)).
@@ -89,6 +90,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Selected Group @PersonaBot references now appear once inside the composer and sent message, delete as a whole token, and remain visible as Bot text in Orchestrator Sessions instead of showing DSH's file icon ([#254](https://github.com/BotHarness/BotHarness/issues/254)).
 
 - PersonaBot creation now explains when Git is missing and leaves no partial identity; install Git on PATH and restart DeepSeek Harness before retrying ([#268](https://github.com/BotHarness/BotHarness/issues/268)).
 - Fixed fresh BotHarness database initialization on Windows so the official DSH RC2 Desktop can add a local Workspace and create a PersonaBot without entering recovery mode ([#266](https://github.com/BotHarness/BotHarness/issues/266)).

@@ -9,11 +9,13 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { channelAttachmentUrl, errorMessage } from './bridge.js';
+import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
+import { mentionRuns } from './mentions.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
-import { store, type ChannelMessage } from './store.js';
+import { store, type BotSummary, type ChannelMessage } from './store.js';
 
 // DSH's memoized primitive carries React 19 types; this Client still uses React 18 types.
 const ChannelMarkdownText = MarkdownText as unknown as (
@@ -497,6 +499,7 @@ export function ChannelMessageBody({
   message,
   t,
   actions,
+  bots = [],
   grantRequestResolved = false,
   toolApprovalDecision,
   userQuestionResolution,
@@ -505,6 +508,7 @@ export function ChannelMessageBody({
   message: ChannelMessage;
   t: BotHarnessTranslate;
   actions?: BridgeActions;
+  bots?: readonly BotSummary[];
   grantRequestResolved?: boolean;
   nativeChatT?: NativeChatFailureText | undefined;
   toolApprovalDecision?:
@@ -551,7 +555,50 @@ export function ChannelMessageBody({
   return (
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
-        <div className="bh-bubble-body">{message.body}</div>
+        <div className="bh-bubble-body">
+          {mentionRuns(message.body, message.mentions ?? []).map((run, index) => {
+            const mention = run.mention;
+            if (mention === undefined) return <span key={index}>{run.text}</span>;
+            const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
+            const badge = (
+              <>
+                <span className="bh-inline-mention-avatar" aria-hidden="true">
+                  <PersonaBotAvatar
+                    personaBotId={mention.botSlug}
+                    name={bot?.displayName ?? mention.label}
+                    src={bot?.avatar}
+                    size={16}
+                    indicator={false}
+                    t={t}
+                  />
+                </span>
+                <span>{mention.label}</span>
+              </>
+            );
+            if (actions === undefined)
+              return (
+                <span
+                  key={index}
+                  className="bh-inline-mention bh-inline-mention-sent"
+                  data-bot-id={mention.botSlug}
+                >
+                  {badge}
+                </span>
+              );
+            return (
+              <button
+                key={index}
+                type="button"
+                className="bh-inline-mention bh-inline-mention-sent bh-inline-mention-link"
+                data-bot-id={mention.botSlug}
+                aria-label={t('message.mention.openDm', { bot: mention.label })}
+                onClick={() => void actions.openBot(mention.botSlug)}
+              >
+                {badge}
+              </button>
+            );
+          })}
+        </div>
       ) : (
         <div className="bh-bubble-body bh-bubble-body-markdown">
           <ChannelMarkdownText

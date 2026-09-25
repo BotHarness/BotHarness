@@ -1,9 +1,12 @@
-import { createElement, type ReactNode } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type ReactNode } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 
+import type { BridgeActions } from '../src/client/actions.js';
 import { ChannelMessageBody } from '../src/client/channel-message-body.js';
 import { zhTranslate } from '../src/client/locale.js';
 import type { ChannelMessage } from '../src/client/store.js';
@@ -32,6 +35,79 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it('renders selected Bot mentions as inline DM controls in sent text', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'm-mention',
+          at: '2026-09-25T00:00:00.000Z',
+          author: { kind: 'human' },
+          body: '@Ada please ask @Bea',
+          mentions: [
+            { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+            { botSlug: 'bea', label: 'Bea', start: 16, end: 20 },
+          ],
+        },
+        t: zhTranslate,
+        actions: { openBot: vi.fn() } as unknown as BridgeActions,
+        bots: [
+          {
+            slug: 'ada',
+            displayName: 'Ada',
+            avatar: '/avatars/ada.png',
+            roles: [],
+            aggregateState: 'idle',
+            workspaces: [],
+            createdAt: '2026-09-25T00:00:00.000Z',
+          },
+        ],
+      }),
+    );
+    expect(markup).toContain('data-bot-id="ada" aria-label="打开与 Ada 的私聊"');
+    expect(markup).toContain('data-bot-id="bea" aria-label="打开与 Bea 的私聊"');
+    expect(markup).toContain('src="/avatars/ada.png"');
+    expect(markup).toContain('class="bh-inline-mention-avatar" aria-hidden="true"');
+    expect(markup).toContain('>Ada</span></button>');
+    expect(markup).toContain('>Bea</span></button>');
+    expect(markup).not.toContain('bh-composer-selected-mentions');
+  });
+
+  it('opens the selected Bot DM by stable ID even when display names are identical', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const openBot = vi.fn(async () => undefined);
+    try {
+      await act(async () => {
+        root.render(
+          createElement(ChannelMessageBody, {
+            message: {
+              id: 'm-duplicates',
+              at: '2026-09-25T00:00:00.000Z',
+              author: { kind: 'human' },
+              body: '@Ada @Ada @Plain',
+              mentions: [
+                { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+                { botSlug: 'bea', label: 'Ada', start: 5, end: 9 },
+              ],
+            },
+            t: zhTranslate,
+            actions: { openBot } as unknown as BridgeActions,
+          }),
+        );
+      });
+      const links = container.querySelectorAll('button.bh-inline-mention-link');
+      expect(links).toHaveLength(2);
+      expect(container.textContent).toContain('@Plain');
+      await act(async () => (links[1] as HTMLButtonElement).click());
+      expect(openBot).toHaveBeenCalledExactlyOnceWith('bea');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('uses a compact localized failure row with a settings action and collapsed raw detail', () => {
     const markup = render({ kind: 'bot', slug: 'ada' }, 'Session failed', {
       sessionFailure: {

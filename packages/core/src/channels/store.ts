@@ -30,6 +30,7 @@ export interface ChannelStoreOptions {
   attachments?: AttachmentStore;
   now?: () => Date;
   onCommitted?: (commit: ChannelMessageCommit) => void;
+  onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
   warn?: (message: string) => void;
 }
 
@@ -85,10 +86,18 @@ export interface ChannelStore {
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
+  admissionChanged?(channelId: string, messageId: string): void;
 }
 
 function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
+export class ChannelMentionTargetError extends Error {
+  constructor() {
+    super('Mentioned PersonaBot is no longer in this Group Channel');
+    this.name = 'ChannelMentionTargetError';
+  }
 }
 
 export class ChannelReplyTargetError extends Error {

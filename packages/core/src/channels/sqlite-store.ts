@@ -1,0 +1,577 @@
+import { randomUUID } from 'node:crypto';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
+
+import type { OperationalDatabaseModulePort } from '../database/owner.js';
+import { isValidSlug } from '../bots/slug.js';
+import { ChannelAttachmentError } from '../attachments/store.js';
+import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
+import {
+  dmChannelId,
+  groupChannelIdBase,
+  isChannelMessage,
+  isChannelRecord,
+  isValidChannelId,
+  type ChannelMessage,
+  type ChannelRecord,
+} from './channel.js';
+import {
+  ChannelMentionTargetError,
+  ChannelReplyTargetError,
+  type ChannelStore,
+  type ChannelStoreOptions,
+} from './store.js';
+import { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE, pageChannelTimeline } from './timeline.js';
+
+interface SqliteChannelStoreOptions extends ChannelStoreOptions {
+  database: OperationalDatabaseModulePort;
+  databaseOwnerReady?: boolean;
+}
+
+interface PlacementRow {
+  source_event_id: string;
+  payload_json: string;
+  body: string;
+}
+
+interface AdmissionRow {
+  bot_slug: string;
+  attempt_state: string;
+}
+
+function parseRecord(value: string, id: string): ChannelRecord | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return isChannelRecord(parsed, id) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function parseMessage(value: string, body?: string): ChannelMessage | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    const candidate = body === undefined ? parsed : { ...(parsed as object), body };
+    return isChannelMessage(candidate) ? candidate : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function replyProjection(
+  message: ChannelMessage,
+  byId: ReadonlyMap<string, ChannelMessage>,
+): ChannelMessage {
+  if (message.replyTo === undefined) return message;
+  const target = byId.get(message.replyTo);
+  if (target === undefined) return { ...message, replyToPreview: null };
+  const normalized = target.body.replace(/\s+/gu, ' ').trim();
+  const characters = Array.from(normalized);
+  return {
+    ...message,
+    replyToPreview: {
+      author: target.author,
+      body: characters.length > 140 ? characters.slice(0, 140).join('') + '...' : normalized,
+    },
+  };
+}
+
+function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
+  return (
+    JSON.stringify({
+      author: left.author,
+      body: left.body,
+      attachments: left.attachments ?? [],
+      replyTo: left.replyTo,
+      memorySwitchTarget: left.memorySwitchTarget,
+      mentions: left.mentions ?? [],
+    }) ===
+    JSON.stringify({
+      author: right.author,
+      body: right.body,
+      attachments: right.attachments ?? [],
+      replyTo: right.replyTo,
+      memorySwitchTarget: right.memorySwitchTarget,
+      mentions: right.mentions ?? [],
+    })
+  );
+}
+
+function sourceKind(message: ChannelMessage): string {
+  return message.author.kind === 'human'
+    ? 'human-message'
+    : message.author.kind === 'bot'
+      ? 'bot-message'
+      : 'system-message';
+}
+
+function rawMessage(message: ChannelMessage): ChannelMessage {
+  const result = { ...message };
+  delete result.replyToPreview;
+  delete result.deliveries;
+  return result;
+}
+
+function eventPayload(message: ChannelMessage): string {
+  const { body: _body, ...envelope } = rawMessage(message);
+  return JSON.stringify(envelope);
+}
+
+/**
+ * Production Channel authority. The legacy NDJSON directory is consumed once
+ * on an empty Channel schema, then never read or written by this store.
+ */
+export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
+  const { database, rootDir } = options;
+  const now = options.now ?? (() => new Date());
+  const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
+    if (
+      refs.length > 10 ||
+      refs.some((ref) => !isChannelAttachmentRef(ref) || !options.attachments?.has(ref))
+    )
+      throw new ChannelAttachmentError('Attachment does not belong to this profile', 'invalid-ref');
+  };
+
+  const readRecord = (id: string): ChannelRecord | undefined => {
+    if (!isValidChannelId(id)) return undefined;
+    const row = database.read((db) =>
+      db.prepare('SELECT record_json FROM channel_records WHERE channel_id = ?').get(id),
+    ) as { record_json: string } | undefined;
+    return row === undefined ? undefined : parseRecord(row.record_json, id);
+  };
+
+  const writeRecord = (record: ChannelRecord): void => {
+    database.transaction(
+      (db) => {
+        db.prepare(`INSERT INTO channel_records (channel_id, record_json) VALUES (?, ?)
+        ON CONFLICT(channel_id) DO UPDATE SET record_json = excluded.record_json`).run(
+          record.id,
+          JSON.stringify(record),
+        );
+      },
+      ['channel'],
+    );
+  };
+
+  const admissionStatuses = (sourceEventId: string): ChannelMessage['deliveries'] => {
+    const rows = database.read((db) =>
+      db
+        .prepare(
+          'SELECT bot_slug, attempt_state FROM inbox_admissions WHERE source_event_id = ? ORDER BY bot_slug',
+        )
+        .all(sourceEventId),
+    ) as unknown as AdmissionRow[];
+    return rows.length === 0
+      ? undefined
+      : rows.map((row) => ({
+          botSlug: row.bot_slug,
+          state: row.attempt_state as NonNullable<ChannelMessage['deliveries']>[number]['state'],
+        }));
+  };
+
+  const allMessages = (id: string): ChannelMessage[] => {
+    if (!isValidChannelId(id)) return [];
+    const rows = database.read((db) =>
+      db
+        .prepare(`
+      SELECT p.source_event_id, e.payload_json, e.body
+        FROM channel_placements p
+        JOIN source_events e ON e.source_event_id = p.source_event_id
+       WHERE p.channel_id = ? ORDER BY p.revision
+    `)
+        .all(id),
+    ) as unknown as PlacementRow[];
+    return rows.flatMap((row) => {
+      const message = parseMessage(row.payload_json, row.body);
+      if (message === undefined) return [];
+      const deliveries = admissionStatuses(row.source_event_id);
+      return [{ ...message, ...(deliveries === undefined ? {} : { deliveries }) }];
+    });
+  };
+
+  const project = (messages: ChannelMessage[], message: ChannelMessage): ChannelMessage =>
+    replyProjection(message, new Map(messages.map((item) => [item.id, item])));
+
+  const revisionOf = (id: string): number => {
+    if (!isValidChannelId(id)) return 0;
+    const row = database.read((db) =>
+      db
+        .prepare(
+          'SELECT COALESCE(MAX(revision), 0) AS revision FROM channel_placements WHERE channel_id = ?',
+        )
+        .get(id),
+    ) as { revision: number };
+    return row.revision;
+  };
+
+  const append = (id: string, message: ChannelMessage, once: boolean) => {
+    const channel = readRecord(id);
+    if (channel === undefined) return once ? { status: 'missing' as const } : undefined;
+    const previous = allMessages(id);
+    const existing = previous.find((item) => item.id === message.id);
+    if (existing !== undefined) {
+      if (!once || !sameIntent(existing, message)) return { status: 'conflict' as const };
+      return { status: 'existing' as const, message: project(previous, existing) };
+    }
+    if (message.replyTo !== undefined && !previous.some((item) => item.id === message.replyTo))
+      throw new ChannelReplyTargetError();
+    assertAttachmentRefs(message.attachments ?? []);
+    const mentions = message.mentions ?? [];
+    if (
+      mentions.length > 0 &&
+      (channel.type !== 'group' || mentions.some((item) => !channel.members.includes(item.botSlug)))
+    ) {
+      throw new ChannelMentionTargetError();
+    }
+    const durable = rawMessage(message);
+    const revision = previous.length + 1;
+    const sourceEventId = randomUUID();
+    database.transaction(
+      (db) => {
+        db.prepare(`
+        INSERT INTO source_events (
+          source_event_id, source_kind, bot_slug, channel_id, message_id,
+          body, created_at, payload_json
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+          sourceEventId,
+          sourceKind(durable),
+          durable.author.kind === 'bot'
+            ? durable.author.slug
+            : channel.type === 'dm' && durable.author.kind === 'human'
+              ? (channel.botSlug ?? null)
+              : null,
+          id,
+          durable.id,
+          durable.body,
+          durable.at,
+          eventPayload(durable),
+        );
+        db.prepare(`
+        INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+        VALUES (?, ?, ?, ?)
+      `).run(id, revision, sourceEventId, durable.id);
+        const recipients =
+          durable.author.kind !== 'human'
+            ? []
+            : channel.type === 'dm' && channel.botSlug !== undefined
+              ? [{ botSlug: channel.botSlug, reason: 'human-dm' }]
+              : [...new Set(mentions.map((item) => item.botSlug))].map((botSlug) => ({
+                  botSlug,
+                  reason: 'group-mention',
+                }));
+        for (const recipient of recipients)
+          db.prepare(`
+        INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+        VALUES (?, ?, ?)
+      `).run(sourceEventId, recipient.botSlug, recipient.reason);
+        db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+          JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
+          id,
+        );
+      },
+      ['source-event', 'channel', 'bot-inbox'],
+    );
+    const committed = project([...previous, durable], durable);
+    const deliveries = admissionStatuses(sourceEventId);
+    const result = { ...committed, ...(deliveries === undefined ? {} : { deliveries }) };
+    try {
+      options.onCommitted?.({ channelId: id, message: result, revision });
+    } catch (error) {
+      options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+    }
+    return { status: 'appended' as const, message: result };
+  };
+
+  // Import is a single transaction. An existing SQL Channel row means the
+  // prior import committed; old files can never supersede that authority.
+  if (
+    options.databaseOwnerReady !== false &&
+    database.read((db) => db.prepare('SELECT channel_id FROM channel_records LIMIT 1').get()) ===
+      undefined &&
+    existsSync(rootDir)
+  ) {
+    const legacy: Array<{
+      record: ChannelRecord;
+      messages: ChannelMessage[];
+      readPosition?: {
+        messageId: string;
+        revision: number;
+        readAt: string;
+      };
+    }> = [];
+    for (const entry of readdirSync(rootDir, { withFileTypes: true })) {
+      if (!entry.isDirectory() || !isValidChannelId(entry.name)) continue;
+      const directory = join(rootDir, entry.name);
+      let record: ChannelRecord | undefined;
+      try {
+        record = parseRecord(readFileSync(join(directory, 'channel.json'), 'utf8'), entry.name);
+      } catch {
+        continue;
+      }
+      if (record === undefined) continue;
+      let messages: ChannelMessage[] = [];
+      try {
+        messages = readFileSync(join(directory, 'messages.ndjson'), 'utf8')
+          .split('\n')
+          .flatMap((line) => {
+            const parsed = parseMessage(line);
+            return parsed === undefined ? [] : [parsed];
+          });
+      } catch {
+        /* Empty history. */
+      }
+      let readPosition: { messageId: string; revision: number; readAt: string } | undefined;
+      try {
+        const parsed: unknown = JSON.parse(
+          readFileSync(join(directory, 'read-position.json'), 'utf8'),
+        );
+        if (typeof parsed === 'object' && parsed !== null) {
+          const value = parsed as Record<string, unknown>;
+          if (
+            typeof value['messageId'] === 'string' &&
+            typeof value['revision'] === 'number' &&
+            typeof value['readAt'] === 'string' &&
+            messages[value['revision'] - 1]?.id === value['messageId']
+          ) {
+            readPosition = {
+              messageId: value['messageId'],
+              revision: value['revision'],
+              readAt: value['readAt'],
+            };
+          }
+        }
+      } catch {
+        /* No read position. */
+      }
+      legacy.push({ record, messages, ...(readPosition === undefined ? {} : { readPosition }) });
+    }
+    database.transaction(
+      (db) => {
+        for (const { record, messages, readPosition } of legacy) {
+          db.prepare('INSERT INTO channel_records (channel_id, record_json) VALUES (?, ?)').run(
+            record.id,
+            JSON.stringify(record),
+          );
+          for (const [index, message] of messages.entries()) {
+            const existing = db
+              .prepare(
+                'SELECT source_event_id FROM source_events WHERE channel_id = ? AND message_id = ?',
+              )
+              .get(record.id, message.id) as { source_event_id: string } | undefined;
+            const sourceEventId = existing?.source_event_id ?? randomUUID();
+            if (existing === undefined)
+              db.prepare(`
+            INSERT INTO source_events (
+              source_event_id, source_kind, bot_slug, channel_id, message_id,
+              body, created_at, attempt_state, payload_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, 'handled', ?)
+          `).run(
+                sourceEventId,
+                sourceKind(message),
+                message.author.kind === 'bot'
+                  ? message.author.slug
+                  : record.type === 'dm' && message.author.kind === 'human'
+                    ? (record.botSlug ?? null)
+                    : null,
+                record.id,
+                message.id,
+                message.body,
+                message.at,
+                eventPayload(message),
+              );
+            else
+              db.prepare('UPDATE source_events SET payload_json = ? WHERE source_event_id = ?').run(
+                eventPayload(message),
+                sourceEventId,
+              );
+            if (
+              record.type === 'dm' &&
+              message.author.kind === 'human' &&
+              record.botSlug !== undefined
+            )
+              db.prepare(`
+              INSERT OR IGNORE INTO inbox_admissions (
+                source_event_id, bot_slug, reason, attempt_state, handled_at
+              )
+              SELECT source_event_id, ?, 'human-dm', attempt_state, handled_at
+                FROM source_events WHERE source_event_id = ?
+            `).run(record.botSlug, sourceEventId);
+            db.prepare(`
+            INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+            VALUES (?, ?, ?, ?)
+          `).run(record.id, index + 1, sourceEventId, message.id);
+          }
+          if (readPosition !== undefined)
+            db.prepare(`
+          INSERT INTO channel_read_positions (channel_id, message_id, revision, read_at)
+          VALUES (?, ?, ?, ?)
+        `).run(record.id, readPosition.messageId, readPosition.revision, readPosition.readAt);
+        }
+      },
+      ['channel', 'source-event'],
+    );
+  }
+
+  return {
+    rootDir,
+    get: readRecord,
+    list() {
+      const rows = database.read((db) =>
+        db.prepare('SELECT channel_id, record_json FROM channel_records').all(),
+      ) as unknown as Array<{ channel_id: string; record_json: string }>;
+      return rows
+        .flatMap((row) => {
+          const record = parseRecord(row.record_json, row.channel_id);
+          return record === undefined ? [] : [record];
+        })
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt) || a.id.localeCompare(b.id));
+    },
+    getOrCreateDm(botSlug, botName) {
+      if (!isValidSlug(botSlug)) return undefined;
+      const id = dmChannelId(botSlug);
+      const existing = readRecord(id);
+      if (existing !== undefined) return existing;
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'dm',
+        name: botName.trim() || botSlug,
+        members: [botSlug],
+        botSlug,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      writeRecord(record);
+      return record;
+    },
+    createGroup(input) {
+      const base = groupChannelIdBase(input.name);
+      let id = base;
+      for (let suffix = 2; readRecord(id) !== undefined; suffix++) id = `${base}-${suffix}`;
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'group',
+        name: input.name.trim() || id,
+        members: [...input.members],
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      writeRecord(record);
+      return record;
+    },
+    rename(id, name) {
+      const prior = readRecord(id);
+      if (prior === undefined || !name.trim()) return undefined;
+      const updated = { ...prior, name: name.trim() };
+      writeRecord(updated);
+      return updated;
+    },
+    latestMessage(id) {
+      return allMessages(id).at(-1);
+    },
+    hasMessage(id, messageId) {
+      return allMessages(id).some((message) => message.id === messageId);
+    },
+    message(id, messageId) {
+      const messages = allMessages(id);
+      const found = messages.find((item) => item.id === messageId);
+      return found === undefined ? undefined : project(messages, found);
+    },
+    assertAttachmentRefs,
+    referencedAttachmentHashes() {
+      const hashes = new Set<string>();
+      for (const channel of this.list())
+        for (const message of allMessages(channel.id))
+          for (const ref of message.attachments ?? []) hashes.add(ref.hash);
+      return hashes;
+    },
+    readPosition(id) {
+      const row = database.read((db) =>
+        db
+          .prepare(`
+        SELECT message_id, revision, read_at FROM channel_read_positions WHERE channel_id = ?
+      `)
+          .get(id),
+      ) as { message_id: string; revision: number; read_at: string } | undefined;
+      return row === undefined
+        ? undefined
+        : {
+            messageId: row.message_id,
+            revision: row.revision,
+            readAt: row.read_at,
+          };
+    },
+    async markRead(id, messageId) {
+      const index = allMessages(id).findIndex((message) => message.id === messageId);
+      if (index < 0) return undefined;
+      const previous = this.readPosition(id);
+      if (previous !== undefined && previous.revision >= index + 1) return previous;
+      const position = { messageId, revision: index + 1, readAt: now().toISOString() };
+      database.transaction(
+        (db) =>
+          db
+            .prepare(`
+        INSERT INTO channel_read_positions (channel_id, message_id, revision, read_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(channel_id) DO UPDATE SET
+          message_id = excluded.message_id, revision = excluded.revision, read_at = excluded.read_at
+      `)
+            .run(id, messageId, position.revision, position.readAt),
+        ['channel'],
+      );
+      return position;
+    },
+    async appendMessage(id, message) {
+      const result = append(id, message, false);
+      return result?.status === 'appended' ? result.message : undefined;
+    },
+    async appendMessageOnce(id, message) {
+      const result = append(id, message, true);
+      return result ?? { status: 'missing' };
+    },
+    readMessages(id, readOptions) {
+      const messages = allMessages(id);
+      const limit = Math.max(
+        1,
+        Math.min(readOptions?.limit ?? DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE),
+      );
+      const end =
+        readOptions?.before === undefined
+          ? messages.length
+          : messages.findIndex((message) => message.id === readOptions.before);
+      if (end < 0) return [];
+      return messages
+        .slice(Math.max(0, end - limit), end)
+        .reverse()
+        .map((message) => project(messages, message));
+    },
+    readTimeline(id, request) {
+      const messages = allMessages(id);
+      const page = pageChannelTimeline(id, messages, request);
+      return page === undefined
+        ? undefined
+        : {
+            ...page,
+            entries: page.entries.map((message) => project(messages, message)),
+          };
+    },
+    revision: revisionOf,
+    admissionChanged(channelId, messageId) {
+      const message = this.message(channelId, messageId);
+      if (message !== undefined) options.onAdmissionChanged?.(channelId, messageId, message);
+    },
+    messagesAfter(id, revision) {
+      if (!isValidChannelId(id) || !Number.isSafeInteger(revision) || revision < 0)
+        return undefined;
+      const messages = allMessages(id);
+      if (revision > messages.length) return undefined;
+      return messages.slice(revision).map((message, index) => ({
+        channelId: id,
+        message: project(messages, message),
+        revision: revision + index + 1,
+      }));
+    },
+  };
+}

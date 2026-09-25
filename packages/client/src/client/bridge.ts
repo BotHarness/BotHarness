@@ -137,6 +137,7 @@ export function parseBotSummary(value: unknown): BotSummary | undefined {
     roles: roles.length > 0 ? roles : typeof legacyTag === 'string' ? [legacyTag] : [],
     ...(typeof description === 'string' ? { description } : {}),
     ...(typeof avatar === 'string' ? { avatar } : {}),
+    ...(typeof record['paused'] === 'boolean' ? { paused: record['paused'] } : {}),
   };
 }
 
@@ -452,12 +453,50 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     if (previewAuthor === undefined) return undefined;
     replyToPreview = { author: previewAuthor, body: preview['body'] };
   }
+  const mentions = record['mentions'];
+  if (
+    mentions !== undefined &&
+    (!Array.isArray(mentions) ||
+      mentions.some((entry) => {
+        const item = asRecord(entry);
+        return (
+          item === undefined ||
+          typeof item['botSlug'] !== 'string' ||
+          typeof item['label'] !== 'string' ||
+          typeof item['start'] !== 'number' ||
+          typeof item['end'] !== 'number'
+        );
+      }))
+  )
+    return undefined;
+  const deliveries = record['deliveries'];
+  if (
+    deliveries !== undefined &&
+    (!Array.isArray(deliveries) ||
+      deliveries.some((entry) => {
+        const item = asRecord(entry);
+        return (
+          item === undefined ||
+          typeof item['botSlug'] !== 'string' ||
+          !['pending', 'running', 'retryable', 'needs-repair', 'handled'].includes(
+            String(item['state']),
+          )
+        );
+      }))
+  )
+    return undefined;
   return {
     id,
     at,
     author,
     body,
     ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
+    ...(mentions === undefined
+      ? {}
+      : { mentions: mentions as NonNullable<ChannelMessage['mentions']> }),
+    ...(deliveries === undefined
+      ? {}
+      : { deliveries: deliveries as NonNullable<ChannelMessage['deliveries']> }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
@@ -747,6 +786,7 @@ export async function sendChannelMessage(
   messageId?: string,
   signal?: AbortSignal,
   memorySwitchTarget?: string,
+  mentions?: ChannelMessage['mentions'],
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -758,6 +798,7 @@ export async function sendChannelMessage(
       ...(attachments === undefined ? {} : { attachments }),
       ...(messageId === undefined ? {} : { messageId }),
       ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
+      ...(mentions === undefined ? {} : { mentions }),
     },
     signal,
   );

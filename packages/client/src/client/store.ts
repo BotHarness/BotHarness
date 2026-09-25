@@ -11,6 +11,7 @@ export interface BotSummary {
   roles: string[];
   description?: string;
   avatar?: string;
+  paused?: boolean;
   aggregateState: string;
   workspaces: string[];
   createdAt: string;
@@ -105,6 +106,11 @@ export interface ChannelMessage {
   author: ChannelAuthor;
   body: string;
   memorySwitchTarget?: string;
+  mentions?: { botSlug: string; label: string; start: number; end: number }[];
+  deliveries?: {
+    botSlug: string;
+    state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
+  }[];
   grantRequest?: true;
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;

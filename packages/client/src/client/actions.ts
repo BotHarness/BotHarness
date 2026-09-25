@@ -153,6 +153,7 @@ export interface BridgeActions {
     replyTo?: string,
     attachments?: ChannelAttachmentRef[],
     memorySwitchTarget?: string,
+    mentions?: ChannelMessage['mentions'],
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -740,7 +741,7 @@ export function createActions(
         clientStore.setAssignments({ error: errorMessage(error) });
       }
     },
-    async send(body, replyTo, attachments, memorySwitchTarget) {
+    async send(body, replyTo, attachments, memorySwitchTarget, mentions) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
@@ -781,6 +782,7 @@ export function createActions(
             author: { kind: 'human' },
             body: text,
             ...(attachments === undefined ? {} : { attachments }),
+            ...(mentions === undefined ? {} : { mentions }),
             ...(replyTo === undefined
               ? {}
               : {
@@ -807,6 +809,7 @@ export function createActions(
           localId,
           undefined,
           memorySwitchTarget,
+          mentions,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();
@@ -849,6 +852,20 @@ export function createActions(
           remainingFailures(channel.id, [matching]);
           clientStore.setConversation({ sending: false, error: undefined });
           return true;
+        }
+        if (
+          error instanceof BridgeCallError &&
+          error.code === 'invalid-input' &&
+          error.message.includes('Mentioned PersonaBot')
+        ) {
+          if (latest.conversation.channel?.id === channel.id) {
+            clientStore.setConversation({
+              sending: false,
+              error: error.message,
+              messages: latest.conversation.messages.filter((message) => message.id !== localId),
+            });
+          }
+          return false;
         }
         const failedEcho: ChannelMessage = {
           ...localEcho,

@@ -218,6 +218,23 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     }
   }
 
+  steerOrchestrator(botSlug: string, text: string): boolean {
+    this.#assertOpen();
+    for (const [sessionId, active] of this.#runs) {
+      if (active.role !== 'orchestrator' || active.run.bot.slug !== botSlug) continue;
+      const handle = this.#handles.get(sessionId);
+      if (handle === undefined) return false;
+      handle.agent.steer(
+        createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'user' },
+        }),
+      );
+      return true;
+    }
+    return false;
+  }
+
   acceptAssistantStream(sessionId: string, frame: AssistantStreamFrame): void {
     this.#drafts.accept(sessionId, frame);
   }
