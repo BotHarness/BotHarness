@@ -39,8 +39,9 @@ vi.mock('../src/client/avatar.js', () => ({
 import {
   HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS,
   HiddenChannelsModal,
+  hiddenChannelSequence,
 } from '../src/client/hidden-channels.js';
-import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
+import { zhTranslate } from '../src/client/locale.js';
 
 const t = zhTranslate;
 const AT = '2026-09-21T00:00:00.000Z';
@@ -52,6 +53,29 @@ beforeEach(() => {
 
 it('debounces filtering without delaying the controlled input', () => {
   expect(HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS).toBe(180);
+});
+
+it('preserves explicit hide order when Channel updates reorder the live list', () => {
+  const channel = (id: string, botSlug?: string) => ({
+    id,
+    type: (botSlug === undefined ? 'group' : 'dm') as 'group' | 'dm',
+    name: id,
+    members: [],
+    ...(botSlug === undefined ? {} : { botSlug }),
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const hidden = [channel('hidden-first'), channel('hidden-second')];
+  const botDm = { ...channel('dm-bots-ada-bea'), type: 'dm' as const };
+  const latestFirst = [botDm, hidden[1]!, hidden[0]!];
+  expect(
+    hiddenChannelSequence(latestFirst, ['hidden-first', 'hidden-second', botDm.id]).map(
+      (item) => item.id,
+    ),
+  ).toEqual(['hidden-first', 'hidden-second', botDm.id]);
+  expect(
+    hiddenChannelSequence(latestFirst, ['hidden-first', 'hidden-second']).map((item) => item.id),
+  ).toEqual(['hidden-first', 'hidden-second', botDm.id]);
 });
 
 describe('hidden Channels modal', () => {

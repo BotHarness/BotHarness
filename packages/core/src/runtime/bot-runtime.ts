@@ -1036,7 +1036,17 @@ class BotRuntimeImplementation implements BotRuntime {
       ...details,
       ...(input.context === undefined ? {} : { context: input.context }),
     };
-    const result = await this.#channels.appendMessage(input.channelId, {
+    const original = this.#channels.get(input.channelId);
+    const target =
+      original !== undefined && isBotDmChannel(original)
+        ? this.#channels.getOrCreateDm(
+            input.botSlug,
+            this.#registry.get(input.botSlug)?.displayName ?? input.botSlug,
+          )
+        : original;
+    if (target === undefined)
+      throw new Error('Could not publish Session failure: Channel is missing');
+    const result = await this.#channels.appendMessage(target.id, {
       id: `session-failure-${randomUUID()}`,
       at: this.#now().toISOString(),
       author: { kind: 'bot', slug: input.botSlug },
@@ -1283,7 +1293,8 @@ class BotRuntimeImplementation implements BotRuntime {
           channel: dm,
           sourceEventId,
           sessionId,
-          beforeSend,
+          beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+          ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
           body: input.body,
           replyTo: input.replyTo,
           deliveryKey: input.deliveryKey,
@@ -1385,7 +1396,8 @@ class BotRuntimeImplementation implements BotRuntime {
             channel,
             sourceEventId,
             sessionId,
-            beforeSend,
+            beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+            ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
             body: input.body,
             replyTo: input.replyTo,
             attachments: input.attachments,
@@ -1533,6 +1545,7 @@ class BotRuntimeImplementation implements BotRuntime {
     sourceEventId: string;
     sessionId: string;
     beforeSend: () => void;
+    afterSend?: () => void;
     body: string;
     replyTo?: string | undefined;
     attachments?: ChannelAttachmentRef[] | undefined;
@@ -1574,6 +1587,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const result = await this.#channels.appendMessageOnce(channel.id, message);
     if (result.status === 'missing') throw new Error(`Bot DM disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Bot DM delivery key has different content');
+    input.afterSend?.();
     this.admitBotDmMessage(channel.id, result.message.id);
     return { channelId: channel.id, message: result.message };
   }
