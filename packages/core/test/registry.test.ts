@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -5,6 +6,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import { createPersonaBotRegistry, isValidSlug } from '../src/index.js';
+import { ensureMemoryRepository } from '../src/memory/repository.js';
 
 const roots: string[] = [];
 const FIXED_NOW = (): Date => new Date('2026-09-17T00:00:00.000Z');
@@ -37,6 +39,63 @@ describe('isValidSlug', () => {
 });
 
 describe('createPersonaBotRegistry', () => {
+  it('clones Git history into Memory, preserves HEAD, and leaves no Bot after failure', async () => {
+    const root = createRoot();
+    const source = join(root, 'source');
+    mkdirSync(source);
+    execFileSync('git', ['init', '-q', source]);
+    writeFileSync(join(source, 'PERSONA.md'), '# Imported persona\n');
+    writeFileSync(join(source, 'notes.txt'), 'Imported memory\n');
+    execFileSync('git', ['-C', source, 'add', '.']);
+    execFileSync('git', [
+      '-C',
+      source,
+      '-c',
+      'user.name=QA',
+      '-c',
+      'user.email=qa@example.test',
+      'commit',
+      '-qm',
+      'Imported',
+    ]);
+    const originalHead = execFileSync('git', ['-C', source, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+
+    let rejectClone = true;
+    const registry = createPersonaBotRegistry({
+      rootDir: join(root, 'bots'),
+      initializeMemory: (memoryDir) => ({ ok: ensureMemoryRepository({ memoryDir }).ok }),
+      cloneMemory: async (destination) => {
+        if (rejectClone) {
+          writeFileSync(join(destination, 'partial.txt'), 'partial');
+          return { ok: false, code: 'git-clone-failed' };
+        }
+        execFileSync('git', ['clone', '--', source, destination]);
+        return { ok: true };
+      },
+    });
+
+    const input = {
+      slug: 'imported',
+      displayName: 'Imported',
+      gitUrl: 'https://example.test/source.git',
+    };
+    expect(await registry.createFromGit(input)).toEqual({ ok: false, reason: 'git-clone-failed' });
+    expect(registry.get('imported')).toBeUndefined();
+    expect(existsSync(join(root, 'bots', 'imported'))).toBe(false);
+
+    rejectClone = false;
+    expect((await registry.createFromGit(input)).ok).toBe(true);
+    expect(readFileSync(join(root, 'bots', 'imported', 'memory', 'notes.txt'), 'utf8')).toBe(
+      'Imported memory\n',
+    );
+    expect(
+      execFileSync('git', ['-C', join(root, 'bots', 'imported', 'memory'), 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim(),
+    ).toBe(originalHead);
+  });
   it('persists bot.json and reads it back through a fresh instance', () => {
     const root = createRoot();
     const registry = createPersonaBotRegistry({ rootDir: root, now: FIXED_NOW });

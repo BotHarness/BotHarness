@@ -186,7 +186,7 @@ describe('Memory Git graph sidebar', () => {
     expect(actions.memoryGitGraph).toHaveBeenCalledWith('dm-qa', 0);
     expect(container.textContent).toContain('experiment');
     expect(container.textContent).toContain('Explore old memory');
-    expect(container.textContent).toContain('待验收');
+    expect(container.textContent).toContain('Git 提交');
     expect(container.textContent).toContain('Memory Repository must be on main');
     const row = container.querySelector<HTMLButtonElement>('.bh-memory-graph-row');
     expect(row).not.toBeNull();
@@ -242,7 +242,7 @@ describe('Memory Git graph sidebar', () => {
     });
     expect(actions.memoryGitGraph).toHaveBeenCalledWith('dm-qa', 0);
     expect(container.textContent).toContain('Seed commit');
-    expect(container.textContent).toContain('已验收');
+    expect(container.textContent).toContain('已记录');
   });
 
   it('sends an explicit branch request and refreshes the graph after Channel activity', async () => {

@@ -36,6 +36,9 @@ export type CreatePersonaBotResult =
         | 'duplicate'
         | 'invalid-memory-dir'
         | 'git-not-found'
+        | 'invalid-git-url'
+        | 'git-clone-failed'
+        | 'git-clone-timeout'
         | 'memory-unavailable';
       detail?: string;
     };

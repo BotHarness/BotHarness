@@ -30,7 +30,12 @@ export function MemoryEntry({
   const [graph, setGraph] = useState<MemoryGitGraph>();
   const [loadingMore, setLoadingMore] = useState(false);
   const [path, setPath] = useState<string>();
-  const [file, setFile] = useState<{ path: string; body: string; head: string }>();
+  const [file, setFile] = useState<{
+    path: string;
+    body: string;
+    head: string;
+    binary?: boolean;
+  }>();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [confirmRepair, setConfirmRepair] = useState(false);
@@ -76,8 +81,7 @@ export function MemoryEntry({
         if (active) setSnapshotError(failure instanceof Error ? failure.message : String(failure));
       })
       .finally(() => {
-        // Snapshot may bootstrap the seed acceptance fact. On a side branch it
-        // rejects, but the raw graph remains independently readable.
+        // The graph reads current Git refs after the working-tree snapshot.
         if (!active) return;
         void actions
           .memoryGitGraph(channelId, 0)
@@ -157,7 +161,7 @@ export function MemoryEntry({
   };
 
   const save = async (): Promise<void> => {
-    if (file === undefined || busy || draft === file.body) return;
+    if (file === undefined || file.binary || busy || draft === file.body) return;
     setBusy(true);
     setError(undefined);
     try {
@@ -267,15 +271,19 @@ export function MemoryEntry({
           {file === undefined ? null : (
             <div className="bh-memory-editor">
               <label htmlFor="bh-memory-editor-body">{file.path}</label>
-              <textarea
-                id="bh-memory-editor-body"
-                value={draft}
-                onChange={(event) => setDraft(event.target.value)}
-                spellCheck={false}
-              />
+              {file.binary ? (
+                <div className="bh-note">{t('memory.binaryPreview')}</div>
+              ) : (
+                <textarea
+                  id="bh-memory-editor-body"
+                  value={draft}
+                  onChange={(event) => setDraft(event.target.value)}
+                  spellCheck={false}
+                />
+              )}
               <button
                 type="button"
-                disabled={busy || draft === file.body || snapshot.provisional}
+                disabled={busy || file.binary || draft === file.body || snapshot.provisional}
                 onClick={() => void save()}
               >
                 {busy ? t('memory.saving') : t('memory.save')}

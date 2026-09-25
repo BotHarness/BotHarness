@@ -54,7 +54,12 @@ it('coordinates a dirty Memory switch with an addressed Assignment and retries i
     expectedHead: seed,
     editId: 'seed-persona',
   });
-  git(memoryRoot, 'branch', 'history', persona.sha);
+  git(memoryRoot, 'switch', '-c', 'history', persona.sha);
+  writeFileSync(join(memoryRoot, 'draft.md'), 'Historical Memory edit\n');
+  git(memoryRoot, 'add', 'draft.md');
+  git(memoryRoot, 'commit', '-m', 'Historical draft');
+  const historyHead = git(memoryRoot, 'rev-parse', 'HEAD');
+  git(memoryRoot, 'switch', 'main');
 
   const orchestratorSessions: string[] = [];
   const requests: Array<{ sessionId: string; text: string }> = [];
@@ -78,7 +83,9 @@ it('coordinates a dirty Memory switch with an addressed Assignment and retries i
       }
       if (run.message.includes('Switch Memory')) {
         await run.channels.send({ body: 'Requested Memory branch: history' });
-        expect(() => run.memory!.switchBranch('history')).toThrow(/unfinished changes/);
+        expect(() => run.memory!.switchBranch('history')).toThrow(
+          /Git could not switch Memory branch/,
+        );
         const working = run.assignments.list().find((item) => item.activity === 'working');
         expect(working).toBeDefined();
         await run.channels.send({ body: 'Memory branch history blocked; preserving staged work.' });
@@ -91,7 +98,9 @@ it('coordinates a dirty Memory switch with an addressed Assignment and retries i
         return;
       }
       if (run.inbox.includes('Cannot pause')) {
-        expect(() => run.memory!.switchBranch('history')).toThrow(/unfinished changes/);
+        expect(() => run.memory!.switchBranch('history')).toThrow(
+          /Git could not switch Memory branch/,
+        );
         await run.channels.send({
           body: 'Memory branch history still blocked; staged work remains.',
         });
@@ -194,7 +203,7 @@ it('coordinates a dirty Memory switch with an addressed Assignment and retries i
       now: FIXED_NOW,
     });
     expect(reopenedMemory.gitGraph('ada').currentBranch).toBe('history');
-    expect(reopenedMemory.snapshot('ada').head).toBe(persona.sha);
+    expect(reopenedMemory.snapshot('ada').head).toBe(historyHead);
     const messages = channels
       .readMessages(dm.id)
       .map((item) => item.body)

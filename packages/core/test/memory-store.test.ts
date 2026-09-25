@@ -117,7 +117,7 @@ describe('memory store jail', () => {
     await expect(store.write({ ...input, path: '../escape.md' })).rejects.toThrow();
     await expect(store.write({ ...input, path: 'a/../../escape.md' })).rejects.toThrow();
     await expect(store.write({ ...input, path: '.git/hooks/pre-commit' })).rejects.toThrow();
-    await expect(store.write({ ...input, path: '.gitattributes' })).rejects.toThrow(/reserved/);
+    await expect(store.write({ ...input, path: '.gitattributes' })).rejects.toThrow(/\.md/);
     await expect(store.write({ ...input, path: '.git/config' })).rejects.toThrow(/reserved/);
     expect(() => store.read('../outside.md')).toThrow();
     expect(() => store.read('.git/config')).toThrow();

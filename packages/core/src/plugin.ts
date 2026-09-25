@@ -38,12 +38,14 @@ import {
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
+import { cloneMemoryRepository } from './memory/clone.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
 import {
   grantExecutionDenial,
   grantToolExecutionDenial,
+  isSafeMemoryDirectoryListing,
   requiresHumanToolApproval,
 } from './workspaces/grant-execution.js';
 import { ChannelToolApproval } from './workspaces/tool-approval.js';
@@ -139,6 +141,7 @@ export function createCore(
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({
     rootDir,
+    cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {
       const repository = ensureMemoryRepository({ memoryDir });
       return repository.ok
@@ -310,6 +313,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
         return next();
       if (!requiresHumanToolApproval(execution.name)) return next();
+      if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
+        return next();
       const denial = permissionDenial(agent.session);
       if (denial !== undefined) return { kind: 'deny', reason: denial };
       if (

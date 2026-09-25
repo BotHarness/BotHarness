@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  statSync,
   renameSync,
   rmSync,
 } from 'node:fs';
@@ -16,7 +17,7 @@ import type { PersonaBotRegistry } from '../bots/registry.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
-import { toMemoryRelativePath, toMemoryWritePath, resolveMemoryPath } from './jail.js';
+import { toMemoryRelativePath, resolveMemoryPath } from './jail.js';
 
 export type MemoryAcceptErrorCode =
   | 'memory-unavailable'
@@ -66,7 +67,7 @@ export interface MemoryAcceptedSnapshot {
   provisional: boolean;
 }
 
-/** A raw Git view; acceptance remains an independent authority. */
+/** Git history view. The checked-out working tree is current Memory. */
 export interface MemoryGitCommit {
   sha: string;
   parents: string[];
@@ -96,7 +97,6 @@ export interface MemoryAcceptance {
     from: string;
     to: string;
     head: string;
-    accepted: boolean;
   };
   switchBranch(input: { botSlug: string; sessionId: string; branch: string }): {
     from: string;
@@ -118,7 +118,7 @@ export interface MemoryAcceptance {
   readAccepted(
     botSlug: string,
     path: string,
-  ): { path: string; body: string; head: string } | undefined;
+  ): { path: string; body: string; head: string; binary?: boolean } | undefined;
   history(botSlug: string, limit?: number): MemoryAcceptedCommit[];
   diff(botSlug: string, sha: string): { sha: string; diff: string };
   gitGraph(botSlug: string, offset?: number): MemoryGitGraph;
@@ -210,24 +210,6 @@ function output(root: string, args: string[]): string {
   return run(root, args).toString('utf8').trim();
 }
 
-function assertSafeGitMetadata(root: string): void {
-  const infoAttributes = join(root, '.git', 'info', 'attributes');
-  if (existsSync(infoAttributes)) {
-    if (lstatSync(infoAttributes).isSymbolicLink() || readFileSync(infoAttributes).length > 0) {
-      throw new MemoryAcceptError(
-        'memory-invalid',
-        'Memory Git attributes override is not allowed',
-      );
-    }
-  }
-  const localKeys = run(root, ['config', '--local', '--list', '--name-only', '-z'])
-    .toString('utf8')
-    .split('\0');
-  if (localKeys.some((key) => key.startsWith('filter.'))) {
-    throw new MemoryAcceptError('memory-invalid', 'Memory Git filter configuration is not allowed');
-  }
-}
-
 function branchOf(root: string): string {
   try {
     return output(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
@@ -244,7 +226,6 @@ function verifiedRepository(root: string, botSlug: string): string {
   ) {
     throw new MemoryAcceptError('memory-unavailable', `Memory Repository unavailable: ${botSlug}`);
   }
-  assertSafeGitMetadata(root);
   branchOf(root);
   return root;
 }
@@ -266,90 +247,26 @@ function head(root: string): string {
 }
 
 function dirty(root: string): boolean {
-  assertSafeGitMetadata(root);
   return run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).length > 0;
 }
 
-function assertPath(path: string): string {
-  if (path === '.gitattributes') return path;
-  const relative = toMemoryRelativePath(path);
-  if (relative !== path || !relative.endsWith('.md')) {
-    throw new MemoryAcceptError('memory-invalid', `Unsupported Memory path: ${path}`);
-  }
-  return relative;
-}
-
-function validateBytes(bytes: Buffer, path: string): void {
-  if (bytes.length > MAX_FILE_BYTES || bytes.includes(0)) {
-    throw new MemoryAcceptError(
-      'memory-invalid',
-      `Memory file is too large or contains NUL: ${path}`,
-    );
-  }
-  try {
-    new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-  } catch {
-    throw new MemoryAcceptError('memory-invalid', `Memory file is not UTF-8: ${path}`);
-  }
-}
-
 function validateCommit(root: string, sha: string): string {
-  const entries = run(root, ['ls-tree', '-r', '-z', sha])
-    .toString('utf8')
-    .split('\0')
-    .filter(Boolean);
-  const paths: string[] = [];
-  for (const entry of entries) {
-    const tab = entry.indexOf('\t');
-    if (tab < 0) throw new MemoryAcceptError('memory-invalid', 'Invalid Git tree entry');
-    const header = entry.slice(0, tab).split(' ');
-    const path = assertPath(entry.slice(tab + 1));
-    if (header[0] !== '100644' && header[0] !== '100755') {
-      throw new MemoryAcceptError('memory-invalid', `Memory file is not regular: ${path}`);
-    }
-    if (header[1] !== 'blob' || !/^[0-9a-f]{40}$/u.test(header[2] ?? '')) {
-      throw new MemoryAcceptError('memory-invalid', `Memory object is invalid: ${path}`);
-    }
-    const bytes = run(root, ['cat-file', 'blob', header[2]!], MAX_FILE_BYTES + 1);
-    validateBytes(bytes, path);
-    if (path === '.gitattributes' && bytes.toString('utf8') !== '* text=auto eol=lf\n') {
-      throw new MemoryAcceptError('memory-invalid', 'Memory attributes changed');
-    }
-    paths.push(path);
-  }
-  return JSON.stringify({ paths });
+  const tree = output(root, ['rev-parse', '--verify', `${sha}^{tree}`]);
+  return JSON.stringify({ gitTree: tree });
 }
 
-function validateWorktree(root: string): void {
-  assertSafeGitMetadata(root);
+function listCurrentFiles(root: string): string[] {
+  const files: string[] = [];
   const walk = (relativeDir: string): void => {
     for (const entry of readdirSync(join(root, relativeDir), { withFileTypes: true })) {
       if (relativeDir === '' && entry.name === '.git') continue;
       const path = relativeDir ? `${relativeDir}/${entry.name}` : entry.name;
-      const absolute = join(root, path);
-      if (lstatSync(absolute).isSymbolicLink()) {
-        throw new MemoryAcceptError('memory-invalid', `Memory symlink refused: ${path}`);
-      }
-      if (entry.isDirectory()) {
-        toMemoryRelativePath(path);
-        walk(path);
-      } else if (entry.isFile()) {
-        assertPath(path);
-        const size = lstatSync(absolute).size;
-        if (size > MAX_FILE_BYTES) {
-          throw new MemoryAcceptError('memory-invalid', `Memory file is too large: ${path}`);
-        }
-        const bytes = readFileSync(absolute);
-        validateBytes(bytes, path);
-        if (path === '.gitattributes' && bytes.toString('utf8') !== '* text=auto eol=lf\n') {
-          throw new MemoryAcceptError('memory-invalid', 'Memory attributes changed');
-        }
-      } else {
-        throw new MemoryAcceptError('memory-invalid', `Unsupported Memory entry: ${path}`);
-      }
+      if (entry.isDirectory()) walk(path);
+      else if (entry.isFile() || entry.isSymbolicLink()) files.push(path);
     }
   };
   walk('');
+  return files.sort();
 }
 
 function rowToCommit(row: AcceptedRow): MemoryAcceptedCommit {
@@ -435,7 +352,6 @@ export function createMemoryAcceptance(options: {
         `Memory Repository unavailable: ${botSlug}`,
       );
     }
-    assertSafeGitMetadata(root);
     return root;
   };
 
@@ -481,37 +397,35 @@ export function createMemoryAcceptance(options: {
         const result: MemoryAcceptedCommit[] = [];
         let previous = expectedHead;
         for (const commit of commits) {
-          if (commit.parentSha !== previous) {
-            throw new MemoryAcceptError(
-              'memory-conflict',
-              'Memory commit is not a fast-forward descendant',
-            );
-          }
-          db.prepare(`INSERT INTO memory_accepted_commits (
+          const inserted = db
+            .prepare(`INSERT OR IGNORE INTO memory_accepted_commits (
           bot_slug, sha, parent_sha, actor_kind, actor_id, cause_kind, cause_id,
           validation_result, accepted_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-            botSlug,
-            commit.sha,
-            commit.parentSha,
-            commit.actorKind,
-            commit.actorId,
-            commit.causeKind,
-            commit.causeId,
-            commit.validationResult,
-            at,
-          );
-          result.push({
-            botSlug,
-            sha: commit.sha,
-            parentSha: commit.parentSha,
-            actorKind: commit.actorKind,
-            actorId: commit.actorId,
-            causeKind: commit.causeKind,
-            causeId: commit.causeId,
-            validationResult: commit.validationResult,
-            acceptedAt: at,
-          });
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .run(
+              botSlug,
+              commit.sha,
+              commit.parentSha,
+              commit.actorKind,
+              commit.actorId,
+              commit.causeKind,
+              commit.causeId,
+              commit.validationResult,
+              at,
+            );
+          if (inserted.changes > 0) {
+            result.push({
+              botSlug,
+              sha: commit.sha,
+              parentSha: commit.parentSha,
+              actorKind: commit.actorKind,
+              actorId: commit.actorId,
+              causeKind: commit.causeKind,
+              causeId: commit.causeId,
+              validationResult: commit.validationResult,
+              acceptedAt: at,
+            });
+          }
           previous = commit.sha;
         }
         db.prepare(`INSERT INTO memory_accepted_heads (bot_slug, branch_name, head_sha, updated_at)
@@ -530,86 +444,31 @@ export function createMemoryAcceptance(options: {
 
   const bootstrap = (botSlug: string, root: string): string => {
     const branch = branchOf(root);
-    const existing = acceptedHead(botSlug, branch);
-    if (existing !== null) return existing;
-    if (dirty(root)) {
-      throw new MemoryAcceptError(
-        'memory-conflict',
-        'Provisional Memory changes need repair before bootstrap',
-      );
-    }
-    if (branch !== 'main') {
-      if (acceptedHead(botSlug, 'main') === null) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          'Main Memory baseline must be accepted before switching branches',
-        );
-      }
-      const lookup = database.read((db) => {
-        const found = db.prepare(
-          'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
-        );
-        return output(root, ['rev-list', '--first-parent', 'HEAD'])
-          .split('\n')
-          .find((sha) => found.get(botSlug, sha) !== undefined);
-      });
-      if (lookup === undefined) {
-        throw new MemoryAcceptError('memory-conflict', 'Branch has no accepted Memory ancestor');
-      }
-      database.transaction(
-        (db) => {
-          db.prepare(`INSERT OR IGNORE INTO memory_accepted_heads
-          (bot_slug, branch_name, head_sha, updated_at) VALUES (?, ?, ?, ?)`).run(
-            botSlug,
-            branch,
-            lookup,
-            now().toISOString(),
-          );
-        },
-        ['memory-accepted'],
-      );
-      return acceptedHead(botSlug, branch) ?? lookup;
-    }
     const sha = head(root);
+    if (acceptedHead(botSlug, branch) !== null) return sha;
     if (
-      parentOf(root, sha) !== null ||
-      output(root, ['show', '-s', '--format=%s', sha]) !== 'Initialize memory repository' ||
-      output(root, ['show', '-s', '--format=%an <%ae>%n%cn <%ce>', sha]) !==
-        'BotHarness <bot@botharness.local>\nBotHarness <bot@botharness.local>'
-    ) {
-      throw new MemoryAcceptError(
-        'memory-conflict',
-        'Existing raw Memory history requires an explicit legacy import',
-      );
-    }
-    const seedPaths = run(root, ['ls-tree', '-r', '--name-only', '-z', sha])
-      .toString('utf8')
-      .split('\0')
-      .filter(Boolean)
-      .sort();
-    if (
-      seedPaths.join(',') !== '.gitattributes' &&
-      seedPaths.join(',') !== '.gitattributes,PERSONA.md'
-    ) {
-      throw new MemoryAcceptError('memory-conflict', 'Memory seed contains unexpected files');
-    }
-    if (run(root, ['show', `${sha}:.gitattributes`]).toString('utf8') !== '* text=auto eol=lf\n') {
-      throw new MemoryAcceptError(
-        'memory-conflict',
-        'Memory seed attributes do not match BotHarness',
-      );
-    }
-    const commit = {
-      sha,
-      parentSha: null,
-      actorKind: 'system' as const,
-      actorId: 'botharness-bootstrap',
-      causeKind: 'repository-init' as const,
-      causeId: `bootstrap:${sha}`,
-      validationResult: validateCommit(root, sha),
-    };
-    accept(botSlug, 'main', [commit], null);
-    return acceptedHead(botSlug, 'main') ?? head(root);
+      branch !== 'main' ||
+      output(root, ['rev-list', '--parents', '-n', '1', sha]).split(' ').length !== 1 ||
+      output(root, ['show', '-s', '--format=%s', sha]) !== 'Initialize memory repository'
+    )
+      return sha;
+    accept(
+      botSlug,
+      branch,
+      [
+        {
+          sha,
+          parentSha: null,
+          actorKind: 'system',
+          actorId: 'botharness-bootstrap',
+          causeKind: 'repository-init',
+          causeId: `bootstrap:${sha}`,
+          validationResult: validateCommit(root, sha),
+        },
+      ],
+      null,
+    );
+    return sha;
   };
 
   const requireOwned = (botSlug: string, sessionId: string): void => {
@@ -629,24 +488,12 @@ export function createMemoryAcceptance(options: {
       throw new MemoryAcceptError('memory-conflict', 'Memory repair must finish before turn');
     }
     const root = repository(registry, botSlug);
-    const baseline = bootstrap(botSlug, root);
-    const unfinished = head(root) !== baseline || dirty(root);
-    if (unfinished && options?.coordinateBranchSwitch !== true) {
-      throw new MemoryAcceptError(
-        'memory-conflict',
-        'Memory Repository has provisional changes before turn',
-      );
-    }
+    bootstrap(botSlug, root);
     if (inFlight.has(botSlug)) {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
-    // A coordination turn may inspect and resolve pre-existing edits, but it
-    // cannot promote those edits into accepted Memory on reconciliation.
-    inFlight.set(botSlug, {
-      sessionId,
-      branch: branchOf(root),
-      ...(unfinished ? { preservePending: true } : {}),
-    });
+    void options;
+    inFlight.set(botSlug, { sessionId, branch: branchOf(root) });
   };
 
   const reconcileTurn = (input: {
@@ -686,93 +533,33 @@ export function createMemoryAcceptance(options: {
     ) {
       throw new MemoryAcceptError(
         'memory-conflict',
-        'Source Event does not authorize Memory acceptance',
+        'Source Event does not authorize Memory observation',
       );
     }
     const root = repository(registry, input.botSlug);
-    if (branchOf(root) !== flight.branch) {
-      throw new MemoryAcceptError('memory-conflict', 'Memory branch changed during turn');
-    }
-    if (flight.preservePending) {
-      // A raw Git branch point is visible, but this Source Event must not
-      // promote it (or later work in this turn) to accepted Memory.
-      inFlight.delete(input.botSlug);
-      return [];
-    }
-    const priorCause = database.read(
-      (db) =>
-        db
-          .prepare(`SELECT * FROM memory_accepted_commits
-        WHERE bot_slug = ? AND cause_kind = 'source-event' AND cause_id = ?
-        ORDER BY rowid ASC`)
-          .all(input.botSlug, input.sourceEventId) as unknown as AcceptedRow[],
-    );
-    if (priorCause.length > 0) {
-      if (dirty(root) || head(root) !== acceptedHead(input.botSlug, flight.branch)) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          'Source Event already accepted a different Memory change',
-        );
-      }
-      inFlight.delete(input.botSlug);
-      return priorCause.map(rowToCommit);
-    }
-    const baseline = acceptedHead(input.botSlug, flight.branch);
-    if (baseline === null)
-      throw new MemoryAcceptError('memory-conflict', 'Memory baseline is missing');
+    const branch = branchOf(root);
     const current = head(root);
-    const fastForward = output(root, ['merge-base', baseline, current]) === baseline;
-    if (!fastForward) {
-      throw new MemoryAcceptError('memory-conflict', 'Memory HEAD diverged from accepted head');
-    }
-    const shas =
-      current === baseline
+    const checkpoint = acceptedHead(input.botSlug, branch);
+    const result =
+      current === checkpoint
         ? []
-        : output(root, ['rev-list', '--reverse', `${baseline}..${current}`])
-            .split('\n')
-            .filter(Boolean);
-    const commits: Parameters<typeof accept>[2] = [];
-    let previous = baseline;
-    for (const sha of shas) {
-      const parentSha = parentOf(root, sha);
-      if (parentSha !== previous)
-        throw new MemoryAcceptError('memory-invalid', 'Memory history is not linear');
-      commits.push({
-        sha,
-        parentSha,
-        actorKind: 'agent',
-        actorId: input.sessionId,
-        causeKind: 'source-event',
-        causeId: input.sourceEventId,
-        validationResult: validateCommit(root, sha),
-      });
-      previous = sha;
-    }
-    if (dirty(root)) {
-      validateWorktree(root);
-      run(root, ['add', '-A']);
-      const staged = run(root, ['diff', '--cached', '--name-only', '-z']);
-      if (staged.length > 0) {
-        run(root, ['commit', '--no-gpg-sign', '-m', `Memory update for ${input.sourceEventId}`]);
-        const sha = head(root);
-        if (parentOf(root, sha) !== previous) {
-          throw new MemoryAcceptError(
-            'memory-conflict',
-            'Memory commit parent changed during reconciliation',
+        : accept(
+            input.botSlug,
+            branch,
+            [
+              {
+                sha: current,
+                parentSha:
+                  output(root, ['rev-list', '--parents', '-n', '1', current]).split(' ')[1] ?? null,
+                actorKind: 'agent',
+                actorId: input.sessionId,
+                causeKind: 'source-event',
+                causeId: input.sourceEventId,
+                validationResult: validateCommit(root, current),
+              },
+            ],
+            checkpoint,
           );
-        }
-        commits.push({
-          sha,
-          parentSha: previous,
-          actorKind: 'agent',
-          actorId: input.sessionId,
-          causeKind: 'source-event',
-          causeId: input.sourceEventId,
-          validationResult: validateCommit(root, sha),
-        });
-      }
-    }
-    const result = accept(input.botSlug, flight.branch, commits, baseline);
     inFlight.delete(input.botSlug);
     return result;
   };
@@ -812,29 +599,7 @@ export function createMemoryAcceptance(options: {
       // The diff query verifies both the object type and reachability from a
       // visible local branch. A dangling object must not become a branch point.
       this.gitCommitDiff(input.botSlug, input.sha);
-      const acceptedAncestor = database.read((db) => {
-        const found = db.prepare(
-          'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
-        );
-        return output(root, ['rev-list', '--first-parent', input.sha])
-          .split('\n')
-          .find((sha) => found.get(input.botSlug, sha) !== undefined);
-      });
-      if (acceptedAncestor === undefined) {
-        throw new MemoryAcceptError('memory-conflict', 'Commit has no accepted Memory ancestor');
-      }
-      if (dirty(root)) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          'Memory has unfinished changes; coordinate before continuing',
-        );
-      }
-      if (head(root) !== acceptedHead(input.botSlug, from)) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          'Current Memory branch has unaccepted commits; coordinate before continuing',
-        );
-      }
+      // Native Git decides whether the working tree permits this branch.
       try {
         run(root, ['switch', '-c', branch, input.sha]);
       } catch {
@@ -843,14 +608,8 @@ export function createMemoryAcceptance(options: {
           'Git could not create and switch Memory branch',
         );
       }
-      const baseline = bootstrap(input.botSlug, root);
-      const accepted = baseline === input.sha;
-      inFlight.set(input.botSlug, {
-        sessionId: input.sessionId,
-        branch,
-        ...(accepted ? {} : { preservePending: true }),
-      });
-      return { from, to: branch, head: input.sha, accepted };
+      inFlight.set(input.botSlug, { sessionId: input.sessionId, branch });
+      return { from, to: branch, head: input.sha };
     },
     switchBranch(input) {
       requireOwned(input.botSlug, input.sessionId);
@@ -873,31 +632,8 @@ export function createMemoryAcceptance(options: {
       } catch {
         throw new MemoryAcceptError('memory-invalid', 'Memory branch does not exist');
       }
-      if (dirty(root)) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          `Memory branch ${from} has unfinished changes; staged and working files are preserved. Coordinate before switching`,
-        );
-      }
-      if (head(root) !== acceptedHead(input.botSlug, from)) {
-        throw new MemoryAcceptError(
-          'memory-conflict',
-          'Current Memory branch has unaccepted commits; coordinate before switching',
-        );
-      }
+      // Native Git handles staged and working-tree conflicts.
       const targetHead = output(root, ['rev-parse', '--verify', `refs/heads/${branch}`]);
-      const accepted = acceptedHead(input.botSlug, branch);
-      const known = database.read(
-        (db) =>
-          db
-            .prepare(
-              'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
-            )
-            .get(input.botSlug, targetHead) !== undefined,
-      );
-      if (!known || (accepted !== null && accepted !== targetHead)) {
-        throw new MemoryAcceptError('memory-conflict', 'Target Memory branch is not accepted');
-      }
       if (from !== branch) {
         try {
           run(root, ['switch', branch]);
@@ -905,12 +641,8 @@ export function createMemoryAcceptance(options: {
           throw new MemoryAcceptError('memory-conflict', 'Git could not switch Memory branch');
         }
       }
-      const actual = bootstrap(input.botSlug, root);
-      if (actual !== head(root)) {
-        throw new MemoryAcceptError('memory-conflict', 'Target branch is not fully accepted');
-      }
       inFlight.set(input.botSlug, { sessionId: input.sessionId, branch });
-      return { from, to: branch, head: actual };
+      return { from, to: branch, head: targetHead };
     },
     prepareTurn,
     reconcileTurn,
@@ -919,29 +651,39 @@ export function createMemoryAcceptance(options: {
     },
     snapshot(botSlug) {
       const { root, repairing } = readRepository(botSlug);
-      const accepted = bootstrap(botSlug, root);
-      const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
-        .toString('utf8')
-        .split('\0')
-        .filter((path) => path.endsWith('.md'));
+      bootstrap(botSlug, root);
       return {
-        head: accepted,
-        files,
-        provisional: repairing || dirty(root) || head(root) !== accepted,
+        head: head(root),
+        files: listCurrentFiles(root),
+        provisional: repairing,
       };
     },
     readAccepted(botSlug, path) {
       const { root } = readRepository(botSlug);
-      const accepted = bootstrap(botSlug, root);
-      const relative = toMemoryWritePath(path);
-      const files = run(root, ['ls-tree', '-r', '--name-only', '-z', accepted])
-        .toString('utf8')
-        .split('\0');
-      if (!files.includes(relative)) return undefined;
-      const bytes = run(root, ['show', `${accepted}:${relative}`], MAX_FILE_BYTES + 1);
-      validateBytes(bytes, relative);
-      return { path: relative, body: bytes.toString('utf8'), head: accepted };
+      const relative = toMemoryRelativePath(path);
+      const target = resolveMemoryPath(root, relative);
+      if (!existsSync(target) || !statSync(target).isFile()) return undefined;
+      const fileSize = statSync(target).size;
+      if (fileSize > MAX_DIFF_BYTES) {
+        return { path: relative, body: '', head: head(root), binary: true };
+      }
+      const bytes = readFileSync(target);
+      let body: string;
+      let binary = bytes.includes(0);
+      try {
+        body = binary ? '' : new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        body = '';
+        binary = true;
+      }
+      return {
+        path: relative,
+        body,
+        head: head(root),
+        ...(binary ? { binary: true } : {}),
+      };
     },
+
     gitGraph(botSlug, offset = 0) {
       if (!Number.isInteger(offset) || offset < 0 || offset > 10_000) {
         throw new MemoryAcceptError('memory-invalid', 'Invalid Memory graph offset');
@@ -966,12 +708,7 @@ export function createMemoryAcceptance(options: {
       } catch {
         currentBranch = null;
       }
-      const acceptedCurrent = currentBranch === null ? null : acceptedHead(botSlug, currentBranch);
-      const repairing =
-        pendingRepair(botSlug)?.provisional_head_sha ??
-        (currentBranch !== null && acceptedCurrent !== null && currentHead !== acceptedCurrent
-          ? currentHead
-          : undefined);
+      const repairing = pendingRepair(botSlug)?.provisional_head_sha;
       const lines = output(root, [
         'log',
         '--branches',
@@ -1257,8 +994,8 @@ export function createMemoryAcceptance(options: {
             .get(input.botSlug, input.editId) as AcceptedRow | undefined,
       );
       if (priorEdit !== undefined) {
-        const current = acceptedHead(input.botSlug, branchOf(root));
-        const path = toMemoryWritePath(input.path);
+        const current = head(root);
+        const path = toMemoryRelativePath(input.path);
         const previousBody = run(
           root,
           ['show', `${priorEdit.sha}:${path}`],
@@ -1269,23 +1006,17 @@ export function createMemoryAcceptance(options: {
         }
         return rowToCommit(priorEdit);
       }
-      const baseline = bootstrap(input.botSlug, root);
-      if (
-        inFlight.has(input.botSlug) ||
-        baseline !== input.expectedHead ||
-        head(root) !== baseline ||
-        dirty(root)
-      ) {
+      const baseline = head(root);
+      if (inFlight.has(input.botSlug) || baseline !== input.expectedHead || dirty(root)) {
         throw new MemoryAcceptError('memory-conflict', 'Memory changed since the Human opened it');
       }
-      const path = toMemoryWritePath(input.path);
+      const path = toMemoryRelativePath(input.path);
       if (Buffer.byteLength(input.body, 'utf8') > MAX_FILE_BYTES || input.body.includes('\0')) {
         throw new MemoryAcceptError('memory-invalid', 'Memory edit is too large or contains NUL');
       }
       const target = resolveMemoryPath(root, path);
       mkdirSync(dirname(target), { recursive: true });
       atomicWriteFile(target, input.body);
-      validateWorktree(root);
       run(root, ['add', '--', path]);
       if (run(root, ['diff', '--cached', '--name-only', '--', path]).length === 0) {
         throw new MemoryAcceptError('memory-conflict', 'Memory edit did not change the file');
@@ -1315,7 +1046,7 @@ export function createMemoryAcceptance(options: {
             validationResult: validateCommit(root, sha),
           },
         ],
-        baseline,
+        acceptedHead(input.botSlug, branchOf(root)),
       );
       if (accepted === undefined)
         throw new MemoryAcceptError('memory-invalid', 'Memory edit was not accepted');

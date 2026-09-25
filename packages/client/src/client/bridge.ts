@@ -52,6 +52,7 @@ export interface CreatePersonaBotInput {
   displayName: string;
   roles: string[];
   description?: string;
+  gitUrl?: string;
 }
 
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
@@ -681,7 +682,12 @@ export async function createPersonaBot(
   input: CreatePersonaBotInput,
   signal?: AbortSignal,
 ): Promise<BotSummary> {
-  const value = await unwrap(call, 'create', { ...input }, signal);
+  const value = await unwrap(
+    call,
+    input.gitUrl === undefined ? 'create' : 'createFromGit',
+    { ...input },
+    signal,
+  );
   const bot = parseBotSummary(asRecord(value)?.['bot']);
   if (bot === undefined) throw new Error('invalid create response');
   return bot;
@@ -1306,7 +1312,7 @@ export async function loadMemoryFile(
   call: BridgeCall,
   channelId: string,
   path: string,
-): Promise<{ path: string; body: string; head: string } | undefined> {
+): Promise<{ path: string; body: string; head: string; binary?: boolean } | undefined> {
   const response = asRecord(await unwrap(call, 'memoryFile', { channelId, path }));
   if (response?.['file'] === undefined) return undefined;
   const file = asRecord(response?.['file']);
@@ -1316,7 +1322,9 @@ export async function loadMemoryFile(
     typeof file['head'] !== 'string'
   )
     throw new Error('invalid Memory file');
-  return file as { path: string; body: string; head: string };
+  if (file['binary'] !== undefined && typeof file['binary'] !== 'boolean')
+    throw new Error('invalid Memory file');
+  return file as { path: string; body: string; head: string; binary?: boolean };
 }
 
 export async function loadMemoryHistory(
