@@ -226,11 +226,29 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const mentions = message.mentions ?? [];
     if (
       mentions.length > 0 &&
-      (channel.type !== 'group' || mentions.some((item) => !channel.members.includes(item.botSlug)))
+      (channel.type !== 'group' ||
+        mentions.some(
+          (item) =>
+            !channel.members.includes(item.botSlug) ||
+            message.body.slice(item.start, item.end) !== '@' + item.label,
+        ))
     ) {
       throw new ChannelMentionTargetError();
     }
     const senderSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
+    if (
+      channel.type === 'group' &&
+      senderSlug !== undefined &&
+      !channel.members.includes(senderSlug)
+    )
+      throw new Error('Only a joined Bot may author this Group Channel');
+    if (
+      channel.type === 'group' &&
+      senderSlug !== undefined &&
+      mentions.length > 0 &&
+      message.botCausation === undefined
+    )
+      throw new Error('Bot Group mentions require trusted causation');
     const botDm = isBotDmChannel(channel) && senderSlug !== undefined;
     if (
       isBotDmChannel(channel) &&
@@ -284,6 +302,16 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
         VALUES (?, ?, ?, ?)
       `).run(id, revision, sourceEventId, durable.id);
+        const botAlreadyAdmitted = (targetSlug: string, rootId: string): boolean =>
+          db
+            .prepare(`
+              SELECT 1 FROM inbox_admissions a
+              JOIN source_events e ON e.source_event_id = a.source_event_id
+              WHERE a.bot_slug = ? AND e.source_kind = 'bot-message'
+                AND json_extract(e.payload_json, '$.botCausation.rootSourceEventId') = ?
+              LIMIT 1
+            `)
+            .get(targetSlug, rootId) !== undefined;
         const recipients =
           durable.author.kind === 'human'
             ? channel.type === 'dm' && channel.botSlug !== undefined
@@ -292,21 +320,24 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                   botSlug,
                   reason: 'group-mention',
                 }))
-            : botDm &&
-                recipient !== undefined &&
+            : channel.type === 'group' &&
+                senderSlug !== undefined &&
                 durable.botCausation !== undefined &&
-                durable.botCausation.hop <= MAX_BOT_HOPS &&
-                db
-                  .prepare(`
-                  SELECT 1 FROM inbox_admissions a
-                  JOIN source_events e ON e.source_event_id = a.source_event_id
-                  WHERE a.bot_slug = ? AND e.source_kind = 'bot-message'
-                    AND json_extract(e.payload_json, '$.botCausation.rootSourceEventId') = ?
-                  LIMIT 1
-                `)
-                  .get(recipient, durable.botCausation.rootSourceEventId) === undefined
-              ? [{ botSlug: recipient, reason: 'bot-dm' }]
-              : [];
+                durable.botCausation.hop <= MAX_BOT_HOPS
+              ? [...new Set(mentions.map((item) => item.botSlug))]
+                  .filter(
+                    (targetSlug) =>
+                      targetSlug !== senderSlug &&
+                      !botAlreadyAdmitted(targetSlug, durable.botCausation!.rootSourceEventId),
+                  )
+                  .map((botSlug) => ({ botSlug, reason: 'group-mention' }))
+              : botDm &&
+                  recipient !== undefined &&
+                  durable.botCausation !== undefined &&
+                  durable.botCausation.hop <= MAX_BOT_HOPS &&
+                  !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
+                ? [{ botSlug: recipient, reason: 'bot-dm' }]
+                : [];
         for (const recipient of recipients)
           db.prepare(`
         INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
