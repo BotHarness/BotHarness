@@ -104,6 +104,43 @@ describe('Channel tool approval', () => {
     untrack?.();
   });
 
+  it('expires a pending native approval when its Workspace Grant is revoked', async () => {
+    const state = fixture();
+    let grantActive = true;
+    const broker = new ChannelToolApproval(state.channels, state.ownership, undefined, () =>
+      grantActive ? 'assignment:grant-1' : undefined,
+    );
+    broker.track(state.execution());
+    const answer = broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' });
+    await vi.waitFor(() => expect(state.messages).toHaveLength(1));
+    const requestId = state.messages[0]!.id;
+    expect(broker.status(botSlug, requestId)).toBe('pending');
+
+    grantActive = false;
+    broker.cancelInvalid();
+
+    expect(await answer).toBe('unavailable');
+    expect(broker.status(botSlug, requestId)).toBe('expired');
+    expect(await broker.decide(botSlug, requestId, 'allowed-once')).toBe(false);
+    expect(state.messages).toHaveLength(1);
+  });
+  it('refuses a native call if its Grant is revoked after one-time approval', async () => {
+    const state = fixture();
+    let grantActive = true;
+    const broker = new ChannelToolApproval(state.channels, state.ownership, undefined, () =>
+      grantActive ? 'assignment:grant-1' : undefined,
+    );
+    broker.track(state.execution());
+    const answer = broker.ask({ agent: state.agent, toolName: 'bash', callId: 'call-1' });
+    await vi.waitFor(() => expect(state.messages).toHaveLength(1));
+
+    expect(await broker.decide(botSlug, state.messages[0]!.id, 'allowed-once')).toBe(true);
+    expect(await answer).toBe('allowed-once');
+    expect(broker.validAfterDecision(state.agent, 'call-1')).toBe(true);
+    grantActive = false;
+    expect(broker.validAfterDecision(state.agent, 'call-1')).toBe(false);
+  });
+
   it('uses a Human-saved exact rule for later calls and loses it after revoke', async () => {
     const state = fixture();
     let active = true;

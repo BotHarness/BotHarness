@@ -99,6 +99,7 @@
 
 ### Fixed
 
+- 撤销工作区授权后，PersonaBot 私聊里待处理的原生工具审批卡立即失效，不能再批准已撤销权限下的调用。已经开始的调用可能完成，后续 Assignment 访问仍被阻止（[#116](https://github.com/BotHarness/BotHarness/issues/116)）。
 - PersonaBot 可用只读的 `ls -la` 命令直接列出自己的记忆目录，不再被审批卡打断；其他 Shell 命令仍通过 Channel 审批（[#298](https://github.com/BotHarness/BotHarness/issues/298)）。
 - 群聊中已选的 @PersonaBot 现在只在输入框和已发送消息正文原位显示，退格可整块删除；Orchestrator Session 中保留 Bot 文本，不再误显示为 DSH 文件图标（[#254](https://github.com/BotHarness/BotHarness/issues/254)）。
 

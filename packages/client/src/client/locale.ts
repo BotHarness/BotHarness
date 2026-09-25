@@ -362,7 +362,8 @@ export const zh = {
   'grant.authorize': '授权此工作区',
   'grant.revoke': '撤销授权',
   'grant.revoked': '已撤销',
-  'grant.stopRunning': '正在运行的事项不会自动停止；如需立即停用，请手动停止。',
+  'grant.stopRunning':
+    '待审批的工具调用已失效；已开始的调用可能完成，后续访问会被拒绝。如需立即停止事项，请手动停止。',
   'grant.primaryCwd': '主要工作目录',
   'grant.actualPermission': '事项启动时的权限快照',
   'grant.source': '授权记录',
@@ -780,7 +781,7 @@ export const en = {
   'grant.revoke': 'Revoke Grant',
   'grant.revoked': 'Revoked',
   'grant.stopRunning':
-    'Running Assignments do not stop automatically. Stop them manually to end access now.',
+    'Pending tool approvals have expired. Calls already running may finish; later access is denied. Stop an Assignment manually to end it now.',
   'grant.primaryCwd': 'Primary working directory',
   'grant.actualPermission': 'Permission snapshot at start',
   'grant.source': 'Grant record',

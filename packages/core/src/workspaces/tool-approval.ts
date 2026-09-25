@@ -180,13 +180,24 @@ export class ChannelToolApproval {
   validAfterDecision(agent: Agent, callId: string): boolean {
     const tracked = this.#tracked.get(callKey(agent.session.id, callId));
     if (tracked === undefined || tracked.agent !== agent) return false;
-    if (!tracked.automatic) return true;
     const owner = this.#ownership.resolve(agent.session.id);
-    return (
-      owner !== undefined &&
-      this.#scope(agent, owner) === tracked.scopeKey &&
-      this.#rules?.match(tracked) !== undefined
-    );
+    if (owner === undefined || this.#scope(agent, owner) !== tracked.scopeKey) return false;
+    return !tracked.automatic || this.#rules?.match(tracked) !== undefined;
+  }
+
+  /** Expire requests whose Host-owned access scope changed after they were shown. */
+  cancelInvalid(): void {
+    for (const [messageId, pending] of this.#pending) {
+      const tracked = this.#tracked.get(callKey(pending.sessionId, pending.callId));
+      const owner = tracked === undefined ? undefined : this.#ownership.resolve(tracked.sessionId);
+      if (
+        tracked === undefined ||
+        owner === undefined ||
+        this.#scope(tracked.agent, owner) !== tracked.scopeKey
+      ) {
+        this.#settle(messageId, 'unavailable');
+      }
+    }
   }
 
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
@@ -209,8 +220,10 @@ export class ChannelToolApproval {
       const tracked = this.#tracked.get(callKey(pending.sessionId, pending.callId));
       if (tracked === undefined || tracked.botSlug !== botSlug) return false;
       const owner = this.#ownership.resolve(tracked.sessionId);
-      if (owner === undefined || this.#scope(tracked.agent, owner) !== tracked.scopeKey)
+      if (owner === undefined || this.#scope(tracked.agent, owner) !== tracked.scopeKey) {
+        this.#settle(messageId, 'unavailable');
         return false;
+      }
       const kind =
         outcome === 'allowed-always-exact'
           ? 'exact'
