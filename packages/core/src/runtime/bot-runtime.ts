@@ -248,6 +248,8 @@ export interface BotRuntime {
   admitGroupInvitation(targetDmChannelId: string, invitationId: string): void;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
+  /** Re-arm persisted ordinary-message digests after a paused Bot resumes. */
+  resumePendingDigests?(botSlug: string): void;
   /** Resolves when queued turns and detached Assignment runs have drained. */
   whenIdle(): Promise<void>;
   close(): Promise<void>;
@@ -497,6 +499,8 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
   readonly #scheduledAdmissions = new Set<string>();
+  readonly #scheduledDigests = new Set<string>();
+  readonly #digestTimers = new Map<string, NodeJS.Timeout>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
   #closed = false;
 
@@ -527,6 +531,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (options.database.mode === 'ready') {
       this.#recoverInterruptedAttempts();
       this.#recoverPendingChannelAdmissions();
+      this.#recoverPendingDigests();
     }
   }
 
@@ -564,6 +569,7 @@ class BotRuntimeImplementation implements BotRuntime {
 
   admitGroupMessage(channelId: string, messageId: string): void {
     this.#admitChannelMessage(channelId, messageId, 'group-mention');
+    this.#admitChannelMessage(channelId, messageId, 'group-ordinary');
   }
 
   admitBotDmMessage(channelId: string, messageId: string): void {
@@ -577,13 +583,13 @@ class BotRuntimeImplementation implements BotRuntime {
   #admitChannelMessage(
     channelId: string,
     messageId: string,
-    reason: 'group-mention' | 'bot-dm' | 'group-invite',
+    reason: 'group-mention' | 'group-ordinary' | 'bot-dm' | 'group-invite',
   ): void {
     if (this.#closed) return;
     const channel = this.#channels.get(channelId);
     if (
       channel === undefined ||
-      (reason === 'group-mention'
+      (reason === 'group-mention' || reason === 'group-ordinary'
         ? channel.type !== 'group'
         : reason === 'group-invite'
           ? channel.type !== 'dm' || channel.botSlug === undefined
@@ -606,6 +612,10 @@ class BotRuntimeImplementation implements BotRuntime {
     }>;
     for (const row of rows) {
       if (row.attempt_state !== 'pending' && row.attempt_state !== 'retryable') continue;
+      if (reason === 'group-ordinary') {
+        this.#scheduleDigest(row.bot_slug, channelId);
+        continue;
+      }
       const key = `${row.source_event_id}:${row.bot_slug}`;
       if (this.#scheduledAdmissions.has(key)) continue;
       this.#scheduledAdmissions.add(key);
@@ -745,6 +755,257 @@ class BotRuntimeImplementation implements BotRuntime {
       reason: 'group-mention' | 'bot-dm' | 'group-invite';
     }>;
     for (const row of rows) this.#admitChannelMessage(row.channel_id, row.message_id, row.reason);
+  }
+
+  resumePendingDigests(botSlug: string): void {
+    this.#recoverPendingDigests(botSlug);
+  }
+
+  #recoverPendingDigests(botSlug?: string): void {
+    const rows = this.#database.read((database) =>
+      database
+        .prepare(`
+        SELECT DISTINCT e.channel_id, a.bot_slug
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.reason = 'group-ordinary'
+           AND a.attempt_state IN ('pending', 'retryable')
+           AND e.channel_id IS NOT NULL
+           AND (? IS NULL OR a.bot_slug = ?)
+      `)
+        .all(botSlug ?? null, botSlug ?? null),
+    ) as unknown as Array<{ channel_id: string; bot_slug: string }>;
+    for (const row of rows) this.#scheduleDigest(row.bot_slug, row.channel_id);
+  }
+
+  #scheduleDigest(botSlug: string, channelId: string): void {
+    if (this.#closed) return;
+    const key = `${botSlug}:${channelId}`;
+    if (this.#scheduledDigests.has(key)) return;
+    const channel = this.#channels.get(channelId);
+    const bot = this.#registry.get(botSlug);
+    if (
+      channel?.type !== 'group' ||
+      !channel.members.includes(botSlug) ||
+      bot === undefined ||
+      bot.paused === true
+    )
+      return;
+    const first = this.#database.read((database) =>
+      database
+        .prepare(`
+        SELECT a.wake_count, a.wake_interval_ms, a.wake_policy_revision, e.created_at
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+           AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
+         ORDER BY e.created_at, e.rowid LIMIT 1
+      `)
+        .get(botSlug, channelId),
+    ) as
+      | {
+          wake_count: number;
+          wake_interval_ms: number;
+          wake_policy_revision: number;
+          created_at: string;
+        }
+      | undefined;
+    const prior = this.#digestTimers.get(key);
+    if (prior !== undefined) clearTimeout(prior);
+    this.#digestTimers.delete(key);
+    if (first === undefined) return;
+    const count = this.#database.read((database) =>
+      database
+        .prepare(`
+        SELECT count(*) AS count FROM inbox_admissions a
+        JOIN source_events e ON e.source_event_id = a.source_event_id
+        WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+          AND a.attempt_state IN ('pending', 'retryable')
+          AND e.channel_id = ? AND a.wake_policy_revision = ?
+      `)
+        .get(botSlug, channelId, first.wake_policy_revision),
+    ) as { count: number };
+    const deadline = Date.parse(first.created_at) + first.wake_interval_ms;
+    if (
+      count.count >= first.wake_count ||
+      !Number.isFinite(deadline) ||
+      deadline <= this.#now().getTime()
+    ) {
+      this.#scheduledDigests.add(key);
+      const settled = this.#enqueue(botSlug, () => this.#runDigestTurn(botSlug, channelId));
+      void settled
+        .finally(() => {
+          this.#scheduledDigests.delete(key);
+          this.#scheduleDigest(botSlug, channelId);
+        })
+        .catch(() => undefined);
+      return;
+    }
+    const timer = setTimeout(
+      () => {
+        this.#digestTimers.delete(key);
+        this.#scheduleDigest(botSlug, channelId);
+      },
+      Math.max(1, deadline - this.#now().getTime()),
+    );
+    timer.unref();
+    this.#digestTimers.set(key, timer);
+  }
+
+  async #runDigestTurn(botSlug: string, channelId: string): Promise<void> {
+    if (this.#closed) return;
+    const bot = this.#registry.get(botSlug);
+    const channel = this.#channels.get(channelId);
+    if (
+      bot === undefined ||
+      bot.paused === true ||
+      channel?.type !== 'group' ||
+      !channel.members.includes(botSlug)
+    )
+      return;
+    type DigestRow = {
+      source_event_id: string;
+      message_id: string;
+      body: string;
+      created_at: string;
+      author_kind: string;
+      author_slug: string | null;
+      wake_policy_revision: number;
+    };
+    const admitted = this.#database.transaction(
+      (database) => {
+        const first = database
+          .prepare(`
+        SELECT a.wake_policy_revision FROM inbox_admissions a
+        JOIN source_events e ON e.source_event_id = a.source_event_id
+        WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+          AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
+        ORDER BY e.created_at, e.rowid LIMIT 1
+      `)
+          .get(botSlug, channelId) as { wake_policy_revision: number } | undefined;
+        if (first === undefined) return [];
+        const rows = database
+          .prepare(`
+        SELECT a.source_event_id, e.message_id, e.body, e.created_at,
+               json_extract(e.payload_json, '$.author.kind') AS author_kind,
+               json_extract(e.payload_json, '$.author.slug') AS author_slug,
+               a.wake_policy_revision
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+           AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
+           AND a.wake_policy_revision = ?
+         ORDER BY e.created_at, e.rowid LIMIT 20
+      `)
+          .all(botSlug, channelId, first.wake_policy_revision) as unknown as DigestRow[];
+        for (const row of rows)
+          database
+            .prepare(`
+        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+         WHERE source_event_id = ? AND bot_slug = ?
+           AND attempt_state IN ('pending', 'retryable')
+      `)
+            .run(row.source_event_id, botSlug);
+        return rows;
+      },
+      ['bot-inbox'],
+    );
+    if (admitted.length === 0) return;
+    const timestamp = this.#now().toISOString();
+    const ids = admitted.map((row) => row.source_event_id);
+    const markSideEffect = (): void => {
+      this.#database.transaction(
+        (database) => {
+          for (const id of ids)
+            database
+              .prepare(`
+          UPDATE inbox_admissions
+             SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+              .run(this.#now().toISOString(), id, botSlug);
+        },
+        ['bot-inbox'],
+      );
+    };
+    const collected = this.#collectInbox(botSlug);
+    this.#setObserved(collected.eventIds, timestamp);
+    this.#database.transaction(
+      (database) => {
+        for (const id of ids)
+          database
+            .prepare(`
+        UPDATE inbox_admissions SET observed_at = ?
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+            .run(timestamp, id, botSlug);
+      },
+      ['bot-inbox'],
+    );
+    const prompt = [
+      '[Bot Inbox: Group digest]',
+      `Channel: ${channel.name} (${channelId})`,
+      `${admitted.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
+      ...admitted.map(
+        (row) =>
+          `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+      ),
+    ].join('\n');
+    let orchestrator: { sessionId: string; resume: boolean } | undefined;
+    try {
+      orchestrator = this.#ensureOrchestrator(bot, timestamp);
+      markSideEffect();
+      await this.#runOrchestratorTurn(
+        bot,
+        orchestrator,
+        ids[0]!,
+        channelId,
+        prompt,
+        collected.inbox,
+        false,
+        markSideEffect,
+      );
+      this.#database.transaction(
+        (database) => {
+          for (const id of ids)
+            database
+              .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+              .run(this.#now().toISOString(), id, botSlug);
+        },
+        ['bot-inbox'],
+      );
+    } catch (error) {
+      this.#setObserved(collected.eventIds, null);
+      this.#database.transaction(
+        (database) => {
+          for (const id of ids)
+            database
+              .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = CASE WHEN side_effect_started_at IS NULL
+               THEN 'retryable' ELSE 'needs-repair' END,
+                 observed_at = NULL, last_error = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+              .run(String(error).slice(0, 500), id, botSlug);
+        },
+        ['bot-inbox'],
+      );
+      if (orchestrator !== undefined)
+        await this.#publishSessionFailure({
+          channelId,
+          botSlug,
+          sessionId: orchestrator.sessionId,
+          role: 'orchestrator',
+          error,
+        });
+      throw error;
+    } finally {
+      for (const row of admitted) this.#channels.admissionChanged?.(channelId, row.message_id);
+    }
   }
 
   async #runGroupTurn(
@@ -964,6 +1225,8 @@ class BotRuntimeImplementation implements BotRuntime {
   async close(): Promise<void> {
     if (this.#closed) return;
     this.#closed = true;
+    for (const timer of this.#digestTimers.values()) clearTimeout(timer);
+    this.#digestTimers.clear();
     await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
@@ -1858,7 +2121,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (result.status === 'missing') throw new Error(`Group Channel disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Group delivery key has different content');
     input.afterSend?.();
-    if (mentions.length > 0) this.admitGroupMessage(channel.id, result.message.id);
+    this.admitGroupMessage(channel.id, result.message.id);
     return result.message;
   }
 

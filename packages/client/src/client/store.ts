@@ -24,6 +24,10 @@ export interface ChannelSummary {
   members: string[];
   botSlug?: string;
   ownerBotSlug?: string;
+  wakePolicies?: Record<
+    string,
+    { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number; revision: number }
+  >;
   invitations?: Array<{
     id: string;
     targetBotSlug: string;

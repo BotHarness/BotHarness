@@ -187,6 +187,7 @@ function stubActions(): BridgeActions {
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
     cancelGroupInvitation: vi.fn(async () => true),
+    setGroupWakePolicy: vi.fn(async () => true),
     removeGroupMember: vi.fn(async () => true),
     deleteGroupChannel: vi.fn(async () => true),
     createSection: vi.fn(async () => undefined),

@@ -1,6 +1,6 @@
 import { useState, useSyncExternalStore, type ReactElement } from 'react';
 
-import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar } from './avatar.js';
 import type { BotModePrefs } from './bot-mode-prefs.js';
@@ -11,7 +11,7 @@ import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { BotSummary } from './store.js';
+import type { BotSummary, ChannelSummary } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
 
@@ -125,6 +125,107 @@ function AssignmentsBadge(): ReactElement {
   return <Tag tone="neutral">{useClientState().assignments.items.length}</Tag>;
 }
 
+function MemberWakeControls({
+  channel,
+  slug,
+  actions,
+  t,
+  apply,
+}: {
+  channel: ChannelSummary;
+  slug: string;
+  actions: ChannelSidebarEntryProps['actions'];
+  t: BotHarnessTranslate;
+  apply: (result: Promise<boolean>) => Promise<void>;
+}): ReactElement {
+  const saved = channel.wakePolicies?.[slug];
+  const [mode, setMode] = useState<'mentions' | 'digest'>(saved?.mode ?? 'mentions');
+  const [count, setCount] = useState(saved?.count ?? 5);
+  const [seconds, setSeconds] = useState(saved?.intervalSeconds ?? 30);
+  const [busy, setBusy] = useState(false);
+  const prefix = `bh-wake-${channel.id}-${slug}`;
+  const save = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      await apply(
+        actions.setGroupWakePolicy(channel.id, slug, {
+          mode,
+          count,
+          intervalSeconds: seconds,
+        }),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <details className="bh-member-wake">
+      <summary>
+        {t('members.wake')} ·{' '}
+        {saved?.mode === 'digest' ? t('members.wake.digest') : t('members.wake.mentions')}
+      </summary>
+      <div className="bh-member-wake-form">
+        <div className="bh-member-wake-choices" role="group" aria-label={t('members.wake')}>
+          <button
+            type="button"
+            className="bh-group-manage-button"
+            aria-pressed={mode === 'mentions'}
+            onClick={() => setMode('mentions')}
+          >
+            {t('members.wake.mentions')}
+          </button>
+          <button
+            type="button"
+            className="bh-group-manage-button"
+            aria-pressed={mode === 'digest'}
+            onClick={() => setMode('digest')}
+          >
+            {t('members.wake.digest')}
+          </button>
+        </div>
+        {mode === 'digest' ? (
+          <div className="bh-member-wake-values">
+            <label htmlFor={prefix + '-count'}>{t('members.wake.count')}</label>
+            <Input
+              id={prefix + '-count'}
+              type="number"
+              min={1}
+              max={100}
+              value={count}
+              onChange={(event) => setCount(Number(event.target.value))}
+            />
+            <label htmlFor={prefix + '-seconds'}>{t('members.wake.seconds')}</label>
+            <Input
+              id={prefix + '-seconds'}
+              type="number"
+              min={1}
+              max={3600}
+              value={seconds}
+              onChange={(event) => setSeconds(Number(event.target.value))}
+            />
+          </div>
+        ) : null}
+        <button
+          type="button"
+          className="bh-group-manage-button"
+          disabled={
+            busy ||
+            !Number.isSafeInteger(count) ||
+            count < 1 ||
+            count > 100 ||
+            !Number.isSafeInteger(seconds) ||
+            seconds < 1 ||
+            seconds > 3600
+          }
+          onClick={() => void save()}
+        >
+          {t('members.wake.save')}
+        </button>
+      </div>
+    </details>
+  );
+}
+
 function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   const state = useClientState();
   const channel = state.conversation.channel;
@@ -146,26 +247,38 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
       {members.map((slug) => {
         const member = state.bots.find((candidate) => candidate.slug === slug);
         return (
-          <div className="bh-member-row" key={slug}>
-            <PersonaBotAvatar
-              t={t}
-              personaBotId={slug}
-              name={member?.displayName ?? slug}
-              src={member?.avatar}
-              state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-              size={26}
-            />
-            <span className="bh-name">{memberName(state.bots, slug)}</span>
-            {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
+          <div className="bh-member-with-wake" key={slug}>
+            <div className="bh-member-row">
+              <PersonaBotAvatar
+                t={t}
+                personaBotId={slug}
+                name={member?.displayName ?? slug}
+                src={member?.avatar}
+                state={member === undefined ? 'idle' : personaBotActivity(state, member)}
+                size={26}
+              />
+              <span className="bh-name">{memberName(state.bots, slug)}</span>
+              {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
+              {group === undefined ? null : (
+                <button
+                  type="button"
+                  className="bh-group-manage-button"
+                  aria-label={t('members.remove') + ' ' + memberName(state.bots, slug)}
+                  onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
+                >
+                  {t('members.remove')}
+                </button>
+              )}
+            </div>
             {group === undefined ? null : (
-              <button
-                type="button"
-                className="bh-group-manage-button"
-                aria-label={t('members.remove') + ' ' + memberName(state.bots, slug)}
-                onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
-              >
-                {t('members.remove')}
-              </button>
+              <MemberWakeControls
+                key={group.wakePolicies?.[slug]?.revision ?? 0}
+                channel={group}
+                slug={slug}
+                actions={actions}
+                t={t}
+                apply={apply}
+              />
             )}
           </div>
         );

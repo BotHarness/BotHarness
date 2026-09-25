@@ -107,6 +107,7 @@ export interface BridgeMethods {
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
   channelGroupInviteCancel(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupMemberRemove(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupWakeSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
   channelTimeline(payload: unknown): BridgeResult<{ page: ChannelTimelinePage; revision: number }>;
   channelReadPosition(payload: unknown): BridgeResult<{ position?: ChannelReadPosition }>;
@@ -431,6 +432,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     const result = deps.registry.setPaused(slug, paused);
     if (!result.ok) return unknownBot(slug);
     if (paused) deps.channels.cancelInvitationsForBot(slug);
+    else deps.runtime?.resumePendingDigests?.(slug);
     return { ok: true, value: detailOf(result.record) };
   };
 
@@ -666,6 +668,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelGroupWakeSet(payload) {
+      const parsed = z
+        .object({
+          channelId: z.string().min(1),
+          botSlug: z.string().min(1),
+          mode: z.enum(['mentions', 'digest']),
+          count: z.number().int().min(1).max(100),
+          intervalSeconds: z.number().int().min(1).max(3600),
+        })
+        .safeParse(asObject(payload));
+      if (!parsed.success) return invalidInput('invalid Group wake policy');
+      const { channelId, botSlug, mode, count, intervalSeconds } = parsed.data;
+      const bot = deps.registry.get(botSlug);
+      if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
+      try {
+        return {
+          ok: true,
+          value: {
+            channel: deps.channels.setGroupWakePolicy(channelId, botSlug, {
+              mode,
+              count,
+              intervalSeconds,
+            }),
+          },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
     channelGroupDelete(payload) {
       const channelId = asNonBlank(asObject(payload), 'channelId');
       if (channelId === undefined) return invalidInput('channelId is required');
@@ -879,7 +910,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (appendResult.status === 'existing') {
         return { ok: true, value: { message: appended } };
       }
-      if (channel.type === 'group' && mentions.length > 0) {
+      if (channel.type === 'group') {
         // Admission is already durable with the Channel placement. A wake
         // notification failure must not turn a committed send into a retryable UI error.
         try {

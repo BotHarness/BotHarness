@@ -271,6 +271,11 @@ export interface ChannelStore {
   /** The Human may cancel a pending invite or remove a joined Bot. */
   cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
   cancelInvitationsForBot(botSlug: string): void;
+  setGroupWakePolicy(
+    channelId: string,
+    botSlug: string,
+    policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+  ): ChannelRecord;
   removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
   /** Human-only logical deletion; past operational events remain for recovery/audit. */
   deleteGroup(channelId: string): void;
@@ -615,6 +620,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     },
     cancelInvitationsForBot() {
       // Legacy file Channels cannot contain Inbox-backed invitations.
+    },
+    setGroupWakePolicy() {
+      throw new Error('Group wake policy requires the operational Channel store');
     },
     removeGroupMember() {
       throw new Error('Group management requires the operational Channel store');
