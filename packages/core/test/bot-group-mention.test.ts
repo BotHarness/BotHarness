@@ -198,6 +198,81 @@ describe('Bot Group mention tracer', () => {
     }
   });
 
+  it('keeps a keyed Group send retryable when append fails before commit', async () => {
+    const home = createTempRoot('botharness-bot-group-keyed-retry-');
+    let groupId = '';
+    let attempts = 0;
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (run.bot.slug !== 'ada') return;
+        attempts++;
+        await run.channels.send({
+          channelId: groupId,
+          body: 'Retryable Group handoff',
+          mentionBotIds: ['bea'],
+          deliveryKey: 'stable-group-send',
+        });
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      groupId = group.id;
+      const humanDm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      const originalAppend = core.channels.appendMessageOnce.bind(core.channels);
+      let failOnce = true;
+      core.channels.appendMessageOnce = (channelId, message) => {
+        if (channelId === groupId && failOnce) {
+          failOnce = false;
+          return Promise.reject(new Error('precommit Group append failure'));
+        }
+        return originalAppend(channelId, message);
+      };
+      await core.channels.appendMessage(humanDm.id, {
+        id: 'human-group-retry',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Ask Bea in the Group',
+      });
+      core.runtime.admitDmMessage({
+        channelId: humanDm.id,
+        messageId: 'human-group-retry',
+        body: 'Ask Bea in the Group',
+      });
+      await core.runtime.whenIdle();
+      expect(attempts).toBe(1);
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'bot-group-retry-test').read((db) =>
+          db
+            .prepare(
+              "SELECT attempt_state FROM source_events WHERE message_id = 'human-group-retry'",
+            )
+            .get(),
+        ),
+      ).toEqual({ attempt_state: 'retryable' });
+      expect(core.channels.readMessages(group.id)).toEqual([]);
+
+      core.runtime.admitDmMessage({
+        channelId: humanDm.id,
+        messageId: 'human-group-retry',
+        body: 'Ask Bea in the Group',
+      });
+      await core.runtime.whenIdle();
+      expect(attempts).toBe(2);
+      const messages = core.channels.readMessages(group.id);
+      expect(messages).toHaveLength(1);
+      expect(messages[0]).toMatchObject({
+        body: '@Bea Retryable Group handoff',
+        deliveries: [{ botSlug: 'bea', state: 'handled' }],
+      });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('recovers pending Group admissions after restart and suppresses repeat and over-limit bot hops', async () => {
     const home = createTempRoot('botharness-bot-group-restart-');
     const first = createCore({ dshHome: home });

@@ -1443,7 +1443,8 @@ class BotRuntimeImplementation implements BotRuntime {
             channel,
             sourceEventId,
             sessionId,
-            beforeSend,
+            beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+            ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
             body: input.body,
             replyTo: input.replyTo,
             attachments: input.attachments,
@@ -1480,6 +1481,7 @@ class BotRuntimeImplementation implements BotRuntime {
     sourceEventId: string;
     sessionId: string;
     beforeSend: () => void;
+    afterSend?: () => void;
     body: string;
     replyTo?: string | undefined;
     attachments?: ChannelAttachmentRef[] | undefined;
@@ -1536,6 +1538,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const result = await this.#channels.appendMessageOnce(channel.id, message);
     if (result.status === 'missing') throw new Error(`Group Channel disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Group delivery key has different content');
+    input.afterSend?.();
     if (mentions.length > 0) this.admitGroupMessage(channel.id, result.message.id);
     return result.message;
   }
