@@ -124,6 +124,121 @@ describe('Bot-to-Bot DM tracer', () => {
     }
   });
 
+  it('keeps a keyed send retryable when the Bot DM append fails before commit', async () => {
+    const home = createTempRoot('botharness-bot-dm-keyed-retry-');
+    let attempts = 0;
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (run.bot.slug !== 'ada') return;
+        attempts++;
+        await run.channels.sendToBot({
+          botSlug: 'bea',
+          body: 'Retryable handoff',
+          deliveryKey: 'stable-send',
+        });
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const humanDm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      const originalAppend = core.channels.appendMessageOnce.bind(core.channels);
+      let failOnce = true;
+      core.channels.appendMessageOnce = (channelId, message) => {
+        if (channelId === botDmChannelId('ada', 'bea') && failOnce) {
+          failOnce = false;
+          return Promise.reject(new Error('precommit append failure'));
+        }
+        return originalAppend(channelId, message);
+      };
+      await core.channels.appendMessage(humanDm.id, {
+        id: 'human-retry',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Send to Bea',
+      });
+      core.runtime.admitDmMessage({
+        channelId: humanDm.id,
+        messageId: 'human-retry',
+        body: 'Send to Bea',
+      });
+      await core.runtime.whenIdle();
+      expect(attempts).toBe(1);
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'bot-dm-retry-test').read((db) =>
+          db
+            .prepare("SELECT attempt_state FROM source_events WHERE message_id = 'human-retry'")
+            .get(),
+        ),
+      ).toEqual({ attempt_state: 'retryable' });
+      expect(core.channels.readMessages(botDmChannelId('ada', 'bea'))).toEqual([]);
+      expect(
+        core.channels.readMessages(humanDm.id).filter((item) => item.sessionFailure),
+      ).toHaveLength(1);
+
+      core.runtime.admitDmMessage({
+        channelId: humanDm.id,
+        messageId: 'human-retry',
+        body: 'Send to Bea',
+      });
+      await core.runtime.whenIdle();
+      expect(attempts).toBe(2);
+      expect(
+        core.channels.readMessages(botDmChannelId('ada', 'bea')).map((item) => item.body),
+      ).toEqual(['Retryable handoff']);
+      expect(
+        core.channels.readMessages(humanDm.id).filter((item) => item.botDmAction !== undefined),
+      ).toHaveLength(1);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('reports a failed Bot DM recipient turn in that Bot’s Human DM', async () => {
+    const home = createTempRoot('botharness-bot-dm-failure-');
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (run.bot.slug === 'ada') {
+          await run.channels.sendToBot({
+            botSlug: 'bea',
+            body: 'Please inspect this',
+            deliveryKey: 'failure-case',
+          });
+          return;
+        }
+        throw new Error('Bea turn failed');
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const humanDm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(humanDm.id, {
+        id: 'human-failure',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Ask Bea',
+      });
+      core.runtime.admitDmMessage({
+        channelId: humanDm.id,
+        messageId: 'human-failure',
+        body: 'Ask Bea',
+      });
+      await core.runtime.whenIdle();
+      const botDm = botDmChannelId('ada', 'bea');
+      expect(core.channels.readMessages(botDm)).toHaveLength(1);
+      const failures = core.channels.readMessages('dm-bea').filter((item) => item.sessionFailure);
+      expect(failures).toHaveLength(1);
+      expect(failures[0]?.body).toContain('Bea turn failed');
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('sends to two colleagues concurrently without mixing their DM admissions', async () => {
     const home = createTempRoot('botharness-bot-dm-concurrent-');
     const runs: string[] = [];

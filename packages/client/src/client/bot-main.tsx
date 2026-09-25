@@ -969,7 +969,12 @@ function ConversationView({
                       type="button"
                       className="bh-bot-dm-action"
                       data-message-id={first.id}
-                      onClick={() => void actions.openChannel(first.botDmAction!.channelId)}
+                      onClick={() => {
+                        const action = first.botDmAction!;
+                        void actions
+                          .openChannel(action.channelId)
+                          .then(() => actions.openAround(action.channelId, action.messageId));
+                      }}
                     >
                       {t('botDm.action', {
                         sender: authorLabel(first, state.bots, t),

@@ -50,7 +50,11 @@ import {
   type ChannelSelection,
   type ChannelSelectionGesture,
 } from './channel-selection.js';
-import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
+import {
+  HiddenChannelsModal,
+  hiddenChannelSequence,
+  type HiddenChannelItem,
+} from './hidden-channels.js';
 import {
   useChannelDrag,
   useSectionDrag,
@@ -900,22 +904,16 @@ export function BotSidebar({
   }, [actions]);
   const shortcutFor = (channelId: string): string | undefined =>
     webChannelShortcutLabel(shortcutIds.indexOf(channelId));
-  const hiddenChannelIds = new Set(state.roster.hidden);
-  const hiddenItems: HiddenChannelItem[] = state.channels
-    .filter(
-      (candidate) =>
-        hiddenChannelIds.has(candidate.id) ||
-        (candidate.type === 'dm' && candidate.botSlug === undefined),
-    )
-    .flatMap((channel) => {
-      const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
-      return [
-        {
-          channel,
-          ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
-        },
-      ];
-    });
+  const hiddenItems: HiddenChannelItem[] = hiddenChannelSequence(
+    state.channels,
+    state.roster.hidden,
+  ).map((channel) => {
+    const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    return {
+      channel,
+      ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
+    };
+  });
   const visibleCount =
     pinnedChannels.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
   const selectedBot = state.selection?.kind === 'bot' ? state.selection.slug : undefined;

@@ -1048,7 +1048,17 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       ...details,
       ...(input.context === undefined ? {} : { context: input.context }),
     };
-    const result = await this.#channels.appendMessage(input.channelId, {
+    const original = this.#channels.get(input.channelId);
+    const target =
+      original !== undefined && isBotDmChannel(original)
+        ? this.#channels.getOrCreateDm(
+            input.botSlug,
+            this.#registry.get(input.botSlug)?.displayName ?? input.botSlug,
+          )
+        : original;
+    if (target === undefined)
+      throw new Error('Could not publish Session failure: Channel is missing');
+    const result = await this.#channels.appendMessage(target.id, {
       id: `session-failure-${randomUUID()}`,
       at: this.#now().toISOString(),
       author: { kind: 'bot', slug: input.botSlug },
@@ -1295,7 +1305,8 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
           channel: dm,
           sourceEventId,
           sessionId,
-          beforeSend,
+          beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+          ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
           body: input.body,
           replyTo: input.replyTo,
           deliveryKey: input.deliveryKey,
@@ -1395,7 +1406,8 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
             channel,
             sourceEventId,
             sessionId,
-            beforeSend,
+            beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+            ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
             body: input.body,
             replyTo: input.replyTo,
             attachments: input.attachments,
@@ -1433,6 +1445,7 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     sourceEventId: string;
     sessionId: string;
     beforeSend: () => void;
+    afterSend?: () => void;
     body: string;
     replyTo?: string | undefined;
     attachments?: ChannelAttachmentRef[] | undefined;
@@ -1497,6 +1510,7 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     const result = await this.#channels.appendMessageOnce(channel.id, message);
     if (result.status === 'missing') throw new Error(`Bot DM disappeared: ${channel.id}`);
     if (result.status === 'conflict') throw new Error('Bot DM delivery key has different content');
+    input.afterSend?.();
     this.admitBotDmMessage(channel.id, result.message.id);
     return { channelId: channel.id, message: result.message };
   }
