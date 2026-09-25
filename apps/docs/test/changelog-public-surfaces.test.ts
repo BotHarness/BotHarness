@@ -16,7 +16,7 @@ function built(path: string): string {
 describe("built release and Development status surfaces", () => {
   it(
     "exposes one concise bilingual history unit across human and agent routes",
-    { timeout: 30_000 },
+    { timeout: process.platform === 'win32' ? 180_000 : 30_000 },
     () => {
       execFileSync(process.execPath, [resolve(DOCS, "node_modules/astro/bin/astro.mjs"), "build"], {
         cwd: DOCS,

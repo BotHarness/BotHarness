@@ -117,7 +117,7 @@ describe('plugin entry', () => {
       readFileSync(
         new URL('../../../docs/dev/guides/reading-operational-logs.md', import.meta.url),
         'utf8',
-      ),
+      ).replace(/\r\n/g, '\n'),
     );
   });
 

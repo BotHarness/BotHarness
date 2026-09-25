@@ -920,7 +920,7 @@ describe('Bot runtime tracer bullet', () => {
     expect(ownershipRows(owner)).toEqual([
       expect.objectContaining({
         session_id: 'orchestrator-ada',
-        cwd_reference: '/srv/runtime-workspaces/ada',
+        cwd_reference: join('/srv/runtime-workspaces', 'ada'),
       }),
     ]);
 

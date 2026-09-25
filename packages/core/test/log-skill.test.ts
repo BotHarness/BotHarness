@@ -33,7 +33,7 @@ describe('operational logs skill', () => {
     expect(LOGS_SKILL_PROVIDER.length).toBeGreaterThan(0);
   });
 
-  it('registers the guide text byte-for-byte (single source)', () => {
-    expect(LOGS_SKILL_CONTENT).toBe(readFileSync(GUIDE_PATH, 'utf8'));
+  it('registers the guide text without content drift across checkout line endings', () => {
+    expect(LOGS_SKILL_CONTENT).toBe(readFileSync(GUIDE_PATH, 'utf8').replace(/\r\n/g, '\n'));
   });
 });
