@@ -1,3 +1,5 @@
+import { join } from 'node:path';
+
 import { Context } from '@deepseek-ai/cordis';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -126,7 +128,7 @@ describe('DM turn end to end', () => {
       botSlug: 'ada',
       provenance: 'created',
       parentSessionId: undefined,
-      cwdReference: `${dshHome}/botharness/bots/ada/memory`,
+      cwdReference: join(dshHome, 'botharness', 'bots', 'ada', 'memory'),
     });
     expect(assignment).toMatchObject({
       botSlug: 'ada',
@@ -140,7 +142,7 @@ describe('DM turn end to end', () => {
       'standard',
     ]);
     expect(host.createOptions.map((options) => options.meta?.cwd)).toEqual([
-      `${dshHome}/botharness/bots/ada/memory`,
+      join(dshHome, 'botharness', 'bots', 'ada', 'memory'),
       dshHome,
     ]);
     for (const session of host.sessions) {

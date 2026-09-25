@@ -291,14 +291,21 @@ describe('operational log database', () => {
     }
   });
 
-  it('rebuilds empty when the file disappears mid-run', () => {
+  it('rebuilds after deletion, or keeps writing when Windows holds the open file', () => {
     const dir = makeDir();
     const logs = openLogDatabase({ dir });
     try {
       logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'a' });
-      rmSync(join(dir, LOG_DB_FILENAME), { force: true });
-      logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'b' });
-      expect(rowsOf(dir).map((row) => row.detail)).toEqual(['b']);
+      if (process.platform === 'win32') {
+        // Windows keeps the live SQLite file locked: verify denial and uninterrupted writes.
+        expect(() => rmSync(join(dir, LOG_DB_FILENAME), { force: true })).toThrow(/EPERM|EACCES/);
+        logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'b' });
+        expect(rowsOf(dir).map((row) => row.detail)).toEqual(['a', 'b']);
+      } else {
+        rmSync(join(dir, LOG_DB_FILENAME), { force: true });
+        logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'b' });
+        expect(rowsOf(dir).map((row) => row.detail)).toEqual(['b']);
+      }
     } finally {
       logs.close();
     }

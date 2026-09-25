@@ -15,7 +15,7 @@ import {
   type OrchestratorAgentRun,
   type OrchestratorAssignmentAccess,
 } from '../src/runtime/bot-runtime.js';
-import { FIXED_NOW, createTempRoot } from './helpers.js';
+import { FIXED_NOW, createTempRoot, trackTestOwner } from './helpers.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
 
@@ -97,7 +97,9 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
   const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
   const dm = channels.getOrCreateDm('ada', 'Ada');
   if (dm === undefined) throw new Error('DM missing');
-  const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+  const owner = trackTestOwner(
+    mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+  );
   const agents = new ManualAgents();
   const grants = createTestWorkspaceGrants(owner, home);
   const runtime = createBotRuntime({
