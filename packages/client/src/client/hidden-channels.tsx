@@ -39,7 +39,7 @@ export function hiddenChannelSequence(
     ordered.push(channel);
     seen.add(id);
   }
-  for (const channel of channels) {
+  for (const channel of [...channels].reverse()) {
     if (channel.type !== 'dm' || channel.botSlug !== undefined || seen.has(channel.id)) continue;
     ordered.push(channel);
     seen.add(channel.id);
