@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
+import { isBotDmChannel } from './channel-kind.js';
 import { HashIcon } from './hash-icon.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
@@ -40,7 +41,7 @@ export function hiddenChannelSequence(
     seen.add(id);
   }
   for (const channel of [...channels].reverse()) {
-    if (channel.type !== 'dm' || channel.botSlug !== undefined || seen.has(channel.id)) continue;
+    if (!isBotDmChannel(channel) || seen.has(channel.id)) continue;
     ordered.push(channel);
     seen.add(channel.id);
   }
@@ -120,7 +121,7 @@ export function HiddenChannelsModal({
               <span className="bh-hidden-name">{bot?.displayName ?? channel.name}</span>
               <span className="bh-hidden-meta">
                 {t(
-                  channel.type === 'dm' && channel.botSlug === undefined
+                  isBotDmChannel(channel)
                     ? 'botDm.label'
                     : channel.type === 'dm'
                       ? 'hidden.dm'
@@ -129,7 +130,7 @@ export function HiddenChannelsModal({
                 {bot !== undefined && bot.roles.length > 0 ? ` · ${bot.roles.join(' · ')}` : ''}
               </span>
             </span>
-            {channel.type === 'dm' && channel.botSlug === undefined ? (
+            {isBotDmChannel(channel) ? (
               <Button variant="outline" size="sm" onClick={() => onOpen(channel.id)}>
                 {t('botDm.view')}
               </Button>
