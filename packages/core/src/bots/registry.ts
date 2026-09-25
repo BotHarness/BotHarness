@@ -24,6 +24,7 @@ import { isValidSlug } from './slug.js';
 
 export interface MemoryRepositoryInitialization {
   ok: boolean;
+  code?: 'git-not-found';
   message?: string;
 }
 
@@ -173,12 +174,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ...(memoryDir ? { memoryDir } : {}),
       };
       const targetMemoryDir = memoryDirOf(record);
+      const newBotDirectory = !existsSync(botDir(record.slug));
       mkdirSync(targetMemoryDir, { recursive: true });
       const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
       if (!initialized.ok) {
+        if (newBotDirectory && !memoryDir) {
+          rmSync(botDir(record.slug), { recursive: true, force: true });
+        }
         return {
           ok: false,
-          reason: 'memory-unavailable',
+          reason: initialized.code === 'git-not-found' ? 'git-not-found' : 'memory-unavailable',
           ...(initialized.message === undefined ? {} : { detail: initialized.message }),
         };
       }

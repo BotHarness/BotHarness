@@ -141,6 +141,7 @@ export const zh = {
   'bot.create.error.identity': '系统未能分配唯一身份，请重试。',
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
+  'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
   'main.author.human': '你',
   'main.date.locale': 'zh-CN',
   'message.copy': '复制消息',
@@ -490,6 +491,8 @@ export const en = {
   'bot.create.error.identity': 'The system could not assign a unique identity; try again.',
   'bot.create.error.invalid': 'Check the Bot name, roles, or description.',
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
+  'bot.create.error.gitMissing':
+    'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
   'main.author.human': 'You',
   'main.date.locale': 'en-US',
   'message.copy': 'Copy message',

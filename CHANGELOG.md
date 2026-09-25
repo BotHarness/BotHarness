@@ -83,6 +83,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- PersonaBot creation now explains when Git is missing and leaves no partial identity; install Git on PATH and restart DeepSeek Harness before retrying ([#268](https://github.com/BotHarness/BotHarness/issues/268)).
 - Fixed fresh BotHarness database initialization on Windows so the official DSH RC2 Desktop can add a local Workspace and create a PersonaBot without entering recovery mode ([#266](https://github.com/BotHarness/BotHarness/issues/266)).
 - Failed Orchestrator and Assignment turns now leave a durable notice in the PersonaBot DM with a localized summary and DSH error code; provider diagnostics and Session identity expand on demand, while credential and quota failures link to model settings ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 

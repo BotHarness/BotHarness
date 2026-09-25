@@ -79,6 +79,12 @@ describe('PersonaBot creation form', () => {
     expect(personaBotCreateError(new BridgeCallError('duplicate', 'exists'))).toBe(
       '系统未能分配唯一身份，请重试。',
     );
+    expect(
+      personaBotCreateError(new BridgeCallError('git-not-found', 'spawn git ENOENT')),
+    ).toContain('Git');
+    expect(
+      personaBotCreateError(new BridgeCallError('git-not-found', 'spawn git ENOENT')),
+    ).not.toContain('ENOENT');
     expect(personaBotCreateError(new Error('disk read-only'))).toBe('disk read-only');
   });
 });

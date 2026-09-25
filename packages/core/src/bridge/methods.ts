@@ -301,6 +301,14 @@ function createFailure(
       return { ok: false, error: { code: 'invalid-slug', message: `invalid slug: ${slug}` } };
     case 'invalid-memory-dir':
       return invalidInput('memoryDir must be an absolute path');
+    case 'git-not-found':
+      return {
+        ok: false,
+        error: {
+          code: 'git-not-found',
+          message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
+        },
+      };
     case 'memory-unavailable':
       return {
         ok: false,

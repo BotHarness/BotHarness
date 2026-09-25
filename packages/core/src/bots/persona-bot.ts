@@ -31,7 +31,12 @@ export type CreatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
   | {
       ok: false;
-      reason: 'invalid-slug' | 'duplicate' | 'invalid-memory-dir' | 'memory-unavailable';
+      reason:
+        | 'invalid-slug'
+        | 'duplicate'
+        | 'invalid-memory-dir'
+        | 'git-not-found'
+        | 'memory-unavailable';
       detail?: string;
     };
 

@@ -24,6 +24,8 @@ export function personaBotCreateError(
         return t('bot.create.error.invalid');
       case 'unavailable':
         return t('bot.create.error.connection');
+      case 'git-not-found':
+        return t('bot.create.error.gitMissing');
     }
   }
   return errorMessage(error);
