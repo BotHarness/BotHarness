@@ -279,7 +279,13 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (owner.rootRole === 'assignment') {
         const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
         const grantId = assignment?.permission?.grantId;
-        return grantId === undefined ? undefined : JSON.stringify(['assignment', cwd, grantId]);
+        if (grantId === undefined) return undefined;
+        try {
+          core.grants.requireActive(owner.botSlug, grantId);
+        } catch {
+          return undefined;
+        }
+        return JSON.stringify(['assignment', cwd, grantId]);
       }
       const activeIds = core.grants
         .list(owner.botSlug)

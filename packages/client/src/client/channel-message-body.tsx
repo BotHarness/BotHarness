@@ -134,16 +134,28 @@ function ToolApprovalCard({
     }
     if (botSlug === undefined) return;
     let active = true;
-    void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
-      (value) => {
-        if (active) setStatus(value);
-      },
-      () => {
-        if (active) setStatus('expired');
-      },
-    );
+    const refreshStatus = (): void => {
+      void actions.toolApprovalStatus('dm-' + botSlug, message.id).then(
+        (value) => {
+          if (active) {
+            setStatus((current) =>
+              current === 'expired' || current === 'decided' ? current : value,
+            );
+          }
+        },
+        () => {
+          if (active) setStatus('expired');
+        },
+      );
+    };
+    const onGrantChanged = (event: Event): void => {
+      if ((event as CustomEvent<{ slug: string }>).detail?.slug === botSlug) refreshStatus();
+    };
+    refreshStatus();
+    window.addEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
     return () => {
       active = false;
+      window.removeEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
     };
   }, [actions, botSlug, decision, message.id]);
   const decide = (
@@ -163,10 +175,16 @@ function ToolApprovalCard({
       .then(
         () => setStatus('decided'),
         (cause: unknown) => {
-          setError(errorMessage(cause));
-          void actions
-            .toolApprovalStatus(channelId, message.id)
-            .then(setStatus, () => setStatus('expired'));
+          return actions.toolApprovalStatus(channelId, message.id).then(
+            (latest) => {
+              setStatus(latest);
+              setError(latest === 'pending' ? errorMessage(cause) : undefined);
+            },
+            () => {
+              setStatus('expired');
+              setError(errorMessage(cause));
+            },
+          );
         },
       )
       .finally(() => setBusy(false));

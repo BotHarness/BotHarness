@@ -976,7 +976,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
         };
       try {
-        return { ok: true, value: { grant: deps.grants.revoke(slug, grantId) } };
+        const grant = deps.grants.revoke(slug, grantId);
+        deps.toolApproval?.cancelInvalid();
+        return { ok: true, value: { grant } };
       } catch (error) {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };

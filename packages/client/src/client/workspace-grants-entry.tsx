@@ -21,6 +21,27 @@ import { Modal } from './modal.js';
 
 export const WORKSPACE_GRANTS_CHANGED = 'botharness/workspace-grants-changed';
 
+const WORKSPACE_ACTION_TIMEOUT_MS = 15_000;
+
+function withWorkspaceActionDeadline<T>(promise: Promise<T>, timeoutMessage: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const timer = window.setTimeout(
+      () => reject(new Error(timeoutMessage)),
+      WORKSPACE_ACTION_TIMEOUT_MS,
+    );
+    void promise.then(
+      (value) => {
+        window.clearTimeout(timer);
+        resolve(value);
+      },
+      (cause: unknown) => {
+        window.clearTimeout(timer);
+        reject(cause);
+      },
+    );
+  });
+}
+
 function approvalRulePath(rule: ToolApprovalRuleView): string {
   try {
     const scope = JSON.parse(rule.scopeKey) as unknown;
@@ -247,21 +268,26 @@ export function WorkspaceGrantsEntry({
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(true);
 
-  const refresh = async (slug: string): Promise<void> => {
-    const [available, owned, memory, ruleRows, preset] = await Promise.all([
-      actions.listWorkspaceOptions(),
+  const refresh = async (slug: string, isCurrent: () => boolean = () => true): Promise<void> => {
+    const owned = await withWorkspaceActionDeadline(
       actions.listWorkspaceGrants(slug),
+      t('grant.loadTimeout'),
+    );
+    if (!isCurrent()) return;
+    setGrants(owned);
+    setLoading(false);
+    const [available, memory, ruleRows, preset] = await Promise.all([
+      actions.listWorkspaceOptions(),
       actions.memoryDirectory(slug),
       actions.listToolApprovalRules(slug),
       actions.assignmentAccess(slug),
     ]);
+    if (!isCurrent()) return;
     setWorkspaces(available);
-    setGrants(owned);
     setMemoryDir(memory);
     setRules(ruleRows);
     setAccess(preset);
   };
-
   useEffect(() => {
     if (botSlug === undefined) return;
     const onGrantChanged = (event: Event): void => {
@@ -277,41 +303,28 @@ export function WorkspaceGrantsEntry({
     let cancelled = false;
     setLoading(true);
     setError(undefined);
-    void Promise.all([
-      actions.listWorkspaceOptions(),
-      actions.listWorkspaceGrants(botSlug),
-      actions.memoryDirectory(botSlug),
-      actions.listToolApprovalRules(botSlug),
-      actions.assignmentAccess(botSlug),
-    ]).then(
-      ([available, owned, memory, ruleRows, preset]) => {
-        if (cancelled) return;
-        setWorkspaces(available);
-        setGrants(owned);
-        setMemoryDir(memory);
-        setRules(ruleRows);
-        setAccess(preset);
-        setLoading(false);
-      },
-      (cause: unknown) => {
-        if (cancelled) return;
-        setError(errorMessage(cause));
-        setLoading(false);
-      },
-    );
+    void refresh(botSlug, () => !cancelled).catch((cause: unknown) => {
+      if (cancelled) return;
+      setError(errorMessage(cause));
+      setLoading(false);
+    });
     return () => {
       cancelled = true;
     };
   }, [actions, botSlug]);
-
   const mutate = (id: string, action: () => Promise<unknown>): void => {
     if (botSlug === undefined || busy !== undefined) return;
     setBusy(id);
     setError(undefined);
     void (async () => {
       try {
-        await action();
-        await refresh(botSlug);
+        const operation = action().then((value) => {
+          window.dispatchEvent(
+            new CustomEvent(WORKSPACE_GRANTS_CHANGED, { detail: { slug: botSlug } }),
+          );
+          return value;
+        });
+        await withWorkspaceActionDeadline(operation, t('grant.operationTimeout'));
       } catch (cause) {
         setError(errorMessage(cause));
       } finally {
@@ -368,13 +381,25 @@ export function WorkspaceGrantsEntry({
             path={grant.workspacePath}
             disabled={busy !== undefined}
             removeLabel={t('grant.removeFolder') + ': ' + grant.workspaceTitle}
-            remove={() => mutate(grant.id, () => actions.revokeWorkspaceGrant(botSlug, grant.id))}
+            remove={() =>
+              mutate(grant.id, async () => {
+                const revokedGrant = await actions.revokeWorkspaceGrant(botSlug, grant.id);
+                setGrants((current) =>
+                  current.map((row) => (row.id === revokedGrant.id ? revokedGrant : row)),
+                );
+              })
+            }
           />
         ))}
       </div>
       <Button variant="outline" disabled={busy !== undefined} onClick={openFolderBrowser}>
         {t('grant.addFolder')}
       </Button>
+      {busy === undefined ? null : (
+        <div className="bh-note" role="status">
+          {t('grant.working')}
+        </div>
+      )}
       {developerMode ? (
         <details
           className="bh-workspace-folder-secondary"
