@@ -298,6 +298,21 @@ describe('accepted Memory Commit boundary', () => {
         'needs-repair',
       );
       expect(() => reopened.prepareTurn('atlas', 'session-atlas')).toThrow(/provisional changes/);
+      const repaired = reopened.repairHuman({
+        botSlug: 'atlas',
+        expectedHead: seed,
+        repairId: '55555555-5555-4555-8555-555555555555',
+      });
+      expect(repaired.status).toBe('completed');
+      expect(git(root, 'branch', '--show-current')).toBe('raw-review');
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
+      expect(git(root, 'rev-parse', 'raw-source')).toBe(raw);
+      expect(git(join(repaired.backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
+      expect(reopened.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
+        'pending',
+      );
+      reopened.prepareTurn('atlas', 'session-atlas');
+      reopened.abortTurn('atlas', 'session-atlas');
     } finally {
       database.close();
     }
@@ -670,6 +685,63 @@ describe('accepted Memory Commit boundary', () => {
     }
   });
 
+  it('resumes side-branch Human Repair from an archived repository after a restart', () => {
+    const { database, registry, memory, root } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      git(root, 'switch', '-c', 'raw-side');
+      writeFileSync(join(root, 'raw.md'), 'Raw side memory\n');
+      git(root, 'add', 'raw.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Raw side',
+      );
+      const raw = git(root, 'rev-parse', 'HEAD');
+      expect(memory.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
+      const repairId = '66666666-6666-4666-8666-666666666666';
+      const backupPath = join(dirname(root), 'memory-repairs', repairId);
+      mkdirSync(backupPath, { recursive: true });
+      attachOperationalModule(database, 'memory-test').transaction((db) => {
+        db.prepare(`INSERT INTO memory_repair_events (
+          id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
+          actor_kind, actor_id, cause_kind, status, requested_at
+        ) VALUES (?, 'atlas', ?, ?, ?, 'human', 'authenticated-dsh-human',
+          'human-repair', 'started', ?)`).run(
+          repairId,
+          seed,
+          raw,
+          backupPath,
+          FIXED_NOW().toISOString(),
+        );
+      });
+      renameSync(root, join(backupPath, 'repository'));
+      const reopened = createMemoryService({
+        registry,
+        ownership: ownershipOf(database),
+        database,
+        now: FIXED_NOW,
+      });
+      expect(reopened.snapshot('atlas')).toMatchObject({ head: seed, provisional: true });
+      const repaired = reopened.repairHuman({
+        botSlug: 'atlas',
+        expectedHead: seed,
+        repairId: '77777777-7777-4777-8777-777777777777',
+      });
+      expect(repaired.id).toBe(repairId);
+      expect(git(root, 'branch', '--show-current')).toBe('raw-side');
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(seed);
+      expect(git(join(backupPath, 'repository'), 'rev-parse', 'HEAD')).toBe(raw);
+      expect(reopened.snapshot('atlas').provisional).toBe(false);
+    } finally {
+      database.close();
+    }
+  });
   it('does not execute repository hooks for an Agent commit or Human save', () => {
     const { database, memory, root, addSource } = fixture();
     try {

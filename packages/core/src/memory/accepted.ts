@@ -1082,8 +1082,22 @@ export function createMemoryAcceptance(options: {
         throw new MemoryAcceptError('memory-invalid', 'Valid Memory repair identity is required');
       }
       const root = registry.memoryDirFor(input.botSlug);
+      const existing = database.read(
+        (db) =>
+          db.prepare('SELECT * FROM memory_repair_events WHERE id = ?').get(input.repairId) as
+            | RepairRow
+            | undefined,
+      );
+      const pending = existing ?? pendingRepair(input.botSlug);
+      const archived = pending === undefined ? undefined : join(pending.backup_path, 'repository');
+      // After an interrupted archive move, the canonical path is absent. The
+      // archived Git HEAD retains the exact branch that Human Repair started on.
+      const branchSource =
+        archived !== undefined && existsSync(join(archived, '.git')) ? archived : root;
       const branch =
-        root === undefined || !existsSync(join(root, '.git')) ? 'main' : branchOf(root);
+        branchSource === undefined || !existsSync(join(branchSource, '.git'))
+          ? 'main'
+          : branchOf(verifiedRepository(branchSource, input.botSlug));
       const baseline = acceptedHead(input.botSlug, branch);
       if (
         root === undefined ||
@@ -1096,27 +1110,15 @@ export function createMemoryAcceptance(options: {
           'Accepted Memory changed or a turn is active',
         );
       }
-      const existing = database.read(
-        (db) =>
-          db.prepare('SELECT * FROM memory_repair_events WHERE id = ?').get(input.repairId) as
-            | RepairRow
-            | undefined,
-      );
       if (existing !== undefined) {
         if (existing.bot_slug !== input.botSlug || existing.accepted_head_sha !== baseline) {
           throw new MemoryAcceptError('memory-conflict', 'Memory repair identity was already used');
         }
         if (existing.status === 'completed') return rowToRepair(existing);
       }
-      let event = existing ?? pendingRepair(input.botSlug);
+      let event = pending;
       if (event === undefined) {
         verifiedRepository(root, input.botSlug);
-        if (branch !== 'main') {
-          throw new MemoryAcceptError(
-            'memory-conflict',
-            'Repair of side branches requires Orchestrator coordination',
-          );
-        }
         const provisionalHead = head(root);
         if (provisionalHead === baseline && !dirty(root)) {
           throw new MemoryAcceptError('memory-conflict', 'Memory has no provisional changes');
@@ -1158,7 +1160,7 @@ export function createMemoryAcceptance(options: {
           );
         }
         verifiedRepository(root, input.botSlug);
-        if (head(root) !== event.provisional_head_sha) {
+        if (branchOf(root) !== branch || head(root) !== event.provisional_head_sha) {
           throw new MemoryAcceptError('memory-conflict', 'Memory HEAD changed before archive');
         }
         renameSync(root, archive);
@@ -1166,7 +1168,7 @@ export function createMemoryAcceptance(options: {
       verifiedRepository(archive, input.botSlug);
       if (existsSync(root)) {
         verifiedRepository(root, input.botSlug);
-        if (head(root) !== baseline || dirty(root)) {
+        if (branchOf(root) !== branch || head(root) !== baseline || dirty(root)) {
           throw new MemoryAcceptError('memory-conflict', 'Memory root changed during repair');
         }
       } else {
@@ -1175,6 +1177,9 @@ export function createMemoryAcceptance(options: {
           const restored = join(staging, 'repository');
           cpSync(archive, restored, { recursive: true, dereference: false });
           verifiedRepository(restored, input.botSlug);
+          if (branchOf(restored) !== branch) {
+            throw new MemoryAcceptError('memory-conflict', 'Memory repair branch changed');
+          }
           run(restored, ['reset', '--hard', baseline]);
           run(restored, ['clean', '-ffdx']);
           if (head(restored) !== baseline || dirty(restored)) {
