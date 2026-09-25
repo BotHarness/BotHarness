@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Orchestrators can stop an Assignment through DSH cancellation; its stopped state survives restart, late reports cannot revive it, and the same continuity key can start a new Session ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - PersonaBots can list joined Group, Human DM, and Bot DM Channels, filter by name or Bot membership, inspect current members, and send to a selected Channel by its stable ID; they can also search a joined Channel's full message history by text, author, and date with cursor pagination ([#304](https://github.com/BotHarness/BotHarness/issues/304)).
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 

@@ -428,6 +428,19 @@ const GROUP_INVITATION_ADMISSION_MIGRATION: SchemaMigration = {
   },
 };
 
+const ASSIGNMENT_STOP_MIGRATION: SchemaMigration = {
+  generation: 18,
+  module: 'assignments',
+  description:
+    'Persist stopping and stopped Assignment lifecycle while retaining DSH Session history',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE assignments ADD COLUMN stop_state TEXT NOT NULL DEFAULT 'running'
+        CHECK (stop_state IN ('running', 'requested', 'stopped'));
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -445,4 +458,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   CHANNEL_MESSAGING_MIGRATION,
   BOT_DM_ADMISSION_MIGRATION,
   GROUP_INVITATION_ADMISSION_MIGRATION,
+  ASSIGNMENT_STOP_MIGRATION,
 ]);

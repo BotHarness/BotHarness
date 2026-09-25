@@ -57,6 +57,10 @@ class ManualAgents implements BotAgentAdapter {
     this.#finish.clear();
   }
 
+  async stopAssignment(sessionId: string): Promise<void> {
+    this.finish(sessionId);
+  }
+
   async close(): Promise<void> {}
 }
 
@@ -193,6 +197,54 @@ describe('Assignment collaboration', () => {
     expect(busy.outcome).toBe('key-busy');
     expect(runtime.listAssignments('ada')).toHaveLength(1);
     await close();
+  });
+
+  it('stops a running Assignment, rejects late reports, and frees its continuity key', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    await admit('开始调研', 'human-stop');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '持续调研 A 方向',
+      key: 'research-a',
+    });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const sessionId = created.assignment.sessionId;
+    const runningTurn = agents.started[0]?.run;
+    if (runningTurn === undefined) throw new Error('Assignment never started');
+
+    const stopped = await access.stop(sessionId);
+    expect(stopped.activity).toBe('stopped');
+    expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('stopped');
+    expect(() => access.request({ sessionId, mode: 'next-turn', text: '继续' })).toThrow(
+      /stopped or stopping/,
+    );
+    await expect(
+      runningTurn.report({ state: 'completed', summary: '取消之后的迟到报告' }),
+    ).rejects.toThrow(/transaction/);
+    expect(runtime.getAssignment('ada', sessionId)?.latestReport).toBeUndefined();
+    expect((await access.stop(sessionId)).activity).toBe('stopped');
+
+    const next = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '重新开始 A 方向',
+      key: 'research-a',
+    });
+    expect(next.outcome).toBe('created');
+    expect(next.outcome === 'created' && next.assignment.sessionId).not.toBe(sessionId);
+    await close();
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+      agents: new ManualAgents(),
+      now: FIXED_NOW,
+    });
+    expect(reopened.getAssignment('ada', sessionId)?.activity).toBe('stopped');
+    await reopened.close();
   });
 
   it('revocation blocks new and resumed work without rewriting an already running turn', async () => {
