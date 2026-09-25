@@ -809,7 +809,7 @@ class BotRuntimeImplementation implements BotRuntime {
   #groupMentionPrompt(channelId: string, messageId: string, body: string): string {
     const message = this.#channels.message(channelId, messageId);
     const sender = message?.author.kind === 'bot' ? `PersonaBot ${message.author.slug}` : 'Human';
-    return `[Bot Inbox: direct Group mention from ${sender}]\nChannel: ${channelId}\nMessage ID: ${messageId}\nMessage: ${sessionMentionText(body, message?.mentions ?? [])}\nRespond in this Group Channel with channel_send.`;
+    return `[Bot Inbox: direct Group mention from ${sender}]\nChannel: ${channelId}\nMessage ID: ${messageId}\nMessage: ${sessionMentionText(body, message?.mentions ?? [])}\nDecide whether a reply would be useful. You may finish without replying; if you speak in this Group Channel, use channel_send.`;
   }
 
   #inboundChannelMessage(channelId: string, messageId: string, body: string): string {
@@ -818,7 +818,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (messageId.startsWith('group-invite-') && message === undefined)
       return '[Bot Inbox: Group invitation]\n' + body;
     if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
-      return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
+      return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nDecide whether a reply would be useful. You may finish without replying; if you speak in this Bot DM, use channel_send.`;
     if (channel?.type === 'group' && message?.mentions?.length)
       return this.#groupMentionPrompt(channelId, messageId, body);
     const mentionBody =

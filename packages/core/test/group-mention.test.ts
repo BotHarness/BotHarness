@@ -148,6 +148,7 @@ describe('Group mention tracer', () => {
       core.runtime.admitGroupMessage(group.id, 'group-steer');
       expect(steered).toHaveLength(1);
       expect(steered[0]).toContain(group.id);
+      expect(steered[0]).toContain('You may finish without replying');
       expect(core.channels.message(group.id, 'group-steer')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'running' },
       ]);
@@ -155,6 +156,9 @@ describe('Group mention tracer', () => {
       if (dmAdmission.admitted) await dmAdmission.settled;
       await core.runtime.whenIdle();
       expect(runs).toEqual([dm.id]);
+      expect(core.channels.readMessages(group.id).map((message) => message.id)).toEqual([
+        'group-steer',
+      ]);
       expect(core.channels.message(group.id, 'group-steer')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'handled' },
       ]);

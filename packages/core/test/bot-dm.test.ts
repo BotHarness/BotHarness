@@ -372,11 +372,15 @@ describe('Bot-to-Bot DM tracer', () => {
       dshHome: home,
       agents: adapter(async (run) => {
         resumed.push(run.bot.slug + ':' + run.inboundChannelId);
+        expect(run.message).toContain('You may finish without replying');
       }),
     });
     try {
       await after.runtime.whenIdle();
       expect(resumed).toEqual(['bea:' + botDmId]);
+      expect(after.channels.readMessages(botDmId).map((message) => message.id)).toEqual([
+        'bot-before-restart',
+      ]);
       expect(after.channels.message(botDmId, 'bot-before-restart')?.deliveries).toEqual([
         { botSlug: 'bea', state: 'handled' },
       ]);
