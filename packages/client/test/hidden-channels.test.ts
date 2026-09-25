@@ -66,7 +66,7 @@ it('preserves explicit hide order when Channel updates reorder the live list', (
     updatedAt: AT,
   });
   const hidden = [channel('hidden-first'), channel('hidden-second')];
-  const botDm = { ...channel('dm-bots-ada-bea'), type: 'dm' as const };
+  const botDm = { ...channel('dm-bots-ada-bea'), type: 'dm' as const, members: ['ada', 'bea'] };
   const latestFirst = [botDm, hidden[1]!, hidden[0]!];
   expect(
     hiddenChannelSequence(latestFirst, ['hidden-first', 'hidden-second', botDm.id]).map(
@@ -92,6 +92,30 @@ it('shows the newest implicit Bot DM first after the modal reverses its items', 
   const sequence = hiddenChannelSequence([newest, oldest], []);
   expect(sequence.map((channel) => channel.id)).toEqual([oldest.id, newest.id]);
   expect([...sequence].reverse().map((channel) => channel.id)).toEqual([newest.id, oldest.id]);
+});
+
+it('does not classify malformed persisted DMs as Bot DMs', () => {
+  const malformed = [[], ['ada'], ['ada', 'bea', 'cora']].map((members, index) => ({
+    id: `malformed-${index}`,
+    type: 'dm' as const,
+    name: `Malformed ${index}`,
+    members,
+    createdAt: AT,
+    updatedAt: AT,
+  }));
+  expect(hiddenChannelSequence(malformed, [])).toEqual([]);
+  const markup = renderToStaticMarkup(
+    createElement(HiddenChannelsModal, {
+      t: t as never,
+      onRestore: vi.fn(),
+      onOpen: vi.fn(),
+      onClose: vi.fn(),
+      items: malformed.map((channel) => ({ channel })),
+    }),
+  );
+  expect(markup).not.toContain('Bot 私聊 · 只读');
+  expect(captured.buttons.filter((button) => button['children'] === '查看')).toHaveLength(0);
+  expect(captured.buttons.filter((button) => button['children'] === '恢复')).toHaveLength(3);
 });
 
 describe('hidden Channels modal', () => {

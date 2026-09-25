@@ -24,6 +24,7 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import { isBotDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -437,7 +438,7 @@ function ConversationView({
     selection?.kind === 'bot'
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
-  const botDm = channel?.type === 'dm' && channel.botSlug === undefined;
+  const botDm = isBotDmChannel(channel);
   const title =
     channel?.type === 'dm'
       ? botDm
