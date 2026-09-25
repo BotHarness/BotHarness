@@ -291,6 +291,18 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
   }
 
+  userQuestionStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+    return unwrap(this.methods.userQuestionStatus({ channelId, messageId }));
+  }
+
+  userQuestionAnswer(
+    channelId: string,
+    messageId: string,
+    answer: { answers: { id: string; selected: string[]; custom?: string }[] },
+  ): Promise<{ accepted: boolean }> {
+    return unwrapAsync(this.methods.userQuestionAnswer({ channelId, messageId, answer }));
+  }
+
   sessions(slug: string): { sessions: SessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
   }
@@ -417,6 +429,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'toolApprovalRuleRevoke',
   'toolApprovalStatus',
   'toolApprovalDecide',
+  'userQuestionStatus',
+  'userQuestionAnswer',
   'sessions',
   'memorySnapshot',
   'memoryFile',

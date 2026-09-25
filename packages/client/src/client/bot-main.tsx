@@ -145,6 +145,7 @@ function MessageGroupView({
   actions,
   resolvedGrantRequests,
   toolApprovalDecisions,
+  userQuestionResolutions,
   nativeChatT,
   t,
 }: {
@@ -160,6 +161,7 @@ function MessageGroupView({
     string,
     'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected'
   >;
+  userQuestionResolutions: ReadonlyMap<string, 'answered' | 'cancelled'>;
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
@@ -231,6 +233,7 @@ function MessageGroupView({
                   bots={bots}
                   grantRequestResolved={resolvedGrantRequests.has(message.id)}
                   toolApprovalDecision={toolApprovalDecisions.get(message.id)}
+                  userQuestionResolution={userQuestionResolutions.get(message.id)}
                 />
               </div>
               {message.deliveries === undefined ? null : (
@@ -909,6 +912,16 @@ function ConversationView({
                           .map((item) => [
                             item.toolApprovalDecision!.requestMessageId,
                             item.toolApprovalDecision!.outcome,
+                          ]),
+                      )
+                    }
+                    userQuestionResolutions={
+                      new Map(
+                        displayMessages
+                          .filter((item) => item.userQuestionResolution !== undefined)
+                          .map((item) => [
+                            item.userQuestionResolution!.requestMessageId,
+                            item.userQuestionResolution!.state,
                           ]),
                       )
                     }

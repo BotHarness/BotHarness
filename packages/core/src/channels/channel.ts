@@ -1,5 +1,6 @@
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ToolApprovalDecision, ToolApprovalRequestCard } from '../workspaces/tool-approval.js';
+import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-questions.js';
 
 export type ChannelType = 'dm' | 'group';
 
@@ -68,6 +69,10 @@ export interface ChannelMessage {
   sessionFailure?: SessionFailureCard;
   /** Human's durable decision; the DSH approval itself remains one-shot and live. */
   toolApprovalDecision?: ToolApprovalDecision;
+  /** Native DSH user question awaiting a Human answer in this DM. */
+  userQuestionRequest?: ChannelQuestionRequest;
+  /** Durable answer or cancellation for one native question request. */
+  userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
@@ -232,6 +237,61 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       ))
   )
     return false;
+  const questionRequest = message['userQuestionRequest'];
+  if (questionRequest !== undefined) {
+    if (
+      typeof questionRequest !== 'object' ||
+      questionRequest === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot'
+    )
+      return false;
+    const request = questionRequest as Record<string, unknown>;
+    if (
+      typeof request['sessionId'] !== 'string' ||
+      request['sessionId'].length === 0 ||
+      !Array.isArray(request['questions']) ||
+      request['questions'].length === 0 ||
+      request['questions'].length > 3 ||
+      !request['questions'].every((value) => {
+        if (typeof value !== 'object' || value === null) return false;
+        const item = value as Record<string, unknown>;
+        return (
+          typeof item['id'] === 'string' &&
+          typeof item['question'] === 'string' &&
+          (item['detail'] === undefined || typeof item['detail'] === 'string') &&
+          (item['header'] === undefined || typeof item['header'] === 'string') &&
+          (item['multiSelect'] === undefined || typeof item['multiSelect'] === 'boolean') &&
+          (item['options'] === undefined ||
+            (Array.isArray(item['options']) &&
+              item['options'].every((option) => {
+                if (typeof option !== 'object' || option === null) return false;
+                const row = option as Record<string, unknown>;
+                return (
+                  typeof row['label'] === 'string' &&
+                  (row['description'] === undefined || typeof row['description'] === 'string')
+                );
+              })))
+        );
+      })
+    )
+      return false;
+  }
+  const questionResolution = message['userQuestionResolution'];
+  if (questionResolution !== undefined) {
+    if (typeof questionResolution !== 'object' || questionResolution === null) return false;
+    const resolution = questionResolution as Record<string, unknown>;
+    if (
+      typeof resolution['requestMessageId'] !== 'string' ||
+      message['replyTo'] !== resolution['requestMessageId'] ||
+      (resolution['state'] !== 'answered' && resolution['state'] !== 'cancelled') ||
+      (resolution['state'] === 'answered' &&
+        ((message['author'] as ChannelMessageAuthor)?.kind !== 'human' ||
+          !Array.isArray(resolution['answers']))) ||
+      (resolution['state'] === 'cancelled' &&
+        (message['author'] as ChannelMessageAuthor)?.kind !== 'bot')
+    )
+      return false;
+  }
   const attachments = message['attachments'];
   if (
     attachments !== undefined &&

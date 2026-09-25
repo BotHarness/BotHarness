@@ -19,6 +19,8 @@ import {
   revokeWorkspaceGrant,
   loadToolApprovalStatus,
   decideToolApproval,
+  loadUserQuestionStatus,
+  answerUserQuestion,
   type WorkspaceOption,
   type WorkspaceGrantView,
   loadAssignments,
@@ -73,6 +75,7 @@ import type {
   ChannelSummary,
   ClientStore,
   ConversationSelection,
+  UserQuestionAnswerItem,
 } from './store.js';
 
 export interface HostDirectoryListing {
@@ -138,6 +141,12 @@ export interface BridgeActions {
     channelId: string,
     messageId: string,
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+  ): Promise<void>;
+  userQuestionStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  answerUserQuestion(
+    channelId: string,
+    messageId: string,
+    answers: UserQuestionAnswerItem[],
   ): Promise<void>;
   send(
     body: string,
@@ -451,6 +460,10 @@ export function createActions(
       loadToolApprovalStatus(call, channelId, messageId),
     decideToolApproval: (channelId, messageId, outcome) =>
       decideToolApproval(call, channelId, messageId, outcome),
+    userQuestionStatus: (channelId, messageId) =>
+      loadUserQuestionStatus(call, channelId, messageId),
+    answerUserQuestion: (channelId, messageId, answers) =>
+      answerUserQuestion(call, channelId, messageId, answers),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {

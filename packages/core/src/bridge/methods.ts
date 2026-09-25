@@ -41,6 +41,8 @@ import {
   type WorkspaceGrantStore,
 } from '../workspaces/grants.js';
 import type { ChannelToolApproval } from '../workspaces/tool-approval.js';
+import type { ChannelUserQuestions } from '../channels/user-questions.js';
+import type { AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions/types';
 import type { ToolApprovalRuleStore, ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
 import type {
   AssignmentAccessStore,
@@ -121,6 +123,8 @@ export interface BridgeMethods {
   toolApprovalRuleRevoke(payload: unknown): BridgeResult<{ rule: ToolApprovalRule }>;
   toolApprovalStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
+  userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
+  userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
@@ -155,6 +159,7 @@ export interface BridgeMethodsDeps {
   runtime?: BotRuntime;
   grants?: WorkspaceGrantStore;
   toolApproval?: ChannelToolApproval;
+  userQuestions?: ChannelUserQuestions;
   toolRules?: ToolApprovalRuleStore;
   assignmentAccess?: AssignmentAccessStore;
   createBotId?: () => string;
@@ -967,6 +972,43 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const accepted = await deps.toolApproval?.decide(channel.botSlug, messageId, outcome);
       if (accepted !== true) return invalidInput('Tool approval request is no longer pending');
+      return { ok: true, value: { accepted: true } };
+    },
+    userQuestionStatus(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      if (channelId === undefined || messageId === undefined)
+        return invalidInput('channelId and messageId are required');
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined)
+        return invalidInput('Questions are available only in a PersonaBot DM');
+      if (deps.channels.message(channelId, messageId)?.userQuestionRequest === undefined)
+        return invalidInput('Unknown user question');
+      return {
+        ok: true,
+        value: { status: deps.userQuestions?.status(channel.botSlug, messageId) ?? 'expired' },
+      };
+    },
+    async userQuestionAnswer(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      const answer = asObject(source['answer']);
+      if (channelId === undefined || messageId === undefined || !Array.isArray(answer['answers']))
+        return invalidInput('channelId, messageId, and answers are required');
+      const channel = deps.channels.get(channelId);
+      if (channel?.type !== 'dm' || channel.botSlug === undefined)
+        return invalidInput('Questions are available only in a PersonaBot DM');
+      if (deps.channels.message(channelId, messageId)?.userQuestionRequest === undefined)
+        return invalidInput('Unknown user question');
+      const accepted = await deps.userQuestions?.answer(
+        channel.botSlug,
+        messageId,
+        answer as unknown as AskUserQuestionAnswer,
+      );
+      if (accepted !== true)
+        return invalidInput('Question is no longer pending or answer is invalid');
       return { ok: true, value: { accepted: true } };
     },
     sessions(payload) {
