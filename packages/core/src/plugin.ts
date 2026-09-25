@@ -281,6 +281,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     core.channels,
     core.ownership,
     (agent) => ctx.agents.get(agent.id) === agent,
+    (message) => ctx.logger.warn(message),
   );
   ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
   ctx.on(

@@ -29,16 +29,19 @@ function fixture(role: 'orchestrator' | 'assignment' = 'orchestrator') {
   const ownership = createTestOwnership({ [sessionId]: { botSlug: 'ada', rootRole: role } });
   const agent = { session: { id: sessionId, header: { cwd: '/tmp/memory' } } } as Agent;
   let live = true;
+  const warn = vi.fn();
   const answerer = new ChannelUserQuestions(
     channels,
     ownership,
     (candidate) => candidate === agent && live,
+    warn,
   );
   return {
     channels,
     ownership,
     agent,
     answerer,
+    warn,
     setLive: (value: boolean) => {
       live = value;
     },
@@ -109,6 +112,7 @@ describe('native DSH questions in a PersonaBot DM', () => {
     await vi.waitFor(() => expect(state.channels.readMessages(channelId)).toHaveLength(1));
     const id = state.channels.readMessages(channelId)[0]!.id;
     state.setLive(false);
+    expect(state.answerer.status('ada', id)).toBe('expired');
     expect(
       await state.answerer.answer('ada', id, {
         answers: [{ id: 'memory-branch', selected: ['history-qa'] }],
@@ -116,6 +120,49 @@ describe('native DSH questions in a PersonaBot DM', () => {
     ).toBe(false);
     await rejected;
     expect(state.answerer.status('ada', id)).toBe('expired');
+    await vi.waitFor(() =>
+      expect(state.channels.readMessages(channelId)[0]?.userQuestionResolution?.state).toBe(
+        'cancelled',
+      ),
+    );
+  });
+
+  it('keeps cancellation final when a Session stops during answer persistence', async () => {
+    const state = fixture();
+    const controller = new AbortController();
+    const wait = state.answerer.ask({ agent: state.agent, questions, signal: controller.signal });
+    const rejected = expect(wait).rejects.toThrow(/cancelled/);
+    await vi.waitFor(() => expect(state.channels.readMessages(channelId)).toHaveLength(1));
+    const id = state.channels.readMessages(channelId)[0]!.id;
+    const append = state.channels.appendMessage.bind(state.channels);
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    vi.spyOn(state.channels, 'appendMessage').mockImplementation(async (channel, message) => {
+      const saved = await append(channel, message);
+      if (message.userQuestionResolution?.state === 'answered') await gate;
+      return saved;
+    });
+    const answer = state.answerer.answer('ada', id, {
+      answers: [{ id: 'memory-branch', selected: ['history-qa'] }],
+    });
+    await vi.waitFor(() =>
+      expect(
+        state.channels
+          .readMessages(channelId)
+          .some((item) => item.userQuestionResolution?.state === 'answered'),
+      ).toBe(true),
+    );
+    controller.abort();
+    release();
+    expect(await answer).toBe(false);
+    await rejected;
+    await vi.waitFor(() =>
+      expect(state.channels.readMessages(channelId)[0]?.userQuestionResolution?.state).toBe(
+        'cancelled',
+      ),
+    );
   });
 
   it('leaves Assignment questions to another native answerer', async () => {
@@ -133,6 +180,11 @@ describe('native DSH questions in a PersonaBot DM', () => {
     expect(
       await state.answerer.answer('ada', id, {
         answers: [{ id: 'memory-branch', selected: ['main', 'history-qa'] }],
+      }),
+    ).toBe(false);
+    expect(
+      await state.answerer.answer('ada', id, {
+        answers: [{ id: 'memory-branch', selected: ['main'], custom: 'another-branch' }],
       }),
     ).toBe(false);
     const expected = { answers: [{ id: 'memory-branch', selected: [], custom: 'another-branch' }] };

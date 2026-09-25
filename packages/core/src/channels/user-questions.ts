@@ -47,6 +47,8 @@ function validAnswer(questions: AskUserQuestionItem[], answer: AskUserQuestionAn
       return false;
     if (new Set(item.selected).size !== item.selected.length) return false;
     if (question.multiSelect !== true && item.selected.length > 1) return false;
+    if (question.multiSelect !== true && item.selected.length > 0 && item.custom !== undefined)
+      return false;
     const offered = new Set(question.options?.map((option) => option.label) ?? []);
     if (item.selected.some((label) => !offered.has(label))) return false;
     if (
@@ -66,16 +68,19 @@ export class ChannelUserQuestions {
   readonly #channels: ChannelStore;
   readonly #ownership: SessionOwnership;
   readonly #isLive: (agent: Agent) => boolean;
+  readonly #warn: (message: string) => void;
   readonly #pending = new Map<string, Pending>();
 
   constructor(
     channels: ChannelStore,
     ownership: SessionOwnership,
     isLive: (agent: Agent) => boolean = () => true,
+    warn: (message: string) => void = () => undefined,
   ) {
     this.#channels = channels;
     this.#ownership = ownership;
     this.#isLive = isLive;
+    this.#warn = warn;
   }
 
   async ask(request: AskUserQuestionRequestEvent): Promise<AskUserQuestionAnswer | undefined> {
@@ -132,7 +137,19 @@ export class ChannelUserQuestions {
   }
 
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
-    return this.#pending.get(messageId)?.botSlug === botSlug ? 'pending' : 'expired';
+    const pending = this.#pending.get(messageId);
+    if (pending === undefined || pending.botSlug !== botSlug) return 'expired';
+    const owner = this.#ownership.resolve(pending.agent.session.id);
+    if (
+      pending.signal?.aborted ||
+      !this.#isLive(pending.agent) ||
+      owner?.rootRole !== 'orchestrator' ||
+      owner.botSlug !== botSlug
+    ) {
+      this.#cancel(messageId);
+      return 'expired';
+    }
+    return 'pending';
   }
 
   async answer(
@@ -195,7 +212,15 @@ export class ChannelUserQuestions {
       replyTo: messageId,
       userQuestionResolution: { requestMessageId: messageId, state: 'cancelled' },
     };
-    void this.#channels.appendMessage(pending.channelId, resolution).catch(() => undefined);
+    // ChannelStore serializes appends per Channel, so an in-flight Human answer
+    // commits before this cancellation and the final visible state is cancelled.
+    void this.#channels.appendMessage(pending.channelId, resolution).then(
+      (saved) => {
+        if (saved === undefined)
+          this.#warn(`botharness.channel_question.cancel_append_failed request=${messageId}`);
+      },
+      () => this.#warn(`botharness.channel_question.cancel_append_failed request=${messageId}`),
+    );
     pending.reject(new Error('DSH user question was cancelled'));
   }
 }
