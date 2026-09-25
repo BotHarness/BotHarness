@@ -896,6 +896,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                  SELECT source_event_id FROM source_events WHERE message_id = ?
                ) AND reason = 'group-invite' AND attempt_state IN ('pending', 'retryable')
             `).run(timestamp, invitation.id);
+          db.prepare(`
+            UPDATE inbox_admissions
+               SET attempt_state = 'needs-repair', last_error = 'Group membership revoked'
+             WHERE bot_slug = ? AND reason = 'group-ordinary'
+               AND attempt_state IN ('pending', 'retryable')
+               AND source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE channel_id = ?
+               )
+          `).run(botSlug, channelId);
         },
         ['channel', 'bot-inbox'],
       );
@@ -918,6 +927,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       delete deleted.ownerBotSlug;
+      delete deleted.wakePolicies;
       database.transaction(
         (db) => {
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(

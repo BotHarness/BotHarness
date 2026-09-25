@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
+import { isChannelRecord } from '../src/channels/channel.js';
 import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter, OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
@@ -255,6 +256,77 @@ describe('Group ordinary-message digest', () => {
       await core.runtime.whenIdle();
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('ordinary waiting');
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+  it('keeps a failed no-side-effect digest retryable with a bounded delay', async () => {
+    const home = createTempRoot('botharness-digest-retry-');
+    let attempts = 0;
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async () => {
+        attempts += 1;
+        throw new Error('Temporary provider failure');
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'digest',
+        count: 1,
+        intervalSeconds: 3600,
+      });
+      await ordinary(core, group.id, 'retry-me');
+      await core.runtime.whenIdle();
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      expect(attempts).toBe(1);
+      const facts = attachOperationalModule(core.operationalDatabase, 'digest-retry').read((db) =>
+        db
+          .prepare(
+            "SELECT attempt_state, side_effect_started_at FROM inbox_admissions WHERE reason = 'group-ordinary'",
+          )
+          .get(),
+      );
+      expect(facts).toEqual({ attempt_state: 'retryable', side_effect_started_at: null });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('revokes pending digest admission when a member leaves and keeps deleted records valid', async () => {
+    const home = createTempRoot('botharness-digest-revoke-');
+    const core = createCore({ dshHome: home, agents: adapter(async () => {}) });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'digest',
+        count: 5,
+        intervalSeconds: 3600,
+      });
+      await ordinary(core, group.id, 'pending');
+      core.channels.removeGroupMember(group.id, 'ada');
+      const fact = attachOperationalModule(core.operationalDatabase, 'digest-revoke').read((db) =>
+        db
+          .prepare("SELECT attempt_state FROM inbox_admissions WHERE reason = 'group-ordinary'")
+          .get(),
+      );
+      expect(fact).toEqual({ attempt_state: 'needs-repair' });
+      const second = core.channels.createGroup({ name: 'Another', members: ['ada'] });
+      core.channels.setGroupWakePolicy(second.id, 'ada', {
+        mode: 'digest',
+        count: 2,
+        intervalSeconds: 3600,
+      });
+      core.channels.deleteGroup(second.id);
+      const record = attachOperationalModule(core.operationalDatabase, 'digest-delete').read((db) =>
+        db.prepare('SELECT record_json FROM channel_records WHERE channel_id = ?').get(second.id),
+      ) as { record_json: string };
+      expect(isChannelRecord(JSON.parse(record.record_json), second.id)).toBe(true);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

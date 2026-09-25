@@ -501,6 +501,8 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #scheduledAdmissions = new Set<string>();
   readonly #scheduledDigests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
+  readonly #digestRetryAt = new Map<string, number>();
+  readonly #digestFailureCount = new Map<string, number>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
   #closed = false;
 
@@ -814,6 +816,19 @@ class BotRuntimeImplementation implements BotRuntime {
     if (prior !== undefined) clearTimeout(prior);
     this.#digestTimers.delete(key);
     if (first === undefined) return;
+    const retryAt = this.#digestRetryAt.get(key);
+    if (retryAt !== undefined && retryAt > this.#now().getTime()) {
+      const timer = setTimeout(
+        () => {
+          this.#digestTimers.delete(key);
+          this.#scheduleDigest(botSlug, channelId);
+        },
+        Math.max(1, retryAt - this.#now().getTime()),
+      );
+      timer.unref();
+      this.#digestTimers.set(key, timer);
+      return;
+    }
     const count = this.#database.read((database) =>
       database
         .prepare(`
@@ -954,7 +969,6 @@ class BotRuntimeImplementation implements BotRuntime {
     let orchestrator: { sessionId: string; resume: boolean } | undefined;
     try {
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
-      markSideEffect();
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,
@@ -965,6 +979,8 @@ class BotRuntimeImplementation implements BotRuntime {
         false,
         markSideEffect,
       );
+      this.#digestRetryAt.delete(`${botSlug}:${channelId}`);
+      this.#digestFailureCount.delete(`${botSlug}:${channelId}`);
       this.#database.transaction(
         (database) => {
           for (const id of ids)
@@ -978,6 +994,13 @@ class BotRuntimeImplementation implements BotRuntime {
         ['bot-inbox'],
       );
     } catch (error) {
+      const retryKey = `${botSlug}:${channelId}`;
+      const failures = Math.min(6, (this.#digestFailureCount.get(retryKey) ?? 0) + 1);
+      this.#digestFailureCount.set(retryKey, failures);
+      this.#digestRetryAt.set(
+        retryKey,
+        this.#now().getTime() + Math.min(300_000, 10_000 * 2 ** (failures - 1)),
+      );
       this.#setObserved(collected.eventIds, null);
       this.#database.transaction(
         (database) => {
@@ -1227,6 +1250,8 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#closed = true;
     for (const timer of this.#digestTimers.values()) clearTimeout(timer);
     this.#digestTimers.clear();
+    this.#digestRetryAt.clear();
+    this.#digestFailureCount.clear();
     await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
