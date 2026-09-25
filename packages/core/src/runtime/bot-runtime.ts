@@ -1585,10 +1585,12 @@ class BotRuntimeImplementation implements BotRuntime {
           .digest('hex')
           .slice(0, 16);
         type SortKey = { at: string; channelId: string; messageId: string };
+        const descending = (left: string, right: string): number =>
+          right < left ? -1 : right > left ? 1 : 0;
         const compare = (left: SortKey, right: SortKey): number =>
-          right.at.localeCompare(left.at) ||
-          right.channelId.localeCompare(left.channelId) ||
-          right.messageId.localeCompare(left.messageId);
+          descending(left.at, right.at) ||
+          descending(left.channelId, right.channelId) ||
+          descending(left.messageId, right.messageId);
         let after: SortKey | undefined;
         if (input.cursor !== undefined) {
           try {
@@ -1621,6 +1623,14 @@ class BotRuntimeImplementation implements BotRuntime {
           ...filters
         } = input;
         const limit = Math.max(1, Math.min(Math.floor(input.limit ?? 20), MAX_MESSAGE_PAGE));
+        const afterTo =
+          after !== undefined && Number.isFinite(Date.parse(after.at)) ? after.at : undefined;
+        if (
+          afterTo !== undefined &&
+          filters.from !== undefined &&
+          Date.parse(filters.from) > Date.parse(afterTo)
+        )
+          return { messages: [] };
         const found: ChannelMessageView[] = [];
         for (const channel of channels) {
           let cursor: string | undefined;
@@ -1628,6 +1638,8 @@ class BotRuntimeImplementation implements BotRuntime {
             const page = this.#channels.queryMessages(channel.id, {
               ...filters,
               text,
+              ...(afterTo !== undefined && filters.to === undefined ? { to: afterTo } : {}),
+              orderBy: 'time',
               ...(cursor === undefined ? {} : { cursor }),
               limit: MAX_MESSAGE_PAGE,
             });
@@ -1644,6 +1656,18 @@ class BotRuntimeImplementation implements BotRuntime {
             );
             found.length = Math.min(found.length, limit + 1);
             cursor = page.nextCursor;
+            const tail = page.messages.at(-1);
+            const worst = found[limit];
+            if (
+              cursor !== undefined &&
+              tail !== undefined &&
+              worst !== undefined &&
+              compare(
+                { at: tail.at, channelId: channel.id, messageId: tail.id },
+                { at: worst.message.at, channelId: worst.channelId, messageId: worst.message.id },
+              ) >= 0
+            )
+              break;
           } while (cursor !== undefined);
         }
         const page = found;

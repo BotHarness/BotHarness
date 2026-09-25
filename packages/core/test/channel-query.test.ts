@@ -165,4 +165,79 @@ describe('PersonaBot Channel history query', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('sorts cross-Channel pages by message time when older commits arrive later', async () => {
+    const home = createTempRoot('botharness-joined-order-');
+    let groupId = '';
+    let checked = false;
+    let failure: unknown;
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        try {
+          const first = run.channels.query({ scope: 'joined', text: 'chronology', limit: 2 });
+          expect(first.messages.map((view) => view.message.id)).toEqual(['new-119', 'new-118']);
+          const cursor = first.nextCursor;
+          if (cursor === undefined) throw new Error('Expected joined cursor');
+          const second = run.channels.query({
+            scope: 'joined',
+            text: 'chronology',
+            cursor,
+            limit: 2,
+          });
+          expect(second.messages.map((view) => view.message.id)).toEqual(['new-117', 'new-116']);
+          const groupFirst = run.channels.query({
+            channelId: groupId,
+            text: 'chronology',
+            orderBy: 'time',
+            limit: 2,
+          });
+          expect(groupFirst.messages.map((view) => view.message.id)).toEqual([
+            'new-119',
+            'new-118',
+          ]);
+          checked = true;
+        } catch (error) {
+          failure = error;
+          throw error;
+        }
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Timeline', members: ['ada'] });
+      groupId = group.id;
+      for (const [prefix, day] of [
+        ['new', 2],
+        ['backfill', 1],
+      ] as const) {
+        for (let index = 0; index < 120; index++) {
+          await core.channels.appendMessage(groupId, {
+            id: prefix + '-' + index,
+            at: new Date(Date.UTC(2026, 8, day, 0, 0, index)).toISOString(),
+            author: { kind: 'human' },
+            body: 'chronology ' + prefix + ' ' + index,
+          });
+        }
+      }
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'ask-order',
+        at: '2026-09-03T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Find history',
+      });
+      core.runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'ask-order',
+        body: 'Find history',
+      });
+      await core.runtime.whenIdle();
+      expect(failure).toBeUndefined();
+      expect(checked).toBe(true);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });

@@ -965,24 +965,31 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     queryMessages(id, queryOptions) {
       const query = prepareChannelMessageQuery(id, queryOptions);
       if (!isValidChannelId(id)) return { messages: [] };
-      let beforeRevision: number | undefined;
+      let before: { revision: number; at: string; message_id: string } | undefined;
       if (query.beforeId !== undefined) {
         const beforeId = query.beforeId;
-        const cursor = database.read((db) =>
+        before = database.read((db) =>
           db
-            .prepare(
-              'SELECT revision FROM channel_placements WHERE channel_id = ? AND message_id = ?',
-            )
+            .prepare(`
+              SELECT p.revision, e.created_at AS at, p.message_id
+                FROM channel_placements p
+                JOIN source_events e ON e.source_event_id = p.source_event_id
+               WHERE p.channel_id = ? AND p.message_id = ?
+            `)
             .get(id, beforeId),
-        ) as { revision: number } | undefined;
-        if (cursor === undefined) throw new Error('channel_read: invalid cursor');
-        beforeRevision = cursor.revision;
+        ) as typeof before;
+        if (before === undefined) throw new Error('channel_read: invalid cursor');
       }
       const where = ['p.channel_id = ?'];
       const values: Array<string | number> = [id];
-      if (beforeRevision !== undefined) {
-        where.push('p.revision < ?');
-        values.push(beforeRevision);
+      if (before !== undefined) {
+        if (query.orderBy === 'time') {
+          where.push('(e.created_at < ? OR (e.created_at = ? AND p.message_id < ?))');
+          values.push(before.at, before.at, before.message_id);
+        } else {
+          where.push('p.revision < ?');
+          values.push(before.revision);
+        }
       }
       if (query.text !== undefined && query.text.length > 0) {
         where.push('instr(botharness_unicode_lower(e.body), ?) > 0');
@@ -1018,7 +1025,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             FROM channel_placements p
             JOIN source_events e ON e.source_event_id = p.source_event_id
            WHERE ${where.join(' AND ')}
-           ORDER BY p.revision DESC LIMIT ?
+           ORDER BY ${query.orderBy === 'time' ? 'e.created_at DESC, p.message_id DESC' : 'p.revision DESC'} LIMIT ?
         `)
           .all(...values, query.limit + 1);
       }) as unknown as PlacementRow[];
