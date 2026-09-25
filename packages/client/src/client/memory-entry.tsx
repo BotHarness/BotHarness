@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
@@ -14,11 +15,14 @@ import {
 export function MemoryEntry({
   actions,
   channelId,
+  conversationRevision,
   onMemoryCommitSelect,
   selectedMemoryCommitSha,
   t,
 }: ChannelSidebarEntryProps): ReactElement {
   const [refresh, setRefresh] = useState(0);
+  const [branchChoice, setBranchChoice] = useState('');
+  const [branchRequest, setBranchRequest] = useState<string>();
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
   const [graph, setGraph] = useState<MemoryGitGraph>();
   const [loadingMore, setLoadingMore] = useState(false);
@@ -59,7 +63,14 @@ export function MemoryEntry({
         void actions
           .memoryGitGraph(channelId, 0)
           .then((next) => {
-            if (active) setGraph(next);
+            if (active) {
+              setGraph(next);
+              setBranchChoice((current) =>
+                next.branches.includes(current)
+                  ? current
+                  : (next.currentBranch ?? next.branches[0] ?? ''),
+              );
+            }
           })
           .catch((failure: unknown) => {
             if (active) setGraphError(failure instanceof Error ? failure.message : String(failure));
@@ -68,7 +79,7 @@ export function MemoryEntry({
     return () => {
       active = false;
     };
-  }, [actions, channelId, refresh]);
+  }, [actions, channelId, refresh, conversationRevision]);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +112,25 @@ export function MemoryEntry({
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       setLoadingMore(false);
+    }
+  };
+
+  const requestBranchSwitch = async (): Promise<void> => {
+    if (graph === undefined || branchChoice === '' || branchChoice === graph.currentBranch || busy)
+      return;
+    setBusy(true);
+    setError(undefined);
+    const target = branchChoice;
+    try {
+      const sent = await actions.send(
+        t('memory.branchSwitchPrompt', { branch: JSON.stringify(target) }),
+      );
+      if (!sent) throw new Error(t('memory.branchRequestFailed'));
+      setBranchRequest(target);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -161,8 +191,6 @@ export function MemoryEntry({
       {snapshot === undefined ? (
         snapshotError === undefined ? (
           <div className="bh-note">{t('memory.loading')}</div>
-        ) : graph !== undefined && graph.currentBranch !== 'main' ? (
-          <div className="bh-note">{t('memory.acceptedOnMainOnly')}</div>
         ) : (
           <div className="bh-error" role="alert">
             {snapshotError}
@@ -262,6 +290,33 @@ export function MemoryEntry({
                 <span className="bh-memory-graph-dirty"> · {t('memory.dirty')}</span>
               ) : null}
             </div>
+            <div className="bh-memory-branch-control">
+              <label htmlFor="bh-memory-branch-choice">{t('memory.branch')}</label>
+              <select
+                id="bh-memory-branch-choice"
+                value={branchChoice}
+                onChange={(event) => setBranchChoice(event.target.value)}
+              >
+                {graph.branches.map((branch) => (
+                  <option key={branch} value={branch}>
+                    {branch}
+                  </option>
+                ))}
+              </select>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || branchChoice === '' || branchChoice === graph.currentBranch}
+                onClick={() => void requestBranchSwitch()}
+              >
+                {t('memory.switchBranch')}
+              </Button>
+            </div>
+            {branchRequest === undefined || branchRequest === graph.currentBranch ? null : (
+              <div className="bh-note" role="status">
+                {t('memory.branchRequested')} {branchRequest}
+              </div>
+            )}
             <div className="bh-memory-graph-list" role="list" aria-label={t('memory.gitGraph')}>
               {graph.commits.map((commit, index) => {
                 const row = lanes[index]!;

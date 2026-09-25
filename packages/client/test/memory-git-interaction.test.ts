@@ -1,12 +1,20 @@
 // @vitest-environment jsdom
-import { act, createElement } from 'react';
+import { act, createElement, type ButtonHTMLAttributes } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
-    Button: stub,
+    Button: ({
+      children,
+      variant: _variant,
+      size: _size,
+      ...props
+    }: ButtonHTMLAttributes<HTMLButtonElement> & {
+      variant?: string;
+      size?: string;
+    }) => createElement('button', props, children),
     IconAgentPresetOutline16: stub,
     IconAgentPresetOutlineRegular: stub,
     IconChevronDownOutline14: stub,
@@ -67,6 +75,7 @@ describe('Memory Git graph sidebar', () => {
     const graph: MemoryGitGraph = {
       head: SHA,
       currentBranch: 'experiment',
+      branches: ['experiment'],
       dirty: false,
       commits: [
         {
@@ -103,7 +112,7 @@ describe('Memory Git graph sidebar', () => {
     expect(container.textContent).toContain('experiment');
     expect(container.textContent).toContain('Explore old memory');
     expect(container.textContent).toContain('待验收');
-    expect(container.textContent).toContain('Git 历史仍可查看');
+    expect(container.textContent).toContain('Memory Repository must be on main');
     const row = container.querySelector<HTMLButtonElement>('.bh-memory-graph-row');
     expect(row).not.toBeNull();
     await act(async () => row?.click());
@@ -122,6 +131,7 @@ describe('Memory Git graph sidebar', () => {
         return {
           head: SHA,
           currentBranch: 'main',
+          branches: ['main'],
           dirty: false,
           commits: [
             {
@@ -160,6 +170,61 @@ describe('Memory Git graph sidebar', () => {
     expect(container.textContent).toContain('已验收');
   });
 
+  it('sends an explicit branch request and refreshes the graph after Channel activity', async () => {
+    const graph = (currentBranch: string): MemoryGitGraph => ({
+      head: SHA,
+      currentBranch,
+      branches: ['history-qa', 'main'],
+      dirty: false,
+      commits: [
+        {
+          sha: SHA,
+          parents: [],
+          subject: 'Accepted memory',
+          authoredAt: '2026-09-25T00:00:00Z',
+          branches: [currentBranch],
+          status: 'accepted',
+        },
+      ],
+      hasMore: false,
+    });
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({ head: SHA, files: [], provisional: false }),
+      memoryGitGraph: vi
+        .fn()
+        .mockResolvedValueOnce(graph('main'))
+        .mockResolvedValue(graph('history-qa')),
+      send: vi.fn().mockResolvedValue(true),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-qa',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () =>
+      root.render(createElement(MemoryEntry, { ...props, conversationRevision: 0 })),
+    );
+    const choice = container.querySelector<HTMLSelectElement>('#bh-memory-branch-choice');
+    expect(choice).not.toBeNull();
+    await act(async () => {
+      choice!.value = 'history-qa';
+      choice!.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    const button = [
+      ...container.querySelectorAll<HTMLButtonElement>('.bh-memory-branch-control button'),
+    ].find((item) => item.textContent === '切换');
+    await act(async () => button?.click());
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history-qa'));
+    expect(container.textContent).toContain('已发送切换请求');
+    await act(async () =>
+      root.render(createElement(MemoryEntry, { ...props, conversationRevision: 1 })),
+    );
+    expect(actions.memoryGitGraph).toHaveBeenCalledTimes(2);
+    expect(container.querySelector('.bh-memory-graph-branch')?.textContent).toBe('history-qa');
+  });
+
   it('shows a graph query failure instead of a permanent loading indicator', async () => {
     const actions = {
       memorySnapshot: vi.fn().mockResolvedValue({ head: SHA, files: [], provisional: false }),
@@ -188,6 +253,7 @@ describe('Memory Git graph sidebar', () => {
     const graph: MemoryGitGraph = {
       head: SHA,
       currentBranch: 'main',
+      branches: ['main'],
       dirty: false,
       commits: [
         {

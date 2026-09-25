@@ -216,6 +216,7 @@ export function ChannelSidebar({
   const entryProps: ChannelSidebarEntryProps = {
     scope,
     channelId: channel.id,
+    conversationRevision: state.conversation.revision,
     botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
     actions,
     t,

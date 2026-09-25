@@ -17,6 +17,7 @@ import { describe, expect, it } from 'vitest';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
 import { createMemoryService } from '../src/memory/service.js';
 import { ensureMemoryRepository } from '../src/memory/repository.js';
 import { createSessionOwnership } from '../src/sessions/ownership.js';
@@ -64,6 +65,52 @@ function git(root: string, ...args: string[]): string {
 }
 
 describe('accepted Memory Commit boundary', () => {
+  it('migrates an existing accepted main head to branch-scoped storage', () => {
+    const home = createTempRoot('botharness-memory-migration-');
+    const previousPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
+    const sha = 'a'.repeat(40);
+    let owner = mountOperationalDatabase({ dshHome: home, schemaPlan: previousPlan });
+    try {
+      expect(owner.mode).toBe('ready');
+      attachOperationalModule(owner, 'memory-test').transaction((db) => {
+        db.prepare(
+          "INSERT INTO memory_accepted_commits (bot_slug, sha, parent_sha, actor_kind, actor_id, cause_kind, cause_id, validation_result, accepted_at) VALUES (?, ?, NULL, 'system', 'test', 'repository-init', 'bootstrap', 'ok', ?)",
+        ).run('atlas', sha, FIXED_NOW().toISOString());
+        db.prepare(
+          'INSERT INTO memory_accepted_heads (bot_slug, head_sha, updated_at) VALUES (?, ?, ?)',
+        ).run('atlas', sha, FIXED_NOW().toISOString());
+      });
+      owner.close();
+
+      owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+      expect(owner.mode).toBe('ready');
+      const port = attachOperationalModule(owner, 'memory-test');
+      expect(
+        port.read((db) =>
+          db
+            .prepare('SELECT branch_name, head_sha FROM memory_accepted_heads WHERE bot_slug = ?')
+            .all('atlas'),
+        ),
+      ).toEqual([{ branch_name: 'main', head_sha: sha }]);
+      port.transaction((db) => {
+        db.prepare(
+          'INSERT INTO memory_accepted_heads (bot_slug, branch_name, head_sha, updated_at) VALUES (?, ?, ?, ?)',
+        ).run('atlas', 'history', sha, FIXED_NOW().toISOString());
+      });
+      expect(
+        port.read((db) =>
+          db
+            .prepare(
+              'SELECT branch_name FROM memory_accepted_heads WHERE bot_slug = ? ORDER BY branch_name',
+            )
+            .all('atlas'),
+        ),
+      ).toEqual([{ branch_name: 'history' }, { branch_name: 'main' }]);
+    } finally {
+      owner.close();
+      rmSync(home, { recursive: true, force: true });
+    }
+  });
   it('shows local Git branches and opens the diff of a pending commit without accepting it', () => {
     const { database, registry, memory, root } = fixture();
     try {
@@ -151,6 +198,157 @@ describe('accepted Memory Commit boundary', () => {
       database.close();
     }
   });
+
+  it('switches to an accepted historical branch and accepts later work there without changing main', () => {
+    const { database, registry, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      addSource('event-main');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'state.md'), 'Main memory\n');
+      const [mainCommit] = memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'event-main',
+      });
+      expect(mainCommit?.parentSha).toBe(seed);
+      git(root, 'branch', 'review', seed);
+
+      addSource('event-switch');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'review' }),
+      ).toMatchObject({ from: 'main', to: 'review', head: seed });
+      expect(git(root, 'branch', '--show-current')).toBe('review');
+      expect(existsSync(join(root, 'state.md'))).toBe(false);
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-switch',
+        }),
+      ).toEqual([]);
+      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
+
+      addSource('event-review');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'state.md'), 'Review memory\n');
+      const [reviewCommit] = memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'event-review',
+      });
+      expect(reviewCommit?.parentSha).toBe(seed);
+      expect(memory.readAccepted('atlas', 'state.md')?.body).toBe('Review memory\n');
+      expect(
+        memory.gitGraph('atlas').commits.find((item) => item.sha === reviewCommit?.sha)?.status,
+      ).toBe('accepted');
+
+      addSource('event-return');
+      memory.prepareTurn('atlas', 'session-atlas');
+      memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'main' });
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'event-return',
+      });
+      expect(readFileSync(join(root, 'state.md'), 'utf8')).toBe('Main memory\n');
+      expect(memory.snapshot('atlas').head).toBe(mainCommit?.sha);
+      const reopened = createMemoryService({
+        registry,
+        ownership: ownershipOf(database),
+        database,
+        now: FIXED_NOW,
+      });
+      expect(reopened.gitGraph('atlas').currentBranch).toBe('main');
+      expect(
+        reopened.gitGraph('atlas').commits.find((item) => item.sha === reviewCommit?.sha)?.status,
+      ).toBe('accepted');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('refuses to leave a branch with an unaccepted commit from the active turn', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      git(root, 'branch', 'history', 'HEAD');
+      addSource('event-unaccepted');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'unaccepted.md'), 'Not yet accepted\n');
+      git(root, 'add', 'unaccepted.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Unaccepted memory',
+      );
+      expect(() =>
+        memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'history' }),
+      ).toThrow(/unaccepted commits/);
+      expect(git(root, 'branch', '--show-current')).toBe('main');
+      memory.abortTurn('atlas', 'session-atlas');
+    } finally {
+      database.close();
+    }
+  });
+  it('preserves unfinished edits and rejects a pending branch tip without accepting it', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      git(root, 'branch', 'pending', seed);
+      git(root, 'switch', 'pending');
+      writeFileSync(join(root, 'pending.md'), 'Raw pending\n');
+      git(root, 'add', 'pending.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Pending memory',
+      );
+      const pendingSha = git(root, 'rev-parse', 'HEAD');
+      git(root, 'switch', 'main');
+      addSource('event-pending');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(() =>
+        memory.switchBranch({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          branch: 'pending',
+        }),
+      ).toThrow(/not accepted/);
+      expect(git(root, 'branch', '--show-current')).toBe('main');
+      expect(memory.gitGraph('atlas').commits.find((item) => item.sha === pendingSha)?.status).toBe(
+        'pending',
+      );
+      memory.abortTurn('atlas', 'session-atlas');
+
+      addSource('event-dirty');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'unfinished.md'), 'Preserve me\n');
+      expect(() =>
+        memory.switchBranch({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          branch: 'pending',
+        }),
+      ).toThrow(/unfinished/);
+      expect(readFileSync(join(root, 'unfinished.md'), 'utf8')).toBe('Preserve me\n');
+      expect(git(root, 'branch', '--show-current')).toBe('main');
+      memory.abortTurn('atlas', 'session-atlas');
+    } finally {
+      database.close();
+    }
+  });
+
   it('bootstraps a clean new repository when Human opens Memory first', () => {
     const { database, memory, root } = fixture();
     try {
