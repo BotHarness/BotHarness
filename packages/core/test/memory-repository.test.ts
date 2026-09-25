@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ensureMemoryRepository, inspectMemoryRepository } from '../src/memory/repository.js';
 import { createTempRoot } from './helpers.js';
@@ -12,6 +12,19 @@ function headOf(memoryDir: string): string {
 }
 
 describe('Memory Repository lifecycle', () => {
+  it('reports a missing Git executable without exposing a raw spawn error', () => {
+    const root = createTempRoot();
+    vi.stubEnv('PATH', join(root, 'no-git-on-path'));
+    try {
+      expect(ensureMemoryRepository({ memoryDir: join(root, 'memory') })).toMatchObject({
+        ok: false,
+        code: 'git-not-found',
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('creates a real Git repository with a seed commit and is idempotent', () => {
     const memoryDir = join(createTempRoot(), 'memory');
 

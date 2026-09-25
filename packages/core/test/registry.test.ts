@@ -82,6 +82,7 @@ describe('createPersonaBotRegistry', () => {
       detail: 'git-init-failed',
     });
     expect(registry.get('broken')).toBeUndefined();
+    expect(existsSync(join(root, 'broken'))).toBe(false);
   });
 
   it('writes the provided persona body and never overwrites an existing PERSONA.md', () => {

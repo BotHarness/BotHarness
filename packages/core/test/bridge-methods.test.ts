@@ -275,6 +275,19 @@ describe('bridge methods', () => {
     );
   });
 
+  it('reports a missing Git prerequisite without exposing a spawn error', () => {
+    const { registry, methods } = setup();
+    registry.create = () => ({ ok: false, reason: 'git-not-found', detail: 'spawn git ENOENT' });
+
+    expect(methods.create({ displayName: 'No Git' })).toEqual({
+      ok: false,
+      error: {
+        code: 'git-not-found',
+        message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
+      },
+    });
+    expect(registry.list()).toEqual([]);
+  });
   it('creates a name-only bot with its Memory directory and no Persona file', () => {
     const { root, methods } = setup([], ['plain']);
 
