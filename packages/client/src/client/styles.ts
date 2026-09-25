@@ -1767,6 +1767,19 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-bubble-body-markdown > :first-child > :last-child {
   margin-bottom: 0;
 }
+.bh-bot-mention-prefix {
+  display: inline;
+}
+.bh-bot-mention-prefix .bh-inline-mention + .bh-inline-mention {
+  margin-left: 4px;
+}
+.bh-bubble-body-bot-mentions > :not(.bh-bot-mention-prefix) {
+  display: contents;
+}
+.bh-bubble-body-bot-mentions > :not(.bh-bot-mention-prefix) > p:first-child {
+  display: inline;
+  margin: 0;
+}
 .bh-bubble-body-markdown .md-code-block {
   max-width: 100%;
 }
@@ -2537,6 +2550,36 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   padding: 6px 8px;
 }
 
+.bh-member-row .bh-name {
+  flex: 1;
+  min-width: 0;
+}
+.bh-group-invitations {
+  margin-top: 12px;
+}
+.bh-group-invitations-title {
+  padding: 4px 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-group-manage-button,
+.bh-group-delete-button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.bh-group-manage-button:hover,
+.bh-group-delete-button:hover {
+  background: var(--bh-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-group-delete-button {
+  margin: 12px 8px 4px;
+}
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */
@@ -3079,4 +3122,27 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
 .bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
 .bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
+
+.bh-bot-dm-action {
+  display: block;
+  max-width: min(100%, 520px);
+  margin: 6px auto;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bh-bot-dm-action:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-bot-dm-readonly {
+  padding: 14px 18px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
 `;

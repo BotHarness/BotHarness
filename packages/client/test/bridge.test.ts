@@ -1310,6 +1310,56 @@ describe('bridge actions', () => {
     });
   });
 
+  it('keeps successful roster metadata when the channel refresh fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failChannels = false;
+    let pins: string[] = [];
+    const { clientStore, actions } = setup({
+      channels: () => {
+        if (failChannels) throw new Error('channel read failed');
+        return { channels: [GROUP, DM] };
+      },
+      rosterGet: () => ({ pins, sections: [] }),
+    });
+    try {
+      await actions.load();
+      failChannels = true;
+      pins = ['ada'];
+      await actions.refreshRoster();
+      expect(clientStore.getSnapshot().roster.pins).toEqual(['ada']);
+      expect(clientStore.getSnapshot().channels.map((channel) => channel.id)).toEqual([
+        GROUP.id,
+        DM.id,
+      ]);
+      expect(clientStore.getSnapshot().roster.readOnly).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('removes a deleted Group locally even when the reload fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failChannels = false;
+    const { clientStore, actions } = setup({
+      channels: () => {
+        if (failChannels) throw new Error('channel read failed');
+        return { channels: [GROUP, DM] };
+      },
+      channelGroupDelete: () => ({ deleted: true }),
+    });
+    try {
+      await actions.load();
+      clientStore.select({ kind: 'channel', channelId: GROUP.id });
+      clientStore.setConversation({ channel: GROUP });
+      failChannels = true;
+      await expect(actions.deleteGroupChannel(GROUP.id)).resolves.toBe(true);
+      expect(clientStore.getSnapshot().selection).toBeUndefined();
+      expect(clientStore.getSnapshot().channels.map((channel) => channel.id)).toEqual([DM.id]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
   it('mirrors the host arrangement into the roster state', async () => {
     const { clientStore, actions } = setup({
       rosterGet: () => ({

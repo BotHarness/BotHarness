@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ToolApprovalDecision, ToolApprovalRequestCard } from '../workspaces/tool-approval.js';
 import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-questions.js';
@@ -10,8 +12,24 @@ export interface ChannelRecord {
   name: string;
   members: string[];
   botSlug?: string;
+  /** A Bot creator may manage this Group; Human authority remains separate. */
+  ownerBotSlug?: string;
+  invitations?: GroupInvitation[];
+  /** Human-only logical deletion keeps operational evidence durable. */
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface GroupInvitation {
+  id: string;
+  targetBotSlug: string;
+  /** The invited Bot incarnation; a recreated Bot cannot inherit a stale invite. */
+  targetBotCreatedAt: string;
+  inviterBotSlug: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  createdAt: string;
+  respondedAt?: string;
 }
 
 export type ChannelMessageAuthor =
@@ -50,6 +68,20 @@ export interface ChannelDelivery {
   state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
 }
 
+/** One committed send shown in the sender's Human DM without copying its body. */
+export interface BotDmAction {
+  channelId: string;
+  messageId: string;
+  recipientBotSlug: string;
+}
+
+/** Host-derived chain metadata. Never accept this from a browser or model argument. */
+export interface BotMessageCausation {
+  rootSourceEventId: string;
+  parentSourceEventId: string;
+  hop: number;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -61,6 +93,8 @@ export interface ChannelMessage {
   mentions?: ChannelMention[];
   /** Read-only projection from per-Bot Inbox Admissions. */
   deliveries?: ChannelDelivery[];
+  botDmAction?: BotDmAction;
+  botCausation?: BotMessageCausation;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
   /** One exact live DSH tool call waiting for Human approval. */
@@ -82,6 +116,8 @@ export interface ChannelMessage {
   replyToPreview?: ChannelReplyPreview | null;
 }
 
+export const MAX_BOT_HOPS = 8;
+
 export const CHANNEL_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 export const MAX_CHANNEL_SLUG_LENGTH = 64;
 
@@ -91,6 +127,16 @@ export function isValidChannelId(id: string): boolean {
 
 export function dmChannelId(botSlug: string): string {
   return `dm-${botSlug}`;
+}
+
+/** Ordered IDs avoid a second DM when the recipient replies. */
+export function botDmChannelId(firstBotSlug: string, secondBotSlug: string): string {
+  const pair = [firstBotSlug, secondBotSlug].sort();
+  return `dm-bots-${createHash('sha256').update(JSON.stringify(pair)).digest('hex').slice(0, 32)}`;
+}
+
+export function isBotDmChannel(channel: ChannelRecord): boolean {
+  return channel.type === 'dm' && channel.botSlug === undefined && channel.members.length === 2;
 }
 
 export function slugifyChannelName(name: string): string {
@@ -134,6 +180,37 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
   if (!Array.isArray(members) || !members.every((entry) => typeof entry === 'string')) return false;
   const botSlug = record['botSlug'];
   if (botSlug !== undefined && typeof botSlug !== 'string') return false;
+  const ownerBotSlug = record['ownerBotSlug'];
+  if (ownerBotSlug !== undefined) {
+    if (
+      record['type'] !== 'group' ||
+      typeof ownerBotSlug !== 'string' ||
+      !members.includes(ownerBotSlug)
+    )
+      return false;
+  }
+  if (record['deletedAt'] !== undefined && typeof record['deletedAt'] !== 'string') return false;
+  const invitations = record['invitations'];
+  if (invitations !== undefined) {
+    if (
+      record['type'] !== 'group' ||
+      !Array.isArray(invitations) ||
+      !invitations.every((item: unknown) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const invite = item as Record<string, unknown>;
+        return (
+          typeof invite['id'] === 'string' &&
+          typeof invite['targetBotSlug'] === 'string' &&
+          typeof invite['targetBotCreatedAt'] === 'string' &&
+          typeof invite['inviterBotSlug'] === 'string' &&
+          ['pending', 'accepted', 'declined', 'cancelled'].includes(String(invite['status'])) &&
+          typeof invite['createdAt'] === 'string' &&
+          (invite['respondedAt'] === undefined || typeof invite['respondedAt'] === 'string')
+        );
+      })
+    )
+      return false;
+  }
   return true;
 }
 
@@ -289,6 +366,31 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
           !Array.isArray(resolution['answers']))) ||
       (resolution['state'] === 'cancelled' &&
         (message['author'] as ChannelMessageAuthor)?.kind !== 'bot')
+    )
+      return false;
+  }
+  const botDmAction = message['botDmAction'];
+  if (botDmAction !== undefined) {
+    if (typeof botDmAction !== 'object' || botDmAction === null) return false;
+    const action = botDmAction as Record<string, unknown>;
+    if (
+      typeof action['channelId'] !== 'string' ||
+      typeof action['messageId'] !== 'string' ||
+      typeof action['recipientBotSlug'] !== 'string' ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot'
+    )
+      return false;
+  }
+  const botCausation = message['botCausation'];
+  if (botCausation !== undefined) {
+    if (typeof botCausation !== 'object' || botCausation === null) return false;
+    const causal = botCausation as Record<string, unknown>;
+    if (
+      typeof causal['rootSourceEventId'] !== 'string' ||
+      typeof causal['parentSourceEventId'] !== 'string' ||
+      !Number.isSafeInteger(causal['hop']) ||
+      (causal['hop'] as number) < 1 ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'bot'
     )
       return false;
   }

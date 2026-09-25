@@ -23,6 +23,15 @@ export interface ChannelSummary {
   name: string;
   members: string[];
   botSlug?: string;
+  ownerBotSlug?: string;
+  invitations?: Array<{
+    id: string;
+    targetBotSlug: string;
+    inviterBotSlug: string;
+    status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    createdAt: string;
+    respondedAt?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   /** Latest durable message projected by the Channel list query for compact previews. */
@@ -111,6 +120,8 @@ export interface ChannelMessage {
     botSlug: string;
     state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
   }[];
+  /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
+  botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
   grantRequest?: true;
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;

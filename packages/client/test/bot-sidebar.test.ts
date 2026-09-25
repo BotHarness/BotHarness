@@ -186,6 +186,9 @@ function stubActions(): BridgeActions {
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
+    cancelGroupInvitation: vi.fn(async () => true),
+    removeGroupMember: vi.fn(async () => true),
+    deleteGroupChannel: vi.fn(async () => true),
     createSection: vi.fn(async () => undefined),
     renameSection: vi.fn(async () => true),
     removeSection: vi.fn(async () => true),
@@ -597,7 +600,7 @@ describe('bot sidebar rows', () => {
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
     expect(
       menu.items.filter((item) => item['label'] !== undefined).map((item) => item['label']),
-    ).toEqual(['最近更新', '手动排序', '隐藏的频道']);
+    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊']);
     expect(menu.selectedId).toBe('manual');
   });
 

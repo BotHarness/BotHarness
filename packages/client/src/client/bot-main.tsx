@@ -24,6 +24,7 @@ import {
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import { isBotDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
@@ -437,15 +438,18 @@ function ConversationView({
     selection?.kind === 'bot'
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
+  const botDm = isBotDmChannel(channel);
   const title =
     channel?.type === 'dm'
-      ? (bot?.displayName ??
-        state.bots.find((candidate) => candidate.slug === channel.botSlug)?.displayName ??
-        channel.name)
+      ? botDm
+        ? channel.members.map((slug) => memberName(state.bots, slug)).join(' ↔ ')
+        : (bot?.displayName ??
+          state.bots.find((candidate) => candidate.slug === channel.botSlug)?.displayName ??
+          channel.name)
       : (channel?.name ?? bot?.displayName ?? t('main.group.title'));
   const botActivity = bot === undefined ? undefined : personaBotActivity(state, bot);
   const channelBots =
-    channel?.type === 'group'
+    channel !== undefined && (channel.type === 'group' || botDm)
       ? channel.members.flatMap((slug) => {
           const member = state.bots.find((candidate) => candidate.slug === slug);
           return member === undefined ? [] : [member];
@@ -888,78 +892,97 @@ function ConversationView({
                       })}
                     </div>
                   ) : null}
-                  <MessageGroupView
-                    group={group}
-                    actions={actions}
-                    nativeChatT={nativeChatT}
-                    resolvedGrantRequests={
-                      new Set(
-                        displayMessages
-                          .filter(
-                            (item) =>
-                              item.author.kind === 'human' &&
-                              item.replyTo !== undefined &&
-                              (item.body.startsWith('已授权工作区「') ||
-                                item.body.startsWith('I authorized workspace “')),
-                          )
-                          .map((item) => item.replyTo!),
-                      )
-                    }
-                    toolApprovalDecisions={
-                      new Map(
-                        displayMessages
-                          .filter((item) => item.toolApprovalDecision !== undefined)
-                          .map((item) => [
-                            item.toolApprovalDecision!.requestMessageId,
-                            item.toolApprovalDecision!.outcome,
-                          ]),
-                      )
-                    }
-                    userQuestionResolutions={
-                      new Map(
-                        displayMessages
-                          .filter((item) => item.userQuestionResolution !== undefined)
-                          .map((item) => [
-                            item.userQuestionResolution!.requestMessageId,
-                            item.userQuestionResolution!.state,
-                          ]),
-                      )
-                    }
-                    focusMessageId={conversation.focusMessageId}
-                    bots={state.bots}
-                    onContextMenu={(message, x, y) => {
-                      setMessageMenu({ message, x, y });
-                    }}
-                    onJumpReply={(messageId) => {
-                      if (channelId !== undefined) void actions.openAround(channelId, messageId);
-                    }}
-                    onRestoreFailed={(message) => {
-                      if (channelId === undefined) return;
-                      if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
-                        setRestoreBlocked(true);
-                        return;
+                  {first.botDmAction === undefined ? (
+                    <MessageGroupView
+                      group={group}
+                      actions={actions}
+                      nativeChatT={nativeChatT}
+                      resolvedGrantRequests={
+                        new Set(
+                          displayMessages
+                            .filter(
+                              (item) =>
+                                item.author.kind === 'human' &&
+                                item.replyTo !== undefined &&
+                                (item.body.startsWith('已授权工作区「') ||
+                                  item.body.startsWith('I authorized workspace “')),
+                            )
+                            .map((item) => item.replyTo!),
+                        )
                       }
-                      if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                      setDraft(message.body);
-                      setMentionTokens(message.mentions ?? []);
-                      setUploadItems(
-                        (message.attachments ?? []).map((ref) => ({
-                          id: crypto.randomUUID(),
-                          file: new File([], ref.name, { type: ref.mime }),
-                          ref,
-                          status: 'ready' as const,
-                        })),
-                      );
-                      setReplyTarget(
-                        message.replyTo === undefined
-                          ? undefined
-                          : messages.find((candidate) => candidate.id === message.replyTo),
-                      );
-                      setRestoreBlocked(false);
-                      setRestoreFocusSignal((value) => value + 1);
-                    }}
-                    t={t}
-                  />
+                      toolApprovalDecisions={
+                        new Map(
+                          displayMessages
+                            .filter((item) => item.toolApprovalDecision !== undefined)
+                            .map((item) => [
+                              item.toolApprovalDecision!.requestMessageId,
+                              item.toolApprovalDecision!.outcome,
+                            ]),
+                        )
+                      }
+                      userQuestionResolutions={
+                        new Map(
+                          displayMessages
+                            .filter((item) => item.userQuestionResolution !== undefined)
+                            .map((item) => [
+                              item.userQuestionResolution!.requestMessageId,
+                              item.userQuestionResolution!.state,
+                            ]),
+                        )
+                      }
+                      focusMessageId={conversation.focusMessageId}
+                      bots={state.bots}
+                      onContextMenu={(message, x, y) => {
+                        setMessageMenu({ message, x, y });
+                      }}
+                      onJumpReply={(messageId) => {
+                        if (channelId !== undefined) void actions.openAround(channelId, messageId);
+                      }}
+                      onRestoreFailed={(message) => {
+                        if (channelId === undefined) return;
+                        if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
+                          setRestoreBlocked(true);
+                          return;
+                        }
+                        if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                        setDraft(message.body);
+                        setMentionTokens(message.mentions ?? []);
+                        setUploadItems(
+                          (message.attachments ?? []).map((ref) => ({
+                            id: crypto.randomUUID(),
+                            file: new File([], ref.name, { type: ref.mime }),
+                            ref,
+                            status: 'ready' as const,
+                          })),
+                        );
+                        setReplyTarget(
+                          message.replyTo === undefined
+                            ? undefined
+                            : messages.find((candidate) => candidate.id === message.replyTo),
+                        );
+                        setRestoreBlocked(false);
+                        setRestoreFocusSignal((value) => value + 1);
+                      }}
+                      t={t}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="bh-bot-dm-action"
+                      data-message-id={first.id}
+                      onClick={() => {
+                        const action = first.botDmAction!;
+                        void actions
+                          .openChannel(action.channelId)
+                          .then(() => actions.openAround(action.channelId, action.messageId));
+                      }}
+                    >
+                      {t('botDm.action', {
+                        sender: authorLabel(first, state.bots, t),
+                        recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
+                      })}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -995,50 +1018,64 @@ function ConversationView({
               {t('message.restoreBlocked')}
             </div>
           ) : null}
-          <div
-            className="bh-memory-chat-composer"
-            style={{ display: selectedMemoryCommitSha === undefined ? 'contents' : 'none' }}
-          >
-            <ChannelComposer
-              key={channelId}
-              value={draft}
-              mentions={mentionTokens}
-              mentionCandidates={channel?.type === 'group' ? channelBots : []}
-              placeholder={t('composer.placeholder', { name: title })}
-              sending={conversation.sending}
-              focusSignal={restoreFocusSignal}
-              attachments={uploadItems}
-              onAddFiles={addFiles}
-              onRetryAttachment={(id) => {
-                const item = uploadItems.find((candidate) => candidate.id === id);
-                if (item !== undefined) startUpload(item);
+          {botDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
+          {botDm ? null : (
+            <div
+              className="bh-memory-chat-composer"
+              style={{
+                display: selectedMemoryCommitSha === undefined ? 'contents' : 'none',
               }}
-              onRemoveAttachment={(id) => {
-                uploadControllers.current.get(id)?.abort();
-                uploadControllers.current.delete(id);
-                setUploadItems((current) => current.filter((item) => item.id !== id));
-              }}
-              activity={composerActivity}
-              reply={
-                replyTarget === undefined
-                  ? undefined
-                  : {
-                      id: replyTarget.id,
-                      author: authorLabel(replyTarget, state.bots, t),
-                      body: replyTarget.body,
-                    }
-              }
-              t={t}
-              onChange={(value, mentions) => {
-                setDraft(value);
-                setMentionTokens(mentions ?? []);
-                setRestoreBlocked(false);
-              }}
-              onCancelReply={() => setReplyTarget(undefined)}
-              onSubmit={submit}
-            />
-          </div>
-          {selectedMemoryCommitSha !== undefined || messageMenu === undefined ? null : (
+            >
+              <ChannelComposer
+                key={channelId}
+                value={draft}
+                mentions={mentionTokens}
+                mentionCandidates={
+                  channel?.type === 'group'
+                    ? channelBots
+                    : channel?.type === 'dm' && channel.botSlug !== undefined
+                      ? state.bots.filter(
+                          (candidate) =>
+                            candidate.slug !== channel.botSlug && candidate.paused !== true,
+                        )
+                      : []
+                }
+                placeholder={t('composer.placeholder', { name: title })}
+                sending={conversation.sending}
+                focusSignal={restoreFocusSignal}
+                attachments={uploadItems}
+                onAddFiles={addFiles}
+                onRetryAttachment={(id) => {
+                  const item = uploadItems.find((candidate) => candidate.id === id);
+                  if (item !== undefined) startUpload(item);
+                }}
+                onRemoveAttachment={(id) => {
+                  uploadControllers.current.get(id)?.abort();
+                  uploadControllers.current.delete(id);
+                  setUploadItems((current) => current.filter((item) => item.id !== id));
+                }}
+                activity={composerActivity}
+                reply={
+                  replyTarget === undefined
+                    ? undefined
+                    : {
+                        id: replyTarget.id,
+                        author: authorLabel(replyTarget, state.bots, t),
+                        body: replyTarget.body,
+                      }
+                }
+                t={t}
+                onChange={(value, mentions) => {
+                  setDraft(value);
+                  setMentionTokens(mentions ?? []);
+                  setRestoreBlocked(false);
+                }}
+                onCancelReply={() => setReplyTarget(undefined)}
+                onSubmit={submit}
+              />
+            </div>
+          )}
+          {selectedMemoryCommitSha !== undefined || messageMenu === undefined || botDm ? null : (
             <MessageActionMenu
               request={messageMenu}
               t={t}

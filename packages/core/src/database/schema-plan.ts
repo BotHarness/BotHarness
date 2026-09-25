@@ -364,6 +364,70 @@ export const CHANNEL_MESSAGING_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_DM_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 16,
+  module: 'messaging',
+  description: 'Admit Bot-to-Bot DM messages through the canonical Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention', 'bot-dm')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
+const GROUP_INVITATION_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 17,
+  module: 'messaging',
+  description: 'Deliver Group invitations through the Bot Inbox before membership',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention', 'bot-dm', 'group-invite')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -379,4 +443,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_ACCESS_MIGRATION,
   MEMORY_BRANCH_HEAD_MIGRATION,
   CHANNEL_MESSAGING_MIGRATION,
+  BOT_DM_ADMISSION_MIGRATION,
+  GROUP_INVITATION_ADMISSION_MIGRATION,
 ]);

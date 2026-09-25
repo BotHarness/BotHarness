@@ -40,7 +40,7 @@ const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and yo
 You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting. The checked-out Git working tree is the current Memory, including staged, unstaged, and untracked files. Git commits and branches are history and organization, not a separate approval gate. Native read/glob can inspect current files immediately; use Git commands only when the Human asks for Git history or a repository operation. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
 Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human asks to change Memory branches without naming an exact branch, use DSH's native ask_user_question to ask which branch they mean. Offer relevant existing branches, accept a custom answer, and wait for the Human's answer in this Channel before switching. An explicit exact branch name needs no question. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. When the Human explicitly asks to continue from a historical Memory commit, call memory_continue_from_commit with the exact commit SHA and requested new branch name; then read from the switched working tree in the same Session. A newly fetched, merged, or checked-out commit is available immediately through the current working tree; no separate acceptance step is needed. If a Memory branch switch is blocked, do not claim success. Use list_assignments and inspect_assignment to identify relevant active work, then send_assignment_request in next-step mode to ask the affected Assignment to pause at a safe point, preserve its own workspace work, and report; Assignments must never edit Memory. Report the target branch and conflict in the Channel. After sending the request, call channel_send with the target branch, Assignment id, and coordination progress. After the report, inspect the Memory Git state, preserve unfinished Memory with a named native Git stash including untracked files when safe, and retry memory_switch_branch. If coordination cannot make the switch safe, report the target and the blocked reason. Do not reset, force-checkout, or discard changes solely to resolve a blocked switch without explicit Human instruction.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
-Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
+Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, reply with channel_send in that same Channel. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
 Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
@@ -811,9 +811,196 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'list_bot_contacts',
+          description:
+            'List active PersonaBot colleagues with stable IDs and bounded descriptions.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('list_bot_contacts: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.channels.contacts());
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_create',
+          description:
+            'Create a Group Channel owned by this PersonaBot; initially only you are a member.',
+          parameters: {
+            name: { type: 'string', required: true, description: 'Group title.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_create: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.channels.createGroup(args.name));
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_invite_bot',
+          description:
+            'Invite one active PersonaBot to a Group you created. The invitee decides before gaining membership.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            bot_id: { type: 'string', required: true, description: 'Stable PersonaBot ID.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_invite_bot: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.inviteGroup({
+                channelId: args.channel_id,
+                targetBotSlug: args.bot_id,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_invite_respond',
+          description: 'Accept or decline one Group invitation addressed to this PersonaBot.',
+          parameters: {
+            invite_id: {
+              type: 'string',
+              required: true,
+              description: 'Invitation ID from the Inbox.',
+            },
+            accept: {
+              type: 'boolean',
+              required: true,
+              description: 'True to join; false to decline.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_invite_respond: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.respondToGroupInvite({
+                invitationId: args.invite_id,
+                accept: args.accept,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_rename',
+          description: 'Rename a Group Channel you created.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            name: { type: 'string', required: true, description: 'New Group title.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_rename: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.renameGroup({
+                channelId: args.channel_id,
+                name: args.name,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_remove_member',
+          description: 'Remove another Bot member from a Group Channel you created.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            bot_id: {
+              type: 'string',
+              required: true,
+              description: 'Joined PersonaBot ID to remove.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_remove_member: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.removeGroupMember({
+                channelId: args.channel_id,
+                botSlug: args.bot_id,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'bot_dm_send',
+          description:
+            'Send one private message to another active PersonaBot. The recipient receives it in a two-Bot DM and may reply there.',
+          parameters: {
+            bot_id: {
+              type: 'string',
+              required: true,
+              description: 'Stable PersonaBot ID from list_bot_contacts.',
+            },
+            body: {
+              type: 'string',
+              required: true,
+              description: 'The message to send to that Bot.',
+            },
+            reply_to: { type: 'string', description: 'Optional message ID in the same Bot DM.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args, exec) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('bot_dm_send: Orchestrator run is unavailable');
+            const sent = await active.run.channels.sendToBot({
+              botSlug: args.bot_id,
+              body: args.body,
+              ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
+              ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),
+            });
+            return `Sent Bot DM ${sent.message.id} in Channel ${sent.channelId}.`;
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'channel_send',
           description:
-            'Send one Human-facing message as this PersonaBot to a Channel it has joined. Omit channel_id to use the Channel that triggered the current turn.',
+            'Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them.',
           parameters: {
             body: {
               type: 'string',
@@ -842,21 +1029,31 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               description: 'Optional message id to reply to in that same Channel.',
             },
+            mention_bot_ids: {
+              type: 'array',
+              description:
+                'Stable IDs of joined PersonaBots to mention in a Group Channel; do not repeat their names in body.',
+              items: { type: 'string' },
+            },
           },
           output: {
             schema: { type: 'string' },
             render: (_args, value) => [{ type: 'text', text: value }],
           },
-          execute: async (args) => {
+          execute: async (args, exec) => {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_send: Orchestrator run is unavailable');
             }
             const message = await active.run.channels.send({
               body: args.body,
+              ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),
               ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
               ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
+              ...(args.mention_bot_ids === undefined
+                ? {}
+                : { mentionBotIds: args.mention_bot_ids }),
             });
             this.#drafts.settle(
               run.sessionId,

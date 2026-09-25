@@ -3,6 +3,9 @@ import {
   assignRosterChannel,
   BridgeCallError,
   createGroupChannel,
+  cancelGroupInvitation,
+  removeGroupMember,
+  deleteGroupChannel,
   createPersonaBot,
   createRosterSection,
   errorMessage,
@@ -158,6 +161,9 @@ export interface BridgeActions {
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
+  cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
+  removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
+  deleteGroupChannel(channelId: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -276,9 +282,24 @@ export function createActions(
     clientStore.getSnapshot().selection;
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
-    try {
-      const snapshot = await loadRoster(call, signal);
-      if (signal?.aborted === true) return;
+    const [rosterResult, channelResult] = await Promise.allSettled([
+      loadRoster(call, signal),
+      loadChannels(call, signal),
+    ]);
+    if (signal?.aborted === true) return;
+    if (channelResult.status === 'fulfilled') {
+      const channels = channelResult.value;
+      const current = clientStore.getSnapshot().conversation.channel;
+      clientStore.setRoster(clientStore.getSnapshot().bots, channels);
+      if (current !== undefined) {
+        const updated = channels.find((item) => item.id === current.id);
+        if (updated !== undefined) clientStore.setConversation({ channel: updated });
+      }
+    } else {
+      console.warn('botharness: channel refresh failed', channelResult.reason);
+    }
+    if (rosterResult.status === 'fulfilled') {
+      const snapshot = rosterResult.value;
       clientStore.setRosterState({
         pins: snapshot.pins,
         hidden: snapshot.hidden,
@@ -286,13 +307,13 @@ export function createActions(
         topOrder: snapshot.topOrder,
         readOnly: false,
       });
-    } catch (error) {
-      if (signal?.aborted === true) return;
-      if (error instanceof BridgeCallError && error.code === 'storage-unavailable') {
-        clientStore.setRosterState({ readOnly: true });
-        return;
-      }
-      console.warn('botharness: roster refresh failed', error);
+    } else if (
+      rosterResult.reason instanceof BridgeCallError &&
+      rosterResult.reason.code === 'storage-unavailable'
+    ) {
+      clientStore.setRosterState({ readOnly: true });
+    } else {
+      console.warn('botharness: roster refresh failed', rosterResult.reason);
     }
   };
 
@@ -936,6 +957,50 @@ export function createActions(
         console.warn('botharness: channel rename failed', error);
         return false;
       }
+    },
+    async cancelGroupInvitation(channelId, invitationId) {
+      try {
+        const channel = await cancelGroupInvitation(call, channelId, invitationId);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group invitation cancellation failed', error);
+        return false;
+      }
+    },
+    async removeGroupMember(channelId, botSlug) {
+      try {
+        const channel = await removeGroupMember(call, channelId, botSlug);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group member removal failed', error);
+        return false;
+      }
+    },
+    async deleteGroupChannel(channelId) {
+      try {
+        await deleteGroupChannel(call, channelId);
+      } catch (error) {
+        console.warn('botharness: Group deletion failed', error);
+        return false;
+      }
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id === channelId) clientStore.select(undefined);
+      clientStore.setRoster(
+        snapshot.bots,
+        snapshot.channels.filter((channel) => channel.id !== channelId),
+      );
+      try {
+        await actions.load();
+      } catch (error) {
+        console.warn('botharness: Group deletion refresh failed', error);
+      }
+      return true;
     },
     async createSection(name) {
       try {

@@ -75,6 +75,55 @@ describe('localization coverage', () => {
     expect(markup).toContain('Assignments');
   });
 
+  it('renders Human-openable Group invitation status and management controls', () => {
+    const group = {
+      id: 'group-team',
+      type: 'group' as const,
+      name: 'Team',
+      members: ['ada', 'bea'],
+      ownerBotSlug: 'ada',
+      invitations: [
+        {
+          id: 'invite-bea',
+          inviterBotSlug: 'ada',
+          targetBotSlug: 'bea',
+          status: 'accepted' as const,
+          createdAt: '2026-09-25T00:00:00.000Z',
+        },
+        {
+          id: 'invite-cee',
+          inviterBotSlug: 'ada',
+          targetBotSlug: 'cee',
+          status: 'pending' as const,
+          createdAt: '2026-09-25T00:00:00.000Z',
+        },
+      ],
+      createdAt: '2026-09-25T00:00:00.000Z',
+      updatedAt: '2026-09-25T00:00:00.000Z',
+    };
+    store.setRoster([], [group]);
+    store.select({ kind: 'channel', channelId: group.id });
+    store.setConversation({ status: 'ready', channel: group });
+    const entry = createChannelSidebarBuiltins(tEn).find(
+      (candidate) => candidate.id === 'members',
+    )!;
+    const markup = renderToStaticMarkup(
+      createElement(entry.component, {
+        scope: 'channel',
+        channelId: group.id,
+        botSlug: undefined,
+        actions: {} as BridgeActions,
+        t: tEn,
+      }),
+    );
+    expect(markup).toContain('Creator');
+    expect(markup).toContain('Pending');
+    expect(markup).toContain('Accepted');
+    expect(markup).toContain('Cancel invitation');
+    expect(markup).toContain('Remove from Group');
+    expect(markup).toContain('Delete Group');
+  });
+
   it('renders the empty conversation state in English', () => {
     const registry = createChannelSidebarRegistry();
     for (const builtin of createChannelSidebarBuiltins(tEn)) registry.register(builtin);

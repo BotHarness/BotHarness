@@ -72,6 +72,28 @@ describe('Channel message body', () => {
     expect(markup).not.toContain('bh-composer-selected-mentions');
   });
 
+  it('shows Bot Group @ badges while keeping the following content in native Markdown', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'bot-group-mention',
+          at: '2026-09-25T00:00:00.000Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: '@Bea **please check**',
+          mentions: [{ botSlug: 'bea', label: 'Bea', start: 0, end: 4 }],
+        },
+        t: zhTranslate,
+        actions: { openBot: vi.fn() } as unknown as BridgeActions,
+      }),
+    );
+    expect(markup).toContain('bh-bubble-body-bot-mentions');
+    expect(markup).toContain('data-bot-id="bea"');
+    expect(markup).toContain('>Bea</span></button>');
+    expect(vi.mocked(MarkdownText).mock.calls[0]?.[0]).toMatchObject({
+      text: '**please check**',
+    });
+  });
+
   it('opens the selected Bot DM by stable ID even when display names are identical', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

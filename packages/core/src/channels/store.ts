@@ -7,6 +7,7 @@ import { ChannelAttachmentError, type AttachmentStore } from '../attachments/sto
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
+  botDmChannelId,
   dmChannelId,
   groupChannelIdBase,
   isChannelMessage,
@@ -14,6 +15,8 @@ import {
   isValidChannelId,
   type ChannelMessage,
   type ChannelRecord,
+  type GroupInvitation,
+  type BotMessageCausation,
 } from './channel.js';
 import {
   DEFAULT_MESSAGE_PAGE,
@@ -30,6 +33,7 @@ export interface ChannelStoreOptions {
   attachments?: AttachmentStore;
   now?: () => Date;
   onCommitted?: (commit: ChannelMessageCommit) => void;
+  onRecordChanged?: () => void;
   onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
   warn?: (message: string) => void;
 }
@@ -61,6 +65,7 @@ export interface ChannelReadOptions {
 export interface CreateChannelGroupInput {
   name: string;
   members: string[];
+  ownerBotSlug?: string;
 }
 
 export interface ChannelStore {
@@ -76,7 +81,37 @@ export interface ChannelStore {
   /** Durable mark set for a profile-scoped Attachment Store sweep. */
   referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
+  getOrCreateBotDm(
+    firstBotSlug: string,
+    secondBotSlug: string,
+    name: string,
+  ): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
+  /** One pending invitation and its Inbox Admission are committed together. */
+  inviteGroupBot(input: {
+    channelId: string;
+    inviterBotSlug: string;
+    targetBotSlug: string;
+    targetBotCreatedAt: string;
+    targetDmChannelId: string;
+    botCausation?: BotMessageCausation;
+  }): GroupInvitation;
+  /** Only the named invitee may decide; acceptance adds membership atomically. */
+  respondToGroupInvite(input: {
+    invitationId: string;
+    targetBotSlug: string;
+    targetBotCreatedAt: string;
+    accept: boolean;
+  }): {
+    channel: ChannelRecord;
+    invitation: GroupInvitation;
+  };
+  /** The Human may cancel a pending invite or remove a joined Bot. */
+  cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
+  cancelInvitationsForBot(botSlug: string): void;
+  removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
+  /** Human-only logical deletion; past operational events remain for recovery/audit. */
+  deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
   readPosition(id: string): ChannelReadPosition | undefined;
@@ -95,7 +130,7 @@ function isMissing(error: unknown): boolean {
 
 export class ChannelMentionTargetError extends Error {
   constructor() {
-    super('Mentioned PersonaBot is no longer in this Group Channel');
+    super('Mentioned PersonaBot is not eligible for this Channel');
     this.name = 'ChannelMentionTargetError';
   }
 }
@@ -359,6 +394,37 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       write(record);
       return record;
     },
+    getOrCreateBotDm(firstBotSlug, secondBotSlug, name) {
+      if (
+        !isValidSlug(firstBotSlug) ||
+        !isValidSlug(secondBotSlug) ||
+        firstBotSlug === secondBotSlug
+      )
+        return undefined;
+      const id = botDmChannelId(firstBotSlug, secondBotSlug);
+      const members = [firstBotSlug, secondBotSlug].sort();
+      const existing = read(id);
+      if (existing !== undefined) {
+        if (
+          existing.type !== 'dm' ||
+          existing.botSlug !== undefined ||
+          JSON.stringify(existing.members) !== JSON.stringify(members)
+        )
+          throw new Error(`Bot DM identity collision: ${id}`);
+        return existing;
+      }
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'dm',
+        name: name.trim() || members.join(' · '),
+        members,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      write(record);
+      return record;
+    },
     createGroup(input) {
       const id = nextGroupId(input.name);
       const name = input.name.trim();
@@ -368,11 +434,30 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         type: 'group',
         name: name.length > 0 ? name : id,
         members: [...input.members],
+        ...(input.ownerBotSlug === undefined ? {} : { ownerBotSlug: input.ownerBotSlug }),
         createdAt: timestamp,
         updatedAt: timestamp,
       };
       write(record);
       return record;
+    },
+    inviteGroupBot() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    respondToGroupInvite() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    cancelGroupInvite() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    cancelInvitationsForBot() {
+      // Legacy file Channels cannot contain Inbox-backed invitations.
+    },
+    removeGroupMember() {
+      throw new Error('Group management requires the operational Channel store');
+    },
+    deleteGroup() {
+      throw new Error('Group deletion requires the operational Channel store');
     },
     rename(id, name) {
       const record = read(id);
