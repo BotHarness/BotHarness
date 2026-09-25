@@ -326,6 +326,32 @@ describe('Group mention tracer', () => {
     }
   });
 
+  it('treats a Memory branch-switch target as part of a retried Channel message identity', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-channel-retry-') });
+    try {
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      const first = {
+        id: 'switch-message',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' as const },
+        body: 'Switch branch',
+        memorySwitchTarget: 'main',
+      };
+      expect((await core.channels.appendMessageOnce(dm.id, first)).status).toBe('appended');
+      expect(
+        (
+          await core.channels.appendMessageOnce(dm.id, {
+            ...first,
+            memorySwitchTarget: 'experiment',
+          })
+        ).status,
+      ).toBe('conflict');
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('imports old Channel history once and keeps SQL as the only subsequent authority', async () => {
     const home = createTempRoot('botharness-channel-import-');
     const { createChannelStore } = await import('../src/channels/store.js');

@@ -83,6 +83,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       body: left.body,
       attachments: left.attachments ?? [],
       replyTo: left.replyTo,
+      memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
     }) ===
     JSON.stringify({
@@ -90,6 +91,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       body: right.body,
       attachments: right.attachments ?? [],
       replyTo: right.replyTo,
+      memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
     })
   );
