@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement, type ButtonHTMLAttributes } from 'react';
+import { act, createElement, type ButtonHTMLAttributes, type InputHTMLAttributes } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,7 +33,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconSendOutline16: stub,
     IconSendOutlineRegular: stub,
     IconTrashOutline16: stub,
-    Input: stub,
+    Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
     Menu: stub,
     MarkdownText: stub,
     Modal: stub,
@@ -53,6 +53,7 @@ import { store } from '../src/client/store.js';
 import type { MemoryGitGraph } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { MemoryEntry } from '../src/client/memory-entry.js';
+import { MemoryCommitView } from '../src/client/memory-commit-view.js';
 
 const SHA = 'a'.repeat(40);
 let container: HTMLDivElement;
@@ -71,6 +72,40 @@ afterEach(async () => {
 });
 
 describe('Memory Git graph sidebar', () => {
+  it('sends a chosen historical commit and new branch to the same Channel', async () => {
+    const actions = {
+      memoryGitCommitDiff: vi.fn().mockResolvedValue({ sha: SHA, files: [], diff: '' }),
+      send: vi.fn().mockResolvedValue(true),
+    } as unknown as BridgeActions;
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        createElement(MemoryCommitView, {
+          actions,
+          channelId: 'dm-qa',
+          sha: SHA,
+          onClose,
+          t: zhTranslate,
+        }),
+      );
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '从此处继续')
+        ?.click();
+    });
+    const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
+    expect(input?.value).toBe('memory-aaaaaaa');
+    await act(async () => {
+      container
+        .querySelector<HTMLFormElement>('.bh-memory-continue-form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining(SHA));
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('shows a checked-out side branch and opens a commit even when accepted snapshot rejects it', async () => {
     const graph: MemoryGitGraph = {
       head: SHA,

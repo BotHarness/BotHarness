@@ -228,6 +228,11 @@ export const zh = {
   'memory.gitStatus.pending': '待验收',
   'memory.gitStatus.needs-repair': '待修复',
   'memory.diff': '提交差异',
+  'memory.continueHere': '从此处继续',
+  'memory.newBranch': '新分支名称',
+  'memory.createAndSwitch': '创建并切换',
+  'memory.continuePrompt':
+    '请从这个 PersonaBot 的 Memory Git 提交 {sha} 创建新分支 {branch}，并立即切换。请使用 memory_continue_from_commit，随后在同一 Orchestrator Session 用原生读取工具读取当前 PERSONA.md，向此频道报告当前分支和第一行。若起点提交未验收，请明确说明待修复状态，不要自动验收。',
   'entry.assignments': '事项',
   'entry.workspaceGrants': '工作区授权',
   'grant.safeDefault':
@@ -580,6 +585,11 @@ export const en = {
   'memory.gitStatus.pending': 'Pending',
   'memory.gitStatus.needs-repair': 'Needs repair',
   'memory.diff': 'Commit diff',
+  'memory.continueHere': 'Continue from here',
+  'memory.newBranch': 'New branch name',
+  'memory.createAndSwitch': 'Create and switch',
+  'memory.continuePrompt':
+    'Create a new branch {branch} at this PersonaBot Memory Git commit {sha} and switch to it now. Use memory_continue_from_commit, then use the native read tool in this same Orchestrator Session to read the current PERSONA.md and report the current branch and first line in this Channel. If the branch point is pending, explain its repair state without accepting it automatically.',
   'entry.assignments': 'Assignments',
   'entry.workspaceGrants': 'Workspace Grants',
   'grant.safeDefault':

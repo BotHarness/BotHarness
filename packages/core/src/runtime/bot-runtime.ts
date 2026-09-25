@@ -98,7 +98,13 @@ export interface OrchestratorAgentRun {
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
   assignments: OrchestratorAssignmentAccess;
-  memory?: { switchBranch(branch: string): { from: string; to: string; head: string } };
+  memory?: {
+    switchBranch(branch: string): { from: string; to: string; head: string };
+    continueFromCommit(
+      sha: string,
+      branch: string,
+    ): { from: string; to: string; head: string; accepted: boolean };
+  };
 }
 
 export interface AssignmentAgentRun {
@@ -188,7 +194,10 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
-  memory?: Pick<MemoryService, 'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch'>;
+  memory?: Pick<
+    MemoryService,
+    'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
+  >;
   /** Profile-scoped Channel attachment authority. */
   attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
@@ -619,6 +628,17 @@ class BotRuntimeImplementation implements BotRuntime {
         inboundChannelId: channelId,
         channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
         memory: {
+          continueFromCommit: (sha, branch) => {
+            if (this.#memory === undefined) throw new Error('Memory is unavailable');
+            const result = this.#memory.continueFromCommit({
+              botSlug: bot.slug,
+              sessionId: orchestrator.sessionId,
+              sha,
+              branch,
+            });
+            markSideEffect();
+            return result;
+          },
           switchBranch: (branch) => {
             if (this.#memory === undefined) throw new Error('Memory is unavailable');
             const result = this.#memory.switchBranch({

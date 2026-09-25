@@ -199,6 +199,133 @@ describe('accepted Memory Commit boundary', () => {
     }
   });
 
+  it('continues an accepted historical commit on a new branch without changing the old branch', () => {
+    const { database, registry, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      addSource('event-main');
+      memory.prepareTurn('atlas', 'session-atlas');
+      writeFileSync(join(root, 'state.md'), 'Newer memory\n');
+      const [newer] = memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'event-main',
+      });
+      addSource('event-continue');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.continueFromCommit({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sha: seed,
+          branch: 'earlier',
+        }),
+      ).toMatchObject({ from: 'main', to: 'earlier', head: seed, accepted: true });
+      expect(git(root, 'branch', '--show-current')).toBe('earlier');
+      expect(existsSync(join(root, 'state.md'))).toBe(false);
+      expect(git(root, 'rev-parse', 'main')).toBe(newer?.sha);
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-continue',
+        }),
+      ).toEqual([]);
+      expect(memory.snapshot('atlas')).toEqual({ head: seed, files: [], provisional: false });
+      const reopened = createMemoryService({
+        registry,
+        ownership: ownershipOf(database),
+        database,
+        now: FIXED_NOW,
+      });
+      expect(reopened.gitGraph('atlas').currentBranch).toBe('earlier');
+      expect(reopened.gitGraph('atlas').branches).toEqual(['earlier', 'main']);
+    } finally {
+      database.close();
+    }
+  });
+  it('keeps a raw branch point pending after creation, reconciliation, and restart', () => {
+    const { database, registry, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      git(root, 'switch', '-c', 'raw-source');
+      writeFileSync(join(root, 'raw.md'), 'Raw historical content\n');
+      git(root, 'add', 'raw.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Raw point',
+      );
+      const raw = git(root, 'rev-parse', 'HEAD');
+      git(root, 'switch', 'main');
+      addSource('event-raw-continue');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.continueFromCommit({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sha: raw,
+          branch: 'raw-review',
+        }),
+      ).toMatchObject({ head: raw, accepted: false });
+      expect(readFileSync(join(root, 'raw.md'), 'utf8')).toBe('Raw historical content\n');
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'event-raw-continue',
+        }),
+      ).toEqual([]);
+      expect(memory.history('atlas').map((item) => item.sha)).toEqual([seed]);
+      expect(memory.snapshot('atlas').provisional).toBe(true);
+      expect(memory.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
+        'needs-repair',
+      );
+      const reopened = createMemoryService({
+        registry,
+        ownership: ownershipOf(database),
+        database,
+        now: FIXED_NOW,
+      });
+      expect(reopened.gitGraph('atlas').currentBranch).toBe('raw-review');
+      expect(reopened.gitGraph('atlas').branches).toEqual(['main', 'raw-review', 'raw-source']);
+      expect(reopened.gitGraph('atlas').commits.find((item) => item.sha === raw)?.status).toBe(
+        'needs-repair',
+      );
+      expect(() => reopened.prepareTurn('atlas', 'session-atlas')).toThrow(/provisional changes/);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('refuses invalid, existing, or unknown branch points without changing refs', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      addSource('event-reject');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const create = (branch: string, sha = seed) =>
+        memory.continueFromCommit({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sha,
+          branch,
+        });
+      expect(() => create('bad..name')).toThrow(/Invalid Memory branch name/);
+      expect(() => create('main')).toThrow(/already exists/);
+      expect(() => create('new-history', '0'.repeat(40))).toThrow(/Unknown Memory Git commit/);
+      expect(git(root, 'branch', '--show-current')).toBe('main');
+      expect(git(root, 'branch', '--list')).toBe('* main');
+      memory.abortTurn('atlas', 'session-atlas');
+    } finally {
+      database.close();
+    }
+  });
   it('switches to an accepted historical branch and accepts later work there without changing main', () => {
     const { database, registry, memory, root, addSource } = fixture();
     try {
