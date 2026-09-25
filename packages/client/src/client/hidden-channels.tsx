@@ -25,6 +25,28 @@ export interface HiddenChannelsModalProps {
 
 export const HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS = 180;
 
+/** Keep explicit hide order independent of live Channel upserts; append implicit Bot DMs once. */
+export function hiddenChannelSequence(
+  channels: readonly ChannelSummary[],
+  hiddenIds: readonly string[],
+): ChannelSummary[] {
+  const byId = new Map(channels.map((channel) => [channel.id, channel]));
+  const seen = new Set<string>();
+  const ordered: ChannelSummary[] = [];
+  for (const id of hiddenIds) {
+    const channel = byId.get(id);
+    if (channel === undefined || seen.has(id)) continue;
+    ordered.push(channel);
+    seen.add(id);
+  }
+  for (const channel of channels) {
+    if (channel.type !== 'dm' || channel.botSlug !== undefined || seen.has(channel.id)) continue;
+    ordered.push(channel);
+    seen.add(channel.id);
+  }
+  return ordered;
+}
+
 /** Searchable recovery surface for Channels omitted from roster navigation. */
 export function HiddenChannelsModal({
   items,
