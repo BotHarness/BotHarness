@@ -16,6 +16,7 @@ const ASSIGNMENT = {
 
 const groupTools = {
   list: () => ({ channels: [] }),
+  query: () => ({ messages: [] }),
   createGroup: (): never => {
     throw new Error('unexpected Group creation');
   },
@@ -374,9 +375,6 @@ describe('DSH Bot Agent adapter', () => {
       properties: { body: expect.any(Object), channel_id: expect.any(Object) },
       required: ['body'],
     });
-    const channelTools = host.scopes
-      .get('orchestrator-ada')
-      ?.tools.filter((tool) => tool.name.startsWith('channel_'));
     const channelReadImage = host.scopes
       .get('orchestrator-ada')
       ?.tools.find((tool) => tool.name === 'channel_read_image');
@@ -405,9 +403,7 @@ describe('DSH Bot Agent adapter', () => {
         },
       ),
     ).toMatchObject([{ type: 'text' }, { type: 'image' }]);
-    expect(JSON.stringify(channelTools?.map((tool) => tool.parameters))).not.toMatch(
-      /bot_slug|persona_bot|author/,
-    );
+    expect(JSON.stringify(channelSend?.parameters)).not.toMatch(/bot_slug|persona_bot|author/);
     expect(host.scopes.get('assignment-1')?.tools.map((tool) => tool.name)).toEqual([
       'report_to_orchestrator',
     ]);

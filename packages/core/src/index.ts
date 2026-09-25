@@ -51,6 +51,8 @@ export type {
 } from './channels/channel.js';
 export { createChannelStore, DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE } from './channels/store.js';
 export type {
+  ChannelMessageQueryOptions,
+  ChannelMessageQueryPage,
   ChannelReadOptions,
   ChannelStore,
   ChannelStoreOptions,

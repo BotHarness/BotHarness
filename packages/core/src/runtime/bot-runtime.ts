@@ -17,7 +17,7 @@ import {
 } from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
-import type { ChannelStore } from '../channels/store.js';
+import type { ChannelMessageQueryOptions, ChannelStore } from '../channels/store.js';
 import type { AttachmentStore } from '../attachments/store.js';
 import {
   attachOperationalModule,
@@ -161,6 +161,10 @@ export interface ChannelListPage {
 export interface OrchestratorChannelAccess {
   list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
+  query(input?: ChannelMessageQueryOptions & { channelId?: string }): {
+    messages: ChannelMessageView[];
+    nextCursor?: string;
+  };
   search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
   readAttachment?(input: {
     channelId?: string;
@@ -1538,6 +1542,18 @@ class BotRuntimeImplementation implements BotRuntime {
             channelName: channel.name,
             message,
           }));
+      },
+      query: (input = {}) => {
+        const channel = resolve(input.channelId);
+        const page = this.#channels.queryMessages(channel.id, input);
+        return {
+          messages: page.messages.map((message) => ({
+            channelId: channel.id,
+            channelName: channel.name,
+            message,
+          })),
+          ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
+        };
       },
       search: (input) => {
         const query = requireNonBlank(input.query, 'Channel search query').toLowerCase();

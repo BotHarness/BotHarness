@@ -668,13 +668,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_read',
           description:
-            'Read recent messages from a Channel this PersonaBot has joined. Omit channel_id to read the Channel that triggered the current turn.',
+            'Query the full history of a joined Channel. Filter by text, author, or date; follow nextCursor for older results. Omit channel_id to use the Channel that triggered this turn.',
           parameters: {
             channel_id: {
               type: 'string',
               description: 'Channel id; defaults to the inbound Channel.',
             },
-            before: { type: 'string', description: 'Message id cursor for the previous page.' },
+            text: { type: 'string', description: 'Case-insensitive body substring.' },
+            author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
+            author_kind: { type: 'string', description: 'Author kind: human, bot, or bridged.' },
+            from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
+            to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
+            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
             limit: { type: 'number', description: 'Page size from 1 to 200.' },
           },
           output: {
@@ -687,9 +692,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               throw new Error('channel_read: Orchestrator run is unavailable');
             }
             return JSON.stringify(
-              active.run.channels.read({
+              active.run.channels.query({
                 ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.before === undefined ? {} : { before: args.before }),
+                ...(args.text === undefined ? {} : { text: args.text }),
+                ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
+                ...(args.author_kind === undefined
+                  ? {}
+                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' }),
+                ...(args.from === undefined ? {} : { from: args.from }),
+                ...(args.to === undefined ? {} : { to: args.to }),
+                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
                 ...(args.limit === undefined ? {} : { limit: args.limit }),
               }),
             );

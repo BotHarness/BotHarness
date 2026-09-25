@@ -22,6 +22,7 @@ import {
 import {
   ChannelMentionTargetError,
   ChannelReplyTargetError,
+  queryChannelMessages,
   type ChannelStore,
   type ChannelStoreOptions,
 } from './store.js';
@@ -959,6 +960,12 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         .slice(Math.max(0, end - limit), end)
         .reverse()
         .map((message) => project(messages, message));
+    },
+    queryMessages(id, queryOptions) {
+      const messages = allMessages(id);
+      const page = queryChannelMessages(id, messages, queryOptions);
+      const byId = new Map(messages.map((message) => [message.id, message]));
+      return { ...page, messages: page.messages.map((message) => replyProjection(message, byId)) };
     },
     readTimeline(id, request) {
       const messages = allMessages(id);
