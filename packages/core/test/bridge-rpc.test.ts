@@ -107,6 +107,8 @@ describe('bridge typert service', () => {
       'memoryFile',
       'memoryHistory',
       'memoryDiff',
+      'memoryGitGraph',
+      'memoryGitCommitDiff',
       'memorySave',
       'memoryRepair',
       'rosterGet',

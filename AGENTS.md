@@ -81,6 +81,8 @@ verified.
 
 When creating or updating a PR, use the `visual-pr` skill to write the description: one-sentence "why", `/show-me`-style change outline, saved under `.humanlayer/tasks/` and applied with `gh pr edit --body-file`.
 
+For PRs that change architecture or data flow across modules, read [the optional PR Lens supplement](docs/agents/visual-pr-pr-lens.md) and use a diagram when it clarifies the review. Keep routine PRs on the visual-pr description alone.
+
 ### Domain docs
 
 Single-context layout: root `CONTEXT.md` + `docs/adr/` (extended lazily by the domain skills). Root `CONTEXT.md` is the sole authority for BotHarness product terms such as PersonaBot, Channel, Source Event, Bot Inbox, Orchestrator Session, and Assignment Session; product runtime relationships live under `docs/architecture/`. See `docs/agents/domain.md`.

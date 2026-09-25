@@ -26,6 +26,7 @@ import { ChannelMessageBody, type NativeChatFailureText } from './channel-messag
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
+import { MemoryCommitView } from './memory-commit-view.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
@@ -374,6 +375,11 @@ function ConversationView({
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [selectedMemoryCommit, setSelectedMemoryCommit] = useState<{
+    channelId: string;
+    sha: string;
+  }>();
+  const chatScrollBeforeDiff = useRef(0);
   const [uploadItems, setUploadItems] = useState<ChannelComposerUpload[]>([]);
   const [restoreBlocked, setRestoreBlocked] = useState(false);
   const [restoreFocusSignal, setRestoreFocusSignal] = useState(0);
@@ -450,6 +456,10 @@ function ConversationView({
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
+  const selectedMemoryCommitSha =
+    selectedMemoryCommit !== undefined && selectedMemoryCommit.channelId === channelId
+      ? selectedMemoryCommit.sha
+      : undefined;
   const scheduleReadMark = (): void => {
     const element = scrollRef.current;
     if (channelId === undefined || element === null || conversation.status !== 'ready') return;
@@ -488,6 +498,7 @@ function ConversationView({
 
   useEffect(() => {
     setDraft('');
+    setSelectedMemoryCommit(undefined);
     setReplyTarget(undefined);
     for (const controller of uploadControllers.current.values()) controller.abort();
     uploadControllers.current.clear();
@@ -761,8 +772,32 @@ function ConversationView({
               )}
             </button>
           </div>
-          <div className="bh-chat-top-fade" aria-hidden="true" />
-          <div className="bh-chat-body" ref={scrollRef} onScroll={onTimelineScroll}>
+          <div
+            className="bh-chat-top-fade"
+            aria-hidden="true"
+            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+          />
+          {selectedMemoryCommitSha === undefined || channelId === undefined ? null : (
+            <MemoryCommitView
+              actions={actions}
+              channelId={channelId}
+              sha={selectedMemoryCommitSha}
+              t={t}
+              onClose={() => {
+                setSelectedMemoryCommit(undefined);
+                window.requestAnimationFrame(() => {
+                  if (scrollRef.current !== null)
+                    scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
+                });
+              }}
+            />
+          )}
+          <div
+            className="bh-chat-body"
+            ref={scrollRef}
+            onScroll={onTimelineScroll}
+            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+          >
             {conversation.timeline.hasOlder ? (
               <div className="bh-timeline-top-sentinel">
                 {conversation.timeline.loadingOlder ? (
@@ -898,53 +933,59 @@ function ConversationView({
               </div>
             ) : null}
           </div>
-          {unseen > 0 || conversation.timeline.hasNewer ? (
+          {selectedMemoryCommitSha === undefined &&
+          (unseen > 0 || conversation.timeline.hasNewer) ? (
             <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
               {conversation.timeline.hasNewer
                 ? t('messages.latest')
                 : t('messages.unseen', { count: unseen })}
             </button>
           ) : null}
-          {restoreBlocked ? (
+          {selectedMemoryCommitSha === undefined && restoreBlocked ? (
             <div className="bh-note" role="alert">
               {t('message.restoreBlocked')}
             </div>
           ) : null}
-          <ChannelComposer
-            value={draft}
-            placeholder={t('composer.placeholder', { name: title })}
-            sending={conversation.sending}
-            focusSignal={restoreFocusSignal}
-            attachments={uploadItems}
-            onAddFiles={addFiles}
-            onRetryAttachment={(id) => {
-              const item = uploadItems.find((candidate) => candidate.id === id);
-              if (item !== undefined) startUpload(item);
-            }}
-            onRemoveAttachment={(id) => {
-              uploadControllers.current.get(id)?.abort();
-              uploadControllers.current.delete(id);
-              setUploadItems((current) => current.filter((item) => item.id !== id));
-            }}
-            activity={composerActivity}
-            reply={
-              replyTarget === undefined
-                ? undefined
-                : {
-                    id: replyTarget.id,
-                    author: authorLabel(replyTarget, state.bots, t),
-                    body: replyTarget.body,
-                  }
-            }
-            t={t}
-            onChange={(value) => {
-              setDraft(value);
-              setRestoreBlocked(false);
-            }}
-            onCancelReply={() => setReplyTarget(undefined)}
-            onSubmit={submit}
-          />
-          {messageMenu === undefined ? null : (
+          <div
+            className="bh-memory-chat-composer"
+            style={{ display: selectedMemoryCommitSha === undefined ? 'contents' : 'none' }}
+          >
+            <ChannelComposer
+              value={draft}
+              placeholder={t('composer.placeholder', { name: title })}
+              sending={conversation.sending}
+              focusSignal={restoreFocusSignal}
+              attachments={uploadItems}
+              onAddFiles={addFiles}
+              onRetryAttachment={(id) => {
+                const item = uploadItems.find((candidate) => candidate.id === id);
+                if (item !== undefined) startUpload(item);
+              }}
+              onRemoveAttachment={(id) => {
+                uploadControllers.current.get(id)?.abort();
+                uploadControllers.current.delete(id);
+                setUploadItems((current) => current.filter((item) => item.id !== id));
+              }}
+              activity={composerActivity}
+              reply={
+                replyTarget === undefined
+                  ? undefined
+                  : {
+                      id: replyTarget.id,
+                      author: authorLabel(replyTarget, state.bots, t),
+                      body: replyTarget.body,
+                    }
+              }
+              t={t}
+              onChange={(value) => {
+                setDraft(value);
+                setRestoreBlocked(false);
+              }}
+              onCancelReply={() => setReplyTarget(undefined)}
+              onSubmit={submit}
+            />
+          </div>
+          {selectedMemoryCommitSha !== undefined || messageMenu === undefined ? null : (
             <MessageActionMenu
               request={messageMenu}
               t={t}
@@ -964,6 +1005,12 @@ function ConversationView({
           actions={actions}
           controller={sidebar}
           t={t}
+          selectedMemoryCommitSha={selectedMemoryCommitSha}
+          onMemoryCommitSelect={(sha) => {
+            if (selectedMemoryCommitSha === undefined)
+              chatScrollBeforeDiff.current = scrollRef.current?.scrollTop ?? 0;
+            if (channelId !== undefined) setSelectedMemoryCommit({ channelId, sha });
+          }}
         />
         <button
           type="button"

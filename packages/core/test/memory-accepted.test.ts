@@ -64,6 +64,93 @@ function git(root: string, ...args: string[]): string {
 }
 
 describe('accepted Memory Commit boundary', () => {
+  it('shows local Git branches and opens the diff of a pending commit without accepting it', () => {
+    const { database, registry, memory, root } = fixture();
+    try {
+      const seed = memory.snapshot('atlas').head!;
+      git(root, 'switch', '-c', 'experiment', seed);
+      writeFileSync(join(root, 'branch-note.md'), 'Branch memory\n', 'utf8');
+      git(root, 'add', 'branch-note.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Branch memory',
+      );
+      const branchSha = git(root, 'rev-parse', 'HEAD');
+      git(root, 'switch', 'main');
+      writeFileSync(join(root, 'main-note.md'), 'Main memory\n', 'utf8');
+      git(root, 'add', 'main-note.md');
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'commit',
+        '-m',
+        'Main memory',
+      );
+      const mainSha = git(root, 'rev-parse', 'HEAD');
+
+      const graph = memory.gitGraph('atlas', 0);
+      expect(graph.currentBranch).toBe('main');
+      expect(graph.head).toBe(mainSha);
+      expect(graph.commits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sha: mainSha, branches: ['main'], status: 'needs-repair' }),
+        ]),
+      );
+      expect(graph.commits).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sha: branchSha, branches: ['experiment'], status: 'pending' }),
+          expect.objectContaining({ sha: seed, branches: [], status: 'accepted' }),
+        ]),
+      );
+      expect(memory.gitCommitDiff('atlas', branchSha).files).toEqual([
+        { path: 'branch-note.md', status: 'A' },
+      ]);
+      expect(memory.gitCommitDiff('atlas', branchSha).diff).toContain('+Branch memory');
+      expect(memory.history('atlas').map((commit) => commit.sha)).toEqual([seed]);
+      const reopened = createMemoryService({
+        registry,
+        ownership: ownershipOf(database),
+        database,
+        now: FIXED_NOW,
+      });
+      expect(reopened.gitGraph('atlas', 0).commits).toEqual(graph.commits);
+      expect(memory.gitGraph('atlas', 1).commits).toHaveLength(2);
+      expect(() => memory.gitGraph('atlas', 10_001)).toThrow(/offset/);
+      expect(() => memory.gitCommitDiff('atlas', 'not-a-sha')).toThrow(/Unknown Memory Git commit/);
+      expect(() => memory.gitCommitDiff('atlas', '0'.repeat(40))).toThrow(
+        /Unknown Memory Git commit/,
+      );
+      git(
+        root,
+        '-c',
+        'user.name=Tester',
+        '-c',
+        'user.email=test@example.com',
+        'merge',
+        '--no-ff',
+        'experiment',
+        '-m',
+        'Merge experiment',
+      );
+      const mergeSha = git(root, 'rev-parse', 'HEAD');
+      expect(memory.gitCommitDiff('atlas', mergeSha).files).toContainEqual({
+        path: 'branch-note.md',
+        status: 'A',
+      });
+      expect(memory.gitCommitDiff('atlas', mergeSha).diff).toContain('+Branch memory');
+    } finally {
+      database.close();
+    }
+  });
   it('bootstraps a clean new repository when Human opens Memory first', () => {
     const { database, memory, root } = fixture();
     try {

@@ -4,6 +4,8 @@ import { createActions } from '../src/client/actions.js';
 import {
   BridgeCallError,
   createBridgeCall,
+  loadMemoryGitGraph,
+  loadMemoryGitCommitDiff,
   parseAssignmentSummaries,
   parseBotSummary,
   parseChannelMessages,
@@ -53,6 +55,46 @@ const DM = {
 };
 
 describe('bridge transport', () => {
+  it('decodes the bounded Memory Git graph and changed-file diff from the Host bridge', async () => {
+    const sha = 'a'.repeat(40);
+    const graph = await loadMemoryGitGraph(
+      bridgeCall({
+        memoryGitGraph: ({ channelId, offset }) => {
+          expect({ channelId, offset }).toEqual({ channelId: 'dm-ada', offset: 0 });
+          return {
+            head: sha,
+            currentBranch: 'main',
+            dirty: false,
+            hasMore: false,
+            commits: [
+              {
+                sha,
+                parents: [],
+                subject: 'Seed',
+                authoredAt: '2026-09-25T00:00:00Z',
+                branches: ['main'],
+                status: 'accepted',
+              },
+            ],
+          };
+        },
+      }),
+      'dm-ada',
+      0,
+    );
+    expect(graph.commits[0]).toMatchObject({ sha, branches: ['main'], status: 'accepted' });
+    const detail = await loadMemoryGitCommitDiff(
+      bridgeCall({
+        memoryGitCommitDiff: ({ channelId, sha: requested }) => {
+          expect({ channelId, requested }).toEqual({ channelId: 'dm-ada', requested: sha });
+          return { sha, files: [{ path: 'MEMORY.md', status: 'A' }], diff: '+Memory' };
+        },
+      }),
+      'dm-ada',
+      sha,
+    );
+    expect(detail.files).toEqual([{ path: 'MEMORY.md', status: 'A' }]);
+  });
   it('wraps named arguments in the typert args envelope and drops undefined', async () => {
     const calls: unknown[][] = [];
     const ctx = {
