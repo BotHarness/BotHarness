@@ -1824,6 +1824,19 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-label-primary);
   box-shadow: 0 0 0 1px var(--dsw-alias-interactive-bg-active);
 }
+.bh-inline-mention-link {
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+.bh-inline-mention-link:hover {
+  text-decoration: underline;
+}
+.bh-inline-mention-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
 .bh-bubble-me .bh-inline-mention {
   color: inherit;
   background: color-mix(in srgb, currentColor 14%, transparent);

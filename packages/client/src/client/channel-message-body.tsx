@@ -366,15 +366,28 @@ export function ChannelMessageBody({
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
         <div className="bh-bubble-body">
-          {mentionRuns(message.body, message.mentions ?? []).map((run, index) =>
-            run.mention === undefined ? (
-              <span key={index}>{run.text}</span>
-            ) : (
-              <span key={index} className="bh-inline-mention" data-bot-id={run.mention.botSlug}>
+          {mentionRuns(message.body, message.mentions ?? []).map((run, index) => {
+            const mention = run.mention;
+            if (mention === undefined) return <span key={index}>{run.text}</span>;
+            if (actions === undefined)
+              return (
+                <span key={index} className="bh-inline-mention" data-bot-id={mention.botSlug}>
+                  {run.text}
+                </span>
+              );
+            return (
+              <button
+                key={index}
+                type="button"
+                className="bh-inline-mention bh-inline-mention-link"
+                data-bot-id={mention.botSlug}
+                aria-label={t('message.mention.openDm', { bot: mention.label })}
+                onClick={() => void actions.openBot(mention.botSlug)}
+              >
                 {run.text}
-              </span>
-            ),
-          )}
+              </button>
+            );
+          })}
         </div>
       ) : (
         <div className="bh-bubble-body bh-bubble-body-markdown">
