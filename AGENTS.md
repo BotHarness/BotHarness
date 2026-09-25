@@ -80,6 +80,7 @@ verified.
 ### Pull requests
 
 When creating or updating a PR, use the `visual-pr` skill to write the description: one-sentence "why", `/show-me`-style change outline, saved under `.humanlayer/tasks/` and applied with `gh pr edit --body-file`.
+For PRs that change visible UI or user interactions, follow [UI/UX PR visual evidence](docs/agents/pr-ui-visual-evidence.md) for before/after screenshots in the existing `Change outline`.
 
 For PRs that change architecture or data flow across modules, read [the optional PR Lens supplement](docs/agents/visual-pr-pr-lens.md) and use a diagram when it clarifies the review. Keep routine PRs on the visual-pr description alone.
 
