@@ -72,3 +72,51 @@ export function selectMention(
     caret: selected.end + trailing.length,
   };
 }
+
+/** Render only spans whose persisted identity still matches the visible text. */
+export function mentionRuns(
+  value: string,
+  mentions: readonly SelectedMention[],
+): Array<{ text: string; mention?: SelectedMention }> {
+  const runs: Array<{ text: string; mention?: SelectedMention }> = [];
+  let cursor = 0;
+  for (const mention of [...mentions].sort((a, b) => a.start - b.start)) {
+    if (mention.start < cursor || value.slice(mention.start, mention.end) !== '@' + mention.label)
+      continue;
+    if (mention.start > cursor) runs.push({ text: value.slice(cursor, mention.start) });
+    runs.push({ text: value.slice(mention.start, mention.end), mention });
+    cursor = mention.end;
+  }
+  if (cursor < value.length) runs.push({ text: value.slice(cursor) });
+  return runs;
+}
+
+/** Backspace/Delete treats a selected mention and its insertion space as one unit. */
+export function deleteSelectedMention(
+  value: string,
+  mentions: readonly SelectedMention[],
+  selectionStart: number,
+  selectionEnd: number,
+  key: 'Backspace' | 'Delete',
+): { value: string; mentions: SelectedMention[]; caret: number } | undefined {
+  const target = mentions.find((mention) => {
+    const trailingEnd = value[mention.end] === ' ' ? mention.end + 1 : mention.end;
+    if (selectionStart !== selectionEnd)
+      return selectionStart < trailingEnd && selectionEnd > mention.start;
+    return key === 'Backspace'
+      ? selectionStart > mention.start && selectionStart <= trailingEnd
+      : selectionStart >= mention.start && selectionStart < mention.end;
+  });
+  if (target === undefined) return undefined;
+  const end = value[target.end] === ' ' ? target.end + 1 : target.end;
+  const start =
+    selectionStart === selectionEnd ? target.start : Math.min(selectionStart, target.start);
+  const finish = selectionStart === selectionEnd ? end : Math.max(selectionEnd, end);
+  const next = value.slice(0, start) + value.slice(finish);
+  return { value: next, mentions: rebaseMentions(value, next, mentions), caret: start };
+}
+
+/** DSH Session prose otherwise projects bare @refs as file chips. */
+export function sessionBotReference(botSlug: string): string {
+  return '\u2060@' + botSlug;
+}

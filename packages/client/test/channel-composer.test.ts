@@ -50,6 +50,23 @@ describe('Channel composer', () => {
     expect(markup).toContain('data-layout="compact"');
   });
 
+  it('shows a selected Bot only inside the draft, without a second chip row', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '@Ada hello',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+        placeholder: 'Message',
+        sending: false,
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('bh-composer-mention-mirror');
+    expect(markup).toContain('class="bh-inline-mention" data-bot-id="ada">@Ada</span>');
+    expect(markup).toContain('bh-composer-input-mirrored');
+    expect(markup).not.toContain('bh-composer-selected-mentions');
+  });
+
   it('does not render status chrome when no active projection is available', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelComposer, {

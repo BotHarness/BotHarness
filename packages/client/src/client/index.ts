@@ -25,6 +25,7 @@ import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall } from './bridge.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
+import { sessionBotReference } from './mentions.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
@@ -287,14 +288,13 @@ export function apply(ctx: ClientContext): void {
     },
     codec: {
       clipboardText: (ref) => `@${ref}`,
-      serialize: async (ref) => `@${ref}`,
+      serialize: async (ref) => sessionBotReference(ref),
     },
     onPick: (pick) => ({
       insert: {
         source: 'personabot',
         ref: pick.candidate.name,
         label: pick.candidate.description ?? pick.candidate.name,
-        appearance: 'session',
         clipboardText: `@${pick.candidate.name}`,
       },
     }),

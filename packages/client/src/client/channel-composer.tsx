@@ -13,6 +13,8 @@ import { Button, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primi
 import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
 import {
   activeMentionQuery,
+  deleteSelectedMention,
+  mentionRuns,
   rebaseMentions,
   selectMention,
   type MentionQuery,
@@ -142,6 +144,7 @@ export function ChannelComposer({
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const mirrorRef = useRef<HTMLDivElement | null>(null);
   const [mentionQuery, setMentionQuery] = useState<MentionQuery | undefined>();
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const candidates =
@@ -173,8 +176,7 @@ export function ChannelComposer({
     height: 34,
     animateFirstExpand: false,
   });
-  const hasFooter =
-    fit.expanded || reply !== undefined || attachments.length > 0 || mentions.length > 0;
+  const hasFooter = fit.expanded || reply !== undefined || attachments.length > 0;
 
   const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
     const nextFit = fitComposerTextarea(element);
@@ -192,7 +194,8 @@ export function ChannelComposer({
   useEffect(() => {
     if (inputRef.current === null) return;
     syncTextarea(inputRef.current);
-  }, [syncTextarea, value]);
+    if (mirrorRef.current !== null) mirrorRef.current.scrollTop = inputRef.current.scrollTop;
+  }, [syncTextarea, value, mentions]);
 
   const replyId = reply?.id;
   useEffect(() => {
@@ -272,21 +275,6 @@ export function ChannelComposer({
             </button>
           </div>
         )}
-        {mentions.length > 0 ? (
-          <div
-            className="bh-composer-selected-mentions"
-            aria-label={t('composer.selectedMentions')}
-          >
-            {mentions.map((mention) => (
-              <span
-                key={mention.botSlug + ':' + mention.start}
-                className="bh-composer-selected-mention"
-              >
-                @{mention.label}
-              </span>
-            ))}
-          </div>
-        ) : null}
         {attachments.length > 0 ? (
           <div className="bh-composer-attachments" aria-live="polite">
             {attachments.map((item) => (
@@ -316,13 +304,33 @@ export function ChannelComposer({
           </div>
         ) : null}
         <div className="bh-composer-body">
+          {mentions.length > 0 ? (
+            <div className="bh-composer-mention-mirror" ref={mirrorRef} aria-hidden="true">
+              {mentionRuns(value, mentions).map((run, index) =>
+                run.mention === undefined ? (
+                  <span key={index}>{run.text}</span>
+                ) : (
+                  <span key={index} className="bh-inline-mention" data-bot-id={run.mention.botSlug}>
+                    {run.text}
+                  </span>
+                ),
+              )}
+              {value.endsWith('\n') ? '\u200b' : null}
+            </div>
+          ) : null}
           <textarea
             ref={inputRef}
-            className="bh-composer-input"
+            className={
+              'bh-composer-input' + (mentions.length > 0 ? ' bh-composer-input-mirrored' : '')
+            }
             rows={1}
             placeholder={placeholder}
             value={value}
             disabled={sending}
+            onScroll={(event) => {
+              if (mirrorRef.current !== null)
+                mirrorRef.current.scrollTop = event.currentTarget.scrollTop;
+            }}
             onChange={(event) => {
               syncTextarea(event.currentTarget);
               const next = event.target.value;
@@ -334,6 +342,28 @@ export function ChannelComposer({
               setActiveMentionIndex(0);
             }}
             onKeyDown={(event) => {
+              if (
+                (event.key === 'Backspace' || event.key === 'Delete') &&
+                !event.nativeEvent.isComposing
+              ) {
+                const input = event.currentTarget;
+                const deleted = deleteSelectedMention(
+                  value,
+                  mentions,
+                  input.selectionStart,
+                  input.selectionEnd,
+                  event.key,
+                );
+                if (deleted !== undefined) {
+                  event.preventDefault();
+                  onChange(deleted.value, deleted.mentions);
+                  setMentionQuery(undefined);
+                  requestAnimationFrame(() =>
+                    input.setSelectionRange(deleted.caret, deleted.caret),
+                  );
+                  return;
+                }
+              }
               if (mentionQuery !== undefined && candidates.length > 0) {
                 if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                   event.preventDefault();

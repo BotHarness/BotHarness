@@ -16,6 +16,7 @@ import {
   type OperationalDatabaseOwner,
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
+import { sessionMentionText } from './session-mentions.js';
 import type {
   AssignmentPermissionSnapshot,
   WorkspaceGrant,
@@ -562,7 +563,10 @@ class BotRuntimeImplementation implements BotRuntime {
         `[Bot Inbox: direct Group mention]
 Channel: ${channelId}
 Message ID: ${messageId}
-Human message: ${source.body}
+Human message: ${sessionMentionText(
+          source.body,
+          this.#channels.message(channelId, messageId)?.mentions ?? [],
+        )}
 Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       );
     } catch (error) {
@@ -693,7 +697,10 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
         orchestrator,
         sourceEventId,
         channelId,
-        source.body,
+        sessionMentionText(
+          source.body,
+          this.#channels.message(channelId, messageId)?.mentions ?? [],
+        ),
         collected.inbox,
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),

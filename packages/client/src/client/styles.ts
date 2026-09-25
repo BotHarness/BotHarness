@@ -1818,18 +1818,40 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   cursor: pointer;
 }
 
-.bh-composer-selected-mentions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  padding: 0 8px 6px;
-}
-.bh-composer-selected-mention {
-  border-radius: 999px;
-  padding: 2px 7px;
+.bh-inline-mention {
+  border-radius: 4px;
   background: var(--dsw-alias-interactive-bg-active);
   color: var(--dsw-alias-label-primary);
-  font-size: 11px;
+  box-shadow: 0 0 0 1px var(--dsw-alias-interactive-bg-active);
+}
+.bh-bubble-me .bh-inline-mention {
+  color: inherit;
+  background: color-mix(in srgb, currentColor 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+.bh-composer-mention-mirror {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+  padding: 7px 8px 5px;
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  line-height: 22px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.bh-composer-input-mirrored {
+  position: relative;
+  color: transparent;
+  caret-color: var(--dsw-alias-label-primary);
+}
+.bh-composer-input-mirrored::selection {
+  background: var(--dsw-alias-interactive-bg-active);
+  color: transparent;
 }
 .bh-mention-deliveries {
   display: flex;
@@ -2000,6 +2022,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-composer-attachment-name { overflow: hidden; max-width: 180px; white-space: nowrap; text-overflow: ellipsis; }
 .bh-composer-attachment button { padding: 0 2px; border: 0; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; }
 .bh-composer-body {
+  position: relative;
   display: flex;
   min-width: 0;
   height: var(--bh-composer-body-height);
@@ -2010,6 +2033,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 }
 .bh-composer-input {
   display: block;
+  font: inherit;
   width: 100%;
   min-width: 0;
   min-height: 34px;

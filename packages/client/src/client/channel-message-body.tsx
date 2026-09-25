@@ -9,6 +9,7 @@ import {
 
 import { channelAttachmentUrl, errorMessage } from './bridge.js';
 import { openModelsSettings } from './bot-settings-open.js';
+import { mentionRuns } from './mentions.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -364,7 +365,17 @@ export function ChannelMessageBody({
   return (
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
-        <div className="bh-bubble-body">{message.body}</div>
+        <div className="bh-bubble-body">
+          {mentionRuns(message.body, message.mentions ?? []).map((run, index) =>
+            run.mention === undefined ? (
+              <span key={index}>{run.text}</span>
+            ) : (
+              <span key={index} className="bh-inline-mention" data-bot-id={run.mention.botSlug}>
+                {run.text}
+              </span>
+            ),
+          )}
+        </div>
       ) : (
         <div className="bh-bubble-body bh-bubble-body-markdown">
           <ChannelMarkdownText

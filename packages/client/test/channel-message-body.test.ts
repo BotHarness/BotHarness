@@ -32,6 +32,27 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it('renders selected Bot mentions as one inline identity span in sent text', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'm-mention',
+          at: '2026-09-25T00:00:00.000Z',
+          author: { kind: 'human' },
+          body: '@Ada please ask @Bea',
+          mentions: [
+            { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+            { botSlug: 'bea', label: 'Bea', start: 16, end: 20 },
+          ],
+        },
+        t: zhTranslate,
+      }),
+    );
+    expect(markup).toContain('data-bot-id="ada">@Ada</span>');
+    expect(markup).toContain('data-bot-id="bea">@Bea</span>');
+    expect(markup).not.toContain('bh-composer-selected-mentions');
+  });
+
   it('uses a compact localized failure row with a settings action and collapsed raw detail', () => {
     const markup = render({ kind: 'bot', slug: 'ada' }, 'Session failed', {
       sessionFailure: {

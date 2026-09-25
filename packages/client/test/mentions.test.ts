@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { activeMentionQuery, rebaseMentions, selectMention } from '../src/client/mentions.js';
+import {
+  activeMentionQuery,
+  deleteSelectedMention,
+  mentionRuns,
+  rebaseMentions,
+  selectMention,
+  sessionBotReference,
+} from '../src/client/mentions.js';
 
 describe('selected Channel mentions', () => {
   it('keeps stable identities through unrelated edits and drops an edited token', () => {
@@ -28,6 +35,38 @@ describe('selected Channel mentions', () => {
     expect(rebaseMentions(second.value, '@Aex @Alex ', second.mentions)).toEqual([
       { ...second.mentions[1]!, start: 5, end: 10 },
     ]);
+  });
+
+  it('renders only selected identities and deletes each token atomically', () => {
+    const mentions = [
+      { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+      { botSlug: 'bea', label: 'Bea', start: 12, end: 16 },
+    ];
+    const value = '@Ada please @Bea reply';
+    expect(mentionRuns(value, mentions).map((run) => [run.text, run.mention?.botSlug])).toEqual([
+      ['@Ada', 'ada'],
+      [' please ', undefined],
+      ['@Bea', 'bea'],
+      [' reply', undefined],
+    ]);
+    expect(deleteSelectedMention(value, mentions, 5, 5, 'Backspace')).toEqual({
+      value: 'please @Bea reply',
+      mentions: [{ ...mentions[1]!, start: 7, end: 11 }],
+      caret: 0,
+    });
+    expect(deleteSelectedMention(value, mentions, 12, 12, 'Delete')).toEqual({
+      value: '@Ada please reply',
+      mentions: [mentions[0]],
+      caret: 12,
+    });
+    expect(deleteSelectedMention(value, mentions, 6, 6, 'Backspace')).toBeUndefined();
+    expect(mentionRuns('@Ada plain', [{ ...mentions[0]!, label: 'Bea' }])).toEqual([
+      { text: '@Ada plain' },
+    ]);
+  });
+
+  it('serializes native Session Bot references without the file-mention token shape', () => {
+    expect(sessionBotReference('ada')).toBe('\u2060@ada');
   });
 
   it('does not turn typed or pasted names into selected identities', () => {
