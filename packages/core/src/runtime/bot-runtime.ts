@@ -478,7 +478,9 @@ class BotRuntimeImplementation implements BotRuntime {
     const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
     return {
       admitted: true,
-      settled: this.#enqueue(bot.slug, () => this.#runDmTurn(bot, channel.id, body, claim)),
+      settled: this.#enqueue(bot.slug, () =>
+        this.#runDmTurn(bot, channel.id, body, claim, input.messageId),
+      ),
     };
   }
 
@@ -560,6 +562,7 @@ class BotRuntimeImplementation implements BotRuntime {
     channelId: string,
     body: string,
     claim: SourceEventClaim,
+    messageId: string,
   ): Promise<void> {
     if (claim.reconciliationRequired === true) {
       throw new Error(`Source Event ${claim.sourceEventId} requires reconciliation before replay`);
@@ -580,6 +583,7 @@ class BotRuntimeImplementation implements BotRuntime {
         channelId,
         body,
         collected.inbox,
+        this.#channels.message(channelId, messageId)?.memorySwitchTarget !== undefined,
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
@@ -615,9 +619,10 @@ class BotRuntimeImplementation implements BotRuntime {
     channelId: string,
     body: string,
     inbox: string,
+    coordinateBranchSwitch = false,
   ): Promise<void> {
     const markSideEffect = () => this.#markSideEffectStarted(sourceEventId);
-    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId);
+    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
     try {
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
@@ -1302,6 +1307,7 @@ class BotRuntimeImplementation implements BotRuntime {
         channel.id,
         '',
         collected.inbox,
+        true,
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);

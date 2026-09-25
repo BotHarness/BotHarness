@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactElement } from 'react';
-import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
@@ -22,6 +22,9 @@ export function MemoryEntry({
 }: ChannelSidebarEntryProps): ReactElement {
   const [refresh, setRefresh] = useState(0);
   const [branchChoice, setBranchChoice] = useState('');
+  const [branchMenuOpen, setBranchMenuOpen] = useState(false);
+  const [branchFilter, setBranchFilter] = useState('');
+  const skipBranchFocus = useRef(false);
   const [branchRequest, setBranchRequest] = useState<string>();
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
   const [graph, setGraph] = useState<MemoryGitGraph>();
@@ -36,6 +39,22 @@ export function MemoryEntry({
   const [snapshotError, setSnapshotError] = useState<string>();
   const [graphError, setGraphError] = useState<string>();
   const lanes = layoutMemoryGitLanes(graph?.commits ?? []);
+  const branchQuery = branchFilter.trim().toLocaleLowerCase();
+  const filteredBranches = (graph?.branches ?? []).filter((branch) =>
+    branch.toLocaleLowerCase().includes(branchQuery),
+  );
+  const closeBranchMenu = (): void => {
+    skipBranchFocus.current = true;
+    setTimeout(() => {
+      skipBranchFocus.current = false;
+    }, 0);
+    setBranchFilter('');
+    setBranchMenuOpen(false);
+  };
+  const selectBranch = (branch: string): void => {
+    setBranchChoice(branch);
+    closeBranchMenu();
+  };
 
   useEffect(() => {
     let active = true;
@@ -124,6 +143,9 @@ export function MemoryEntry({
     try {
       const sent = await actions.send(
         t('memory.branchSwitchPrompt', { branch: JSON.stringify(target) }),
+        undefined,
+        undefined,
+        target,
       );
       if (!sent) throw new Error(t('memory.branchRequestFailed'));
       setBranchRequest(target);
@@ -292,17 +314,48 @@ export function MemoryEntry({
             </div>
             <div className="bh-memory-branch-control">
               <label htmlFor="bh-memory-branch-choice">{t('memory.branch')}</label>
-              <select
-                id="bh-memory-branch-choice"
-                value={branchChoice}
-                onChange={(event) => setBranchChoice(event.target.value)}
+              <Menu
+                className="bh-memory-branch-picker"
+                listClassName="bh-memory-branch-menu"
+                open={branchMenuOpen}
+                portal
+                selectedId={branchChoice}
+                items={filteredBranches.map((branch) => ({ id: branch, label: branch }))}
+                onSelect={selectBranch}
+                onClose={closeBranchMenu}
+                anchor={
+                  <Input
+                    id="bh-memory-branch-choice"
+                    type="search"
+                    value={branchMenuOpen ? branchFilter : branchChoice}
+                    placeholder={t('memory.searchBranch')}
+                    aria-label={t('memory.searchBranch')}
+                    aria-haspopup="menu"
+                    aria-expanded={branchMenuOpen}
+                    autoComplete="off"
+                    onFocus={() => {
+                      if (skipBranchFocus.current) return;
+                      setBranchFilter('');
+                      setBranchMenuOpen(true);
+                    }}
+                    onChange={(event) => {
+                      setBranchFilter(event.target.value);
+                      setBranchMenuOpen(true);
+                    }}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter' || !branchMenuOpen) return;
+                      const match = filteredBranches[0];
+                      if (match === undefined) return;
+                      event.preventDefault();
+                      selectBranch(match);
+                    }}
+                  />
+                }
               >
-                {graph.branches.map((branch) => (
-                  <option key={branch} value={branch}>
-                    {branch}
-                  </option>
-                ))}
-              </select>
+                {filteredBranches.length > 0 ? null : (
+                  <div className="bh-memory-branch-empty">{t('memory.noBranches')}</div>
+                )}
+              </Menu>
               <Button
                 variant="outline"
                 size="sm"

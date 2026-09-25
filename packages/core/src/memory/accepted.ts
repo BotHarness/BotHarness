@@ -103,7 +103,11 @@ export interface MemoryAcceptance {
     to: string;
     head: string;
   };
-  prepareTurn(botSlug: string, sessionId: string): void;
+  prepareTurn(
+    botSlug: string,
+    sessionId: string,
+    options?: { coordinateBranchSwitch?: boolean },
+  ): void;
   reconcileTurn(input: {
     botSlug: string;
     sessionId: string;
@@ -615,14 +619,19 @@ export function createMemoryAcceptance(options: {
     }
   };
 
-  const prepareTurn = (botSlug: string, sessionId: string): void => {
+  const prepareTurn = (
+    botSlug: string,
+    sessionId: string,
+    options?: { coordinateBranchSwitch?: boolean },
+  ): void => {
     requireOwned(botSlug, sessionId);
     if (pendingRepair(botSlug) !== undefined) {
       throw new MemoryAcceptError('memory-conflict', 'Memory repair must finish before turn');
     }
     const root = repository(registry, botSlug);
     const baseline = bootstrap(botSlug, root);
-    if (head(root) !== baseline || dirty(root)) {
+    const unfinished = head(root) !== baseline || dirty(root);
+    if (unfinished && options?.coordinateBranchSwitch !== true) {
       throw new MemoryAcceptError(
         'memory-conflict',
         'Memory Repository has provisional changes before turn',
@@ -631,7 +640,13 @@ export function createMemoryAcceptance(options: {
     if (inFlight.has(botSlug)) {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
-    inFlight.set(botSlug, { sessionId, branch: branchOf(root) });
+    // A coordination turn may inspect and resolve pre-existing edits, but it
+    // cannot promote those edits into accepted Memory on reconciliation.
+    inFlight.set(botSlug, {
+      sessionId,
+      branch: branchOf(root),
+      ...(unfinished ? { preservePending: true } : {}),
+    });
   };
 
   const reconcileTurn = (input: {
@@ -846,7 +861,7 @@ export function createMemoryAcceptance(options: {
       if (dirty(root)) {
         throw new MemoryAcceptError(
           'memory-conflict',
-          'Memory has unfinished changes; coordinate before switching',
+          `Memory branch ${from} has unfinished changes; staged and working files are preserved. Coordinate before switching`,
         );
       }
       if (head(root) !== acceptedHead(input.botSlug, from)) {
