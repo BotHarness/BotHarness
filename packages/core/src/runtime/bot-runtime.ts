@@ -135,7 +135,31 @@ export interface ChannelMessageView {
   message: ChannelMessage;
 }
 
+export interface ChannelListInput {
+  channelId?: string;
+  name?: string;
+  type?: 'group' | 'dm';
+  memberBotIds?: string[];
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ChannelListEntry {
+  id: string;
+  name: string;
+  type: 'group' | 'dm';
+  kind: 'group' | 'human-dm' | 'bot-dm';
+  members: Array<{ botId: string; displayName: string; active: boolean }>;
+  ownerBotId?: string;
+}
+
+export interface ChannelListPage {
+  channels: ChannelListEntry[];
+  nextCursor?: string;
+}
+
 export interface OrchestratorChannelAccess {
+  list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
   search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
   readAttachment?(input: {
@@ -1309,6 +1333,77 @@ class BotRuntimeImplementation implements BotRuntime {
     const resolve = (requested?: string): ChannelRecord =>
       this.#requireMembership(botSlug, requested ?? defaultChannelId);
     return {
+      list: (input = {}) => {
+        if (input.type !== undefined && input.type !== 'group' && input.type !== 'dm') {
+          throw new Error('channel_list: type must be group or dm');
+        }
+        const name = input.name?.trim().toLowerCase();
+        const memberBotIds = [...new Set(input.memberBotIds ?? [])].sort();
+        const filter = createHash('sha256')
+          .update(
+            JSON.stringify({ channelId: input.channelId, name, type: input.type, memberBotIds }),
+          )
+          .digest('hex')
+          .slice(0, 16);
+        let afterId: string | undefined;
+        if (input.cursor !== undefined) {
+          try {
+            const decoded: unknown = JSON.parse(
+              Buffer.from(input.cursor, 'base64url').toString('utf8'),
+            );
+            if (
+              typeof decoded !== 'object' ||
+              decoded === null ||
+              !('afterId' in decoded) ||
+              typeof decoded.afterId !== 'string' ||
+              !('filter' in decoded) ||
+              decoded.filter !== filter
+            )
+              throw new Error('invalid');
+            afterId = decoded.afterId;
+          } catch {
+            throw new Error('channel_list: invalid cursor');
+          }
+        }
+        const limit = Math.max(1, Math.min(Math.floor(input.limit ?? 20), 100));
+        const matching = this.#channels
+          .list()
+          .filter((channel) => this.#isMember(botSlug, channel))
+          .filter((channel) => input.channelId === undefined || channel.id === input.channelId)
+          .filter((channel) => input.type === undefined || channel.type === input.type)
+          .filter((channel) => name === undefined || channel.name.toLowerCase().includes(name))
+          .filter((channel) => memberBotIds.every((id) => channel.members.includes(id)))
+          .filter((channel) => afterId === undefined || channel.id > afterId)
+          .sort((left, right) => left.id.localeCompare(right.id));
+        const page = matching.slice(0, limit + 1);
+        const channels = page.slice(0, limit).map((channel): ChannelListEntry => ({
+          id: channel.id,
+          name: channel.name,
+          type: channel.type,
+          kind:
+            channel.type === 'group' ? 'group' : isBotDmChannel(channel) ? 'bot-dm' : 'human-dm',
+          members: channel.members.map((id) => {
+            const member = this.#registry.get(id);
+            return {
+              botId: id,
+              displayName: member?.displayName ?? id,
+              active: member !== undefined && member.paused !== true,
+            };
+          }),
+          ...(channel.ownerBotSlug === undefined ? {} : { ownerBotId: channel.ownerBotSlug }),
+        }));
+        const last = channels.at(-1);
+        return {
+          channels,
+          ...(page.length <= limit || last === undefined
+            ? {}
+            : {
+                nextCursor: Buffer.from(JSON.stringify({ afterId: last.id, filter })).toString(
+                  'base64url',
+                ),
+              }),
+        };
+      },
       contacts: () =>
         this.#registry
           .list()

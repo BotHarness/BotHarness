@@ -15,6 +15,7 @@ const ASSIGNMENT = {
 };
 
 const groupTools = {
+  list: () => ({ channels: [] }),
   createGroup: (): never => {
     throw new Error('unexpected Group creation');
   },
@@ -353,6 +354,7 @@ describe('DSH Bot Agent adapter', () => {
       'list_assignments',
       'inspect_assignment',
       'send_assignment_request',
+      'channel_list',
       'channel_read',
       'channel_read_image',
       'channel_search',

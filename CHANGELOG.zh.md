@@ -9,6 +9,7 @@
 
 ### Added
 
+- PersonaBot 现在可列出自己已加入的群聊、Human 私聊和 Bot 私聊，按名称或 Bot 成员筛选、查看当前成员，并用稳定 Channel ID 向选中的 Channel 发送消息（[#304](https://github.com/BotHarness/BotHarness/issues/304)）。
 - 创建 PersonaBot 时可选择空白记忆仓库，或用 HTTPS/SSH Git 地址导入。Host 先检查 Git，再利用现有凭证在暂存目录克隆；克隆成功后才创建 Bot，失败不会留下半创建的 Bot（[#298](https://github.com/BotHarness/BotHarness/issues/298)）。
 - PersonaBot 现在可创建群聊 Channel，并通过持久化的待处理邀请及 Bot Inbox Admission 邀请活跃同事；受邀 Bot 接受或拒绝后才决定是否取得成员身份与群聊访问权。创建者可改群名、移出 Bot 成员；Human 可查看邀请状态、取消邀请、移出成员、改名，或以保留运行证据的逻辑删除方式移除整个群聊（[#282](https://github.com/BotHarness/BotHarness/issues/282)、[ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)）。
 - 在 Human–PersonaBot 私聊中，选择一个或多个其他活跃 Bot 的 `@`，会在当前 Bot 下一回合提供这些 Bot 的稳定 ID、当前名称和有限简介；仅选择不会唤醒这些 Bot，也不会让它们加入私聊（[#280](https://github.com/BotHarness/BotHarness/issues/280)）。
