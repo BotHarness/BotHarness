@@ -650,7 +650,7 @@ window.__ModuleLoader__.load({
 				"aria-expanded": open,
 				disabled: disabled === true,
 				onClick: onToggle,
-				children: [label, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutline14, { className: "bh-settings-chevron" })]
+				children: [label, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { className: "bh-settings-chevron" })]
 			});
 		}
 		/** The Computer group inside the BotHarness settings page. */
@@ -866,7 +866,7 @@ window.__ModuleLoader__.load({
 									className: "bh-settings-selector",
 									disabled: !writable,
 									onClick: pickExportDir,
-									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFolderOpenOutline16, { size: 14 }), t("rows.exportDir.pick")]
+									children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFolderOpenOutlineRegular, { size: 14 }), t("rows.exportDir.pick")]
 								}) : null,
 								/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 									type: "button",
@@ -1335,7 +1335,7 @@ window.__ModuleLoader__.load({
 						fontSize: 13,
 						gap: 6
 					},
-					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutline16, { size: 14 }), t("entry.openFullscreen")]
+					children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconFullscreenOutlineRegular, { size: 14 }), t("entry.openFullscreen")]
 				})
 			});
 		}
@@ -2029,8 +2029,8 @@ window.__ModuleLoader__.load({
 		}
 		function apply(ctx) {
 			const settingsPrefs = new ComputerSettingsPrefs();
-			ctx.inject(["settingsScope"], (settingsCtx) => {
-				const scope = settingsCtx.settingsScope.bind({ namespace: COMPUTER_SETTINGS_NAMESPACE });
+			ctx.inject(["configForms"], (settingsCtx) => {
+				const scope = settingsCtx.configForms.get(COMPUTER_SETTINGS_NAMESPACE);
 				const release = settingsPrefs.attach(scope);
 				return () => {
 					release();

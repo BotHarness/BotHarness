@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { apply, BotModeSettingsSchema, name } from '../src/index.js';
+import { apply, Config, name } from '../src/index.js';
 
 describe('@botharness/client host half', () => {
   it('exposes the plugin identity', () => {
@@ -8,49 +8,36 @@ describe('@botharness/client host half', () => {
     expect(apply).toBeTypeOf('function');
   });
 
-  it('resolves the BOT-mode section with an updated default and a per-section map', () => {
-    expect(BotModeSettingsSchema({})).toEqual({
-      motionPreference: 'system',
-      botIcon: 'mascot' as const,
-      developerMode: false,
-      sortMode: 'updated',
-      sortModes: {},
-    });
-    expect(BotModeSettingsSchema({ sortMode: 'manual' })).toEqual({
-      motionPreference: 'system',
-      botIcon: 'mascot' as const,
-      developerMode: false,
-      sortMode: 'manual',
-      sortModes: {},
-    });
-    expect(BotModeSettingsSchema({ sortModes: { s1: 'manual' } })).toEqual({
-      motionPreference: 'system',
-      botIcon: 'mascot' as const,
-      developerMode: false,
-      sortMode: 'updated',
-      sortModes: { s1: 'manual' },
-    });
-    expect(BotModeSettingsSchema({ motionPreference: 'full' })).toMatchObject({
-      motionPreference: 'full',
-      botIcon: 'mascot' as const,
-      developerMode: false,
-    });
+  it('projects live BOT-mode Config defaults and overrides', () => {
+    const defaults = Config({});
+    expect(defaults.botIcon.get()).toBe('mascot');
+    expect(defaults.developerMode.get()).toBe(false);
+    expect(defaults.motionPreference.get()).toBe('system');
+    expect(defaults.sortMode.get()).toBe('updated');
+    expect(defaults.sortModes.get()).toEqual({});
+
+    const custom = Config({ developerMode: true, sortMode: 'manual', sortModes: { s1: 'manual' } });
+    expect(custom.sortMode.get()).toBe('manual');
+    expect(custom.developerMode.get()).toBe(true);
+    expect(custom.sortModes.get()).toEqual({ s1: 'manual' });
   });
 
-  it('registers the ui-bot-mode namespace when a settings provider exists', () => {
-    const register = vi.fn(() => () => undefined);
+  it('suppresses the native generated page when its custom settings page is present', () => {
+    const configure = vi.fn(() => () => undefined);
+    const fiber = {};
     const ctx = {
+      fiber,
       inject: (_deps: string[], callback: (ctx: unknown) => unknown) => {
-        callback({ settings: { register } });
+        callback({ settings: { configure }, effect: (factory: () => unknown) => factory() });
       },
     };
 
     apply(ctx as never);
 
-    expect(register).toHaveBeenCalledWith('ui-bot-mode', BotModeSettingsSchema);
+    expect(configure).toHaveBeenCalledWith({ auto: false }, fiber);
   });
 
-  it('loads without a settings provider, keeping the namespace absent', () => {
+  it('loads without a settings provider', () => {
     const inject = vi.fn(() => undefined);
     expect(() => {
       apply({ inject } as never);

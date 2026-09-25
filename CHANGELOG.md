@@ -38,6 +38,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Local BotHarness development now supports DSH 0.1.7 RC2 Web Profiles, with automatic Client refresh and a documented Host restart path ([#265](https://github.com/BotHarness/BotHarness/issues/265)).
+
 - Channel Bot bubbles now use the former Human grey surface, while Human bubbles use the DSH theme’s inverse neutral palette with readable text, reply excerpts, and file attachments in both light and dark themes ([#255](https://github.com/BotHarness/BotHarness/issues/255)).
 - Operational logs gained a durable home: a lightweight `logs.db` beside the profile (versioned schema, rebuild-empty worst case, 50k rows + 30 days lazy retention, owner-scoped reads) that the Computer diagnostics ring now drains into, so debugging survives restarts ([#240](https://github.com/BotHarness/BotHarness/issues/240), [ADR-0063](docs/adr/0063-operational-log-database.md)).
 - The Computer viewer now narrates its lifecycle (mounts, stream phases, reloads, retries) into the developer diagnostics log, so a later debugging session replays the card's story without a browser ([#234](https://github.com/BotHarness/BotHarness/issues/234)).
@@ -80,6 +82,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fixed fresh BotHarness database initialization on Windows so the official DSH RC2 Desktop can add a local Workspace and create a PersonaBot without entering recovery mode ([#266](https://github.com/BotHarness/BotHarness/issues/266)).
 - Failed Orchestrator and Assignment turns now leave a durable notice in the PersonaBot DM with a localized summary and DSH error code; provider diagnostics and Session identity expand on demand, while credential and quota failures link to model settings ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 
 - Fixed Computer export end-to-end on deployments whose directory picker rejects (e.g. web): the export directory falls back to a built-in default (`~/Desktop/BotHarness Exports`, or `~/BotHarness Exports` without a Desktop) shown read-only so no path has to be typed, the row keeps tracking that Host-resolved path while the settings scope is still empty (Open folder / export / import stay enabled against it), a failed picker switches to the fixed directory and continues the export, and the folder opens in the Host's file manager when the export finishes; on picker deployments, saving a typed path shows progress plus success/failure notes, rejects relative paths, and surfaces a Host-refused write as an error instead of a false success ([#154](https://github.com/BotHarness/BotHarness/issues/154)).

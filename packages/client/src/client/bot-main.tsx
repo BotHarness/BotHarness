@@ -1,9 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 
 import {
-  IconAgentPresetOutline16,
-  IconCopyOutline16,
-  IconPanelLeftOutline16,
+  IconAgentPresetOutlineRegular,
+  IconCopyOutlineRegular,
+  IconPanelLeftOutlineRegular,
   Menu,
   Tag,
 } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -80,7 +80,7 @@ function Welcome({ state, t }: { state: ClientState; t: BotHarnessTranslate }): 
     <div className="bh-root bh-main">
       <div className="bh-content">
         <div className="bh-placeholder">
-          <IconAgentPresetOutline16 size={32} />
+          <IconAgentPresetOutlineRegular size={32} />
           <div className="bh-big">{t('main.welcome.title')}</div>
           <div>{t('main.welcome.hint')}</div>
           {state.bots.length === 0 ? <div className="bh-dim">{t('main.welcome.empty')}</div> : null}
@@ -240,7 +240,7 @@ function MessageGroupView({
                   void navigator.clipboard?.writeText(message.body);
                 }}
               >
-                <IconCopyOutline16 size={16} />
+                <IconCopyOutlineRegular size={16} />
               </button>
             </div>
           );
@@ -301,7 +301,7 @@ function MessageActionMenu({
             ? []
             : [{ id: 'reply', label: t('message.reply') }]),
           { id: 'locate', label: t('message.locate') },
-          { id: 'copy', label: t('message.copy'), icon: <IconCopyOutline16 /> },
+          { id: 'copy', label: t('message.copy'), icon: <IconCopyOutlineRegular /> },
         ]}
         onSelect={(id) => {
           if (id === 'reply') onReply(request.message);
@@ -1020,7 +1020,7 @@ function ConversationView({
           aria-controls="bh-channel-sidebar"
           onClick={sidebar.toggle}
         >
-          <IconPanelLeftOutline16 size={16} />
+          <IconPanelLeftOutlineRegular size={16} />
         </button>
       </div>
     </div>

@@ -25,6 +25,26 @@ import {
 } from './dev-secret.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+function dshCommand(worktree) {
+  const installedRoot = join(worktree, 'node_modules', '@deepseek-ai', 'dsh');
+  const cli = join(installedRoot, 'lib', 'bin.js');
+  if (!existsSync(cli)) {
+    throw new Error(`local DSH CLI is missing in ${worktree}; run pnpm install there`);
+  }
+  const expected = JSON.parse(readFileSync(join(worktree, 'package.json'), 'utf8'))
+    .devDependencies?.['@deepseek-ai/dsh'];
+  const actual = installedDshVersion(worktree);
+  if (actual !== expected) {
+    throw new Error(`local DSH CLI mismatch: expected ${expected}, found ${actual}`);
+  }
+  return [process.execPath, cli];
+}
+
+function installedDshVersion(worktree) {
+  return JSON.parse(
+    readFileSync(join(worktree, 'node_modules', '@deepseek-ai', 'dsh', 'package.json'), 'utf8'),
+  ).version;
+}
 
 function parseArgs(argv) {
   const options = {
@@ -86,14 +106,29 @@ function ensureProfile(options) {
   const profileDir = join(options.home, 'profiles', options.profile);
   const manifestPath = join(profileDir, 'package.json');
   const env = { ...process.env, DSH_HOME: options.home };
+  const [command, cli] = dshCommand(options.worktree);
+  const profileCliManifest = join(
+    options.home,
+    'profiles',
+    'node_modules',
+    '@deepseek-ai',
+    'dsh',
+    'package.json',
+  );
+  if (existsSync(profileCliManifest)) {
+    const profileVersion = JSON.parse(readFileSync(profileCliManifest, 'utf8')).version;
+    const localVersion = installedDshVersion(options.worktree);
+    if (profileVersion !== localVersion) {
+      throw new Error(
+        `Profile was created with DSH ${profileVersion}, but this worktree uses ${localVersion}; choose a fresh --home`,
+      );
+    }
+  }
   if (!existsSync(manifestPath)) {
-    spawnSync(
-      'dsh',
-      ['--profile', options.profile, '--from-default-profile', 'web', '--dump-config'],
-      {
-        env,
-        stdio: 'ignore',
-      },
+    run(
+      command,
+      [cli, '--profile', options.profile, '--from-default-profile', 'web', '--dump-config'],
+      { env },
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -111,25 +146,26 @@ function ensureProfile(options) {
     },
   };
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  run('pnpm', ['install'], { cwd: profileDir, stdio: 'ignore' });
+  run('pnpm', ['install'], { cwd: profileDir });
   return profileDir;
 }
 
-function launch(options, profileDir) {
+function launch(options) {
   if (options.build) {
-    run('pnpm', ['build'], { cwd: options.worktree, stdio: 'ignore' });
+    run('pnpm', ['build'], { cwd: options.worktree });
   }
   const logPath = join(
     '/tmp',
     `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}-${options.port}.log`,
   );
   const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
+  const [command, cli] = dshCommand(options.worktree);
   // The child writes straight to the log fd: no pipes means this parent can
   // exit without holding the detached server open.
   const logFd = openSync(logPath, 'w');
   const child = spawn(
-    'dsh',
-    ['--profile', options.profile, '--port', String(options.port), '--no-open'],
+    command,
+    [cli, '--profile', options.profile, '--port', String(options.port), '--no-open'],
     { env, cwd: options.worktree, detached: true, stdio: ['ignore', logFd, logFd] },
   );
   child.unref();
@@ -156,7 +192,7 @@ async function verifyPluginLayer(url, options) {
   const login = await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const setCookie = login.headers.get('set-cookie');
   if (setCookie !== null) writeFileSync(jar, setCookie);
-  const probe = await fetch(`${base}/api/settings/describe`, {
+  const probe = await fetch(`${base}/api/botharness/list`, {
     signal: AbortSignal.timeout(10_000),
     method: 'POST',
     headers: {
@@ -166,25 +202,37 @@ async function verifyPluginLayer(url, options) {
     body: JSON.stringify({
       type: 'client-request',
       rpcId: 'dev-instance-probe',
-      method: 'settings/describe',
+      method: 'botharness/list',
       payload: { args: {} },
     }),
   });
-  const text = await probe.text();
-  return { status: probe.status, ok: probe.status === 200 && text.includes('server-response') };
+  const envelope = await probe.json().catch(() => undefined);
+  return {
+    status: probe.status,
+    ok: probe.status === 200 && envelope?.result?.ok === true,
+    error:
+      envelope?.result?.error?.code ?? (envelope === undefined ? 'invalid-response' : undefined),
+  };
 }
 
 async function main() {
   const options = parseArgs(process.argv.slice(2));
   const secret = resolveDevSecret();
   mkdirSync(options.home, { recursive: true });
-  const profileDir = ensureProfile(options);
+  ensureProfile(options);
   const profileCredential = profileDeepSeekCredential(options.home) !== undefined;
   if (secret === undefined && !profileCredential) console.error(devSecretInstructions());
-  const { logPath } = launch(options, profileDir);
+  const { child, logPath } = launch(options);
   const url = await waitForToken(logPath);
   const health = await verifyPluginLayer(url, options);
+  if (!health.ok) {
+    child.kill();
+    throw new Error(
+      `BotHarness API is unavailable (HTTP ${health.status}, ${health.error ?? 'unknown'}); see ${logPath}`,
+    );
+  }
   const summary = {
+    pid: child.pid,
     url,
     log: logPath,
     home: options.home,
@@ -195,7 +243,7 @@ async function main() {
         ? 'DSH profile credentials (verify with a real model call)'
         : 'missing (model calls will fail)'),
     health,
-    stop: `pkill -f "dsh --profile ${options.profile} --port ${options.port}"`,
+    stop: `kill ${child.pid}`,
   };
   if (options.json) {
     console.log(JSON.stringify(summary, null, 2));

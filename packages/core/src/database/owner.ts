@@ -753,7 +753,7 @@ function cleanupSidecars(path: string): void {
 }
 
 function fsyncFile(path: string): void {
-  const descriptor = openSync(path, 'r');
+  const descriptor = openSync(path, 'r+');
   try {
     fsyncSync(descriptor);
   } finally {
@@ -762,6 +762,8 @@ function fsyncFile(path: string): void {
 }
 
 function fsyncDirectory(path: string): void {
+  // Node cannot open directories for fsync on Windows (EPERM).
+  if (process.platform === 'win32') return;
   let descriptor: number | undefined;
   try {
     descriptor = openSync(path, 'r');

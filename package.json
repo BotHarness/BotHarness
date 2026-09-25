@@ -23,11 +23,13 @@
     "sync:development-status": "node scripts/development-status.mjs",
     "dev": "pnpm --filter docs exec portless",
     "dev:instance": "node scripts/dev-instance.mjs",
+    "dev:client": "tsdown --config tsdown.client.config.ts --config-loader unrun --watch",
     "docs:dev": "pnpm --filter docs dev",
     "docs:build": "pnpm --filter docs build",
     "docs:deploy": "pnpm --filter docs run deploy"
   },
   "devDependencies": {
+    "@deepseek-ai/dsh": "0.1.7-rc.2",
     "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/node": "^22.20.2",
     "oxfmt": "^0.68.0",

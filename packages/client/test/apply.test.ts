@@ -4,19 +4,19 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
     Button: stub,
-    IconAgentPresetOutline16: stub,
-    IconChevronDownOutline14: stub,
-    IconChevronRightOutline14: stub,
-    IconCloseOutline16: stub,
-    IconEditOutline16: stub,
-    IconEllipsisOutline16: stub,
-    IconNewChatOutline16: stub,
-    IconPanelLeftOutline16: stub,
+    IconAgentPresetOutlineRegular: stub,
+    IconChevronDownOutlineRegular: stub,
+    IconChevronRightOutlineRegular: stub,
+    IconCloseOutlineRegular: stub,
+    IconEditOutlineRegular: stub,
+    IconEllipsisOutlineRegular: stub,
+    IconNewChatOutlineRegular: stub,
+    IconPanelLeftOutlineRegular: stub,
     IconTriangleRightFill14: stub,
-    IconTrashOutline16: stub,
-    IconPlusOutline16: stub,
-    IconSearchOutline16: stub,
-    IconSendOutline16: stub,
+    IconTrashOutlineRegular: stub,
+    IconPlusOutlineRegular: stub,
+    IconSearchOutlineRegular: stub,
+    IconSendOutlineRegular: stub,
     Input: stub,
     Menu: stub,
     MarkdownText: stub,
@@ -111,7 +111,7 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
     },
     inject: (_deps: string[], callback: (ctx: unknown) => unknown) => {
       if (withSettings) {
-        callback({ ...scoped, settingsScope: { bind: () => fakeScope() } });
+        callback({ ...scoped, configForms: { get: () => fakeScope() } });
       }
       return () => undefined;
     },
@@ -153,7 +153,7 @@ describe('client apply', () => {
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 
-  it('registers the BotHarness settings section only while settingsScope is served', () => {
+  it('registers the BotHarness settings section only while configForms is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];

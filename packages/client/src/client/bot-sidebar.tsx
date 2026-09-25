@@ -10,15 +10,15 @@ import { createPortal } from 'react-dom';
 
 import {
   Button,
-  IconAgentPresetOutline16,
-  IconChevronDownOutline14,
-  IconCloseFill14,
-  IconEllipsisOutline16,
-  IconFolderOpenOutline16,
-  IconNewChatOutline16,
-  IconPlusOutline16,
-  IconSearchOutline16,
-  IconSettingsOutline16,
+  IconAgentPresetOutlineRegular,
+  IconChevronDownOutlineRegular,
+  IconCloseFillRegular,
+  IconEllipsisOutlineRegular,
+  IconFolderOpenOutlineRegular,
+  IconNewChatOutlineRegular,
+  IconPlusOutlineRegular,
+  IconSearchOutlineRegular,
+  IconSettingsOutlineRegular,
   HoverCard,
   Menu,
   StateDot,
@@ -194,7 +194,7 @@ export function BotPanelIcon({
                     openSettings();
                   }}
                 >
-                  <IconSettingsOutline16 size={14} />
+                  <IconSettingsOutlineRegular size={14} />
                 </span>
               ) : null}
             </>,
@@ -1503,7 +1503,7 @@ export function BotSidebar({
                   setSearchOpen(true);
                 }}
               >
-                <IconSearchOutline16 size={searchOpen ? 11 : 14} />
+                <IconSearchOutlineRegular size={searchOpen ? 11 : 14} />
               </button>
             </Tooltip>
             <input
@@ -1531,7 +1531,7 @@ export function BotSidebar({
                   setSearchOpen(false);
                 }}
               >
-                <IconCloseFill14 />
+                <IconCloseFillRegular />
               </button>
             ) : null}
           </div>
@@ -1552,7 +1552,7 @@ export function BotSidebar({
                     setSortMenuOpen((value) => !value);
                   }}
                 >
-                  <IconEllipsisOutline16 size={16} />
+                  <IconEllipsisOutlineRegular size={16} />
                 </button>
               </Tooltip>
             }
@@ -1578,7 +1578,7 @@ export function BotSidebar({
                     setMenuOpen((value) => !value);
                   }}
                 >
-                  <IconPlusOutline16 size={16} />
+                  <IconPlusOutlineRegular size={16} />
                 </button>
               </Tooltip>
             }
@@ -1675,7 +1675,7 @@ export function BotSidebar({
                       aria-label={t('pin.sort')}
                       onClick={() => setPinSortMenuOpen((value) => !value)}
                     >
-                      <IconEllipsisOutline16 />
+                      <IconEllipsisOutlineRegular />
                     </button>
                   }
                   items={pinnedSortMenuItems(t)}
@@ -2021,7 +2021,7 @@ export function BotSidebar({
                   }}
                 >
                   <span className="bh-section-name">{section.name}</span>
-                  <IconChevronDownOutline14
+                  <IconChevronDownOutlineRegular
                     size={14}
                     className={
                       collapsed ? 'bh-section-chevron bh-chevron-collapsed' : 'bh-section-chevron'
@@ -2048,7 +2048,7 @@ export function BotSidebar({
                             setSectionCreateMenuId(undefined);
                           }}
                         >
-                          <IconEllipsisOutline16 />
+                          <IconEllipsisOutlineRegular />
                         </button>
                       }
                       items={sectionMenuItems(t, {
@@ -2080,7 +2080,7 @@ export function BotSidebar({
                             );
                           }}
                         >
-                          <IconPlusOutline16 />
+                          <IconPlusOutlineRegular />
                         </button>
                       }
                       items={sectionCreateMenuItems(t)}
@@ -2509,17 +2509,17 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
     {
       id: 'bot',
       label: t('roster.menu.createBot'),
-      icon: <IconAgentPresetOutline16 size={16} />,
+      icon: <IconAgentPresetOutlineRegular size={16} />,
     },
     {
       id: 'channel',
       label: t('roster.menu.createChannel'),
-      icon: <IconNewChatOutline16 size={16} />,
+      icon: <IconNewChatOutlineRegular size={16} />,
     },
     {
       id: 'section',
       label: t('roster.menu.createSection'),
-      icon: <IconFolderOpenOutline16 size={16} />,
+      icon: <IconFolderOpenOutlineRegular size={16} />,
     },
   ];
 }

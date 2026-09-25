@@ -1,6 +1,6 @@
 import { useId, useState, type ReactElement } from 'react';
 
-import { Button, IconCloseOutline16, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, IconCloseOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import { BridgeCallError, errorMessage } from './bridge.js';
@@ -164,7 +164,7 @@ export function CreatePersonaBotModal({
                       disabled={creating}
                       onClick={() => setRoles((current) => current.filter((item) => item !== role))}
                     >
-                      <IconCloseOutline16 size={12} />
+                      <IconCloseOutlineRegular size={12} />
                     </button>
                   </span>
                 ))}

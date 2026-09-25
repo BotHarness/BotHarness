@@ -11,11 +11,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
   };
   const dot = (props: { state?: string }) => createElement('span', { 'data-state': props.state });
   return {
-    IconChevronDownOutline14: glyph,
-    IconCloseFill14: glyph,
-    IconFolderOpenOutline16: glyph,
-    IconSettingsOutline16: glyph,
-    IconFullscreenOutline16: glyph,
+    IconChevronDownOutlineRegular: glyph,
+    IconCloseFillRegular: glyph,
+    IconFolderOpenOutlineRegular: glyph,
+    IconSettingsOutlineRegular: glyph,
+    IconFullscreenOutlineRegular: glyph,
     Menu: glyph,
     Button: control,
     Pill: control,
@@ -77,7 +77,7 @@ describe('Computer channel sidebar entry registration', () => {
     };
     const rows: { id?: string; order?: number }[] = [];
     const settings = {
-      bind: () => ({
+      get: () => ({
         getSnapshot: () => ({ status: 'ready' as const, value: undefined, writable: true }),
         subscribe: () => () => {},
         set: async () => {},
@@ -86,8 +86,8 @@ describe('Computer channel sidebar entry registration', () => {
     const ctx = {
       locale: { bind: () => t, register: () => () => {} },
       inject: (deps: string[], callback: (context: unknown) => void) => {
-        if (deps.includes('settingsScope')) {
-          callback({ settingsScope: settings });
+        if (deps.includes('configForms')) {
+          callback({ configForms: settings });
           return;
         }
         if (deps.includes('uiWorkspace')) {

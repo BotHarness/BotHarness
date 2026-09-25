@@ -8,7 +8,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import { Button, IconSendOutline16 } from '@deepseek-ai/dsh-client-ui-primitives';
+import { Button, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
 import type { ChannelAttachmentRef } from './store.js';
@@ -283,7 +283,7 @@ export function ChannelComposer({
             className="bh-send-btn"
             variant="primary"
             size="sm"
-            icon={<IconSendOutline16 size={16} />}
+            icon={<IconSendOutlineRegular size={16} />}
             aria-label={sending ? t('message.sending') : t('composer.send')}
             disabled={
               (value.trim().length === 0 && attachments.length === 0) ||

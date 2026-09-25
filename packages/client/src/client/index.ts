@@ -3,7 +3,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
-// Type-only: the `settingsScope` Context merge and the settings slot contract.
+// Type-only: the `configForms` Context merge and the settings slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
@@ -29,6 +29,7 @@ import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
+import { mountDevClientRefresh } from './dev-client-refresh.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
@@ -102,6 +103,7 @@ export function apply(ctx: ClientContext): void {
   }, 'botharness: Channel sidebar entries');
 
   ctx.effect(installStyles, 'botharness: client styles');
+  ctx.effect(mountDevClientRefresh, 'botharness: local development refresh');
   ctx.effect(
     () => prefs.attachSystemMotion(browserSystemMotionSource()),
     'botharness: system motion preference',
@@ -164,10 +166,8 @@ export function apply(ctx: ClientContext): void {
     };
   }, 'botharness: roster load');
 
-  ctx.inject(['settingsScope'], (settingsCtx) => {
-    const scope = settingsCtx.settingsScope.bind<BotModeSettings>({
-      namespace: BOT_MODE_NAMESPACE,
-    });
+  ctx.inject(['configForms'], (settingsCtx) => {
+    const scope = settingsCtx.configForms.get<BotModeSettings>(BOT_MODE_NAMESPACE);
     prefs.attach(scope);
     // The shell owns the Settings nav glyph; tag our cell and wear the chosen
     // mark instead of its gear fallback (see bot-icon-nav).

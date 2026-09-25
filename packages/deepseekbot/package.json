@@ -7,12 +7,12 @@
     "cordis.patch.yml"
   ],
   "type": "module",
-  "peerDependencies": {
-    "@botharness/client": "*",
-    "@botharness/core": "*"
+  "dependencies": {
+    "@botharness/client": "link:../client",
+    "@botharness/core": "link:../core"
   },
   "engines": {
-    "dsh": "0.1.5-rc.2",
+    "dsh": "0.1.7-rc.2",
     "node": ">=22"
   },
   "dsh": {

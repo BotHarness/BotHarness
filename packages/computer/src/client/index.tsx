@@ -36,12 +36,12 @@ import {
 } from './locale.js';
 import {
   Button,
-  IconFullscreenOutline16,
+  IconFullscreenOutlineRegular,
   Pill,
   StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
 import { COMPUTER_SETTINGS_NAMESPACE, type ComputerSettings } from '../settings.js';
 import type { ComputerStorage } from '../provider.js';
@@ -375,7 +375,7 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
           gap: 6,
         }}
       >
-        <IconFullscreenOutline16 size={14} />
+        <IconFullscreenOutlineRegular size={14} />
         {t('entry.openFullscreen')}
       </Pill>
     </div>
@@ -1218,10 +1218,8 @@ function ComputerEntry({
 
 export function apply(ctx: ClientContext): void {
   const settingsPrefs = new ComputerSettingsPrefs();
-  ctx.inject(['settingsScope'], (settingsCtx) => {
-    const scope = settingsCtx.settingsScope.bind<ComputerSettings>({
-      namespace: COMPUTER_SETTINGS_NAMESPACE,
-    }) as unknown as ComputerSettingsScope;
+  ctx.inject(['configForms'], (settingsCtx) => {
+    const scope = settingsCtx.configForms.get<ComputerSettings>(COMPUTER_SETTINGS_NAMESPACE) as unknown as ComputerSettingsScope;
     const release = settingsPrefs.attach(scope);
     return () => {
       release();

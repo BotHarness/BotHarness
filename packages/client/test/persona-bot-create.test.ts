@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) =>
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
-  IconCloseOutline16: () => createElement('span'),
+  IconCloseOutlineRegular: () => createElement('span'),
   Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
   Modal: (props: {
     title: string;
