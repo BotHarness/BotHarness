@@ -24,6 +24,7 @@ describe('PersonaBot Channel history query', () => {
   it('filters old messages by author, date, and text before paginating, without leaking another Group', async () => {
     const home = createTempRoot('botharness-channel-query-');
     let groupId = '';
+    let otherId = '';
     let privateId = '';
     let checked = false;
     const core = createCore({
@@ -79,6 +80,33 @@ describe('PersonaBot Channel history query', () => {
             .messages.map((view) => view.message.id),
         ).toEqual(['old-5']);
         expect(() => run.channels.query({ channelId: privateId })).toThrow('not a member');
+        const joined = run.channels.query({ scope: 'joined', text: 'needle', limit: 2 });
+        expect(joined.messages.map((view) => view.message.id)).toEqual(['other-1', 'old-210']);
+        const joinedCursor = joined.nextCursor;
+        if (joinedCursor === undefined) throw new Error('Expected second joined history page');
+        const joinedNext = run.channels.query({
+          scope: 'joined',
+          text: 'needle',
+          cursor: joinedCursor,
+          limit: 2,
+        });
+        expect(joinedNext.messages.map((view) => view.message.id)).toEqual(['old-100', 'old-5']);
+        expect(joinedNext.nextCursor).toBeUndefined();
+        expect(
+          run.channels
+            .query({ scope: 'joined', text: 'needle', authorBotId: 'bea' })
+            .messages.map((view) => view.message.id),
+        ).toEqual(['old-100', 'old-5']);
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'other', cursor: joinedCursor }),
+        ).toThrow('invalid cursor');
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'needle', channelId: otherId }),
+        ).toThrow('cannot be combined');
+        core.channels.removeGroupMember(otherId, 'ada');
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'needle', cursor: joinedCursor }),
+        ).toThrow('invalid cursor');
         checked = true;
       }),
     });
@@ -90,6 +118,7 @@ describe('PersonaBot Channel history query', () => {
       const group = core.channels.createGroup({ name: 'History', members: ['ada', 'bea'] });
       groupId = group.id;
       privateId = core.channels.createGroup({ name: 'Private', members: ['cee'] }).id;
+      otherId = core.channels.createGroup({ name: 'Other', members: ['ada'] }).id;
       for (let index = 0; index < 215; index++) {
         await core.channels.appendMessage(groupId, {
           id: 'old-' + index,
@@ -105,6 +134,18 @@ describe('PersonaBot Channel history query', () => {
         at: '2026-09-01T00:04:00.000Z',
         author: { kind: 'human' },
         body: 'CAFÉ status',
+      });
+      await core.channels.appendMessage(otherId, {
+        id: 'other-1',
+        at: '2026-09-01T00:04:00.000Z',
+        author: { kind: 'human' },
+        body: 'needle from another joined Channel',
+      });
+      await core.channels.appendMessage(privateId, {
+        id: 'secret-1',
+        at: '2026-09-01T00:05:00.000Z',
+        author: { kind: 'human' },
+        body: 'needle must stay private',
       });
       await core.channels.appendMessage(dm.id, {
         id: 'ask-history',

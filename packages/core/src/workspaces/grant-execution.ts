@@ -80,7 +80,6 @@ const BOT_TOOL_NAMES = new Set([
   'channel_list',
   'channel_read',
   'channel_read_image',
-  'channel_search',
   'list_bot_contacts',
   'group_create',
   'group_invite_bot',
