@@ -248,6 +248,8 @@ function UserQuestionCard({
   const [custom, setCustom] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>();
+  const [statusError, setStatusError] = useState(false);
+  const [statusRetry, setStatusRetry] = useState(0);
 
   useEffect(() => {
     if (resolution !== undefined) {
@@ -256,18 +258,19 @@ function UserQuestionCard({
     }
     if (botSlug === undefined) return;
     let active = true;
+    setStatusError(false);
     void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
       (value) => {
         if (active) setStatus(value);
       },
       () => {
-        if (active) setStatus('expired');
+        if (active) setStatusError(true);
       },
     );
     return () => {
       active = false;
     };
-  }, [actions, botSlug, message.id, resolution]);
+  }, [actions, botSlug, message.id, resolution, statusRetry]);
 
   const choose = (id: string, label: string, multiSelect: boolean): void => {
     setSelected((current) => {
@@ -309,9 +312,8 @@ function UserQuestionCard({
         () => setStatus('answered'),
         (cause: unknown) => {
           setError(errorMessage(cause));
-          void actions
-            .userQuestionStatus(channelId, message.id)
-            .then(setStatus, () => setStatus('expired'));
+          setStatus('loading');
+          setStatusRetry((current) => current + 1);
         },
       )
       .finally(() => setBusy(false));
@@ -355,9 +357,13 @@ function UserQuestionCard({
             disabled={status !== 'pending' || busy}
             maxLength={2000}
             placeholder={t('question.customPlaceholder')}
-            onChange={(event) =>
-              setCustom((current) => ({ ...current, [question.id]: event.target.value }))
-            }
+            onChange={(event) => {
+              const value = event.target.value;
+              setCustom((current) => ({ ...current, [question.id]: value }));
+              if (question.multiSelect !== true && value.trim().length > 0) {
+                setSelected((current) => ({ ...current, [question.id]: [] }));
+              }
+            }}
           />
         </div>
       ))}
@@ -367,13 +373,24 @@ function UserQuestionCard({
         </Button>
       ) : (
         <div className="bh-note" role="status">
-          {status === 'answered'
-            ? t('question.answered')
-            : status === 'cancelled'
-              ? t('question.cancelled')
-              : status === 'loading'
-                ? t('approval.loading')
-                : t('question.expired')}
+          {status === 'answered' ? (
+            t('question.answered')
+          ) : status === 'cancelled' ? (
+            t('question.cancelled')
+          ) : status === 'loading' ? (
+            statusError ? (
+              <>
+                {t('question.statusUnavailable')}
+                <Button variant="outline" onClick={() => setStatusRetry((current) => current + 1)}>
+                  {t('question.retry')}
+                </Button>
+              </>
+            ) : (
+              t('approval.loading')
+            )
+          ) : (
+            t('question.expired')
+          )}
         </div>
       )}
       {error === undefined ? null : (
