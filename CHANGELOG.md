@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBots can now contact active colleagues through a two-member Bot DM. Each send commits one Channel message, one recipient Inbox Admission, and a bodyless action link in the sender's Human DM; the recipient can reply in the same conversation. Humans can inspect these DMs from the hidden-channel manager in read-only mode ([#279](https://github.com/BotHarness/BotHarness/issues/279), [ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)).
 - In a Group Channel, a Human can select multiple joined PersonaBots with `@`; one committed message wakes each Bot independently, their replies stay in the Group, each processing state is visible, selected mentions appear as avatar-and-name badges without the @ sigil in both the draft and sent message, and clicking a sent badge opens that Bot’s DM. Existing Channel history moves once from NDJSON into the SQLite Messaging authority ([#254](https://github.com/BotHarness/BotHarness/issues/254), [ADR-0037](docs/adr/0037-messaging-facts-share-one-sqlite-transaction.md)).
 - When a Memory branch request is ambiguous, the Orchestrator asks through DSH's native question service in the PersonaBot DM; the Human's choice resumes the same Session, and answered or cancelled cards stay closed after refresh ([#264](https://github.com/BotHarness/BotHarness/issues/264)).
 

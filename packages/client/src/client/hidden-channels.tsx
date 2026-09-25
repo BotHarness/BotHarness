@@ -19,6 +19,7 @@ export interface HiddenChannelsModalProps {
   items: readonly HiddenChannelItem[];
   t: BotHarnessTranslate;
   onRestore: (channelId: string) => void;
+  onOpen: (channelId: string) => void;
   onClose: () => void;
 }
 
@@ -29,6 +30,7 @@ export function HiddenChannelsModal({
   items,
   t,
   onRestore,
+  onOpen,
   onClose,
 }: HiddenChannelsModalProps): ReactElement {
   const [query, setQuery] = useState('');
@@ -95,13 +97,25 @@ export function HiddenChannelsModal({
             <span className="bh-hidden-copy">
               <span className="bh-hidden-name">{bot?.displayName ?? channel.name}</span>
               <span className="bh-hidden-meta">
-                {t(channel.type === 'dm' ? 'hidden.dm' : 'hidden.group')}
+                {t(
+                  channel.type === 'dm' && channel.botSlug === undefined
+                    ? 'botDm.label'
+                    : channel.type === 'dm'
+                      ? 'hidden.dm'
+                      : 'hidden.group',
+                )}
                 {bot !== undefined && bot.roles.length > 0 ? ` · ${bot.roles.join(' · ')}` : ''}
               </span>
             </span>
-            <Button variant="outline" size="sm" onClick={() => onRestore(channel.id)}>
-              {t('hidden.restore')}
-            </Button>
+            {channel.type === 'dm' && channel.botSlug === undefined ? (
+              <Button variant="outline" size="sm" onClick={() => onOpen(channel.id)}>
+                {t('botDm.view')}
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => onRestore(channel.id)}>
+                {t('hidden.restore')}
+              </Button>
+            )}
           </div>
         ))}
         {visible.length === 0 ? (

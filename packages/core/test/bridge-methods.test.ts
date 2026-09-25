@@ -66,12 +66,29 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('keeps Bot-to-Bot DMs inspectable but rejects Human sends and renames', async () => {
+    const { registry, channels, methods } = setup([], ['ada', 'bea']);
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    const dm = channels.getOrCreateBotDm('ada', 'bea', 'Ada · Bea')!;
+    expect(methods.channelMessages({ channelId: dm.id })).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({ channelId: dm.id, body: 'Human interjection' }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(methods.channelRename({ channelId: dm.id, name: 'Changed' })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(channels.readMessages(dm.id)).toEqual([]);
+  });
+
   it('requires selected joined Bot identities and preserves committed retry identity', async () => {
     const wakes: string[] = [];
     const { registry, channels, methods } = setup([], ['ada', 'bea'], () => ({
       admitGroupMessage(channelId, messageId) {
         wakes.push(channelId + ':' + messageId);
       },
+      admitBotDmMessage() {},
       admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -131,6 +148,7 @@ describe('bridge methods', () => {
     const admitted: string[] = [];
     const { channels, attachments, methods } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         return { admitted: true as const, settled: Promise.resolve() };
@@ -193,6 +211,7 @@ describe('bridge methods', () => {
     let admissions = 0;
     const { channels, methods } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage() {
         admissions += 1;
         return { admitted: true as const, settled: Promise.resolve() };
@@ -714,6 +733,7 @@ describe('bridge methods', () => {
     let settled: Promise<void> = Promise.resolve();
     const { methods } = setup([], ['ada'], (channels) => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage(input) {
         handled.push(input);
         settled = (async () => {
@@ -817,6 +837,7 @@ describe('bridge methods', () => {
     const admitted: string[] = [];
     const { methods } = setup([], ['ada'], (channels) => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         const settled = (async () => {
@@ -865,6 +886,7 @@ describe('bridge methods', () => {
   it('rejects an archived PersonaBot before committing a Human DM', async () => {
     const { methods, registry, channels } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -887,6 +909,7 @@ describe('bridge methods', () => {
   it('reports a post-commit admission refusal without mislabeling a durable message as failed', async () => {
     const { methods, channels } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
+      admitBotDmMessage() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'runtime-closed' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,

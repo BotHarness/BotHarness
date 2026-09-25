@@ -37,6 +37,10 @@ describe('DSH Bot Agent adapter', () => {
       inboundChannelId: 'dm-test',
       inbox: '',
       channels: {
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
         read: () => [],
         search: () => [],
         requestGrant: async (reason) => ({
@@ -97,6 +101,10 @@ describe('DSH Bot Agent adapter', () => {
       bot: BOT,
       message: '你好',
       channels: {
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
         read: () => [],
         search: () => [],
         requestGrant: async (reason) => ({
@@ -144,6 +152,10 @@ describe('DSH Bot Agent adapter', () => {
       bot: { ...BOT, preset: 'cordis' },
       message: '你好',
       channels: {
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
         read: () => [],
         search: () => [],
         requestGrant: async (reason) => ({
@@ -196,6 +208,10 @@ describe('DSH Bot Agent adapter', () => {
         inbox: '',
         message: '请核对发布状态',
         channels: {
+          contacts: () => [],
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
           read: () => [],
           search: () => [],
           requestGrant: async () => undefined as never,
@@ -235,6 +251,10 @@ describe('DSH Bot Agent adapter', () => {
       inbox: '',
       message: '请核对发布状态',
       channels: {
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
         read: () => [],
         search: () => [],
         requestGrant: async (reason) => ({
@@ -313,6 +333,8 @@ describe('DSH Bot Agent adapter', () => {
       'channel_read',
       'channel_read_image',
       'channel_search',
+      'list_bot_contacts',
+      'bot_dm_send',
       'channel_send',
     ]);
     const channelSend = host.scopes
@@ -467,6 +489,10 @@ describe('DSH Bot Agent adapter', () => {
         inbox: '',
         message: '请核对发布状态',
         channels: {
+          contacts: () => [],
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
           read: ({ channelId } = {}) => {
             const id = channelId ?? 'dm-test';
             reads.push(id);

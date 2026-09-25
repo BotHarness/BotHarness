@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   grantExecutionDenial,
   grantToolExecutionDenial,
+  requiresHumanToolApproval,
 } from '../src/workspaces/grant-execution.js';
 
 const botSlug = 'ada';
@@ -57,6 +58,11 @@ function fixture() {
 }
 
 describe('Workspace Grant execution boundary', () => {
+  it('treats Host-checked Bot DM contact tools as internal Messaging tools', () => {
+    expect(requiresHumanToolApproval('list_bot_contacts')).toBe(false);
+    expect(requiresHumanToolApproval('bot_dm_send')).toBe(false);
+  });
+
   it('allows a valid Assignment and rejects native resume after revoke', () => {
     const state = fixture();
     expect(

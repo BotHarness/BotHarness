@@ -61,6 +61,7 @@ describe('hidden Channels modal', () => {
       createElement(HiddenChannelsModal, {
         t: t as never,
         onRestore,
+        onOpen: vi.fn(),
         onClose: vi.fn(),
         items: [
           {
@@ -107,11 +108,42 @@ describe('hidden Channels modal', () => {
     expect(onRestore).toHaveBeenCalledWith('group-team');
   });
 
+  it('offers a read-only view action for a Bot-to-Bot DM', () => {
+    const onOpen = vi.fn();
+    const onRestore = vi.fn();
+    const markup = renderToStaticMarkup(
+      createElement(HiddenChannelsModal, {
+        t: t as never,
+        onRestore,
+        onOpen,
+        onClose: vi.fn(),
+        items: [
+          {
+            channel: {
+              id: 'dm-bots-ada-bea',
+              type: 'dm',
+              name: 'Ada · Bea',
+              members: ['ada', 'bea'],
+              createdAt: AT,
+              updatedAt: AT,
+            },
+          },
+        ],
+      }),
+    );
+    expect(markup).toContain('Bot 私聊 · 只读');
+    const view = captured.buttons.find((button) => button['children'] === '查看');
+    (view?.['onClick'] as (() => void) | undefined)?.();
+    expect(onOpen).toHaveBeenCalledWith('dm-bots-ada-bea');
+    expect(onRestore).not.toHaveBeenCalled();
+  });
+
   it('shows the most recently hidden Channel first', () => {
     const markup = renderToStaticMarkup(
       createElement(HiddenChannelsModal, {
         t: t as never,
         onRestore: vi.fn(),
+        onOpen: vi.fn(),
         onClose: vi.fn(),
         items: [
           {
@@ -147,11 +179,12 @@ describe('hidden Channels modal', () => {
         items: [],
         t: t as never,
         onRestore: vi.fn(),
+        onOpen: vi.fn(),
         onClose: vi.fn(),
       }),
     );
 
     expect(markup).toContain('没有隐藏的频道');
-    expect(markup).toContain('不会删除频道、消息或 PersonaBot');
+    expect(markup).toContain('只读查看 Bot 之间的私聊');
   });
 });

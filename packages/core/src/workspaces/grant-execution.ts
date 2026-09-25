@@ -77,6 +77,8 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read',
   'channel_read_image',
   'channel_search',
+  'list_bot_contacts',
+  'bot_dm_send',
   'channel_send',
   // Native DSH question transport does not access the filesystem.
   'ask_user_question',

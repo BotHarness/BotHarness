@@ -3079,4 +3079,27 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
 .bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
 .bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
+
+.bh-bot-dm-action {
+  display: block;
+  max-width: min(100%, 520px);
+  margin: 6px auto;
+  padding: 7px 14px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-secondary);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.bh-bot-dm-action:hover {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-bot-dm-readonly {
+  padding: 14px 18px;
+  text-align: center;
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 12px;
+}
 `;

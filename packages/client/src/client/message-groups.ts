@@ -35,6 +35,8 @@ export function groupChannelMessages(messages: readonly ChannelMessage[]): Messa
     if (
       last !== undefined &&
       sameAuthor &&
+      message.botDmAction === undefined &&
+      previous?.botDmAction === undefined &&
       sameDay &&
       last.messages.length < 8 &&
       at - previousAt >= 0 &&

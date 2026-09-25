@@ -368,6 +368,23 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
     };
   }
+  let botDmAction: ChannelMessage['botDmAction'];
+  if (record['botDmAction'] !== undefined) {
+    const action = asRecord(record['botDmAction']);
+    if (
+      action === undefined ||
+      author.kind !== 'bot' ||
+      typeof action['channelId'] !== 'string' ||
+      typeof action['messageId'] !== 'string' ||
+      typeof action['recipientBotSlug'] !== 'string'
+    )
+      return undefined;
+    botDmAction = {
+      channelId: action['channelId'],
+      messageId: action['messageId'],
+      recipientBotSlug: action['recipientBotSlug'],
+    };
+  }
   const rawAttachments = record['attachments'];
   const attachments = Array.isArray(rawAttachments)
     ? rawAttachments.map(parseChannelAttachment)
@@ -498,6 +515,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       ? {}
       : { deliveries: deliveries as NonNullable<ChannelMessage['deliveries']> }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
+    ...(botDmAction === undefined ? {} : { botDmAction }),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
     ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),

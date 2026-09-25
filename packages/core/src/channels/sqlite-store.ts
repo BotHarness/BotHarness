@@ -7,7 +7,10 @@ import { isValidSlug } from '../bots/slug.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import {
+  botDmChannelId,
   dmChannelId,
+  isBotDmChannel,
+  MAX_BOT_HOPS,
   groupChannelIdBase,
   isChannelMessage,
   isChannelRecord,
@@ -85,6 +88,8 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: left.replyTo,
       memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
+      botDmAction: left.botDmAction,
+      botCausation: left.botCausation,
     }) ===
     JSON.stringify({
       author: right.author,
@@ -93,6 +98,8 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: right.replyTo,
       memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
+      botDmAction: right.botDmAction,
+      botCausation: right.botCausation,
     })
   );
 }
@@ -223,9 +230,35 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     ) {
       throw new ChannelMentionTargetError();
     }
+    const senderSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
+    const botDm = isBotDmChannel(channel) && senderSlug !== undefined;
+    if (
+      isBotDmChannel(channel) &&
+      (senderSlug === undefined || !channel.members.includes(senderSlug))
+    )
+      throw new Error('Only a Bot DM participant may author this Channel');
+    if (botDm && message.botCausation === undefined)
+      throw new Error('Bot DM send requires trusted causation');
+    const senderDm =
+      botDm && senderSlug !== undefined ? readRecord(dmChannelId(senderSlug)) : undefined;
+    if (botDm && (senderDm?.type !== 'dm' || senderDm.botSlug !== senderSlug))
+      throw new Error('Sender Human DM is unavailable for the Bot action notice');
+    const recipient = botDm ? channel.members.find((slug) => slug !== senderSlug) : undefined;
+    if (botDm && recipient === undefined) throw new Error('Bot DM has no recipient');
     const durable = rawMessage(message);
     const revision = previous.length + 1;
     const sourceEventId = randomUUID();
+    const action: ChannelMessage | undefined =
+      botDm && senderDm !== undefined && recipient !== undefined && senderSlug !== undefined
+        ? {
+            id: `bot-dm-action-${durable.id}`,
+            at: durable.at,
+            author: { kind: 'bot', slug: senderSlug },
+            body: '',
+            botDmAction: { channelId: id, messageId: durable.id, recipientBotSlug: recipient },
+          }
+        : undefined;
+    const actionRevision = senderDm === undefined ? undefined : allMessages(senderDm.id).length + 1;
     database.transaction(
       (db) => {
         db.prepare(`
@@ -252,14 +285,28 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         VALUES (?, ?, ?, ?)
       `).run(id, revision, sourceEventId, durable.id);
         const recipients =
-          durable.author.kind !== 'human'
-            ? []
-            : channel.type === 'dm' && channel.botSlug !== undefined
+          durable.author.kind === 'human'
+            ? channel.type === 'dm' && channel.botSlug !== undefined
               ? [{ botSlug: channel.botSlug, reason: 'human-dm' }]
               : [...new Set(mentions.map((item) => item.botSlug))].map((botSlug) => ({
                   botSlug,
                   reason: 'group-mention',
-                }));
+                }))
+            : botDm &&
+                recipient !== undefined &&
+                durable.botCausation !== undefined &&
+                durable.botCausation.hop <= MAX_BOT_HOPS &&
+                db
+                  .prepare(`
+                  SELECT 1 FROM inbox_admissions a
+                  JOIN source_events e ON e.source_event_id = a.source_event_id
+                  WHERE a.bot_slug = ? AND e.source_kind = 'bot-message'
+                    AND json_extract(e.payload_json, '$.botCausation.rootSourceEventId') = ?
+                  LIMIT 1
+                `)
+                  .get(recipient, durable.botCausation.rootSourceEventId) === undefined
+              ? [{ botSlug: recipient, reason: 'bot-dm' }]
+              : [];
         for (const recipient of recipients)
           db.prepare(`
         INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
@@ -269,16 +316,54 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
           id,
         );
+        if (
+          action !== undefined &&
+          senderDm !== undefined &&
+          actionRevision !== undefined &&
+          senderSlug !== undefined
+        ) {
+          const actionSourceEventId = randomUUID();
+          db.prepare(`
+            INSERT INTO source_events (
+              source_event_id, source_kind, bot_slug, channel_id, message_id,
+              body, created_at, payload_json
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            actionSourceEventId,
+            'bot-message',
+            senderSlug,
+            senderDm.id,
+            action.id,
+            '',
+            action.at,
+            eventPayload(action),
+          );
+          db.prepare(`
+            INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+            VALUES (?, ?, ?, ?)
+          `).run(senderDm.id, actionRevision, actionSourceEventId, action.id);
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify({ ...senderDm, updatedAt: now().toISOString() }),
+            senderDm.id,
+          );
+        }
       },
       ['source-event', 'channel', 'bot-inbox'],
     );
     const committed = project([...previous, durable], durable);
     const deliveries = admissionStatuses(sourceEventId);
     const result = { ...committed, ...(deliveries === undefined ? {} : { deliveries }) };
-    try {
-      options.onCommitted?.({ channelId: id, message: result, revision });
-    } catch (error) {
-      options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+    for (const commit of [
+      { channelId: id, message: result, revision },
+      ...(action === undefined || senderDm === undefined || actionRevision === undefined
+        ? []
+        : [{ channelId: senderDm.id, message: action, revision: actionRevision }]),
+    ]) {
+      try {
+        options.onCommitted?.(commit);
+      } catch (error) {
+        options.warn?.(`Channel post-commit notification failed: ${String(error)}`);
+      }
     }
     return { status: 'appended' as const, message: result };
   };
@@ -439,6 +524,37 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         name: botName.trim() || botSlug,
         members: [botSlug],
         botSlug,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      writeRecord(record);
+      return record;
+    },
+    getOrCreateBotDm(firstBotSlug, secondBotSlug, name) {
+      if (
+        !isValidSlug(firstBotSlug) ||
+        !isValidSlug(secondBotSlug) ||
+        firstBotSlug === secondBotSlug
+      )
+        return undefined;
+      const id = botDmChannelId(firstBotSlug, secondBotSlug);
+      const members = [firstBotSlug, secondBotSlug].sort();
+      const existing = readRecord(id);
+      if (existing !== undefined) {
+        if (
+          existing.type !== 'dm' ||
+          existing.botSlug !== undefined ||
+          JSON.stringify(existing.members) !== JSON.stringify(members)
+        )
+          throw new Error(`Bot DM identity collision: ${id}`);
+        return existing;
+      }
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'dm',
+        name: name.trim() || members.join(' · '),
+        members,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
