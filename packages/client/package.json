@@ -1,5 +1,5 @@
 {
-  "name": "@botharness/client",
+  "name": "@botharness/ui",
   "version": "0.0.0",
   "private": true,
   "description": "BotHarness web client: PersonaBot roster and delegation entries",

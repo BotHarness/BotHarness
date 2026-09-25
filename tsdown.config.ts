@@ -9,7 +9,7 @@ import { defineConfig, type UserConfig } from 'tsdown';
  * reproduces the output contract with stock tsdown/rolldown. Keep it in sync
  * with `docs/client-bridge.md` §6.
  */
-const CLIENT_ID = '@botharness/client';
+const CLIENT_ID = '@botharness/ui';
 
 const PLATFORM_MODULES = [
   /^react$/,

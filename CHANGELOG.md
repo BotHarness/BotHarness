@@ -43,6 +43,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Local Desktop Client edits now update an open PersonaBot DM through DSH Client HMR; the unpublished UI Bundle uses `@botharness/ui` so RC2 can resolve its plugin graph ([#272](https://github.com/BotHarness/BotHarness/issues/272), [ADR-0066](docs/adr/0066-rc2-client-bundle-identity.md)). After a full Desktop document reload following HMR, RC2 can still fail Web boot; restart the app and Host as described in the [development guide](docs/client-bridge.md).
 - DM headers now use the PersonaBot display name even when the stored Channel name is an ID; the right Channel sidebar no longer repeats that title ([#263](https://github.com/BotHarness/BotHarness/issues/263)).
 - Local BotHarness development now supports DSH 0.1.7 RC2 Web Profiles, with automatic Client refresh and a documented Host restart path ([#265](https://github.com/BotHarness/BotHarness/issues/265)).
 

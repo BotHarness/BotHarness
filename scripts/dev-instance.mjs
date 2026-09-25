@@ -134,7 +134,7 @@ function ensureProfile(options) {
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
   const packages = join(options.worktree, 'packages');
   manifest.dependencies = {
-    '@botharness/client': `link:${join(packages, 'client')}`,
+    '@botharness/ui': `link:${join(packages, 'client')}`,
     '@botharness/core': `link:${join(packages, 'core')}`,
     deepseekbot: `link:${join(packages, 'deepseekbot')}`,
   };

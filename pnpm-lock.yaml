@@ -473,12 +473,12 @@ importers:
 
   packages/deepseekbot:
     dependencies:
-      '@botharness/client':
-        specifier: link:../client
-        version: link:../client
       '@botharness/core':
         specifier: link:../core
         version: link:../core
+      '@botharness/ui':
+        specifier: link:../client
+        version: link:../client
 
 packages:
 

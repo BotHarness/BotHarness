@@ -135,7 +135,7 @@
 | 包                   | 内容                                                                                                                                                      |
 | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `@botharness/core`   | Host composition root + deep modules：PersonaBot/ownership、Memory、Messaging、Assignments、Portability、read models；共享 DB owner 不等于共享 repository |
-| `@botharness/client` | DSH-native React UI：roster、DM/Channel、Bot Inbox、Assignment Directory、Settings、recovery/readiness flows                                              |
+| `@botharness/ui` | DSH-native React UI：roster、DM/Channel、Bot Inbox、Assignment Directory、Settings、recovery/readiness flows                                              |
 | `@botharness/im`     | Provider adapter 边界；首个为 Feishu/Lark。负责 verified normalization/capabilities/execution，不拥有 Inbox 或授权                                        |
 | `deepseekbot`        | bundle + app：声明 layer、组装 packages、暴露 Host RPC/Client slots                                                                                       |
 

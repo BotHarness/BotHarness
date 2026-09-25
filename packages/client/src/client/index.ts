@@ -31,6 +31,7 @@ import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
 import { mountDevClientRefresh } from './dev-client-refresh.js';
+import { saveHmrView, takeHmrView } from './hmr-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
@@ -62,6 +63,10 @@ function installStyles(): () => void {
 
 export function apply(ctx: ClientContext): void {
   const storage = defaultStorage();
+  const hmrView =
+    typeof window === 'undefined'
+      ? undefined
+      : takeHmrView(window as unknown as Record<string, unknown>);
   const t = ctx.locale.bind(LOCALE_NS);
   const nativeChatT = ctx.locale.bind('chat');
   const call = createBridgeCall(ctx);
@@ -300,4 +305,41 @@ export function apply(ctx: ClientContext): void {
     }),
   };
   ctx.effect(() => ctx.inputTriggers.registerSource(mention), 'botharness: @ mention');
+
+  if (hmrView !== undefined) {
+    ctx.effect(() => {
+      let restored = false;
+      const restore = (): void => {
+        if (restored || store.getSnapshot().status !== 'ready') return;
+        restored = true;
+        unsubscribe();
+        try {
+          ctx.layout.selectPanel(PANEL_ID);
+          const selection = hmrView.selection;
+          const opening =
+            selection?.kind === 'bot'
+              ? actions.openBot(selection.slug)
+              : selection?.kind === 'channel'
+                ? actions.openChannel(selection.channelId)
+                : undefined;
+          void opening?.catch((error: unknown) => {
+            ctx.logger.warn('botharness: HMR view restore failed', error);
+          });
+        } catch (error) {
+          ctx.logger.warn('botharness: HMR view restore failed', error);
+        }
+      };
+      const unsubscribe = store.subscribe(restore);
+      restore();
+      return unsubscribe;
+    }, 'botharness: HMR view restore');
+  }
+  ctx.effect(
+    () => () => {
+      if (typeof window === 'undefined') return;
+      if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) return;
+      saveHmrView(window as unknown as Record<string, unknown>, store.getSnapshot().selection);
+    },
+    'botharness: HMR view handoff',
+  );
 }
