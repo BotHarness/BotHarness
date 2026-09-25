@@ -78,6 +78,7 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read_image',
   'channel_search',
   'channel_send',
+  'memory_switch_branch',
   'report_to_orchestrator',
 ]);
 

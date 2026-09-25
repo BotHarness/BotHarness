@@ -98,6 +98,7 @@ export interface OrchestratorAgentRun {
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
   assignments: OrchestratorAssignmentAccess;
+  memory?: { switchBranch(branch: string): { from: string; to: string; head: string } };
 }
 
 export interface AssignmentAgentRun {
@@ -187,7 +188,7 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
-  memory?: Pick<MemoryService, 'prepareTurn' | 'reconcileTurn' | 'abortTurn'>;
+  memory?: Pick<MemoryService, 'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch'>;
   /** Profile-scoped Channel attachment authority. */
   attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
@@ -617,6 +618,18 @@ class BotRuntimeImplementation implements BotRuntime {
         inbox,
         inboundChannelId: channelId,
         channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
+        memory: {
+          switchBranch: (branch) => {
+            if (this.#memory === undefined) throw new Error('Memory is unavailable');
+            const result = this.#memory.switchBranch({
+              botSlug: bot.slug,
+              sessionId: orchestrator.sessionId,
+              branch,
+            });
+            markSideEffect();
+            return result;
+          },
+        },
         assignments: this.#assignmentAccess(bot, sourceEventId),
       });
       this.#memory?.reconcileTurn({

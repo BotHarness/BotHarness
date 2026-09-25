@@ -79,6 +79,7 @@ export interface MemoryGitCommit {
 export interface MemoryGitGraph {
   head: string;
   currentBranch: string | null;
+  branches: string[];
   dirty: boolean;
   commits: MemoryGitCommit[];
   hasMore: boolean;
@@ -91,6 +92,11 @@ export interface MemoryGitCommitDiff {
 }
 
 export interface MemoryAcceptance {
+  switchBranch(input: { botSlug: string; sessionId: string; branch: string }): {
+    from: string;
+    to: string;
+    head: string;
+  };
   prepareTurn(botSlug: string, sessionId: string): void;
   reconcileTurn(input: {
     botSlug: string;
@@ -212,6 +218,14 @@ function assertSafeGitMetadata(root: string): void {
   }
 }
 
+function branchOf(root: string): string {
+  try {
+    return output(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']);
+  } catch {
+    throw new MemoryAcceptError('memory-invalid', 'Memory Repository must be on a local branch');
+  }
+}
+
 function verifiedRepository(root: string, botSlug: string): string {
   if (
     !existsSync(join(root, '.git')) ||
@@ -221,9 +235,7 @@ function verifiedRepository(root: string, botSlug: string): string {
     throw new MemoryAcceptError('memory-unavailable', `Memory Repository unavailable: ${botSlug}`);
   }
   assertSafeGitMetadata(root);
-  if (output(root, ['symbolic-ref', '--quiet', '--short', 'HEAD']) !== 'main') {
-    throw new MemoryAcceptError('memory-invalid', 'Memory Repository must be on main');
-  }
+  branchOf(root);
   return root;
 }
 
@@ -375,7 +387,7 @@ export function createMemoryAcceptance(options: {
 }): MemoryAcceptance {
   const { registry, ownership, database } = options;
   const now = options.now ?? (() => new Date());
-  const inFlight = new Map<string, string>();
+  const inFlight = new Map<string, { sessionId: string; branch: string }>();
 
   const pendingRepair = (botSlug: string): RepairRow | undefined =>
     database.read(
@@ -414,16 +426,19 @@ export function createMemoryAcceptance(options: {
     return root;
   };
 
-  const acceptedHead = (botSlug: string): string | null =>
+  const acceptedHead = (botSlug: string, branch: string): string | null =>
     database.read((db) => {
       const row = db
-        .prepare('SELECT head_sha FROM memory_accepted_heads WHERE bot_slug = ?')
-        .get(botSlug) as { head_sha: string } | undefined;
+        .prepare(
+          'SELECT head_sha FROM memory_accepted_heads WHERE bot_slug = ? AND branch_name = ?',
+        )
+        .get(botSlug, branch) as { head_sha: string } | undefined;
       return row?.head_sha ?? null;
     });
 
   const accept = (
     botSlug: string,
+    branch: string,
     commits: Array<{
       sha: string;
       parentSha: string | null;
@@ -440,8 +455,10 @@ export function createMemoryAcceptance(options: {
     return database.transaction(
       (db) => {
         const current = db
-          .prepare('SELECT head_sha FROM memory_accepted_heads WHERE bot_slug = ?')
-          .get(botSlug) as { head_sha: string } | undefined;
+          .prepare(
+            'SELECT head_sha FROM memory_accepted_heads WHERE bot_slug = ? AND branch_name = ?',
+          )
+          .get(botSlug, branch) as { head_sha: string } | undefined;
         if ((current?.head_sha ?? null) !== expectedHead) {
           throw new MemoryAcceptError(
             'memory-conflict',
@@ -484,10 +501,11 @@ export function createMemoryAcceptance(options: {
           });
           previous = commit.sha;
         }
-        db.prepare(`INSERT INTO memory_accepted_heads (bot_slug, head_sha, updated_at)
-        VALUES (?, ?, ?) ON CONFLICT(bot_slug) DO UPDATE SET
+        db.prepare(`INSERT INTO memory_accepted_heads (bot_slug, branch_name, head_sha, updated_at)
+        VALUES (?, ?, ?, ?) ON CONFLICT(bot_slug, branch_name) DO UPDATE SET
           head_sha = excluded.head_sha, updated_at = excluded.updated_at`).run(
           botSlug,
+          branch,
           previous,
           at,
         );
@@ -498,13 +516,46 @@ export function createMemoryAcceptance(options: {
   };
 
   const bootstrap = (botSlug: string, root: string): string => {
-    const existing = acceptedHead(botSlug);
+    const branch = branchOf(root);
+    const existing = acceptedHead(botSlug, branch);
     if (existing !== null) return existing;
     if (dirty(root)) {
       throw new MemoryAcceptError(
         'memory-conflict',
         'Provisional Memory changes need repair before bootstrap',
       );
+    }
+    if (branch !== 'main') {
+      if (acceptedHead(botSlug, 'main') === null) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Main Memory baseline must be accepted before switching branches',
+        );
+      }
+      const lookup = database.read((db) => {
+        const found = db.prepare(
+          'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
+        );
+        return output(root, ['rev-list', '--first-parent', 'HEAD'])
+          .split('\n')
+          .find((sha) => found.get(botSlug, sha) !== undefined);
+      });
+      if (lookup === undefined) {
+        throw new MemoryAcceptError('memory-conflict', 'Branch has no accepted Memory ancestor');
+      }
+      database.transaction(
+        (db) => {
+          db.prepare(`INSERT OR IGNORE INTO memory_accepted_heads
+          (bot_slug, branch_name, head_sha, updated_at) VALUES (?, ?, ?, ?)`).run(
+            botSlug,
+            branch,
+            lookup,
+            now().toISOString(),
+          );
+        },
+        ['memory-accepted'],
+      );
+      return acceptedHead(botSlug, branch) ?? lookup;
     }
     const sha = head(root);
     if (
@@ -544,8 +595,8 @@ export function createMemoryAcceptance(options: {
       causeId: `bootstrap:${sha}`,
       validationResult: validateCommit(root, sha),
     };
-    accept(botSlug, [commit], null);
-    return acceptedHead(botSlug) ?? head(root);
+    accept(botSlug, 'main', [commit], null);
+    return acceptedHead(botSlug, 'main') ?? head(root);
   };
 
   const requireOwned = (botSlug: string, sessionId: string): void => {
@@ -571,7 +622,7 @@ export function createMemoryAcceptance(options: {
     if (inFlight.has(botSlug)) {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
-    inFlight.set(botSlug, sessionId);
+    inFlight.set(botSlug, { sessionId, branch: branchOf(root) });
   };
 
   const reconcileTurn = (input: {
@@ -580,7 +631,8 @@ export function createMemoryAcceptance(options: {
     sourceEventId: string;
   }): MemoryAcceptedCommit[] => {
     requireOwned(input.botSlug, input.sessionId);
-    if (inFlight.get(input.botSlug) !== input.sessionId) {
+    const flight = inFlight.get(input.botSlug);
+    if (flight?.sessionId !== input.sessionId) {
       throw new MemoryAcceptError('memory-conflict', 'Memory turn was not prepared');
     }
     const source = database.read(
@@ -599,6 +651,9 @@ export function createMemoryAcceptance(options: {
       );
     }
     const root = repository(registry, input.botSlug);
+    if (branchOf(root) !== flight.branch) {
+      throw new MemoryAcceptError('memory-conflict', 'Memory branch changed during turn');
+    }
     const priorCause = database.read(
       (db) =>
         db
@@ -608,7 +663,7 @@ export function createMemoryAcceptance(options: {
           .all(input.botSlug, input.sourceEventId) as unknown as AcceptedRow[],
     );
     if (priorCause.length > 0) {
-      if (dirty(root) || head(root) !== acceptedHead(input.botSlug)) {
+      if (dirty(root) || head(root) !== acceptedHead(input.botSlug, flight.branch)) {
         throw new MemoryAcceptError(
           'memory-conflict',
           'Source Event already accepted a different Memory change',
@@ -617,7 +672,7 @@ export function createMemoryAcceptance(options: {
       inFlight.delete(input.botSlug);
       return priorCause.map(rowToCommit);
     }
-    const baseline = acceptedHead(input.botSlug);
+    const baseline = acceptedHead(input.botSlug, flight.branch);
     if (baseline === null)
       throw new MemoryAcceptError('memory-conflict', 'Memory baseline is missing');
     const current = head(root);
@@ -631,7 +686,7 @@ export function createMemoryAcceptance(options: {
         : output(root, ['rev-list', '--reverse', `${baseline}..${current}`])
             .split('\n')
             .filter(Boolean);
-    const commits: Parameters<typeof accept>[1] = [];
+    const commits: Parameters<typeof accept>[2] = [];
     let previous = baseline;
     for (const sha of shas) {
       const parentSha = parentOf(root, sha);
@@ -672,16 +727,76 @@ export function createMemoryAcceptance(options: {
         });
       }
     }
-    const result = accept(input.botSlug, commits, baseline);
+    const result = accept(input.botSlug, flight.branch, commits, baseline);
     inFlight.delete(input.botSlug);
     return result;
   };
 
   return {
+    switchBranch(input) {
+      requireOwned(input.botSlug, input.sessionId);
+      const flight = inFlight.get(input.botSlug);
+      if (flight?.sessionId !== input.sessionId) {
+        throw new MemoryAcceptError('memory-conflict', 'Memory turn was not prepared');
+      }
+      const branch = input.branch.trim();
+      if (branch.length === 0 || branch.length > 255 || branch !== input.branch) {
+        throw new MemoryAcceptError('memory-invalid', 'Invalid Memory branch name');
+      }
+      const root = repository(registry, input.botSlug);
+      const from = branchOf(root);
+      if (from !== flight.branch) {
+        throw new MemoryAcceptError('memory-conflict', 'Memory branch changed during turn');
+      }
+      try {
+        run(root, ['check-ref-format', '--branch', branch]);
+        run(root, ['show-ref', '--verify', '--quiet', `refs/heads/${branch}`]);
+      } catch {
+        throw new MemoryAcceptError('memory-invalid', 'Memory branch does not exist');
+      }
+      if (dirty(root)) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Memory has unfinished changes; coordinate before switching',
+        );
+      }
+      if (head(root) !== acceptedHead(input.botSlug, from)) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          'Current Memory branch has unaccepted commits; coordinate before switching',
+        );
+      }
+      const targetHead = output(root, ['rev-parse', '--verify', `refs/heads/${branch}`]);
+      const accepted = acceptedHead(input.botSlug, branch);
+      const known = database.read(
+        (db) =>
+          db
+            .prepare(
+              'SELECT 1 AS found FROM memory_accepted_commits WHERE bot_slug = ? AND sha = ?',
+            )
+            .get(input.botSlug, targetHead) !== undefined,
+      );
+      if (!known || (accepted !== null && accepted !== targetHead)) {
+        throw new MemoryAcceptError('memory-conflict', 'Target Memory branch is not accepted');
+      }
+      if (from !== branch) {
+        try {
+          run(root, ['switch', branch]);
+        } catch {
+          throw new MemoryAcceptError('memory-conflict', 'Git could not switch Memory branch');
+        }
+      }
+      const actual = bootstrap(input.botSlug, root);
+      if (actual !== head(root)) {
+        throw new MemoryAcceptError('memory-conflict', 'Target branch is not fully accepted');
+      }
+      inFlight.set(input.botSlug, { sessionId: input.sessionId, branch });
+      return { from, to: branch, head: actual };
+    },
     prepareTurn,
     reconcileTurn,
     abortTurn(botSlug, sessionId) {
-      if (inFlight.get(botSlug) === sessionId) inFlight.delete(botSlug);
+      if (inFlight.get(botSlug)?.sessionId === sessionId) inFlight.delete(botSlug);
     },
     snapshot(botSlug) {
       const { root, repairing } = readRepository(botSlug);
@@ -732,7 +847,7 @@ export function createMemoryAcceptance(options: {
       } catch {
         currentBranch = null;
       }
-      const acceptedCurrent = acceptedHead(botSlug);
+      const acceptedCurrent = currentBranch === null ? null : acceptedHead(botSlug, currentBranch);
       const repairing =
         pendingRepair(botSlug)?.provisional_head_sha ??
         (currentBranch === 'main' && acceptedCurrent !== null && currentHead !== acceptedCurrent
@@ -777,6 +892,7 @@ export function createMemoryAcceptance(options: {
       return {
         head: currentHead,
         currentBranch,
+        branches: [...branchMap.values()].flat().sort(),
         dirty: dirty(root),
         commits,
         hasMore: lines.length > 60,
@@ -877,7 +993,9 @@ export function createMemoryAcceptance(options: {
         throw new MemoryAcceptError('memory-invalid', 'Valid Memory repair identity is required');
       }
       const root = registry.memoryDirFor(input.botSlug);
-      const baseline = acceptedHead(input.botSlug);
+      const branch =
+        root === undefined || !existsSync(join(root, '.git')) ? 'main' : branchOf(root);
+      const baseline = acceptedHead(input.botSlug, branch);
       if (
         root === undefined ||
         baseline === null ||
@@ -904,6 +1022,12 @@ export function createMemoryAcceptance(options: {
       let event = existing ?? pendingRepair(input.botSlug);
       if (event === undefined) {
         verifiedRepository(root, input.botSlug);
+        if (branch !== 'main') {
+          throw new MemoryAcceptError(
+            'memory-conflict',
+            'Repair of side branches requires Orchestrator coordination',
+          );
+        }
         const provisionalHead = head(root);
         if (provisionalHead === baseline && !dirty(root)) {
           throw new MemoryAcceptError('memory-conflict', 'Memory has no provisional changes');
@@ -1009,7 +1133,7 @@ export function createMemoryAcceptance(options: {
             .get(input.botSlug, input.editId) as AcceptedRow | undefined,
       );
       if (priorEdit !== undefined) {
-        const current = acceptedHead(input.botSlug);
+        const current = acceptedHead(input.botSlug, branchOf(root));
         const path = toMemoryWritePath(input.path);
         const previousBody = run(
           root,
@@ -1055,6 +1179,7 @@ export function createMemoryAcceptance(options: {
       }
       const [accepted] = accept(
         input.botSlug,
+        branchOf(root),
         [
           {
             sha,

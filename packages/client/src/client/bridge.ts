@@ -997,6 +997,7 @@ export interface MemoryGitCommit {
 export interface MemoryGitGraph {
   head: string;
   currentBranch: string | null;
+  branches: string[];
   dirty: boolean;
   commits: MemoryGitCommit[];
   hasMore: boolean;
@@ -1106,6 +1107,8 @@ export async function loadMemoryGitGraph(
   if (
     typeof response?.['head'] !== 'string' ||
     !(response['currentBranch'] === null || typeof response['currentBranch'] === 'string') ||
+    !Array.isArray(response['branches']) ||
+    !response['branches'].every((value) => typeof value === 'string') ||
     typeof response['dirty'] !== 'boolean' ||
     typeof response['hasMore'] !== 'boolean' ||
     !Array.isArray(response['commits']) ||

@@ -131,6 +131,7 @@ function stubActions(): BridgeActions {
     memoryGitGraph: vi.fn(async () => ({
       head: '',
       currentBranch: 'main',
+      branches: ['main'],
       dirty: false,
       commits: [],
       hasMore: false,
