@@ -108,7 +108,10 @@ export function prepareChannelMessageQuery(
     throw new Error('channel_read: invalid author_kind');
   }
   const from = options.from === undefined ? undefined : Date.parse(options.from);
-  const to = options.to === undefined ? undefined : Date.parse(options.to);
+  const to =
+    options.to === undefined
+      ? undefined
+      : Date.parse(options.to) + (/^\d{4}-\d{2}-\d{2}$/u.test(options.to) ? 86_400_000 - 1 : 0);
   if (
     (from !== undefined && !Number.isFinite(from)) ||
     (to !== undefined && !Number.isFinite(to)) ||

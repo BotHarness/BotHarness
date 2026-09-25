@@ -63,6 +63,21 @@ describe('PersonaBot Channel history query', () => {
         expect(() => run.channels.query({ ...filter, authorKind: 'human' })).toThrow(
           'requires author_kind bot',
         );
+        expect(
+          run.channels
+            .query({ channelId: groupId, text: 'café' })
+            .messages.map((view) => view.message.id),
+        ).toEqual(['unicode-1']);
+        expect(
+          run.channels
+            .query({ channelId: groupId, text: 'needle', to: '2026-09-01' })
+            .messages.map((view) => view.message.id),
+        ).toEqual(['old-210', 'old-100', 'old-5']);
+        expect(
+          run.channels
+            .query({ channelId: groupId, text: 'needle', to: '2026-09-01T00:00:05.000Z' })
+            .messages.map((view) => view.message.id),
+        ).toEqual(['old-5']);
         expect(() => run.channels.query({ channelId: privateId })).toThrow('not a member');
         checked = true;
       }),
@@ -85,6 +100,12 @@ describe('PersonaBot Channel history query', () => {
           ...(index === 100 ? { replyTo: 'old-5' } : {}),
         });
       }
+      await core.channels.appendMessage(groupId, {
+        id: 'unicode-1',
+        at: '2026-09-01T00:04:00.000Z',
+        author: { kind: 'human' },
+        body: 'CAFÉ status',
+      });
       await core.channels.appendMessage(dm.id, {
         id: 'ask-history',
         at: '2026-09-02T00:00:00.000Z',

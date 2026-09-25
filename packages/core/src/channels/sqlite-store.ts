@@ -133,6 +133,7 @@ function eventPayload(message: ChannelMessage): string {
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
+  let lowerRegistered = false;
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
     if (
       refs.length > 10 ||
@@ -984,7 +985,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         values.push(beforeRevision);
       }
       if (query.text !== undefined && query.text.length > 0) {
-        where.push('instr(lower(e.body), ?) > 0');
+        where.push('instr(botharness_unicode_lower(e.body), ?) > 0');
         values.push(query.text);
       }
       if (query.authorBotId !== undefined) {
@@ -1004,8 +1005,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         where.push('julianday(e.created_at) <= ?');
         values.push(query.to / 86_400_000 + 2_440_587.5);
       }
-      const rows = database.read((db) =>
-        db
+      const rows = database.read((db) => {
+        if (!lowerRegistered) {
+          db.function('botharness_unicode_lower', { deterministic: true }, (value: unknown) =>
+            typeof value === 'string' ? value.toLowerCase() : '',
+          );
+          lowerRegistered = true;
+        }
+        return db
           .prepare(`
           SELECT p.source_event_id, e.payload_json, e.body
             FROM channel_placements p
@@ -1013,8 +1020,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
            WHERE ${where.join(' AND ')}
            ORDER BY p.revision DESC LIMIT ?
         `)
-          .all(...values, query.limit + 1),
-      ) as unknown as PlacementRow[];
+          .all(...values, query.limit + 1);
+      }) as unknown as PlacementRow[];
       const selected = rows.slice(0, query.limit).flatMap((row) => {
         const message = parseMessage(row.payload_json, row.body);
         if (message === undefined) return [];
