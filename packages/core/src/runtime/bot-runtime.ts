@@ -496,11 +496,20 @@ class BotRuntimeImplementation implements BotRuntime {
     const bot = this.#registry.get(channel.botSlug);
     if (bot === undefined) return { admitted: false, reason: 'unknown-bot' };
     if (bot.paused === true) return { admitted: false, reason: 'archived-bot' };
-    const body = input.body.trim();
-    if (body.length === 0) return { admitted: false, reason: 'blank-body' };
+    // The Source Event stores the Channel body verbatim. Keep its identity
+    // separate from the attachment-only text supplied to the Orchestrator.
+    const persistedBody = this.#channels.message(channel.id, input.messageId)?.body;
+    const body = persistedBody?.trim() ? persistedBody : input.body;
+    if (body.trim().length === 0) return { admitted: false, reason: 'blank-body' };
 
     const timestamp = this.#now().toISOString();
-    const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
+    const claim = this.#claimSourceEvent(
+      bot.slug,
+      channel.id,
+      input.messageId,
+      persistedBody ?? body,
+      timestamp,
+    );
     return {
       admitted: true,
       settled: this.#enqueue(bot.slug, () =>
@@ -786,7 +795,14 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     const message = this.#channels.message(channelId, messageId);
     if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
       return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
-    const text = sessionMentionText(body, message?.mentions ?? []);
+    const mentionBody =
+      channel?.type === 'dm' &&
+      channel.botSlug !== undefined &&
+      message?.author.kind === 'human' &&
+      (message.mentions?.length ?? 0) > 0
+        ? message.body
+        : body;
+    const text = sessionMentionText(mentionBody, message?.mentions ?? []);
     if (channel?.type !== 'dm' || channel.botSlug === undefined || message?.author.kind !== 'human')
       return text;
     const selected = [...new Set((message.mentions ?? []).map((mention) => mention.botSlug))];

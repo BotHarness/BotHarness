@@ -45,10 +45,10 @@ describe('Human DM selected contact context', () => {
         roster: core.roster,
         runtime: core.runtime,
       });
-      const body = '@Alex @Alex please coordinate';
+      const body = '  @Alex @Alex please coordinate';
       const mentions = [
-        { botSlug: 'bea', label: 'Alex', start: 0, end: 5 },
-        { botSlug: 'cee', label: 'Alex', start: 6, end: 11 },
+        { botSlug: 'bea', label: 'Alex', start: 2, end: 7 },
+        { botSlug: 'cee', label: 'Alex', start: 8, end: 13 },
       ];
       expect(await methods.channelSend({ channelId: dm.id, body, mentions })).toMatchObject({
         ok: true,
@@ -57,6 +57,7 @@ describe('Human DM selected contact context', () => {
       await core.runtime.whenIdle();
       expect(runs).toHaveLength(1);
       expect(runs[0]!.bot.slug).toBe('ada');
+      expect(runs[0]!.message).toContain('  \u2060@Alex \u2060@Alex');
       expect(runs[0]!.message).toContain('"id":"bea","name":"Alex"');
       expect(runs[0]!.message).toContain('"id":"cee","name":"Alex"');
       expect(runs[0]!.message).toContain('Coordinates release work');
