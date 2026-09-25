@@ -108,6 +108,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Documented Bot-to-Bot DM Channels, Human DM contact mentions, and Bot-managed Group invitations as a future collaboration design; runtime behavior is unchanged ([ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md), [#278](https://github.com/BotHarness/BotHarness/issues/278)).
+
 - Documented how coding-agent tasks sharing one GitHub account claim issues and carry task provenance through commits and PRs ([#196](https://github.com/BotHarness/BotHarness/issues/196)).
 
 - Documented the Channel sidebar as Bot mode's scoped right region with one ordered, collapsible entry seam, retiring PersonaBot navigation ([ADR-0053](docs/adr/0053-channel-sidebar-is-the-scoped-right-sidebar.md), [#156](https://github.com/BotHarness/BotHarness/issues/156)).

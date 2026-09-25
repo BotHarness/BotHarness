@@ -291,11 +291,11 @@ PersonaBot 当前对一条 Source Event revision chain 的一次 consideration�
 _避免使用_：mailbox item、message copy、delivery attempt
 
 **Channel**：
-平台原生的 conversation space；类型为 `dm`（一个 PersonaBot 与一位 Human）或 `group chat`（多个 member；非正式称为 chatroom）。Channel 在本地保留自己的历史。两种类型遵循同一套 Channel section 归属、顶层顺序、拖拽与移动规则；DM 保留其 PersonaBot 头像表现。
+平台原生的 conversation space；类型为 `dm`（两位 Actor：一位 Human 与一个 PersonaBot，或两个 PersonaBot）或 `group chat`（多个 member；非正式称为 chatroom）。Channel 在本地保留自己的历史。两种类型遵循同一套 Channel section 归属、顶层顺序、拖拽与移动规则；Human–PersonaBot DM 保留其 PersonaBot 头像表现。
 _避免使用_：room、server、board
 
 **Hidden Channel**：
-由 Human 明确选择、从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可从隐藏频道管理器恢复它。
+因 Human 的呈现选择或 Bot-to-Bot DM 的默认规则而从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可以打开查看，也可以恢复自己主动隐藏的 Channel。
 _避免使用_：deleted Channel、archived Channel、muted Channel、Content Purge
 
 **Channel section**：
@@ -425,8 +425,12 @@ PersonaBot 参与的 Feishu/Lark conversation——group 或 p2p——通过 `ch
 _避免使用_：room、channel、group（当含义也包括 p2p 时）
 
 **DM**：
-PersonaBot 与一位 Human 之间的一对一 conversation——即 `dm` 类型的 Channel，或它的 bridged equivalent。
+两位 Actor 之间的一对一 conversation——即 `dm` 类型的 Channel，或它的 bridged equivalent。Human–PersonaBot DM 是 Human 与一个 Bot 的直接对话；Bot-to-Bot DM 有两个 PersonaBot 参与者，Human 可以只读查看而不成为参与者。
 _避免使用_：private chat、PM
+
+**Bot-to-Bot DM**：
+两个参与者都是 PersonaBot 的 DM Channel。一个 Bot 发出的消息是该 Channel 中的 Source Event，可以进入另一个 Bot 的 Inbox；Human 的只读查看独立于 Channel membership。
+_避免使用_：peer relay bus、copied inbox conversation
 
 **Thread**：
 通过回复 Chat 或 Channel 中某条 message 而开启的 sub-conversation。
