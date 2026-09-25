@@ -226,12 +226,19 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const mentions = message.mentions ?? [];
     if (
       mentions.length > 0 &&
-      (channel.type !== 'group' ||
-        mentions.some(
-          (item) =>
-            !channel.members.includes(item.botSlug) ||
-            message.body.slice(item.start, item.end) !== '@' + item.label,
-        ))
+      (channel.type === 'group'
+        ? mentions.some(
+            (item) =>
+              !channel.members.includes(item.botSlug) ||
+              message.body.slice(item.start, item.end) !== '@' + item.label,
+          )
+        : channel.botSlug === undefined ||
+          message.author.kind !== 'human' ||
+          mentions.some(
+            (item) =>
+              item.botSlug === channel.botSlug ||
+              message.body.slice(item.start, item.end) !== '@' + item.label,
+          ))
     ) {
       throw new ChannelMentionTargetError();
     }
