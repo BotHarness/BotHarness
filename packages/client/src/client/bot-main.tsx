@@ -1024,7 +1024,16 @@ function ConversationView({
                 key={channelId}
                 value={draft}
                 mentions={mentionTokens}
-                mentionCandidates={channel?.type === 'group' ? channelBots : []}
+                mentionCandidates={
+                  channel?.type === 'group'
+                    ? channelBots
+                    : channel?.type === 'dm' && channel.botSlug !== undefined
+                      ? state.bots.filter(
+                          (candidate) =>
+                            candidate.slug !== channel.botSlug && candidate.paused !== true,
+                        )
+                      : []
+                }
                 placeholder={t('composer.placeholder', { name: title })}
                 sending={conversation.sending}
                 focusSignal={restoreFocusSignal}
