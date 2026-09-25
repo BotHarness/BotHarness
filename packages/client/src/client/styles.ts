@@ -2714,6 +2714,16 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 }
 .bh-session-failure-raw { white-space: pre-wrap; }
 .bh-tool-approval-card { display: grid; gap: 10px; min-width: min(340px, 100%); }
+.bh-question-card { display: grid; gap: 12px; min-width: min(340px, 100%); max-width: 520px; }
+.bh-question-card > button { justify-self: start; }
+.bh-question-source { color: var(--dsw-alias-label-secondary); font-size: var(--dsh-content-font-size-secondary, 13px); }
+.bh-question-source code { display: block; margin-top: 5px; overflow-wrap: anywhere; }
+.bh-question-item { display: grid; gap: 7px; }
+.bh-question-prompt { font-weight: 600; white-space: pre-wrap; }
+.bh-question-item > button { justify-content: flex-start; text-align: start; height: auto; min-height: 38px; }
+.bh-question-option { display: grid; gap: 2px; }
+.bh-question-option small { color: var(--dsw-alias-label-secondary); font-weight: 400; white-space: normal; }
+.bh-question-custom { color: var(--dsw-alias-label-secondary); font-size: var(--dsh-content-font-size-secondary, 13px); }
 .bh-tool-approval-input {
   margin: 0;
   padding: 10px;

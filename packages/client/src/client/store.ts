@@ -59,6 +59,37 @@ export interface ToolApprovalDecision {
   outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
 }
 
+export interface UserQuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface UserQuestionItem {
+  id: string;
+  question: string;
+  detail?: string;
+  header?: string;
+  options?: UserQuestionOption[];
+  multiSelect?: boolean;
+}
+
+export interface UserQuestionAnswerItem {
+  id: string;
+  selected: string[];
+  custom?: string;
+}
+
+export interface UserQuestionRequestCard {
+  sessionId: string;
+  questions: UserQuestionItem[];
+}
+
+export interface UserQuestionResolution {
+  requestMessageId: string;
+  state: 'answered' | 'cancelled';
+  answers?: UserQuestionAnswerItem[];
+}
+
 export interface SessionFailureCard {
   role: 'orchestrator' | 'assignment';
   sessionId: string;
@@ -78,6 +109,8 @@ export interface ChannelMessage {
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;
   toolApprovalDecision?: ToolApprovalDecision;
+  userQuestionRequest?: UserQuestionRequestCard;
+  userQuestionResolution?: UserQuestionResolution;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;

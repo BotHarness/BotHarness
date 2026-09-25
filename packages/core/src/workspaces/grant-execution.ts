@@ -78,6 +78,8 @@ const BOT_TOOL_NAMES = new Set([
   'channel_read_image',
   'channel_search',
   'channel_send',
+  // Native DSH question transport does not access the filesystem.
+  'ask_user_question',
   'memory_switch_branch',
   'memory_continue_from_commit',
   'report_to_orchestrator',
@@ -103,6 +105,11 @@ export function grantToolExecutionDenial(
   if (typeof args === 'object' && args !== null && 'sandbox_permissions' in args) {
     return 'BotHarness Session cannot request sandbox permission escalation';
   }
+  if (
+    name === 'ask_user_question' &&
+    core.ownership.resolve(session.id)?.rootRole !== 'orchestrator'
+  )
+    return 'Assignment questions must go through the Orchestrator';
   if (BOT_TOOL_NAMES.has(name)) return undefined;
   const owner = core.ownership.resolve(session.id);
   if (

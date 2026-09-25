@@ -46,6 +46,7 @@ import {
   requiresHumanToolApproval,
 } from './workspaces/grant-execution.js';
 import { ChannelToolApproval } from './workspaces/tool-approval.js';
+import { ChannelUserQuestions } from './channels/user-questions.js';
 import {
   createAssignmentAccessStore,
   type AssignmentAccessStore,
@@ -276,6 +277,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       return JSON.stringify(['orchestrator', cwd, activeIds]);
     },
   );
+  const userQuestions = new ChannelUserQuestions(
+    core.channels,
+    core.ownership,
+    (agent) => ctx.agents.get(agent.id) === agent,
+  );
+  ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
+  ctx.on(
+    'user-questions/request',
+    async (request, next) => (await userQuestions.ask(request)) ?? next(),
+    { global: true },
+  );
   const approvedCalls = new Set<symbol>();
   ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
   ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
@@ -377,6 +389,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
       grants: core.grants,
       toolApproval,
+      userQuestions,
       toolRules: core.toolRules,
       assignmentAccess: core.assignmentAccess,
     }),

@@ -12,6 +12,7 @@ import type {
   ChannelMessage,
   ChannelSummary,
   SessionSummary,
+  UserQuestionAnswerItem,
 } from './store.js';
 import {
   parseRosterSection,
@@ -293,6 +294,56 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       input: request['input'],
     };
   }
+  let userQuestionRequest: ChannelMessage['userQuestionRequest'];
+  if (record['userQuestionRequest'] !== undefined) {
+    const request = asRecord(record['userQuestionRequest']);
+    const questions = request?.['questions'];
+    if (
+      request === undefined ||
+      author.kind !== 'bot' ||
+      typeof request['sessionId'] !== 'string' ||
+      !Array.isArray(questions) ||
+      questions.length === 0 ||
+      questions.length > 3
+    )
+      return undefined;
+    const parsed = questions.map((value) => {
+      const item = asRecord(value);
+      if (
+        item === undefined ||
+        typeof item['id'] !== 'string' ||
+        typeof item['question'] !== 'string'
+      )
+        return undefined;
+      const options = item['options'];
+      if (
+        options !== undefined &&
+        (!Array.isArray(options) ||
+          !options.every((option) => {
+            const row = asRecord(option);
+            return (
+              row !== undefined &&
+              typeof row['label'] === 'string' &&
+              (row['description'] === undefined || typeof row['description'] === 'string')
+            );
+          }))
+      )
+        return undefined;
+      return {
+        id: item['id'],
+        question: item['question'],
+        ...(typeof item['detail'] === 'string' ? { detail: item['detail'] } : {}),
+        ...(typeof item['header'] === 'string' ? { header: item['header'] } : {}),
+        ...(item['multiSelect'] === true ? { multiSelect: true } : {}),
+        ...(Array.isArray(options) ? { options } : {}),
+      };
+    });
+    if (parsed.some((item) => item === undefined)) return undefined;
+    userQuestionRequest = {
+      sessionId: request['sessionId'],
+      questions: parsed as NonNullable<ChannelMessage['userQuestionRequest']>['questions'],
+    };
+  }
   let sessionFailure: ChannelMessage['sessionFailure'];
   if (record['sessionFailure'] !== undefined) {
     const failure = asRecord(record['sessionFailure']);
@@ -351,6 +402,45 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       outcome: decision['outcome'],
     };
   }
+  let userQuestionResolution: ChannelMessage['userQuestionResolution'];
+  if (record['userQuestionResolution'] !== undefined) {
+    const resolution = asRecord(record['userQuestionResolution']);
+    if (
+      resolution === undefined ||
+      typeof resolution['requestMessageId'] !== 'string' ||
+      replyTo !== resolution['requestMessageId'] ||
+      (resolution['state'] !== 'answered' && resolution['state'] !== 'cancelled')
+    )
+      return undefined;
+    if (resolution['state'] === 'answered') {
+      if (author.kind !== 'human' || !Array.isArray(resolution['answers'])) return undefined;
+      const answers = resolution['answers'] as unknown[];
+      if (
+        !answers.every((value) => {
+          const item = asRecord(value);
+          return (
+            item !== undefined &&
+            typeof item['id'] === 'string' &&
+            Array.isArray(item['selected']) &&
+            item['selected'].every((label) => typeof label === 'string') &&
+            (item['custom'] === undefined || typeof item['custom'] === 'string')
+          );
+        })
+      )
+        return undefined;
+      userQuestionResolution = {
+        requestMessageId: resolution['requestMessageId'],
+        state: 'answered',
+        answers: answers as UserQuestionAnswerItem[],
+      };
+    } else {
+      if (author.kind !== 'bot') return undefined;
+      userQuestionResolution = {
+        requestMessageId: resolution['requestMessageId'],
+        state: 'cancelled',
+      };
+    }
+  }
   const rawPreview = record['replyToPreview'];
   let replyToPreview: ChannelMessage['replyToPreview'];
   if (rawPreview === null) {
@@ -372,6 +462,8 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
     ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),
+    ...(userQuestionRequest === undefined ? {} : { userQuestionRequest }),
+    ...(userQuestionResolution === undefined ? {} : { userQuestionResolution }),
     ...(attachments === undefined ? {} : { attachments: attachments as ChannelAttachmentRef[] }),
     ...(format === undefined ? {} : { format }),
     ...(replyTo === undefined ? {} : { replyTo }),
@@ -766,6 +858,30 @@ export async function decideToolApproval(
     }),
   );
   if (response?.['accepted'] !== true) throw new Error('Tool approval was not accepted');
+}
+
+export async function loadUserQuestionStatus(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+): Promise<'pending' | 'expired'> {
+  const response = asRecord(await unwrap(call, 'userQuestionStatus', { channelId, messageId }));
+  const status = response?.['status'];
+  if (status !== 'pending' && status !== 'expired')
+    throw new Error('invalid userQuestionStatus response');
+  return status;
+}
+
+export async function answerUserQuestion(
+  call: BridgeCall,
+  channelId: string,
+  messageId: string,
+  answers: UserQuestionAnswerItem[],
+): Promise<void> {
+  const response = asRecord(
+    await unwrap(call, 'userQuestionAnswer', { channelId, messageId, answer: { answers } }),
+  );
+  if (response?.['accepted'] !== true) throw new Error('Question answer was not accepted');
 }
 
 export interface WorkspaceOption {

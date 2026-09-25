@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import {
   Button,
+  Input,
   MarkdownText,
   StateDot,
   type MarkdownLabels,
@@ -227,6 +228,163 @@ function ToolApprovalCard({
   );
 }
 
+function UserQuestionCard({
+  message,
+  actions,
+  resolution,
+  t,
+}: {
+  message: ChannelMessage;
+  actions: BridgeActions;
+  resolution?: 'answered' | 'cancelled' | undefined;
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const request = message.userQuestionRequest!;
+  const botSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
+  const [status, setStatus] = useState<
+    'loading' | 'pending' | 'expired' | 'answered' | 'cancelled'
+  >(resolution ?? 'loading');
+  const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [custom, setCustom] = useState<Record<string, string>>({});
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (resolution !== undefined) {
+      setStatus(resolution);
+      return;
+    }
+    if (botSlug === undefined) return;
+    let active = true;
+    void actions.userQuestionStatus('dm-' + botSlug, message.id).then(
+      (value) => {
+        if (active) setStatus(value);
+      },
+      () => {
+        if (active) setStatus('expired');
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, botSlug, message.id, resolution]);
+
+  const choose = (id: string, label: string, multiSelect: boolean): void => {
+    setSelected((current) => {
+      const prior = current[id] ?? [];
+      const next = multiSelect
+        ? prior.includes(label)
+          ? prior.filter((entry) => entry !== label)
+          : [...prior, label]
+        : [label];
+      return { ...current, [id]: next };
+    });
+    if (!multiSelect) setCustom((current) => ({ ...current, [id]: '' }));
+  };
+  const submit = (): void => {
+    if (botSlug === undefined || busy || status !== 'pending') return;
+    const channelId = 'dm-' + botSlug;
+    if (store.getSnapshot().conversation.channel?.id !== channelId) {
+      setError(t('question.channelChanged'));
+      return;
+    }
+    const answers = request.questions.map((question) => {
+      const text = (custom[question.id] ?? '').trim();
+      return {
+        id: question.id,
+        selected:
+          text.length > 0 && question.multiSelect !== true ? [] : (selected[question.id] ?? []),
+        ...(text.length > 0 ? { custom: text } : {}),
+      };
+    });
+    if (answers.some((answer) => answer.selected.length === 0 && answer.custom === undefined)) {
+      setError(t('question.required'));
+      return;
+    }
+    setBusy(true);
+    setError(undefined);
+    void actions
+      .answerUserQuestion(channelId, message.id, answers)
+      .then(
+        () => setStatus('answered'),
+        (cause: unknown) => {
+          setError(errorMessage(cause));
+          void actions
+            .userQuestionStatus(channelId, message.id)
+            .then(setStatus, () => setStatus('expired'));
+        },
+      )
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="bh-question-card">
+      <div className="bh-grant-request-title">{t('question.title')}</div>
+      <details className="bh-question-source">
+        <summary>{t('question.source')}</summary>
+        <code>{request.sessionId}</code>
+      </details>
+      {request.questions.map((question) => (
+        <div className="bh-question-item" key={question.id}>
+          {question.header === undefined ? null : <div className="bh-note">{question.header}</div>}
+          <div className="bh-question-prompt">{question.question}</div>
+          {question.detail === undefined ? null : <div className="bh-note">{question.detail}</div>}
+          {question.options?.map((option) => (
+            <Button
+              key={option.label}
+              variant={(selected[question.id] ?? []).includes(option.label) ? 'primary' : 'outline'}
+              disabled={status !== 'pending' || busy}
+              aria-pressed={(selected[question.id] ?? []).includes(option.label)}
+              onClick={() => choose(question.id, option.label, question.multiSelect === true)}
+            >
+              <span className="bh-question-option">
+                <span>{option.label}</span>
+                {option.description === undefined ? null : <small>{option.description}</small>}
+              </span>
+            </Button>
+          ))}
+          <label
+            className="bh-question-custom"
+            htmlFor={'bh-question-' + message.id + '-' + question.id}
+          >
+            {t('question.custom')}
+          </label>
+          <Input
+            id={'bh-question-' + message.id + '-' + question.id}
+            value={custom[question.id] ?? ''}
+            disabled={status !== 'pending' || busy}
+            maxLength={2000}
+            placeholder={t('question.customPlaceholder')}
+            onChange={(event) =>
+              setCustom((current) => ({ ...current, [question.id]: event.target.value }))
+            }
+          />
+        </div>
+      ))}
+      {status === 'pending' ? (
+        <Button variant="primary" disabled={busy} onClick={submit}>
+          {t('question.submit')}
+        </Button>
+      ) : (
+        <div className="bh-note" role="status">
+          {status === 'answered'
+            ? t('question.answered')
+            : status === 'cancelled'
+              ? t('question.cancelled')
+              : status === 'loading'
+                ? t('approval.loading')
+                : t('question.expired')}
+        </div>
+      )}
+      {error === undefined ? null : (
+        <div className="bh-error" role="alert">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function GrantRequestCard({
   message,
   actions,
@@ -324,6 +482,7 @@ export function ChannelMessageBody({
   actions,
   grantRequestResolved = false,
   toolApprovalDecision,
+  userQuestionResolution,
   nativeChatT,
 }: {
   message: ChannelMessage;
@@ -337,6 +496,7 @@ export function ChannelMessageBody({
     | 'allowed-always-all'
     | 'rejected'
     | undefined;
+  userQuestionResolution?: 'answered' | 'cancelled' | undefined;
 }): ReactElement {
   const labels = useMemo<MarkdownLabels>(
     () => ({
@@ -354,6 +514,16 @@ export function ChannelMessageBody({
   if (message.toolApprovalRequest !== undefined && actions !== undefined) {
     return (
       <ToolApprovalCard message={message} actions={actions} decision={toolApprovalDecision} t={t} />
+    );
+  }
+  if (message.userQuestionRequest !== undefined && actions !== undefined) {
+    return (
+      <UserQuestionCard
+        message={message}
+        actions={actions}
+        resolution={userQuestionResolution}
+        t={t}
+      />
     );
   }
   if (message.grantRequest === true && actions !== undefined) {
