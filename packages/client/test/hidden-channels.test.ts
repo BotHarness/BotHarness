@@ -78,6 +78,22 @@ it('preserves explicit hide order when Channel updates reorder the live list', (
   ).toEqual(['hidden-first', 'hidden-second', botDm.id]);
 });
 
+it('shows the newest implicit Bot DM first after the modal reverses its items', () => {
+  const botDm = (id: string) => ({
+    id,
+    type: 'dm' as const,
+    name: id,
+    members: ['ada', 'bea'],
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const newest = botDm('dm-bots-new');
+  const oldest = botDm('dm-bots-old');
+  const sequence = hiddenChannelSequence([newest, oldest], []);
+  expect(sequence.map((channel) => channel.id)).toEqual([oldest.id, newest.id]);
+  expect([...sequence].reverse().map((channel) => channel.id)).toEqual([newest.id, oldest.id]);
+});
+
 describe('hidden Channels modal', () => {
   it('lists hidden DM and group Channels and restores the selected id', () => {
     const onRestore = vi.fn();
