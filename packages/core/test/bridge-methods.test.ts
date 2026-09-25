@@ -89,6 +89,7 @@ describe('bridge methods', () => {
         wakes.push(channelId + ':' + messageId);
       },
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -149,6 +150,7 @@ describe('bridge methods', () => {
     const { channels, attachments, methods } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         return { admitted: true as const, settled: Promise.resolve() };
@@ -212,6 +214,7 @@ describe('bridge methods', () => {
     const { channels, methods } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage() {
         admissions += 1;
         return { admitted: true as const, settled: Promise.resolve() };
@@ -734,6 +737,7 @@ describe('bridge methods', () => {
     const { methods } = setup([], ['ada'], (channels) => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         handled.push(input);
         settled = (async () => {
@@ -838,6 +842,7 @@ describe('bridge methods', () => {
     const { methods } = setup([], ['ada'], (channels) => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         const settled = (async () => {
@@ -887,6 +892,7 @@ describe('bridge methods', () => {
     const { methods, registry, channels } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -910,6 +916,7 @@ describe('bridge methods', () => {
     const { methods, channels } = setup([], ['ada'], () => ({
       admitGroupMessage() {},
       admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'runtime-closed' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,

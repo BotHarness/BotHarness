@@ -12,8 +12,24 @@ export interface ChannelRecord {
   name: string;
   members: string[];
   botSlug?: string;
+  /** A Bot creator may manage this Group; Human authority remains separate. */
+  ownerBotSlug?: string;
+  invitations?: GroupInvitation[];
+  /** Human-only logical deletion keeps operational evidence durable. */
+  deletedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface GroupInvitation {
+  id: string;
+  targetBotSlug: string;
+  /** The invited Bot incarnation; a recreated Bot cannot inherit a stale invite. */
+  targetBotCreatedAt: string;
+  inviterBotSlug: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  createdAt: string;
+  respondedAt?: string;
 }
 
 export type ChannelMessageAuthor =
@@ -164,6 +180,37 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
   if (!Array.isArray(members) || !members.every((entry) => typeof entry === 'string')) return false;
   const botSlug = record['botSlug'];
   if (botSlug !== undefined && typeof botSlug !== 'string') return false;
+  const ownerBotSlug = record['ownerBotSlug'];
+  if (ownerBotSlug !== undefined) {
+    if (
+      record['type'] !== 'group' ||
+      typeof ownerBotSlug !== 'string' ||
+      !members.includes(ownerBotSlug)
+    )
+      return false;
+  }
+  if (record['deletedAt'] !== undefined && typeof record['deletedAt'] !== 'string') return false;
+  const invitations = record['invitations'];
+  if (invitations !== undefined) {
+    if (
+      record['type'] !== 'group' ||
+      !Array.isArray(invitations) ||
+      !invitations.every((item: unknown) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const invite = item as Record<string, unknown>;
+        return (
+          typeof invite['id'] === 'string' &&
+          typeof invite['targetBotSlug'] === 'string' &&
+          typeof invite['targetBotCreatedAt'] === 'string' &&
+          typeof invite['inviterBotSlug'] === 'string' &&
+          ['pending', 'accepted', 'declined', 'cancelled'].includes(String(invite['status'])) &&
+          typeof invite['createdAt'] === 'string' &&
+          (invite['respondedAt'] === undefined || typeof invite['respondedAt'] === 'string')
+        );
+      })
+    )
+      return false;
+  }
   return true;
 }
 

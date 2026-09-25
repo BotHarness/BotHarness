@@ -60,6 +60,14 @@ function fixture() {
 describe('Workspace Grant execution boundary', () => {
   it('treats Host-checked Bot DM contact tools as internal Messaging tools', () => {
     expect(requiresHumanToolApproval('list_bot_contacts')).toBe(false);
+    for (const tool of [
+      'group_create',
+      'group_invite_bot',
+      'group_invite_respond',
+      'group_rename',
+      'group_remove_member',
+    ])
+      expect(requiresHumanToolApproval(tool)).toBe(false);
     expect(requiresHumanToolApproval('bot_dm_send')).toBe(false);
   });
 

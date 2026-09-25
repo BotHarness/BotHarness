@@ -1,4 +1,4 @@
-import { useSyncExternalStore, type ReactElement } from 'react';
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import { Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -125,14 +125,24 @@ function AssignmentsBadge(): ReactElement {
   return <Tag tone="neutral">{useClientState().assignments.items.length}</Tag>;
 }
 
-function MembersEntry({ t }: ChannelSidebarEntryProps): ReactElement {
+function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   const state = useClientState();
-  const members = state.conversation.channel?.members ?? [];
-  if (members.length === 0) {
-    return <div className="bh-note">{t('members.empty')}</div>;
-  }
+  const channel = state.conversation.channel;
+  const members = channel?.members ?? [];
+  const group = channel?.type === 'group' ? channel : undefined;
+  const [error, setError] = useState(false);
+  const invitationLabels = {
+    pending: t('members.pending'),
+    accepted: t('members.accepted'),
+    declined: t('members.declined'),
+    cancelled: t('members.cancelled'),
+  };
+  const apply = async (result: Promise<boolean>): Promise<void> => {
+    setError(!(await result));
+  };
   return (
     <>
+      {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
       {members.map((slug) => {
         const member = state.bots.find((candidate) => candidate.slug === slug);
         return (
@@ -146,9 +156,64 @@ function MembersEntry({ t }: ChannelSidebarEntryProps): ReactElement {
               size={26}
             />
             <span className="bh-name">{memberName(state.bots, slug)}</span>
+            {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
+            {group === undefined ? null : (
+              <button
+                type="button"
+                className="bh-group-manage-button"
+                aria-label={t('members.remove') + ' ' + memberName(state.bots, slug)}
+                onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
+              >
+                {t('members.remove')}
+              </button>
+            )}
           </div>
         );
       })}
+      {group?.invitations?.length ? (
+        <div className="bh-group-invitations">
+          <div className="bh-group-invitations-title">{t('members.invites')}</div>
+          {group.invitations.map((invitation) => (
+            <div className="bh-member-row" key={invitation.id}>
+              <PersonaBotAvatar
+                t={t}
+                personaBotId={invitation.targetBotSlug}
+                name={memberName(state.bots, invitation.targetBotSlug)}
+                src={state.bots.find((bot) => bot.slug === invitation.targetBotSlug)?.avatar}
+                size={26}
+              />
+              <span className="bh-name">{memberName(state.bots, invitation.targetBotSlug)}</span>
+              <Tag tone="neutral">{invitationLabels[invitation.status]}</Tag>
+              {invitation.status === 'pending' ? (
+                <button
+                  type="button"
+                  className="bh-group-manage-button"
+                  onClick={() => void apply(actions.cancelGroupInvitation(group.id, invitation.id))}
+                >
+                  {t('members.cancel')}
+                </button>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+      {group === undefined ? null : (
+        <button
+          type="button"
+          className="bh-group-delete-button"
+          onClick={() => {
+            if (!window.confirm(t('members.deleteConfirm', { name: group.name }))) return;
+            void apply(actions.deleteGroupChannel(group.id));
+          }}
+        >
+          {t('members.delete')}
+        </button>
+      )}
+      {error ? (
+        <div className="bh-error" role="alert">
+          {t('members.error')}
+        </div>
+      ) : null}
     </>
   );
 }

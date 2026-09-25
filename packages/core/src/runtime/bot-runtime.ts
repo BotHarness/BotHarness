@@ -8,6 +8,8 @@ import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { MemoryService } from '../memory/service.js';
 import {
   isBotDmChannel,
+  MAX_BOT_HOPS,
+  type GroupInvitation,
   type BotMessageCausation,
   type ChannelMention,
   type ChannelMessage,
@@ -148,6 +150,14 @@ export interface OrchestratorChannelAccess {
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
   requestGrant(reason: string): Promise<ChannelMessage>;
   contacts(): Array<{ slug: string; displayName: string; description?: string }>;
+  createGroup(name: string): ChannelRecord;
+  inviteGroup(input: { channelId: string; targetBotSlug: string }): GroupInvitation;
+  respondToGroupInvite(input: { invitationId: string; accept: boolean }): {
+    channel: ChannelRecord;
+    invitation: GroupInvitation;
+  };
+  renameGroup(input: { channelId: string; name: string }): ChannelRecord;
+  removeGroupMember(input: { channelId: string; botSlug: string }): ChannelRecord;
   sendToBot(input: {
     botSlug: string;
     body: string;
@@ -205,6 +215,8 @@ export interface BotRuntime {
   admitGroupMessage(channelId: string, messageId: string): void;
   /** Schedule the one recipient of a committed Bot-to-Bot DM message. */
   admitBotDmMessage(channelId: string, messageId: string): void;
+  /** Wake an invitee on a durable invitation without granting Group membership. */
+  admitGroupInvitation(targetDmChannelId: string, invitationId: string): void;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
   /** Resolves when queued turns and detached Assignment runs have drained. */
@@ -529,16 +541,24 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#admitChannelMessage(channelId, messageId, 'bot-dm');
   }
 
+  admitGroupInvitation(targetDmChannelId: string, invitationId: string): void {
+    this.#admitChannelMessage(targetDmChannelId, invitationId, 'group-invite');
+  }
+
   #admitChannelMessage(
     channelId: string,
     messageId: string,
-    reason: 'group-mention' | 'bot-dm',
+    reason: 'group-mention' | 'bot-dm' | 'group-invite',
   ): void {
     if (this.#closed) return;
     const channel = this.#channels.get(channelId);
     if (
       channel === undefined ||
-      (reason === 'group-mention' ? channel.type !== 'group' : !isBotDmChannel(channel))
+      (reason === 'group-mention'
+        ? channel.type !== 'group'
+        : reason === 'group-invite'
+          ? channel.type !== 'dm' || channel.botSlug === undefined
+          : !isBotDmChannel(channel))
     )
       return;
     const rows = this.#database.read((database) =>
@@ -685,7 +705,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT DISTINCT e.channel_id, e.message_id, a.reason
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
-         WHERE a.reason IN ('group-mention', 'bot-dm')
+         WHERE a.reason IN ('group-mention', 'bot-dm', 'group-invite')
            AND a.attempt_state IN ('pending', 'retryable')
            AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
       `)
@@ -693,7 +713,7 @@ class BotRuntimeImplementation implements BotRuntime {
     ) as unknown as Array<{
       channel_id: string;
       message_id: string;
-      reason: 'group-mention' | 'bot-dm';
+      reason: 'group-mention' | 'bot-dm' | 'group-invite';
     }>;
     for (const row of rows) this.#admitChannelMessage(row.channel_id, row.message_id, row.reason);
   }
@@ -795,6 +815,8 @@ class BotRuntimeImplementation implements BotRuntime {
   #inboundChannelMessage(channelId: string, messageId: string, body: string): string {
     const channel = this.#channels.get(channelId);
     const message = this.#channels.message(channelId, messageId);
+    if (messageId.startsWith('group-invite-') && message === undefined)
+      return '[Bot Inbox: Group invitation]\n' + body;
     if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
       return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
     if (channel?.type === 'group' && message?.mentions?.length)
@@ -1301,6 +1323,86 @@ class BotRuntimeImplementation implements BotRuntime {
               ? {}
               : { description: candidate.description.slice(0, 400) }),
           })),
+      createGroup: (name) => {
+        const sender = this.#registry.get(botSlug);
+        if (sender === undefined || sender.paused === true)
+          throw new Error('Bot Group creator is no longer active');
+        const clean = requireNonBlank(name, 'Group name').slice(0, 120);
+        beforeSend();
+        return this.#channels.createGroup({
+          name: clean,
+          members: [botSlug],
+          ownerBotSlug: botSlug,
+        });
+      },
+      inviteGroup: (input) => {
+        const channel = this.#channels.get(input.channelId);
+        const target = this.#registry.get(input.targetBotSlug);
+        if (
+          channel?.type !== 'group' ||
+          channel.ownerBotSlug !== botSlug ||
+          !channel.members.includes(botSlug)
+        )
+          throw new Error('Only the Bot Group owner may invite');
+        if (
+          target === undefined ||
+          target.paused === true ||
+          target.slug === botSlug ||
+          channel.members.includes(target.slug)
+        )
+          throw new Error('Invitee must be another active nonmember PersonaBot');
+        const botCausation = this.#botCausation(sourceEventId);
+        if (botCausation.hop > MAX_BOT_HOPS) throw new Error('Bot collaboration hop limit reached');
+        const dm = this.#channels.getOrCreateDm(target.slug, target.displayName);
+        if (dm === undefined) throw new Error('Invitee DM is unavailable');
+        beforeSend();
+        const invitation = this.#channels.inviteGroupBot({
+          channelId: channel.id,
+          inviterBotSlug: botSlug,
+          targetBotSlug: target.slug,
+          targetBotCreatedAt: target.createdAt,
+          targetDmChannelId: dm.id,
+          botCausation,
+        });
+        this.admitGroupInvitation(dm.id, invitation.id);
+        return invitation;
+      },
+      respondToGroupInvite: (input) => {
+        const target = this.#registry.get(botSlug);
+        if (target === undefined || target.paused === true)
+          throw new Error('Archived PersonaBot cannot answer a Group invitation');
+        beforeSend();
+        return this.#channels.respondToGroupInvite({
+          invitationId: input.invitationId,
+          targetBotSlug: botSlug,
+          targetBotCreatedAt: target.createdAt,
+          accept: input.accept,
+        });
+      },
+      renameGroup: (input) => {
+        const channel = this.#channels.get(input.channelId);
+        if (
+          channel?.type !== 'group' ||
+          channel.ownerBotSlug !== botSlug ||
+          !channel.members.includes(botSlug)
+        )
+          throw new Error('Only the Bot Group owner may rename');
+        const name = requireNonBlank(input.name, 'Group name').slice(0, 120);
+        beforeSend();
+        return this.#channels.rename(channel.id, name)!;
+      },
+      removeGroupMember: (input) => {
+        const channel = this.#channels.get(input.channelId);
+        if (
+          channel?.type !== 'group' ||
+          channel.ownerBotSlug !== botSlug ||
+          !channel.members.includes(botSlug) ||
+          input.botSlug === botSlug
+        )
+          throw new Error('Only the Bot Group owner may remove another member');
+        beforeSend();
+        return this.#channels.removeGroupMember(channel.id, input.botSlug);
+      },
       sendToBot: async (input) => {
         const sender = this.#registry.get(botSlug);
         const target = this.#registry.get(input.botSlug);
@@ -1546,19 +1648,41 @@ class BotRuntimeImplementation implements BotRuntime {
   #botCausation(sourceEventId: string): BotMessageCausation {
     const parent = this.#database.read((database) =>
       database
-        .prepare('SELECT channel_id, message_id FROM source_events WHERE source_event_id = ?')
+        .prepare(`
+          SELECT channel_id, message_id,
+                 json_extract(payload_json, '$.botCausation.rootSourceEventId') AS root_id,
+                 json_extract(payload_json, '$.botCausation.hop') AS prior_hop
+            FROM source_events WHERE source_event_id = ?
+        `)
         .get(sourceEventId),
-    ) as { channel_id: string | null; message_id: string | null } | undefined;
+    ) as
+      | {
+          channel_id: string | null;
+          message_id: string | null;
+          root_id: string | null;
+          prior_hop: number | null;
+        }
+      | undefined;
     if (parent === undefined) throw new Error('Bot send has no trusted Source Event');
     const parentMessage =
       parent.channel_id !== null && parent.message_id !== null
         ? this.#channels.message(parent.channel_id, parent.message_id)
         : undefined;
     const prior = parentMessage?.botCausation;
+    const inheritedRoot =
+      prior?.rootSourceEventId ??
+      (typeof parent.root_id === 'string' ? parent.root_id : sourceEventId);
+    const inheritedHop =
+      prior?.hop ??
+      (typeof parent.prior_hop === 'number' &&
+      Number.isInteger(parent.prior_hop) &&
+      parent.prior_hop >= 0
+        ? parent.prior_hop
+        : 0);
     return {
-      rootSourceEventId: prior?.rootSourceEventId ?? sourceEventId,
+      rootSourceEventId: inheritedRoot,
       parentSourceEventId: sourceEventId,
-      hop: (prior?.hop ?? 0) + 1,
+      hop: inheritedHop + 1,
     };
   }
 

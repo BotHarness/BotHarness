@@ -2550,6 +2550,36 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   padding: 6px 8px;
 }
 
+.bh-member-row .bh-name {
+  flex: 1;
+  min-width: 0;
+}
+.bh-group-invitations {
+  margin-top: 12px;
+}
+.bh-group-invitations-title {
+  padding: 4px 8px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-group-manage-button,
+.bh-group-delete-button {
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 7px;
+}
+.bh-group-manage-button:hover,
+.bh-group-delete-button:hover {
+  background: var(--bh-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-group-delete-button {
+  margin: 12px 8px 4px;
+}
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
    separator the General section strips on its last child. */

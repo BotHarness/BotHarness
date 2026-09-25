@@ -165,11 +165,15 @@ export function createCore(
     attachments,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => live?.publishCommitted(commit),
+    onRecordChanged: () => live?.publishRosterCommitted(),
     onAdmissionChanged: (channelId, messageId, message) =>
       live?.publishAdmission(channelId, messageId, message),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   live = createChannelLiveHub(channels);
+  if (operationalDatabase.mode === 'ready')
+    for (const bot of registry.list())
+      if (bot.paused === true) channels.cancelInvitationsForBot(bot.slug);
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
