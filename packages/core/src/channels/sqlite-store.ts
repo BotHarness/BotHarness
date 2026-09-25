@@ -808,7 +808,27 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       if (channel.ownerBotSlug === botSlug) delete updated.ownerBotSlug;
-      writeRecord(updated);
+      const cancelled = (channel.invitations ?? []).filter(
+        (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
+      );
+      database.transaction(
+        (db) => {
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify(updated),
+            channelId,
+          );
+          for (const invitation of cancelled)
+            db.prepare(`
+              UPDATE inbox_admissions
+                 SET attempt_state = 'handled', handled_at = ?
+               WHERE source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE message_id = ?
+               ) AND reason = 'group-invite' AND attempt_state IN ('pending', 'retryable')
+            `).run(timestamp, invitation.id);
+        },
+        ['channel', 'bot-inbox'],
+      );
+      publishRecordChanged();
       return updated;
     },
     deleteGroup(channelId) {

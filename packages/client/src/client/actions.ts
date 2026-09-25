@@ -282,18 +282,24 @@ export function createActions(
     clientStore.getSnapshot().selection;
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
-    try {
-      const [snapshot, channels] = await Promise.all([
-        loadRoster(call, signal),
-        loadChannels(call, signal),
-      ]);
-      if (signal?.aborted === true) return;
+    const [rosterResult, channelResult] = await Promise.allSettled([
+      loadRoster(call, signal),
+      loadChannels(call, signal),
+    ]);
+    if (signal?.aborted === true) return;
+    if (channelResult.status === 'fulfilled') {
+      const channels = channelResult.value;
       const current = clientStore.getSnapshot().conversation.channel;
       clientStore.setRoster(clientStore.getSnapshot().bots, channels);
       if (current !== undefined) {
         const updated = channels.find((item) => item.id === current.id);
         if (updated !== undefined) clientStore.setConversation({ channel: updated });
       }
+    } else {
+      console.warn('botharness: channel refresh failed', channelResult.reason);
+    }
+    if (rosterResult.status === 'fulfilled') {
+      const snapshot = rosterResult.value;
       clientStore.setRosterState({
         pins: snapshot.pins,
         hidden: snapshot.hidden,
@@ -301,13 +307,13 @@ export function createActions(
         topOrder: snapshot.topOrder,
         readOnly: false,
       });
-    } catch (error) {
-      if (signal?.aborted === true) return;
-      if (error instanceof BridgeCallError && error.code === 'storage-unavailable') {
-        clientStore.setRosterState({ readOnly: true });
-        return;
-      }
-      console.warn('botharness: roster refresh failed', error);
+    } else if (
+      rosterResult.reason instanceof BridgeCallError &&
+      rosterResult.reason.code === 'storage-unavailable'
+    ) {
+      clientStore.setRosterState({ readOnly: true });
+    } else {
+      console.warn('botharness: roster refresh failed', rosterResult.reason);
     }
   };
 
@@ -979,14 +985,22 @@ export function createActions(
     async deleteGroupChannel(channelId) {
       try {
         await deleteGroupChannel(call, channelId);
-        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
-          clientStore.select(undefined);
-        await actions.load();
-        return true;
       } catch (error) {
         console.warn('botharness: Group deletion failed', error);
         return false;
       }
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id === channelId) clientStore.select(undefined);
+      clientStore.setRoster(
+        snapshot.bots,
+        snapshot.channels.filter((channel) => channel.id !== channelId),
+      );
+      try {
+        await actions.load();
+      } catch (error) {
+        console.warn('botharness: Group deletion refresh failed', error);
+      }
+      return true;
     },
     async createSection(name) {
       try {

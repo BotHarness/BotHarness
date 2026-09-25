@@ -240,6 +240,42 @@ describe('Bot Group invitation tracer', () => {
     }
   });
 
+  it('closes pending invite admissions when Human removes their inviter', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-group-remove-inviter-') });
+    try {
+      for (const slug of ['ada', 'bea', 'cee'])
+        core.registry.create({ slug, displayName: slug.toUpperCase() });
+      const group = core.channels.createGroup({
+        name: 'Team',
+        members: ['ada', 'bea'],
+        ownerBotSlug: 'bea',
+      });
+      const ceeDm = core.channels.getOrCreateDm('cee', 'Cee')!;
+      const invitation = core.channels.inviteGroupBot({
+        channelId: group.id,
+        inviterBotSlug: 'bea',
+        targetBotSlug: 'cee',
+        targetBotCreatedAt: core.registry.get('cee')!.createdAt,
+        targetDmChannelId: ceeDm.id,
+      });
+      expect(core.channels.removeGroupMember(group.id, 'bea').invitations).toMatchObject([
+        { id: invitation.id, status: 'cancelled' },
+      ]);
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'removed-inviter-test').read((db) =>
+          db
+            .prepare(
+              "SELECT attempt_state FROM inbox_admissions WHERE reason = 'group-invite' AND source_event_id = (SELECT source_event_id FROM source_events WHERE message_id = ?)",
+            )
+            .get(invitation.id),
+        ),
+      ).toEqual({ attempt_state: 'handled' });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('recovers a pending invitation after restart and rejects archived or cancelled targets', async () => {
     const home = createTempRoot('botharness-group-invite-restart-');
     const first = createCore({ dshHome: home });
