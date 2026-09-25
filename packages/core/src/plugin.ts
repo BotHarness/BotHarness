@@ -45,6 +45,7 @@ import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runti
 import {
   grantExecutionDenial,
   grantToolExecutionDenial,
+  isSafeMemoryDirectoryListing,
   requiresHumanToolApproval,
 } from './workspaces/grant-execution.js';
 import { ChannelToolApproval } from './workspaces/tool-approval.js';
@@ -308,6 +309,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
         return next();
       if (!requiresHumanToolApproval(execution.name)) return next();
+      if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
+        return next();
       const denial = permissionDenial(agent.session);
       if (denial !== undefined) return { kind: 'deny', reason: denial };
       if (

@@ -93,6 +93,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- A PersonaBot can list its own Memory directory with the literal read-only `ls -la` command without an interruption; other shell commands still use Channel approval ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Selected Group @PersonaBot references now appear once inside the composer and sent message, delete as a whole token, and remain visible as Bot text in Orchestrator Sessions instead of showing DSH's file icon ([#254](https://github.com/BotHarness/BotHarness/issues/254)).
 
 - PersonaBot creation now explains when Git is missing and leaves no partial identity; install Git on PATH and restart DeepSeek Harness before retrying ([#268](https://github.com/BotHarness/BotHarness/issues/268)).

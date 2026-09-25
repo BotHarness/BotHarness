@@ -1,7 +1,12 @@
+import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { describe, expect, it, vi } from 'vitest';
 
 import {
   grantExecutionDenial,
+  isSafeMemoryDirectoryListing,
   grantToolExecutionDenial,
 } from '../src/workspaces/grant-execution.js';
 
@@ -34,11 +39,12 @@ function fixture() {
     },
   }));
   const overrideOf = vi.fn(() => 'ask');
+  const memoryDirFor = vi.fn(() => '/tmp/memory');
   const core = {
     ownership: { resolve },
     runtime: { getAssignment },
     grants: { requireActive },
-    registry: { memoryDirFor: vi.fn(() => '/tmp/memory') },
+    registry: { memoryDirFor },
   } as never;
   const resolvePolicy = vi.fn(() => ({ mode: 'workspace-write' }));
   const policy = { resolve: resolvePolicy } as never;
@@ -53,6 +59,7 @@ function fixture() {
     resolvePolicy,
     getAssignment,
     overrideOf,
+    memoryDirFor,
   };
 }
 
@@ -113,6 +120,58 @@ describe('Workspace Grant execution boundary', () => {
         command: 'pwd',
       }),
     ).toMatch(/revoked/);
+  });
+
+  it('lets an Orchestrator list its own Memory directory without a Human approval', () => {
+    const state = fixture();
+    const memory = mkdtempSync(join(tmpdir(), 'botharness-memory-listing-'));
+    state.memoryDirFor.mockReturnValue(memory);
+    const orchestrator = { id: 'botharness-orchestrator', header: { cwd: memory } } as never;
+    const allowed = { command: 'ls -la', description: 'List memory repository contents' };
+    try {
+      expect(isSafeMemoryDirectoryListing(state.core, orchestrator, 'bash', allowed)).toBe(true);
+      expect(
+        grantToolExecutionDenial(
+          state.core,
+          orchestrator,
+          state.policy,
+          state.approval,
+          'bash',
+          allowed,
+        ),
+      ).toBeUndefined();
+      for (const args of [
+        { command: 'ls -la /tmp' },
+        { command: 'ls -la; cat /etc/passwd' },
+        { command: 'ls -la', workdir: '/tmp' },
+        { command: 'ls -la', run_in_background: true },
+      ]) {
+        expect(isSafeMemoryDirectoryListing(state.core, orchestrator, 'bash', args)).toBe(false);
+        expect(
+          grantToolExecutionDenial(
+            state.core,
+            orchestrator,
+            state.policy,
+            state.approval,
+            'bash',
+            args,
+          ),
+        ).toMatch(/unconfined native tool/);
+      }
+      const assignment = { id: assignmentSessionId, header: { cwd: memory } } as never;
+      expect(isSafeMemoryDirectoryListing(state.core, assignment, 'bash', allowed)).toBe(false);
+      const redirected = join(tmpdir(), 'botharness-memory-redirect-' + Date.now());
+      symlinkSync(memory, redirected);
+      try {
+        state.memoryDirFor.mockReturnValue(redirected);
+        const symlinked = { id: 'botharness-orchestrator', header: { cwd: redirected } } as never;
+        expect(isSafeMemoryDirectoryListing(state.core, symlinked, 'bash', allowed)).toBe(false);
+      } finally {
+        rmSync(redirected);
+      }
+    } finally {
+      rmSync(memory, { recursive: true, force: true });
+    }
   });
 
   it('lets only the Orchestrator reach the native Human-question answerer', () => {
