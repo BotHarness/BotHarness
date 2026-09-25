@@ -6,6 +6,12 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: (props: { children?: ReactNode; disabled?: boolean; onClick?: () => void }) =>
     createElement('button', { disabled: props.disabled, onClick: props.onClick }, props.children),
   IconCloseOutlineRegular: () => createElement('span'),
+  SegmentedControl: (props: { options: { label: string }[] }) =>
+    createElement(
+      'div',
+      null,
+      ...props.options.map((option) => createElement('span', null, option.label)),
+    ),
   Tag: (props: { children?: ReactNode }) => createElement('span', null, props.children),
   Modal: (props: {
     title: string;
@@ -43,6 +49,8 @@ describe('PersonaBot creation form', () => {
 
     expect(markup).toContain('创建 PersonaBot');
     expect(markup).toContain('名称用于列表和 @；内部身份由系统生成');
+    expect(markup).toContain('从空白创建');
+    expect(markup).toContain('从 Git 仓库导入');
     expect(markup).toContain('岗位 / 职位（可选）');
     expect(markup).toContain('简介（可选）');
     expect(markup).toContain('placeholder="例如：小研"');
@@ -85,6 +93,13 @@ describe('PersonaBot creation form', () => {
     expect(
       personaBotCreateError(new BridgeCallError('git-not-found', 'spawn git ENOENT')),
     ).not.toContain('ENOENT');
+    expect(personaBotCreateError(new BridgeCallError('invalid-git-url', 'bad'))).toContain('HTTPS');
+    expect(
+      personaBotCreateError(new BridgeCallError('git-clone-failed', 'private token')),
+    ).not.toContain('private token');
+    expect(
+      personaBotCreateError(new BridgeCallError('git-clone-timeout', 'private token')),
+    ).toContain('超时');
     expect(personaBotCreateError(new Error('disk read-only'))).toBe('disk read-only');
   });
 });

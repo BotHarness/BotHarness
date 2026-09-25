@@ -1252,6 +1252,30 @@ describe('bridge actions', () => {
     });
   });
 
+  it('routes Git-backed creation through its async Host endpoint and opens the DM', async () => {
+    const imports: Array<Record<string, unknown>> = [];
+    const { actions, clientStore } = setup({
+      createFromGit: (payload) => {
+        imports.push(payload);
+        return { bot: { ...BOT, slug: 'bot-imported', displayName: payload['displayName'] } };
+      },
+      channelDm: () => ({ channel: { ...DM, id: 'dm-bot-imported', botSlug: 'bot-imported' } }),
+    });
+    await actions.load();
+
+    const created = await actions.createBot({
+      displayName: 'Imported',
+      roles: [],
+      gitUrl: 'https://github.com/owner/memory.git',
+    });
+
+    expect(imports).toEqual([
+      { displayName: 'Imported', roles: [], gitUrl: 'https://github.com/owner/memory.git' },
+    ]);
+    expect(created.slug).toBe('bot-imported');
+    expect(clientStore.getSnapshot().selection).toEqual({ kind: 'bot', slug: 'bot-imported' });
+    await expect(actions.send('What is in your memory?')).resolves.toBe(true);
+  });
   it('creates a PersonaBot DM as the first row of a target section', async () => {
     const assignments: Array<Record<string, unknown>> = [];
     const { actions } = setup({

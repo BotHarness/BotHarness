@@ -1,6 +1,11 @@
 import { useId, useState, type ReactElement } from 'react';
 
-import { Button, IconCloseOutlineRegular, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  IconCloseOutlineRegular,
+  SegmentedControl,
+  Tag,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import { BridgeCallError, errorMessage } from './bridge.js';
@@ -26,6 +31,12 @@ export function personaBotCreateError(
         return t('bot.create.error.connection');
       case 'git-not-found':
         return t('bot.create.error.gitMissing');
+      case 'invalid-git-url':
+        return t('bot.create.error.gitUrl');
+      case 'git-clone-failed':
+        return t('bot.create.error.clone');
+      case 'git-clone-timeout':
+        return t('bot.create.error.cloneTimeout');
     }
   }
   return errorMessage(error);
@@ -69,9 +80,13 @@ export function CreatePersonaBotModal({
   onCreated: () => void;
 }): ReactElement {
   const displayNameId = useId();
+  const sourceId = useId();
+  const gitUrlId = useId();
   const roleId = useId();
   const descriptionId = useId();
   const [displayName, setDisplayName] = useState('');
+  const [source, setSource] = useState<'empty' | 'git'>('empty');
+  const [gitUrl, setGitUrl] = useState('');
   const [roleDraft, setRoleDraft] = useState('');
   const [description, setDescription] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
@@ -79,7 +94,8 @@ export function CreatePersonaBotModal({
   // The raw cause is stored and translated at render time, so a locale change
   // while the modal is open updates the message instead of freezing it.
   const [cause, setCause] = useState<unknown | undefined>(undefined);
-  const invalid = displayName.trim().length === 0;
+  const invalid =
+    displayName.trim().length === 0 || (source === 'git' && gitUrl.trim().length === 0);
 
   const rolesWithDraft = (): string[] =>
     normalizeRoleBadges([...roles, ...roleDraft.split(/[,，]/u)]);
@@ -101,6 +117,7 @@ export function CreatePersonaBotModal({
       .createBot(
         {
           displayName: displayName.trim(),
+          ...(source === 'git' ? { gitUrl: gitUrl.trim() } : {}),
           roles: submittedRoles,
           ...(submittedDescription.length === 0 ? {} : { description: submittedDescription }),
         },
@@ -137,12 +154,44 @@ export function CreatePersonaBotModal({
             {t('common.cancel')}
           </Button>
           <Button variant="primary" disabled={invalid || creating} onClick={submit}>
-            {creating ? t('bot.create.creating') : t('common.create')}
+            {creating
+              ? t(source === 'git' ? 'bot.create.importing' : 'bot.create.creating')
+              : t('common.create')}
           </Button>
         </>
       }
     >
       <div className="bh-personabot-form">
+        <SegmentedControl
+          id={sourceId}
+          label={t('bot.create.source.label')}
+          value={source}
+          options={[
+            { value: 'empty', label: t('bot.create.source.empty') },
+            { value: 'git', label: t('bot.create.source.git') },
+          ]}
+          disabled={creating}
+          onChange={setSource}
+        />
+        {source === 'git' ? (
+          <Field
+            id={gitUrlId}
+            label={t('bot.create.gitUrl.label')}
+            hint={t('bot.create.gitUrl.hint')}
+          >
+            <NameInput
+              id={gitUrlId}
+              type="text"
+              autoCapitalize="none"
+              autoComplete="off"
+              spellCheck={false}
+              value={gitUrl}
+              disabled={creating}
+              placeholder={t('bot.create.gitUrl.placeholder')}
+              onChange={(event) => setGitUrl(event.currentTarget.value)}
+            />
+          </Field>
+        ) : null}
         <Field id={displayNameId} label={t('bot.create.name.label')}>
           <NameInput
             id={displayNameId}

@@ -256,6 +256,7 @@ describe('plugin entry', () => {
       'list',
       'get',
       'create',
+      'createFromGit',
       'update',
       'pause',
       'resume',

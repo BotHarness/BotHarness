@@ -45,6 +45,9 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     'unknown-workspace': Record<string, never>;
     'unavailable-workspace': Record<string, never>;
     'invalid-grant': Record<string, never>;
+    'invalid-git-url': Record<string, never>;
+    'git-clone-failed': Record<string, never>;
+    'git-clone-timeout': Record<string, never>;
   }
 }
 
@@ -139,6 +142,15 @@ export class BotharnessBridgeService extends TypertRemoteService {
         avatarSeed,
       }),
     );
+  }
+
+  async createFromGit(
+    displayName: string,
+    gitUrl: string,
+    roles?: string[],
+    description?: string,
+  ): Promise<{ bot: PersonaBotDetail }> {
+    return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
   }
 
   update(slug: string, patch: PersonaBotPatch): { bot: PersonaBotDetail } {
@@ -417,6 +429,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'list',
   'get',
   'create',
+  'createFromGit',
   'update',
   'pause',
   'resume',

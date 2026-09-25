@@ -71,13 +71,14 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the forty-eight bridge endpoints for typert claims', () => {
+  it('marks exactly the forty-nine bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
       'list',
       'get',
       'create',
+      'createFromGit',
       'update',
       'pause',
       'resume',
@@ -153,6 +154,12 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.update)).toEqual(['slug', 'patch']);
     expect(parameterNames(service.pause)).toEqual(['slug']);
     expect(parameterNames(service.resume)).toEqual(['slug']);
+    expect(parameterNames(service.createFromGit)).toEqual([
+      'displayName',
+      'gitUrl',
+      'roles',
+      'description',
+    ]);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
