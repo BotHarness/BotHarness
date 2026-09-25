@@ -11,6 +11,6 @@ Use this supplement when the pull request changes ownership across modules, a se
    npx --yes @coldtea/pr-lens-cli@0.7.0 render .humanlayer/tasks/<task>/graph.json --out .humanlayer/tasks/<task>/rendered --theme both --no-config
    ```
 
-4. Keep visual-pr's PR body template and `gh pr edit --body-file` as the description authority. When the diagram adds value, attach the validated SVGs in a separate PR comment with `gh pr comment --body-file ... --attach ...`, linking back to the PR's relevant code. Otherwise finish with the visual-pr description alone.
+4. Keep visual-pr's PR body template and `gh pr edit --body-file` as the description authority. When the diagram adds value, attach the validated SVGs in a separate PR comment with `gh pr comment --body-file ... --attach ...` (GitHub CLI 2.99.0 or newer), linking back to the PR's relevant code. Otherwise finish with the visual-pr description alone.
 
 Run the CLI's local validate/render path by default. Its hosted canvas, GitHub Action, and model-powered analyze path are separate integrations; use them only when the task specifically needs them. The local trial on [PR #269](https://github.com/BotHarness/BotHarness/pull/269) validated this boundary: a six-node architecture view and a commit-inspection flow made the Memory Git → Host RPC → Channel UI path legible without changing the PR body.
