@@ -50,10 +50,25 @@ describe('Channel message body', () => {
         },
         t: zhTranslate,
         actions: { openBot: vi.fn() } as unknown as BridgeActions,
+        bots: [
+          {
+            slug: 'ada',
+            displayName: 'Ada',
+            avatar: '/avatars/ada.png',
+            roles: [],
+            aggregateState: 'idle',
+            workspaces: [],
+            createdAt: '2026-09-25T00:00:00.000Z',
+          },
+        ],
       }),
     );
-    expect(markup).toContain('data-bot-id="ada" aria-label="打开与 Ada 的私聊">@Ada</button>');
-    expect(markup).toContain('data-bot-id="bea" aria-label="打开与 Bea 的私聊">@Bea</button>');
+    expect(markup).toContain('data-bot-id="ada" aria-label="打开与 Ada 的私聊"');
+    expect(markup).toContain('data-bot-id="bea" aria-label="打开与 Bea 的私聊"');
+    expect(markup).toContain('src="/avatars/ada.png"');
+    expect(markup).toContain('class="bh-inline-mention-avatar" aria-hidden="true"');
+    expect(markup).toContain('@Ada</span></button>');
+    expect(markup).toContain('@Bea</span></button>');
     expect(markup).not.toContain('bh-composer-selected-mentions');
   });
 

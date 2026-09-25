@@ -1824,14 +1824,26 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: var(--dsw-alias-label-primary);
   box-shadow: 0 0 0 1px var(--dsw-alias-interactive-bg-active);
 }
+.bh-inline-mention-sent {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  vertical-align: middle;
+  border-radius: 6px;
+  padding: 2px 8px;
+}
+.bh-inline-mention-avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+}
 .bh-inline-mention-link {
   border: 0;
-  padding: 0;
   font: inherit;
   cursor: pointer;
 }
 .bh-inline-mention-link:hover {
-  text-decoration: underline;
+  background: var(--dsw-alias-interactive-bg-hover);
+  box-shadow: 0 0 0 1px var(--dsw-alias-interactive-bg-hover);
 }
 .bh-inline-mention-link:focus-visible {
   outline: 2px solid currentColor;
@@ -1841,6 +1853,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   color: inherit;
   background: color-mix(in srgb, currentColor 14%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 14%, transparent);
+}
+.bh-bubble-me .bh-inline-mention-link:hover {
+  background: color-mix(in srgb, currentColor 24%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
 }
 .bh-composer-mention-mirror {
   position: absolute;

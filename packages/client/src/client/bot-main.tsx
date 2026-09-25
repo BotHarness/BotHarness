@@ -228,6 +228,7 @@ function MessageGroupView({
                   t={t}
                   nativeChatT={nativeChatT}
                   actions={actions}
+                  bots={bots}
                   grantRequestResolved={resolvedGrantRequests.has(message.id)}
                   toolApprovalDecision={toolApprovalDecisions.get(message.id)}
                 />
