@@ -1767,6 +1767,19 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-bubble-body-markdown > :first-child > :last-child {
   margin-bottom: 0;
 }
+.bh-bot-mention-prefix {
+  display: inline;
+}
+.bh-bot-mention-prefix .bh-inline-mention + .bh-inline-mention {
+  margin-left: 4px;
+}
+.bh-bubble-body-bot-mentions > :not(.bh-bot-mention-prefix) {
+  display: contents;
+}
+.bh-bubble-body-bot-mentions > :not(.bh-bot-mention-prefix) > p:first-child {
+  display: inline;
+  margin: 0;
+}
 .bh-bubble-body-markdown .md-code-block {
   max-width: 100%;
 }

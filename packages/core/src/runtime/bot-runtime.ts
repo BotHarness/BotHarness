@@ -2,12 +2,14 @@ import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import { isValidSlug } from '../bots/slug.js';
 import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { MemoryService } from '../memory/service.js';
 import {
   isBotDmChannel,
   type BotMessageCausation,
+  type ChannelMention,
   type ChannelMessage,
   type ChannelRecord,
 } from '../channels/channel.js';
@@ -157,6 +159,7 @@ export interface OrchestratorChannelAccess {
     channelId?: string;
     replyTo?: string;
     attachments?: ChannelAttachmentRef[];
+    mentionBotIds?: string[];
     deliveryKey?: string;
   }): Promise<ChannelMessage>;
 }
@@ -603,14 +606,7 @@ class BotRuntimeImplementation implements BotRuntime {
     try {
       delivered = this.#agents.steerOrchestrator(
         botSlug,
-        `[Bot Inbox: direct Group mention]
-Channel: ${channelId}
-Message ID: ${messageId}
-Human message: ${sessionMentionText(
-          source.body,
-          this.#channels.message(channelId, messageId)?.mentions ?? [],
-        )}
-Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
+        this.#groupMentionPrompt(channelId, messageId, source.body),
       );
     } catch (error) {
       this.#database.transaction(
@@ -790,11 +786,19 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     }
   }
 
+  #groupMentionPrompt(channelId: string, messageId: string, body: string): string {
+    const message = this.#channels.message(channelId, messageId);
+    const sender = message?.author.kind === 'bot' ? `PersonaBot ${message.author.slug}` : 'Human';
+    return `[Bot Inbox: direct Group mention from ${sender}]\nChannel: ${channelId}\nMessage ID: ${messageId}\nMessage: ${sessionMentionText(body, message?.mentions ?? [])}\nRespond in this Group Channel with channel_send.`;
+  }
+
   #inboundChannelMessage(channelId: string, messageId: string, body: string): string {
     const channel = this.#channels.get(channelId);
     const message = this.#channels.message(channelId, messageId);
     if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
       return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
+    if (channel?.type === 'group' && message?.mentions?.length)
+      return this.#groupMentionPrompt(channelId, messageId, body);
     const mentionBody =
       channel?.type === 'dm' &&
       channel.botSlug !== undefined &&
@@ -1413,6 +1417,8 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       },
       send: async (input) => {
         const channel = resolve(input.channelId);
+        if (input.mentionBotIds?.length && channel.type !== 'group')
+          throw new Error('Bot mentions require a Group Channel');
         if (isBotDmChannel(channel)) {
           const recipientBotSlug = channel.members.find((slug) => slug !== botSlug);
           if (recipientBotSlug === undefined) throw new Error('Bot DM has no recipient');
@@ -1430,6 +1436,21 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
             deliveryKey: input.deliveryKey,
           });
           return sent.message;
+        }
+        if (channel.type === 'group') {
+          return this.#sendBotGroup({
+            botSlug,
+            channel,
+            sourceEventId,
+            sessionId,
+            beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+            ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
+            body: input.body,
+            replyTo: input.replyTo,
+            attachments: input.attachments,
+            mentionBotIds: input.mentionBotIds,
+            deliveryKey: input.deliveryKey,
+          });
         }
         const body = input.body;
         if (!body.trim() && !input.attachments?.length)
@@ -1452,6 +1473,104 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
         return appended;
       },
     };
+  }
+
+  async #sendBotGroup(input: {
+    botSlug: string;
+    channel: ChannelRecord;
+    sourceEventId: string;
+    sessionId: string;
+    beforeSend: () => void;
+    afterSend?: () => void;
+    body: string;
+    replyTo?: string | undefined;
+    attachments?: ChannelAttachmentRef[] | undefined;
+    mentionBotIds?: string[] | undefined;
+    deliveryKey?: string | undefined;
+  }): Promise<ChannelMessage> {
+    const { botSlug, channel } = input;
+    if (channel.type !== 'group' || !this.#isMember(botSlug, channel))
+      throw new Error('Bot Group sender must be a current member');
+    const sender = this.#registry.get(botSlug);
+    if (sender === undefined || sender.paused === true)
+      throw new Error('Bot Group sender is no longer active');
+    const ids = input.mentionBotIds ?? [];
+    if (ids.length > 20 || ids.some((id) => !isValidSlug(id)))
+      throw new Error('Bot Group mentions require at most 20 valid Bot IDs');
+    const mentions: ChannelMention[] = [];
+    let prefix = '';
+    for (const id of new Set(ids)) {
+      const target = this.#registry.get(id);
+      if (
+        id === botSlug ||
+        target === undefined ||
+        target.paused === true ||
+        !channel.members.includes(id)
+      )
+        throw new Error('Mentioned PersonaBot must be another active Group member');
+      const label = target.displayName.replace(/\s+/gu, ' ').trim().slice(0, 80);
+      const token = '@' + label;
+      mentions.push({
+        botSlug: id,
+        label,
+        start: prefix.length,
+        end: prefix.length + token.length,
+      });
+      prefix += token + ' ';
+    }
+    const body = prefix + input.body;
+    if (!body.trim() && !input.attachments?.length)
+      throw new Error('Group message requires a body or attachment');
+    this.#channels.assertAttachmentRefs(input.attachments ?? []);
+    if (input.replyTo !== undefined && !this.#channels.hasMessage(channel.id, input.replyTo))
+      throw new ChannelReplyTargetError();
+    const message: ChannelMessage = {
+      id: this.#deliveryMessageId(input.sessionId, input.deliveryKey),
+      at: this.#now().toISOString(),
+      author: { kind: 'bot', slug: botSlug },
+      body,
+      botCausation: this.#botCausation(input.sourceEventId),
+      ...(mentions.length === 0 ? {} : { mentions }),
+      ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
+      ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
+    };
+    input.beforeSend();
+    const result = await this.#channels.appendMessageOnce(channel.id, message);
+    if (result.status === 'missing') throw new Error(`Group Channel disappeared: ${channel.id}`);
+    if (result.status === 'conflict') throw new Error('Group delivery key has different content');
+    input.afterSend?.();
+    if (mentions.length > 0) this.admitGroupMessage(channel.id, result.message.id);
+    return result.message;
+  }
+
+  #botCausation(sourceEventId: string): BotMessageCausation {
+    const parent = this.#database.read((database) =>
+      database
+        .prepare('SELECT channel_id, message_id FROM source_events WHERE source_event_id = ?')
+        .get(sourceEventId),
+    ) as { channel_id: string | null; message_id: string | null } | undefined;
+    if (parent === undefined) throw new Error('Bot send has no trusted Source Event');
+    const parentMessage =
+      parent.channel_id !== null && parent.message_id !== null
+        ? this.#channels.message(parent.channel_id, parent.message_id)
+        : undefined;
+    const prior = parentMessage?.botCausation;
+    return {
+      rootSourceEventId: prior?.rootSourceEventId ?? sourceEventId,
+      parentSourceEventId: sourceEventId,
+      hop: (prior?.hop ?? 0) + 1,
+    };
+  }
+
+  #deliveryMessageId(sessionId: string, deliveryKey?: string): string {
+    return deliveryKey === undefined
+      ? this.#createMessageId()
+      : 'bot-' +
+          createHash('sha256')
+            .update(sessionId)
+            .update(Uint8Array.of(0))
+            .update(deliveryKey)
+            .digest('hex');
   }
 
   async #sendBotDm(input: {
@@ -1488,31 +1607,8 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       throw new Error('Bot DM sender is no longer active');
     if (this.#channels.getOrCreateDm(botSlug, sender.displayName) === undefined)
       throw new Error('Sender Human DM is unavailable');
-    const parent = this.#database.read((database) =>
-      database
-        .prepare('SELECT channel_id, message_id FROM source_events WHERE source_event_id = ?')
-        .get(input.sourceEventId),
-    ) as { channel_id: string | null; message_id: string | null } | undefined;
-    if (parent === undefined) throw new Error('Bot DM send has no trusted Source Event');
-    const parentMessage =
-      parent.channel_id !== null && parent.message_id !== null
-        ? this.#channels.message(parent.channel_id, parent.message_id)
-        : undefined;
-    const prior: BotMessageCausation | undefined = parentMessage?.botCausation;
-    const botCausation: BotMessageCausation = {
-      rootSourceEventId: prior?.rootSourceEventId ?? input.sourceEventId,
-      parentSourceEventId: input.sourceEventId,
-      hop: (prior?.hop ?? 0) + 1,
-    };
-    const messageId =
-      input.deliveryKey === undefined
-        ? this.#createMessageId()
-        : 'bot-' +
-          createHash('sha256')
-            .update(input.sessionId)
-            .update(Uint8Array.of(0))
-            .update(input.deliveryKey)
-            .digest('hex');
+    const botCausation = this.#botCausation(input.sourceEventId);
+    const messageId = this.#deliveryMessageId(input.sessionId, input.deliveryKey);
     const message: ChannelMessage = {
       id: messageId,
       at: this.#now().toISOString(),

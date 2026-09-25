@@ -495,6 +495,28 @@ function GrantRequestCard({
   );
 }
 
+function leadingBotMentions(message: ChannelMessage):
+  | {
+      mentions: NonNullable<ChannelMessage['mentions']>;
+      text: string;
+    }
+  | undefined {
+  if (message.author.kind !== 'bot' || !message.mentions?.length) return undefined;
+  const mentions = [...message.mentions].sort((left, right) => left.start - right.start);
+  let cursor = 0;
+  for (const mention of mentions) {
+    if (
+      mention.start !== cursor ||
+      message.body.slice(mention.start, mention.end) !== '@' + mention.label
+    )
+      return undefined;
+    cursor = mention.end;
+    if (message.body[cursor] === ' ') cursor += 1;
+    else if (cursor < message.body.length) return undefined;
+  }
+  return { mentions, text: message.body.slice(cursor) };
+}
+
 export function ChannelMessageBody({
   message,
   t,
@@ -552,60 +574,76 @@ export function ChannelMessageBody({
       <GrantRequestCard message={message} actions={actions} resolved={grantRequestResolved} t={t} />
     );
   }
+  const leading = format === 'markdown' ? leadingBotMentions(message) : undefined;
+  const renderMention = (mention: NonNullable<ChannelMessage['mentions']>[number], key: number) => {
+    const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
+    const badge = (
+      <>
+        <span className="bh-inline-mention-avatar" aria-hidden="true">
+          <PersonaBotAvatar
+            personaBotId={mention.botSlug}
+            name={bot?.displayName ?? mention.label}
+            src={bot?.avatar}
+            size={16}
+            indicator={false}
+            t={t}
+          />
+        </span>
+        <span>{mention.label}</span>
+      </>
+    );
+    if (actions === undefined)
+      return (
+        <span
+          key={key}
+          className="bh-inline-mention bh-inline-mention-sent"
+          data-bot-id={mention.botSlug}
+        >
+          {badge}
+        </span>
+      );
+    return (
+      <button
+        key={key}
+        type="button"
+        className="bh-inline-mention bh-inline-mention-sent bh-inline-mention-link"
+        data-bot-id={mention.botSlug}
+        aria-label={t('message.mention.openDm', { bot: mention.label })}
+        onClick={() => void actions.openBot(mention.botSlug)}
+      >
+        {badge}
+      </button>
+    );
+  };
   return (
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
         <div className="bh-bubble-body">
-          {mentionRuns(message.body, message.mentions ?? []).map((run, index) => {
-            const mention = run.mention;
-            if (mention === undefined) return <span key={index}>{run.text}</span>;
-            const bot = bots.find((candidate) => candidate.slug === mention.botSlug);
-            const badge = (
-              <>
-                <span className="bh-inline-mention-avatar" aria-hidden="true">
-                  <PersonaBotAvatar
-                    personaBotId={mention.botSlug}
-                    name={bot?.displayName ?? mention.label}
-                    src={bot?.avatar}
-                    size={16}
-                    indicator={false}
-                    t={t}
-                  />
-                </span>
-                <span>{mention.label}</span>
-              </>
-            );
-            if (actions === undefined)
-              return (
-                <span
-                  key={index}
-                  className="bh-inline-mention bh-inline-mention-sent"
-                  data-bot-id={mention.botSlug}
-                >
-                  {badge}
-                </span>
-              );
-            return (
-              <button
-                key={index}
-                type="button"
-                className="bh-inline-mention bh-inline-mention-sent bh-inline-mention-link"
-                data-bot-id={mention.botSlug}
-                aria-label={t('message.mention.openDm', { bot: mention.label })}
-                onClick={() => void actions.openBot(mention.botSlug)}
-              >
-                {badge}
-              </button>
-            );
-          })}
+          {mentionRuns(message.body, message.mentions ?? []).map((run, index) =>
+            run.mention === undefined ? (
+              <span key={index}>{run.text}</span>
+            ) : (
+              renderMention(run.mention, index)
+            ),
+          )}
         </div>
       ) : (
-        <div className="bh-bubble-body bh-bubble-body-markdown">
-          <ChannelMarkdownText
-            text={message.body}
-            streaming={message.streaming === true}
-            labels={labels}
-          />
+        <div
+          className={`bh-bubble-body bh-bubble-body-markdown${leading === undefined ? '' : ' bh-bubble-body-bot-mentions'}`}
+        >
+          {leading === undefined ? null : (
+            <span className="bh-bot-mention-prefix">
+              {leading.mentions.map((mention, index) => renderMention(mention, index))}
+              {leading.text.length > 0 ? ' ' : null}
+            </span>
+          )}
+          {leading === undefined || leading.text.length > 0 ? (
+            <ChannelMarkdownText
+              text={leading?.text ?? message.body}
+              streaming={message.streaming === true}
+              labels={labels}
+            />
+          ) : null}
         </div>
       )}
       {message.attachments?.length ? (

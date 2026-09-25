@@ -678,7 +678,7 @@ export function createMemoryAcceptance(options: {
           database.read((db) =>
             db
               .prepare(
-                `SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ? AND reason = 'bot-dm'`,
+                `SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ? AND reason IN ('bot-dm', 'group-mention')`,
               )
               .get(input.sourceEventId, input.botSlug),
           )
