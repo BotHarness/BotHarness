@@ -150,6 +150,8 @@ export interface OrchestratorChannelAccess {
 /** Adapter at the DSH Agent seam; tests and the pinned Host runtime satisfy the same interface. */
 export interface BotAgentAdapter {
   runOrchestrator(run: OrchestratorAgentRun): Promise<void>;
+  /** Steer a running Orchestrator at DSH's next safe step. */
+  steerOrchestrator?(botSlug: string, text: string): boolean;
   runAssignment(run: AssignmentAgentRun): Promise<void>;
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery;
   close(): Promise<void>;
@@ -182,6 +184,8 @@ export interface BotRuntime {
    * awaited by the browser bridge.
    */
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
+  /** Schedule each committed Group mention independently; content and Admissions already exist. */
+  admitGroupMessage(channelId: string, messageId: string): void;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
   /** Resolves when queued turns and detached Assignment runs have drained. */
@@ -431,6 +435,8 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createMessageId: () => string;
   readonly #assignmentConcurrencyLimit: number;
   readonly #tails = new Map<string, Promise<unknown>>();
+  readonly #activeTurns = new Map<string, Promise<void>>();
+  readonly #scheduledAdmissions = new Set<string>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
   #closed = false;
 
@@ -458,7 +464,10 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     // Recovery mode still mounts the plugin for files and diagnostics; every
     // Messaging operation there already fails closed, so skip the sweep.
-    if (options.database.mode === 'ready') this.#recoverInterruptedAttempts();
+    if (options.database.mode === 'ready') {
+      this.#recoverInterruptedAttempts();
+      this.#recoverPendingGroupMentions();
+    }
   }
 
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission {
@@ -484,9 +493,275 @@ class BotRuntimeImplementation implements BotRuntime {
     };
   }
 
+  admitGroupMessage(channelId: string, messageId: string): void {
+    if (this.#closed) return;
+    const channel = this.#channels.get(channelId);
+    if (channel?.type !== 'group') return;
+    const rows = this.#database.read((database) =>
+      database
+        .prepare(`
+      SELECT a.source_event_id, a.bot_slug, a.attempt_state
+        FROM inbox_admissions a
+        JOIN source_events e ON e.source_event_id = a.source_event_id
+       WHERE e.channel_id = ? AND e.message_id = ? AND a.reason = 'group-mention'
+    `)
+        .all(channelId, messageId),
+    ) as unknown as Array<{
+      source_event_id: string;
+      bot_slug: string;
+      attempt_state: SourceEventAttemptState;
+    }>;
+    for (const row of rows) {
+      if (row.attempt_state !== 'pending' && row.attempt_state !== 'retryable') continue;
+      const key = `${row.source_event_id}:${row.bot_slug}`;
+      if (this.#scheduledAdmissions.has(key)) continue;
+      this.#scheduledAdmissions.add(key);
+      if (this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId))
+        continue;
+      const settled = this.#enqueue(row.bot_slug, () =>
+        this.#runGroupTurn(row.source_event_id, row.bot_slug, channelId, messageId),
+      );
+      void settled.finally(() => this.#scheduledAdmissions.delete(key)).catch(() => undefined);
+    }
+  }
+
+  #steerGroupMention(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): boolean {
+    const active = this.#activeTurns.get(botSlug);
+    if (active === undefined || this.#agents.steerOrchestrator === undefined) return false;
+    const source = this.#database.read((database) =>
+      database
+        .prepare('SELECT body FROM source_events WHERE source_event_id = ?')
+        .get(sourceEventId),
+    ) as { body: string } | undefined;
+    if (source === undefined) return false;
+    const claimed = this.#database.transaction(
+      (database) =>
+        database
+          .prepare(`
+        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+         WHERE source_event_id = ? AND bot_slug = ?
+           AND attempt_state IN ('pending', 'retryable')
+      `)
+          .run(sourceEventId, botSlug).changes > 0,
+      ['bot-inbox'],
+    );
+    if (!claimed) return false;
+    this.#channels.admissionChanged?.(channelId, messageId);
+    // Record the DSH boundary before invoking it. A crash after delivery must
+    // require repair rather than silently replaying the same mention.
+    this.#markAdmissionSideEffect(sourceEventId, botSlug);
+    let delivered: boolean;
+    try {
+      delivered = this.#agents.steerOrchestrator(
+        botSlug,
+        `[Bot Inbox: direct Group mention]
+Channel: ${channelId}
+Message ID: ${messageId}
+Human message: ${source.body}
+Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
+      );
+    } catch (error) {
+      this.#database.transaction(
+        (database) =>
+          database
+            .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(String(error).slice(0, 500), sourceEventId, botSlug),
+        ['bot-inbox'],
+      );
+      this.#scheduledAdmissions.delete(`${sourceEventId}:${botSlug}`);
+      this.#channels.admissionChanged?.(channelId, messageId);
+      return true;
+    }
+    if (!delivered) {
+      this.#database.transaction(
+        (database) =>
+          database
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = 'pending', side_effect_started_at = NULL
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(sourceEventId, botSlug),
+        ['bot-inbox'],
+      );
+      this.#channels.admissionChanged?.(channelId, messageId);
+      return false;
+    }
+    void active
+      .then(
+        () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
+        () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, false),
+      )
+      .finally(() => this.#scheduledAdmissions.delete(`${sourceEventId}:${botSlug}`));
+    return true;
+  }
+
+  #settleSteeredAdmission(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+    succeeded: boolean,
+  ): void {
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`
+        UPDATE inbox_admissions
+           SET attempt_state = ?,
+               handled_at = CASE WHEN ? THEN ? ELSE handled_at END,
+               last_error = CASE WHEN ? THEN NULL ELSE 'Steered Orchestrator turn failed' END
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+          .run(
+            succeeded ? 'handled' : 'needs-repair',
+            succeeded ? 1 : 0,
+            this.#now().toISOString(),
+            succeeded ? 1 : 0,
+            sourceEventId,
+            botSlug,
+          );
+      },
+      ['bot-inbox'],
+    );
+    this.#channels.admissionChanged?.(channelId, messageId);
+  }
+
+  #recoverPendingGroupMentions(): void {
+    const rows = this.#database.read((database) =>
+      database
+        .prepare(`
+      SELECT DISTINCT e.channel_id, e.message_id
+        FROM inbox_admissions a
+        JOIN source_events e ON e.source_event_id = a.source_event_id
+       WHERE a.reason = 'group-mention'
+         AND a.attempt_state IN ('pending', 'retryable')
+         AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+    `)
+        .all(),
+    ) as unknown as Array<{ channel_id: string; message_id: string }>;
+    for (const row of rows) this.admitGroupMessage(row.channel_id, row.message_id);
+  }
+
+  async #runGroupTurn(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): Promise<void> {
+    if (this.#closed) return;
+    const bot = this.#registry.get(botSlug);
+    if (bot === undefined || bot.paused === true) return;
+    const source = this.#database.read((database) =>
+      database
+        .prepare('SELECT body FROM source_events WHERE source_event_id = ?')
+        .get(sourceEventId),
+    ) as { body: string } | undefined;
+    if (source === undefined) return;
+    const claimed = this.#database.transaction(
+      (database) => {
+        const result = database
+          .prepare(`
+        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+         WHERE source_event_id = ? AND bot_slug = ?
+           AND attempt_state IN ('pending', 'retryable')
+      `)
+          .run(sourceEventId, botSlug);
+        return result.changes > 0;
+      },
+      ['bot-inbox'],
+    );
+    if (!claimed) return;
+    this.#channels.admissionChanged?.(channelId, messageId);
+    let orchestrator: { sessionId: string; resume: boolean } | undefined;
+    let collected: { inbox: string; eventIds: string[] } | undefined;
+    try {
+      const timestamp = this.#now().toISOString();
+      orchestrator = this.#ensureOrchestrator(bot, timestamp);
+      collected = this.#collectInbox(botSlug);
+      this.#setObserved(collected.eventIds, timestamp);
+      await this.#runOrchestratorTurn(
+        bot,
+        orchestrator,
+        sourceEventId,
+        channelId,
+        source.body,
+        collected.inbox,
+        false,
+        () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
+      );
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
+           WHERE source_event_id = ? AND bot_slug = ?
+        `)
+            .run(this.#now().toISOString(), sourceEventId, botSlug);
+        },
+        ['bot-inbox'],
+      );
+    } catch (error) {
+      if (collected !== undefined) this.#setObserved(collected.eventIds, null);
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = CASE
+                   WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END,
+                 last_error = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(String(error).slice(0, 500), sourceEventId, botSlug);
+        },
+        ['bot-inbox'],
+      );
+      if (orchestrator !== undefined)
+        await this.#publishSessionFailure({
+          channelId,
+          botSlug,
+          sessionId: orchestrator.sessionId,
+          role: 'orchestrator',
+          error,
+        });
+      throw error;
+    } finally {
+      this.#channels.admissionChanged?.(channelId, messageId);
+    }
+  }
+
+  #markAdmissionSideEffect(sourceEventId: string, botSlug: string): void {
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`
+        UPDATE inbox_admissions
+           SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+          .run(this.#now().toISOString(), sourceEventId, botSlug);
+      },
+      ['bot-inbox'],
+    );
+  }
+
   #enqueue(turnKey: string, task: () => Promise<void>): Promise<void> {
     const previous = this.#tails.get(turnKey) ?? Promise.resolve();
-    const run = previous.then(task, task);
+    let run: Promise<void>;
+    const invoke = (): Promise<void> => {
+      this.#activeTurns.set(turnKey, run);
+      return task();
+    };
+    run = previous.then(invoke, invoke);
     const tail = run.then(
       () => undefined,
       () => undefined,
@@ -494,6 +769,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#tails.set(turnKey, tail);
     void tail.then(() => {
       if (this.#tails.get(turnKey) === tail) this.#tails.delete(turnKey);
+      if (this.#activeTurns.get(turnKey) === run) this.#activeTurns.delete(turnKey);
     });
     return run;
   }
@@ -607,8 +883,24 @@ class BotRuntimeImplementation implements BotRuntime {
               WHERE source_event_id = ?`,
           )
           .run(handledAt, claim.sourceEventId);
+        database
+          .prepare(`
+          UPDATE inbox_admissions
+             SET handled_at = ?, attempt_state = 'handled'
+           WHERE source_event_id = ? AND bot_slug = ?
+        `)
+          .run(handledAt, claim.sourceEventId, bot.slug);
       },
       ['source-event', 'bot-inbox'],
+    );
+    this.#channels.admissionChanged?.(
+      channelId,
+      this.#database.read((database) => {
+        const row = database
+          .prepare('SELECT message_id FROM source_events WHERE source_event_id = ?')
+          .get(claim.sourceEventId) as { message_id: string | null } | undefined;
+        return row?.message_id ?? '';
+      }),
     );
   }
 
@@ -620,8 +912,9 @@ class BotRuntimeImplementation implements BotRuntime {
     body: string,
     inbox: string,
     coordinateBranchSwitch = false,
+    markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
   ): Promise<void> {
-    const markSideEffect = () => this.#markSideEffectStarted(sourceEventId);
+    const markSideEffect = markAttemptSideEffect;
     this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
     try {
       await this.#agents.runOrchestrator({
@@ -655,7 +948,7 @@ class BotRuntimeImplementation implements BotRuntime {
             return result;
           },
         },
-        assignments: this.#assignmentAccess(bot, sourceEventId),
+        assignments: this.#assignmentAccess(bot, sourceEventId, markSideEffect),
       });
       this.#memory?.reconcileTurn({
         botSlug: bot.slug,
@@ -696,10 +989,14 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
-  #assignmentAccess(bot: PersonaBotRecord, sourceEventId: string): OrchestratorAssignmentAccess {
+  #assignmentAccess(
+    bot: PersonaBotRecord,
+    sourceEventId: string,
+    markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
+  ): OrchestratorAssignmentAccess {
     // Creating or waking an Assignment Session crosses into DSH, so the current
     // attempt is no longer safely replayable once either starts.
-    const markSideEffect = (): void => this.#markSideEffectStarted(sourceEventId);
+    const markSideEffect = markAttemptSideEffect;
     return {
       create: (input) => {
         const outcome = this.#createOrReuseAssignment(bot, sourceEventId, input);
@@ -737,6 +1034,13 @@ class BotRuntimeImplementation implements BotRuntime {
           if (existing.bot_slug !== botSlug || existing.body !== body) {
             throw new Error(`Source Event identity conflict for Channel message ${messageId}`);
           }
+          database
+            .prepare(`
+            INSERT OR IGNORE INTO inbox_admissions (
+              source_event_id, bot_slug, reason, attempt_state, handled_at
+            ) VALUES (?, ?, 'human-dm', ?, ?)
+          `)
+            .run(existing.source_event_id, botSlug, existing.attempt_state, existing.handled_at);
           if (existing.handled_at !== null || existing.attempt_state === 'handled') {
             return { sourceEventId: existing.source_event_id, shouldRun: false };
           }
@@ -753,6 +1057,12 @@ class BotRuntimeImplementation implements BotRuntime {
                 WHERE source_event_id = ?`,
             )
             .run(existing.source_event_id);
+          database
+            .prepare(`
+            UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+            WHERE source_event_id = ? AND bot_slug = ?
+          `)
+            .run(existing.source_event_id, botSlug);
           return { sourceEventId: existing.source_event_id, shouldRun: true };
         }
 
@@ -765,6 +1075,12 @@ class BotRuntimeImplementation implements BotRuntime {
              ) VALUES (?, 'human-message', ?, ?, ?, ?, ?, 'running')`,
           )
           .run(sourceEventId, botSlug, channelId, messageId, body, createdAt);
+        database
+          .prepare(`
+          INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, attempt_state)
+          VALUES (?, ?, 'human-dm', 'running')
+        `)
+          .run(sourceEventId, botSlug);
         return { sourceEventId, shouldRun: true };
       },
       ['source-event', 'bot-inbox'],
@@ -787,6 +1103,13 @@ class BotRuntimeImplementation implements BotRuntime {
               WHERE source_event_id = ? AND attempt_state = 'running'`,
           )
           .run(this.#now().toISOString(), sourceEventId);
+        database
+          .prepare(`
+          UPDATE inbox_admissions
+             SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+           WHERE source_event_id = ? AND attempt_state = 'running'
+        `)
+          .run(this.#now().toISOString(), sourceEventId);
       },
       ['source-event', 'bot-inbox'],
     );
@@ -805,6 +1128,14 @@ class BotRuntimeImplementation implements BotRuntime {
                     END
               WHERE source_event_id = ? AND attempt_state = 'running'`,
           )
+          .run(sourceEventId);
+        database
+          .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = CASE
+               WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END
+           WHERE source_event_id = ? AND attempt_state = 'running'
+        `)
           .run(sourceEventId);
       },
       ['source-event', 'bot-inbox'],
@@ -832,6 +1163,18 @@ class BotRuntimeImplementation implements BotRuntime {
           .run();
       },
       ['source-event', 'bot-inbox'],
+    );
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`
+        UPDATE inbox_admissions SET attempt_state =
+          CASE WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END
+        WHERE attempt_state = 'running'
+      `)
+          .run();
+      },
+      ['bot-inbox'],
     );
   }
 

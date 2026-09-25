@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
-import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
-import { ChannelReplyTargetError } from '../channels/store.js';
+import type { ChannelMention, ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
@@ -654,6 +654,38 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         (body.trim().length === 0 && (!attachments || attachments.length === 0))
       )
         return invalidInput('body is required');
+      const rawMentions = source['mentions'];
+      if (rawMentions !== undefined && !Array.isArray(rawMentions))
+        return invalidInput('mentions must be selected PersonaBot tokens');
+      const mentions: ChannelMention[] = [];
+      if (Array.isArray(rawMentions)) {
+        if (rawMentions.length > 20) return invalidInput('too many mentions');
+        for (const item of rawMentions) {
+          if (typeof item !== 'object' || item === null)
+            return invalidInput('invalid mention token');
+          const token = item as Record<string, unknown>;
+          const { botSlug, label, start, end } = token;
+          if (
+            typeof botSlug !== 'string' ||
+            !isValidSlug(botSlug) ||
+            typeof label !== 'string' ||
+            label.length === 0 ||
+            typeof start !== 'number' ||
+            !Number.isSafeInteger(start) ||
+            typeof end !== 'number' ||
+            !Number.isSafeInteger(end) ||
+            start < 0 ||
+            end <= start ||
+            typeof body !== 'string' ||
+            body.slice(start, end) !== '@' + label
+          )
+            return invalidInput('invalid mention token');
+          mentions.push({ botSlug, label, start, end });
+        }
+        mentions.sort((a, b) => a.start - b.start);
+        if (mentions.some((item, index) => index > 0 && item.start < mentions[index - 1]!.end))
+          return invalidInput('overlapping mention tokens');
+      }
       const replyTo = source['replyTo'];
       if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
         return invalidInput('replyTo must be a message id');
@@ -689,10 +721,22 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.body === body &&
           existing.replyTo === replyTo &&
           existing.memorySwitchTarget === memorySwitchTarget &&
-          JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []);
+          JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []) &&
+          JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions);
         return same
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
+      }
+      if (mentions.length > 0 && channel.type !== 'group')
+        return invalidInput('Group mentions require a Group Channel');
+      for (const mention of mentions) {
+        const target = deps.registry.get(mention.botSlug);
+        if (
+          !channel.members.includes(mention.botSlug) ||
+          target === undefined ||
+          target.paused === true
+        )
+          return invalidInput('Mentioned PersonaBot is no longer an active Channel member');
       }
       const message: ChannelMessage = {
         id: requestedMessageId ?? randomUUID(),
@@ -700,6 +744,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         author: { kind: 'human' },
         body,
         ...(attachments === undefined ? {} : { attachments }),
+        ...(mentions.length === 0 ? {} : { mentions }),
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       };
@@ -714,7 +759,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         appendResult = await deps.channels.appendMessageOnce(channelId, message);
       } catch (error) {
-        if (error instanceof ChannelReplyTargetError || error instanceof ChannelAttachmentError)
+        if (
+          error instanceof ChannelReplyTargetError ||
+          error instanceof ChannelMentionTargetError ||
+          error instanceof ChannelAttachmentError
+        )
           return invalidInput(error.message);
         throw error;
       }
@@ -725,6 +774,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const appended = appendResult.message;
       if (appendResult.status === 'existing') {
         return { ok: true, value: { message: appended } };
+      }
+      if (channel.type === 'group' && mentions.length > 0) {
+        // Admission is already durable with the Channel placement. A wake
+        // notification failure must not turn a committed send into a retryable UI error.
+        try {
+          deps.runtime?.admitGroupMessage(channelId, appended.id);
+        } catch {
+          /* Boot recovery reschedules committed pending Admissions. */
+        }
       }
       if (channel.type === 'dm' && deps.runtime !== undefined) {
         const admission = deps.runtime.admitDmMessage({

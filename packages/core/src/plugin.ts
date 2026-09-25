@@ -28,7 +28,8 @@ import {
   LOGS_SKILL_SOURCE,
   LOGS_SKILL_WHEN_TO_USE,
 } from './logs/skill.js';
-import { createChannelStore, type ChannelStore } from './channels/store.js';
+import type { ChannelStore } from './channels/store.js';
+import { createSqliteChannelStore } from './channels/sqlite-store.js';
 import {
   attachOperationalModule,
   mountOperationalDatabase,
@@ -153,17 +154,21 @@ export function createCore(
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
-  const channels = createChannelStore({
-    attachments,
-    rootDir: join(dshHome, 'botharness', 'channels'),
-    onCommitted: (commit) => live?.publishCommitted(commit),
-    ...(options.warn === undefined ? {} : { warn: options.warn }),
-  });
-  live = createChannelLiveHub(channels);
   const operationalDatabase = mountOperationalDatabase({
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const channels = createSqliteChannelStore({
+    database: attachOperationalModule(operationalDatabase, 'messaging'),
+    databaseOwnerReady: operationalDatabase.mode === 'ready',
+    attachments,
+    rootDir: join(dshHome, 'botharness', 'channels'),
+    onCommitted: (commit) => live?.publishCommitted(commit),
+    onAdmissionChanged: (channelId, messageId, message) =>
+      live?.publishAdmission(channelId, messageId, message),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  live = createChannelLiveHub(channels);
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );

@@ -10,7 +10,15 @@ import {
 
 import { Button, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import { PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
+import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
+import {
+  activeMentionQuery,
+  rebaseMentions,
+  selectMention,
+  type MentionQuery,
+  type SelectedMention,
+} from './mentions.js';
+import type { BotSummary } from './store.js';
 import type { ChannelAttachmentRef } from './store.js';
 
 /**
@@ -43,10 +51,12 @@ export interface ChannelComposerProps {
   onRetryAttachment?(id: string): void;
   onRemoveAttachment?(id: string): void;
   activity?: ChannelComposerActivity | undefined;
+  mentionCandidates?: readonly BotSummary[] | undefined;
+  mentions?: readonly SelectedMention[] | undefined;
   reply?: { id: string; author: string; body: string } | undefined;
   /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
   t?: BotHarnessTranslate | undefined;
-  onChange(value: string): void;
+  onChange(value: string, mentions?: SelectedMention[]): void;
   onCancelReply?(): void;
   onSubmit(): void | Promise<void>;
 }
@@ -123,6 +133,8 @@ export function ChannelComposer({
   onRetryAttachment,
   onRemoveAttachment,
   activity,
+  mentionCandidates = [],
+  mentions = [],
   reply,
   t = zhTranslate,
   onChange,
@@ -130,13 +142,39 @@ export function ChannelComposer({
   onSubmit,
 }: ChannelComposerProps): ReactElement {
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const [mentionQuery, setMentionQuery] = useState<MentionQuery | undefined>();
+  const [activeMentionIndex, setActiveMentionIndex] = useState(0);
+  const candidates =
+    mentionQuery === undefined
+      ? []
+      : mentionCandidates
+          .filter(
+            (bot) =>
+              !bot.paused &&
+              (bot.displayName
+                .toLocaleLowerCase()
+                .includes(mentionQuery.query.toLocaleLowerCase()) ||
+                bot.slug.toLocaleLowerCase().includes(mentionQuery.query.toLocaleLowerCase())),
+          )
+          .slice(0, 8);
+  const chooseMention = (bot: BotSummary): void => {
+    if (mentionQuery === undefined) return;
+    const selected = selectMention(value, mentions, mentionQuery, bot.slug, bot.displayName);
+    onChange(selected.value, selected.mentions);
+    setMentionQuery(undefined);
+    requestAnimationFrame(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(selected.caret, selected.caret);
+    });
+  };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fit, setFit] = useState<ComposerTextareaFit & { animateFirstExpand: boolean }>({
     expanded: false,
     height: 34,
     animateFirstExpand: false,
   });
-  const hasFooter = fit.expanded || reply !== undefined || attachments.length > 0;
+  const hasFooter =
+    fit.expanded || reply !== undefined || attachments.length > 0 || mentions.length > 0;
 
   const syncTextarea = useCallback((element: HTMLTextAreaElement): void => {
     const nextFit = fitComposerTextarea(element);
@@ -181,6 +219,35 @@ export function ChannelComposer({
 
   return (
     <div className="bh-composer-shell">
+      {mentionQuery !== undefined && candidates.length > 0 ? (
+        <div className="bh-mention-picker" role="listbox" aria-label="Mention a PersonaBot">
+          {candidates.map((candidate, index) => (
+            <button
+              key={candidate.slug}
+              type="button"
+              className={`bh-mention-option${index === activeMentionIndex ? ' bh-mention-option-active' : ''}`}
+              role="option"
+              aria-selected={index === activeMentionIndex}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => chooseMention(candidate)}
+            >
+              <PersonaBotAvatar
+                personaBotId={candidate.slug}
+                name={candidate.displayName}
+                src={candidate.avatar}
+                size={28}
+                indicator={false}
+                t={t}
+              />
+              <span className="bh-mention-option-copy">
+                <strong>{candidate.displayName}</strong>
+                <small>{candidate.roles.join(' · ') || candidate.slug}</small>
+              </span>
+              <small className="bh-mention-option-id">{candidate.slug}</small>
+            </button>
+          ))}
+        </div>
+      ) : null}
       <PersonaBotActivityStatus activity={activity} t={t} />
       <div
         className={`bh-composer ${fit.expanded ? 'bh-composer-expanded' : 'bh-composer-compact'}${fit.animateFirstExpand ? ' bh-composer-first-expand' : ''}${reply === undefined ? '' : ' bh-composer-replying'}${hasFooter ? ' bh-composer-with-footer' : ''}`}
@@ -205,6 +272,21 @@ export function ChannelComposer({
             </button>
           </div>
         )}
+        {mentions.length > 0 ? (
+          <div
+            className="bh-composer-selected-mentions"
+            aria-label={t('composer.selectedMentions')}
+          >
+            {mentions.map((mention) => (
+              <span
+                key={mention.botSlug + ':' + mention.start}
+                className="bh-composer-selected-mention"
+              >
+                @{mention.label}
+              </span>
+            ))}
+          </div>
+        ) : null}
         {attachments.length > 0 ? (
           <div className="bh-composer-attachments" aria-live="polite">
             {attachments.map((item) => (
@@ -243,9 +325,36 @@ export function ChannelComposer({
             disabled={sending}
             onChange={(event) => {
               syncTextarea(event.currentTarget);
-              onChange(event.target.value);
+              const next = event.target.value;
+              const nextMentions = rebaseMentions(value, next, mentions);
+              onChange(next, nextMentions);
+              setMentionQuery(
+                activeMentionQuery(next, event.currentTarget.selectionStart, nextMentions),
+              );
+              setActiveMentionIndex(0);
             }}
             onKeyDown={(event) => {
+              if (mentionQuery !== undefined && candidates.length > 0) {
+                if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                  event.preventDefault();
+                  setActiveMentionIndex(
+                    (index) =>
+                      (index + (event.key === 'ArrowDown' ? 1 : -1) + candidates.length) %
+                      candidates.length,
+                  );
+                  return;
+                }
+                if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+                  event.preventDefault();
+                  chooseMention(candidates[activeMentionIndex] ?? candidates[0]!);
+                  return;
+                }
+                if (event.key === 'Escape') {
+                  event.preventDefault();
+                  setMentionQuery(undefined);
+                  return;
+                }
+              }
               if (event.key === 'Escape' && reply !== undefined) {
                 event.preventDefault();
                 onCancelReply?.();

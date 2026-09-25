@@ -22,6 +22,7 @@ import {
   type ChannelComposerActivity,
   type ChannelComposerUpload,
 } from './channel-composer.js';
+import type { SelectedMention } from './mentions.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
@@ -231,6 +232,21 @@ function MessageGroupView({
                   toolApprovalDecision={toolApprovalDecisions.get(message.id)}
                 />
               </div>
+              {message.deliveries === undefined ? null : (
+                <div className="bh-mention-deliveries" aria-label={t('message.delivery.label')}>
+                  {message.deliveries.map((delivery) => (
+                    <span
+                      key={delivery.botSlug}
+                      className={`bh-mention-delivery bh-mention-delivery-${delivery.state}`}
+                    >
+                      {bots.find((candidate) => candidate.slug === delivery.botSlug)?.displayName ??
+                        delivery.botSlug}
+                      {' · '}
+                      {t(`message.delivery.${delivery.state}`)}
+                    </span>
+                  ))}
+                </div>
+              )}
               <button
                 type="button"
                 className="bh-bubble-quick-action"
@@ -375,6 +391,7 @@ function ConversationView({
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [mentionTokens, setMentionTokens] = useState<SelectedMention[]>([]);
   const [selectedMemoryCommit, setSelectedMemoryCommit] = useState<{
     channelId: string;
     sha: string;
@@ -503,6 +520,7 @@ function ConversationView({
 
   useEffect(() => {
     setDraft('');
+    setMentionTokens([]);
     setSelectedMemoryCommit(undefined);
     setReplyTarget(undefined);
     for (const controller of uploadControllers.current.values()) controller.abort();
@@ -691,6 +709,13 @@ function ConversationView({
 
   const submit = async (): Promise<void> => {
     const body = draft.trim();
+    const leftTrim = draft.length - draft.trimStart().length;
+    const submittedMentions = mentionTokens.flatMap((token) => {
+      const adjusted = { ...token, start: token.start - leftTrim, end: token.end - leftTrim };
+      return adjusted.start >= 0 && body.slice(adjusted.start, adjusted.end) === '@' + token.label
+        ? [adjusted]
+        : [];
+    });
     if (
       (body.length === 0 && uploadItems.length === 0) ||
       uploadItems.some((item) => item.status !== 'ready' || item.ref === undefined) ||
@@ -710,6 +735,7 @@ function ConversationView({
         .map((item) => item.id),
     );
     setDraft('');
+    setMentionTokens([]);
     setUploadItems([]);
     const submittedReplyTo = replyTarget?.id;
     try {
@@ -717,6 +743,8 @@ function ConversationView({
         body,
         submittedReplyTo,
         submittedUploads.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
+        undefined,
+        submittedMentions,
       );
       if (sent) {
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
@@ -728,6 +756,7 @@ function ConversationView({
           );
         if (!failedEcho) {
           setDraft((current) => current || body);
+          setMentionTokens((current) => (current.length > 0 ? current : submittedMentions));
           setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
         }
       }
@@ -898,6 +927,7 @@ function ConversationView({
                       }
                       if (!actions.dismissFailedMessage(channelId, message.id)) return;
                       setDraft(message.body);
+                      setMentionTokens(message.mentions ?? []);
                       setUploadItems(
                         (message.attachments ?? []).map((ref) => ({
                           id: crypto.randomUUID(),
@@ -956,7 +986,10 @@ function ConversationView({
             style={{ display: selectedMemoryCommitSha === undefined ? 'contents' : 'none' }}
           >
             <ChannelComposer
+              key={channelId}
               value={draft}
+              mentions={mentionTokens}
+              mentionCandidates={channel?.type === 'group' ? channelBots : []}
               placeholder={t('composer.placeholder', { name: title })}
               sending={conversation.sending}
               focusSignal={restoreFocusSignal}
@@ -982,8 +1015,9 @@ function ConversationView({
                     }
               }
               t={t}
-              onChange={(value) => {
+              onChange={(value, mentions) => {
                 setDraft(value);
+                setMentionTokens(mentions ?? []);
                 setRestoreBlocked(false);
               }}
               onCancelReply={() => setReplyTarget(undefined)}

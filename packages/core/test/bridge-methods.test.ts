@@ -66,9 +66,71 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('requires selected joined Bot identities and preserves committed retry identity', async () => {
+    const wakes: string[] = [];
+    const { registry, channels, methods } = setup([], ['ada', 'bea'], () => ({
+      admitGroupMessage(channelId, messageId) {
+        wakes.push(channelId + ':' + messageId);
+      },
+      admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      whenIdle: async () => undefined,
+      close: async () => undefined,
+    }));
+    expect(registry.create({ slug: 'ada', displayName: 'Alex' }).ok).toBe(true);
+    expect(registry.create({ slug: 'bea', displayName: 'Alex' }).ok).toBe(true);
+    const group = channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+    const body = '@Alex @Alex hello';
+    const payload = {
+      channelId: group.id,
+      messageId: 'human-25f4609a-2aee-446a-a5d9-ea53607aba13',
+      body,
+      mentions: [
+        { botSlug: 'ada', label: 'Alex', start: 0, end: 5 },
+        { botSlug: 'bea', label: 'Alex', start: 6, end: 11 },
+      ],
+    };
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(wakes).toHaveLength(1);
+    expect(channels.readMessages(group.id)).toHaveLength(1);
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(wakes).toHaveLength(1);
+    registry.setPaused('bea', true);
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'bea', label: 'Alex', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'outsider', label: 'Alex', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'ada', label: 'wrong', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(await methods.channelSend({ channelId: group.id, body: '@Alex hello' })).toMatchObject({
+      ok: true,
+    });
+    expect(wakes).toHaveLength(1);
+    expect(channels.readMessages(group.id)).toHaveLength(2);
+  });
+
   it('admits blank attachment-only DMs and rejects forged refs', async () => {
     const admitted: string[] = [];
     const { channels, attachments, methods } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         return { admitted: true as const, settled: Promise.resolve() };
@@ -130,6 +192,7 @@ describe('bridge methods', () => {
   it('deduplicates one Human client message id before a second runtime admission', async () => {
     let admissions = 0;
     const { channels, methods } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
       admitDmMessage() {
         admissions += 1;
         return { admitted: true as const, settled: Promise.resolve() };
@@ -650,6 +713,7 @@ describe('bridge methods', () => {
     const handled: Array<{ channelId: string; messageId: string; body: string }> = [];
     let settled: Promise<void> = Promise.resolve();
     const { methods } = setup([], ['ada'], (channels) => ({
+      admitGroupMessage() {},
       admitDmMessage(input) {
         handled.push(input);
         settled = (async () => {
@@ -752,6 +816,7 @@ describe('bridge methods', () => {
     const settledTurns: Promise<void>[] = [];
     const admitted: string[] = [];
     const { methods } = setup([], ['ada'], (channels) => ({
+      admitGroupMessage() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         const settled = (async () => {
@@ -799,6 +864,7 @@ describe('bridge methods', () => {
 
   it('rejects an archived PersonaBot before committing a Human DM', async () => {
     const { methods, registry, channels } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -820,6 +886,7 @@ describe('bridge methods', () => {
 
   it('reports a post-commit admission refusal without mislabeling a durable message as failed', async () => {
     const { methods, channels } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'runtime-closed' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,

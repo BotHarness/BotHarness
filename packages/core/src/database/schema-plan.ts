@@ -289,6 +289,81 @@ export const MEMORY_BRANCH_HEAD_MIGRATION: SchemaMigration = {
   },
 };
 
+export const CHANNEL_MESSAGING_MIGRATION: SchemaMigration = {
+  generation: 15,
+  module: 'messaging',
+  description:
+    'Move Channel messages to canonical Source Events, placements, and per-Bot admissions',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next (
+        source_event_id, source_kind, bot_slug, channel_id, message_id,
+        assignment_session_id, body, created_at, handled_at, attempt_state,
+        side_effect_started_at, expects_reply, observed_at
+      )
+      SELECT source_event_id, source_kind, bot_slug, channel_id, message_id,
+             assignment_session_id, body, created_at, handled_at, attempt_state,
+             side_effect_started_at, expects_reply, observed_at
+        FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE TABLE channel_records (
+        channel_id TEXT PRIMARY KEY,
+        record_json TEXT NOT NULL
+      );
+      CREATE TABLE channel_placements (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        revision INTEGER NOT NULL,
+        source_event_id TEXT NOT NULL UNIQUE REFERENCES source_events(source_event_id),
+        message_id TEXT NOT NULL,
+        PRIMARY KEY (channel_id, revision),
+        UNIQUE (channel_id, message_id)
+      );
+      CREATE TABLE channel_read_positions (
+        channel_id TEXT PRIMARY KEY REFERENCES channel_records(channel_id),
+        message_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        read_at TEXT NOT NULL
+      );
+      CREATE TABLE inbox_admissions (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -303,4 +378,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   TOOL_APPROVAL_RULE_MIGRATION,
   ASSIGNMENT_ACCESS_MIGRATION,
   MEMORY_BRANCH_HEAD_MIGRATION,
+  CHANNEL_MESSAGING_MIGRATION,
 ]);

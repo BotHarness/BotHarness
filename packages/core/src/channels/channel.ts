@@ -37,6 +37,18 @@ export interface SessionFailureCard {
   context?: string;
 }
 
+export interface ChannelMention {
+  botSlug: string;
+  label: string;
+  start: number;
+  end: number;
+}
+
+export interface ChannelDelivery {
+  botSlug: string;
+  state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
@@ -44,6 +56,10 @@ export interface ChannelMessage {
   body: string;
   /** Exact Human-selected branch from the Memory UI; opens a coordination turn. */
   memorySwitchTarget?: string;
+  /** Selected identity spans; plain typed @names are never actionable. */
+  mentions?: ChannelMention[];
+  /** Read-only projection from per-Bot Inbox Admissions. */
+  deliveries?: ChannelDelivery[];
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
   /** One exact live DSH tool call waiting for Human approval. */
@@ -197,6 +213,25 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
     )
       return false;
   }
+  const mentions = message['mentions'];
+  if (
+    mentions !== undefined &&
+    (!Array.isArray(mentions) ||
+      mentions.some(
+        (item) =>
+          typeof item !== 'object' ||
+          item === null ||
+          typeof item.botSlug !== 'string' ||
+          typeof item.label !== 'string' ||
+          typeof item.start !== 'number' ||
+          typeof item.end !== 'number' ||
+          !Number.isSafeInteger(item.start) ||
+          !Number.isSafeInteger(item.end) ||
+          item.start < 0 ||
+          item.end <= item.start,
+      ))
+  )
+    return false;
   const attachments = message['attachments'];
   if (
     attachments !== undefined &&
