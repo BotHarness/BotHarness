@@ -110,6 +110,8 @@ function stubActions(): BridgeActions {
       truncated: false,
     })),
     addWorkspaceFolder: vi.fn(async () => undefined),
+    userQuestionStatus: vi.fn(async () => 'expired' as const),
+    answerUserQuestion: vi.fn(async () => undefined),
     authorizeWorkspacePath: vi.fn(async () => ({ id: 'grant-1' }) as never),
     memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),

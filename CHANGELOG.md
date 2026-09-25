@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- When a Memory branch request is ambiguous, the Orchestrator asks through DSH's native question service in the PersonaBot DM; the Human's choice resumes the same Session, and answered or cancelled cards stay closed after refresh ([#264](https://github.com/BotHarness/BotHarness/issues/264)).
+
 - When a Memory branch switch encounters unfinished changes, the Orchestrator can coordinate affected Assignments, preserve work in a named Git stash, and retry in the same Session; the DM branch picker now filters local branches as the Human types ([#263](https://github.com/BotHarness/BotHarness/issues/263)).
 
 - A Human can choose “Continue from here” on a Memory Git commit, name a new branch, and have the same Orchestrator Session create and switch to it; pending raw commits remain unaccepted and can be recovered through Human Repair ([#262](https://github.com/BotHarness/BotHarness/issues/262)).

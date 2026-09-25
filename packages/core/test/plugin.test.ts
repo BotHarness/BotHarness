@@ -280,6 +280,8 @@ describe('plugin entry', () => {
       'toolApprovalRuleRevoke',
       'toolApprovalStatus',
       'toolApprovalDecide',
+      'userQuestionStatus',
+      'userQuestionAnswer',
       'sessions',
       'memorySnapshot',
       'memoryFile',

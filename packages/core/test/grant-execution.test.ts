@@ -115,6 +115,31 @@ describe('Workspace Grant execution boundary', () => {
     ).toMatch(/revoked/);
   });
 
+  it('lets only the Orchestrator reach the native Human-question answerer', () => {
+    const state = fixture();
+    const orchestrator = { id: 'botharness-orchestrator', header: { cwd: '/tmp/memory' } } as never;
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        orchestrator,
+        state.policy,
+        state.approval,
+        'ask_user_question',
+        {},
+      ),
+    ).toBeUndefined();
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        state.assignment,
+        state.policy,
+        state.approval,
+        'ask_user_question',
+        {},
+      ),
+    ).toMatch(/Orchestrator/);
+  });
+
   it('denies per-tool sandbox escalation even when standing policy remains safe', () => {
     const state = fixture();
     expect(
