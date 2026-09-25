@@ -279,9 +279,7 @@ export function ChannelSidebar({
           onDoubleClick={() => controller.setWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH)}
         />
       )}
-      <div className="bh-channel-sidebar-head">
-        <span className="bh-channel-sidebar-title">{channel.name}</span>
-      </div>
+      <div className="bh-channel-sidebar-head" aria-hidden="true" />
       <div className="bh-channel-sidebar-entries">
         {entries.length === 0 ? (
           <div className="bh-note">{t('sidebar.empty')}</div>

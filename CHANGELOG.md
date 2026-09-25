@@ -9,6 +9,9 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- When a Memory branch switch encounters unfinished changes, the Orchestrator can coordinate affected Assignments, preserve work in a named Git stash, and retry in the same Session; the DM branch picker now filters local branches as the Human types ([#263](https://github.com/BotHarness/BotHarness/issues/263)).
+
+- A Human can choose “Continue from here” on a Memory Git commit, name a new branch, and have the same Orchestrator Session create and switch to it; pending raw commits remain unaccepted and can be recovered through Human Repair ([#262](https://github.com/BotHarness/BotHarness/issues/262)).
 - A Human can select an existing accepted Memory branch in the PersonaBot DM; the same Orchestrator Session switches the repository, reports progress in the Channel, and sees the new working-tree files on its next native read ([#261](https://github.com/BotHarness/BotHarness/issues/261)).
 - PersonaBot DM Memory now shows the local Git branch and commit graph with acceptance and repair status; selecting a commit opens its changed files and diff across the Channel body, and returning preserves the chat draft and reading position ([#260](https://github.com/BotHarness/BotHarness/issues/260)).
 - PersonaBot DMs can now open accepted Memory files, edit an existing Markdown file, and inspect validated commit history and diffs; Agent file writes are accepted after a successful turn, while provisional or divergent repository state blocks further saves and an explicit Human repair archives unfinished changes before restoring the accepted head ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
@@ -39,7 +42,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
-- Local Desktop Client edits now update an open PersonaBot DM through DSH Client HMR; the unpublished UI Bundle uses `@botharness/ui` so RC2 can resolve its plugin graph ([#272](https://github.com/BotHarness/BotHarness/issues/272), [ADR-0065](docs/adr/0065-rc2-client-bundle-identity.md)). After a full Desktop document reload following HMR, RC2 can still fail Web boot; restart the app and Host as described in the [development guide](docs/client-bridge.md).
+- Local Desktop Client edits now update an open PersonaBot DM through DSH Client HMR; the unpublished UI Bundle uses `@botharness/ui` so RC2 can resolve its plugin graph ([#272](https://github.com/BotHarness/BotHarness/issues/272), [ADR-0066](docs/adr/0066-rc2-client-bundle-identity.md)). After a full Desktop document reload following HMR, RC2 can still fail Web boot; restart the app and Host as described in the [development guide](docs/client-bridge.md).
+- DM headers now use the PersonaBot display name even when the stored Channel name is an ID; the right Channel sidebar no longer repeats that title ([#263](https://github.com/BotHarness/BotHarness/issues/263)).
 - Local BotHarness development now supports DSH 0.1.7 RC2 Web Profiles, with automatic Client refresh and a documented Host restart path ([#265](https://github.com/BotHarness/BotHarness/issues/265)).
 
 - Channel Bot bubbles now use the former Human grey surface, while Human bubbles use the DSH theme’s inverse neutral palette with readable text, reply excerpts, and file attachments in both light and dark themes ([#255](https://github.com/BotHarness/BotHarness/issues/255)).
@@ -84,6 +88,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- PersonaBot creation now explains when Git is missing and leaves no partial identity; install Git on PATH and restart DeepSeek Harness before retrying ([#268](https://github.com/BotHarness/BotHarness/issues/268)).
 - Fixed fresh BotHarness database initialization on Windows so the official DSH RC2 Desktop can add a local Workspace and create a PersonaBot without entering recovery mode ([#266](https://github.com/BotHarness/BotHarness/issues/266)).
 - Failed Orchestrator and Assignment turns now leave a durable notice in the PersonaBot DM with a localized summary and DSH error code; provider diagnostics and Session identity expand on demand, while credential and quota failures link to model settings ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 
@@ -107,6 +112,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 ### Documentation
+
+- Documented Bot-to-Bot DM Channels, Human DM contact mentions, and Bot-managed Group invitations as a future collaboration design; runtime behavior is unchanged ([ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md), [#278](https://github.com/BotHarness/BotHarness/issues/278)).
 
 - Documented how coding-agent tasks sharing one GitHub account claim issues and carry task provenance through commits and PRs ([#196](https://github.com/BotHarness/BotHarness/issues/196)).
 

@@ -258,6 +258,15 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   if (typeof body !== 'string') return undefined;
   const author = parseAuthor(record['author']);
   if (author === undefined) return undefined;
+  const memorySwitchTarget = record['memorySwitchTarget'];
+  if (
+    memorySwitchTarget !== undefined &&
+    (author.kind !== 'human' ||
+      typeof memorySwitchTarget !== 'string' ||
+      memorySwitchTarget.length === 0 ||
+      memorySwitchTarget.length > 255)
+  )
+    return undefined;
   const grantRequest = record['grantRequest'];
   if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
     return undefined;
@@ -358,6 +367,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     at,
     author,
     body,
+    ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
@@ -644,6 +654,7 @@ export async function sendChannelMessage(
   attachments?: ChannelAttachmentRef[],
   messageId?: string,
   signal?: AbortSignal,
+  memorySwitchTarget?: string,
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -654,6 +665,7 @@ export async function sendChannelMessage(
       ...(replyTo === undefined ? {} : { replyTo }),
       ...(attachments === undefined ? {} : { attachments }),
       ...(messageId === undefined ? {} : { messageId }),
+      ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
     },
     signal,
   );

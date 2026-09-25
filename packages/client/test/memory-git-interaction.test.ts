@@ -1,5 +1,11 @@
 // @vitest-environment jsdom
-import { act, createElement, type ButtonHTMLAttributes } from 'react';
+import {
+  act,
+  createElement,
+  type ButtonHTMLAttributes,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,8 +39,39 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconSendOutline16: stub,
     IconSendOutlineRegular: stub,
     IconTrashOutline16: stub,
-    Input: stub,
-    Menu: stub,
+    Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
+    Menu: ({
+      anchor,
+      open,
+      items = [],
+      onSelect,
+      children,
+    }: {
+      anchor: ReactNode;
+      open: boolean;
+      items?: { id: string; label: string }[];
+      onSelect?: (id: string) => void;
+      children?: ReactNode;
+    }) =>
+      createElement(
+        'span',
+        null,
+        anchor,
+        open
+          ? createElement(
+              'div',
+              { role: 'menu' },
+              ...items.map((item) =>
+                createElement(
+                  'button',
+                  { key: item.id, role: 'menuitem', onClick: () => onSelect?.(item.id) },
+                  item.label,
+                ),
+              ),
+              children,
+            )
+          : null,
+      ),
     MarkdownText: stub,
     Modal: stub,
     StateDot: stub,
@@ -53,6 +90,7 @@ import { store } from '../src/client/store.js';
 import type { MemoryGitGraph } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { MemoryEntry } from '../src/client/memory-entry.js';
+import { MemoryCommitView } from '../src/client/memory-commit-view.js';
 
 const SHA = 'a'.repeat(40);
 let container: HTMLDivElement;
@@ -71,6 +109,43 @@ afterEach(async () => {
 });
 
 describe('Memory Git graph sidebar', () => {
+  it('sends a chosen historical commit and new branch to the same Channel', async () => {
+    const actions = {
+      memoryGitCommitDiff: vi
+        .fn()
+        .mockResolvedValue({ sha: SHA, files: [{ path: 'history.md', status: 'A' }], diff: '' }),
+      send: vi.fn().mockResolvedValue(true),
+    } as unknown as BridgeActions;
+    const onClose = vi.fn();
+    await act(async () => {
+      root.render(
+        createElement(MemoryCommitView, {
+          actions,
+          channelId: 'dm-qa',
+          sha: SHA,
+          onClose,
+          t: zhTranslate,
+        }),
+      );
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '从此处继续')
+        ?.click();
+    });
+    const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
+    expect(input?.value).toBe('memory-aaaaaaa');
+    await act(async () => {
+      container
+        .querySelector<HTMLFormElement>('.bh-memory-continue-form')
+        ?.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true }));
+    });
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining(SHA));
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history.md'));
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it('shows a checked-out side branch and opens a commit even when accepted snapshot rejects it', async () => {
     const graph: MemoryGitGraph = {
       head: SHA,
@@ -174,7 +249,7 @@ describe('Memory Git graph sidebar', () => {
     const graph = (currentBranch: string): MemoryGitGraph => ({
       head: SHA,
       currentBranch,
-      branches: ['history-qa', 'main'],
+      branches: ['history-qa', 'main', 'feature/one', 'feature/two', 'release-1.0'],
       dirty: false,
       commits: [
         {
@@ -206,17 +281,42 @@ describe('Memory Git graph sidebar', () => {
     await act(async () =>
       root.render(createElement(MemoryEntry, { ...props, conversationRevision: 0 })),
     );
-    const choice = container.querySelector<HTMLSelectElement>('#bh-memory-branch-choice');
+    const choice = container.querySelector<HTMLInputElement>('#bh-memory-branch-choice');
     expect(choice).not.toBeNull();
+    await act(async () => choice!.focus());
+    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(5);
     await act(async () => {
-      choice!.value = 'history-qa';
-      choice!.dispatchEvent(new Event('change', { bubbles: true }));
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        choice,
+        'not-a-branch',
+      );
+      choice!.dispatchEvent(new Event('input', { bubbles: true }));
     });
+    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+    expect(container.textContent).toContain('没有匹配的分支');
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')!.set!.call(
+        choice,
+        'history',
+      );
+      choice!.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    expect(container.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    expect(container.textContent).not.toContain('没有匹配的分支');
+    await act(async () =>
+      (container.querySelector('[role="menuitem"]') as HTMLButtonElement).click(),
+    );
+    expect(choice!.value).toBe('history-qa');
     const button = [
       ...container.querySelectorAll<HTMLButtonElement>('.bh-memory-branch-control button'),
     ].find((item) => item.textContent === '切换');
     await act(async () => button?.click());
-    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history-qa'));
+    expect(actions.send).toHaveBeenCalledWith(
+      expect.stringContaining('history-qa'),
+      undefined,
+      undefined,
+      'history-qa',
+    );
     expect(container.textContent).toContain('已发送切换请求');
     await act(async () =>
       root.render(createElement(MemoryEntry, { ...props, conversationRevision: 1 })),

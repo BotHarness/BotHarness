@@ -103,6 +103,30 @@ describe('bridge methods', () => {
     expect(channels.readMessages('dm-ada')).toHaveLength(2);
   });
 
+  it('persists a Human Memory branch choice and rejects a conflicting retry', async () => {
+    const { channels, methods } = setup();
+    channels.getOrCreateDm('ada', 'Ada');
+    const payload = {
+      channelId: 'dm-ada',
+      body: 'Switch Memory to history',
+      messageId: 'human-12345678-1234-4234-8234-123456789abc',
+      memorySwitchTarget: 'history',
+    };
+    const first = await methods.channelSend(payload);
+    expect(first).toMatchObject({
+      ok: true,
+      value: { message: { author: { kind: 'human' }, memorySwitchTarget: 'history' } },
+    });
+    expect(channels.readMessages('dm-ada')[0]?.memorySwitchTarget).toBe('history');
+    expect(await methods.channelSend(payload)).toEqual(first);
+    await expect(
+      methods.channelSend({ ...payload, memorySwitchTarget: 'main' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    await expect(
+      methods.channelSend({ ...payload, memorySwitchTarget: '' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  });
+
   it('deduplicates one Human client message id before a second runtime admission', async () => {
     let admissions = 0;
     const { channels, methods } = setup([], ['ada'], () => ({
@@ -275,6 +299,19 @@ describe('bridge methods', () => {
     );
   });
 
+  it('reports a missing Git prerequisite without exposing a spawn error', () => {
+    const { registry, methods } = setup();
+    registry.create = () => ({ ok: false, reason: 'git-not-found', detail: 'spawn git ENOENT' });
+
+    expect(methods.create({ displayName: 'No Git' })).toEqual({
+      ok: false,
+      error: {
+        code: 'git-not-found',
+        message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
+      },
+    });
+    expect(registry.list()).toEqual([]);
+  });
   it('creates a name-only bot with its Memory directory and no Persona file', () => {
     const { root, methods } = setup([], ['plain']);
 

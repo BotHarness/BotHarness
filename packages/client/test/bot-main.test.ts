@@ -85,7 +85,7 @@ describe('Bot main Assignment pane', () => {
     const channel = {
       id: 'dm-ada',
       type: 'dm' as const,
-      name: 'Ada',
+      name: 'bot-ada',
       members: ['ada'],
       botSlug: 'ada',
       createdAt: '2026-09-21T00:00:00.000Z',
@@ -129,11 +129,25 @@ describe('Bot main Assignment pane', () => {
     expect(markup).toContain('收起 Channel sidebar');
     expect(markup).toContain('class="bh-channel-island"');
     expect(markup).toContain('aria-label="Ada — 收起 Channel sidebar"');
+    expect(markup).toContain('<span class="bh-title">Ada</span>');
+    expect(markup).not.toContain('bh-channel-sidebar-title');
     expect(markup).toContain('aria-controls="bh-channel-sidebar"');
     expect(markup).toContain('class="bh-chat-top-fade"');
     expect(markup).not.toContain('研究发布状态');
     expect(markup).not.toContain('Ada 空闲');
     expect(markup).not.toContain('bh-composer-activity-status');
+
+    const beforeChannelSelection = store.getSnapshot();
+    store.select({ kind: 'channel', channelId: channel.id });
+    store.setConversation(beforeChannelSelection.conversation);
+    const channelMarkup = renderToStaticMarkup(
+      createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
+    );
+    expect(channelMarkup).toContain('<span class="bh-title">Ada</span>');
+    expect(channelMarkup).not.toContain('bh-channel-sidebar-title');
+    store.select(beforeChannelSelection.selection);
+    store.setConversation(beforeChannelSelection.conversation);
+    store.setAssignments(beforeChannelSelection.assignments);
   });
 
   it('shows a group Channel name in the same sidebar-opening island', () => {

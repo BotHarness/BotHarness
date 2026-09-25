@@ -139,7 +139,12 @@ export interface BridgeActions {
     messageId: string,
     outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
   ): Promise<void>;
-  send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
+  send(
+    body: string,
+    replyTo?: string,
+    attachments?: ChannelAttachmentRef[],
+    memorySwitchTarget?: string,
+  ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
@@ -722,7 +727,7 @@ export function createActions(
         clientStore.setAssignments({ error: errorMessage(error) });
       }
     },
-    async send(body, replyTo, attachments) {
+    async send(body, replyTo, attachments, memorySwitchTarget) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
@@ -787,6 +792,8 @@ export function createActions(
           replyTo,
           attachments,
           localId,
+          undefined,
+          memorySwitchTarget,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();

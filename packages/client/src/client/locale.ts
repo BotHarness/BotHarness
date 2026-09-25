@@ -141,6 +141,7 @@ export const zh = {
   'bot.create.error.identity': '系统未能分配唯一身份，请重试。',
   'bot.create.error.invalid': '请检查 Bot 名称、岗位或简介。',
   'bot.create.error.connection': '无法连接 Host，请稍后重试。',
+  'bot.create.error.gitMissing': '请安装 Git，并确保它在 PATH 中；重启 DeepSeek Harness 后再试。',
   'main.author.human': '你',
   'main.date.locale': 'zh-CN',
   'message.copy': '复制消息',
@@ -213,6 +214,8 @@ export const zh = {
   'memory.history': '提交历史',
   'memory.gitGraph': 'Git 历史',
   'memory.branch': '分支',
+  'memory.searchBranch': '搜索分支',
+  'memory.noBranches': '没有匹配的分支',
   'memory.switchBranch': '切换',
   'memory.branchRequested': '已发送切换请求：',
   'memory.branchRequestFailed': '无法发送切换请求，请重试。',
@@ -228,6 +231,11 @@ export const zh = {
   'memory.gitStatus.pending': '待验收',
   'memory.gitStatus.needs-repair': '待修复',
   'memory.diff': '提交差异',
+  'memory.continueHere': '从此处继续',
+  'memory.newBranch': '新分支名称',
+  'memory.createAndSwitch': '创建并切换',
+  'memory.continuePrompt':
+    '请从这个 PersonaBot 的 Memory Git 提交 {sha} 创建新分支 {branch}，并立即切换。请使用 memory_continue_from_commit，随后在同一 Orchestrator Session 用原生读取工具读取当前 {path}，向此频道报告当前分支和实际内容。若起点提交未验收，请明确说明待修复状态，不要自动验收。',
   'entry.assignments': '事项',
   'entry.workspaceGrants': '工作区授权',
   'grant.safeDefault':
@@ -490,6 +498,8 @@ export const en = {
   'bot.create.error.identity': 'The system could not assign a unique identity; try again.',
   'bot.create.error.invalid': 'Check the Bot name, roles, or description.',
   'bot.create.error.connection': 'Cannot reach the Host; try again later.',
+  'bot.create.error.gitMissing':
+    'Install Git and make it available on PATH, then restart DeepSeek Harness and retry.',
   'main.author.human': 'You',
   'main.date.locale': 'en-US',
   'message.copy': 'Copy message',
@@ -564,6 +574,8 @@ export const en = {
   'memory.history': 'Commit history',
   'memory.gitGraph': 'Git history',
   'memory.branch': 'Branch',
+  'memory.searchBranch': 'Search branches',
+  'memory.noBranches': 'No matching branches',
   'memory.switchBranch': 'Switch',
   'memory.branchRequested': 'Switch requested:',
   'memory.branchRequestFailed': 'Could not send the switch request. Try again.',
@@ -580,6 +592,11 @@ export const en = {
   'memory.gitStatus.pending': 'Pending',
   'memory.gitStatus.needs-repair': 'Needs repair',
   'memory.diff': 'Commit diff',
+  'memory.continueHere': 'Continue from here',
+  'memory.newBranch': 'New branch name',
+  'memory.createAndSwitch': 'Create and switch',
+  'memory.continuePrompt':
+    'Create a new branch {branch} at this PersonaBot Memory Git commit {sha} and switch to it now. Use memory_continue_from_commit, then use the native read tool in this same Orchestrator Session to read the current {path} and report the current branch and actual content in this Channel. If the branch point is pending, explain its repair state without accepting it automatically.',
   'entry.assignments': 'Assignments',
   'entry.workspaceGrants': 'Workspace Grants',
   'grant.safeDefault':

@@ -141,7 +141,11 @@ export function createCore(
       const repository = ensureMemoryRepository({ memoryDir });
       return repository.ok
         ? { ok: true }
-        : { ok: false, message: `${repository.code}: ${repository.message}` };
+        : {
+            ok: false,
+            ...(repository.code === 'git-not-found' ? { code: 'git-not-found' as const } : {}),
+            message: `${repository.code}: ${repository.message}`,
+          };
     },
   });
   const states = createBotStateTracker();

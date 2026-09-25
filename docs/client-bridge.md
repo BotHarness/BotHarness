@@ -131,7 +131,7 @@ corepack pnpm dev:client
 
 官方 RC2 的开发构建提供「重新加载页面」和「重启应用及 Host」；安装版可能没有前一项。两者都不构建源码；Host 修改须先构建，再重启应用及 Host。[官方 Desktop 开发说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.7-rc.2/apps/desktop/README.md#develop)。
 
-RC2 的 Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0065](adr/0065-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。
+RC2 的 Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0066](adr/0066-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。
 
 ## 8. 未决
 

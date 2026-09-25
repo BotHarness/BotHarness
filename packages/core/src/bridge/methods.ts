@@ -301,6 +301,14 @@ function createFailure(
       return { ok: false, error: { code: 'invalid-slug', message: `invalid slug: ${slug}` } };
     case 'invalid-memory-dir':
       return invalidInput('memoryDir must be an absolute path');
+    case 'git-not-found':
+      return {
+        ok: false,
+        error: {
+          code: 'git-not-found',
+          message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
+        },
+      };
     case 'memory-unavailable':
       return {
         ok: false,
@@ -662,6 +670,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const channel = deps.channels.get(channelId);
       if (channel === undefined) return unknownChannel(channelId);
+      const memorySwitchTarget = source['memorySwitchTarget'];
+      if (
+        memorySwitchTarget !== undefined &&
+        (typeof memorySwitchTarget !== 'string' ||
+          memorySwitchTarget.length === 0 ||
+          memorySwitchTarget.length > 255 ||
+          channel.type !== 'dm')
+      )
+        return invalidInput('memorySwitchTarget requires a DM and a branch name');
       const existing =
         requestedMessageId === undefined
           ? undefined
@@ -671,6 +688,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.author.kind === 'human' &&
           existing.body === body &&
           existing.replyTo === replyTo &&
+          existing.memorySwitchTarget === memorySwitchTarget &&
           JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []);
         return same
           ? { ok: true, value: { message: existing } }
@@ -683,6 +701,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         body,
         ...(attachments === undefined ? {} : { attachments }),
         ...(replyTo === undefined ? {} : { replyTo }),
+        ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       };
       if (
         channel.type === 'dm' &&

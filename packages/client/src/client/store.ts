@@ -73,6 +73,7 @@ export interface ChannelMessage {
   at: string;
   author: ChannelAuthor;
   body: string;
+  memorySwitchTarget?: string;
   grantRequest?: true;
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;

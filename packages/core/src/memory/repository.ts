@@ -3,7 +3,11 @@ import { join } from 'node:path';
 
 import { commitMemoryRepositorySeed, createMemoryGit, initializeMemoryGit } from './git.js';
 
-export type MemoryRepositoryFailureCode = 'mkdir-failed' | 'git-init-failed' | 'seed-commit-failed';
+export type MemoryRepositoryFailureCode =
+  | 'mkdir-failed'
+  | 'git-not-found'
+  | 'git-init-failed'
+  | 'seed-commit-failed';
 
 export type MemoryRepositoryResult =
   | { ok: true; memoryDir: string; created: boolean }
@@ -40,6 +44,13 @@ export function ensureMemoryRepository(options: { memoryDir: string }): MemoryRe
   try {
     created = initializeMemoryGit(memoryDir).created;
   } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {
+        ok: false,
+        code: 'git-not-found',
+        message: 'Git executable is not available on PATH',
+      };
+    }
     return { ok: false, code: 'git-init-failed', message: messageOf(error) };
   }
 

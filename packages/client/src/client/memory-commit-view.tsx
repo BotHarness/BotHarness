@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactElement } from 'react';
+import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import type { MemoryGitCommitDiff } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -18,6 +19,31 @@ export function MemoryCommitView({
 }): ReactElement {
   const [detail, setDetail] = useState<MemoryGitCommitDiff>();
   const [error, setError] = useState<string>();
+  const [continueOpen, setContinueOpen] = useState(false);
+  const [branch, setBranch] = useState('');
+  const [sending, setSending] = useState(false);
+
+  const requestContinue = async (): Promise<void> => {
+    if (sending || branch.trim() === '') return;
+    setSending(true);
+    setError(undefined);
+    try {
+      const path = detail?.files.find((file) => file.path.endsWith('.md'))?.path ?? 'PERSONA.md';
+      const sent = await actions.send(
+        t('memory.continuePrompt', {
+          sha,
+          branch: JSON.stringify(branch.trim()),
+          path: JSON.stringify(path),
+        }),
+      );
+      if (!sent) throw new Error(t('memory.branchRequestFailed'));
+      onClose();
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : String(failure));
+    } finally {
+      setSending(false);
+    }
+  };
   useEffect(() => {
     let active = true;
     setDetail(undefined);
@@ -38,14 +64,50 @@ export function MemoryCommitView({
   return (
     <div className="bh-memory-commit-view" role="region" aria-label={t('memory.diff')}>
       <div className="bh-memory-commit-header">
-        <button type="button" onClick={onClose}>
+        <Button variant="outline" size="sm" onClick={onClose}>
           {t('memory.backToChat')}
-        </button>
+        </Button>
         <div>
           <strong>{t('memory.diff')}</strong>
           <span title={sha}>{sha.slice(0, 12)}</span>
         </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="bh-memory-continue-open"
+          onClick={() => {
+            setBranch('memory-' + sha.slice(0, 7));
+            setContinueOpen((current) => !current);
+          }}
+        >
+          {t('memory.continueHere')}
+        </Button>
       </div>
+      {continueOpen ? (
+        <form
+          className="bh-memory-continue-form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void requestContinue();
+          }}
+        >
+          <label htmlFor="bh-memory-new-branch">{t('memory.newBranch')}</label>
+          <Input
+            id="bh-memory-new-branch"
+            autoFocus
+            value={branch}
+            onChange={(event) => setBranch(event.currentTarget.value)}
+          />
+          <Button
+            variant="primary"
+            size="sm"
+            type="submit"
+            disabled={sending || branch.trim() === ''}
+          >
+            {t('memory.createAndSwitch')}
+          </Button>
+        </form>
+      ) : null}
       {error !== undefined ? (
         <div className="bh-error" role="alert">
           {error}

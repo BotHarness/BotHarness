@@ -293,11 +293,11 @@ A PersonaBot's current consideration of one Source Event revision chain; unobser
 _Avoid_: mailbox item, message copy, delivery attempt
 
 **Channel**:
-A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a DM keeps its PersonaBot avatar presentation.
+A platform-native conversation space; its type is `dm` (two Actors: one Human and one PersonaBot, or two PersonaBots) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a Human–PersonaBot DM keeps its PersonaBot avatar presentation.
 _Avoid_: room, server, board
 
 **Hidden Channel**:
-A Channel omitted from expanded and collapsed roster navigation by an explicit Human presentation choice. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can restore it from the hidden-Channel manager.
+A Channel omitted from expanded and collapsed roster navigation by a Human presentation choice or the default for a Bot-to-Bot DM. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can open it for inspection, and can restore a Channel hidden by their own choice.
 _Avoid_: deleted Channel, archived Channel, muted Channel, Content Purge
 
 **Channel section**:
@@ -427,8 +427,12 @@ A Feishu/Lark conversation — group or p2p — that a PersonaBot takes part in,
 _Avoid_: room, channel, group (when p2p is meant too)
 
 **DM**:
-A 1:1 conversation between a PersonaBot and one human — a Channel of type `dm`, or its bridged equivalent.
+A 1:1 conversation between two Actors — a Channel of type `dm`, or its bridged equivalent. A Human–PersonaBot DM is the Human's direct conversation with one Bot; a Bot-to-Bot DM has two PersonaBot participants and may be inspected read-only by a Human without making that Human a participant.
 _Avoid_: private chat, PM
+
+**Bot-to-Bot DM**:
+A DM Channel whose two participants are PersonaBots. A message from one Bot is a Source Event in that Channel and may enter the other Bot's Inbox; the Human's read-only inspection is separate from Channel membership.
+_Avoid_: peer relay bus, copied inbox conversation
 
 **Thread**:
 A sub-conversation opened by replying to a message inside a Chat or a Channel.

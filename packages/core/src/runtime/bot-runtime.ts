@@ -98,7 +98,13 @@ export interface OrchestratorAgentRun {
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
   assignments: OrchestratorAssignmentAccess;
-  memory?: { switchBranch(branch: string): { from: string; to: string; head: string } };
+  memory?: {
+    switchBranch(branch: string): { from: string; to: string; head: string };
+    continueFromCommit(
+      sha: string,
+      branch: string,
+    ): { from: string; to: string; head: string; accepted: boolean };
+  };
 }
 
 export interface AssignmentAgentRun {
@@ -188,7 +194,10 @@ export interface BotRuntimeOptions {
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
-  memory?: Pick<MemoryService, 'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch'>;
+  memory?: Pick<
+    MemoryService,
+    'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
+  >;
   /** Profile-scoped Channel attachment authority. */
   attachments?: AttachmentStore;
   /** Shared ownership interface; defaults to one bound to `database`. */
@@ -469,7 +478,9 @@ class BotRuntimeImplementation implements BotRuntime {
     const claim = this.#claimSourceEvent(bot.slug, channel.id, input.messageId, body, timestamp);
     return {
       admitted: true,
-      settled: this.#enqueue(bot.slug, () => this.#runDmTurn(bot, channel.id, body, claim)),
+      settled: this.#enqueue(bot.slug, () =>
+        this.#runDmTurn(bot, channel.id, body, claim, input.messageId),
+      ),
     };
   }
 
@@ -551,6 +562,7 @@ class BotRuntimeImplementation implements BotRuntime {
     channelId: string,
     body: string,
     claim: SourceEventClaim,
+    messageId: string,
   ): Promise<void> {
     if (claim.reconciliationRequired === true) {
       throw new Error(`Source Event ${claim.sourceEventId} requires reconciliation before replay`);
@@ -571,6 +583,7 @@ class BotRuntimeImplementation implements BotRuntime {
         channelId,
         body,
         collected.inbox,
+        this.#channels.message(channelId, messageId)?.memorySwitchTarget !== undefined,
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
@@ -606,9 +619,10 @@ class BotRuntimeImplementation implements BotRuntime {
     channelId: string,
     body: string,
     inbox: string,
+    coordinateBranchSwitch = false,
   ): Promise<void> {
     const markSideEffect = () => this.#markSideEffectStarted(sourceEventId);
-    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId);
+    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
     try {
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
@@ -619,6 +633,17 @@ class BotRuntimeImplementation implements BotRuntime {
         inboundChannelId: channelId,
         channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
         memory: {
+          continueFromCommit: (sha, branch) => {
+            if (this.#memory === undefined) throw new Error('Memory is unavailable');
+            const result = this.#memory.continueFromCommit({
+              botSlug: bot.slug,
+              sessionId: orchestrator.sessionId,
+              sha,
+              branch,
+            });
+            markSideEffect();
+            return result;
+          },
           switchBranch: (branch) => {
             if (this.#memory === undefined) throw new Error('Memory is unavailable');
             const result = this.#memory.switchBranch({
@@ -1282,6 +1307,7 @@ class BotRuntimeImplementation implements BotRuntime {
         channel.id,
         '',
         collected.inbox,
+        true,
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
