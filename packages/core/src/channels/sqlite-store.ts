@@ -22,6 +22,7 @@ import {
 import {
   ChannelMentionTargetError,
   ChannelReplyTargetError,
+  prepareChannelMessageQuery,
   type ChannelStore,
   type ChannelStoreOptions,
 } from './store.js';
@@ -132,6 +133,7 @@ function eventPayload(message: ChannelMessage): string {
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
+  let lowerRegistered = false;
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
     if (
       refs.length > 10 ||
@@ -959,6 +961,107 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         .slice(Math.max(0, end - limit), end)
         .reverse()
         .map((message) => project(messages, message));
+    },
+    queryMessages(id, queryOptions) {
+      const query = prepareChannelMessageQuery(id, queryOptions);
+      if (!isValidChannelId(id)) return { messages: [] };
+      let beforeRevision: number | undefined;
+      if (query.beforeId !== undefined) {
+        const beforeId = query.beforeId;
+        const cursor = database.read((db) =>
+          db
+            .prepare(
+              'SELECT revision FROM channel_placements WHERE channel_id = ? AND message_id = ?',
+            )
+            .get(id, beforeId),
+        ) as { revision: number } | undefined;
+        if (cursor === undefined) throw new Error('channel_read: invalid cursor');
+        beforeRevision = cursor.revision;
+      }
+      const where = ['p.channel_id = ?'];
+      const values: Array<string | number> = [id];
+      if (beforeRevision !== undefined) {
+        where.push('p.revision < ?');
+        values.push(beforeRevision);
+      }
+      if (query.text !== undefined && query.text.length > 0) {
+        where.push('instr(botharness_unicode_lower(e.body), ?) > 0');
+        values.push(query.text);
+      }
+      if (query.authorBotId !== undefined) {
+        where.push("json_extract(e.payload_json, '$.author.kind') = 'bot'");
+        where.push("json_extract(e.payload_json, '$.author.slug') = ?");
+        values.push(query.authorBotId);
+      }
+      if (query.authorKind !== undefined) {
+        where.push("json_extract(e.payload_json, '$.author.kind') = ?");
+        values.push(query.authorKind);
+      }
+      if (query.from !== undefined) {
+        where.push('julianday(e.created_at) >= ?');
+        values.push(query.from / 86_400_000 + 2_440_587.5);
+      }
+      if (query.to !== undefined) {
+        where.push('julianday(e.created_at) <= ?');
+        values.push(query.to / 86_400_000 + 2_440_587.5);
+      }
+      const rows = database.read((db) => {
+        if (!lowerRegistered) {
+          db.function('botharness_unicode_lower', { deterministic: true }, (value: unknown) =>
+            typeof value === 'string' ? value.toLowerCase() : '',
+          );
+          lowerRegistered = true;
+        }
+        return db
+          .prepare(`
+          SELECT p.source_event_id, e.payload_json, e.body
+            FROM channel_placements p
+            JOIN source_events e ON e.source_event_id = p.source_event_id
+           WHERE ${where.join(' AND ')}
+           ORDER BY p.revision DESC LIMIT ?
+        `)
+          .all(...values, query.limit + 1);
+      }) as unknown as PlacementRow[];
+      const selected = rows.slice(0, query.limit).flatMap((row) => {
+        const message = parseMessage(row.payload_json, row.body);
+        if (message === undefined) return [];
+        const deliveries = admissionStatuses(row.source_event_id);
+        return [{ ...message, ...(deliveries === undefined ? {} : { deliveries }) }];
+      });
+      const replyIds = [
+        ...new Set(
+          selected.flatMap((message) => (message.replyTo === undefined ? [] : [message.replyTo])),
+        ),
+      ];
+      const byId = new Map<string, ChannelMessage>();
+      if (replyIds.length > 0) {
+        const placeholders = replyIds.map(() => '?').join(', ');
+        const replies = database.read((db) =>
+          db
+            .prepare(`
+            SELECT e.payload_json, e.body
+              FROM channel_placements p
+              JOIN source_events e ON e.source_event_id = p.source_event_id
+             WHERE p.channel_id = ? AND p.message_id IN (${placeholders})
+          `)
+            .all(id, ...replyIds),
+        ) as unknown as Array<Pick<PlacementRow, 'payload_json' | 'body'>>;
+        for (const row of replies) {
+          const message = parseMessage(row.payload_json, row.body);
+          if (message !== undefined) byId.set(message.id, message);
+        }
+      }
+      const last = selected.at(-1);
+      return {
+        messages: selected.map((message) => replyProjection(message, byId)),
+        ...(rows.length <= query.limit || last === undefined
+          ? {}
+          : {
+              nextCursor: Buffer.from(
+                JSON.stringify({ beforeId: last.id, filter: query.filter }),
+              ).toString('base64url'),
+            }),
+      };
     },
     readTimeline(id, request) {
       const messages = allMessages(id);

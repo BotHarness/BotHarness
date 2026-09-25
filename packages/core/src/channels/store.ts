@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import { join } from 'node:path';
@@ -62,6 +63,156 @@ export interface ChannelReadOptions {
   limit?: number;
 }
 
+export interface ChannelMessageQueryOptions {
+  text?: string;
+  authorBotId?: string;
+  authorKind?: 'human' | 'bot' | 'bridged';
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit?: number;
+}
+
+export interface ChannelMessageQueryPage {
+  messages: ChannelMessage[];
+  nextCursor?: string;
+}
+
+export interface PreparedChannelMessageQuery {
+  text?: string;
+  authorBotId?: string;
+  authorKind?: 'human' | 'bot' | 'bridged';
+  from?: number;
+  to?: number;
+  beforeId?: string;
+  filter: string;
+  limit: number;
+}
+
+/** Normalize filters and bind an opaque cursor to its exact query. */
+export function prepareChannelMessageQuery(
+  channelId: string,
+  options: ChannelMessageQueryOptions = {},
+): PreparedChannelMessageQuery {
+  if (
+    options.authorBotId !== undefined &&
+    options.authorKind !== undefined &&
+    options.authorKind !== 'bot'
+  ) {
+    throw new Error('channel_read: author_bot_id requires author_kind bot');
+  }
+  if (
+    options.authorKind !== undefined &&
+    !['human', 'bot', 'bridged'].includes(options.authorKind)
+  ) {
+    throw new Error('channel_read: invalid author_kind');
+  }
+  const from = options.from === undefined ? undefined : Date.parse(options.from);
+  const to =
+    options.to === undefined
+      ? undefined
+      : Date.parse(options.to) + (/^\d{4}-\d{2}-\d{2}$/u.test(options.to) ? 86_400_000 - 1 : 0);
+  if (
+    (from !== undefined && !Number.isFinite(from)) ||
+    (to !== undefined && !Number.isFinite(to)) ||
+    (from !== undefined && to !== undefined && from > to)
+  )
+    throw new Error('channel_read: invalid date range');
+  const text = options.text?.trim().toLowerCase();
+  const filter = createHash('sha256')
+    .update(
+      JSON.stringify({
+        channelId,
+        text,
+        authorBotId: options.authorBotId,
+        authorKind: options.authorKind,
+        from,
+        to,
+      }),
+    )
+    .digest('hex')
+    .slice(0, 16);
+  let beforeId: string | undefined;
+  if (options.cursor !== undefined) {
+    try {
+      const decoded: unknown = JSON.parse(
+        Buffer.from(options.cursor, 'base64url').toString('utf8'),
+      );
+      if (
+        typeof decoded !== 'object' ||
+        decoded === null ||
+        !('beforeId' in decoded) ||
+        typeof decoded.beforeId !== 'string' ||
+        !('filter' in decoded) ||
+        decoded.filter !== filter
+      )
+        throw new Error('invalid');
+      beforeId = decoded.beforeId;
+    } catch {
+      throw new Error('channel_read: invalid cursor');
+    }
+  }
+  return {
+    ...(text === undefined ? {} : { text }),
+    ...(options.authorBotId === undefined ? {} : { authorBotId: options.authorBotId }),
+    ...(options.authorKind === undefined ? {} : { authorKind: options.authorKind }),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    ...(beforeId === undefined ? {} : { beforeId }),
+    filter,
+    limit: Math.max(
+      1,
+      Math.min(Math.floor(options.limit ?? DEFAULT_MESSAGE_PAGE), MAX_MESSAGE_PAGE),
+    ),
+  };
+}
+
+/** Query the full ordered history before applying the bounded page. */
+export function queryChannelMessages(
+  channelId: string,
+  messages: readonly ChannelMessage[],
+  options: ChannelMessageQueryOptions = {},
+): ChannelMessageQueryPage {
+  const query = prepareChannelMessageQuery(channelId, options);
+  const end =
+    query.beforeId === undefined
+      ? messages.length
+      : messages.findIndex((message) => message.id === query.beforeId);
+  if (end < 0) throw new Error('channel_read: invalid cursor');
+  const matching = messages
+    .slice(0, end)
+    .reverse()
+    .filter((message) => {
+      if (query.text !== undefined && !message.body.toLowerCase().includes(query.text))
+        return false;
+      if (
+        query.authorBotId !== undefined &&
+        (message.author.kind !== 'bot' || message.author.slug !== query.authorBotId)
+      )
+        return false;
+      if (query.authorKind !== undefined && message.author.kind !== query.authorKind) return false;
+      const at = Date.parse(message.at);
+      if ((query.from !== undefined || query.to !== undefined) && !Number.isFinite(at))
+        return false;
+      if (query.from !== undefined && at < query.from) return false;
+      if (query.to !== undefined && at > query.to) return false;
+      return true;
+    });
+  const page = matching.slice(0, query.limit + 1);
+  const selected = page.slice(0, query.limit);
+  const last = selected.at(-1);
+  return {
+    messages: selected,
+    ...(page.length <= query.limit || last === undefined
+      ? {}
+      : {
+          nextCursor: Buffer.from(
+            JSON.stringify({ beforeId: last.id, filter: query.filter }),
+          ).toString('base64url'),
+        }),
+  };
+}
+
 export interface CreateChannelGroupInput {
   name: string;
   members: string[];
@@ -118,6 +269,7 @@ export interface ChannelStore {
   markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
+  queryMessages(id: string, options?: ChannelMessageQueryOptions): ChannelMessageQueryPage;
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
@@ -547,6 +699,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         .slice(Math.max(0, end - limit), end)
         .reverse()
         .map((message) => projectReply(message, byId));
+    },
+    queryMessages(id, queryOptions) {
+      const messages = readValidMessages(id);
+      const page = queryChannelMessages(id, messages, queryOptions);
+      const byId = messageIndex(messages);
+      return { ...page, messages: page.messages.map((message) => projectReply(message, byId)) };
     },
     readTimeline(id, request) {
       const messages = readValidMessages(id);
