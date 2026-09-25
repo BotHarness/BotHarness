@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { queryChannelMessages } from '../src/channels/store.js';
 import { createCore } from '../src/plugin.js';
 import type {
   AssignmentAgentRun,
@@ -166,6 +167,33 @@ describe('PersonaBot Channel history query', () => {
     }
   });
 
+  it('orders file-backed query pages by instant across UTC offsets', () => {
+    const messages = [
+      {
+        id: 'utc',
+        at: '2026-09-02T00:01:00.000Z',
+        author: { kind: 'human' as const },
+        body: 'chronology',
+      },
+      {
+        id: 'offset',
+        at: '2026-09-02T00:30:00+01:00',
+        author: { kind: 'human' as const },
+        body: 'chronology',
+      },
+    ];
+    const first = queryChannelMessages('group-time', messages, { orderBy: 'time', limit: 1 });
+    expect(first.messages.map((message) => message.id)).toEqual(['utc']);
+    if (first.nextCursor === undefined) throw new Error('Expected time cursor');
+    expect(
+      queryChannelMessages('group-time', messages, {
+        orderBy: 'time',
+        limit: 1,
+        cursor: first.nextCursor,
+      }).messages.map((message) => message.id),
+    ).toEqual(['offset']);
+  });
+
   it('sorts cross-Channel pages by message time when older commits arrive later', async () => {
     const home = createTempRoot('botharness-joined-order-');
     let groupId = '';
@@ -196,6 +224,22 @@ describe('PersonaBot Channel history query', () => {
             'new-119',
             'new-118',
           ]);
+          const offsetFilter = {
+            scope: 'joined' as const,
+            text: 'chronology',
+            from: '2026-09-01T23:30:00.000Z',
+            to: '2026-09-02T00:00:00.000Z',
+            limit: 1,
+          };
+          const offsetFirst = run.channels.query(offsetFilter);
+          expect(offsetFirst.messages.map((view) => view.message.id)).toEqual(['new-0']);
+          const offsetCursor = offsetFirst.nextCursor;
+          if (offsetCursor === undefined) throw new Error('Expected offset cursor');
+          expect(
+            run.channels
+              .query({ ...offsetFilter, cursor: offsetCursor })
+              .messages.map((view) => view.message.id),
+          ).toEqual(['offset-backfill']);
           checked = true;
         } catch (error) {
           failure = error;
@@ -220,6 +264,12 @@ describe('PersonaBot Channel history query', () => {
           });
         }
       }
+      await core.channels.appendMessage(groupId, {
+        id: 'offset-backfill',
+        at: '2026-09-02T00:30:00+01:00',
+        author: { kind: 'human' },
+        body: 'chronology offset backfill',
+      });
       const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
       await core.channels.appendMessage(dm.id, {
         id: 'ask-order',

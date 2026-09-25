@@ -181,11 +181,13 @@ export function queryChannelMessages(
   const query = prepareChannelMessageQuery(channelId, options);
   const ordered =
     query.orderBy === 'time'
-      ? [...messages].sort(
-          (left, right) =>
-            (right.at < left.at ? -1 : right.at > left.at ? 1 : 0) ||
-            (right.id < left.id ? -1 : right.id > left.id ? 1 : 0),
-        )
+      ? messages
+          .filter((message) => Number.isFinite(Date.parse(message.at)))
+          .sort(
+            (left, right) =>
+              Date.parse(right.at) - Date.parse(left.at) ||
+              (right.id < left.id ? -1 : right.id > left.id ? 1 : 0),
+          )
       : [...messages].reverse();
   const beforeIndex =
     query.beforeId === undefined

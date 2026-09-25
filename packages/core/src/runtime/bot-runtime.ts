@@ -1588,7 +1588,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const descending = (left: string, right: string): number =>
           right < left ? -1 : right > left ? 1 : 0;
         const compare = (left: SortKey, right: SortKey): number =>
-          descending(left.at, right.at) ||
+          Date.parse(right.at) - Date.parse(left.at) ||
           descending(left.channelId, right.channelId) ||
           descending(left.messageId, right.messageId);
         let after: SortKey | undefined;

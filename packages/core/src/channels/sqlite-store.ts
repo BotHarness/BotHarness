@@ -984,13 +984,16 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const values: Array<string | number> = [id];
       if (before !== undefined) {
         if (query.orderBy === 'time') {
-          where.push('(e.created_at < ? OR (e.created_at = ? AND p.message_id < ?))');
+          where.push(
+            '(julianday(e.created_at) < julianday(?) OR (julianday(e.created_at) = julianday(?) AND p.message_id < ?))',
+          );
           values.push(before.at, before.at, before.message_id);
         } else {
           where.push('p.revision < ?');
           values.push(before.revision);
         }
       }
+      if (query.orderBy === 'time') where.push('julianday(e.created_at) IS NOT NULL');
       if (query.text !== undefined && query.text.length > 0) {
         where.push('instr(botharness_unicode_lower(e.body), ?) > 0');
         values.push(query.text);
@@ -1025,7 +1028,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             FROM channel_placements p
             JOIN source_events e ON e.source_event_id = p.source_event_id
            WHERE ${where.join(' AND ')}
-           ORDER BY ${query.orderBy === 'time' ? 'e.created_at DESC, p.message_id DESC' : 'p.revision DESC'} LIMIT ?
+           ORDER BY ${query.orderBy === 'time' ? 'julianday(e.created_at) DESC, p.message_id DESC' : 'p.revision DESC'} LIMIT ?
         `)
           .all(...values, query.limit + 1);
       }) as unknown as PlacementRow[];
