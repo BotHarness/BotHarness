@@ -9,6 +9,7 @@ import { MarkdownText } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from '../src/client/actions.js';
 import { ChannelMessageBody } from '../src/client/channel-message-body.js';
 import { zhTranslate } from '../src/client/locale.js';
+import { WORKSPACE_GRANTS_CHANGED } from '../src/client/workspace-grants-entry.js';
 import type { ChannelMessage } from '../src/client/store.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
@@ -248,5 +249,55 @@ describe('Channel message body', () => {
     });
     expect(vi.mocked(MarkdownText).mock.calls[0]?.[0].fileMentions).toBeUndefined();
     expect(vi.mocked(MarkdownText).mock.calls[0]?.[0].pathImages).toBeUndefined();
+  });
+});
+
+describe('Tool approval card', () => {
+  it('removes approval actions immediately when a Workspace Grant change expires the request', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const toolApprovalStatus = vi
+      .fn()
+      .mockResolvedValueOnce('pending')
+      .mockResolvedValueOnce('expired');
+    const message: ChannelMessage = {
+      id: 'approval-1',
+      at: '2026-09-25T00:00:00.000Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'Approve bash',
+      toolApprovalRequest: {
+        sessionId: 'assignment-1',
+        callId: 'call-1',
+        toolName: 'bash',
+        role: 'assignment',
+        cwd: '/tmp/project',
+        input: '{"command":"pwd"}',
+      },
+    };
+    try {
+      await act(async () => {
+        root.render(
+          createElement(ChannelMessageBody, {
+            message,
+            t: zhTranslate,
+            actions: { toolApprovalStatus } as unknown as BridgeActions,
+          }),
+        );
+      });
+      expect(container.textContent).toContain('仅批准这一次');
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent(WORKSPACE_GRANTS_CHANGED, { detail: { slug: 'ada' } }),
+        );
+      });
+      expect(toolApprovalStatus).toHaveBeenCalledTimes(2);
+      expect(container.textContent).not.toContain('仅批准这一次');
+      expect(container.textContent).toContain('此请求已失效');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
   });
 });
