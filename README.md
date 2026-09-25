@@ -29,7 +29,7 @@
 
 ## 开发
 
-工具链：pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown；客户端包（`@botharness/client`）使用 React（DSH 客户端契约）+ blobatar。
+工具链：pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown；客户端包（`@botharness/ui`）使用 React（DSH 客户端契约）+ blobatar。
 
 ```bash
 pnpm install
@@ -51,7 +51,7 @@ pnpm docs:dev      # 不用 portless 的直连方式 → http://localhost:4321
 
 ```text
 packages/core        @botharness/core   # PersonaBot registry / 状态（记忆在 M2）
-packages/client      @botharness/client # React：roster / 详情 / 委派入口（M3）
+packages/client      @botharness/ui # React：roster / 详情 / 委派入口（M3）
 packages/im          @botharness/im     # IM 适配器（M5）
 packages/deepseekbot deepseekbot        # bundle + 应用（后续）
 ```

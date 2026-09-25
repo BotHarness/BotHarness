@@ -103,11 +103,16 @@ afterAll(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
-describe('@botharness/client browser bundle', () => {
+describe('@botharness/ui browser bundle', () => {
   it('self-registers with the lazy-CJS module-loader contract', () => {
     const loaded = loadedEntry();
-    expect(loaded.id).toBe('@botharness/client');
+    expect(loaded.id).toBe('@botharness/ui');
     expect(loaded.factory).toBeTypeOf('function');
+  });
+
+  it('uses a package ID that the RC2 Client Modules HMR path can resolve', () => {
+    // RC2 stripClientSuffix treats a trailing /client as an export subpath.
+    expect(loadedEntry().id).not.toMatch(/\/client$/);
   });
 
   it('externalizes the shell baseline and inlines everything else', () => {

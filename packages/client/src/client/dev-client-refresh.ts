@@ -18,7 +18,7 @@ export function mountDevClientRefresh(): () => void {
         'type' in frame &&
         frame.type === 'rebuilt' &&
         'id' in frame &&
-        frame.id === '@botharness/client'
+        frame.id === '@botharness/ui'
       ) {
         window.location.reload();
       }

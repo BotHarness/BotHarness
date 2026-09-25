@@ -56,7 +56,7 @@ export const name = 'botharness-computer-client';
 
 /**
  * The Channel sidebar registry is a client-side service provided by
- * `@botharness/client`; the entry types are duplicated structurally so this
+ * `@botharness/ui`; the entry types are duplicated structurally so this
  * bundle stays self-contained (importing that package at runtime would inline
  * its client code into ours).
  */
