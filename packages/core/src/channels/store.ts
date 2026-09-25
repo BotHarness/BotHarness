@@ -78,12 +78,22 @@ export interface ChannelMessageQueryPage {
   nextCursor?: string;
 }
 
-/** Query the full ordered history before applying the bounded page. */
-export function queryChannelMessages(
+export interface PreparedChannelMessageQuery {
+  text?: string;
+  authorBotId?: string;
+  authorKind?: 'human' | 'bot' | 'bridged';
+  from?: number;
+  to?: number;
+  beforeId?: string;
+  filter: string;
+  limit: number;
+}
+
+/** Normalize filters and bind an opaque cursor to its exact query. */
+export function prepareChannelMessageQuery(
   channelId: string,
-  messages: readonly ChannelMessage[],
   options: ChannelMessageQueryOptions = {},
-): ChannelMessageQueryPage {
+): PreparedChannelMessageQuery {
   if (
     options.authorBotId !== undefined &&
     options.authorKind !== undefined &&
@@ -119,7 +129,7 @@ export function queryChannelMessages(
     )
     .digest('hex')
     .slice(0, 16);
-  let end = messages.length;
+  let beforeId: string | undefined;
   if (options.cursor !== undefined) {
     try {
       const decoded: unknown = JSON.parse(
@@ -134,45 +144,68 @@ export function queryChannelMessages(
         decoded.filter !== filter
       )
         throw new Error('invalid');
-      end = messages.findIndex((message) => message.id === decoded.beforeId);
-      if (end < 0) throw new Error('expired');
+      beforeId = decoded.beforeId;
     } catch {
       throw new Error('channel_read: invalid cursor');
     }
   }
-  const limit = Math.max(
-    1,
-    Math.min(Math.floor(options.limit ?? DEFAULT_MESSAGE_PAGE), MAX_MESSAGE_PAGE),
-  );
+  return {
+    ...(text === undefined ? {} : { text }),
+    ...(options.authorBotId === undefined ? {} : { authorBotId: options.authorBotId }),
+    ...(options.authorKind === undefined ? {} : { authorKind: options.authorKind }),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    ...(beforeId === undefined ? {} : { beforeId }),
+    filter,
+    limit: Math.max(
+      1,
+      Math.min(Math.floor(options.limit ?? DEFAULT_MESSAGE_PAGE), MAX_MESSAGE_PAGE),
+    ),
+  };
+}
+
+/** Query the full ordered history before applying the bounded page. */
+export function queryChannelMessages(
+  channelId: string,
+  messages: readonly ChannelMessage[],
+  options: ChannelMessageQueryOptions = {},
+): ChannelMessageQueryPage {
+  const query = prepareChannelMessageQuery(channelId, options);
+  const end =
+    query.beforeId === undefined
+      ? messages.length
+      : messages.findIndex((message) => message.id === query.beforeId);
+  if (end < 0) throw new Error('channel_read: invalid cursor');
   const matching = messages
     .slice(0, end)
     .reverse()
     .filter((message) => {
-      if (text !== undefined && !message.body.toLowerCase().includes(text)) return false;
+      if (query.text !== undefined && !message.body.toLowerCase().includes(query.text))
+        return false;
       if (
-        options.authorBotId !== undefined &&
-        (message.author.kind !== 'bot' || message.author.slug !== options.authorBotId)
+        query.authorBotId !== undefined &&
+        (message.author.kind !== 'bot' || message.author.slug !== query.authorBotId)
       )
         return false;
-      if (options.authorKind !== undefined && message.author.kind !== options.authorKind)
-        return false;
+      if (query.authorKind !== undefined && message.author.kind !== query.authorKind) return false;
       const at = Date.parse(message.at);
-      if ((from !== undefined || to !== undefined) && !Number.isFinite(at)) return false;
-      if (from !== undefined && at < from) return false;
-      if (to !== undefined && at > to) return false;
+      if ((query.from !== undefined || query.to !== undefined) && !Number.isFinite(at))
+        return false;
+      if (query.from !== undefined && at < query.from) return false;
+      if (query.to !== undefined && at > query.to) return false;
       return true;
     });
-  const page = matching.slice(0, limit + 1);
-  const selected = page.slice(0, limit);
+  const page = matching.slice(0, query.limit + 1);
+  const selected = page.slice(0, query.limit);
   const last = selected.at(-1);
   return {
     messages: selected,
-    ...(page.length <= limit || last === undefined
+    ...(page.length <= query.limit || last === undefined
       ? {}
       : {
-          nextCursor: Buffer.from(JSON.stringify({ beforeId: last.id, filter })).toString(
-            'base64url',
-          ),
+          nextCursor: Buffer.from(
+            JSON.stringify({ beforeId: last.id, filter: query.filter }),
+          ).toString('base64url'),
         }),
   };
 }
