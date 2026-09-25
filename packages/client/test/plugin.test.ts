@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { apply, Config, name } from '../src/index.js';
 
-describe('@botharness/client host half', () => {
+describe('@botharness/ui host half', () => {
   it('exposes the plugin identity', () => {
     expect(name).toBe('botharness-client');
     expect(apply).toBeTypeOf('function');

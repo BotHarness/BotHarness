@@ -441,7 +441,7 @@ window.__ModuleLoader__.load({
 		* shared settings scope, use the Host's directory picker, and drive the
 		* export/import endpoints with an explicit authorization step. Copy stays in
 		* this bundle's own words; the section's row classes come from
-		* `@botharness/client`, which is always mounted when this page renders.
+		* `@botharness/ui`, which is always mounted when this page renders.
 		* @module @botharness/computer/settings-rows
 		*/
 		/** Thrown when the Host rolls the export directory back instead of storing it. */
@@ -1091,7 +1091,7 @@ window.__ModuleLoader__.load({
 		const name = "botharness-computer-client";
 		/**
 		* The Channel sidebar registry is a client-side service provided by
-		* `@botharness/client`; the entry types are duplicated structurally so this
+		* `@botharness/ui`; the entry types are duplicated structurally so this
 		* bundle stays self-contained (importing that package at runtime would inline
 		* its client code into ours).
 		*/

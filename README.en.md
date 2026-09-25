@@ -29,7 +29,7 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 
 ## Development
 
-Toolchain: pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown; the client package (`@botharness/client`) uses React (DSH client contract) + blobatar.
+Toolchain: pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown; the client package (`@botharness/ui`) uses React (DSH client contract) + blobatar.
 
 ```bash
 pnpm install
@@ -51,7 +51,7 @@ Repository layout (monorepo):
 
 ```text
 packages/core        @botharness/core   # PersonaBot registry / state (memory lands in M2)
-packages/client      @botharness/client # React: roster / detail / delegation entry (M3)
+packages/client      @botharness/ui # React: roster / detail / delegation entry (M3)
 packages/im          @botharness/im     # IM adapter (M5)
 packages/deepseekbot deepseekbot        # bundle + app (later)
 ```

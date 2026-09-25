@@ -2,4 +2,4 @@
     - id: botharness-core
       name: '@botharness/core'
     - id: botharness-client
-      name: '@botharness/client'
+      name: '@botharness/ui'

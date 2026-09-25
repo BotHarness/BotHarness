@@ -1,4 +1,4 @@
-# Third-party notices — @botharness/client
+# Third-party notices — @botharness/ui
 
 Third-party works distributed inside this package (inlined into `lib/client.js` or vendored as source). Each entry keeps the notice required by its license.
 
