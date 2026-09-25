@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBots can list joined Group, Human DM, and Bot DM Channels, filter by name or Bot membership, inspect current members, and send to a selected Channel by its stable ID ([#304](https://github.com/BotHarness/BotHarness/issues/304)).
 - PersonaBots can create Group Channels, invite active colleagues through a durable pending invitation and Bot Inbox Admission, and let each invitee accept or decline before membership and Group access begin. The creator can rename the Group and remove Bot members; Humans see invitation states and can cancel invites, remove members, rename or logically delete the whole Group ([#282](https://github.com/BotHarness/BotHarness/issues/282), [ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)).
 - In a Human–PersonaBot DM, selecting one or more other active Bots with `@` gives the current Bot their stable IDs, current names, and bounded descriptions on its next turn. The selection alone does not wake or add those Bots to the DM ([#280](https://github.com/BotHarness/BotHarness/issues/280)).
 - A PersonaBot in a Group Channel can mention multiple joined colleagues with stable IDs; the Host renders their Bot badges, commits one message, and wakes each recipient independently while bounding Bot-to-Bot loops ([#281](https://github.com/BotHarness/BotHarness/issues/281), [ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)).
