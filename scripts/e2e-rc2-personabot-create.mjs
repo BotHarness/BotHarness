@@ -3,10 +3,11 @@
  *
  * Builds and links this checkout, creates a native Workspace and a PersonaBot
  * through the authenticated API Gateway, restarts its own isolated Host, then
- * reads the PersonaBot and Git Memory Repository again. No model call is made.
+ * reads the PersonaBot and Git Memory Repository again. With --with-dm,
+ * it also checks a real API Gateway DM after restart.
  *
  * Run with a working Node/pnpm toolchain:
- *   node scripts/e2e-rc2-personabot-create.mjs
+ *   node scripts/e2e-rc2-personabot-create.mjs [--with-dm]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -17,6 +18,7 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const helper = join(root, 'scripts', 'dev-instance.mjs');
+const withDm = process.argv.includes('--with-dm');
 const home = mkdtempSync(join(tmpdir(), 'bh-rc2-web-'));
 const workspacePath = join(home, 'workspace');
 const expectedVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
@@ -154,6 +156,22 @@ try {
     throw new Error('Git Memory Repository has no accepted HEAD');
   }
 
+  const dmBody = `RC2 Web DM restart check ${Date.now()}`;
+  let sentMessageId;
+  if (withDm) {
+    const sent = await rpc(port, 'botharness', 'channelSend', { channelId, body: dmBody });
+    sentMessageId = sent.message?.id;
+    if (typeof sentMessageId !== 'string') throw new Error('DM send returned no message id');
+    const history = await rpc(port, 'botharness', 'channelTimeline', { channelId });
+    if (
+      history.page.entries.filter(
+        (entry) => entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
+      ).length !== 1
+    ) {
+      throw new Error('DM send did not commit exactly one Human message');
+    }
+  }
+
   stop(pid);
   await waitForStop(port);
   pid = undefined;
@@ -169,6 +187,16 @@ try {
     throw new Error('PersonaBot identity or Workspace changed after restart');
   }
   if (after.snapshot?.head !== head) throw new Error('Memory HEAD changed after restart');
+  if (withDm) {
+    const history = await rpc(port, 'botharness', 'channelTimeline', { channelId });
+    if (
+      history.page.entries.filter(
+        (entry) => entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
+      ).length !== 1
+    ) {
+      throw new Error('Committed DM Human message missing or duplicated after restart');
+    }
+  }
   if (typeof read.bot.memoryDir !== 'string') throw new Error('Memory Repository path unavailable');
   const gitHead = execFileSync('git', ['-C', read.bot.memoryDir, 'rev-parse', 'HEAD'], {
     encoding: 'utf8',
@@ -183,6 +211,7 @@ try {
       personaBotCreated: true,
       persistedAfterRestart: true,
       gitMemoryReady: true,
+      ...(withDm ? { dmHistoryAfterRestart: true } : {}),
     }),
   );
 } finally {
