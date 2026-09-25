@@ -736,16 +736,18 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
       }
-      if (mentions.length > 0 && channel.type !== 'group')
-        return invalidInput('Group mentions require a Group Channel');
+      if (mentions.length > 0 && channel.type === 'dm' && channel.botSlug === undefined)
+        return invalidInput('Bot-to-Bot DMs are read-only for Human');
       for (const mention of mentions) {
         const target = deps.registry.get(mention.botSlug);
         if (
-          !channel.members.includes(mention.botSlug) ||
+          (channel.type === 'group'
+            ? !channel.members.includes(mention.botSlug)
+            : mention.botSlug === channel.botSlug) ||
           target === undefined ||
           target.paused === true
         )
-          return invalidInput('Mentioned PersonaBot is no longer an active Channel member');
+          return invalidInput('Mentioned PersonaBot is no longer an eligible active Bot');
       }
       const message: ChannelMessage = {
         id: requestedMessageId ?? randomUUID(),

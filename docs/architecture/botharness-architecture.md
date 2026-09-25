@@ -183,7 +183,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 Bot-to-Bot DM 是两个 PersonaBot 参与的真实 `dm` Channel。Bot A 通过可信 Session ownership 以自己的 Actor 身份向 B 发送消息；Messaging 在同一权威中提交 Source Event、Channel placement 与 B 的 Inbox Admission，Bot-hop guard 限制循环，A 不接收自己的输出。Human 可以只读打开此类默认不在 roster 显示的 Channel，但不会成为第三位成员。A 每次向非 Human DM Channel 发出已提交消息时，其 Human–A DM 都会出现居中的动作 chip，指向这次发信与可查看的对话，而不复制正文。
 
-Human–A DM 里选中 `@B` 只是向 A 的 prompt 提供 B 的稳定 ID 与有限简介，不唤醒 B 或改变 DM 成员；只有 A 后续显式发送 Bot-to-Bot DM 消息才触发 B 的 Inbox。Group Channel 中 Human 或已加入的 Bot 可 `@` 已加入的 Bot；一条消息仍只有一个 Source Event，每位目标 Bot 独立获得 Inbox Admission。Bot 也能创建 Group Channel、邀请其他 Bot；邀请在 B 接受前不产生 membership。Bot 创建者可管理 Bot 成员与群设置，Human 保留覆盖权与整个 Channel 的删除权。首个 Group Human `@` 切片是 #254，后续协作切片由 #278 组织。
+Human–A DM 里选中 `@B` 会在 Human 消息中持久保存 B 的稳定 ID 与文字范围；Host 在 A 的 Orchestrator 回合组装输入时重新读取 B 的当前名称与最多 400 字的简介，并把它们作为有界联系人资料提供给 A。重名靠 ID 区分，改名采用当前资料，已归档或失效的目标在发送时被拒绝；手打或粘贴的 `@名字` 只是普通文字。此操作不唤醒 B 或改变 DM 成员；只有 A 后续显式发送 Bot-to-Bot DM 消息才触发 B 的 Inbox。Group Channel 中 Human 或已加入的 Bot 可 `@` 已加入的 Bot；一条消息仍只有一个 Source Event，每位目标 Bot 独立获得 Inbox Admission。Bot 也能创建 Group Channel、邀请其他 Bot；邀请在 B 接受前不产生 membership。Bot 创建者可管理 Bot 成员与群设置，Human 保留覆盖权与整个 Channel 的删除权。首个 Group Human `@` 切片是 #254，后续协作切片由 #278 组织。
 
 ## 5 · Orchestrator 与 Assignment control plane
 

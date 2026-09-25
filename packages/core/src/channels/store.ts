@@ -101,7 +101,7 @@ function isMissing(error: unknown): boolean {
 
 export class ChannelMentionTargetError extends Error {
   constructor() {
-    super('Mentioned PersonaBot is no longer in this Group Channel');
+    super('Mentioned PersonaBot is not eligible for this Channel');
     this.name = 'ChannelMentionTargetError';
   }
 }
