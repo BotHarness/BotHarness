@@ -97,6 +97,7 @@ export interface BridgeMethods {
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  createFromGit(payload: unknown): Promise<BridgeResult<{ bot: PersonaBotDetail }>>;
   update(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   pause(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   resume(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -314,6 +315,30 @@ function createFailure(
           message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
         },
       };
+    case 'invalid-git-url':
+      return {
+        ok: false,
+        error: {
+          code: 'invalid-git-url',
+          message: 'Enter an HTTPS or SSH Git URL without credentials.',
+        },
+      };
+    case 'git-clone-failed':
+      return {
+        ok: false,
+        error: {
+          code: 'git-clone-failed',
+          message: 'Git clone failed. Check the URL and Host Git credentials.',
+        },
+      };
+    case 'git-clone-timeout':
+      return {
+        ok: false,
+        error: {
+          code: 'git-clone-timeout',
+          message: 'Git clone timed out. Retry or check Host network access.',
+        },
+      };
     case 'memory-unavailable':
       return {
         ok: false,
@@ -470,6 +495,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(preset.value === undefined ? {} : { preset: preset.value }),
         ...(workspaces.value === undefined ? {} : { workspaces: workspaces.value }),
         ...(avatarSeed.value === undefined ? {} : { avatar: avatarSeed.value }),
+      });
+      if (!result.ok) return createFailure(slug, result);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    async createFromGit(payload) {
+      const source = asObject(payload);
+      const displayName = source['displayName'];
+      const gitUrl = source['gitUrl'];
+      if (typeof displayName !== 'string' || displayName.trim().length === 0) {
+        return invalidInput('displayName is required');
+      }
+      if (typeof gitUrl !== 'string' || gitUrl.trim().length === 0) {
+        return invalidInput('gitUrl is required');
+      }
+      const roles = parseRoles(source);
+      const description = parseOptional(source, 'description');
+      if (!roles.ok || !description.ok) return invalidInput('invalid create payload');
+      const slug = createBotId();
+      const result = await deps.registry.createFromGit({
+        slug,
+        displayName,
+        gitUrl,
+        ...(roles.value === undefined ? {} : { roles: roles.value }),
+        ...(description.value === undefined ? {} : { description: description.value }),
       });
       if (!result.ok) return createFailure(slug, result);
       return { ok: true, value: detailOf(result.record) };
