@@ -416,7 +416,12 @@ function ConversationView({
     selection?.kind === 'bot'
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
-  const title = channel?.name ?? bot?.displayName ?? t('main.group.title');
+  const title =
+    channel?.type === 'dm'
+      ? (bot?.displayName ??
+        state.bots.find((candidate) => candidate.slug === channel.botSlug)?.displayName ??
+        channel.name)
+      : (channel?.name ?? bot?.displayName ?? t('main.group.title'));
   const botActivity = bot === undefined ? undefined : personaBotActivity(state, bot);
   const channelBots =
     channel?.type === 'group'

@@ -42,6 +42,7 @@
 
 ### Changed
 
+- PersonaBot 私聊顶部现在稳定显示 Bot 名称，即使 Channel 记录中的名称是 ID；右侧 Channel 栏不再重复显示该标题（[#263](https://github.com/BotHarness/BotHarness/issues/263)）。
 - BotHarness 本地开发现支持 DSH 0.1.7 RC2 Web Profile：Client 改动可自动刷新，Host 改动有明确的重启步骤（[#265](https://github.com/BotHarness/BotHarness/issues/265)）。
 
 - Channel 的 Bot 消息气泡改用原先 Human 的灰色底；Human 气泡则使用 DSH 主题的反色中性色，浅色主题近黑、深色主题近白，文字、引用摘要和文件附件在两种主题下均保持可读（[#255](https://github.com/BotHarness/BotHarness/issues/255)）。

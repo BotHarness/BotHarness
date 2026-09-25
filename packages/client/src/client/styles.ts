@@ -2009,19 +2009,7 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   background: var(--dsw-alias-border-l2);
 }
 .bh-channel-sidebar-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   min-height: 42px;
-  padding: 10px 44px 2px 14px;
-}
-.bh-channel-sidebar-title {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 600;
 }
 .bh-sidebar-toggle {
   position: absolute;
