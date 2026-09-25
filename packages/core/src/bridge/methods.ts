@@ -569,6 +569,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (name === undefined) return invalidInput('name is required');
       const existing = deps.channels.get(channelId);
       if (existing === undefined) return unknownChannel(channelId);
+      if (existing.type === 'dm' && existing.botSlug === undefined)
+        return invalidInput('Bot-to-Bot DMs are read-only for Human');
 
       let bot: PersonaBotDetail | undefined;
       if (existing.type === 'dm' && existing.botSlug !== undefined) {
@@ -707,6 +709,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       const channel = deps.channels.get(channelId);
       if (channel === undefined) return unknownChannel(channelId);
+      if (channel.type === 'dm' && channel.botSlug === undefined)
+        return invalidInput('Bot-to-Bot DMs are read-only for Human');
       const memorySwitchTarget = source['memorySwitchTarget'];
       if (
         memorySwitchTarget !== undefined &&

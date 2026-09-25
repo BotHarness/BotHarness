@@ -50,7 +50,11 @@ import {
   type ChannelSelection,
   type ChannelSelectionGesture,
 } from './channel-selection.js';
-import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
+import {
+  HiddenChannelsModal,
+  hiddenChannelSequence,
+  type HiddenChannelItem,
+} from './hidden-channels.js';
 import {
   useChannelDrag,
   useSectionDrag,
@@ -900,17 +904,15 @@ export function BotSidebar({
   }, [actions]);
   const shortcutFor = (channelId: string): string | undefined =>
     webChannelShortcutLabel(shortcutIds.indexOf(channelId));
-  const hiddenItems: HiddenChannelItem[] = state.roster.hidden.flatMap((channelId) => {
-    const channel = state.channels.find((candidate) => candidate.id === channelId);
-    if (channel === undefined || (channel.type === 'dm' && channel.botSlug === undefined))
-      return [];
+  const hiddenItems: HiddenChannelItem[] = hiddenChannelSequence(
+    state.channels,
+    state.roster.hidden,
+  ).map((channel) => {
     const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
-    return [
-      {
-        channel,
-        ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
-      },
-    ];
+    return {
+      channel,
+      ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
+    };
   });
   const visibleCount =
     pinnedChannels.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
@@ -2209,6 +2211,10 @@ export function BotSidebar({
           t={t}
           onRestore={(channelId) => {
             void actions.setChannelHidden(channelId, false);
+          }}
+          onOpen={(channelId) => {
+            setHiddenManagerOpen(false);
+            void actions.openChannel(channelId);
           }}
           onClose={() => {
             setHiddenManagerOpen(false);

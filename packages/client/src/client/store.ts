@@ -111,6 +111,8 @@ export interface ChannelMessage {
     botSlug: string;
     state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
   }[];
+  /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
+  botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
   grantRequest?: true;
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;

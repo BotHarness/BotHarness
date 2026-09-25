@@ -1,11 +1,16 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import type { MemoryService } from '../memory/service.js';
-import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import {
+  isBotDmChannel,
+  type BotMessageCausation,
+  type ChannelMessage,
+  type ChannelRecord,
+} from '../channels/channel.js';
 import { ChannelReplyTargetError } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelStore } from '../channels/store.js';
@@ -140,11 +145,19 @@ export interface OrchestratorChannelAccess {
     signal?: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
   requestGrant(reason: string): Promise<ChannelMessage>;
+  contacts(): Array<{ slug: string; displayName: string; description?: string }>;
+  sendToBot(input: {
+    botSlug: string;
+    body: string;
+    replyTo?: string;
+    deliveryKey?: string;
+  }): Promise<{ channelId: string; message: ChannelMessage }>;
   send(input: {
     body: string;
     channelId?: string;
     replyTo?: string;
     attachments?: ChannelAttachmentRef[];
+    deliveryKey?: string;
   }): Promise<ChannelMessage>;
 }
 
@@ -187,6 +200,8 @@ export interface BotRuntime {
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
   /** Schedule each committed Group mention independently; content and Admissions already exist. */
   admitGroupMessage(channelId: string, messageId: string): void;
+  /** Schedule the one recipient of a committed Bot-to-Bot DM message. */
+  admitBotDmMessage(channelId: string, messageId: string): void;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
   /** Resolves when queued turns and detached Assignment runs have drained. */
@@ -467,7 +482,7 @@ class BotRuntimeImplementation implements BotRuntime {
     // Messaging operation there already fails closed, so skip the sweep.
     if (options.database.mode === 'ready') {
       this.#recoverInterruptedAttempts();
-      this.#recoverPendingGroupMentions();
+      this.#recoverPendingChannelAdmissions();
     }
   }
 
@@ -495,18 +510,34 @@ class BotRuntimeImplementation implements BotRuntime {
   }
 
   admitGroupMessage(channelId: string, messageId: string): void {
+    this.#admitChannelMessage(channelId, messageId, 'group-mention');
+  }
+
+  admitBotDmMessage(channelId: string, messageId: string): void {
+    this.#admitChannelMessage(channelId, messageId, 'bot-dm');
+  }
+
+  #admitChannelMessage(
+    channelId: string,
+    messageId: string,
+    reason: 'group-mention' | 'bot-dm',
+  ): void {
     if (this.#closed) return;
     const channel = this.#channels.get(channelId);
-    if (channel?.type !== 'group') return;
+    if (
+      channel === undefined ||
+      (reason === 'group-mention' ? channel.type !== 'group' : !isBotDmChannel(channel))
+    )
+      return;
     const rows = this.#database.read((database) =>
       database
         .prepare(`
-      SELECT a.source_event_id, a.bot_slug, a.attempt_state
-        FROM inbox_admissions a
-        JOIN source_events e ON e.source_event_id = a.source_event_id
-       WHERE e.channel_id = ? AND e.message_id = ? AND a.reason = 'group-mention'
-    `)
-        .all(channelId, messageId),
+        SELECT a.source_event_id, a.bot_slug, a.attempt_state
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE e.channel_id = ? AND e.message_id = ? AND a.reason = ?
+      `)
+        .all(channelId, messageId, reason),
     ) as unknown as Array<{
       source_event_id: string;
       bot_slug: string;
@@ -517,7 +548,10 @@ class BotRuntimeImplementation implements BotRuntime {
       const key = `${row.source_event_id}:${row.bot_slug}`;
       if (this.#scheduledAdmissions.has(key)) continue;
       this.#scheduledAdmissions.add(key);
-      if (this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId))
+      if (
+        reason === 'group-mention' &&
+        this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId)
+      )
         continue;
       const settled = this.#enqueue(row.bot_slug, () =>
         this.#runGroupTurn(row.source_event_id, row.bot_slug, channelId, messageId),
@@ -639,20 +673,24 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     this.#channels.admissionChanged?.(channelId, messageId);
   }
 
-  #recoverPendingGroupMentions(): void {
+  #recoverPendingChannelAdmissions(): void {
     const rows = this.#database.read((database) =>
       database
         .prepare(`
-      SELECT DISTINCT e.channel_id, e.message_id
-        FROM inbox_admissions a
-        JOIN source_events e ON e.source_event_id = a.source_event_id
-       WHERE a.reason = 'group-mention'
-         AND a.attempt_state IN ('pending', 'retryable')
-         AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
-    `)
+        SELECT DISTINCT e.channel_id, e.message_id, a.reason
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.reason IN ('group-mention', 'bot-dm')
+           AND a.attempt_state IN ('pending', 'retryable')
+           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+      `)
         .all(),
-    ) as unknown as Array<{ channel_id: string; message_id: string }>;
-    for (const row of rows) this.admitGroupMessage(row.channel_id, row.message_id);
+    ) as unknown as Array<{
+      channel_id: string;
+      message_id: string;
+      reason: 'group-mention' | 'bot-dm';
+    }>;
+    for (const row of rows) this.#admitChannelMessage(row.channel_id, row.message_id, row.reason);
   }
 
   async #runGroupTurn(
@@ -697,10 +735,7 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
         orchestrator,
         sourceEventId,
         channelId,
-        sessionMentionText(
-          source.body,
-          this.#channels.message(channelId, messageId)?.mentions ?? [],
-        ),
+        this.#inboundChannelMessage(channelId, messageId, source.body),
         collected.inbox,
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
@@ -744,6 +779,14 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     } finally {
       this.#channels.admissionChanged?.(channelId, messageId);
     }
+  }
+
+  #inboundChannelMessage(channelId: string, messageId: string, body: string): string {
+    const channel = this.#channels.get(channelId);
+    const message = this.#channels.message(channelId, messageId);
+    if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
+      return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
+    return sessionMentionText(body, message?.mentions ?? []);
   }
 
   #markAdmissionSideEffect(sourceEventId: string, botSlug: string): void {
@@ -931,7 +974,13 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
         message: body,
         inbox,
         inboundChannelId: channelId,
-        channels: this.#channelAccess(bot.slug, channelId, markSideEffect),
+        channels: this.#channelAccess(
+          bot.slug,
+          channelId,
+          sourceEventId,
+          orchestrator.sessionId,
+          markSideEffect,
+        ),
         memory: {
           continueFromCommit: (sha, branch) => {
             if (this.#memory === undefined) throw new Error('Memory is unavailable');
@@ -983,7 +1032,17 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       ...details,
       ...(input.context === undefined ? {} : { context: input.context }),
     };
-    const result = await this.#channels.appendMessage(input.channelId, {
+    const original = this.#channels.get(input.channelId);
+    const target =
+      original !== undefined && isBotDmChannel(original)
+        ? this.#channels.getOrCreateDm(
+            input.botSlug,
+            this.#registry.get(input.botSlug)?.displayName ?? input.botSlug,
+          )
+        : original;
+    if (target === undefined)
+      throw new Error('Could not publish Session failure: Channel is missing');
+    const result = await this.#channels.appendMessage(target.id, {
       id: `session-failure-${randomUUID()}`,
       at: this.#now().toISOString(),
       author: { kind: 'bot', slug: input.botSlug },
@@ -1188,11 +1247,55 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
   #channelAccess(
     botSlug: string,
     defaultChannelId: string,
+    sourceEventId: string,
+    sessionId: string,
     beforeSend: () => void = () => undefined,
   ): OrchestratorChannelAccess {
     const resolve = (requested?: string): ChannelRecord =>
       this.#requireMembership(botSlug, requested ?? defaultChannelId);
     return {
+      contacts: () =>
+        this.#registry
+          .list()
+          .filter((candidate) => candidate.slug !== botSlug && candidate.paused !== true)
+          .map((candidate) => ({
+            slug: candidate.slug,
+            displayName: candidate.displayName,
+            ...(candidate.description === undefined
+              ? {}
+              : { description: candidate.description.slice(0, 400) }),
+          })),
+      sendToBot: async (input) => {
+        const sender = this.#registry.get(botSlug);
+        const target = this.#registry.get(input.botSlug);
+        if (
+          sender === undefined ||
+          sender.paused === true ||
+          target === undefined ||
+          target.paused === true ||
+          target.slug === botSlug
+        )
+          throw new Error('Bot DM recipient must be another active PersonaBot');
+        if (!input.body.trim()) throw new Error('Bot DM message requires a body');
+        const dm = this.#channels.getOrCreateBotDm(
+          botSlug,
+          target.slug,
+          `${sender.displayName} · ${target.displayName}`,
+        );
+        if (dm === undefined) throw new Error('Bot DM is unavailable');
+        return this.#sendBotDm({
+          botSlug,
+          recipientBotSlug: target.slug,
+          channel: dm,
+          sourceEventId,
+          sessionId,
+          beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+          ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
+          body: input.body,
+          replyTo: input.replyTo,
+          deliveryKey: input.deliveryKey,
+        });
+      },
       read: (input = {}) => {
         const channel = resolve(input.channelId);
         return this.#channels
@@ -1278,6 +1381,24 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
       },
       send: async (input) => {
         const channel = resolve(input.channelId);
+        if (isBotDmChannel(channel)) {
+          const recipientBotSlug = channel.members.find((slug) => slug !== botSlug);
+          if (recipientBotSlug === undefined) throw new Error('Bot DM has no recipient');
+          const sent = await this.#sendBotDm({
+            botSlug,
+            recipientBotSlug,
+            channel,
+            sourceEventId,
+            sessionId,
+            beforeSend: input.deliveryKey === undefined ? beforeSend : () => undefined,
+            ...(input.deliveryKey === undefined ? {} : { afterSend: beforeSend }),
+            body: input.body,
+            replyTo: input.replyTo,
+            attachments: input.attachments,
+            deliveryKey: input.deliveryKey,
+          });
+          return sent.message;
+        }
         const body = input.body;
         if (!body.trim() && !input.attachments?.length)
           throw new Error('Channel message requires a body or attachment');
@@ -1301,9 +1422,87 @@ Respond in that Group Channel using channel_send with channel_id ${channelId}.`,
     };
   }
 
+  async #sendBotDm(input: {
+    botSlug: string;
+    recipientBotSlug: string;
+    channel: ChannelRecord;
+    sourceEventId: string;
+    sessionId: string;
+    beforeSend: () => void;
+    afterSend?: () => void;
+    body: string;
+    replyTo?: string | undefined;
+    attachments?: ChannelAttachmentRef[] | undefined;
+    deliveryKey?: string | undefined;
+  }): Promise<{ channelId: string; message: ChannelMessage }> {
+    const { botSlug, recipientBotSlug, channel } = input;
+    if (
+      !isBotDmChannel(channel) ||
+      !this.#isMember(botSlug, channel) ||
+      !channel.members.includes(recipientBotSlug) ||
+      recipientBotSlug === botSlug
+    )
+      throw new Error('Bot DM sender and recipient must be current members');
+    const recipient = this.#registry.get(recipientBotSlug);
+    if (recipient === undefined || recipient.paused === true)
+      throw new Error('Bot DM recipient is no longer active');
+    if (!input.body.trim() && !input.attachments?.length)
+      throw new Error('Bot DM message requires a body or attachment');
+    this.#channels.assertAttachmentRefs(input.attachments ?? []);
+    if (input.replyTo !== undefined && !this.#channels.hasMessage(channel.id, input.replyTo))
+      throw new ChannelReplyTargetError();
+    const sender = this.#registry.get(botSlug);
+    if (sender === undefined || sender.paused === true)
+      throw new Error('Bot DM sender is no longer active');
+    if (this.#channels.getOrCreateDm(botSlug, sender.displayName) === undefined)
+      throw new Error('Sender Human DM is unavailable');
+    const parent = this.#database.read((database) =>
+      database
+        .prepare('SELECT channel_id, message_id FROM source_events WHERE source_event_id = ?')
+        .get(input.sourceEventId),
+    ) as { channel_id: string | null; message_id: string | null } | undefined;
+    if (parent === undefined) throw new Error('Bot DM send has no trusted Source Event');
+    const parentMessage =
+      parent.channel_id !== null && parent.message_id !== null
+        ? this.#channels.message(parent.channel_id, parent.message_id)
+        : undefined;
+    const prior: BotMessageCausation | undefined = parentMessage?.botCausation;
+    const botCausation: BotMessageCausation = {
+      rootSourceEventId: prior?.rootSourceEventId ?? input.sourceEventId,
+      parentSourceEventId: input.sourceEventId,
+      hop: (prior?.hop ?? 0) + 1,
+    };
+    const messageId =
+      input.deliveryKey === undefined
+        ? this.#createMessageId()
+        : 'bot-' +
+          createHash('sha256')
+            .update(input.sessionId)
+            .update(Uint8Array.of(0))
+            .update(input.deliveryKey)
+            .digest('hex');
+    const message: ChannelMessage = {
+      id: messageId,
+      at: this.#now().toISOString(),
+      author: { kind: 'bot', slug: botSlug },
+      body: input.body,
+      botCausation,
+      ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
+      ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
+    };
+    input.beforeSend();
+    const result = await this.#channels.appendMessageOnce(channel.id, message);
+    if (result.status === 'missing') throw new Error(`Bot DM disappeared: ${channel.id}`);
+    if (result.status === 'conflict') throw new Error('Bot DM delivery key has different content');
+    input.afterSend?.();
+    this.admitBotDmMessage(channel.id, result.message.id);
+    return { channelId: channel.id, message: result.message };
+  }
+
   #isMember(botSlug: string, channel: ChannelRecord): boolean {
     return (
-      channel.members.includes(botSlug) && (channel.type !== 'dm' || channel.botSlug === botSlug)
+      channel.members.includes(botSlug) &&
+      (channel.type !== 'dm' || channel.botSlug === undefined || channel.botSlug === botSlug)
     );
   }
 

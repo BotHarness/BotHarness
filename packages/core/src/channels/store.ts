@@ -7,6 +7,7 @@ import { ChannelAttachmentError, type AttachmentStore } from '../attachments/sto
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
+  botDmChannelId,
   dmChannelId,
   groupChannelIdBase,
   isChannelMessage,
@@ -76,6 +77,11 @@ export interface ChannelStore {
   /** Durable mark set for a profile-scoped Attachment Store sweep. */
   referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
+  getOrCreateBotDm(
+    firstBotSlug: string,
+    secondBotSlug: string,
+    name: string,
+  ): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
@@ -353,6 +359,37 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         name: name.length > 0 ? name : botSlug,
         members: [botSlug],
         botSlug,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      write(record);
+      return record;
+    },
+    getOrCreateBotDm(firstBotSlug, secondBotSlug, name) {
+      if (
+        !isValidSlug(firstBotSlug) ||
+        !isValidSlug(secondBotSlug) ||
+        firstBotSlug === secondBotSlug
+      )
+        return undefined;
+      const id = botDmChannelId(firstBotSlug, secondBotSlug);
+      const members = [firstBotSlug, secondBotSlug].sort();
+      const existing = read(id);
+      if (existing !== undefined) {
+        if (
+          existing.type !== 'dm' ||
+          existing.botSlug !== undefined ||
+          JSON.stringify(existing.members) !== JSON.stringify(members)
+        )
+          throw new Error(`Bot DM identity collision: ${id}`);
+        return existing;
+      }
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'dm',
+        name: name.trim() || members.join(' · '),
+        members,
         createdAt: timestamp,
         updatedAt: timestamp,
       };
