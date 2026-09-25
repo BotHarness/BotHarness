@@ -1827,7 +1827,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-inline-mention-sent {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 3px;
   vertical-align: middle;
   border-radius: 6px;
   padding: 2px 8px;
@@ -1858,29 +1858,21 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   background: color-mix(in srgb, currentColor 24%, transparent);
   box-shadow: 0 0 0 1px color-mix(in srgb, currentColor 24%, transparent);
 }
-.bh-composer-mention-mirror {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  box-sizing: border-box;
-  overflow: hidden;
-  padding: 7px 8px 5px;
-  color: var(--dsw-alias-label-primary);
-  font: inherit;
-  line-height: 22px;
+.bh-composer-rich-input {
   white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  cursor: text;
+}
+.bh-composer-rich-input:empty::before {
+  content: attr(data-placeholder);
+  color: var(--dsw-alias-label-dimmed);
   pointer-events: none;
 }
-.bh-composer-input-mirrored {
-  position: relative;
-  color: transparent;
-  caret-color: var(--dsw-alias-label-primary);
+.bh-composer-rich-input[contenteditable='false'] {
+  color: var(--dsw-alias-label-dimmed);
+  cursor: default;
 }
-.bh-composer-input-mirrored::selection {
-  background: var(--dsw-alias-interactive-bg-active);
-  color: transparent;
+.bh-composer-inline-mention {
+  user-select: all;
 }
 .bh-mention-deliveries {
   display: flex;

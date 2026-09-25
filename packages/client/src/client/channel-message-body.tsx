@@ -385,7 +385,7 @@ export function ChannelMessageBody({
                     t={t}
                   />
                 </span>
-                <span>{run.text}</span>
+                <span>{mention.label}</span>
               </>
             );
             if (actions === undefined)

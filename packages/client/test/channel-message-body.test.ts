@@ -67,8 +67,8 @@ describe('Channel message body', () => {
     expect(markup).toContain('data-bot-id="bea" aria-label="打开与 Bea 的私聊"');
     expect(markup).toContain('src="/avatars/ada.png"');
     expect(markup).toContain('class="bh-inline-mention-avatar" aria-hidden="true"');
-    expect(markup).toContain('@Ada</span></button>');
-    expect(markup).toContain('@Bea</span></button>');
+    expect(markup).toContain('>Ada</span></button>');
+    expect(markup).toContain('>Bea</span></button>');
     expect(markup).not.toContain('bh-composer-selected-mentions');
   });
 

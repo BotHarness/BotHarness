@@ -61,9 +61,9 @@ describe('Channel composer', () => {
         onSubmit: () => undefined,
       }),
     );
-    expect(markup).toContain('bh-composer-mention-mirror');
-    expect(markup).toContain('class="bh-inline-mention" data-bot-id="ada">@Ada</span>');
-    expect(markup).toContain('bh-composer-input-mirrored');
+    expect(markup).toContain('class="bh-composer-input bh-composer-rich-input"');
+    expect(markup).toContain('role="textbox"');
+    expect(markup).not.toContain('bh-composer-mention-mirror');
     expect(markup).not.toContain('bh-composer-selected-mentions');
   });
 
