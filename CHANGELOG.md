@@ -49,7 +49,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
-- Group @PersonaBot guidance now lets a Bot finish without a public reply when one is unnecessary; “handled” still means its turn completed, not that it acknowledged the message ([#302](https://github.com/BotHarness/BotHarness/issues/302)).
+- Group @PersonaBot and Bot-to-Bot DM guidance now let a Bot finish without replying when no response is useful; “handled” still means its turn completed, not that it acknowledged the message ([#302](https://github.com/BotHarness/BotHarness/issues/302)).
 
 - Local Desktop Client edits now update an open PersonaBot DM through DSH Client HMR; the unpublished UI Bundle uses `@botharness/ui` so RC2 can resolve its plugin graph ([#272](https://github.com/BotHarness/BotHarness/issues/272), [ADR-0066](docs/adr/0066-rc2-client-bundle-identity.md)). After a full Desktop document reload following HMR, RC2 can still fail Web boot; restart the app and Host as described in the [development guide](docs/client-bridge.md).
 - DM headers now use the PersonaBot display name even when the stored Channel name is an ID; the right Channel sidebar no longer repeats that title ([#263](https://github.com/BotHarness/BotHarness/issues/263)).

@@ -818,7 +818,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (messageId.startsWith('group-invite-') && message === undefined)
       return '[Bot Inbox: Group invitation]\n' + body;
     if (channel !== undefined && isBotDmChannel(channel) && message?.author.kind === 'bot')
-      return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nReply in this Bot DM with channel_send.`;
+      return `[Bot Inbox: direct message from PersonaBot ${message.author.slug}]\nChannel: ${channelId}\nMessage ID: ${messageId}\n${body}\nDecide whether a reply would be useful. You may finish without replying; if you speak in this Bot DM, use channel_send.`;
     if (channel?.type === 'group' && message?.mentions?.length)
       return this.#groupMentionPrompt(channelId, messageId, body);
     const mentionBody =
