@@ -9,7 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- PersonaBots can list joined Group, Human DM, and Bot DM Channels, filter by name or Bot membership, inspect current members, and send to a selected Channel by its stable ID; they can also search a joined Channel's full message history by text, author, and date with cursor pagination ([#304](https://github.com/BotHarness/BotHarness/issues/304)).
+- PersonaBots can list joined Group, Human DM, and Bot DM Channels, filter by name or Bot membership, inspect current members, and send to a selected Channel by its stable ID; they can also query a joined Channel's full message history by text, author, and date, or search across joined Channels, with cursor pagination through the single `channel_read` tool ([#304](https://github.com/BotHarness/BotHarness/issues/304)).
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 
 - PersonaBots can create Group Channels, invite active colleagues through a durable pending invitation and Bot Inbox Admission, and let each invitee accept or decline before membership and Group access begin. The creator can rename the Group and remove Bot members; Humans see invitation states and can cancel invites, remove members, rename or logically delete the whole Group ([#282](https://github.com/BotHarness/BotHarness/issues/282), [ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md)).

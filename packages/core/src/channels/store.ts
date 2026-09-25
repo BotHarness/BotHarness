@@ -71,6 +71,8 @@ export interface ChannelMessageQueryOptions {
   to?: string;
   cursor?: string;
   limit?: number;
+  /** Internal joined-search order; default remains Channel commit revision. */
+  orderBy?: 'time';
 }
 
 export interface ChannelMessageQueryPage {
@@ -85,6 +87,7 @@ export interface PreparedChannelMessageQuery {
   from?: number;
   to?: number;
   beforeId?: string;
+  orderBy?: 'time';
   filter: string;
   limit: number;
 }
@@ -128,6 +131,7 @@ export function prepareChannelMessageQuery(
         authorKind: options.authorKind,
         from,
         to,
+        orderBy: options.orderBy,
       }),
     )
     .digest('hex')
@@ -159,6 +163,7 @@ export function prepareChannelMessageQuery(
     ...(from === undefined ? {} : { from }),
     ...(to === undefined ? {} : { to }),
     ...(beforeId === undefined ? {} : { beforeId }),
+    ...(options.orderBy === undefined ? {} : { orderBy: options.orderBy }),
     filter,
     limit: Math.max(
       1,
@@ -174,30 +179,36 @@ export function queryChannelMessages(
   options: ChannelMessageQueryOptions = {},
 ): ChannelMessageQueryPage {
   const query = prepareChannelMessageQuery(channelId, options);
-  const end =
+  const ordered =
+    query.orderBy === 'time'
+      ? messages
+          .filter((message) => Number.isFinite(Date.parse(message.at)))
+          .sort(
+            (left, right) =>
+              Date.parse(right.at) - Date.parse(left.at) ||
+              (right.id < left.id ? -1 : right.id > left.id ? 1 : 0),
+          )
+      : [...messages].reverse();
+  const beforeIndex =
     query.beforeId === undefined
-      ? messages.length
-      : messages.findIndex((message) => message.id === query.beforeId);
-  if (end < 0) throw new Error('channel_read: invalid cursor');
-  const matching = messages
-    .slice(0, end)
-    .reverse()
-    .filter((message) => {
-      if (query.text !== undefined && !message.body.toLowerCase().includes(query.text))
-        return false;
-      if (
-        query.authorBotId !== undefined &&
-        (message.author.kind !== 'bot' || message.author.slug !== query.authorBotId)
-      )
-        return false;
-      if (query.authorKind !== undefined && message.author.kind !== query.authorKind) return false;
-      const at = Date.parse(message.at);
-      if ((query.from !== undefined || query.to !== undefined) && !Number.isFinite(at))
-        return false;
-      if (query.from !== undefined && at < query.from) return false;
-      if (query.to !== undefined && at > query.to) return false;
-      return true;
-    });
+      ? -1
+      : ordered.findIndex((message) => message.id === query.beforeId);
+  if (query.beforeId !== undefined && beforeIndex < 0)
+    throw new Error('channel_read: invalid cursor');
+  const matching = ordered.slice(beforeIndex + 1).filter((message) => {
+    if (query.text !== undefined && !message.body.toLowerCase().includes(query.text)) return false;
+    if (
+      query.authorBotId !== undefined &&
+      (message.author.kind !== 'bot' || message.author.slug !== query.authorBotId)
+    )
+      return false;
+    if (query.authorKind !== undefined && message.author.kind !== query.authorKind) return false;
+    const at = Date.parse(message.at);
+    if ((query.from !== undefined || query.to !== undefined) && !Number.isFinite(at)) return false;
+    if (query.from !== undefined && at < query.from) return false;
+    if (query.to !== undefined && at > query.to) return false;
+    return true;
+  });
   const page = matching.slice(0, query.limit + 1);
   const selected = page.slice(0, query.limit);
   const last = selected.at(-1);

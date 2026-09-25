@@ -15,7 +15,7 @@ import {
   type ChannelMessage,
   type ChannelRecord,
 } from '../channels/channel.js';
-import { ChannelReplyTargetError } from '../channels/store.js';
+import { ChannelReplyTargetError, MAX_MESSAGE_PAGE } from '../channels/store.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelMessageQueryOptions, ChannelStore } from '../channels/store.js';
 import type { AttachmentStore } from '../attachments/store.js';
@@ -161,11 +161,15 @@ export interface ChannelListPage {
 export interface OrchestratorChannelAccess {
   list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
-  query(input?: ChannelMessageQueryOptions & { channelId?: string }): {
+  query(
+    input?: ChannelMessageQueryOptions & {
+      channelId?: string;
+      scope?: 'channel' | 'joined';
+    },
+  ): {
     messages: ChannelMessageView[];
     nextCursor?: string;
   };
-  search(input: { query: string; channelId?: string; limit?: number }): ChannelMessageView[];
   readAttachment?(input: {
     channelId?: string;
     messageId: string;
@@ -1544,41 +1548,146 @@ class BotRuntimeImplementation implements BotRuntime {
           }));
       },
       query: (input = {}) => {
-        const channel = resolve(input.channelId);
-        const page = this.#channels.queryMessages(channel.id, input);
+        if (input.scope !== undefined && input.scope !== 'channel' && input.scope !== 'joined') {
+          throw new Error('channel_read: invalid scope');
+        }
+        if (input.scope !== 'joined') {
+          const channel = resolve(input.channelId);
+          const page = this.#channels.queryMessages(channel.id, input);
+          return {
+            messages: page.messages.map((message) => ({
+              channelId: channel.id,
+              channelName: channel.name,
+              message,
+            })),
+            ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
+          };
+        }
+        if (input.channelId !== undefined) {
+          throw new Error('channel_read: channel_id cannot be combined with joined scope');
+        }
+        const text = requireNonBlank(input.text ?? '', 'Cross-Channel text query');
+        const channels = this.#channels
+          .list()
+          .filter((channel) => this.#isMember(botSlug, channel))
+          .sort((left, right) => left.id.localeCompare(right.id));
+        const filter = createHash('sha256')
+          .update(
+            JSON.stringify({
+              channelIds: channels.map((channel) => channel.id),
+              text: text.toLowerCase(),
+              authorBotId: input.authorBotId,
+              authorKind: input.authorKind,
+              from: input.from,
+              to: input.to,
+            }),
+          )
+          .digest('hex')
+          .slice(0, 16);
+        type SortKey = { at: string; channelId: string; messageId: string };
+        const descending = (left: string, right: string): number =>
+          right < left ? -1 : right > left ? 1 : 0;
+        const compare = (left: SortKey, right: SortKey): number =>
+          Date.parse(right.at) - Date.parse(left.at) ||
+          descending(left.channelId, right.channelId) ||
+          descending(left.messageId, right.messageId);
+        let after: SortKey | undefined;
+        if (input.cursor !== undefined) {
+          try {
+            const decoded: unknown = JSON.parse(
+              Buffer.from(input.cursor, 'base64url').toString('utf8'),
+            );
+            if (
+              typeof decoded !== 'object' ||
+              decoded === null ||
+              !('filter' in decoded) ||
+              decoded.filter !== filter ||
+              !('at' in decoded) ||
+              typeof decoded.at !== 'string' ||
+              !('channelId' in decoded) ||
+              typeof decoded.channelId !== 'string' ||
+              !('messageId' in decoded) ||
+              typeof decoded.messageId !== 'string'
+            )
+              throw new Error('invalid');
+            after = { at: decoded.at, channelId: decoded.channelId, messageId: decoded.messageId };
+          } catch {
+            throw new Error('channel_read: invalid cursor');
+          }
+        }
+        const {
+          cursor: _cursor,
+          scope: _scope,
+          channelId: _channelId,
+          limit: _limit,
+          ...filters
+        } = input;
+        const limit = Math.max(1, Math.min(Math.floor(input.limit ?? 20), MAX_MESSAGE_PAGE));
+        const afterTo =
+          after !== undefined && Number.isFinite(Date.parse(after.at)) ? after.at : undefined;
+        if (
+          afterTo !== undefined &&
+          filters.from !== undefined &&
+          Date.parse(filters.from) > Date.parse(afterTo)
+        )
+          return { messages: [] };
+        const found: ChannelMessageView[] = [];
+        for (const channel of channels) {
+          let cursor: string | undefined;
+          do {
+            const page = this.#channels.queryMessages(channel.id, {
+              ...filters,
+              text,
+              ...(afterTo !== undefined && filters.to === undefined ? { to: afterTo } : {}),
+              orderBy: 'time',
+              ...(cursor === undefined ? {} : { cursor }),
+              limit: MAX_MESSAGE_PAGE,
+            });
+            for (const message of page.messages) {
+              const key = { at: message.at, channelId: channel.id, messageId: message.id };
+              if (after !== undefined && compare(key, after) <= 0) continue;
+              found.push({ channelId: channel.id, channelName: channel.name, message });
+            }
+            found.sort((left, right) =>
+              compare(
+                { at: left.message.at, channelId: left.channelId, messageId: left.message.id },
+                { at: right.message.at, channelId: right.channelId, messageId: right.message.id },
+              ),
+            );
+            found.length = Math.min(found.length, limit + 1);
+            cursor = page.nextCursor;
+            const tail = page.messages.at(-1);
+            const worst = found[limit];
+            if (
+              cursor !== undefined &&
+              tail !== undefined &&
+              worst !== undefined &&
+              compare(
+                { at: tail.at, channelId: channel.id, messageId: tail.id },
+                { at: worst.message.at, channelId: worst.channelId, messageId: worst.message.id },
+              ) >= 0
+            )
+              break;
+          } while (cursor !== undefined);
+        }
+        const page = found;
+        const messages = page.slice(0, limit);
+        const last = messages.at(-1);
         return {
-          messages: page.messages.map((message) => ({
-            channelId: channel.id,
-            channelName: channel.name,
-            message,
-          })),
-          ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
+          messages,
+          ...(page.length <= limit || last === undefined
+            ? {}
+            : {
+                nextCursor: Buffer.from(
+                  JSON.stringify({
+                    at: last.message.at,
+                    channelId: last.channelId,
+                    messageId: last.message.id,
+                    filter,
+                  }),
+                ).toString('base64url'),
+              }),
         };
-      },
-      search: (input) => {
-        const query = requireNonBlank(input.query, 'Channel search query').toLowerCase();
-        const limit = Math.max(1, Math.min(input.limit ?? 20, 100));
-        const channels =
-          input.channelId === undefined
-            ? this.#channels.list().filter((channel) => this.#isMember(botSlug, channel))
-            : [resolve(input.channelId)];
-        return channels
-          .flatMap((channel) =>
-            this.#channels
-              .readMessages(channel.id, { limit: 200 })
-              .filter((message) => message.body.toLowerCase().includes(query))
-              .map((message) => ({
-                channelId: channel.id,
-                channelName: channel.name,
-                message,
-              })),
-          )
-          .sort(
-            (left, right) =>
-              right.message.at.localeCompare(left.message.at) ||
-              right.message.id.localeCompare(left.message.id),
-          )
-          .slice(0, limit);
       },
       readAttachment: async (input) => {
         const channel = resolve(input.channelId);

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { queryChannelMessages } from '../src/channels/store.js';
 import { createCore } from '../src/plugin.js';
 import type {
   AssignmentAgentRun,
@@ -24,6 +25,7 @@ describe('PersonaBot Channel history query', () => {
   it('filters old messages by author, date, and text before paginating, without leaking another Group', async () => {
     const home = createTempRoot('botharness-channel-query-');
     let groupId = '';
+    let otherId = '';
     let privateId = '';
     let checked = false;
     const core = createCore({
@@ -79,6 +81,33 @@ describe('PersonaBot Channel history query', () => {
             .messages.map((view) => view.message.id),
         ).toEqual(['old-5']);
         expect(() => run.channels.query({ channelId: privateId })).toThrow('not a member');
+        const joined = run.channels.query({ scope: 'joined', text: 'needle', limit: 2 });
+        expect(joined.messages.map((view) => view.message.id)).toEqual(['other-1', 'old-210']);
+        const joinedCursor = joined.nextCursor;
+        if (joinedCursor === undefined) throw new Error('Expected second joined history page');
+        const joinedNext = run.channels.query({
+          scope: 'joined',
+          text: 'needle',
+          cursor: joinedCursor,
+          limit: 2,
+        });
+        expect(joinedNext.messages.map((view) => view.message.id)).toEqual(['old-100', 'old-5']);
+        expect(joinedNext.nextCursor).toBeUndefined();
+        expect(
+          run.channels
+            .query({ scope: 'joined', text: 'needle', authorBotId: 'bea' })
+            .messages.map((view) => view.message.id),
+        ).toEqual(['old-100', 'old-5']);
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'other', cursor: joinedCursor }),
+        ).toThrow('invalid cursor');
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'needle', channelId: otherId }),
+        ).toThrow('cannot be combined');
+        core.channels.removeGroupMember(otherId, 'ada');
+        expect(() =>
+          run.channels.query({ scope: 'joined', text: 'needle', cursor: joinedCursor }),
+        ).toThrow('invalid cursor');
         checked = true;
       }),
     });
@@ -90,6 +119,7 @@ describe('PersonaBot Channel history query', () => {
       const group = core.channels.createGroup({ name: 'History', members: ['ada', 'bea'] });
       groupId = group.id;
       privateId = core.channels.createGroup({ name: 'Private', members: ['cee'] }).id;
+      otherId = core.channels.createGroup({ name: 'Other', members: ['ada'] }).id;
       for (let index = 0; index < 215; index++) {
         await core.channels.appendMessage(groupId, {
           id: 'old-' + index,
@@ -106,6 +136,18 @@ describe('PersonaBot Channel history query', () => {
         author: { kind: 'human' },
         body: 'CAFÉ status',
       });
+      await core.channels.appendMessage(otherId, {
+        id: 'other-1',
+        at: '2026-09-01T00:04:00.000Z',
+        author: { kind: 'human' },
+        body: 'needle from another joined Channel',
+      });
+      await core.channels.appendMessage(privateId, {
+        id: 'secret-1',
+        at: '2026-09-01T00:05:00.000Z',
+        author: { kind: 'human' },
+        body: 'needle must stay private',
+      });
       await core.channels.appendMessage(dm.id, {
         id: 'ask-history',
         at: '2026-09-02T00:00:00.000Z',
@@ -118,6 +160,130 @@ describe('PersonaBot Channel history query', () => {
         body: 'Find old messages',
       });
       await core.runtime.whenIdle();
+      expect(checked).toBe(true);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('orders file-backed query pages by instant across UTC offsets', () => {
+    const messages = [
+      {
+        id: 'utc',
+        at: '2026-09-02T00:01:00.000Z',
+        author: { kind: 'human' as const },
+        body: 'chronology',
+      },
+      {
+        id: 'offset',
+        at: '2026-09-02T00:30:00+01:00',
+        author: { kind: 'human' as const },
+        body: 'chronology',
+      },
+    ];
+    const first = queryChannelMessages('group-time', messages, { orderBy: 'time', limit: 1 });
+    expect(first.messages.map((message) => message.id)).toEqual(['utc']);
+    if (first.nextCursor === undefined) throw new Error('Expected time cursor');
+    expect(
+      queryChannelMessages('group-time', messages, {
+        orderBy: 'time',
+        limit: 1,
+        cursor: first.nextCursor,
+      }).messages.map((message) => message.id),
+    ).toEqual(['offset']);
+  });
+
+  it('sorts cross-Channel pages by message time when older commits arrive later', async () => {
+    const home = createTempRoot('botharness-joined-order-');
+    let groupId = '';
+    let checked = false;
+    let failure: unknown;
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        try {
+          const first = run.channels.query({ scope: 'joined', text: 'chronology', limit: 2 });
+          expect(first.messages.map((view) => view.message.id)).toEqual(['new-119', 'new-118']);
+          const cursor = first.nextCursor;
+          if (cursor === undefined) throw new Error('Expected joined cursor');
+          const second = run.channels.query({
+            scope: 'joined',
+            text: 'chronology',
+            cursor,
+            limit: 2,
+          });
+          expect(second.messages.map((view) => view.message.id)).toEqual(['new-117', 'new-116']);
+          const groupFirst = run.channels.query({
+            channelId: groupId,
+            text: 'chronology',
+            orderBy: 'time',
+            limit: 2,
+          });
+          expect(groupFirst.messages.map((view) => view.message.id)).toEqual([
+            'new-119',
+            'new-118',
+          ]);
+          const offsetFilter = {
+            scope: 'joined' as const,
+            text: 'chronology',
+            from: '2026-09-01T23:30:00.000Z',
+            to: '2026-09-02T00:00:00.000Z',
+            limit: 1,
+          };
+          const offsetFirst = run.channels.query(offsetFilter);
+          expect(offsetFirst.messages.map((view) => view.message.id)).toEqual(['new-0']);
+          const offsetCursor = offsetFirst.nextCursor;
+          if (offsetCursor === undefined) throw new Error('Expected offset cursor');
+          expect(
+            run.channels
+              .query({ ...offsetFilter, cursor: offsetCursor })
+              .messages.map((view) => view.message.id),
+          ).toEqual(['offset-backfill']);
+          checked = true;
+        } catch (error) {
+          failure = error;
+          throw error;
+        }
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Timeline', members: ['ada'] });
+      groupId = group.id;
+      for (const [prefix, day] of [
+        ['new', 2],
+        ['backfill', 1],
+      ] as const) {
+        for (let index = 0; index < 120; index++) {
+          await core.channels.appendMessage(groupId, {
+            id: prefix + '-' + index,
+            at: new Date(Date.UTC(2026, 8, day, 0, 0, index)).toISOString(),
+            author: { kind: 'human' },
+            body: 'chronology ' + prefix + ' ' + index,
+          });
+        }
+      }
+      await core.channels.appendMessage(groupId, {
+        id: 'offset-backfill',
+        at: '2026-09-02T00:30:00+01:00',
+        author: { kind: 'human' },
+        body: 'chronology offset backfill',
+      });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'ask-order',
+        at: '2026-09-03T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'Find history',
+      });
+      core.runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'ask-order',
+        body: 'Find history',
+      });
+      await core.runtime.whenIdle();
+      expect(failure).toBeUndefined();
       expect(checked).toBe(true);
     } finally {
       await core.runtime.close();
