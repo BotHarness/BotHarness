@@ -2942,7 +2942,10 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 }
 .bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 20px 28px; color: var(--dsw-alias-label-primary); }
 .bh-memory-commit-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
-.bh-memory-commit-header button { border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-row); background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); padding: 7px 10px; cursor: pointer; }
+.bh-memory-continue-open { margin-left: auto; }
+.bh-memory-continue-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.bh-memory-continue-form label { color: var(--dsw-alias-label-secondary); }
+.bh-memory-continue-form input { min-width: 180px; max-width: 320px; }
 .bh-memory-commit-header div { display: flex; flex-direction: column; gap: 2px; }
 .bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .bh-memory-commit-files { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }

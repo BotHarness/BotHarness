@@ -303,6 +303,7 @@ describe('DSH Bot Agent adapter', () => {
     expect(preparedWorkspaces).toEqual(['/memory/ada']);
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'memory_switch_branch',
+      'memory_continue_from_commit',
       'create_assignment',
       'request_workspace_grant',
       'list_workspace_grants',

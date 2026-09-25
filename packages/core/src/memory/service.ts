@@ -98,6 +98,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
   };
 
   return {
+    continueFromCommit: (input) => requireAcceptance().continueFromCommit(input),
     switchBranch: (input) => requireAcceptance().switchBranch(input),
     prepareTurn: (botSlug, sessionId) => requireAcceptance().prepareTurn(botSlug, sessionId),
     reconcileTurn: (input) => requireAcceptance().reconcileTurn(input),

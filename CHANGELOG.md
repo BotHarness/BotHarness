@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A Human can choose “Continue from here” on a Memory Git commit, name a new branch, and have the same Orchestrator Session create and switch to it; pending raw commits remain unaccepted and can be recovered through Human Repair ([#262](https://github.com/BotHarness/BotHarness/issues/262)).
 - A Human can select an existing accepted Memory branch in the PersonaBot DM; the same Orchestrator Session switches the repository, reports progress in the Channel, and sees the new working-tree files on its next native read ([#261](https://github.com/BotHarness/BotHarness/issues/261)).
 - PersonaBot DM Memory now shows the local Git branch and commit graph with acceptance and repair status; selecting a commit opens its changed files and diff across the Channel body, and returning preserves the chat draft and reading position ([#260](https://github.com/BotHarness/BotHarness/issues/260)).
 - PersonaBot DMs can now open accepted Memory files, edit an existing Markdown file, and inspect validated commit history and diffs; Agent file writes are accepted after a successful turn, while provisional or divergent repository state blocks further saves and an explicit Human repair archives unfinished changes before restoring the accepted head ([#115](https://github.com/BotHarness/BotHarness/issues/115)).
