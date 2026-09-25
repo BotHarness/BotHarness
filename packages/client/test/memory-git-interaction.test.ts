@@ -74,7 +74,9 @@ afterEach(async () => {
 describe('Memory Git graph sidebar', () => {
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
-      memoryGitCommitDiff: vi.fn().mockResolvedValue({ sha: SHA, files: [], diff: '' }),
+      memoryGitCommitDiff: vi
+        .fn()
+        .mockResolvedValue({ sha: SHA, files: [{ path: 'history.md', status: 'A' }], diff: '' }),
       send: vi.fn().mockResolvedValue(true),
     } as unknown as BridgeActions;
     const onClose = vi.fn();
@@ -103,6 +105,7 @@ describe('Memory Git graph sidebar', () => {
     });
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining(SHA));
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
+    expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history.md'));
     expect(onClose).toHaveBeenCalledOnce();
   });
 

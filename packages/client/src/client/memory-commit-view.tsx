@@ -28,8 +28,13 @@ export function MemoryCommitView({
     setSending(true);
     setError(undefined);
     try {
+      const path = detail?.files.find((file) => file.path.endsWith('.md'))?.path ?? 'PERSONA.md';
       const sent = await actions.send(
-        t('memory.continuePrompt', { sha, branch: JSON.stringify(branch.trim()) }),
+        t('memory.continuePrompt', {
+          sha,
+          branch: JSON.stringify(branch.trim()),
+          path: JSON.stringify(path),
+        }),
       );
       if (!sent) throw new Error(t('memory.branchRequestFailed'));
       onClose();
