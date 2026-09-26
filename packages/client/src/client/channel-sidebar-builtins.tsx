@@ -323,7 +323,11 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
                 size={26}
               />
               <span className="bh-name">{memberName(state.bots, request.requesterBotSlug)}</span>
-              <Tag tone="neutral">{invitationLabels[request.status]}</Tag>
+              <Tag tone="neutral">
+                {request.status === 'pending'
+                  ? t('members.joinPending')
+                  : invitationLabels[request.status]}
+              </Tag>
               {request.status === 'pending' ? (
                 <>
                   <button

@@ -638,7 +638,10 @@ export function ChannelMessageBody({
     key: number,
   ) => {
     const badge = <span>#{ref.label}</span>;
-    if (actions === undefined)
+    if (
+      actions === undefined ||
+      !store.getSnapshot().channels.some((channel) => channel.id === ref.channelId)
+    )
       return (
         <span key={key} className="bh-inline-mention bh-inline-mention-sent">
           {badge}

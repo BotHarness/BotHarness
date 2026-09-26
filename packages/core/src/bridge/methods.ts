@@ -671,6 +671,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const request = channel?.joinRequests?.find((item) => item.id === requestId);
       if (channel?.type !== 'group' || request === undefined)
         return invalidInput('Pending Group join request not found');
+      if (request.status !== 'pending')
+        return request.status === (accept ? 'accepted' : 'declined')
+          ? { ok: true, value: { channel } }
+          : invalidInput('Group join request is no longer pending');
       const requester = deps.registry.get(request.requesterBotSlug);
       if (
         requester === undefined ||

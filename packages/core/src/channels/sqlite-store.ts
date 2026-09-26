@@ -1039,6 +1039,18 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           publishRecordChanged();
         }
       }
+      database.transaction(
+        (db) =>
+          db
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = 'handled', handled_at = ?
+           WHERE bot_slug = ? AND reason = 'group-join-decision'
+             AND attempt_state IN ('pending', 'retryable')
+        `)
+            .run(now().toISOString(), botSlug),
+        ['bot-inbox'],
+      );
     },
     setGroupWakePolicy(channelId, botSlug, policy) {
       const channel = readRecord(channelId);

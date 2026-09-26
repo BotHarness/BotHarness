@@ -1,3 +1,5 @@
+import { DatabaseSync } from 'node:sqlite';
+
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
@@ -289,6 +291,65 @@ describe('selected #Group join request', () => {
       core.operationalDatabase.close();
     }
   });
+  it('settles an undelivered decision notice when the requester is paused', async () => {
+    const home = createTempRoot('botharness-group-join-decision-pause-');
+    let groupId = '';
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (run.message.includes('[Selected Group Channel references:'))
+          run.channels.requestGroupJoin!({ channelId: groupId });
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: [] });
+      groupId = group.id;
+      await sendSelectedGroup(core, 'ada', group, 'reference-decision-pause');
+      await core.runtime.whenIdle();
+      const request = core.channels.get(groupId)?.joinRequests?.[0];
+      expect(request?.status).toBe('pending');
+      const requester = core.registry.get('ada')!;
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      core.channels.decideGroupJoin({
+        channelId: groupId,
+        requestId: request!.id,
+        accept: false,
+        decidedBy: 'human',
+        requesterBotCreatedAt: requester.createdAt,
+        requesterDmChannelId: dm.id,
+      });
+      const database = new DatabaseSync(core.operationalDatabase.databasePath);
+      try {
+        const state = () =>
+          (
+            database
+              .prepare(`
+          SELECT attempt_state FROM inbox_admissions
+          WHERE bot_slug = 'ada' AND reason = 'group-join-decision'
+        `)
+              .get() as { attempt_state: string } | undefined
+          )?.attempt_state;
+        expect(state()).toBe('pending');
+        const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+        expect(methods.pause({ slug: 'ada' })).toMatchObject({ ok: true });
+        expect(state()).toBe('handled');
+        expect(
+          methods.channelGroupJoinDecide({
+            channelId: groupId,
+            requestId: request!.id,
+            accept: false,
+          }),
+        ).toMatchObject({ ok: true });
+      } finally {
+        database.close();
+      }
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('keeps one pending request across restart and delivers an approval only once', async () => {
     const home = createTempRoot('botharness-group-join-restart-');
     let groupId = '';
