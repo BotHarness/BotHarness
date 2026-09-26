@@ -113,6 +113,33 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
   });
+  it('shows an Assignment request as an action with a source link', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'assignment:session-1',
+          category: 'action',
+          kind: 'assignment-waiting-human',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          botSlug: 'ada',
+          assignmentSessionId: 'session-1',
+          summary: 'Should I choose A or B?',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 的事项需要你协助');
+    expect(markup).toContain('Should I choose A or B?');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('已了解');
+    expect(markup).not.toContain('同意</button>');
+  });
+
   it('shows a pending tool approval as an action linked to its DM card', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({

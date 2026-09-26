@@ -3332,6 +3332,10 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   margin-top: 4px;
   color: var(--dsw-alias-label-secondary);
   overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
 }
 .bh-human-inbox-row-actions {
   display: flex;

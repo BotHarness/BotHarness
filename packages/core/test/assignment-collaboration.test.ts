@@ -7,6 +7,7 @@ import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createBotAttentionQuery } from '../src/runtime/attention.js';
+import { createHumanAttentionQuery } from '../src/runtime/human-attention.js';
 import {
   createBotRuntime,
   type AssignmentAgentRun,
@@ -441,6 +442,54 @@ describe('Assignment collaboration', () => {
     expect(agents.resumed).toEqual([{ sessionId, text: '选 A' }]);
     expect(runtime.getAssignment('ada', sessionId)?.openAsk).toBeUndefined();
     await close();
+  });
+
+  it('projects one open Assignment ask into Human Inbox and clears it when answered', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start research', 'human-1');
+      const created = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Choose a direction',
+      });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const sessionId = created.assignment.sessionId;
+      await agents.started[0]!.run.report({
+        state: 'waiting-human',
+        summary: 'Should I choose A or B?',
+        expectsReply: true,
+      });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+
+      const attention = createHumanAttentionQuery(
+        attachOperationalModule(owner, 'assignment-human-attention-test'),
+      );
+      expect(attention.list({ category: 'action' }).items).toMatchObject([
+        {
+          id: 'assignment:' + sessionId,
+          kind: 'assignment-waiting-human',
+          botSlug: 'ada',
+          assignmentSessionId: sessionId,
+          summary: 'Should I choose A or B?',
+        },
+      ]);
+      expect(attention.list({ category: 'action', botSlug: 'bea' }).items).toEqual([]);
+      expect(attention.list({ category: 'action', channelId: 'dm-ada' }).items).toEqual([]);
+      expect(attention.list({ category: 'info' }).items).toEqual([]);
+
+      const askId = runtime.getAssignment('ada', sessionId)?.openAsk?.sourceEventId;
+      if (askId === undefined) throw new Error('Open ask missing');
+      agents.access!.request({
+        sessionId,
+        mode: 'next-turn',
+        text: 'Choose A',
+        answerTo: askId,
+      });
+      expect(attention.list({ category: 'action' }).items).toEqual([]);
+    } finally {
+      await close();
+    }
   });
 
   it('keeps an open ask across a restart', async () => {

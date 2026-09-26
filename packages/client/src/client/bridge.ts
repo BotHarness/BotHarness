@@ -1286,14 +1286,29 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
   const items = raw.map((entry): HumanAttentionItem | undefined => {
     const item = asRecord(entry);
     if (item === undefined) return undefined;
-    for (const key of ['id', 'createdAt', 'channelId', 'channelName', 'botSlug', 'summary'])
+    for (const key of ['id', 'createdAt', 'botSlug', 'summary'])
       if (typeof item[key] !== 'string') return undefined;
     if (item['category'] !== 'action' && item['category'] !== 'info') return undefined;
     if (
       item['kind'] !== 'group-join-request' &&
       item['kind'] !== 'user-question' &&
       item['kind'] !== 'tool-approval' &&
-      item['kind'] !== 'bot-dm-message'
+      item['kind'] !== 'bot-dm-message' &&
+      item['kind'] !== 'assignment-waiting-human'
+    )
+      return undefined;
+    if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
+    if (item['channelName'] !== undefined && typeof item['channelName'] !== 'string')
+      return undefined;
+    if (
+      item['kind'] === 'assignment-waiting-human'
+        ? typeof item['assignmentSessionId'] !== 'string'
+        : typeof item['channelId'] !== 'string' || typeof item['channelName'] !== 'string'
+    )
+      return undefined;
+    if (
+      item['assignmentSessionId'] !== undefined &&
+      typeof item['assignmentSessionId'] !== 'string'
     )
       return undefined;
     if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
