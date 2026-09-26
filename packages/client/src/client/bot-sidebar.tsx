@@ -39,6 +39,7 @@ import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
+import { InboxIcon } from './inbox-icon.js';
 import {
   webChannelShortcutIndex,
   webChannelShortcutLabel,
@@ -134,12 +135,19 @@ export function BotPanelIcon({
   onExit,
   useBotModePrefs,
   openSettings,
+  openInbox,
   t,
-}: BotPanelEntryProps & { onExit: () => void }): ReactElement {
+}: BotPanelEntryProps & { onExit: () => void; openInbox: () => void }): ReactElement {
   const icon = useBotModePrefs((prefs) => prefs.botIcon);
   const glyph = useRef<HTMLSpanElement>(null);
   const [row, setRow] = useState<HTMLElement | null>(null);
   const wide = size === 16;
+  const inboxSelected = useSyncExternalStore(
+    store.subscribe,
+    () => store.getSnapshot().selection?.kind === 'inbox',
+    () => false,
+  );
+  const panelList = row?.parentElement;
 
   useEffect(() => {
     const button = glyph.current?.closest('button') ?? null;
@@ -169,6 +177,26 @@ export function BotPanelIcon({
   return (
     <span className="bh-panel-glyph" ref={glyph} {...(wide ? { 'data-wide': 'true' } : {})}>
       <BotIcon icon={icon} size={size} />
+      {row !== null && panelList != null
+        ? createPortal(
+            <button
+              type="button"
+              className="bh-panel-inbox"
+              data-wide={wide ? 'true' : 'false'}
+              style={{ gridRow: Array.from(panelList.children).indexOf(row) + (wide ? 1 : 2) }}
+              aria-label={t('humanInbox.title')}
+              title={t('humanInbox.title')}
+              aria-current={active && inboxSelected ? 'page' : undefined}
+              onClick={(event) => {
+                event.stopPropagation();
+                openInbox();
+              }}
+            >
+              <InboxIcon size={18} />
+            </button>,
+            panelList,
+          )
+        : null}
       {active && row !== null
         ? createPortal(
             <>
@@ -211,6 +239,7 @@ export function BotPanelIcon({
 
 export function createBotPanelEntry(
   onExit: () => void,
+  onOpenInbox: () => void,
 ): (props: BotPanelEntryProps) => ReactElement {
   return function BotPanelEntry({ size, active, useBotModePrefs, openSettings, t }) {
     return (
@@ -220,6 +249,7 @@ export function createBotPanelEntry(
         onExit={onExit}
         useBotModePrefs={useBotModePrefs}
         openSettings={openSettings}
+        openInbox={onOpenInbox}
         t={t}
       />
     );
@@ -1396,15 +1426,6 @@ export function BotSidebar({
     };
     return (
       <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
-        <button
-          type="button"
-          className="bh-human-inbox-entry"
-          aria-label={t('humanInbox.title')}
-          aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-          onClick={() => void actions.openHumanInbox()}
-        >
-          {t('humanInbox.title')}
-        </button>
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1483,14 +1504,6 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
-      <button
-        type="button"
-        className="bh-human-inbox-entry"
-        aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
-        onClick={() => void actions.openHumanInbox()}
-      >
-        {t('humanInbox.title')}
-      </button>{' '}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}

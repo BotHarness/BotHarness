@@ -322,16 +322,10 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
-  it('places the Human Inbox above Messages and keeps one compact entry', () => {
+  it('keeps the Human Inbox entry out of the roster in both sidebar sizes', () => {
     store.select({ kind: 'inbox' });
-    const expanded = renderSidebar();
-    expect(expanded.indexOf('bh-human-inbox-entry')).toBeLessThan(
-      expanded.indexOf('bh-header-label'),
-    );
-    expect(expanded).toContain('aria-current="page"');
-    expect(expanded).toContain('收件箱');
-    const compact = renderSidebar(false);
-    expect(compact.match(/bh-human-inbox-entry/g)).toHaveLength(1);
+    expect(renderSidebar()).not.toContain('bh-human-inbox-entry');
+    expect(renderSidebar(false)).not.toContain('bh-human-inbox-entry');
   });
 
   it('renders the glyph-free section header anatomy', () => {

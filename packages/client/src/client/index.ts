@@ -238,9 +238,15 @@ export function apply(ctx: ClientContext): void {
           },
         }),
       },
-      createBotPanelEntry(() => {
-        ctx.layout.selectPanel(null);
-      }),
+      createBotPanelEntry(
+        () => {
+          ctx.layout.selectPanel(null);
+        },
+        () => {
+          ctx.layout.selectPanel(PANEL_ID);
+          void actions.openHumanInbox();
+        },
+      ),
     ),
   );
 

@@ -348,6 +348,55 @@ button:has(.bh-panel-glyph) {
   margin-inline: 2px;
 }
 
+/* The Inbox is a real sibling control of the native Bot mode row. Grid gives
+   that row a narrow right-hand action slot without nesting buttons. */
+nav:has(> .bh-panel-inbox) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  column-gap: 4px;
+  row-gap: 4px;
+  align-items: center;
+}
+nav:has(> .bh-panel-inbox) > button:not(:has(.bh-panel-glyph)):not(.bh-panel-inbox) {
+  grid-column: 1 / -1;
+}
+nav:has(> .bh-panel-inbox) > button:has(.bh-panel-glyph) {
+  grid-column: 1;
+}
+.bh-panel-inbox {
+  grid-column: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+}
+.bh-panel-inbox:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-panel-inbox[aria-current='page'] {
+  background: var(--bh-selected);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-panel-inbox:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}
+nav:has(> .bh-panel-inbox[data-wide='false']) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bh-panel-inbox[data-wide='false'] {
+  grid-column: 1;
+  justify-self: center;
+}
+
 /* The Bot row keeps its native shape and simply stands taller than the other
    sidebar rows, with a larger mark and label to match. */
 button:has(.bh-panel-glyph[data-wide='true']) {
@@ -3264,31 +3313,6 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   text-align: center;
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
-}
-/* Human Inbox follows the native Bot mode inset and semantic theme aliases. */
-.bh-human-inbox-entry {
-  display: flex;
-  align-items: center;
-  width: calc(100% - 12px);
-  min-height: 38px;
-  margin: 8px 6px 10px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: 10px;
-  color: var(--dsw-alias-label-primary);
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-}
-.bh-region-rail .bh-human-inbox-entry {
-  justify-content: center;
-  padding: 0 4px;
-  font-size: 11px;
-}.bh-human-inbox-entry:hover {
-  background: var(--dsw-alias-interactive-bg-hover);
-}
-.bh-human-inbox-entry[aria-current='page'] {
-  background: var(--bh-selected);
 }
 .bh-human-inbox {
   overflow: auto;
