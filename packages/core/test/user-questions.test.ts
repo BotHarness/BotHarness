@@ -56,6 +56,7 @@ describe('native DSH questions in a PersonaBot DM', () => {
     const request = state.channels.readMessages(channelId)[0]!;
     expect(request.userQuestionRequest).toEqual({ sessionId, questions });
     expect(state.answerer.status('ada', request.id)).toBe('pending');
+    expect(state.answerer.activeMessageIds()).toEqual([request.id]);
     expect(
       await state.answerer.answer('other-bot', request.id, {
         answers: [{ id: 'memory-branch', selected: ['history-qa'] }],
@@ -79,6 +80,7 @@ describe('native DSH questions in a PersonaBot DM', () => {
       answers: expected.answers,
     });
     expect(state.answerer.status('ada', request.id)).toBe('expired');
+    expect(state.answerer.activeMessageIds()).toEqual([]);
     expect(await state.answerer.answer('ada', request.id, expected)).toBe(false);
   });
 
@@ -98,6 +100,7 @@ describe('native DSH questions in a PersonaBot DM', () => {
         .find((item) => item.userQuestionResolution !== undefined)?.userQuestionResolution?.state,
     ).toBe('cancelled');
     expect(state.answerer.status('ada', request.id)).toBe('expired');
+    expect(state.answerer.activeMessageIds()).toEqual([]);
     expect(
       await state.answerer.answer('ada', request.id, {
         answers: [{ id: 'memory-branch', selected: [], custom: 'my-history' }],

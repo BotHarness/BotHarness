@@ -25,6 +25,7 @@ const join: HumanAttentionItem = {
 
 afterEach(() => {
   store.select(undefined);
+  store.setRoster([], []);
 });
 
 describe('Human Inbox center view', () => {
@@ -67,6 +68,49 @@ describe('Human Inbox center view', () => {
     expect(markup).toContain('The draft is ready.');
     expect(markup).toContain('已了解');
     expect(markup).not.toContain('申请加入');
+    expect(markup).not.toContain('同意</button>');
+  });
+  it('shows an unresolved native question as an action linked to its DM', () => {
+    store.setRoster(
+      [],
+      [
+        {
+          id: 'dm-ada',
+          type: 'dm',
+          name: 'Ada DM',
+          members: ['ada'],
+          botSlug: 'ada',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          updatedAt: '2026-09-26T00:00:00.000Z',
+        },
+      ],
+    );
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'question:source-1',
+          category: 'action',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          botSlug: 'ada',
+          kind: 'user-question',
+          channelId: 'dm-ada',
+          channelName: 'Ada DM',
+          summary: 'Which branch should I use?',
+          messageId: 'question-one',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 需要你回答');
+    expect(markup).toContain('Which branch should I use?');
+    expect(markup).toContain('Ada DM');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
   });
 });

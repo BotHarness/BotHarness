@@ -32,7 +32,7 @@ export function HumanInboxView({
   const channels = state.channels
     .filter((channel) =>
       inbox.category === 'action'
-        ? channel.type === 'group'
+        ? channel.type === 'group' || (channel.type === 'dm' && channel.botSlug !== undefined)
         : channel.type === 'dm' && channel.botSlug !== undefined,
     )
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -174,9 +174,11 @@ export function HumanInboxView({
                         bot: botName(item.botSlug),
                         channel: item.channelName,
                       })
-                    : botName(item.botSlug)}
+                    : item.kind === 'user-question'
+                      ? t('humanInbox.question', { bot: botName(item.botSlug) })
+                      : botName(item.botSlug)}
                 </div>
-                {item.kind === 'bot-dm-message' ? (
+                {item.kind === 'bot-dm-message' || item.kind === 'user-question' ? (
                   <div className="bh-human-inbox-row-summary">{item.summary}</div>
                 ) : null}
               </div>
@@ -206,7 +208,7 @@ export function HumanInboxView({
                       {t('humanInbox.decline')}
                     </button>
                   </>
-                ) : (
+                ) : item.kind === 'bot-dm-message' ? (
                   <button
                     type="button"
                     disabled={busyId === item.id}
@@ -214,7 +216,7 @@ export function HumanInboxView({
                   >
                     {t('humanInbox.acknowledge')}
                   </button>
-                )}
+                ) : null}
               </div>
             </article>
           ))}

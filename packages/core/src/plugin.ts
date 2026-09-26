@@ -139,6 +139,7 @@ export function createCore(
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
     workspaces?: () => DshWorkspaceLookup | undefined;
+    activeQuestionMessageIds?: () => readonly string[];
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -183,6 +184,7 @@ export function createCore(
   );
   const humanAttention = createHumanAttentionQuery(
     attachOperationalModule(operationalDatabase, 'human-attention'),
+    options.activeQuestionMessageIds,
   );
   live = createChannelLiveHub(channels);
   if (operationalDatabase.mode === 'ready')
@@ -262,8 +264,10 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (denial !== undefined) throw new Error(denial);
     },
   });
+  let userQuestions: ChannelUserQuestions | undefined;
   const core = createCore({
     dshHome,
+    activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
     workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
@@ -308,7 +312,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       return JSON.stringify(['orchestrator', cwd, activeIds]);
     },
   );
-  const userQuestions = new ChannelUserQuestions(
+  userQuestions = new ChannelUserQuestions(
     core.channels,
     core.ownership,
     (agent) => ctx.agents.get(agent.id) === agent,
