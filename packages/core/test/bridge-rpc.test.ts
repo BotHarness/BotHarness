@@ -68,7 +68,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the fifty-three bridge endpoints for typert claims', () => {
+  it('marks every bridge endpoint for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -111,6 +111,7 @@ describe('bridge typert service', () => {
       'userQuestionStatus',
       'userQuestionAnswer',
       'sessions',
+      'sessionOwner',
       'memorySnapshot',
       'memoryFile',
       'memoryHistory',
@@ -190,6 +191,7 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);
+    expect(parameterNames(service.sessionOwner)).toEqual(['sessionId']);
     expect(parameterNames(service.rosterGet)).toEqual([]);
     expect(parameterNames(service.sectionCreate)).toEqual(['name']);
     expect(parameterNames(service.sectionRename)).toEqual(['sectionId', 'name']);
@@ -225,6 +227,7 @@ describe('bridge typert service', () => {
     expect(service.channelMessages('dm-ada').messages[0]?.body).toBe('hello');
     expect(service.assignments('ada').assignments).toEqual([]);
     expect(service.sessions('ada').sessions).toEqual([]);
+    expect(service.sessionOwner('unknown').owner).toBeNull();
   });
 
   it('throws RemoteError failures so the gateway keeps code and message on the wire', () => {

@@ -68,7 +68,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
-- A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; Current prioritizes active work, All retains stopped history, and a row opens the native Session ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
+- A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; Current prioritizes active work, All retains stopped history, a row opens the native Session, and an owned root Session shows its Bot avatar in a header action back to its DM ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
 
 - Group @PersonaBot and Bot-to-Bot DM guidance now let a Bot finish without replying when no response is useful; “handled” still means its turn completed, not that it acknowledged the message ([#302](https://github.com/BotHarness/BotHarness/issues/302)).
 

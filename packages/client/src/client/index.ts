@@ -3,6 +3,7 @@ import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
 // Type-only: the `configForms` Context merge and the settings slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
@@ -25,7 +26,8 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
-import { createBridgeCall } from './bridge.js';
+import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
+import { SessionReturnAction } from './session-return-action.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
 import { sessionBotReference } from './mentions.js';
 import { en, LOCALE_NS, zh } from './locale.js';
@@ -247,6 +249,29 @@ export function apply(ctx: ClientContext): void {
         inject: () => ({ actions, channelSidebar, nativeChatT }),
       },
       BotPanel,
+    ),
+  );
+
+  const resolveSessionOwner = (sessionId: string, signal: AbortSignal) =>
+    loadSessionBotOwner(call, sessionId, signal);
+  const returnToBot = async (slug: string): Promise<void> => {
+    if (!store.getSnapshot().bots.some((bot) => bot.slug === slug)) await actions.load();
+    if (!store.getSnapshot().bots.some((bot) => bot.slug === slug))
+      throw new Error('PersonaBot is unavailable');
+    ctx.layout.selectPanel(PANEL_ID);
+    await actions.openBot(slug);
+  };
+  ctx.slots.inject('conversation.session.header.actions', () =>
+    ctx.slots.register(
+      {
+        name: 'conversation.session.header.actions',
+        id: 'botharness-return-to-bot',
+        order: 15,
+        label: () => t('sessions.return.label'),
+        locale: LOCALE_NS,
+        inject: () => ({ resolveOwner: resolveSessionOwner, returnToBot }),
+      },
+      SessionReturnAction,
     ),
   );
 

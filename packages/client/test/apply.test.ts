@@ -126,7 +126,11 @@ describe('client apply', () => {
     const disposed: Spec[] = [];
     apply(createScoped(specs, disposed) as never);
 
-    expect(specs.map((spec) => spec.name)).toEqual(['sidebar.panellist', 'main']);
+    expect(specs.map((spec) => spec.name)).toEqual([
+      'sidebar.panellist',
+      'main',
+      'conversation.session.header.actions',
+    ]);
     expect(specs[0]).toMatchObject({
       id: PANEL_ID,
       order: 10,
@@ -135,19 +139,27 @@ describe('client apply', () => {
     });
     expect(specs[1]).toMatchObject({ key: PANEL_ID });
 
+    expect(specs[2]).toMatchObject({
+      name: 'conversation.session.header.actions',
+      id: 'botharness-return-to-bot',
+      order: 15,
+      locale: 'botharness',
+    });
+
     store.setMode('bot');
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
+      'conversation.session.header.actions',
       'sidebar.workspaces',
       'main',
     ]);
-    expect(specs[2]).toMatchObject({
+    expect(specs[3]).toMatchObject({
       name: 'sidebar.workspaces',
       priority: -100,
       locale: 'botharness',
     });
-    expect(specs[3]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
+    expect(specs[4]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);

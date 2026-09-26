@@ -643,6 +643,31 @@ export function parseChannelMessages(value: unknown): ChannelMessage[] {
   });
 }
 
+export interface SessionBotOwner {
+  botSlug: string;
+  displayName: string;
+  avatar?: string;
+  role: 'orchestrator' | 'assignment';
+}
+
+export function parseSessionBotOwner(value: unknown): SessionBotOwner | undefined {
+  const owner = asRecord(asRecord(value)?.['owner']);
+  if (owner === undefined) return undefined;
+  const botSlug = owner['botSlug'];
+  const displayName = owner['displayName'];
+  const role = owner['role'];
+  if (typeof botSlug !== 'string' || botSlug.length === 0) return undefined;
+  if (typeof displayName !== 'string' || displayName.length === 0) return undefined;
+  if (role !== 'orchestrator' && role !== 'assignment') return undefined;
+  const avatar = owner['avatar'];
+  return {
+    botSlug,
+    displayName,
+    ...(typeof avatar === 'string' && avatar.length > 0 ? { avatar } : {}),
+    role,
+  };
+}
+
 export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[] {
   const sessions = asRecord(value)?.['sessions'];
   if (!Array.isArray(sessions)) return [];
@@ -1278,6 +1303,14 @@ export async function ignoreHumanAssignmentReport(
 ): Promise<void> {
   const response = asRecord(await unwrap(call, 'humanAttentionIgnore', { sourceEventId }));
   if (response?.['accepted'] !== true) throw new Error('Human attention decision was not accepted');
+}
+
+export async function loadSessionBotOwner(
+  call: BridgeCall,
+  sessionId: string,
+  signal?: AbortSignal,
+): Promise<SessionBotOwner | undefined> {
+  return parseSessionBotOwner(await unwrap(call, 'sessionOwner', { sessionId }, signal));
 }
 
 export async function loadSessions(
