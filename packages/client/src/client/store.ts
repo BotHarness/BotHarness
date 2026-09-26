@@ -28,6 +28,14 @@ export interface ChannelSummary {
     string,
     { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number; revision: number }
   >;
+  joinRequests?: Array<{
+    id: string;
+    requesterBotSlug: string;
+    status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    createdAt: string;
+    decidedAt?: string;
+    decidedBy?: string;
+  }>;
   invitations?: Array<{
     id: string;
     targetBotSlug: string;
@@ -120,6 +128,7 @@ export interface ChannelMessage {
   body: string;
   memorySwitchTarget?: string;
   mentions?: { botSlug: string; label: string; start: number; end: number }[];
+  channelRefs?: { channelId: string; label: string; start: number; end: number }[];
   deliveries?: {
     botSlug: string;
     state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';

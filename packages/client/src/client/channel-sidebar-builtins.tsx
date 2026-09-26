@@ -310,6 +310,42 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
           ))}
         </div>
       ) : null}
+      {group?.joinRequests?.length ? (
+        <div className="bh-group-invitations">
+          <div className="bh-group-invitations-title">{t('members.joinRequests')}</div>
+          {group.joinRequests.map((request) => (
+            <div className="bh-member-row" key={request.id}>
+              <PersonaBotAvatar
+                t={t}
+                personaBotId={request.requesterBotSlug}
+                name={memberName(state.bots, request.requesterBotSlug)}
+                src={state.bots.find((bot) => bot.slug === request.requesterBotSlug)?.avatar}
+                size={26}
+              />
+              <span className="bh-name">{memberName(state.bots, request.requesterBotSlug)}</span>
+              <Tag tone="neutral">{invitationLabels[request.status]}</Tag>
+              {request.status === 'pending' ? (
+                <>
+                  <button
+                    type="button"
+                    className="bh-group-manage-button"
+                    onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, true))}
+                  >
+                    {t('members.approve')}
+                  </button>
+                  <button
+                    type="button"
+                    className="bh-group-manage-button"
+                    onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, false))}
+                  >
+                    {t('members.reject')}
+                  </button>
+                </>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {group === undefined ? null : (
         <button
           type="button"

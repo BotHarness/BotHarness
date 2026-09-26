@@ -84,6 +84,8 @@ const BOT_TOOL_NAMES = new Set([
   'group_create',
   'group_invite_bot',
   'group_invite_respond',
+  'group_join_request',
+  'group_join_decide',
   'group_rename',
   'group_remove_member',
   'bot_dm_send',

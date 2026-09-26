@@ -467,6 +467,48 @@ const GROUP_DIGEST_ADMISSION_MIGRATION: SchemaMigration = {
   },
 };
 
+const GROUP_JOIN_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 19,
+  module: 'messaging',
+  description: 'Admit Group join requests and decisions as durable Bot Inbox notifications',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error,
+         wake_count, wake_interval_ms, wake_policy_revision, observed_at)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error,
+             wake_count, wake_interval_ms, wake_policy_revision, observed_at
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -485,4 +527,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_DM_ADMISSION_MIGRATION,
   GROUP_INVITATION_ADMISSION_MIGRATION,
   GROUP_DIGEST_ADMISSION_MIGRATION,
+  GROUP_JOIN_ADMISSION_MIGRATION,
 ]);

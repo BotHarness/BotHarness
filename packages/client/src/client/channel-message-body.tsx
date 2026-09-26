@@ -11,7 +11,7 @@ import {
 import { channelAttachmentUrl, errorMessage } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
-import { mentionRuns } from './mentions.js';
+import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
 import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -633,16 +633,43 @@ export function ChannelMessageBody({
       </button>
     );
   };
+  const renderChannelRef = (
+    ref: NonNullable<ChannelMessage['channelRefs']>[number],
+    key: number,
+  ) => {
+    const badge = <span>#{ref.label}</span>;
+    if (actions === undefined)
+      return (
+        <span key={key} className="bh-inline-mention bh-inline-mention-sent">
+          {badge}
+        </span>
+      );
+    return (
+      <button
+        key={key}
+        type="button"
+        className="bh-inline-mention bh-inline-mention-sent bh-inline-mention-link"
+        data-channel-id={ref.channelId}
+        aria-label={`Open channel ${ref.label}`}
+        onClick={() => void actions.openChannel(ref.channelId)}
+      >
+        {badge}
+      </button>
+    );
+  };
   return (
     <div className="bh-bubble-content">
       {message.body.length === 0 ? null : format === 'text' ? (
         <div className="bh-bubble-body">
-          {mentionRuns(message.body, message.mentions ?? []).map((run, index) =>
-            run.mention === undefined ? (
-              <span key={index}>{run.text}</span>
-            ) : (
-              renderMention(run.mention, index)
-            ),
+          {referenceRuns(message.body, message.mentions ?? [], message.channelRefs ?? []).map(
+            (run, index) =>
+              run.mention !== undefined ? (
+                renderMention(run.mention, index)
+              ) : run.channelRef !== undefined ? (
+                renderChannelRef(run.channelRef, index)
+              ) : (
+                <span key={index}>{run.text}</span>
+              ),
           )}
         </div>
       ) : (

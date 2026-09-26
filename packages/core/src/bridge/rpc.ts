@@ -188,6 +188,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.channelGroupInviteCancel({ channelId, invitationId }));
   }
 
+  channelGroupJoinDecide(
+    channelId: string,
+    requestId: string,
+    accept: boolean,
+  ): { channel: ChannelRecord } {
+    return unwrap(this.methods.channelGroupJoinDecide({ channelId, requestId, accept }));
+  }
+
   channelGroupMemberRemove(channelId: string, botSlug: string): { channel: ChannelRecord } {
     return unwrap(this.methods.channelGroupMemberRemove({ channelId, botSlug }));
   }
@@ -257,6 +265,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     messageId?: string,
     memorySwitchTarget?: string,
     mentions?: ChannelMessage['mentions'],
+    channelRefs?: ChannelMessage['channelRefs'],
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
@@ -267,6 +276,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         ...(messageId === undefined ? {} : { messageId }),
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
         ...(mentions === undefined ? {} : { mentions }),
+        ...(channelRefs === undefined ? {} : { channelRefs }),
       }),
     );
   }
@@ -451,6 +461,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelRename',
   'channelGroupInviteCancel',
   'channelGroupMemberRemove',
+  'channelGroupJoinDecide',
   'channelGroupWakeSet',
   'channelGroupDelete',
   'channelMessages',

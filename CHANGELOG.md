@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A Human can select a Group Channel with `#` in a PersonaBot DM; the Bot receives its current ID and name without gaining membership or seeing its roster or history. The Bot can request to join, a Human or the Group's Bot creator can approve or decline, and the Human can click the sent reference to open that Group ([#292](https://github.com/BotHarness/BotHarness/issues/292), [ADR-0069](docs/adr/0069-selected-channel-references-and-bot-join-requests.md)).
+
 - Group Channel members can use a per-Bot ordinary-message digest: after N messages or T seconds with a nonempty queue, the Bot receives one bounded Inbox summary at its next idle turn. Direct @ mentions remain immediate; a busy Bot finishes its current turn first, and a completed digest does not require a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
 
 - PersonaBots can list joined Group, Human DM, and Bot DM Channels, filter by name or Bot membership, inspect current members, and send to a selected Channel by its stable ID; they can also query a joined Channel's full message history by text, author, and date, or search across joined Channels, with cursor pagination through the single `channel_read` tool ([#304](https://github.com/BotHarness/BotHarness/issues/304)).

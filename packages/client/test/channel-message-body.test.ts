@@ -36,6 +36,42 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it('opens selected #Group references by stable ID and leaves typed #text inert', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const openChannel = vi.fn(async () => undefined);
+    try {
+      await act(async () => {
+        root.render(
+          createElement(ChannelMessageBody, {
+            message: {
+              id: 'm-channel-ref',
+              at: '2026-09-25T00:00:00.000Z',
+              author: { kind: 'human' },
+              body: 'Use #Team and #Plain',
+              channelRefs: [{ channelId: 'group-team-2', label: 'Team', start: 4, end: 9 }],
+            },
+            t: zhTranslate,
+            actions: { openChannel } as unknown as BridgeActions,
+          }),
+        );
+      });
+      const selected = container.querySelector<HTMLButtonElement>(
+        '[data-channel-id="group-team-2"]',
+      );
+      expect(selected?.textContent).toBe('#Team');
+      expect(container.textContent).toContain('#Plain');
+      expect(container.querySelectorAll('[data-channel-id]')).toHaveLength(1);
+      await act(async () => selected?.click());
+      expect(openChannel).toHaveBeenCalledWith('group-team-2');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('renders selected Bot mentions as inline DM controls in sent text', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelMessageBody, {

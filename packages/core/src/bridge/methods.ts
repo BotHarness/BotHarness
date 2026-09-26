@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto';
 
 import { z } from 'zod';
 
-import type { ChannelMention, ChannelMessage, ChannelRecord } from '../channels/channel.js';
+import {
+  isValidChannelId,
+  type ChannelMention,
+  type ChannelMessage,
+  type ChannelRecord,
+  type ChannelReference,
+} from '../channels/channel.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
@@ -106,6 +112,7 @@ export interface BridgeMethods {
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
   channelGroupInviteCancel(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupJoinDecide(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupMemberRemove(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupWakeSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupDelete(payload: unknown): BridgeResult<{ deleted: boolean }>;
@@ -653,6 +660,41 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(String(error));
       }
     },
+    channelGroupJoinDecide(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const requestId = asNonBlank(source, 'requestId');
+      const accept = source['accept'];
+      if (channelId === undefined || requestId === undefined || typeof accept !== 'boolean')
+        return invalidInput('channelId, requestId and accept are required');
+      const channel = deps.channels.get(channelId);
+      const request = channel?.joinRequests?.find((item) => item.id === requestId);
+      if (channel?.type !== 'group' || request === undefined)
+        return invalidInput('Pending Group join request not found');
+      const requester = deps.registry.get(request.requesterBotSlug);
+      if (
+        requester === undefined ||
+        requester.paused === true ||
+        requester.createdAt !== request.requesterBotCreatedAt
+      )
+        return invalidInput('Requesting PersonaBot is no longer active');
+      const dm = deps.channels.getOrCreateDm(requester.slug, requester.displayName);
+      if (dm === undefined) return invalidInput('Requester DM is unavailable');
+      try {
+        const decided = deps.channels.decideGroupJoin({
+          channelId,
+          requestId,
+          accept,
+          decidedBy: 'human',
+          requesterBotCreatedAt: requester.createdAt,
+          requesterDmChannelId: dm.id,
+        });
+        if (decided.notified) deps.runtime?.admitGroupJoinDecision?.(dm.id, request.id);
+        return { ok: true, value: { channel: decided.channel } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
     channelGroupMemberRemove(payload) {
       const source = asObject(payload);
       const channelId = asNonBlank(source, 'channelId');
@@ -817,6 +859,47 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (mentions.some((item, index) => index > 0 && item.start < mentions[index - 1]!.end))
           return invalidInput('overlapping mention tokens');
       }
+      const rawRefs = source['channelRefs'];
+      if (rawRefs !== undefined && !Array.isArray(rawRefs))
+        return invalidInput('channelRefs must be selected #Channel tokens');
+      const channelRefs: ChannelReference[] = [];
+      if (Array.isArray(rawRefs)) {
+        if (rawRefs.length > 20) return invalidInput('too many Channel references');
+        for (const item of rawRefs) {
+          if (typeof item !== 'object' || item === null)
+            return invalidInput('invalid Channel reference token');
+          const { channelId: targetId, label, start, end } = item as Record<string, unknown>;
+          if (
+            typeof targetId !== 'string' ||
+            !isValidChannelId(targetId) ||
+            typeof label !== 'string' ||
+            label.length === 0 ||
+            !Number.isSafeInteger(start) ||
+            !Number.isSafeInteger(end) ||
+            (start as number) < 0 ||
+            (end as number) <= (start as number) ||
+            body.slice(start as number, end as number) !== '#' + label
+          )
+            return invalidInput('invalid Channel reference token');
+          channelRefs.push({
+            channelId: targetId,
+            label,
+            start: start as number,
+            end: end as number,
+          });
+        }
+        channelRefs.sort((a, b) => a.start - b.start);
+        if (
+          channelRefs.some((item, index) => index > 0 && item.start < channelRefs[index - 1]!.end)
+        )
+          return invalidInput('overlapping Channel references');
+        if (
+          channelRefs.some((ref) =>
+            mentions.some((mention) => ref.start < mention.end && mention.start < ref.end),
+          )
+        )
+          return invalidInput('overlapping selected tokens');
+      }
       const replyTo = source['replyTo'];
       if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
         return invalidInput('replyTo must be a message id');
@@ -855,7 +938,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.replyTo === replyTo &&
           existing.memorySwitchTarget === memorySwitchTarget &&
           JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []) &&
-          JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions);
+          JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions) &&
+          JSON.stringify(existing.channelRefs ?? []) === JSON.stringify(channelRefs);
         return same
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
@@ -873,6 +957,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         )
           return invalidInput('Mentioned PersonaBot is no longer an eligible active Bot');
       }
+      if (channelRefs.length > 0) {
+        if (channel.type !== 'dm' || channel.botSlug === undefined)
+          return invalidInput('#Channel references require a Human–Bot DM');
+        for (const ref of channelRefs) {
+          const target = deps.channels.get(ref.channelId);
+          if (target?.type !== 'group')
+            return invalidInput('Referenced Group Channel is no longer available');
+        }
+      }
       const message: ChannelMessage = {
         id: requestedMessageId ?? randomUUID(),
         at: new Date().toISOString(),
@@ -880,6 +973,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         body,
         ...(attachments === undefined ? {} : { attachments }),
         ...(mentions.length === 0 ? {} : { mentions }),
+        ...(channelRefs.length === 0 ? {} : { channelRefs }),
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       };
