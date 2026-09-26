@@ -82,6 +82,13 @@ describe('DSH Bot Agent adapter', () => {
         grants: () => [],
         list: () => [],
         inspect: () => undefined,
+        stop: async () => ({
+          sessionId: 'test',
+          purpose: 'test',
+          activity: 'stopped',
+          createdAt: '',
+          updatedAt: '',
+        }),
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
       },
     });
@@ -148,6 +155,13 @@ describe('DSH Bot Agent adapter', () => {
         grants: () => [],
         list: () => [],
         inspect: () => undefined,
+        stop: async () => ({
+          sessionId: 'test',
+          purpose: 'test',
+          activity: 'stopped',
+          createdAt: '',
+          updatedAt: '',
+        }),
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
       },
     });
@@ -199,6 +213,13 @@ describe('DSH Bot Agent adapter', () => {
         grants: () => [],
         list: () => [],
         inspect: () => undefined,
+        stop: async () => ({
+          sessionId: 'test',
+          purpose: 'test',
+          activity: 'stopped',
+          createdAt: '',
+          updatedAt: '',
+        }),
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
       },
     });
@@ -242,6 +263,13 @@ describe('DSH Bot Agent adapter', () => {
           grants: () => [],
           list: () => [],
           inspect: () => undefined,
+          stop: async () => ({
+            sessionId: 'test',
+            purpose: 'test',
+            activity: 'stopped',
+            createdAt: '',
+            updatedAt: '',
+          }),
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
         },
       }),
@@ -302,6 +330,13 @@ describe('DSH Bot Agent adapter', () => {
         grants: () => [],
         list: () => [],
         inspect: () => undefined,
+        stop: async () => ({
+          sessionId: 'test',
+          purpose: 'test',
+          activity: 'stopped',
+          createdAt: '',
+          updatedAt: '',
+        }),
         request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
       },
     });
@@ -350,6 +385,7 @@ describe('DSH Bot Agent adapter', () => {
       'list_assignments',
       'inspect_assignment',
       'send_assignment_request',
+      'stop_assignment',
       'channel_list',
       'channel_read',
       'channel_read_image',
@@ -541,6 +577,13 @@ describe('DSH Bot Agent adapter', () => {
           grants: () => [],
           list: () => [],
           inspect: () => undefined,
+          stop: async () => ({
+            sessionId: 'test',
+            purpose: 'test',
+            activity: 'stopped',
+            createdAt: '',
+            updatedAt: '',
+          }),
           request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
         },
       });

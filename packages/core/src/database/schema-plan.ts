@@ -505,10 +505,23 @@ const GROUP_JOIN_ADMISSION_MIGRATION: SchemaMigration = {
         ON inbox_admissions (bot_slug, attempt_state, source_event_id);
       CREATE INDEX inbox_admissions_digest_pending
         ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+
     `);
   },
 };
 
+const ASSIGNMENT_STOP_MIGRATION: SchemaMigration = {
+  generation: 20,
+  module: 'assignments',
+  description:
+    'Persist stopping and stopped Assignment lifecycle while retaining DSH Session history',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE assignments ADD COLUMN stop_state TEXT NOT NULL DEFAULT 'running'
+        CHECK (stop_state IN ('running', 'requested', 'stopped'));
+    `);
+  },
+};
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -528,4 +541,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   GROUP_INVITATION_ADMISSION_MIGRATION,
   GROUP_DIGEST_ADMISSION_MIGRATION,
   GROUP_JOIN_ADMISSION_MIGRATION,
+  ASSIGNMENT_STOP_MIGRATION,
 ]);

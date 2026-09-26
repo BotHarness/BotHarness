@@ -674,7 +674,14 @@ function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
   const updatedAt = record['updatedAt'];
   if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined;
   if (typeof purpose !== 'string' || purpose.length === 0) return undefined;
-  if (activity !== 'working' && activity !== 'idle' && activity !== 'error') return undefined;
+  if (
+    activity !== 'working' &&
+    activity !== 'idle' &&
+    activity !== 'error' &&
+    activity !== 'stopping' &&
+    activity !== 'stopped'
+  )
+    return undefined;
   if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
   const latestReport = parseAssignmentReport(record['latestReport']);
   const permissionRecord = asRecord(record['permission']);

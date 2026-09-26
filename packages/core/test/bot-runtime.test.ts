@@ -56,6 +56,8 @@ class DeterministicAgentAdapter implements BotAgentAdapter {
     return { delivery: 'followup', done: this.runAssignment(run) };
   }
 
+  async stopAssignment(): Promise<void> {}
+
   async close(): Promise<void> {}
 }
 

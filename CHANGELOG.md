@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Orchestrators can stop an Assignment through DSH cancellation; its stopped state survives restart, late reports cannot revive it, and the same continuity key can start a new Session ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Bot mode now has a Human Inbox above Messages: pending Group join requests can be approved or declined, while new PersonaBot DM messages can be reviewed and marked read in a separate informational tab; both return to their source Channel ([#126](https://github.com/BotHarness/BotHarness/issues/126), [ADR-0071](docs/adr/0071-human-inbox-projects-channel-attention.md)).
 
 - A PersonaBot DM sidebar now shows a Bot-scoped Inbox grouped by source Channel, with durable attention status, source-message navigation, and unavailable-source fallback; completed attention does not imply a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47), [#152](https://github.com/BotHarness/BotHarness/issues/152), [ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)).

@@ -19,7 +19,10 @@ function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
 
-function assignmentStatus(activity: 'working' | 'idle' | 'error', t: BotHarnessTranslate): string {
+function assignmentStatus(
+  activity: 'working' | 'idle' | 'error' | 'stopping' | 'stopped',
+  t: BotHarnessTranslate,
+): string {
   switch (activity) {
     case 'working':
       return t('assignment.state.working');
@@ -27,6 +30,10 @@ function assignmentStatus(activity: 'working' | 'idle' | 'error', t: BotHarnessT
       return t('assignment.state.reported');
     case 'error':
       return t('assignment.state.error');
+    case 'stopping':
+      return t('assignment.state.stopping');
+    case 'stopped':
+      return t('assignment.state.stopped');
   }
 }
 

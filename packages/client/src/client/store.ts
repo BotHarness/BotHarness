@@ -169,7 +169,7 @@ export interface SessionSummary {
   updatedAt: string;
 }
 
-export type AssignmentActivity = 'working' | 'idle' | 'error';
+export type AssignmentActivity = 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
 export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
 
 export interface AssignmentReport {

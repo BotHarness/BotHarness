@@ -25,6 +25,7 @@ class ManualAgents implements BotAgentAdapter {
   readonly resumed: Array<{ sessionId: string; text: string }> = [];
   readonly inboxTurns: string[] = [];
   access: OrchestratorAssignmentAccess | undefined;
+  failNextStop = false;
   readonly #finish = new Map<string, () => void>();
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
@@ -55,6 +56,14 @@ class ManualAgents implements BotAgentAdapter {
   finishAll(): void {
     for (const resolve of this.#finish.values()) resolve();
     this.#finish.clear();
+  }
+
+  async stopAssignment(sessionId: string): Promise<void> {
+    if (this.failNextStop) {
+      this.failNextStop = false;
+      throw new Error('DSH stop failed');
+    }
+    this.finish(sessionId);
   }
 
   async close(): Promise<void> {}
@@ -195,6 +204,90 @@ describe('Assignment collaboration', () => {
     await close();
   });
 
+  it('stops a running Assignment, rejects late reports, and frees its continuity key', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    await admit('开始调研', 'human-stop');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '持续调研 A 方向',
+      key: 'research-a',
+    });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const sessionId = created.assignment.sessionId;
+    const runningTurn = agents.started[0]?.run;
+    if (runningTurn === undefined) throw new Error('Assignment never started');
+
+    const stopped = await access.stop(sessionId);
+    expect(stopped.activity).toBe('stopped');
+    expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('stopped');
+    expect(() => access.request({ sessionId, mode: 'next-turn', text: '继续' })).toThrow(
+      /stopped or stopping/,
+    );
+    await expect(
+      runningTurn.report({ state: 'completed', summary: '取消之后的迟到报告' }),
+    ).rejects.toThrow(/transaction/);
+    expect(runtime.getAssignment('ada', sessionId)?.latestReport).toBeUndefined();
+    expect((await access.stop(sessionId)).activity).toBe('stopped');
+
+    const next = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '重新开始 A 方向',
+      key: 'research-a',
+    });
+    expect(next.outcome).toBe('created');
+    expect(next.outcome === 'created' && next.assignment.sessionId).not.toBe(sessionId);
+    await close();
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+      agents: new ManualAgents(),
+      now: FIXED_NOW,
+    });
+    expect(reopened.getAssignment('ada', sessionId)?.activity).toBe('stopped');
+    await reopened.close();
+  });
+
+  it('keeps a stopping Assignment reserved when DSH stop rejects, then releases it on retry', async () => {
+    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    await admit('开始调研', 'human-stop-failure');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '可复用的事项',
+      key: 'stopping-key',
+    });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const sessionId = created.assignment.sessionId;
+    agents.finish(sessionId);
+    await runtime.whenIdle();
+    expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('idle');
+
+    agents.failNextStop = true;
+    await expect(access.stop(sessionId)).rejects.toThrow('DSH stop failed');
+    expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('stopping');
+    expect(
+      access.create({
+        grantId: TEST_GRANT_ID,
+        purpose: '不得复用停止中的续接键',
+        key: 'stopping-key',
+      }).outcome,
+    ).toBe('key-busy');
+    expect(access.create({ grantId: TEST_GRANT_ID, purpose: '不得抢占停止中的名额' }).outcome).toBe(
+      'capacity',
+    );
+
+    expect((await access.stop(sessionId)).activity).toBe('stopped');
+    expect(access.create({ grantId: TEST_GRANT_ID, purpose: '停止完成后可新建' }).outcome).toBe(
+      'created',
+    );
+    await close();
+  });
   it('revocation blocks new and resumed work without rewriting an already running turn', async () => {
     const { runtime, grants, agents, admit, close } = await setup();
     await admit('开始调研', 'human-1');

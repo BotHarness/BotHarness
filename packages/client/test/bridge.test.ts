@@ -376,6 +376,53 @@ describe('bridge actions', () => {
     });
   });
 
+  it('opens Assignment details and refreshes the list from a Channel-selected DM', async () => {
+    let reads = 0;
+    const { clientStore, actions } = setup({
+      assignments: () => {
+        reads += 1;
+        return { assignments: [] };
+      },
+    });
+    await actions.load();
+    await actions.openChannel('dm-ada');
+    expect(reads).toBe(1);
+
+    await actions.openAssignment('assignment-1');
+    expect(clientStore.getSnapshot().assignments.selected).toMatchObject({
+      sessionId: 'assignment-1',
+      botSlug: 'ada',
+    });
+
+    await actions.send('检查进度');
+    expect(reads).toBe(2);
+  });
+
+  it('loads stopped Assignments when reopening a DM from the Channel list', async () => {
+    const { clientStore, actions } = setup({
+      assignments: () => ({
+        assignments: [
+          {
+            sessionId: 'assignment-stopped',
+            purpose: 'Check the workspace',
+            activity: 'stopped',
+            createdAt: '2026-09-19T00:03:00.000Z',
+            updatedAt: '2026-09-19T00:04:00.000Z',
+          },
+        ],
+      }),
+    });
+    await actions.load();
+
+    await actions.openChannel('dm-ada');
+    expect(clientStore.getSnapshot().assignments.items).toMatchObject([
+      { sessionId: 'assignment-stopped', activity: 'stopped' },
+    ]);
+
+    await actions.openChannel('group-team');
+    expect(clientStore.getSnapshot().assignments.items).toEqual([]);
+  });
+
   it('reopens DM and group Channels around the profile read anchor', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const entry = (id: string) => ({ id, at: BOT.createdAt, author: { kind: 'human' }, body: id });

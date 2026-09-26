@@ -33,7 +33,7 @@ import type {
   WorkspaceGrantStore,
 } from '../workspaces/grants.js';
 
-export type AssignmentActivity = 'working' | 'idle' | 'error';
+export type AssignmentActivity = 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
 export type AssignmentReportState =
   | 'progress'
   | 'completed'
@@ -97,6 +97,7 @@ export interface OrchestratorAssignmentAccess {
     text: string;
     answerTo?: string;
   }): AssignmentRequestOutcome;
+  stop(sessionId: string): Promise<AssignmentSummary>;
 }
 
 export interface OrchestratorAgentRun {
@@ -217,6 +218,7 @@ export interface BotAgentAdapter {
   steerOrchestrator?(botSlug: string, text: string): boolean;
   runAssignment(run: AssignmentAgentRun): Promise<void>;
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery;
+  stopAssignment?(sessionId: string): Promise<void>;
   close(): Promise<void>;
 }
 
@@ -301,7 +303,8 @@ interface AssignmentRow {
   source_event_id: string;
   bot_slug: string;
   purpose: string;
-  activity: AssignmentActivity;
+  activity: 'working' | 'idle' | 'error';
+  stop_state: 'running' | 'requested' | 'stopped';
   latest_report_state: AssignmentReportState | null;
   latest_report_summary: string | null;
   latest_report_at: string | null;
@@ -399,7 +402,12 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
     sourceEventId: row.source_event_id,
     botSlug: row.bot_slug,
     purpose: row.purpose,
-    activity: row.activity,
+    activity:
+      row.stop_state === 'requested'
+        ? 'stopping'
+        : row.stop_state === 'stopped'
+          ? 'stopped'
+          : row.activity,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     ...(latestReport === undefined ? {} : { latestReport }),
@@ -1262,7 +1270,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const rows = this.#database.read((database) =>
       database
         .prepare(
-          `SELECT session_id, source_event_id, bot_slug, purpose, activity,
+          `SELECT session_id, source_event_id, bot_slug, purpose, activity, stop_state,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
@@ -1287,7 +1295,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const row = this.#database.read((database) =>
       database
         .prepare(
-          `SELECT session_id, source_event_id, bot_slug, purpose, activity,
+          `SELECT session_id, source_event_id, bot_slug, purpose, activity, stop_state,
                   latest_report_state, latest_report_summary, latest_report_at,
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
@@ -1515,6 +1523,7 @@ class BotRuntimeImplementation implements BotRuntime {
         markSideEffect();
         return outcome;
       },
+      stop: (sessionId) => this.#stopAssignment(bot, sessionId, markSideEffect),
     };
   }
 
@@ -1667,6 +1676,16 @@ class BotRuntimeImplementation implements BotRuntime {
           .run();
       },
       ['source-event', 'bot-inbox'],
+    );
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(
+            "UPDATE assignments SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL, open_ask_source_event_id = NULL, open_ask_at = NULL WHERE stop_state = 'requested'",
+          )
+          .run();
+      },
+      ['assignments'],
     );
     this.#database.transaction(
       (database) => {
@@ -2475,7 +2494,7 @@ class BotRuntimeImplementation implements BotRuntime {
       if (holder !== undefined && holder.grant_id !== grant.id) {
         throw new Error('Continuity Key belongs to an Assignment with a different Workspace Grant');
       }
-      if (holder !== undefined && holder.activity === 'idle') {
+      if (holder !== undefined && holder.activity === 'idle' && holder.stop_state === 'running') {
         this.#requestAssignment(bot, {
           sessionId: holder.session_id,
           mode: 'next-turn',
@@ -2555,6 +2574,9 @@ class BotRuntimeImplementation implements BotRuntime {
   ): AssignmentRequestOutcome {
     const row = this.#assignmentRow(bot.slug, input.sessionId);
     if (row === undefined) throw new Error(`Unknown Assignment Session: ${input.sessionId}`);
+    if (row.stop_state !== 'running') {
+      throw new Error(`Assignment Session ${input.sessionId} is stopped or stopping`);
+    }
     const permission = permissionFromRow(row);
     if (permission === undefined || this.#grants === undefined) {
       throw new Error('Assignment has no valid Workspace Grant snapshot');
@@ -2585,7 +2607,7 @@ class BotRuntimeImplementation implements BotRuntime {
             .prepare(
               `UPDATE assignments
                   SET open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
-                WHERE session_id = ? AND bot_slug = ?`,
+                WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
             )
             .run(at, input.sessionId, bot.slug);
         },
@@ -2612,6 +2634,47 @@ class BotRuntimeImplementation implements BotRuntime {
     };
   }
 
+  async #stopAssignment(
+    bot: PersonaBotRecord,
+    sessionId: string,
+    markSideEffect: () => void,
+  ): Promise<AssignmentSummary> {
+    const row = this.#assignmentRow(bot.slug, sessionId);
+    if (row === undefined) throw new Error(`Unknown Assignment Session: ${sessionId}`);
+    if (row.stop_state === 'stopped') return this.#requireAssignmentSummary(bot.slug, sessionId);
+    if (this.#agents.stopAssignment === undefined)
+      throw new Error('Assignment stop is unavailable');
+    markSideEffect();
+    if (row.stop_state === 'running') {
+      const at = this.#now().toISOString();
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(`UPDATE assignments
+             SET stop_state = 'requested', updated_at = ?
+           WHERE bot_slug = ? AND session_id = ? AND stop_state = 'running'`)
+            .run(at, bot.slug, sessionId);
+        },
+        ['assignments'],
+      );
+    }
+    await this.#agents.stopAssignment(sessionId);
+    await this.#assignmentRuns.get(sessionId);
+    const at = this.#now().toISOString();
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`UPDATE assignments
+           SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL,
+               open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
+         WHERE bot_slug = ? AND session_id = ? AND stop_state = 'requested'`)
+          .run(at, bot.slug, sessionId);
+      },
+      ['assignments'],
+    );
+    return this.#requireAssignmentSummary(bot.slug, sessionId);
+  }
+
   #trackAssignmentRun(sessionId: string, task: () => Promise<void>): void {
     const run = (async () => {
       if (this.#assignmentRow(undefined, sessionId) === undefined) return;
@@ -2622,6 +2685,7 @@ class BotRuntimeImplementation implements BotRuntime {
       } catch (error) {
         this.#setActivity(sessionId, 'error');
         const row = this.#assignmentRow(undefined, sessionId);
+        if (row?.stop_state !== 'running') return;
         if (row !== undefined) {
           const channel = this.#dmChannel(row.bot_slug);
           if (channel !== undefined) {
@@ -2671,7 +2735,9 @@ class BotRuntimeImplementation implements BotRuntime {
   #activeAssignmentCount(): number {
     return this.#database.read((database) => {
       const row = database
-        .prepare(`SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working'`)
+        .prepare(
+          `SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working' OR stop_state = 'requested'`,
+        )
         .get() as { count: number };
       return row.count;
     });
@@ -2707,7 +2773,7 @@ class BotRuntimeImplementation implements BotRuntime {
                     updated_at = ?,
                     open_ask_source_event_id = CASE WHEN ? = 1 THEN ? ELSE NULL END,
                     open_ask_at = CASE WHEN ? = 1 THEN ? ELSE NULL END
-              WHERE session_id = ? AND bot_slug = ?`,
+              WHERE session_id = ? AND bot_slug = ? AND stop_state = 'running'`,
           )
           .run(
             input.state,
@@ -2721,7 +2787,8 @@ class BotRuntimeImplementation implements BotRuntime {
             sessionId,
             botSlug,
           );
-        if (changed.changes !== 1) throw new Error(`Unknown Assignment Session: ${sessionId}`);
+        if (changed.changes !== 1)
+          throw new Error(`Assignment Session ${sessionId} is unavailable or stopping`);
         database
           .prepare(
             `INSERT INTO source_events (
@@ -2833,7 +2900,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#database.transaction(
       (database) => {
         database
-          .prepare('UPDATE assignments SET activity = ?, updated_at = ? WHERE session_id = ?')
+          .prepare(
+            "UPDATE assignments SET activity = ?, updated_at = ? WHERE session_id = ? AND stop_state = 'running'",
+          )
           .run(activity, at, sessionId);
       },
       ['assignments'],

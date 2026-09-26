@@ -9,6 +9,7 @@
 
 ### Added
 
+- Orchestrator 现在可通过 DSH 原生取消停止事项；停止状态在重启后保留，迟到报告不能使事项复活，同一 Continuity Key 可启动新 Session（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 - Bot 模式在“消息”上方新增 Human 收件箱：待处理群聊加入申请可直接批准或拒绝，新 PersonaBot 私聊消息可在独立的“仅供了解”页查看并标记已读；两类事项均可返回来源 Channel（[#126](https://github.com/BotHarness/BotHarness/issues/126)、[ADR-0071](docs/adr/0071-human-inbox-projects-channel-attention.md)）。
 
 - PersonaBot 私聊的右侧栏现在按来源 Channel 分组显示该 Bot 的收件箱，呈现持久 Attention 状态、来源消息跳转和来源不可用时的降级提示；已处理不代表 Bot 必须回复（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#152](https://github.com/BotHarness/BotHarness/issues/152)、[ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)）。

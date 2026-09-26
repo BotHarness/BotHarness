@@ -77,6 +77,7 @@ const BOT_TOOL_NAMES = new Set([
   'list_assignments',
   'inspect_assignment',
   'send_assignment_request',
+  'stop_assignment',
   'channel_list',
   'channel_read',
   'channel_read_image',
