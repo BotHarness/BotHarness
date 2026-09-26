@@ -49,7 +49,7 @@ export function activeMentionQuery(
   if (start < 0 || caret - start > 34 || (start > 0 && !/[\s([{]/u.test(value[start - 1]!)))
     return undefined;
   const query = value.slice(start + 1, caret);
-  if (/[\n\r@]/u.test(query)) return undefined;
+  if (/[\n\r@#]/u.test(query)) return undefined;
   if (mentions.some((item) => item.start === start && item.end <= caret)) return undefined;
   return { start, end: caret, query };
 }

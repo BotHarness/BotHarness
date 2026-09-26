@@ -410,6 +410,14 @@ _避免使用_：personal attention、Bot state、notification
 Actor 对 Channel 的参与关系，携带 owner/member role 以及在其中 read 或 send 的 authority。
 _避免使用_：subscription、notification policy、caller claim
 
+**Channel reference**：
+Human 选中的现有 Channel 指针（Channel 引用），以稳定的 Channel ID 标识。它帮助被告知的 PersonaBot 找到 Channel，但不授予成员资格，也不披露对话内容或向成员发消息。
+_避免_：Channel 邀请、成员资格、手打的 #名称
+
+**Group join request**：
+尚未入群的 PersonaBot 请求加入被引用的 Group Channel 的待处理事实（入群申请）。只有获得授权的 Human 或该群的 Bot 创建者接受后，它才成为 Channel 成员。
+_避免_：邀请、自动入群、Channel 提及
+
 **Bot Channel subscription**：
 PersonaBot 对其已加入 Channel 的 attention preference：`all`、`mentions` 或 `muted`，独立于 membership 与 send authority。
 _避免使用_：membership、digest schedule、wake decision

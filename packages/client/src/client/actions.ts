@@ -4,6 +4,7 @@ import {
   BridgeCallError,
   createGroupChannel,
   cancelGroupInvitation,
+  decideGroupJoin,
   removeGroupMember,
   setGroupWakePolicy,
   deleteGroupChannel,
@@ -158,11 +159,13 @@ export interface BridgeActions {
     attachments?: ChannelAttachmentRef[],
     memorySwitchTarget?: string,
     mentions?: ChannelMessage['mentions'],
+    channelRefs?: ChannelMessage['channelRefs'],
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
+  decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
   removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
   setGroupWakePolicy(
     channelId: string,
@@ -768,7 +771,7 @@ export function createActions(
         clientStore.setAssignments({ error: errorMessage(error) });
       }
     },
-    async send(body, replyTo, attachments, memorySwitchTarget, mentions) {
+    async send(body, replyTo, attachments, memorySwitchTarget, mentions, channelRefs) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
@@ -810,6 +813,7 @@ export function createActions(
             body: text,
             ...(attachments === undefined ? {} : { attachments }),
             ...(mentions === undefined ? {} : { mentions }),
+            ...(channelRefs === undefined ? {} : { channelRefs }),
             ...(replyTo === undefined
               ? {}
               : {
@@ -837,6 +841,7 @@ export function createActions(
           undefined,
           memorySwitchTarget,
           mentions,
+          channelRefs,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();
@@ -973,6 +978,18 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: Group invitation cancellation failed', error);
+        return false;
+      }
+    },
+    async decideGroupJoin(channelId, requestId, accept) {
+      try {
+        const channel = await decideGroupJoin(call, channelId, requestId, accept);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group join decision failed', error);
         return false;
       }
     },

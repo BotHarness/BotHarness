@@ -16,6 +16,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 import { ChannelComposer } from '../src/client/channel-composer.js';
 import { deleteSelectedMention } from '../src/client/mentions.js';
 import {
+  deleteSelectedChannelRef,
+  referenceRuns,
+  selectChannelRef,
+} from '../src/client/channel-refs.js';
+import {
   insertRichPlainText,
   readRichMentionDraft,
   renderRichMentionDraft,
@@ -76,7 +81,7 @@ describe('rich mention editor', () => {
     const mounts = renderRichMentionDraft(editor, value, mentions, []);
     expect(editor.textContent).toBe('Ada hi Bea');
     expect(mounts.map((item) => item.botSlug)).toEqual(['ada', 'bea']);
-    expect(readRichMentionDraft(editor)).toEqual({ value, mentions });
+    expect(readRichMentionDraft(editor)).toEqual({ value, mentions, channelRefs: [] });
 
     setRichSelection(editor, 4);
     expect(richSelectionOffsets(editor)).toEqual({ start: 4, end: 4 });
@@ -84,6 +89,7 @@ describe('rich mention editor', () => {
     expect(readRichMentionDraft(editor)).toEqual({
       value: '@Ada there hi @Bea',
       mentions: [mentions[0], { botSlug: 'bea', label: 'Bea', start: 14, end: 18 }],
+      channelRefs: [],
     });
     editor.remove();
   });
@@ -104,5 +110,43 @@ describe('rich mention editor', () => {
       caret: 0,
     });
     editor.remove();
+  });
+  it('round-trips a selected Group reference beside a Bot mention and deletes it atomically', () => {
+    const editor = document.createElement('div');
+    document.body.append(editor);
+    const value = '@Ada please use #Planning';
+    const mentions = [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }];
+    const refs = [{ channelId: 'group-planning', label: 'Planning', start: 16, end: 25 }];
+    renderRichMentionDraft(editor, value, mentions, [], refs);
+    expect(editor.querySelector('[data-channel-id="group-planning"]')?.textContent).toBe(
+      '#Planning',
+    );
+    expect(readRichMentionDraft(editor)).toEqual({ value, mentions, channelRefs: refs });
+    expect(referenceRuns(value, mentions, refs).map((run) => run.text)).toEqual([
+      '@Ada',
+      ' please use ',
+      '#Planning',
+    ]);
+    expect(deleteSelectedChannelRef(value, refs, 25, 25, 'Backspace')).toEqual({
+      value: '@Ada please use ',
+      refs: [],
+      caret: 16,
+    });
+    editor.remove();
+  });
+
+  it('keeps a typed #name inert until chosen from the Group picker', () => {
+    const value = 'Please use #Planning';
+    expect(referenceRuns(value, [], [])).toEqual([{ text: value }]);
+    const selected = selectChannelRef(
+      value,
+      [],
+      { start: 11, end: 20, query: 'Planning' },
+      'group-planning',
+      'Planning',
+    );
+    expect(selected.refs).toEqual([
+      { channelId: 'group-planning', label: 'Planning', start: 11, end: 20 },
+    ]);
   });
 });

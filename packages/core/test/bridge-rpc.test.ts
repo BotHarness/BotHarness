@@ -71,7 +71,7 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the forty-nine bridge endpoints for typert claims', () => {
+  it('marks exactly the fifty-one bridge endpoints for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
@@ -88,6 +88,7 @@ describe('bridge typert service', () => {
       'channelRename',
       'channelGroupInviteCancel',
       'channelGroupMemberRemove',
+      'channelGroupJoinDecide',
       'channelGroupWakeSet',
       'channelGroupDelete',
       'channelMessages',
@@ -183,6 +184,7 @@ describe('bridge typert service', () => {
       'messageId',
       'memorySwitchTarget',
       'mentions',
+      'channelRefs',
     ]);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);

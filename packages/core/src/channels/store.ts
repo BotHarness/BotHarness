@@ -17,6 +17,7 @@ import {
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
+  type GroupJoinRequest,
   type BotMessageCausation,
 } from './channel.js';
 import {
@@ -268,6 +269,24 @@ export interface ChannelStore {
     channel: ChannelRecord;
     invitation: GroupInvitation;
   };
+  /** Durable request for a Human-referenced Group; requester remains a nonmember. */
+  requestGroupJoin(input: {
+    channelId: string;
+    requesterBotSlug: string;
+    requesterBotCreatedAt: string;
+    ownerDmChannelId?: string;
+    botCausation?: BotMessageCausation;
+  }): GroupJoinRequest;
+  /** A Human or current Bot Group creator decides; first decision wins. */
+  decideGroupJoin(input: {
+    channelId: string;
+    requestId: string;
+    accept: boolean;
+    decidedBy: 'human' | string;
+    requesterBotCreatedAt: string;
+    requesterDmChannelId: string;
+    botCausation?: BotMessageCausation;
+  }): { channel: ChannelRecord; request: GroupJoinRequest; notified: boolean };
   /** The Human may cancel a pending invite or remove a joined Bot. */
   cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
   cancelInvitationsForBot(botSlug: string): void;
@@ -614,6 +633,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     },
     respondToGroupInvite() {
       throw new Error('Group invitations require the operational Channel store');
+    },
+    requestGroupJoin() {
+      throw new Error('Group join requests require the operational Channel store');
+    },
+    decideGroupJoin() {
+      throw new Error('Group join requests require the operational Channel store');
     },
     cancelGroupInvite() {
       throw new Error('Group invitations require the operational Channel store');
