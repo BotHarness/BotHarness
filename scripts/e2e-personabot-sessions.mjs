@@ -27,8 +27,31 @@ try {
     waitUntil: 'networkidle2',
     timeout: 60000,
   });
+  await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'Continue')
+      ?.click(),
+  );
   await page.click('button[aria-label="Bot mode"]');
-  await page.waitForSelector('button[aria-label="New"]', { timeout: 10000 });
+  try {
+    await page.waitForSelector('button[aria-label="New"]', { timeout: 20000 });
+  } catch (error) {
+    await page.screenshot({ path: resolve(shots, '00-initial-state.png'), fullPage: true });
+    console.log(
+      'INITIAL PAGE',
+      await page.evaluate(() => ({
+        url: location.href,
+        text: document.body.innerText.slice(0, 1500),
+        buttons: Array.from(document.querySelectorAll('button'))
+          .slice(0, 30)
+          .map((button) => ({
+            label: button.getAttribute('aria-label'),
+            text: button.textContent?.trim(),
+          })),
+      })),
+    );
+    throw error;
+  }
   await page.click('button[aria-label="New"]');
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
@@ -201,8 +224,8 @@ try {
     assignment.sessionId,
   );
   await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.bh-session-view button'))
-      .find((button) => /All|全部/.test(button.textContent ?? ''))
+    Array.from(document.querySelectorAll('.bh-session-controls [role="tab"]'))
+      .find((button) => /^(All|全部)$/.test(button.textContent?.trim() ?? ''))
       ?.click(),
   );
   await page.waitForFunction(() => document.querySelectorAll('.bh-session-row').length >= 2, {

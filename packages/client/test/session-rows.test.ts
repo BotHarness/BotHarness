@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { personaBotSessionRows } from '../src/client/session-rows.js';
+import { groupSessionRowsByWorkspace, personaBotSessionRows } from '../src/client/session-rows.js';
 
 const createdAt = '2026-09-26T00:00:00.000Z';
 const owned = [
@@ -52,6 +52,25 @@ describe('PersonaBot Session projection', () => {
       ['missing', 'missing', 'unavailable'],
     ]);
     expect(rows[1]?.cwd).toBe('/projects/a');
+  });
+
+  it('groups ordered Sessions by exact workspace path without changing row identity', () => {
+    const rows = personaBotSessionRows(owned, native, 'all');
+    const groups = groupSessionRowsByWorkspace(rows);
+    expect(groups.map((group) => [group.name, group.rows.map((row) => row.sessionId)])).toEqual([
+      ['ada', ['orchestrator']],
+      ['a', ['active']],
+      ['c', ['missing']],
+      ['b', ['stopped']],
+    ]);
+    expect(groups.flatMap((group) => group.rows)).toEqual(rows);
+    expect(
+      groupSessionRowsByWorkspace([
+        { ...rows[0]!, cwd: 'C:\\projects\\same' },
+        { ...rows[1]!, cwd: 'C:/projects/same/' },
+        { ...rows[2]!, cwd: '/other/same' },
+      ]),
+    ).toHaveLength(2);
   });
 
   it('includes stopped Session history only in All and never treats cwd as Bot ownership', () => {

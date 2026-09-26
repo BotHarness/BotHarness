@@ -2537,27 +2537,52 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   font-size: 11px;
 }
 
-.bh-session-view {
-  display: flex;
-  gap: 2px;
-  margin: 0 8px 6px;
-  padding: 2px;
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 8px;
+.bh-session-controls {
+  display: grid;
+  gap: 8px;
+  margin: 0 8px 10px;
 }
-.bh-session-view button {
-  flex: 1;
+.bh-session-workspace-group {
+  margin: 2px 0;
+}
+.bh-session-workspace-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
   border: 0;
-  border-radius: 6px;
-  padding: 4px 8px;
+  border-radius: 8px;
+  padding: 0 8px;
   background: transparent;
-  color: var(--dsw-alias-label-secondary);
-  font: inherit;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
   cursor: pointer;
 }
-.bh-session-view button[aria-pressed='true'] {
-  background: var(--bh-selected);
-  color: var(--dsw-alias-label-primary);
+.bh-session-workspace-heading:hover {
+  background: var(--bh-hover);
+}
+.bh-session-workspace-heading svg {
+  flex: none;
+  transition: transform 150ms var(--ds-ease-in-out, ease);
+}
+.bh-session-workspace-chevron-collapsed {
+  transform: rotate(-90deg);
+}
+.bh-session-workspace-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bh-session-workspace-count {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
+.bh-session-workspace-rows {
+  padding-left: 10px;
 }
 .bh-session-row {
   display: block;
