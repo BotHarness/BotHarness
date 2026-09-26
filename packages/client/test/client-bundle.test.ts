@@ -218,6 +218,13 @@ describe('@botharness/ui browser bundle', () => {
         inject: expect.any(Function),
       },
       {
+        name: 'sidebar.session.row.leading',
+        id: 'botharness-session-owner-avatar',
+        order: 20,
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
+      {
         name: 'sidebar.workspaces.session.menu.item',
         id: 'botharness-return-to-bot-menu',
         order: 500,

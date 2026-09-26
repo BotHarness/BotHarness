@@ -23,7 +23,7 @@ vi.mock('../src/client/bot-icon.js', () => ({
 
 import type { SessionBotOwner } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
-import { SessionReturnMenuItem } from '../src/client/session-return-action.js';
+import { SessionOwnerLeading, SessionReturnMenuItem } from '../src/client/session-return-action.js';
 
 const OWNER: SessionBotOwner = {
   botSlug: 'qa-bot',
@@ -135,6 +135,46 @@ describe('native Session menu return to PersonaBot', () => {
       expect(view.host.querySelector('button')?.textContent).toContain('打开私聊失败，请重试');
     } finally {
       await view.dispose();
+    }
+  });
+});
+
+describe('native Session row PersonaBot avatar', () => {
+  it('shows the owning Bot avatar only for an owned Session', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const resolver = vi.fn(async (sessionId: string) =>
+      sessionId === 'assignment-1' ? OWNER : undefined,
+    );
+    try {
+      await act(async () =>
+        root.render(
+          createElement(SessionOwnerLeading, {
+            sessionId: 'assignment-1',
+            resolveOwner: resolver,
+            t: zhTranslate,
+          } as never),
+        ),
+      );
+      const avatar = host.querySelector('.bh-native-session-owner');
+      expect(avatar?.getAttribute('role')).toBe('img');
+      expect(avatar?.getAttribute('aria-label')).toContain('QA Bot');
+      expect(avatar?.getAttribute('data-state')).toBe('idle');
+      await act(async () =>
+        root.render(
+          createElement(SessionOwnerLeading, {
+            sessionId: 'unowned-session',
+            resolveOwner: resolver,
+            t: zhTranslate,
+          } as never),
+        ),
+      );
+      expect(host.querySelector('.bh-native-session-owner')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
     }
   });
 });

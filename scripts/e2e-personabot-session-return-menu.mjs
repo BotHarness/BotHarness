@@ -103,6 +103,38 @@ try {
     if (row.text !== 'Back to Bot DM' || !row.icon)
       throw new Error('Native Bot return menu row is missing the expected label or icon');
   };
+  const assertNativeAvatar = async (title, expected) => {
+    await page.waitForFunction(
+      (name) =>
+        Array.from(document.querySelectorAll('[data-row-key^="session:"]')).some((row) =>
+          row.textContent?.includes(name),
+        ),
+      { timeout: 20000 },
+      title,
+    );
+    if (expected) {
+      await page.waitForFunction(
+        (name) =>
+          Array.from(document.querySelectorAll('[data-row-key^="session:"]')).some(
+            (row) =>
+              row.textContent?.includes(name) &&
+              row.querySelector('.bh-native-session-owner[role="img"]'),
+          ),
+        { timeout: 20000 },
+        title,
+      );
+    }
+    const actual = await page.evaluate(
+      (name) =>
+        Array.from(document.querySelectorAll('[data-row-key^="session:"]'))
+          .find((row) => row.textContent?.includes(name))
+          ?.querySelector('.bh-native-session-owner[role="img"]')
+          ?.getAttribute('aria-label'),
+      title,
+    );
+    if (expected && !actual?.includes(botName)) throw new Error('Owned Session avatar missing');
+    if (!expected && actual) throw new Error('Unowned Session showed a Bot avatar');
+  };
   const clickReturnMenu = async () => {
     await page.evaluate(() =>
       Array.from(document.querySelectorAll('[role="menuitem"]'))
@@ -129,6 +161,7 @@ try {
       ?.click(),
   );
   await page.waitForSelector('.bh-session-return-action', { timeout: 20000 });
+  await assertNativeAvatar('创建使用 DSH bash 的事项', true);
   await openNativeMenu('创建使用 DSH bash 的事项');
   await page.screenshot({ path: resolve(shots, 'orchestrator-return-menu.png'), fullPage: true });
   await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
@@ -159,6 +192,7 @@ try {
       ?.click(),
   );
   await page.waitForSelector('.bh-session-return-action', { timeout: 20000 });
+  await assertNativeAvatar('Run pwd with DSH native bash', true);
   await openNativeMenu('Run pwd with DSH native bash');
   await page.screenshot({ path: resolve(shots, 'assignment-return-menu.png'), fullPage: true });
   await clickReturnMenu();
@@ -175,6 +209,7 @@ try {
       ),
     { timeout: 20000 },
   );
+  await assertNativeAvatar('Ready', false);
   await page.evaluate(() =>
     document.querySelector('button[aria-label="Session actions for Ready"]')?.click(),
   );

@@ -21,6 +21,10 @@ export type SessionReturnMenuItemProps = PropsRuntime<'sidebar.workspaces.sessio
   PropsLocale<typeof LOCALE_NS> &
   InjectFace<SessionReturnInjected>;
 
+export type SessionOwnerLeadingProps = PropsRuntime<'sidebar.session.row.leading'> &
+  PropsLocale<typeof LOCALE_NS> &
+  InjectFace<Pick<SessionReturnInjected, 'resolveOwner'>>;
+
 function useSessionOwner(
   sessionId: string,
   resolveOwner: SessionReturnInjected['resolveOwner'],
@@ -88,6 +92,28 @@ export function SessionReturnAction({
         ? t('sessions.return.failed')
         : t('sessions.return.action', { name: owner.displayName })}
     </Button>
+  );
+}
+
+/** An idle native Session row shows its PersonaBot identity before the title. */
+export function SessionOwnerLeading({
+  sessionId,
+  resolveOwner,
+  t,
+}: SessionOwnerLeadingProps): ReactElement | null {
+  const owner = useSessionOwner(sessionId, resolveOwner);
+  if (owner === undefined) return null;
+
+  return (
+    <PersonaBotAvatar
+      personaBotId={owner.botSlug}
+      name={owner.displayName}
+      src={owner.avatar}
+      size={16}
+      indicator={false}
+      className="bh-native-session-owner"
+      t={t}
+    />
   );
 }
 
