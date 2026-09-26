@@ -30,7 +30,7 @@ import {
   type RosterSnapshot,
 } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
-import type { SessionOwnership } from '../sessions/ownership.js';
+import type { SessionOwnership, SessionRootRole } from '../sessions/ownership.js';
 import {
   MemoryAcceptError,
   type MemoryAcceptedCommit,
@@ -54,7 +54,6 @@ import type {
   AssignmentAccessStore,
   AssignmentAccessPreset,
 } from '../workspaces/assignment-access.js';
-import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
   BotAttentionQuery,
   BotAttentionPage,
@@ -67,6 +66,7 @@ import type {
   HumanAttentionCategory,
 } from '../runtime/human-attention.js';
 import type {
+  AssignmentActivity,
   AssignmentDetail,
   AssignmentSummary,
   BotRuntime,
@@ -101,6 +101,14 @@ export interface PersonaBotDetail extends PersonaBotSummary {
 /** Channel list projection; latestMessage is derived from the durable message log. */
 export interface ChannelListItem extends ChannelRecord {
   latestMessage?: ChannelMessage;
+}
+
+export interface OwnedSessionSummary {
+  sessionId: string;
+  role: SessionRootRole;
+  createdAt: string;
+  cwdReference?: string;
+  assignmentActivity?: AssignmentActivity;
 }
 
 export interface BridgeError {
@@ -151,7 +159,7 @@ export interface BridgeMethods {
   toolApprovalDecide(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
-  sessions(payload: unknown): BridgeResult<{ sessions: SessionSummary[] }>;
+  sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
     payload: unknown,
@@ -178,7 +186,6 @@ export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
   states: BotStateTracker;
   channels: ChannelStore;
-  sessions: BotSessionSource;
   ownership: SessionOwnership;
   memory?: MemoryService;
   roster: RosterStore;
@@ -1358,10 +1365,22 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const slug = asSlug(payload);
       if (slug === undefined) return invalidInput('slug is required');
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
-      const sessions = deps.sessions
-        .list()
-        .filter((session) => deps.ownership.resolve(session.id)?.botSlug === slug)
-        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      const assignments = new Map(
+        (deps.runtime?.listAssignments(slug) ?? []).map((assignment) => [
+          assignment.sessionId,
+          assignment,
+        ]),
+      );
+      const sessions = deps.ownership.rootsFor(slug).map((root) => {
+        const assignment = assignments.get(root.sessionId);
+        return {
+          sessionId: root.sessionId,
+          role: root.rootRole,
+          createdAt: root.createdAt,
+          ...(root.cwdReference === undefined ? {} : { cwdReference: root.cwdReference }),
+          ...(assignment === undefined ? {} : { assignmentActivity: assignment.activity }),
+        };
+      });
       return { ok: true, value: { sessions } };
     },
     memorySnapshot(payload) {

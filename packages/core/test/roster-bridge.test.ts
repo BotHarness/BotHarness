@@ -27,7 +27,7 @@ function setup(): { methods: BridgeMethods; roster: RosterStore; fake: FakeRoste
     registry: createPersonaBotRegistry({ rootDir: root }),
     states: createBotStateTracker(),
     channels: createChannelStore({ rootDir: join(root, 'channels') }),
-    sessions: { list: () => [] },
+
     ownership: createTestOwnership(),
     roster,
   });

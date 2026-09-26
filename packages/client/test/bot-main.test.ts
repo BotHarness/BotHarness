@@ -72,8 +72,8 @@ function sidebarRegistry() {
   return registry;
 }
 
-describe('Bot main Assignment pane', () => {
-  it('shows Assignment items and the selected read-only report beside a DM', () => {
+describe('Bot main Sessions pane', () => {
+  it('shows a Session entry beside a DM while keeping the Bot title in the channel header', () => {
     const bot = {
       slug: 'ada',
       displayName: 'Ada',
@@ -91,20 +91,7 @@ describe('Bot main Assignment pane', () => {
       createdAt: '2026-09-21T00:00:00.000Z',
       updatedAt: '2026-09-21T00:01:00.000Z',
     };
-    const assignment = {
-      sessionId: 'assignment-1',
-      botSlug: 'ada',
-      sourceEventId: 'source-1',
-      purpose: '研究发布状态',
-      activity: 'idle' as const,
-      latestReport: {
-        state: 'completed' as const,
-        summary: '发布状态正常',
-        at: '2026-09-21T00:01:00.000Z',
-      },
-      createdAt: '2026-09-21T00:00:00.000Z',
-      updatedAt: '2026-09-21T00:01:00.000Z',
-    };
+    const previous = store.getSnapshot();
     store.setRoster([bot], [channel]);
     store.select({ kind: 'bot', slug: 'ada' });
     store.setConversation({
@@ -114,10 +101,15 @@ describe('Bot main Assignment pane', () => {
       error: undefined,
       sending: false,
     });
-    store.setAssignments({
+    store.setSessions({
       status: 'ready',
-      items: [assignment],
-      selected: assignment,
+      items: [
+        {
+          sessionId: 'orchestrator-1',
+          role: 'orchestrator',
+          createdAt: '2026-09-21T00:00:00.000Z',
+        },
+      ],
       error: undefined,
     });
 
@@ -125,7 +117,7 @@ describe('Bot main Assignment pane', () => {
       createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
     );
 
-    expect(markup).toContain('事项');
+    expect(markup).toContain('会话');
     expect(markup).toContain('收起 Channel sidebar');
     expect(markup).toContain('class="bh-channel-island"');
     expect(markup).toContain('aria-label="Ada — 收起 Channel sidebar"');
@@ -147,7 +139,7 @@ describe('Bot main Assignment pane', () => {
     expect(channelMarkup).not.toContain('bh-channel-sidebar-title');
     store.select(beforeChannelSelection.selection);
     store.setConversation(beforeChannelSelection.conversation);
-    store.setAssignments(beforeChannelSelection.assignments);
+    store.setSessions(previous.sessions);
   });
 
   it('shows a group Channel name in the same sidebar-opening island', () => {
@@ -169,7 +161,7 @@ describe('Bot main Assignment pane', () => {
       error: undefined,
       sending: false,
     });
-    store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
+    store.setSessions({ status: 'ready', items: [], error: undefined });
 
     const markup = renderToStaticMarkup(
       createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),
@@ -182,48 +174,70 @@ describe('Bot main Assignment pane', () => {
     store.setRoster(previous.bots, previous.channels);
     store.select(previous.selection);
     store.setConversation(previous.conversation);
-    store.setAssignments(previous.assignments);
+    store.setSessions(previous.sessions);
   });
 
-  it('renders an expanded entry body from the registered entry', () => {
-    const assignments = createChannelSidebarBuiltins(zhTranslate).find(
-      (entry) => entry.id === 'assignments',
+  it('renders native Session title, role and workspace in the expanded entry', () => {
+    store.setSessions({
+      status: 'ready',
+      items: [
+        {
+          sessionId: 'orchestrator-1',
+          role: 'orchestrator',
+          createdAt: '2026-09-21T00:00:00.000Z',
+        },
+      ],
+      error: undefined,
+    });
+    const native = {
+      subscribe: () => () => undefined,
+      getSnapshot: () => ({
+        ids: ['orchestrator-1'],
+        byId: {
+          'orchestrator-1': {
+            displayTitle: 'Plan release',
+            cwd: '/srv/ada',
+            updatedAt: Date.parse('2026-09-21T00:01:00.000Z'),
+            running: true,
+          },
+        },
+      }),
+    };
+    const sessions = createChannelSidebarBuiltins(zhTranslate, undefined, native).find(
+      (entry) => entry.id === 'sessions',
     );
-    expect(assignments).toBeDefined();
+    expect(sessions).toBeDefined();
 
     const markup = renderToStaticMarkup(
       createElement(ChannelSidebarEntrySection, {
-        entry: assignments!,
+        entry: sessions!,
         expanded: true,
         onToggle: () => undefined,
         entryProps,
       }),
     );
-
     expect(markup).toContain('aria-expanded="true"');
-    expect(markup).toContain('研究发布状态');
-    expect(markup).toContain('发布状态正常');
-    expect(markup).toContain('Assignment Session');
-    expect(markup).not.toContain('Orchestrator Session');
-    expect(markup).toContain('1');
+    expect(markup).toContain('Plan release');
+    expect(markup).toContain('Orchestrator');
+    expect(markup).toContain('ada');
+    expect(markup).not.toContain('事项');
   });
 
-  it('renders a collapsed entry header without its body', () => {
-    const assignments = createChannelSidebarBuiltins(zhTranslate).find(
-      (entry) => entry.id === 'assignments',
+  it('renders a collapsed Sessions header without its body', () => {
+    const sessions = createChannelSidebarBuiltins(zhTranslate).find(
+      (entry) => entry.id === 'sessions',
     );
     const markup = renderToStaticMarkup(
       createElement(ChannelSidebarEntrySection, {
-        entry: assignments!,
+        entry: sessions!,
         expanded: false,
         onToggle: () => undefined,
         entryProps,
       }),
     );
-
     expect(markup).toContain('aria-expanded="false"');
-    expect(markup).toContain('事项');
-    expect(markup).not.toContain('研究发布状态');
+    expect(markup).toContain('会话');
+    expect(markup).not.toContain('Plan release');
   });
 
   it('marks a locally echoed Human message as pending until the Host commits it', () => {
@@ -261,7 +275,7 @@ describe('Bot main Assignment pane', () => {
       error: undefined,
       sending: true,
     });
-    store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
+    store.setSessions({ status: 'ready', items: [], error: undefined });
 
     const markup = renderToStaticMarkup(
       createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: sidebarRegistry() }),

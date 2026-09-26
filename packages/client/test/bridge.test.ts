@@ -6,12 +6,11 @@ import {
   createBridgeCall,
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
-  parseAssignmentSummaries,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
   parseChannelRecords,
-  parseSessionSummaries,
+  parseOwnedSessionSummaries,
   type BridgeCall,
 } from '../src/client/bridge.js';
 import { createStore } from '../src/client/store.js';
@@ -206,48 +205,30 @@ describe('bridge parsers', () => {
     expect(messages[1]?.replyToPreview).toBeNull();
   });
 
-  it('parses Assignment summaries and drops malformed rows', () => {
+  it('parses owned root Sessions and drops malformed rows', () => {
     expect(
-      parseAssignmentSummaries({
-        assignments: [
+      parseOwnedSessionSummaries({
+        sessions: [
+          { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
           {
             sessionId: 'assignment-1',
-            purpose: '核对发布状态',
-            activity: 'idle',
-            latestReport: {
-              state: 'completed',
-              summary: '发布状态正常',
-              at: '2026-09-19T00:03:00.000Z',
-            },
-            createdAt: '2026-09-19T00:02:00.000Z',
-            updatedAt: '2026-09-19T00:03:00.000Z',
+            role: 'assignment',
+            createdAt: BOT.createdAt,
+            cwdReference: '/srv/ada',
+            assignmentActivity: 'stopped',
           },
-          { sessionId: '', purpose: 'bad', activity: 'idle' },
+          { sessionId: 'child', role: 'subagent', createdAt: BOT.createdAt },
         ],
       }),
     ).toEqual([
-      expect.objectContaining({
+      { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
+      {
         sessionId: 'assignment-1',
-        purpose: '核对发布状态',
-        activity: 'idle',
-        latestReport: expect.objectContaining({ state: 'completed', summary: '发布状态正常' }),
-      }),
-    ]);
-  });
-
-  it('keeps session rows with a cwd and defaults a missing title', () => {
-    const sessions = parseSessionSummaries({
-      sessions: [
-        { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
-        { id: 's2', cwd: '/srv/ada' },
-        { id: 's3', title: 'no cwd', updatedAt: 'x' },
-        null,
-      ],
-    });
-
-    expect(sessions).toEqual([
-      { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
-      { id: 's2', title: '', cwd: '/srv/ada', updatedAt: '' },
+        role: 'assignment',
+        createdAt: BOT.createdAt,
+        cwdReference: '/srv/ada',
+        assignmentActivity: 'stopped',
+      },
     ]);
   });
 });
@@ -300,37 +281,17 @@ describe('bridge actions', () => {
         channel: { ...DM, name: payload['name'] },
         bot: { ...BOT, displayName: payload['name'] },
       }),
-      assignments: () => ({
-        assignments: [
+      sessions: () => ({
+        sessions: [
+          { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
           {
             sessionId: 'assignment-1',
-            purpose: '研究发布状态',
-            activity: 'idle',
-            latestReport: {
-              state: 'completed',
-              summary: '发布状态正常',
-              at: '2026-09-19T00:04:00.000Z',
-            },
-            createdAt: '2026-09-19T00:03:00.000Z',
-            updatedAt: '2026-09-19T00:04:00.000Z',
+            role: 'assignment',
+            createdAt: BOT.createdAt,
+            cwdReference: '/srv/ada',
+            assignmentActivity: 'idle',
           },
         ],
-      }),
-      assignment: () => ({
-        assignment: {
-          sessionId: 'assignment-1',
-          botSlug: 'ada',
-          sourceEventId: 'source-1',
-          purpose: '研究发布状态',
-          activity: 'idle',
-          latestReport: {
-            state: 'completed',
-            summary: '发布状态正常',
-            at: '2026-09-19T00:04:00.000Z',
-          },
-          createdAt: '2026-09-19T00:03:00.000Z',
-          updatedAt: '2026-09-19T00:04:00.000Z',
-        },
       }),
       rosterGet: () => ({ pins, sections: [], topOrder }),
       pinsSet: (payload) => {
@@ -346,6 +307,37 @@ describe('bridge actions', () => {
     });
     return { clientStore, actions: createActions(call, clientStore) };
   }
+
+  it('keeps Session rows visible and ignores an older refresh response', async () => {
+    const initial = { sessionId: 'initial', role: 'orchestrator', createdAt: BOT.createdAt };
+    const latest = { sessionId: 'latest', role: 'orchestrator', createdAt: BOT.createdAt };
+    const stale = { sessionId: 'stale', role: 'orchestrator', createdAt: BOT.createdAt };
+    const pending: Array<(value: unknown) => void> = [];
+    let loads = 0;
+    const { clientStore, actions } = setup({
+      sessions: () => {
+        if (++loads === 1) return { sessions: [initial] };
+        return new Promise((resolve) => pending.push(resolve));
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const first = actions.refreshSessions('ada');
+    const second = actions.refreshSessions('ada');
+    expect(pending).toHaveLength(2);
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'initial' }],
+    });
+    pending[1]!({ sessions: [latest] });
+    await second;
+    pending[0]!({ sessions: [stale] });
+    await first;
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'latest' }],
+    });
+  });
 
   it('loads the roster and opens a DM with its history in chronological order', async () => {
     const { clientStore, actions } = setup();
@@ -366,61 +358,39 @@ describe('bridge actions', () => {
     expect(state.channels.find((channel) => channel.id === 'dm-ada')?.latestMessage?.body).toBe(
       'newer',
     );
-    expect(state.assignments.items.map((assignment) => assignment.sessionId)).toEqual([
+    expect(state.sessions.items.map((session) => session.sessionId)).toEqual([
+      'orchestrator-1',
       'assignment-1',
     ]);
-    await actions.openAssignment('assignment-1');
-    expect(clientStore.getSnapshot().assignments.selected).toMatchObject({
-      sessionId: 'assignment-1',
-      sourceEventId: 'source-1',
-    });
   });
 
-  it('opens Assignment details and refreshes the list from a Channel-selected DM', async () => {
+  it('refreshes owned Sessions from a Channel-selected DM after sending', async () => {
     let reads = 0;
     const { clientStore, actions } = setup({
-      assignments: () => {
+      sessions: () => {
         reads += 1;
-        return { assignments: [] };
+        return {
+          sessions: [
+            { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
+          ],
+        };
       },
     });
     await actions.load();
     await actions.openChannel('dm-ada');
     expect(reads).toBe(1);
-
-    await actions.openAssignment('assignment-1');
-    expect(clientStore.getSnapshot().assignments.selected).toMatchObject({
-      sessionId: 'assignment-1',
-      botSlug: 'ada',
-    });
-
+    expect(clientStore.getSnapshot().sessions.items[0]?.sessionId).toBe('orchestrator-1');
     await actions.send('检查进度');
     expect(reads).toBe(2);
   });
 
-  it('loads stopped Assignments when reopening a DM from the Channel list', async () => {
-    const { clientStore, actions } = setup({
-      assignments: () => ({
-        assignments: [
-          {
-            sessionId: 'assignment-stopped',
-            purpose: 'Check the workspace',
-            activity: 'stopped',
-            createdAt: '2026-09-19T00:03:00.000Z',
-            updatedAt: '2026-09-19T00:04:00.000Z',
-          },
-        ],
-      }),
-    });
+  it('clears owned Sessions when selecting a Group after a Bot DM', async () => {
+    const { clientStore, actions } = setup();
     await actions.load();
-
     await actions.openChannel('dm-ada');
-    expect(clientStore.getSnapshot().assignments.items).toMatchObject([
-      { sessionId: 'assignment-stopped', activity: 'stopped' },
-    ]);
-
+    expect(clientStore.getSnapshot().sessions.items).toHaveLength(2);
     await actions.openChannel('group-team');
-    expect(clientStore.getSnapshot().assignments.items).toEqual([]);
+    expect(clientStore.getSnapshot().sessions.items).toEqual([]);
   });
 
   it('reopens DM and group Channels around the profile read anchor', async () => {
@@ -925,7 +895,7 @@ describe('bridge actions', () => {
   });
 
   it('echoes a DM message locally, then reconciles it with the committed message', async () => {
-    let assignmentReads = 0;
+    let sessionReads = 0;
     let resolveSend: (value: { message: Record<string, unknown> }) => void = () => undefined;
     let requestedId = '';
     const response = new Promise<{ message: Record<string, unknown> }>((resolve) => {
@@ -936,9 +906,9 @@ describe('bridge actions', () => {
         requestedId = String(payload['messageId']);
         return response;
       },
-      assignments: () => {
-        assignmentReads += 1;
-        return { assignments: [] };
+      sessions: () => {
+        sessionReads += 1;
+        return { sessions: [] };
       },
     });
     await actions.load();
@@ -972,7 +942,7 @@ describe('bridge actions', () => {
         body: 'hello',
       },
     ]);
-    expect(assignmentReads).toBe(2);
+    expect(sessionReads).toBe(2);
     expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
       '2026-09-19T00:03:00.000Z',
     );

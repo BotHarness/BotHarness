@@ -168,12 +168,12 @@ describe('DM turn end to end', () => {
     ]);
 
     const bridge = ctx.get('botharnessBridge') as {
-      sessions(slug: string): { sessions: Array<{ id: string }> };
+      sessions(slug: string): { sessions: Array<{ sessionId: string }> };
     };
     expect(
       bridge
         .sessions('ada')
-        .sessions.map((session) => session.id)
+        .sessions.map((session) => session.sessionId)
         .sort(),
     ).toEqual(ownership.map((record) => record.sessionId).sort());
     expect(core.registry.create({ slug: 'bob', displayName: 'Bob' }).ok).toBe(true);

@@ -9,6 +9,7 @@ import type {
   ChannelListItem,
   PersonaBotDetail,
   PersonaBotSummary,
+  OwnedSessionSummary,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
@@ -19,7 +20,6 @@ import type { ChannelTimelinePage, TimelineDirection } from '../channels/timelin
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { BotAttentionPage, BotAttentionState } from '../runtime/attention.js';
 import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
-import type { SessionSummary } from '../sessions/source.js';
 import type {
   MemoryAcceptedCommit,
   MemoryAcceptedSnapshot,
@@ -376,7 +376,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.userQuestionAnswer({ channelId, messageId, answer }));
   }
 
-  sessions(slug: string): { sessions: SessionSummary[] } {
+  sessions(slug: string): { sessions: OwnedSessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
   }
 

@@ -66,6 +66,8 @@
 
 ### Changed
 
+- PersonaBot 私聊右侧栏现在按原生 DSH 标题、工作区及运行状态展示归属该 Bot 的 Orchestrator 与 Assignment Session；「当前」优先显示活跃工作，「全部」保留已停止历史，点击行打开原生 Session（[#312](https://github.com/BotHarness/BotHarness/issues/312)、[ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)）。
+
 - Group Channel 的 @PersonaBot 与 Bot 间私聊提示现允许 Bot 在无需回应时直接结束；「已处理」仍表示回合完成，不表示已发出确认消息（[#302](https://github.com/BotHarness/BotHarness/issues/302)）。
 
 - 本地 Desktop 的 Client 改动现在可经 DSH Client HMR 更新已打开的 PersonaBot 私聊；未发布的 UI Bundle 改名为 `@botharness/ui`，使 RC2 能正确解析插件图（[#272](https://github.com/BotHarness/BotHarness/issues/272)、[ADR-0066](docs/adr/0066-rc2-client-bundle-identity.md)）。HMR 后整页刷新仍可能触发 RC2 Web 启动失败；请按[开发指南](docs/client-bridge.md)重启应用及 Host。

@@ -11,7 +11,6 @@ import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bri
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
-import type { BotSessionSource } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 
@@ -29,12 +28,10 @@ function setup() {
     rootDir: join(root, 'channels'),
     now: () => new Date('2026-09-19T00:00:00.000Z'),
   });
-  const sessions: BotSessionSource = { list: () => [] };
   const methods: BridgeMethods = createBridgeMethods({
     registry,
     states: createBotStateTracker(),
     channels,
-    sessions,
     ownership: createTestOwnership(),
     roster: createRosterStore(),
     createBotId: () => 'ada',

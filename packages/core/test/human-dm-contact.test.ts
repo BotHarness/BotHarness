@@ -40,7 +40,7 @@ describe('Human DM selected contact context', () => {
         registry: core.registry,
         states: core.states,
         channels: core.channels,
-        sessions: { list: () => [] },
+
         ownership: core.ownership,
         roster: core.roster,
         runtime: core.runtime,

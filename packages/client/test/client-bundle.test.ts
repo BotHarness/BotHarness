@@ -135,6 +135,7 @@ describe('@botharness/ui browser bundle', () => {
       'inputTriggers',
       'layout',
       'locale',
+      'sessions',
       'uiWorkspace',
       'workspaces',
     ]);
@@ -179,6 +180,9 @@ describe('@botharness/ui browser bundle', () => {
         subscribe: () => () => undefined,
         register: () => () => undefined,
         bind: () => (key: string) => key,
+      },
+      sessions: {
+        list: { subscribe: () => () => undefined, getSnapshot: () => ({ ids: [], byId: {} }) },
       },
       provide: () => () => undefined,
       effect: (callback: () => unknown) => {

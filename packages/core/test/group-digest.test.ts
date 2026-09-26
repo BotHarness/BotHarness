@@ -223,7 +223,7 @@ describe('Group ordinary-message digest', () => {
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
       const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(
         methods.channelGroupWakeSet({
           channelId: group.id,
@@ -311,7 +311,7 @@ describe('Group ordinary-message digest', () => {
       before.registry.create({ slug: 'ada', displayName: 'Ada' });
       const group = before.channels.createGroup({ name: 'Team', members: ['ada'] });
       groupId = group.id;
-      const methods = createBridgeMethods({ ...before, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...before });
       expect(
         methods.channelGroupWakeSet({
           channelId: group.id,

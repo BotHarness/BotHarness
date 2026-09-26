@@ -2,7 +2,6 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
 import type {
-  AssignmentDetail,
   BotAttentionItem,
   BotAttentionPage,
   BotAttentionStatus,
@@ -10,15 +9,12 @@ import type {
   HumanAttentionPage,
   HumanInboxCategory,
   HumanInboxFilters,
-  AssignmentReport,
-  AssignmentReportState,
-  AssignmentSummary,
   BotSummary,
   ChannelAuthor,
   ChannelAttachmentRef,
   ChannelMessage,
   ChannelSummary,
-  SessionSummary,
+  OwnedSessionSummary,
   UserQuestionAnswerItem,
 } from './store.js';
 import {
@@ -647,115 +643,36 @@ export function parseChannelMessages(value: unknown): ChannelMessage[] {
   });
 }
 
-function parseAssignmentReport(value: unknown): AssignmentReport | undefined {
-  const record = asRecord(value);
-  if (record === undefined) return undefined;
-  const state = record['state'];
-  const summary = record['summary'];
-  const at = record['at'];
-  if (
-    state !== 'completed' &&
-    state !== 'blocked' &&
-    state !== 'waiting-human' &&
-    state !== 'failed'
-  ) {
-    return undefined;
-  }
-  if (typeof summary !== 'string' || summary.length === 0 || typeof at !== 'string') {
-    return undefined;
-  }
-  return { state: state as AssignmentReportState, summary, at };
-}
-
-function parseAssignmentSummary(value: unknown): AssignmentSummary | undefined {
-  const record = asRecord(value);
-  if (record === undefined) return undefined;
-  const sessionId = record['sessionId'];
-  const purpose = record['purpose'];
-  const activity = record['activity'];
-  const createdAt = record['createdAt'];
-  const updatedAt = record['updatedAt'];
-  if (typeof sessionId !== 'string' || sessionId.length === 0) return undefined;
-  if (typeof purpose !== 'string' || purpose.length === 0) return undefined;
-  if (
-    activity !== 'working' &&
-    activity !== 'idle' &&
-    activity !== 'error' &&
-    activity !== 'stopping' &&
-    activity !== 'stopped'
-  )
-    return undefined;
-  if (typeof createdAt !== 'string' || typeof updatedAt !== 'string') return undefined;
-  const latestReport = parseAssignmentReport(record['latestReport']);
-  const permissionRecord = asRecord(record['permission']);
-  const permission =
-    permissionRecord !== undefined &&
-    typeof permissionRecord['grantId'] === 'string' &&
-    typeof permissionRecord['workspaceId'] === 'string' &&
-    typeof permissionRecord['primaryCwd'] === 'string' &&
-    (permissionRecord['mode'] === 'workspace-write' ||
-      permissionRecord['mode'] === 'danger-full-access') &&
-    permissionRecord['approval'] ===
-      (permissionRecord['mode'] === 'workspace-write' ? 'ask' : 'never') &&
-    typeof permissionRecord['presetRevision'] === 'number'
-      ? {
-          grantId: permissionRecord['grantId'],
-          workspaceId: permissionRecord['workspaceId'],
-          primaryCwd: permissionRecord['primaryCwd'],
-          mode: permissionRecord['mode'] as 'workspace-write' | 'danger-full-access',
-          approval: permissionRecord['approval'] as 'ask' | 'never',
-          presetRevision: permissionRecord['presetRevision'] as number,
-        }
-      : undefined;
-  return {
-    sessionId,
-    purpose,
-    activity,
-    createdAt,
-    updatedAt,
-    ...(latestReport === undefined ? {} : { latestReport }),
-    ...(permission === undefined ? {} : { permission }),
-  };
-}
-
-export function parseAssignmentSummaries(value: unknown): AssignmentSummary[] {
-  const assignments = asRecord(value)?.['assignments'];
-  if (!Array.isArray(assignments)) return [];
-  return assignments.flatMap((entry) => {
-    const assignment = parseAssignmentSummary(entry);
-    return assignment === undefined ? [] : [assignment];
-  });
-}
-
-export function parseAssignmentDetail(value: unknown): AssignmentDetail | undefined {
-  const record = asRecord(value);
-  const summary = parseAssignmentSummary(record);
-  if (record === undefined || summary === undefined) return undefined;
-  const botSlug = record['botSlug'];
-  const sourceEventId = record['sourceEventId'];
-  if (typeof botSlug !== 'string' || botSlug.length === 0) return undefined;
-  if (typeof sourceEventId !== 'string' || sourceEventId.length === 0) return undefined;
-  return { ...summary, botSlug, sourceEventId };
-}
-
-export function parseSessionSummaries(value: unknown): SessionSummary[] {
+export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[] {
   const sessions = asRecord(value)?.['sessions'];
   if (!Array.isArray(sessions)) return [];
   return sessions.flatMap((entry) => {
     const record = asRecord(entry);
     if (record === undefined) return [];
-    const id = record['id'];
-    const title = record['title'];
-    const cwd = record['cwd'];
-    const updatedAt = record['updatedAt'];
-    if (typeof id !== 'string' || id.length === 0) return [];
-    if (typeof cwd !== 'string' || cwd.length === 0) return [];
+    const sessionId = record['sessionId'];
+    const role = record['role'];
+    const createdAt = record['createdAt'];
+    const activity = record['assignmentActivity'];
+    if (typeof sessionId !== 'string' || sessionId.length === 0) return [];
+    if (role !== 'orchestrator' && role !== 'assignment') return [];
+    if (typeof createdAt !== 'string' || !Number.isFinite(Date.parse(createdAt))) return [];
+    if (
+      activity !== undefined &&
+      activity !== 'working' &&
+      activity !== 'idle' &&
+      activity !== 'error' &&
+      activity !== 'stopping' &&
+      activity !== 'stopped'
+    )
+      return [];
+    const cwdReference = record['cwdReference'];
     return [
       {
-        id,
-        title: typeof title === 'string' ? title : '',
-        cwd,
-        updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
+        sessionId,
+        role,
+        createdAt,
+        ...(typeof cwdReference === 'string' ? { cwdReference } : {}),
+        ...(activity === undefined ? {} : { assignmentActivity: activity }),
       },
     ];
   });
@@ -1356,32 +1273,12 @@ export async function ignoreHumanAssignmentReport(
   if (response?.['accepted'] !== true) throw new Error('Human attention decision was not accepted');
 }
 
-export async function loadAssignments(
-  call: BridgeCall,
-  slug: string,
-  signal?: AbortSignal,
-): Promise<AssignmentSummary[]> {
-  return parseAssignmentSummaries(await unwrap(call, 'assignments', { slug }, signal));
-}
-
-export async function loadAssignment(
-  call: BridgeCall,
-  slug: string,
-  sessionId: string,
-  signal?: AbortSignal,
-): Promise<AssignmentDetail> {
-  const value = await unwrap(call, 'assignment', { slug, sessionId }, signal);
-  const assignment = parseAssignmentDetail(asRecord(value)?.['assignment']);
-  if (assignment === undefined) throw new Error('invalid assignment response');
-  return assignment;
-}
-
 export async function loadSessions(
   call: BridgeCall,
   slug: string,
   signal?: AbortSignal,
-): Promise<SessionSummary[]> {
-  return parseSessionSummaries(await unwrap(call, 'sessions', { slug }, signal));
+): Promise<OwnedSessionSummary[]> {
+  return parseOwnedSessionSummaries(await unwrap(call, 'sessions', { slug }, signal));
 }
 
 export async function loadRoster(call: BridgeCall, signal?: AbortSignal): Promise<RosterSnapshot> {

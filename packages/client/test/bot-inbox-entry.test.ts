@@ -25,7 +25,6 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 import type { BridgeActions } from '../src/client/actions.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
-import { channelSidebarPrefs } from '../src/client/channel-sidebar-prefs.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { store, type BotAttentionItem } from '../src/client/store.js';
 
@@ -141,13 +140,9 @@ describe('DM Bot Inbox sidebar entry', () => {
       store.setBotInbox(previous);
     }
   });
-  it('opens an Assignment report in the existing Assignment sidebar entry', async () => {
+  it('opens an Assignment report in its native DSH Session', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const previous = store.getSnapshot().botInbox;
-    const scopeKey = 'personabot:ada';
-    const expanded = channelSidebarPrefs.isEntryExpanded(scopeKey, 'assignments');
-    const collapsed = channelSidebarPrefs.isSidebarCollapsed(scopeKey);
-    channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', false);
     store.setBotInbox({
       status: 'ready',
       items: [
@@ -174,7 +169,7 @@ describe('DM Bot Inbox sidebar entry', () => {
     const container = document.createElement('div');
     document.body.append(container);
     const root = createRoot(container);
-    const openAssignment = vi.fn(async () => undefined);
+    const openSession = vi.fn();
     try {
       await act(async () =>
         root.render(
@@ -186,7 +181,7 @@ describe('DM Bot Inbox sidebar entry', () => {
               scope: 'personabot',
               channelId: 'dm-ada',
               botSlug: 'ada',
-              actions: { openAssignment } as unknown as BridgeActions,
+              actions: { openSession } as unknown as BridgeActions,
               t: zhTranslate,
             },
           }),
@@ -200,15 +195,11 @@ describe('DM Bot Inbox sidebar entry', () => {
         button?.click();
         await Promise.resolve();
       });
-      expect(openAssignment).toHaveBeenCalledWith('assignment-one');
-      expect(channelSidebarPrefs.isEntryExpanded(scopeKey, 'assignments')).toBe(true);
-      expect(channelSidebarPrefs.isSidebarCollapsed(scopeKey)).toBe(false);
+      expect(openSession).toHaveBeenCalledWith('assignment-one');
     } finally {
       await act(async () => root.unmount());
       container.remove();
       store.setBotInbox(previous);
-      channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', expanded);
-      channelSidebarPrefs.setSidebarCollapsed(scopeKey, collapsed);
     }
   });
 });

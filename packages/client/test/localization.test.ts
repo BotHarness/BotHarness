@@ -55,7 +55,7 @@ describe('localization coverage', () => {
 
   it('renders Channel sidebar entries in English', () => {
     const entry = createChannelSidebarBuiltins(tEn).find(
-      (candidate) => candidate.id === 'assignments',
+      (candidate) => candidate.id === 'sessions',
     );
     expect(entry).toBeDefined();
     const markup = renderToStaticMarkup(
@@ -72,7 +72,7 @@ describe('localization coverage', () => {
         },
       }),
     );
-    expect(markup).toContain('Assignments');
+    expect(markup).toContain('Sessions');
   });
 
   it('renders Human-openable Group invitation status and management controls', () => {

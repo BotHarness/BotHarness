@@ -69,7 +69,7 @@ describe('selected #Group join request', () => {
       await core.runtime.whenIdle();
       expect(requestId).toMatch(/^group-join-/u);
       expect(core.channels.get(group.id)?.members).toEqual([]);
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       const decision = methods.channelGroupJoinDecide({
         channelId: group.id,
         requestId,
@@ -204,7 +204,7 @@ describe('selected #Group join request', () => {
       await core.runtime.whenIdle();
       expect(core.channels.get(other.id)?.joinRequests).toBeUndefined();
       expect(core.channels.get(selected.id)?.joinRequests).toHaveLength(1);
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(
         methods.channelGroupJoinDecide({
           channelId: selected.id,
@@ -245,7 +245,7 @@ describe('selected #Group join request', () => {
       await sendSelectedGroup(core, 'ada', group, 'reference-archive');
       await core.runtime.whenIdle();
       expect(requestId).toMatch(/^group-join-/u);
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(methods.pause({ slug: 'ada' })).toMatchObject({ ok: true });
       expect(core.channels.get(group.id)?.joinRequests?.[0]?.status).toBe('cancelled');
       expect(
@@ -280,7 +280,7 @@ describe('selected #Group join request', () => {
       await sendSelectedGroup(core, 'ada', group, 'reference-delete');
       await core.runtime.whenIdle();
       expect(requestId).toMatch(/^group-join-/u);
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(methods.channelGroupDelete({ channelId: groupId })).toMatchObject({ ok: true });
       expect(core.channels.get(groupId)).toBeUndefined();
       expect(
@@ -331,7 +331,7 @@ describe('selected #Group join request', () => {
               .get() as { attempt_state: string } | undefined
           )?.attempt_state;
         expect(state()).toBe('pending');
-        const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+        const methods = createBridgeMethods({ ...core });
         expect(methods.pause({ slug: 'ada' })).toMatchObject({ ok: true });
         expect(state()).toBe('handled');
         expect(
@@ -379,7 +379,7 @@ describe('selected #Group join request', () => {
     });
     try {
       expect(resumed.channels.get(groupId)?.joinRequests?.[0]?.id).toBe(requestId);
-      const methods = createBridgeMethods({ ...resumed, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...resumed });
       expect(
         methods.channelGroupJoinDecide({ channelId: groupId, requestId, accept: true }),
       ).toMatchObject({ ok: true });

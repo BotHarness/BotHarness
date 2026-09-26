@@ -109,20 +109,11 @@ export {
   resolveDshHome,
 } from './im/config-store.js';
 export type { ImStoreReaderOptions, ImStoresSnapshot } from './im/config-store.js';
-export {
-  createDshSessionSource,
-  isInsideWorkspace,
-  SESSION_TITLE_MAX_CHARS,
-  sessionTitle,
-  summarizeSession,
-} from './sessions/source.js';
 export type {
-  BotSessionSource,
   DshSession,
   DshSessionEvent,
   DshSessionHeader,
   DshSessionStore,
-  SessionSummary,
 } from './sessions/source.js';
 export { displayNameForBot, emptyWorkspacesDocument, resolveBotIdentity } from './im/identity.js';
 export type {

@@ -167,42 +167,12 @@ export interface ChannelDraft {
   body: string;
 }
 
-export interface SessionSummary {
-  id: string;
-  title: string;
-  cwd: string;
-  updatedAt: string;
-}
-
-export type AssignmentActivity = 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
-export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
-
-export interface AssignmentReport {
-  state: AssignmentReportState;
-  summary: string;
-  at: string;
-}
-
-export interface AssignmentSummary {
+export interface OwnedSessionSummary {
   sessionId: string;
-  purpose: string;
-  activity: AssignmentActivity;
-  latestReport?: AssignmentReport;
-  permission?: {
-    grantId: string;
-    workspaceId: string;
-    primaryCwd: string;
-    mode: 'workspace-write' | 'danger-full-access';
-    approval: 'ask' | 'never';
-    presetRevision: number;
-  };
+  role: 'orchestrator' | 'assignment';
   createdAt: string;
-  updatedAt: string;
-}
-
-export interface AssignmentDetail extends AssignmentSummary {
-  botSlug: string;
-  sourceEventId: string;
+  cwdReference?: string;
+  assignmentActivity?: 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
 }
 
 export type HumanInboxCategory = 'action' | 'info';
@@ -330,10 +300,9 @@ export interface BotInboxState {
   error: string | undefined;
 }
 
-export interface AssignmentsState {
+export interface SessionsState {
   status: ClientStatus;
-  items: readonly AssignmentSummary[];
-  selected: AssignmentDetail | undefined;
+  items: readonly OwnedSessionSummary[];
   error: string | undefined;
 }
 
@@ -364,7 +333,7 @@ export interface ClientState {
   roster: RosterState;
   selection: ConversationSelection | undefined;
   conversation: ConversationState;
-  assignments: AssignmentsState;
+  sessions: SessionsState;
   botInbox: BotInboxState;
   humanInbox: HumanInboxState;
 }
@@ -382,7 +351,7 @@ export interface ClientStore {
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
-  setAssignments(patch: Partial<AssignmentsState>): void;
+  setSessions(patch: Partial<SessionsState>): void;
   setBotInbox(patch: Partial<BotInboxState>): void;
   setHumanInbox(patch: Partial<HumanInboxState>): void;
 }
@@ -403,8 +372,8 @@ function initialConversation(): ConversationState {
   };
 }
 
-function initialAssignments(): AssignmentsState {
-  return { status: 'idle', items: [], selected: undefined, error: undefined };
+function initialSessions(): SessionsState {
+  return { status: 'idle', items: [], error: undefined };
 }
 
 function initialBotInbox(): BotInboxState {
@@ -459,7 +428,7 @@ export function createStore(): ClientStore {
     roster: initialRoster(),
     selection: undefined,
     conversation: initialConversation(),
-    assignments: initialAssignments(),
+    sessions: initialSessions(),
     botInbox: initialBotInbox(),
     humanInbox: initialHumanInbox(),
   };
@@ -510,7 +479,7 @@ export function createStore(): ClientStore {
       update({
         selection,
         conversation: initialConversation(),
-        assignments: initialAssignments(),
+        sessions: initialSessions(),
         botInbox: initialBotInbox(),
         humanInbox: initialHumanInbox(),
       });
@@ -518,8 +487,8 @@ export function createStore(): ClientStore {
     setConversation(patch) {
       update({ conversation: { ...state.conversation, ...patch } });
     },
-    setAssignments(patch) {
-      update({ assignments: { ...state.assignments, ...patch } });
+    setSessions(patch) {
+      update({ sessions: { ...state.sessions, ...patch } });
     },
     setBotInbox(patch) {
       update({ botInbox: { ...state.botInbox, ...patch } });

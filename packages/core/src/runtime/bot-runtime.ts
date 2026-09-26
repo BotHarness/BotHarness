@@ -1724,6 +1724,14 @@ class BotRuntimeImplementation implements BotRuntime {
             "UPDATE assignments SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL, open_ask_source_event_id = NULL, open_ask_at = NULL WHERE stop_state = 'requested'",
           )
           .run();
+        // A previous Host process cannot still own an Agent turn. Keep the
+        // failed Assignment visible, but free its slot and continuity key so
+        // the Orchestrator can create a replacement under the same direction.
+        database
+          .prepare(
+            "UPDATE assignments SET activity = 'error', continuity_key = NULL, updated_at = ? WHERE activity = 'working' AND stop_state = 'running'",
+          )
+          .run(this.#now().toISOString());
       },
       ['assignments'],
     );
