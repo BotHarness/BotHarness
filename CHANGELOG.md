@@ -10,6 +10,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Orchestrators can stop an Assignment through DSH cancellation; its stopped state survives restart, late reports cannot revive it, and the same continuity key can start a new Session ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
+- A PersonaBot DM sidebar now shows a Bot-scoped Inbox grouped by source Channel, with durable attention status, source-message navigation, and unavailable-source fallback; completed attention does not imply a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47), [#152](https://github.com/BotHarness/BotHarness/issues/152), [ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)).
+
 - A Human can select a Group Channel with `#` in a PersonaBot DM; the Bot receives its current ID and name without gaining membership or seeing its roster or history. The Bot can request to join, a Human or the Group's Bot creator can approve or decline, and the Human can click the sent reference to open that Group ([#292](https://github.com/BotHarness/BotHarness/issues/292), [ADR-0069](docs/adr/0069-selected-channel-references-and-bot-join-requests.md)).
 
 - Group Channel members can use a per-Bot ordinary-message digest: after N messages or T seconds with a nonempty queue, the Bot receives one bounded Inbox summary at its next idle turn. Direct @ mentions remain immediate; a busy Bot finishes its current turn first, and a completed digest does not require a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47)).

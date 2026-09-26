@@ -117,6 +117,8 @@ function stubActions(): BridgeActions {
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
+    refreshBotInbox: vi.fn(async () => undefined),
+    loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),

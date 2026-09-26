@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
+import type { ClientState } from './store.js';
 
 /** Which selection a Channel sidebar entry belongs to. */
 export type ChannelSidebarScope = 'channel' | 'personabot';
@@ -34,6 +35,8 @@ export interface ChannelSidebarEntry {
   component: ComponentType<ChannelSidebarEntryProps>;
   /** Optional short status rendered beside the label (counts, state). */
   badge?: ComponentType<ChannelSidebarEntryProps>;
+  /** Hide an entry when this selection has no relevant read-model facts. */
+  visible?: (state: ClientState) => boolean;
 }
 
 /** Ordered, disposable registry the Channel sidebar shell renders from. */
