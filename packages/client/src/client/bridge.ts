@@ -1273,26 +1273,6 @@ export async function ignoreHumanAssignmentReport(
   if (response?.['accepted'] !== true) throw new Error('Human attention decision was not accepted');
 }
 
-export async function loadAssignments(
-  call: BridgeCall,
-  slug: string,
-  signal?: AbortSignal,
-): Promise<AssignmentSummary[]> {
-  return parseAssignmentSummaries(await unwrap(call, 'assignments', { slug }, signal));
-}
-
-export async function loadAssignment(
-  call: BridgeCall,
-  slug: string,
-  sessionId: string,
-  signal?: AbortSignal,
-): Promise<AssignmentDetail> {
-  const value = await unwrap(call, 'assignment', { slug, sessionId }, signal);
-  const assignment = parseAssignmentDetail(asRecord(value)?.['assignment']);
-  if (assignment === undefined) throw new Error('invalid assignment response');
-  return assignment;
-}
-
 export async function loadSessions(
   call: BridgeCall,
   slug: string,
