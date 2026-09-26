@@ -359,11 +359,44 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                   !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
                 ? [{ botSlug: recipient, reason: 'bot-dm' }]
                 : [];
+        const immediate = new Set(recipients.map((item) => item.botSlug));
+        const ordinaryAllowed =
+          durable.author.kind === 'human' ||
+          (senderSlug !== undefined &&
+            durable.botCausation !== undefined &&
+            durable.botCausation.hop <= MAX_BOT_HOPS);
+        const ordinary =
+          channel.type === 'group' && ordinaryAllowed
+            ? channel.members.flatMap((botSlug) => {
+                if (botSlug === senderSlug || immediate.has(botSlug)) return [];
+                const policy = channel.wakePolicies?.[botSlug];
+                if (policy?.mode !== 'digest') return [];
+                if (
+                  durable.author.kind === 'bot' &&
+                  durable.botCausation !== undefined &&
+                  botAlreadyAdmitted(botSlug, durable.botCausation.rootSourceEventId)
+                )
+                  return [];
+                return [{ botSlug, policy }];
+              })
+            : [];
         for (const recipient of recipients)
           db.prepare(`
         INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
         VALUES (?, ?, ?)
       `).run(sourceEventId, recipient.botSlug, recipient.reason);
+        for (const recipient of ordinary)
+          db.prepare(`
+        INSERT INTO inbox_admissions (
+          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision
+        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?)
+      `).run(
+            sourceEventId,
+            recipient.botSlug,
+            recipient.policy.count,
+            recipient.policy.intervalSeconds * 1000,
+            recipient.policy.revision,
+          );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
           id,
@@ -794,6 +827,38 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         }
       }
     },
+    setGroupWakePolicy(channelId, botSlug, policy) {
+      const channel = readRecord(channelId);
+      if (channel?.type !== 'group' || !channel.members.includes(botSlug))
+        throw new Error('Group member not found');
+      if (
+        (policy.mode !== 'mentions' && policy.mode !== 'digest') ||
+        !Number.isSafeInteger(policy.count) ||
+        policy.count < 1 ||
+        policy.count > 100 ||
+        !Number.isSafeInteger(policy.intervalSeconds) ||
+        policy.intervalSeconds < 1 ||
+        policy.intervalSeconds > 3600
+      )
+        throw new Error('Invalid Group wake policy');
+      const previous = channel.wakePolicies?.[botSlug];
+      if (
+        previous?.mode === policy.mode &&
+        previous.count === policy.count &&
+        previous.intervalSeconds === policy.intervalSeconds
+      )
+        return channel;
+      const updated: ChannelRecord = {
+        ...channel,
+        wakePolicies: {
+          ...channel.wakePolicies,
+          [botSlug]: { ...policy, revision: (previous?.revision ?? 0) + 1 },
+        },
+        updatedAt: now().toISOString(),
+      };
+      writeRecord(updated);
+      return updated;
+    },
     removeGroupMember(channelId, botSlug) {
       const channel = readRecord(channelId);
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
@@ -810,6 +875,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       if (channel.ownerBotSlug === botSlug) delete updated.ownerBotSlug;
+      if (updated.wakePolicies !== undefined) {
+        updated.wakePolicies = { ...updated.wakePolicies };
+        delete updated.wakePolicies[botSlug];
+      }
       const cancelled = (channel.invitations ?? []).filter(
         (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
       );
@@ -827,6 +896,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                  SELECT source_event_id FROM source_events WHERE message_id = ?
                ) AND reason = 'group-invite' AND attempt_state IN ('pending', 'retryable')
             `).run(timestamp, invitation.id);
+          db.prepare(`
+            UPDATE inbox_admissions
+               SET attempt_state = 'needs-repair', last_error = 'Group membership revoked'
+             WHERE bot_slug = ? AND reason = 'group-ordinary'
+               AND attempt_state IN ('pending', 'retryable')
+               AND source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE channel_id = ?
+               )
+          `).run(botSlug, channelId);
         },
         ['channel', 'bot-inbox'],
       );
@@ -849,6 +927,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       delete deleted.ownerBotSlug;
+      delete deleted.wakePolicies;
       database.transaction(
         (db) => {
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(

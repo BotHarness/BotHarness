@@ -190,6 +190,34 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
         ];
       })
     : undefined;
+  const rawWakePolicies = asRecord(record['wakePolicies']);
+  const wakePolicies =
+    rawWakePolicies === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(rawWakePolicies).flatMap(([slug, raw]) => {
+            const value = asRecord(raw);
+            if (
+              value === undefined ||
+              (value['mode'] !== 'mentions' && value['mode'] !== 'digest') ||
+              typeof value['count'] !== 'number' ||
+              typeof value['intervalSeconds'] !== 'number' ||
+              typeof value['revision'] !== 'number'
+            )
+              return [];
+            return [
+              [
+                slug,
+                {
+                  mode: value['mode'] as 'mentions' | 'digest',
+                  count: value['count'],
+                  intervalSeconds: value['intervalSeconds'],
+                  revision: value['revision'],
+                },
+              ],
+            ];
+          }),
+        );
   return {
     id,
     type,
@@ -200,6 +228,7 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
     ...(typeof record['ownerBotSlug'] === 'string' ? { ownerBotSlug: record['ownerBotSlug'] } : {}),
     ...(invitations === undefined ? {} : { invitations }),
+    ...(wakePolicies === undefined ? {} : { wakePolicies }),
     ...(latestMessage === undefined ? {} : { latestMessage }),
   };
 }
@@ -763,6 +792,24 @@ export async function removeGroupMember(
   const value = asRecord(await unwrap(call, 'channelGroupMemberRemove', { channelId, botSlug }));
   const channel = parseChannelRecord(value?.['channel']);
   if (channel === undefined) throw new Error('invalid channelGroupMemberRemove response');
+  return channel;
+}
+
+export async function setGroupWakePolicy(
+  call: BridgeCall,
+  channelId: string,
+  botSlug: string,
+  policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+): Promise<ChannelSummary> {
+  const value = asRecord(
+    await unwrap(call, 'channelGroupWakeSet', {
+      channelId,
+      botSlug,
+      ...policy,
+    }),
+  );
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupWakeSet response');
   return channel;
 }
 

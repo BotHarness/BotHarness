@@ -2554,6 +2554,17 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   flex: 1;
   min-width: 0;
 }
+
+.bh-member-wake {
+  margin: 0 8px 4px 42px;
+  font-size: 11px;
+}
+.bh-member-wake summary { cursor: pointer; }
+.bh-member-wake-form { padding: 6px 0; }
+.bh-member-wake-choices { display: flex; gap: 4px; flex-wrap: wrap; }
+.bh-member-wake-choices [aria-pressed="true"] { background: var(--bh-hover); }
+.bh-member-wake-values { display: grid; grid-template-columns: 1fr 64px; gap: 4px 8px; align-items: center; }
+.bh-member-wake-values input { width: 64px; }
 .bh-group-invitations {
   margin-top: 12px;
 }

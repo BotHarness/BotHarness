@@ -141,7 +141,7 @@ describe('bridge methods', () => {
     expect(await methods.channelSend({ channelId: group.id, body: '@Alex hello' })).toMatchObject({
       ok: true,
     });
-    expect(wakes).toHaveLength(1);
+    expect(wakes).toHaveLength(2);
     expect(channels.readMessages(group.id)).toHaveLength(2);
   });
 

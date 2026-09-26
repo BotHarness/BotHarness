@@ -6,6 +6,14 @@ import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-q
 
 export type ChannelType = 'dm' | 'group';
 
+/** Human-owned per-member notification choice for ordinary Group messages. */
+export interface GroupWakePolicy {
+  mode: 'mentions' | 'digest';
+  count: number;
+  intervalSeconds: number;
+  revision: number;
+}
+
 export interface ChannelRecord {
   id: string;
   type: ChannelType;
@@ -15,6 +23,7 @@ export interface ChannelRecord {
   /** A Bot creator may manage this Group; Human authority remains separate. */
   ownerBotSlug?: string;
   invitations?: GroupInvitation[];
+  wakePolicies?: Record<string, GroupWakePolicy>;
   /** Human-only logical deletion keeps operational evidence durable. */
   deletedAt?: string;
   createdAt: string;
@@ -190,6 +199,27 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
       return false;
   }
   if (record['deletedAt'] !== undefined && typeof record['deletedAt'] !== 'string') return false;
+  const wakePolicies = record['wakePolicies'];
+  if (wakePolicies !== undefined) {
+    if (record['type'] !== 'group' || typeof wakePolicies !== 'object' || wakePolicies === null)
+      return false;
+    for (const [slug, value] of Object.entries(wakePolicies)) {
+      if (!members.includes(slug) || typeof value !== 'object' || value === null) return false;
+      const policy = value as Record<string, unknown>;
+      if (
+        (policy['mode'] !== 'mentions' && policy['mode'] !== 'digest') ||
+        !Number.isSafeInteger(policy['count']) ||
+        (policy['count'] as number) < 1 ||
+        (policy['count'] as number) > 100 ||
+        !Number.isSafeInteger(policy['intervalSeconds']) ||
+        (policy['intervalSeconds'] as number) < 1 ||
+        (policy['intervalSeconds'] as number) > 3600 ||
+        !Number.isSafeInteger(policy['revision']) ||
+        (policy['revision'] as number) < 1
+      )
+        return false;
+    }
+  }
   const invitations = record['invitations'];
   if (invitations !== undefined) {
     if (

@@ -5,6 +5,7 @@ import {
   createGroupChannel,
   cancelGroupInvitation,
   removeGroupMember,
+  setGroupWakePolicy,
   deleteGroupChannel,
   createPersonaBot,
   createRosterSection,
@@ -163,6 +164,11 @@ export interface BridgeActions {
   renameChannel(channelId: string, name: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
+  setGroupWakePolicy(
+    channelId: string,
+    botSlug: string,
+    policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+  ): Promise<boolean>;
   deleteGroupChannel(channelId: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
@@ -979,6 +985,18 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: Group member removal failed', error);
+        return false;
+      }
+    },
+    async setGroupWakePolicy(channelId, botSlug, policy) {
+      try {
+        const channel = await setGroupWakePolicy(call, channelId, botSlug, policy);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group wake policy update failed', error);
         return false;
       }
     },
