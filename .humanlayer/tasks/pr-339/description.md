@@ -7,8 +7,8 @@ People need to see which existing Assignment Sessions still have full file acces
 ## Special things to note
 
 - The badge comes from each Assignment's immutable permission snapshot; the current Bot default never rewrites an existing Session.
-- Real DSH tests covered safe → full access → safe creation, native reads inside and outside the Grant, and persistence after restart. Human QA of the warning in the Channel is pending.
-- This PR addresses the persistent Session warning; #116 stays open until its full acceptance matrix is complete.
+- Real DSH tests covered safe → full access → safe creation, native reads inside and outside the Grant, and persistence after restart; 1,060 automated tests, typecheck, lint, and build pass. Human QA of the warning is pending.
+- All touched files pass formatting. The full-tree check on Windows reports existing CRLF differences across 440 unrelated files; #116 stays open until Human QA and the remaining acceptance audit.
 
 ## Change outline
 
@@ -20,4 +20,3 @@ Assignment Directory: permission.mode (durable Session snapshot)
 ```
 
 The Host and Client tests pin the snapshot projection and prevent an Orchestrator row from inheriting an Assignment warning.
-
