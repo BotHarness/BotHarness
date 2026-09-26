@@ -58,6 +58,7 @@ describe('Channel tool approval', () => {
       input: '{\n  "command": "pwd && ls"\n}',
     });
     expect(state.broker.status(botSlug, request.id)).toBe('pending');
+    expect(state.broker.activeMessageIds()).toEqual([request.id]);
     expect(await state.broker.decide('other-bot', request.id, 'allowed-once')).toBe(false);
     expect(state.messages).toHaveLength(1);
     expect(await state.broker.decide(botSlug, request.id, 'allowed-once')).toBe(true);
@@ -67,6 +68,7 @@ describe('Channel tool approval', () => {
       outcome: 'allowed-once',
     });
     expect(state.broker.status(botSlug, request.id)).toBe('expired');
+    expect(state.broker.activeMessageIds()).toEqual([]);
     expect(await state.broker.decide(botSlug, request.id, 'allowed-once')).toBe(false);
     untrack?.();
   });

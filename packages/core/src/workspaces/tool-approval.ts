@@ -200,6 +200,11 @@ export class ChannelToolApproval {
     }
   }
 
+  activeMessageIds(): string[] {
+    this.cancelInvalid();
+    return [...this.#pending.keys()];
+  }
+
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
     return this.#pending.get(messageId)?.botSlug === botSlug ? 'pending' : 'expired';
   }

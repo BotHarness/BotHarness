@@ -225,4 +225,57 @@ describe('Human attention projection', () => {
       resumed.operationalDatabase.close();
     }
   });
+  it('shows only live unresolved tool approvals as actions and removes them on decision or expiry', async () => {
+    const home = createTempRoot('botharness-human-approval-');
+    let activeApprovals = ['approval-one'];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(),
+      activeToolApprovalMessageIds: () => activeApprovals,
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'approval-one',
+        at: '2026-09-26T04:00:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Request approval for bash',
+        toolApprovalRequest: {
+          sessionId: 'session-one',
+          callId: 'call-one',
+          toolName: 'bash',
+          role: 'orchestrator',
+          cwd: '/tmp/project',
+          input: '{"command":"pwd"}',
+        },
+      });
+      expect(core.humanAttention.list({ category: 'action' }).items).toMatchObject([
+        {
+          kind: 'tool-approval',
+          botSlug: 'ada',
+          channelId: dm.id,
+          messageId: 'approval-one',
+          summary: 'Request approval for bash',
+        },
+      ]);
+      expect(core.humanAttention.list({ category: 'info' }).items).toEqual([]);
+      activeApprovals = [];
+      expect(core.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      activeApprovals = ['approval-one'];
+      await core.channels.appendMessage(dm.id, {
+        id: 'decision-one',
+        at: '2026-09-26T04:01:00.000Z',
+        author: { kind: 'human' },
+        body: 'Approved once',
+        replyTo: 'approval-one',
+        toolApprovalDecision: { requestMessageId: 'approval-one', outcome: 'allowed-once' },
+      });
+      expect(core.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      expect(core.humanAttention.list({ category: 'info' }).items).toEqual([]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });

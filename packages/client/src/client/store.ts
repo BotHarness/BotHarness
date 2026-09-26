@@ -217,7 +217,7 @@ export interface HumanInboxFilters {
 export interface HumanAttentionItem {
   id: string;
   category: HumanInboxCategory;
-  kind: 'group-join-request' | 'user-question' | 'bot-dm-message';
+  kind: 'group-join-request' | 'user-question' | 'tool-approval' | 'bot-dm-message';
   createdAt: string;
   channelId: string;
   channelName: string;

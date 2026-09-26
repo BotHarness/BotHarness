@@ -6,7 +6,7 @@ export type HumanAttentionSort = 'newest' | 'oldest';
 export interface HumanAttentionItem {
   id: string;
   category: HumanAttentionCategory;
-  kind: 'group-join-request' | 'user-question' | 'bot-dm-message';
+  kind: 'group-join-request' | 'user-question' | 'tool-approval' | 'bot-dm-message';
   createdAt: string;
   channelId: string;
   channelName: string;
@@ -79,6 +79,7 @@ function decodeCursor(value: string, filters: string): Cursor {
 export function createHumanAttentionQuery(
   database: OperationalDatabaseModulePort,
   activeQuestionMessageIds: () => readonly string[] = () => [],
+  activeToolApprovalMessageIds: () => readonly string[] = () => [],
 ): HumanAttentionQuery {
   return {
     list(input) {
@@ -135,6 +136,27 @@ export function createHumanAttentionQuery(
                     '$.userQuestionResolution.requestMessageId') = e.message_id
              )
           UNION ALL
+          SELECT 'approval:' || e.source_event_id AS id,
+                 'action' AS category, 'tool-approval' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.toolApprovalRequest') IS NOT NULL
+             AND e.message_id IN (SELECT value FROM json_each(?))
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events decision
+                WHERE decision.channel_id = e.channel_id
+                  AND json_extract(decision.payload_json,
+                    '$.toolApprovalDecision.requestMessageId') = e.message_id
+             )
+          UNION ALL
           SELECT 'message:' || e.source_event_id AS id,
                  'info' AS category, 'bot-dm-message' AS kind,
                  e.created_at, c.channel_id,
@@ -151,6 +173,7 @@ export function createHumanAttentionQuery(
              AND json_extract(e.payload_json, '$.author.kind') = 'bot'
              AND json_extract(e.payload_json, '$.sessionFailure') IS NULL
              AND json_extract(e.payload_json, '$.toolApprovalRequest') IS NULL
+             AND json_extract(e.payload_json, '$.toolApprovalDecision') IS NULL
              AND json_extract(e.payload_json, '$.userQuestionRequest') IS NULL
              AND json_extract(e.payload_json, '$.userQuestionResolution') IS NULL
              AND json_extract(e.payload_json, '$.grantRequest') IS NULL
@@ -168,6 +191,7 @@ export function createHumanAttentionQuery(
       `)
             .all(
               JSON.stringify(activeQuestionMessageIds()),
+              JSON.stringify(activeToolApprovalMessageIds()),
               category,
               input.botSlug ?? null,
               input.botSlug ?? null,

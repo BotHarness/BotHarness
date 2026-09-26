@@ -113,4 +113,32 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
   });
+  it('shows a pending tool approval as an action linked to its DM card', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'approval:source-1',
+          category: 'action',
+          kind: 'tool-approval',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          channelId: 'dm-ada',
+          channelName: 'Ada DM',
+          botSlug: 'ada',
+          summary: 'Request approval for bash',
+          messageId: 'approval-one',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 请求工具批准');
+    expect(markup).toContain('Request approval for bash');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('已了解');
+    expect(markup).not.toContain('同意</button>');
+  });
 });

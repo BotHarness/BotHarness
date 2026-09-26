@@ -1283,6 +1283,7 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     if (
       item['kind'] !== 'group-join-request' &&
       item['kind'] !== 'user-question' &&
+      item['kind'] !== 'tool-approval' &&
       item['kind'] !== 'bot-dm-message'
     )
       return undefined;
