@@ -32,7 +32,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 
 import type { BridgeActions } from '../src/client/actions.js';
-import { BotMain, committedMessageIds } from '../src/client/bot-main.js';
+import { BotMain, committedMessageIds, resolvedGrantRequestIds } from '../src/client/bot-main.js';
 import { createChannelSidebarBuiltins } from '../src/client/channel-sidebar-builtins.js';
 import { createChannelSidebarRegistry } from '../src/client/channel-sidebar.js';
 import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.js';
@@ -40,6 +40,22 @@ import { zhTranslate } from '../src/client/locale.js';
 import { store, type ChannelMessage } from '../src/client/store.js';
 
 describe('Channel read position candidates', () => {
+  it('does not resolve a Grant request from a pending or failed local echo', () => {
+    const response: ChannelMessage = {
+      id: 'human-approved',
+      at: '2026-09-26T00:00:00.000Z',
+      author: { kind: 'human' },
+      body: 'Workspace authorized.',
+      replyTo: 'grant-request',
+      grantRequestResolution: { requestMessageId: 'grant-request', grantId: 'grant-1' },
+    };
+    expect([...resolvedGrantRequestIds([{ ...response, pending: true }])]).toEqual([]);
+    expect([...resolvedGrantRequestIds([{ ...response, failed: 'network disconnected' }])]).toEqual(
+      [],
+    );
+    expect([...resolvedGrantRequestIds([response])]).toEqual(['grant-request']);
+  });
+
   it('ignores optimistic echoes and process-only streaming drafts', () => {
     const committed: ChannelMessage = {
       id: 'm1',

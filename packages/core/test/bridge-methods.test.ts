@@ -119,6 +119,13 @@ describe('bridge methods', () => {
         grantRequestResolution: { ...payload.grantRequestResolution, requestMessageId: 'missing' },
       }),
     ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: dm.id,
+        body: '已授权工作区「Project」，请继续处理之前的事项。',
+        replyTo: 'grant-request-1',
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
     expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
     expect(channels.message(dm.id, payload.messageId)?.grantRequestResolution).toEqual(
       payload.grantRequestResolution,

@@ -993,14 +993,21 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
       }
+      const grantRequestTarget =
+        replyTo === undefined ? undefined : deps.channels.message(channelId, replyTo);
+      if (
+        grantRequestResolution === undefined &&
+        grantRequestTarget?.grantRequest === true &&
+        (body.startsWith('已授权工作区「') || body.startsWith('I authorized workspace “'))
+      )
+        return invalidInput('Grant approval replies must reference an active Workspace Grant');
       if (grantRequestResolution !== undefined) {
         if (channel.type !== 'dm' || channel.botSlug === undefined)
           return invalidInput('Grant request resolution requires a PersonaBot DM');
-        const request = deps.channels.message(channelId, grantRequestResolution.requestMessageId);
         if (
-          request?.grantRequest !== true ||
-          request.author.kind !== 'bot' ||
-          request.author.slug !== channel.botSlug
+          grantRequestTarget?.grantRequest !== true ||
+          grantRequestTarget.author.kind !== 'bot' ||
+          grantRequestTarget.author.slug !== channel.botSlug
         )
           return invalidInput('Grant request is unavailable in this DM');
         if (
