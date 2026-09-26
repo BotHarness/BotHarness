@@ -30,7 +30,6 @@ const t = zhTranslate;
 
 function snapshot(patch?: Partial<BotModePrefsSnapshot>): BotModePrefsSnapshot {
   return {
-    startInBotMode: false,
     motionPreference: 'system',
     botIcon: 'mascot' as const,
     developerMode: false,
@@ -49,7 +48,6 @@ function renderSection(
   setMotionPreference: (preference: string) => void = () => undefined,
   setBotIcon: (icon: string) => void = () => undefined,
   setDeveloperMode: (enabled: boolean) => void = () => undefined,
-  setStartInBotMode: (enabled: boolean) => void = () => undefined,
 ): string {
   return renderToStaticMarkup(
     createElement(BotSettingsSection, {
@@ -61,7 +59,6 @@ function renderSection(
       setMotionPreference: setMotionPreference as never,
       setBotIcon: setBotIcon as never,
       setDeveloperMode: setDeveloperMode as never,
-      setStartInBotMode: setStartInBotMode as never,
     } as never),
   );
 }
@@ -103,22 +100,6 @@ describe('BotHarness settings section', () => {
     expect(captured.switches[0]).toMatchObject({ checked: false, label: '开发者模式' });
     (captured.switches[0]?.['onChange'] as (enabled: boolean) => void)(true);
     expect(setDeveloperMode).toHaveBeenCalledWith(true);
-  });
-
-  it('renders the browser-local startup switch and saves its next value', () => {
-    const setStartInBotMode = vi.fn();
-    const markup = renderSection(
-      snapshot({ startInBotMode: true }),
-      undefined,
-      undefined,
-      undefined,
-      undefined,
-      setStartInBotMode,
-    );
-    expect(markup).toContain('启动时进入 Bot 模式');
-    expect(captured.switches[1]).toMatchObject({ checked: true, label: '启动时进入 Bot 模式' });
-    (captured.switches[1]?.['onChange'] as (enabled: boolean) => void)(false);
-    expect(setStartInBotMode).toHaveBeenCalledWith(false);
   });
 
   it('renders the row copy and the selected mode from the shared store', () => {

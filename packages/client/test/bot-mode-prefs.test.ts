@@ -8,7 +8,6 @@ import {
   type BotModeScopeSnapshot,
 } from '../src/client/bot-mode-prefs.js';
 import { ROSTER_CONFIG_KEY, type ConfigStorage } from '../src/client/roster-config.js';
-import { consumeStartInBotMode, START_IN_BOT_MODE_KEY } from '../src/client/startup-mode-prefs.js';
 
 function memoryStorage(seed?: string): ConfigStorage {
   const values = new Map<string, string>();
@@ -71,7 +70,6 @@ describe('BOT-mode policy store', () => {
     const prefs = new BotModePrefs();
 
     expect(prefs.source.getSnapshot()).toEqual({
-      startInBotMode: false,
       motionPreference: 'system',
       botIcon: 'mascot' as const,
       developerMode: false,
@@ -98,7 +96,6 @@ describe('BOT-mode policy store', () => {
     prefs.attach(scope.host);
 
     expect(prefs.source.getSnapshot()).toEqual({
-      startInBotMode: false,
       motionPreference: 'reduce',
       botIcon: 'mascot' as const,
       developerMode: false,
@@ -201,7 +198,6 @@ describe('BOT-mode policy store', () => {
 
   it('resolves a section without an override to inherit', () => {
     const snapshot = {
-      startInBotMode: false,
       motionPreference: 'system' as const,
       botIcon: 'mascot' as const,
       developerMode: false,
@@ -214,28 +210,6 @@ describe('BOT-mode policy store', () => {
 
     expect(sectionSortMode(snapshot, 's1')).toBe('manual');
     expect(sectionSortMode(snapshot, 'missing')).toBe('inherit');
-  });
-
-  it('keeps the startup choice in this browser and does not let Host settings overwrite it', () => {
-    const storage = memoryStorage();
-    const prefs = new BotModePrefs(storage);
-    prefs.setStartInBotMode(true);
-    expect(storage.getItem(START_IN_BOT_MODE_KEY)).toBe('true');
-
-    const reloaded = new BotModePrefs(storage);
-    reloaded.attach(fakeHost().host);
-    expect(reloaded.source.getSnapshot().startInBotMode).toBe(true);
-    reloaded.setStartInBotMode(false);
-    expect(new BotModePrefs(storage).source.getSnapshot().startInBotMode).toBe(false);
-  });
-
-  it('consumes startup mode once per browser document so HMR cannot reopen it', () => {
-    const storage = memoryStorage();
-    storage.setItem(START_IN_BOT_MODE_KEY, 'true');
-    const documentWindow: Record<string, unknown> = {};
-    expect(consumeStartInBotMode(documentWindow, storage)).toBe(true);
-    expect(consumeStartInBotMode(documentWindow, storage)).toBe(false);
-    expect(consumeStartInBotMode({}, storage)).toBe(true);
   });
 
   it('stays usable process-locally while the scope reports memory mode', () => {
