@@ -1215,7 +1215,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'tool-approval' &&
       item['kind'] !== 'bot-dm-message' &&
       item['kind'] !== 'assignment-waiting-human' &&
-      item['kind'] !== 'assignment-report'
+      item['kind'] !== 'assignment-report' &&
+      item['kind'] !== 'bot-message-needs-repair'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
@@ -1234,7 +1235,10 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       return undefined;
     if (item['sourceEventId'] !== undefined && typeof item['sourceEventId'] !== 'string')
       return undefined;
-    if (item['kind'] === 'assignment-report' && typeof item['sourceEventId'] !== 'string')
+    if (
+      (item['kind'] === 'assignment-report' || item['kind'] === 'bot-message-needs-repair') &&
+      typeof item['sourceEventId'] !== 'string'
+    )
       return undefined;
     if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
     if (item['messageId'] !== undefined && typeof item['messageId'] !== 'string') return undefined;
