@@ -814,7 +814,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT DISTINCT e.channel_id, a.bot_slug
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
-         WHERE a.reason = 'group-ordinary' AND a.wake_count IS NOT NULL
+         WHERE a.reason = 'group-ordinary' AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
            AND e.channel_id IS NOT NULL
            AND (? IS NULL OR a.bot_slug = ?)
@@ -844,7 +844,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-           AND a.wake_count IS NOT NULL
+           AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
          ORDER BY e.created_at, e.rowid LIMIT 1
       `)
@@ -880,7 +880,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT count(*) AS count FROM inbox_admissions a
         JOIN source_events e ON e.source_event_id = a.source_event_id
         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-          AND a.wake_count IS NOT NULL
+          AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
           AND a.attempt_state IN ('pending', 'retryable')
           AND e.channel_id = ? AND a.wake_policy_revision = ?
       `)
@@ -940,7 +940,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT a.wake_policy_revision FROM inbox_admissions a
         JOIN source_events e ON e.source_event_id = a.source_event_id
         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-          AND a.wake_count IS NOT NULL
+          AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
           AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
         ORDER BY e.created_at, e.rowid LIMIT 1
       `)
@@ -955,7 +955,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-           AND a.wake_count IS NOT NULL
+           AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
            AND a.wake_policy_revision = ?
          ORDER BY e.created_at, e.rowid LIMIT 20
@@ -2000,7 +2000,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       read: (input = {}) => {
         const channel = resolve(input.channelId);
-        return this.#channels
+        const messages = this.#channels
           .readMessages(channel.id, {
             ...(input.before === undefined ? {} : { before: input.before }),
             ...(input.limit === undefined ? {} : { limit: input.limit }),
@@ -2010,6 +2010,8 @@ class BotRuntimeImplementation implements BotRuntime {
             channelName: channel.name,
             message,
           }));
+        this.#observeReadMessages(botSlug, messages);
+        return messages;
       },
       query: (input = {}) => {
         if (input.scope !== undefined && input.scope !== 'channel' && input.scope !== 'joined') {
@@ -2018,12 +2020,14 @@ class BotRuntimeImplementation implements BotRuntime {
         if (input.scope !== 'joined') {
           const channel = resolve(input.channelId);
           const page = this.#channels.queryMessages(channel.id, input);
+          const messages = page.messages.map((message) => ({
+            channelId: channel.id,
+            channelName: channel.name,
+            message,
+          }));
+          this.#observeReadMessages(botSlug, messages);
           return {
-            messages: page.messages.map((message) => ({
-              channelId: channel.id,
-              channelName: channel.name,
-              message,
-            })),
+            messages,
             ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
           };
         }
@@ -2137,6 +2141,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const page = found;
         const messages = page.slice(0, limit);
         const last = messages.at(-1);
+        this.#observeReadMessages(botSlug, messages);
         return {
           messages,
           ...(page.length <= limit || last === undefined
@@ -2883,6 +2888,31 @@ class BotRuntimeImplementation implements BotRuntime {
     return this.#channels
       .list()
       .find((channel) => channel.type === 'dm' && channel.botSlug === botSlug);
+  }
+
+  #observeReadMessages(botSlug: string, messages: ChannelMessageView[]): void {
+    if (messages.length === 0) return;
+    const observedAt = this.#now().toISOString();
+    const changedChannels = this.#database.transaction(
+      (database) => {
+        const update = database.prepare(`
+          UPDATE inbox_admissions SET observed_at = ?
+           WHERE bot_slug = ? AND reason = 'group-ordinary'
+             AND attempt_state IN ('pending', 'retryable') AND observed_at IS NULL
+             AND source_event_id IN (
+               SELECT source_event_id FROM channel_placements
+                WHERE channel_id = ? AND message_id = ?
+             )
+        `);
+        const changed = new Set<string>();
+        for (const item of messages)
+          if (update.run(observedAt, botSlug, item.channelId, item.message.id).changes > 0)
+            changed.add(item.channelId);
+        return changed;
+      },
+      ['bot-inbox'],
+    );
+    for (const channelId of changedChannels) this.#scheduleDigest(botSlug, channelId);
   }
 
   #setObserved(sourceEventIds: string[], at: string | null): void {
