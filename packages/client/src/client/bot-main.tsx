@@ -917,7 +917,8 @@ function ConversationView({
                               (item) =>
                                 item.author.kind === 'human' &&
                                 item.replyTo !== undefined &&
-                                (item.body.startsWith('已授权工作区「') ||
+                                (item.grantRequestResolution?.requestMessageId === item.replyTo ||
+                                  item.body.startsWith('已授权工作区「') ||
                                   item.body.startsWith('I authorized workspace “')),
                             )
                             .map((item) => item.replyTo!),

@@ -185,6 +185,7 @@ describe('bridge typert service', () => {
       'memorySwitchTarget',
       'mentions',
       'channelRefs',
+      'grantRequestResolution',
     ]);
     expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);

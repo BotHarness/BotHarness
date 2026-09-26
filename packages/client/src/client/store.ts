@@ -141,6 +141,7 @@ export interface ChannelMessage {
   /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
   botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
   grantRequest?: true;
+  grantRequestResolution?: { requestMessageId: string; grantId: string };
   toolApprovalRequest?: ToolApprovalRequestCard;
   sessionFailure?: SessionFailureCard;
   toolApprovalDecision?: ToolApprovalDecision;
@@ -191,6 +192,7 @@ export interface HumanAttentionItem {
     | 'group-join-request'
     | 'user-question'
     | 'tool-approval'
+    | 'workspace-grant-request'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
     | 'assignment-blocked'

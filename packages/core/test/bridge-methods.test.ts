@@ -10,6 +10,7 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
+import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 
@@ -28,6 +29,7 @@ function setup(
   botIds: string[] = ['ada'],
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
   ownership = createTestOwnership(),
+  grants?: WorkspaceGrantStore,
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -52,6 +54,7 @@ function setup(
       channels,
       ownership,
       roster: createRosterStore(),
+      ...(grants === undefined ? {} : { grants }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
     }),
@@ -63,6 +66,73 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('commits only a Grant-backed typed resolution for this Bot DM and retries it idempotently', async () => {
+    const grant = {
+      id: 'grant-1',
+      botSlug: 'ada',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: '2026-09-26T00:00:00.000Z',
+    };
+    let revoked = false;
+    const grants: WorkspaceGrantStore = {
+      list: (slug) =>
+        slug === 'ada' ? [{ ...grant, ...(revoked ? { revokedAt: grant.createdAt } : {}) }] : [],
+      create: async () => grant,
+      revoke: () => grant,
+      requireActive: () => grant,
+      availableWorkspaces: () => [],
+    };
+    const { registry, channels, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      grants,
+    );
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    await channels.appendMessage(dm.id, {
+      id: 'grant-request-1',
+      at: '2026-09-26T00:00:00.000Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'Please grant this workspace.',
+      grantRequest: true,
+    });
+    const payload = {
+      channelId: dm.id,
+      messageId: 'human-25f4609a-2aee-446a-a5d9-ea53607aba13',
+      body: 'Workspace authorized.',
+      replyTo: 'grant-request-1',
+      grantRequestResolution: { requestMessageId: 'grant-request-1', grantId: 'grant-1' },
+    };
+    expect(
+      await methods.channelSend({
+        ...payload,
+        grantRequestResolution: { ...payload.grantRequestResolution, grantId: 'unknown' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        ...payload,
+        grantRequestResolution: { ...payload.grantRequestResolution, requestMessageId: 'missing' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(channels.message(dm.id, payload.messageId)?.grantRequestResolution).toEqual(
+      payload.grantRequestResolution,
+    );
+    revoked = true;
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({
+        ...payload,
+        messageId: 'human-35f4609a-2aee-446a-a5d9-ea53607aba13',
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  });
+
   it('keeps Bot-to-Bot DMs inspectable but rejects Human sends and renames', async () => {
     const { registry, channels, methods } = setup([], ['ada', 'bea']);
     registry.create({ slug: 'ada', displayName: 'Ada' });

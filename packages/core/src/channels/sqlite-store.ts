@@ -95,6 +95,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       channelRefs: left.channelRefs ?? [],
       botDmAction: left.botDmAction,
       botCausation: left.botCausation,
+      grantRequestResolution: left.grantRequestResolution,
     }) ===
     JSON.stringify({
       author: right.author,
@@ -106,6 +107,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       channelRefs: right.channelRefs ?? [],
       botDmAction: right.botDmAction,
       botCausation: right.botCausation,
+      grantRequestResolution: right.grantRequestResolution,
     })
   );
 }
