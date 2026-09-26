@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { attachOperationalModule } from '../src/database/owner.js';
+import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { defineSchemaPlan } from '../src/database/schema.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter } from '../src/runtime/bot-runtime.js';
 import { createTempRoot } from './helpers.js';
@@ -18,6 +20,48 @@ function adapter(): BotAgentAdapter {
 }
 
 describe('Bot-scoped attention projection', () => {
+  it('backfills legacy Assignment reports into canonical Admissions during migration', async () => {
+    const home = createTempRoot('botharness-report-backfill-');
+    const oldPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation <= 20),
+    );
+    const legacy = mountOperationalDatabase({ dshHome: home, schemaPlan: oldPlan });
+    try {
+      attachOperationalModule(legacy, 'report-backfill-test').transaction((db) => {
+        db.prepare(`
+          INSERT INTO source_events
+            (source_event_id, source_kind, bot_slug, body, created_at,
+             handled_at, attempt_state, observed_at)
+          VALUES (?, 'assignment-report', 'ada', ?, ?, ?, 'handled', ?)
+        `).run('report-pending', 'Still working', '2026-09-26T00:00:00.000Z', null, null);
+        db.prepare(`
+          INSERT INTO source_events
+            (source_event_id, source_kind, bot_slug, body, created_at,
+             handled_at, attempt_state, observed_at)
+          VALUES (?, 'assignment-report', 'ada', ?, ?, ?, 'handled', ?)
+        `).run(
+          'report-observed',
+          'Finished',
+          '2026-09-26T00:01:00.000Z',
+          '2026-09-26T00:02:00.000Z',
+          '2026-09-26T00:02:00.000Z',
+        );
+      });
+    } finally {
+      legacy.close();
+    }
+    const core = createCore({ dshHome: home, agents: adapter() });
+    try {
+      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { id: 'report-observed', reason: 'assignment-report', state: 'handled' },
+        { id: 'report-pending', reason: 'assignment-report', state: 'pending' },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('reads one canonical admission before and after observation, with stable source navigation across restart', async () => {
     const home = createTempRoot('botharness-attention-query-');
     const core = createCore({ dshHome: home, agents: adapter() });

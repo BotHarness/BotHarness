@@ -7,6 +7,7 @@ import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -404,18 +405,23 @@ function BotInboxItemRow({
   t: BotHarnessTranslate;
 }): ReactElement {
   const author =
-    item.authorKind === 'human'
-      ? t('main.author.human')
-      : item.authorKind === 'bot'
-        ? (item.authorBotSlug ?? t('inbox.bot'))
-        : t('inbox.system');
+    item.sourceKind === 'assignment-report'
+      ? t('inbox.assignment')
+      : item.authorKind === 'human'
+        ? t('main.author.human')
+        : item.authorKind === 'bot'
+          ? (item.authorBotSlug ?? t('inbox.bot'))
+          : t('inbox.system');
   const open = async (): Promise<void> => {
-    if (
-      !item.sourceAvailable ||
-      item.sourceChannelId === undefined ||
-      item.sourceMessageId === undefined
-    )
+    if (!item.sourceAvailable) return;
+    if (item.assignmentSessionId !== undefined) {
+      await actions.openAssignment(item.assignmentSessionId);
+      const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
+      channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
+      channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', true);
       return;
+    }
+    if (item.sourceChannelId === undefined || item.sourceMessageId === undefined) return;
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
@@ -428,6 +434,9 @@ function BotInboxItemRow({
     >
       <span className="bh-inbox-item-top">
         <span>{author}</span>
+        {item.assignmentReportState === undefined ? null : (
+          <Tag tone="neutral">{t(`inbox.report.${item.assignmentReportState}`)}</Tag>
+        )}
         <Tag tone="neutral">{t(`inbox.state.${item.state}`)}</Tag>
       </span>
       <span className="bh-inbox-item-summary">{item.summary || t('inbox.system')}</span>
@@ -460,7 +469,7 @@ function BotInboxGroup({
       onToggle={(event) => setExpanded(event.currentTarget.open)}
     >
       <summary className="bh-inbox-group-head">
-        <span>{name}</span>
+        <span title={name}>{name}</span>
         <Tag tone="neutral">{items.length}</Tag>
       </summary>
       {active.map((item) => (
@@ -481,9 +490,16 @@ function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): React
   const inbox = useClientState().botInbox;
   const groups = new Map<string, { name: string; items: BotAttentionItem[] }>();
   for (const item of inbox.items) {
-    const key = item.sourceChannelId ?? `system:${item.reason}`;
+    const key =
+      item.assignmentSessionId === undefined
+        ? (item.sourceChannelId ?? `system:${item.reason}`)
+        : `assignment:${item.assignmentSessionId}`;
     const group = groups.get(key) ?? {
-      name: item.sourceChannelName ?? item.sourceChannelId ?? t('inbox.system'),
+      name:
+        item.assignmentPurpose ??
+        item.sourceChannelName ??
+        item.sourceChannelId ??
+        t(item.assignmentSessionId === undefined ? 'inbox.system' : 'inbox.assignment'),
       items: [],
     };
     group.items.push(item);

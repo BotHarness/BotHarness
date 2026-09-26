@@ -16,6 +16,9 @@ export interface BotAttentionItem {
   sourceChannelId?: string;
   sourceChannelName?: string;
   sourceMessageId?: string;
+  assignmentSessionId?: string;
+  assignmentPurpose?: string;
+  assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;
@@ -47,6 +50,10 @@ interface AttentionRow {
   channel_id: string | null;
   message_id: string | null;
   placed_message_id: string | null;
+  assignment_session_id: string | null;
+  available_assignment_session_id: string | null;
+  assignment_purpose: string | null;
+  assignment_report_state: string | null;
   body: string;
   created_at: string;
   author_kind: string | null;
@@ -89,8 +96,12 @@ export function createBotAttentionQuery(
         WITH attention AS (
           SELECT a.source_event_id, a.bot_slug, a.reason, a.attempt_state,
                  a.observed_at, a.handled_at, e.source_kind, e.channel_id,
-                 e.message_id, p.message_id AS placed_message_id, e.body,
-                 e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
+                 e.message_id, p.message_id AS placed_message_id,
+                 e.assignment_session_id,
+                 assignment.session_id AS available_assignment_session_id,
+                 assignment.purpose AS assignment_purpose,
+                 json_extract(e.payload_json, '$.assignmentReport.state') AS assignment_report_state,
+                 e.body, e.created_at, json_extract(e.payload_json, '$.author.kind') AS author_kind,
                  json_extract(e.payload_json, '$.author.slug') AS author_slug,
                  CASE
                    WHEN a.attempt_state = 'needs-repair' THEN 'needs-repair'
@@ -104,6 +115,8 @@ export function createBotAttentionQuery(
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
           LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+          LEFT JOIN assignments assignment
+            ON assignment.session_id = e.assignment_session_id AND assignment.bot_slug = a.bot_slug
           WHERE a.bot_slug = ?
         )
         SELECT * FROM attention
@@ -143,7 +156,20 @@ export function createBotAttentionQuery(
           ...(row.channel_id === null ? {} : { sourceChannelId: row.channel_id }),
           ...(channel === undefined ? {} : { sourceChannelName: channel.name }),
           ...(row.placed_message_id === null ? {} : { sourceMessageId: row.placed_message_id }),
-          sourceAvailable: channel !== undefined && row.placed_message_id !== null,
+          ...(row.assignment_session_id === null
+            ? {}
+            : { assignmentSessionId: row.assignment_session_id }),
+          ...(row.assignment_purpose === null ? {} : { assignmentPurpose: row.assignment_purpose }),
+          ...(row.assignment_report_state === 'progress' ||
+          row.assignment_report_state === 'completed' ||
+          row.assignment_report_state === 'blocked' ||
+          row.assignment_report_state === 'waiting-human' ||
+          row.assignment_report_state === 'failed'
+            ? { assignmentReportState: row.assignment_report_state }
+            : {}),
+          sourceAvailable:
+            (channel !== undefined && row.placed_message_id !== null) ||
+            row.available_assignment_session_id !== null,
           authorKind,
           ...(authorKind === 'bot' && row.author_slug !== null
             ? { authorBotSlug: row.author_slug }

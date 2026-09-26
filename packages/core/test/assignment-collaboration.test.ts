@@ -6,6 +6,7 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { createBotAttentionQuery } from '../src/runtime/attention.js';
 import {
   createBotRuntime,
   type AssignmentAgentRun,
@@ -26,11 +27,17 @@ class ManualAgents implements BotAgentAdapter {
   readonly inboxTurns: string[] = [];
   access: OrchestratorAssignmentAccess | undefined;
   failNextStop = false;
+  failInbox: 'before-side-effect' | 'after-side-effect' | undefined;
   readonly #finish = new Map<string, () => void>();
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.access = run.assignments;
     if (run.message.trim().length > 0) return;
+    if (this.failInbox === 'after-side-effect') {
+      const created = run.assignments.create({ grantId: TEST_GRANT_ID, purpose: 'Follow-up work' });
+      if (created.outcome === 'created') this.finish(created.assignment.sessionId);
+    }
+    if (this.failInbox !== undefined) throw new Error('Inbox turn failed');
     this.inboxTurns.push(run.inbox);
   }
 
@@ -95,6 +102,7 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
   grants: WorkspaceGrantStore;
   agents: ManualAgents;
   owner: ReturnType<typeof mountOperationalDatabase>;
+  channels: ReturnType<typeof createChannelStore>;
   home: string;
   admit: (body: string, messageId: string) => Promise<void>;
   close: () => Promise<void>;
@@ -127,6 +135,7 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
     grants,
     agents,
     owner,
+    channels,
     home,
     close: async () => {
       agents.finishAll();
@@ -323,7 +332,7 @@ describe('Assignment collaboration', () => {
   });
 
   it('wakes an idle Orchestrator with one coalesced block and records observation', async () => {
-    const { runtime, agents, owner, admit, close } = await setup();
+    const { runtime, agents, owner, channels, admit, close } = await setup();
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
@@ -332,10 +341,28 @@ describe('Assignment collaboration', () => {
     const sessionId = created.assignment.sessionId;
     const run = agents.started[0]?.run;
     if (run === undefined) throw new Error('Assignment never started');
+    const attention = createBotAttentionQuery(
+      attachOperationalModule(owner, 'report-attention-test'),
+      channels,
+    );
 
     await run.report({ state: 'progress', summary: '里程碑 1' });
     await Promise.resolve();
     expect(agents.inboxTurns).toEqual([]);
+    expect(attention.list({ botSlug: 'ada' }).items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: 'assignment-report',
+          state: 'pending',
+          sourceKind: 'assignment-report',
+          assignmentSessionId: sessionId,
+          assignmentPurpose: '调研 A 方向',
+          assignmentReportState: 'progress',
+          sourceAvailable: true,
+          summary: '里程碑 1',
+        }),
+      ]),
+    );
 
     await run.report({ state: 'progress', summary: '里程碑 2' });
     await run.report({ state: 'completed', summary: 'A 方向完成' });
@@ -343,6 +370,24 @@ describe('Assignment collaboration', () => {
     await runtime.whenIdle();
 
     expect(agents.inboxTurns).toHaveLength(1);
+    expect(
+      attention
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.reason === 'assignment-report'),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          state: 'handled',
+          assignmentReportState: 'completed',
+          assignmentSessionId: sessionId,
+        }),
+        expect.objectContaining({
+          state: 'handled',
+          assignmentReportState: 'progress',
+          assignmentSessionId: sessionId,
+        }),
+      ]),
+    );
     const injected = agents.inboxTurns[0] ?? '';
     expect(injected).toContain('A 方向完成');
     expect(injected).toContain('repeats 3');
@@ -441,5 +486,163 @@ describe('Assignment collaboration', () => {
     expect(refused.outcome === 'capacity' && refused.message).toContain('retryable: true');
     expect(runtime.listAssignments('ada')).toHaveLength(1);
     await close();
+  });
+  it('recovers an unobserved due report once after restart', async () => {
+    const { agents, owner, home, admit, close } = await setup();
+    await admit('Start research', 'human-1');
+    const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const run = agents.started[0]!.run;
+    await run.report({ state: 'progress', summary: 'Phase one' });
+    const reportId = sourceEvents(owner).find(
+      (row) => row.source_kind === 'assignment-report',
+    )!.source_event_id;
+    const testDatabase = attachOperationalModule(owner, 'report-recovery-test');
+    testDatabase.transaction((db) => {
+      db.prepare(`
+        UPDATE source_events
+           SET payload_json = ?, expects_reply = 1
+         WHERE source_event_id = ?
+      `).run(JSON.stringify({ assignmentReport: { state: 'completed' } }), reportId);
+    });
+    await close();
+    owner.close();
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.inboxTurns).toHaveLength(1);
+      expect(reopenedAgents.inboxTurns[0]).toContain('Phase one');
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'report-recovery-query'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === reportId),
+      ).toMatchObject({
+        state: 'handled',
+        assignmentReportState: 'completed',
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
+  });
+
+  it.each(['before-side-effect', 'after-side-effect'] as const)(
+    'tracks every collected report when an Inbox turn fails %s',
+    async (failure) => {
+      const { runtime, agents, owner, admit, close } = await setup();
+      try {
+        await admit('Start research', 'human-1');
+        const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+        if (created.outcome !== 'created') throw new Error('create failed');
+        const run = agents.started[0]!.run;
+        agents.failInbox = failure;
+        await run.report({ state: 'progress', summary: 'First report' });
+        await run.report({ state: 'completed', summary: 'Second report' });
+        agents.finish(created.assignment.sessionId);
+        await runtime.whenIdle();
+        const rows = attachOperationalModule(owner, 'multi-report-recovery-test').read(
+          (db) =>
+            db
+              .prepare(`
+              SELECT a.attempt_state, a.side_effect_started_at, e.observed_at
+                FROM inbox_admissions a
+                JOIN source_events e ON e.source_event_id = a.source_event_id
+               WHERE a.reason = 'assignment-report'
+               ORDER BY e.body
+            `)
+              .all() as Array<{
+              attempt_state: string;
+              side_effect_started_at: string | null;
+              observed_at: string | null;
+            }>,
+        );
+        expect(rows).toHaveLength(2);
+        expect(rows.map((row) => row.attempt_state)).toEqual([
+          failure === 'after-side-effect' ? 'needs-repair' : 'retryable',
+          failure === 'after-side-effect' ? 'needs-repair' : 'retryable',
+        ]);
+        expect(rows.every((row) => row.observed_at === null)).toBe(true);
+        expect(rows.every((row) => row.side_effect_started_at !== null)).toBe(
+          failure === 'after-side-effect',
+        );
+      } finally {
+        await close();
+      }
+    },
+  );
+
+  it('shows an interrupted observed report as needs-repair instead of waking it twice', async () => {
+    const { agents, owner, home, admit, close } = await setup();
+    await admit('Start research', 'human-1');
+    const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    await agents.started[0]!.run.report({ state: 'progress', summary: 'Read this report' });
+    const reportId = sourceEvents(owner).find(
+      (row) => row.source_kind === 'assignment-report',
+    )!.source_event_id;
+    attachOperationalModule(owner, 'report-interruption-test').transaction((db) => {
+      db.prepare('UPDATE source_events SET observed_at = ? WHERE source_event_id = ?').run(
+        FIXED_NOW().toISOString(),
+        reportId,
+      );
+      db.prepare(`
+        UPDATE inbox_admissions SET observed_at = ?, attempt_state = 'running'
+         WHERE source_event_id = ? AND bot_slug = 'ada'
+      `).run(FIXED_NOW().toISOString(), reportId);
+    });
+    await close();
+    owner.close();
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.inboxTurns).toHaveLength(0);
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'report-interruption-query'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === reportId),
+      ).toMatchObject({
+        state: 'needs-repair',
+        observedAt: FIXED_NOW().toISOString(),
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
   });
 });

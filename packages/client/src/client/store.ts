@@ -301,6 +301,9 @@ export interface BotAttentionItem {
   sourceChannelId?: string;
   sourceChannelName?: string;
   sourceMessageId?: string;
+  assignmentSessionId?: string;
+  assignmentPurpose?: string;
+  assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
   sourceAvailable: boolean;
   authorKind: 'human' | 'bot' | 'bridged' | 'system';
   authorBotSlug?: string;
