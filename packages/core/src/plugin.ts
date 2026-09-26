@@ -76,7 +76,7 @@ import {
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
 import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
-import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
+import type { DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
 
@@ -433,7 +433,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       registry: core.registry,
       states: core.states,
       channels: core.channels,
-      sessions: createDshSessionSource(dshSessions),
       ownership: core.ownership,
       memory: core.memory,
       roster: core.roster,

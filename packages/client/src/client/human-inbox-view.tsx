@@ -1,7 +1,6 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
-import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
@@ -42,10 +41,7 @@ export function HumanInboxView({
     if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
       if (item.assignmentSessionId === undefined) return;
       await actions.openBot(item.botSlug);
-      await actions.openAssignment(item.assignmentSessionId);
-      const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
-      channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
-      channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', true);
+      await actions.openSession(item.assignmentSessionId);
     } else if (item.kind === 'group-join-request') {
       if (item.channelId !== undefined) await actions.openChannel(item.channelId);
     } else {

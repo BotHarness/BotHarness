@@ -11,7 +11,6 @@ import {
   createPersonaBot,
   createRosterSection,
   errorMessage,
-  loadAssignment,
   loadWorkspaceOptions,
   loadWorkspaceGrants,
   loadToolApprovalRules,
@@ -28,10 +27,10 @@ import {
   answerUserQuestion,
   type WorkspaceOption,
   type WorkspaceGrantView,
-  loadAssignments,
   loadBotAttention,
   loadHumanAttention,
   ignoreHumanAssignmentReport,
+  loadSessions,
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
@@ -119,7 +118,8 @@ export interface BridgeActions {
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   dismissFailedMessage(channelId: string, messageId: string): boolean;
-  openAssignment(sessionId: string): Promise<void>;
+  openSession(sessionId: string): void;
+  refreshSessions(slug: string): Promise<void>;
   memorySnapshot(channelId: string): Promise<MemorySnapshot>;
   memoryFile(
     channelId: string,
@@ -283,6 +283,7 @@ export function createActions(
     pickDirectory(): Promise<string | null>;
     listDirectory?(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
     createWorkspace(input: { path: string }): Promise<{ workspaceId: string }>;
+    openSession?(sessionId: string): void;
   },
 ): BridgeActions {
   const failedByChannel = new Map<string, ChannelMessage[]>();
@@ -393,28 +394,15 @@ export function createActions(
     });
   };
 
-  const loadAssignmentsFor = async (
-    slug: string,
-    selection: ConversationSelection,
-  ): Promise<void> => {
-    clientStore.setAssignments({
-      status: 'loading',
-      items: [],
-      selected: undefined,
-      error: undefined,
-    });
+  const loadSessionsFor = async (slug: string, selection: ConversationSelection): Promise<void> => {
+    clientStore.setSessions({ status: 'loading', items: [], error: undefined });
     try {
-      const items = await loadAssignments(call, slug);
+      const items = await loadSessions(call, slug);
       if (currentSelection() !== selection) return;
-      clientStore.setAssignments({ status: 'ready', items, error: undefined });
+      clientStore.setSessions({ status: 'ready', items, error: undefined });
     } catch (error) {
       if (currentSelection() !== selection) return;
-      clientStore.setAssignments({
-        status: 'error',
-        items: [],
-        selected: undefined,
-        error: errorMessage(error),
-      });
+      clientStore.setSessions({ status: 'error', items: [], error: errorMessage(error) });
     }
   };
 
@@ -551,7 +539,7 @@ export function createActions(
       clientStore.setConversation({ status: 'error', error: errorMessage(error), sending: false });
     }
     if (channel.type === 'dm' && channel.botSlug !== undefined) {
-      await loadAssignmentsFor(channel.botSlug, active);
+      await loadSessionsFor(channel.botSlug, active);
     }
   };
 
@@ -668,7 +656,7 @@ export function createActions(
           sending: false,
         });
       }
-      await Promise.all([loadAssignmentsFor(slug, active), loadBotInboxFor(slug, active)]);
+      await Promise.all([loadSessionsFor(slug, active), loadBotInboxFor(slug, active)]);
     },
     refreshBotInbox(slug) {
       const selection = currentSelection();
@@ -935,18 +923,15 @@ export function createActions(
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     memorySave: (input) => saveMemoryFile(call, input),
     memoryRepair: (input) => repairMemory(call, input),
-    async openAssignment(sessionId) {
+    openSession(sessionId) {
+      if (folderAccess?.openSession === undefined)
+        throw new Error('DSH Session navigation is unavailable');
+      folderAccess.openSession(sessionId);
+    },
+    async refreshSessions(slug) {
       const selection = currentSelection();
-      const slug = selectedBotSlug(selection);
-      if (selection === undefined || slug === undefined) return;
-      try {
-        const assignment = await loadAssignment(call, slug, sessionId);
-        if (currentSelection() !== selection) return;
-        clientStore.setAssignments({ selected: assignment, error: undefined });
-      } catch (error) {
-        if (currentSelection() !== selection) return;
-        clientStore.setAssignments({ error: errorMessage(error) });
-      }
+      if (selection === undefined || selectedBotSlug(selection) !== slug) return;
+      await loadSessionsFor(slug, selection);
     },
     async send(body, replyTo, attachments, memorySwitchTarget, mentions, channelRefs) {
       let snapshot = clientStore.getSnapshot();
@@ -1042,13 +1027,13 @@ export function createActions(
         }
         const slug = selectedBotSlug(selection);
         if (selection !== undefined && slug !== undefined) {
-          void loadAssignments(call, slug)
+          void loadSessions(call, slug)
             .then((items) => {
               if (currentSelection() !== selection) return;
-              clientStore.setAssignments({ status: 'ready', items, error: undefined });
+              clientStore.setSessions({ status: 'ready', items, error: undefined });
             })
             .catch((error: unknown) => {
-              console.warn('botharness: assignment refresh failed', error);
+              console.warn('botharness: Session refresh failed', error);
             });
         }
         return true;

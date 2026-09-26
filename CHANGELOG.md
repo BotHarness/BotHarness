@@ -66,6 +66,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; Current prioritizes active work, All retains stopped history, and a row opens the native Session ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
+
 - Group @PersonaBot and Bot-to-Bot DM guidance now let a Bot finish without replying when no response is useful; “handled” still means its turn completed, not that it acknowledged the message ([#302](https://github.com/BotHarness/BotHarness/issues/302)).
 
 - Local Desktop Client edits now update an open PersonaBot DM through DSH Client HMR; the unpublished UI Bundle uses `@botharness/ui` so RC2 can resolve its plugin graph ([#272](https://github.com/BotHarness/BotHarness/issues/272), [ADR-0066](docs/adr/0066-rc2-client-bundle-identity.md)). After a full Desktop document reload following HMR, RC2 can still fail Web boot; restart the app and Host as described in the [development guide](docs/client-bridge.md).

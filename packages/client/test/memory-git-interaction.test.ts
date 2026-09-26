@@ -432,7 +432,7 @@ describe('Memory Git graph sidebar', () => {
         error: undefined,
         sending: false,
       });
-      store.setAssignments({ status: 'ready', items: [], selected: undefined, error: undefined });
+      store.setSessions({ status: 'ready', items: [], error: undefined });
       root.render(createElement(BotMain, { actions, channelSidebar: registry }));
     });
 
@@ -476,7 +476,7 @@ describe('Memory Git graph sidebar', () => {
       store.setRoster(previous.bots, previous.channels);
       store.select(previous.selection);
       store.setConversation(previous.conversation);
-      store.setAssignments(previous.assignments);
+      store.setSessions(previous.sessions);
       channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory', false);
     });
   });

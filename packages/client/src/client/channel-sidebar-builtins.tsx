@@ -7,10 +7,10 @@ import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
-import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
+import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, BotSummary, ChannelSummary } from './store.js';
 
@@ -18,119 +18,6 @@ const inactiveSubscribe = (): (() => void) => () => {};
 
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
-}
-
-function assignmentStatus(
-  activity: 'working' | 'idle' | 'error' | 'stopping' | 'stopped',
-  t: BotHarnessTranslate,
-): string {
-  switch (activity) {
-    case 'working':
-      return t('assignment.state.working');
-    case 'idle':
-      return t('assignment.state.reported');
-    case 'error':
-      return t('assignment.state.error');
-    case 'stopping':
-      return t('assignment.state.stopping');
-    case 'stopped':
-      return t('assignment.state.stopped');
-  }
-}
-
-function AssignmentsEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
-  const assignments = useClientState().assignments;
-  const selected = assignments.selected;
-  return (
-    <>
-      {assignments.status === 'loading' ? (
-        <div className="bh-note">{t('assignments.loading')}</div>
-      ) : null}
-      {assignments.status === 'error' && assignments.error !== undefined ? (
-        <div className="bh-error">{t('assignments.error', { error: assignments.error })}</div>
-      ) : null}
-      {assignments.status === 'ready' && assignments.items.length === 0 ? (
-        <div className="bh-note">{t('assignments.empty')}</div>
-      ) : null}
-      {assignments.items.map((assignment) => (
-        <button
-          type="button"
-          className={
-            assignment.sessionId === selected?.sessionId
-              ? 'bh-assignment-row bh-assignment-row-selected'
-              : 'bh-assignment-row'
-          }
-          key={assignment.sessionId}
-          aria-pressed={assignment.sessionId === selected?.sessionId}
-          onClick={() => void actions.openAssignment(assignment.sessionId)}
-        >
-          <div className="bh-assignment-title">{assignment.purpose}</div>
-          <div className="bh-assignment-meta">
-            <span>{assignmentStatus(assignment.activity, t)}</span>
-            <span>{formatRelativeTime(Date.parse(assignment.updatedAt), Date.now(), t)}</span>
-          </div>
-          {assignment.permission === undefined ? null : (
-            <div className="bh-assignment-meta">
-              <span>{assignment.permission.primaryCwd}</span>
-              <Tag tone="neutral">{assignment.permission.mode}</Tag>
-            </div>
-          )}
-          {assignment.latestReport === undefined ? null : (
-            <div className="bh-assignment-summary">{assignment.latestReport.summary}</div>
-          )}
-        </button>
-      ))}
-      {selected === undefined ? null : (
-        <section className="bh-assignment-detail" aria-label={t('assignment.detail.label')}>
-          <div className="bh-assignment-detail-label">{t('assignment.detail.label')}</div>
-          <div className="bh-assignment-detail-purpose">{selected.purpose}</div>
-          <dl>
-            <div>
-              <dt>{t('assignment.detail.status')}</dt>
-              <dd>{assignmentStatus(selected.activity, t)}</dd>
-            </div>
-            <div>
-              <dt>{t('assignment.detail.latest')}</dt>
-              <dd>{selected.latestReport?.summary ?? t('assignment.detail.unreported')}</dd>
-            </div>
-            {selected.permission === undefined ? null : (
-              <>
-                <div>
-                  <dt>{t('grant.primaryCwd')}</dt>
-                  <dd>{selected.permission.primaryCwd}</dd>
-                </div>
-                <div>
-                  <dt>{t('grant.actualPermission')}</dt>
-                  <dd>
-                    {selected.permission.mode} / {selected.permission.approval}
-                  </dd>
-                </div>
-                {selected.permission.mode === 'danger-full-access' ? (
-                  <div className="bh-access-warning" role="status">
-                    {t('access.sessionWarning')}
-                  </div>
-                ) : null}
-                <div>
-                  <dt>{t('grant.source')}</dt>
-                  <dd>{selected.permission.grantId}</dd>
-                </div>
-              </>
-            )}
-            <div>
-              <dt>{t('assignment.detail.session')}</dt>
-              <dd className="bh-assignment-id" title={selected.sessionId}>
-                {selected.sessionId}
-              </dd>
-            </div>
-          </dl>
-        </section>
-      )}
-    </>
-  );
-}
-
-function AssignmentsBadge(): ReactElement {
-  return <Tag tone="neutral">{useClientState().assignments.items.length}</Tag>;
 }
 
 function MemberWakeControls({
@@ -415,10 +302,7 @@ function BotInboxItemRow({
   const open = async (): Promise<void> => {
     if (!item.sourceAvailable) return;
     if (item.assignmentSessionId !== undefined) {
-      await actions.openAssignment(item.assignmentSessionId);
-      const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
-      channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
-      channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', true);
+      await actions.openSession(item.assignmentSessionId);
       return;
     }
     if (item.sourceChannelId === undefined || item.sourceMessageId === undefined) return;
@@ -538,7 +422,15 @@ function BotInboxBadge(): ReactElement {
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
   prefs?: BotModePrefs,
+  nativeSessions: NativeSessionCatalog = {
+    subscribe: inactiveSubscribe,
+    getSnapshot: () => ({ ids: [], byId: {} }),
+  },
 ): readonly ChannelSidebarEntry[] {
+  function SessionsWithNative(props: ChannelSidebarEntryProps): ReactElement {
+    return <SessionsEntry {...props} nativeSessions={nativeSessions} />;
+  }
+
   function WorkspaceGrantsWithPrefs(props: ChannelSidebarEntryProps): ReactElement {
     const developerMode = useSyncExternalStore(
       prefs?.source.subscribe ?? inactiveSubscribe,
@@ -555,12 +447,11 @@ export function createChannelSidebarBuiltins(
       component: MemoryEntry,
     },
     {
-      id: 'assignments',
-      label: t('entry.assignments'),
+      id: 'sessions',
+      label: t('entry.sessions'),
       order: 10,
       scope: 'personabot',
-      component: AssignmentsEntry,
-      badge: AssignmentsBadge,
+      component: SessionsWithNative,
     },
     {
       id: 'bot-inbox',

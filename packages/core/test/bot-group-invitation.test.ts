@@ -205,7 +205,7 @@ describe('Bot Group invitation tracer', () => {
         registry: core.registry,
         states: core.states,
         channels: core.channels,
-        sessions: { list: () => [] },
+
         ownership: core.ownership,
         roster: core.roster,
       });

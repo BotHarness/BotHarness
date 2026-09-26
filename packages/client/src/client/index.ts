@@ -8,6 +8,8 @@ import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
 import type {} from '@deepseek-ai/dsh-api-workspace-controller/client';
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
@@ -44,6 +46,7 @@ export const inject = [
   'inputTriggers',
   'layout',
   'locale',
+  'sessions',
   'uiWorkspace',
   'workspaces',
 ];
@@ -86,8 +89,13 @@ export function apply(ctx: ClientContext): void {
       if (workspaces === undefined) throw new Error('DSH Workspace controller is unavailable');
       return workspaces.create(input);
     },
+    openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
   });
   const prefs = new BotModePrefs(storage);
+  const nativeSessions = {
+    subscribe: (listener: () => void) => ctx.sessions.list.subscribe(listener),
+    getSnapshot: () => ctx.sessions.list.getSnapshot(),
+  };
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
   ctx.effect(() => {
@@ -96,7 +104,7 @@ export function apply(ctx: ClientContext): void {
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
-      disposers = createChannelSidebarBuiltins(t, prefs).map((entry) =>
+      disposers = createChannelSidebarBuiltins(t, prefs, nativeSessions).map((entry) =>
         channelSidebar.register(entry),
       );
     };

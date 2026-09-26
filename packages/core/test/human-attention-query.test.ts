@@ -32,7 +32,7 @@ describe('Human attention projection', () => {
         requesterBotSlug: 'ada',
         requesterBotCreatedAt: ada.record.createdAt,
       });
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(methods.humanAttention({ category: 'action' })).toMatchObject({
         ok: true,
         value: {

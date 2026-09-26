@@ -10,7 +10,6 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
-import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 
@@ -25,7 +24,7 @@ function tickingNow(): () => Date {
 }
 
 function setup(
-  sessionSummaries: SessionSummary[] = [],
+  _sessionSummaries: unknown[] = [],
   botIds: string[] = ['ada'],
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
   ownership = createTestOwnership(),
@@ -40,7 +39,6 @@ function setup(
     attachments,
     now: tickingNow(),
   });
-  const sessions: BotSessionSource = { list: () => sessionSummaries };
   let botIdIndex = 0;
   return {
     root,
@@ -52,7 +50,6 @@ function setup(
       registry,
       states,
       channels,
-      sessions,
       ownership,
       roster: createRosterStore(),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
@@ -932,41 +929,23 @@ describe('bridge methods', () => {
     expect(channels.readMessages('dm-ada').map((message) => message.body)).toEqual(['hello']);
   });
 
-  it('lists Sessions owned by the bot through explicit ownership, newest first', () => {
-    const summaries: SessionSummary[] = [
-      { id: 'session-1', title: 'older', cwd: '/srv/ada', updatedAt: '2026-09-19T01:00:00.000Z' },
-      {
-        id: 'session-2',
-        title: 'newer',
-        cwd: '/srv/shared',
-        updatedAt: '2026-09-19T03:00:00.000Z',
-      },
-      {
-        id: 'session-3',
-        title: 'other bot',
-        cwd: '/srv/ada',
-        updatedAt: '2026-09-19T04:00:00.000Z',
-      },
-      { id: 'session-4', title: 'unowned', cwd: '/srv/ada', updatedAt: '2026-09-19T05:00:00.000Z' },
-    ];
-    const { methods } = setup(
-      summaries,
-      ['ada'],
-      undefined,
-      createTestOwnership({
-        'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
-        'session-2': { botSlug: 'ada', rootRole: 'assignment' },
-        'session-3': { botSlug: 'bob', rootRole: 'assignment' },
-      }),
-    );
+  it('lists only root Sessions owned by the bot, preserving role and cwd evidence', () => {
+    const ownership = createTestOwnership({
+      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-2': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-3': { botSlug: 'bob', rootRole: 'assignment' },
+    });
+    const { methods } = setup([], ['ada'], undefined, ownership);
     methods.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/ada/'] });
 
     const result = methods.sessions({ slug: 'ada' });
-
-    expect(result.ok && result.value.sessions.map((session) => session.id)).toEqual([
-      'session-2',
-      'session-1',
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sessions).toEqual([
+      expect.objectContaining({ sessionId: 'session-1', role: 'orchestrator' }),
+      expect.objectContaining({ sessionId: 'session-2', role: 'assignment' }),
     ]);
+    expect(result.value.sessions.map((session) => session.sessionId)).not.toContain('session-3');
   });
 
   it('rejects malformed or unknown session reads', () => {

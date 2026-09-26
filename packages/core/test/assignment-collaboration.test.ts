@@ -525,6 +525,55 @@ describe('Assignment collaboration', () => {
     owner.close();
   });
 
+  it('releases a stale working reservation after Host restart without deleting the Assignment', async () => {
+    const { runtime, owner, home, agents, grants, dmChannelId, admit } = await setup({
+      assignmentConcurrencyLimit: 1,
+    });
+    await admit('开始调研', 'human-restart-capacity');
+    if (agents.access === undefined) throw new Error('Orchestrator never ran');
+    const created = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '原事项' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    agents.finish(created.assignment.sessionId);
+    await runtime.whenIdle();
+    await runtime.close();
+
+    // A terminated Host may leave a persisted reservation without a live Agent.
+    attachOperationalModule(owner, 'restart-capacity-seed').transaction((database) => {
+      database
+        .prepare("UPDATE assignments SET activity = 'working' WHERE session_id = ?")
+        .run(created.assignment.sessionId);
+    });
+    const resumedAgents = new ManualAgents();
+    const resumed = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+      agents: resumedAgents,
+      grants,
+      now: FIXED_NOW,
+      assignmentConcurrencyLimit: 1,
+    });
+    expect(resumed.getAssignment('ada', created.assignment.sessionId)?.activity).toBe('error');
+    const admission = resumed.admitDmMessage({
+      channelId: dmChannelId,
+      messageId: 'human-after-restart',
+      body: '新事项',
+    });
+    if (!admission.admitted) throw new Error('DM admission refused');
+    await admission.settled;
+    if (resumedAgents.access === undefined) throw new Error('Orchestrator never resumed');
+    expect(
+      resumedAgents.access.create({
+        grantId: TEST_GRANT_ID,
+        purpose: '新事项',
+      }).outcome,
+    ).toBe('created');
+    resumedAgents.finishAll();
+    await resumed.whenIdle();
+    await resumed.close();
+    owner.close();
+  });
+
   it('refuses creation beyond the Assignment Concurrency Limit', async () => {
     const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
     await admit('开始调研', 'human-1');

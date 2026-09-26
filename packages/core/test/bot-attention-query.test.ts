@@ -78,7 +78,7 @@ describe('Bot-scoped attention projection', () => {
         body: '@Ada please inspect this',
         mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
       });
-      const methods = createBridgeMethods({ ...core, sessions: { list: () => [] } });
+      const methods = createBridgeMethods({ ...core });
       expect(methods.botAttention({ slug: 'ada' })).toMatchObject({
         ok: true,
         value: {
