@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
@@ -37,8 +38,20 @@ export function HumanInboxView({
     )
     .sort((left, right) => left.name.localeCompare(right.name));
 
+  const openRepairBotInbox = async (item: HumanAttentionItem): Promise<void> => {
+    const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
+    channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
+    channelSidebarPrefs.setEntryExpanded(scopeKey, 'bot-inbox', true);
+    await actions.openBot(item.botSlug);
+  };
+
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
+    if (item.kind === 'bot-message-needs-repair') {
+      if (item.channelName && item.channelId && item.messageId) {
+        await actions.openChannel(item.channelId);
+        await actions.openAround(item.channelId, item.messageId);
+      } else await openRepairBotInbox(item);
+    } else if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
       if (item.assignmentSessionId === undefined) return;
       await actions.openBot(item.botSlug);
       await actions.openSession(item.assignmentSessionId);
@@ -192,15 +205,28 @@ export function HumanInboxView({
                           ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
                           : item.kind === 'assignment-report'
                             ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
-                            : botName(item.botSlug)}
+                            : item.kind === 'bot-message-needs-repair'
+                              ? t('humanInbox.repair', { bot: botName(item.botSlug) })
+                              : botName(item.botSlug)}
                 </div>
                 {item.kind === 'bot-dm-message' ||
                 item.kind === 'user-question' ||
                 item.kind === 'tool-approval' ||
                 item.kind === 'assignment-waiting-human' ||
-                item.kind === 'assignment-report' ? (
+                item.kind === 'assignment-report' ||
+                item.kind === 'bot-message-needs-repair' ? (
                   <div className="bh-human-inbox-row-summary" title={item.summary}>
                     {item.summary}
+                  </div>
+                ) : null}
+                {item.kind === 'bot-message-needs-repair' &&
+                (!item.channelName || !item.messageId) ? (
+                  <div className="bh-human-inbox-row-summary">
+                    {t(
+                      item.channelId && item.channelName
+                        ? 'humanInbox.messageUnavailable'
+                        : 'humanInbox.sourceUnavailable',
+                    )}
                   </div>
                 ) : null}
               </div>
@@ -211,8 +237,25 @@ export function HumanInboxView({
                     void openSource(item).catch(() => setActionError(t('humanInbox.failed')))
                   }
                 >
-                  {t('humanInbox.open')}
+                  {t(
+                    item.kind === 'bot-message-needs-repair' &&
+                      (!item.channelName || !item.messageId)
+                      ? 'humanInbox.openBotInbox'
+                      : 'humanInbox.open',
+                  )}
                 </button>
+                {item.kind === 'bot-message-needs-repair' && item.channelName && item.messageId ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void openRepairBotInbox(item).catch(() =>
+                        setActionError(t('humanInbox.failed')),
+                      )
+                    }
+                  >
+                    {t('humanInbox.openBotInbox')}
+                  </button>
+                ) : null}
                 {item.kind === 'group-join-request' ? (
                   <>
                     <button

@@ -12,7 +12,8 @@ export interface HumanAttentionItem {
     | 'tool-approval'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
-    | 'assignment-report';
+    | 'assignment-report'
+    | 'bot-message-needs-repair';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -182,6 +183,21 @@ export function createHumanAttentionQuery(
              AND a.open_ask_source_event_id IS NOT NULL
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL
+          UNION ALL
+          SELECT 'repair:' || a.source_event_id || ':' || a.bot_slug AS id,
+                 'action' AS category, 'bot-message-needs-repair' AS kind,
+                 e.created_at, e.channel_id,
+                 CASE WHEN json_extract(c.record_json, '$.deletedAt') IS NULL
+                      THEN coalesce(json_extract(c.record_json, '$.name'), '')
+                      ELSE '' END AS channel_name,
+                 a.bot_slug, e.body AS summary, NULL AS request_id,
+                 p.message_id, NULL AS assignment_session_id, e.source_event_id
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            LEFT JOIN channel_records c ON c.channel_id = e.channel_id
+           WHERE a.attempt_state = 'needs-repair'
+             AND e.channel_id IS NOT NULL
           UNION ALL
           SELECT 'report:' || e.source_event_id AS id,
                  'info' AS category, 'assignment-report' AS kind,

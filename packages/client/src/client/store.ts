@@ -193,7 +193,8 @@ export interface HumanAttentionItem {
     | 'tool-approval'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
-    | 'assignment-report';
+    | 'assignment-report'
+    | 'bot-message-needs-repair';
   createdAt: string;
   channelId?: string;
   channelName?: string;
