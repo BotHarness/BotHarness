@@ -140,6 +140,34 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('同意</button>');
   });
 
+  it('shows a completed Assignment report as informational with Ignore', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'info',
+      items: [
+        {
+          id: 'report:event-1',
+          category: 'info',
+          kind: 'assignment-report',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          botSlug: 'ada',
+          assignmentSessionId: 'session-1',
+          sourceEventId: 'event-1',
+          summary: 'Research completed.',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 的事项已报告完成');
+    expect(markup).toContain('Research completed.');
+    expect(markup).toContain('查看来源');
+    expect(markup).toContain('忽略');
+    expect(markup).not.toContain('同意</button>');
+  });
+
   it('shows a pending tool approval as an action linked to its DM card', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({

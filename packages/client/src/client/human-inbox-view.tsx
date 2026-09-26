@@ -39,7 +39,7 @@ export function HumanInboxView({
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.kind === 'assignment-waiting-human') {
+    if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
       if (item.assignmentSessionId === undefined) return;
       await actions.openBot(item.botSlug);
       await actions.openAssignment(item.assignmentSessionId);
@@ -71,11 +71,16 @@ export function HumanInboxView({
   };
 
   const acknowledge = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.messageId === undefined || item.channelId === undefined) return;
+    if (item.kind === 'assignment-report') {
+      if (item.sourceEventId === undefined) return;
+    } else if (item.messageId === undefined || item.channelId === undefined) {
+      return;
+    }
     setBusyId(item.id);
     setActionError(undefined);
     try {
-      await actions.markRead(item.channelId, item.messageId);
+      if (item.kind === 'assignment-report') await actions.ignoreHumanReport(item.sourceEventId!);
+      else await actions.markRead(item.channelId!, item.messageId!);
       await actions.refreshHumanInbox();
     } catch {
       setActionError(t('humanInbox.failed'));
@@ -189,12 +194,15 @@ export function HumanInboxView({
                         ? t('humanInbox.approval', { bot: botName(item.botSlug) })
                         : item.kind === 'assignment-waiting-human'
                           ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
-                          : botName(item.botSlug)}
+                          : item.kind === 'assignment-report'
+                            ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
+                            : botName(item.botSlug)}
                 </div>
                 {item.kind === 'bot-dm-message' ||
                 item.kind === 'user-question' ||
                 item.kind === 'tool-approval' ||
-                item.kind === 'assignment-waiting-human' ? (
+                item.kind === 'assignment-waiting-human' ||
+                item.kind === 'assignment-report' ? (
                   <div className="bh-human-inbox-row-summary" title={item.summary}>
                     {item.summary}
                   </div>
@@ -226,13 +234,17 @@ export function HumanInboxView({
                       {t('humanInbox.decline')}
                     </button>
                   </>
-                ) : item.kind === 'bot-dm-message' ? (
+                ) : item.kind === 'bot-dm-message' || item.kind === 'assignment-report' ? (
                   <button
                     type="button"
                     disabled={busyId === item.id}
                     onClick={() => void acknowledge(item)}
                   >
-                    {t('humanInbox.acknowledge')}
+                    {t(
+                      item.kind === 'assignment-report'
+                        ? 'humanInbox.ignore'
+                        : 'humanInbox.acknowledge',
+                    )}
                   </button>
                 ) : null}
               </div>

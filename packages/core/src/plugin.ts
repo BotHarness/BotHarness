@@ -43,7 +43,12 @@ import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
-import { createHumanAttentionQuery, type HumanAttentionQuery } from './runtime/human-attention.js';
+import {
+  createHumanAttentionQuery,
+  createHumanAttentionDecisions,
+  type HumanAttentionQuery,
+  type HumanAttentionDecisions,
+} from './runtime/human-attention.js';
 import {
   grantExecutionDenial,
   grantToolExecutionDenial,
@@ -115,6 +120,7 @@ export interface BotHarnessCore {
   runtime: BotRuntime;
   attention: BotAttentionQuery;
   humanAttention: HumanAttentionQuery;
+  humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
   toolRules: ToolApprovalRuleStore;
   assignmentAccess: AssignmentAccessStore;
@@ -183,11 +189,13 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'messaging'),
     channels,
   );
+  const humanAttentionDatabase = attachOperationalModule(operationalDatabase, 'human-attention');
   const humanAttention = createHumanAttentionQuery(
-    attachOperationalModule(operationalDatabase, 'human-attention'),
+    humanAttentionDatabase,
     options.activeQuestionMessageIds,
     options.activeToolApprovalMessageIds,
   );
+  const humanAttentionDecisions = createHumanAttentionDecisions(humanAttentionDatabase);
   live = createChannelLiveHub(channels);
   if (operationalDatabase.mode === 'ready')
     for (const bot of registry.list())
@@ -221,6 +229,7 @@ export function createCore(
     channels,
     attention,
     humanAttention,
+    humanAttentionDecisions,
     attachments,
     live,
     roster: createRosterStore({
@@ -431,6 +440,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       runtime: core.runtime,
       attention: core.attention,
       humanAttention: core.humanAttention,
+      humanAttentionDecisions: core.humanAttentionDecisions,
       grants: core.grants,
       toolApproval,
       userQuestions,

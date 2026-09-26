@@ -7,7 +7,10 @@ import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createBotAttentionQuery } from '../src/runtime/attention.js';
-import { createHumanAttentionQuery } from '../src/runtime/human-attention.js';
+import {
+  createHumanAttentionDecisions,
+  createHumanAttentionQuery,
+} from '../src/runtime/human-attention.js';
 import {
   createBotRuntime,
   type AssignmentAgentRun,
@@ -637,6 +640,79 @@ describe('Assignment collaboration', () => {
       }
     },
   );
+
+  it('keeps an ignored completed report hidden until the same Assignment reports again', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup();
+    let nextReportId = '';
+    try {
+      await admit('Start research', 'human-1');
+      const created = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Research',
+        key: 'research',
+      });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const sessionId = created.assignment.sessionId;
+      await agents.started[0]!.run.report({ state: 'completed', summary: 'First result' });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+
+      const port = attachOperationalModule(owner, 'human-report-decision-test');
+      const query = createHumanAttentionQuery(port);
+      const decisions = createHumanAttentionDecisions(port, FIXED_NOW);
+      const first = query.list({ category: 'info' }).items;
+      expect(first).toMatchObject([
+        {
+          kind: 'assignment-report',
+          botSlug: 'ada',
+          assignmentSessionId: sessionId,
+          summary: 'First result',
+        },
+      ]);
+      const firstReportId = first[0]?.sourceEventId;
+      if (firstReportId === undefined) throw new Error('report source missing');
+      expect(decisions.ignoreAssignmentReport(firstReportId)).toBe(true);
+      expect(decisions.ignoreAssignmentReport(firstReportId)).toBe(true);
+      expect(query.list({ category: 'info' }).items).toEqual([]);
+
+      const reused = agents.access!.create({
+        grantId: TEST_GRANT_ID,
+        purpose: 'Continue research',
+        key: 'research',
+      });
+      if (reused.outcome !== 'reused') throw new Error('Assignment was not reused');
+      await agents.started.at(-1)!.run.report({ state: 'completed', summary: 'New result' });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      const next = query.list({ category: 'info' }).items;
+      expect(next).toMatchObject([
+        {
+          kind: 'assignment-report',
+          assignmentSessionId: sessionId,
+          summary: 'New result',
+        },
+      ]);
+      nextReportId = next[0]?.sourceEventId ?? '';
+      expect(nextReportId).not.toBe(firstReportId);
+      expect(decisions.ignoreAssignmentReport(firstReportId)).toBe(false);
+      expect(query.list({ category: 'info', channelId: 'dm-ada' }).items).toEqual([]);
+    } finally {
+      await close();
+      owner.close();
+    }
+    const reopened = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    try {
+      const query = createHumanAttentionQuery(
+        attachOperationalModule(reopened, 'human-report-restart'),
+      );
+      expect(query.list({ category: 'info' }).items[0]?.sourceEventId).toBe(nextReportId);
+    } finally {
+      reopened.close();
+    }
+  });
 
   it('shows an interrupted observed report as needs-repair instead of waking it twice', async () => {
     const { agents, owner, home, admit, close } = await setup();

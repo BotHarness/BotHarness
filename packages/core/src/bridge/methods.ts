@@ -62,6 +62,7 @@ import type {
 } from '../runtime/attention.js';
 import type {
   HumanAttentionQuery,
+  HumanAttentionDecisions,
   HumanAttentionPage,
   HumanAttentionCategory,
 } from '../runtime/human-attention.js';
@@ -133,6 +134,7 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
+  humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
   workspaceOptions(
@@ -183,6 +185,7 @@ export interface BridgeMethodsDeps {
   runtime?: BotRuntime;
   attention?: BotAttentionQuery;
   humanAttention?: HumanAttentionQuery;
+  humanAttentionDecisions?: HumanAttentionDecisions;
   grants?: WorkspaceGrantStore;
   toolApproval?: ChannelToolApproval;
   userQuestions?: ChannelUserQuestions;
@@ -1125,6 +1128,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             ...(cursor === undefined ? {} : { cursor: cursor as string }),
           }) ?? { items: [] },
         };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    humanAttentionIgnore(payload) {
+      const source = asObject(payload);
+      const sourceEventId = asNonBlank(source, 'sourceEventId');
+      if (sourceEventId === undefined || sourceEventId.length > 150)
+        return invalidInput('sourceEventId is required');
+      try {
+        const accepted =
+          deps.humanAttentionDecisions?.ignoreAssignmentReport(sourceEventId) ?? false;
+        if (!accepted) return invalidInput('Assignment report is no longer informational');
+        return { ok: true, value: { accepted: true } };
       } catch (error) {
         return invalidInput(String(error));
       }

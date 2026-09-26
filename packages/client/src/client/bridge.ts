@@ -1294,14 +1294,15 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'user-question' &&
       item['kind'] !== 'tool-approval' &&
       item['kind'] !== 'bot-dm-message' &&
-      item['kind'] !== 'assignment-waiting-human'
+      item['kind'] !== 'assignment-waiting-human' &&
+      item['kind'] !== 'assignment-report'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
     if (item['channelName'] !== undefined && typeof item['channelName'] !== 'string')
       return undefined;
     if (
-      item['kind'] === 'assignment-waiting-human'
+      item['kind'] === 'assignment-waiting-human' || item['kind'] === 'assignment-report'
         ? typeof item['assignmentSessionId'] !== 'string'
         : typeof item['channelId'] !== 'string' || typeof item['channelName'] !== 'string'
     )
@@ -1310,6 +1311,10 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['assignmentSessionId'] !== undefined &&
       typeof item['assignmentSessionId'] !== 'string'
     )
+      return undefined;
+    if (item['sourceEventId'] !== undefined && typeof item['sourceEventId'] !== 'string')
+      return undefined;
+    if (item['kind'] === 'assignment-report' && typeof item['sourceEventId'] !== 'string')
       return undefined;
     if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
     if (item['messageId'] !== undefined && typeof item['messageId'] !== 'string') return undefined;
@@ -1343,6 +1348,14 @@ export async function loadHumanAttention(
     }),
   );
 }
+export async function ignoreHumanAssignmentReport(
+  call: BridgeCall,
+  sourceEventId: string,
+): Promise<void> {
+  const response = asRecord(await unwrap(call, 'humanAttentionIgnore', { sourceEventId }));
+  if (response?.['accepted'] !== true) throw new Error('Human attention decision was not accepted');
+}
+
 export async function loadAssignments(
   call: BridgeCall,
   slug: string,
