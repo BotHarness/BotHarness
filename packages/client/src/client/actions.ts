@@ -394,15 +394,19 @@ export function createActions(
     });
   };
 
+  let sessionsRequestSeq = 0;
   const loadSessionsFor = async (slug: string, selection: ConversationSelection): Promise<void> => {
-    clientStore.setSessions({ status: 'loading', items: [], error: undefined });
+    const requestSeq = ++sessionsRequestSeq;
+    const prior = clientStore.getSnapshot().sessions;
+    if (prior.status === 'idle' || prior.items.length === 0)
+      clientStore.setSessions({ status: 'loading', error: undefined });
     try {
       const items = await loadSessions(call, slug);
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== selection || requestSeq !== sessionsRequestSeq) return;
       clientStore.setSessions({ status: 'ready', items, error: undefined });
     } catch (error) {
-      if (currentSelection() !== selection) return;
-      clientStore.setSessions({ status: 'error', items: [], error: errorMessage(error) });
+      if (currentSelection() !== selection || requestSeq !== sessionsRequestSeq) return;
+      clientStore.setSessions({ status: 'error', error: errorMessage(error) });
     }
   };
 
@@ -1027,14 +1031,7 @@ export function createActions(
         }
         const slug = selectedBotSlug(selection);
         if (selection !== undefined && slug !== undefined) {
-          void loadSessions(call, slug)
-            .then((items) => {
-              if (currentSelection() !== selection) return;
-              clientStore.setSessions({ status: 'ready', items, error: undefined });
-            })
-            .catch((error: unknown) => {
-              console.warn('botharness: Session refresh failed', error);
-            });
+          void loadSessionsFor(slug, selection);
         }
         return true;
       } catch (error) {

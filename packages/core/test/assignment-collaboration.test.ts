@@ -531,7 +531,11 @@ describe('Assignment collaboration', () => {
     });
     await admit('开始调研', 'human-restart-capacity');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
-    const created = agents.access.create({ grantId: TEST_GRANT_ID, purpose: '原事项' });
+    const created = agents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '原事项',
+      key: 'restart-direction',
+    });
     if (created.outcome !== 'created') throw new Error('create failed');
     agents.finish(created.assignment.sessionId);
     await runtime.whenIdle();
@@ -554,6 +558,9 @@ describe('Assignment collaboration', () => {
       assignmentConcurrencyLimit: 1,
     });
     expect(resumed.getAssignment('ada', created.assignment.sessionId)?.activity).toBe('error');
+    expect(
+      resumed.getAssignment('ada', created.assignment.sessionId)?.continuityKey,
+    ).toBeUndefined();
     const admission = resumed.admitDmMessage({
       channelId: dmChannelId,
       messageId: 'human-after-restart',
@@ -562,12 +569,14 @@ describe('Assignment collaboration', () => {
     if (!admission.admitted) throw new Error('DM admission refused');
     await admission.settled;
     if (resumedAgents.access === undefined) throw new Error('Orchestrator never resumed');
-    expect(
-      resumedAgents.access.create({
-        grantId: TEST_GRANT_ID,
-        purpose: '新事项',
-      }).outcome,
-    ).toBe('created');
+    const replacement = resumedAgents.access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '新事项',
+      key: 'restart-direction',
+    });
+    expect(replacement.outcome).toBe('created');
+    if (replacement.outcome === 'created')
+      expect(replacement.assignment.sessionId).not.toBe(created.assignment.sessionId);
     resumedAgents.finishAll();
     await resumed.whenIdle();
     await resumed.close();

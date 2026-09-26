@@ -308,6 +308,37 @@ describe('bridge actions', () => {
     return { clientStore, actions: createActions(call, clientStore) };
   }
 
+  it('keeps Session rows visible and ignores an older refresh response', async () => {
+    const initial = { sessionId: 'initial', role: 'orchestrator', createdAt: BOT.createdAt };
+    const latest = { sessionId: 'latest', role: 'orchestrator', createdAt: BOT.createdAt };
+    const stale = { sessionId: 'stale', role: 'orchestrator', createdAt: BOT.createdAt };
+    const pending: Array<(value: unknown) => void> = [];
+    let loads = 0;
+    const { clientStore, actions } = setup({
+      sessions: () => {
+        if (++loads === 1) return { sessions: [initial] };
+        return new Promise((resolve) => pending.push(resolve));
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const first = actions.refreshSessions('ada');
+    const second = actions.refreshSessions('ada');
+    expect(pending).toHaveLength(2);
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'initial' }],
+    });
+    pending[1]!({ sessions: [latest] });
+    await second;
+    pending[0]!({ sessions: [stale] });
+    await first;
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'latest' }],
+    });
+  });
+
   it('loads the roster and opens a DM with its history in chronological order', async () => {
     const { clientStore, actions } = setup();
 
