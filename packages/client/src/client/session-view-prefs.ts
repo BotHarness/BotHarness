@@ -11,6 +11,13 @@ export interface SessionViewPreference {
 
 export const SESSION_VIEW_PREFERENCES_KEY = 'botharness/session-views.v1';
 
+interface SessionViewStoreEntry {
+  snapshot: SessionViewPreference;
+  listeners: Set<() => void>;
+}
+
+const sessionViewStore = new Map<string, SessionViewStoreEntry>();
+
 function asRecord(value: unknown): Record<string, unknown> | undefined {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -57,4 +64,34 @@ export function writeSessionViewPreference(
   } catch {
     // Browser storage can be denied or full. The view remains usable in this tab.
   }
+}
+
+function storeEntry(botSlug: string): SessionViewStoreEntry {
+  let entry = sessionViewStore.get(botSlug);
+  if (entry === undefined) {
+    entry = { snapshot: readSessionViewPreference(botSlug), listeners: new Set() };
+    sessionViewStore.set(botSlug, entry);
+  }
+  return entry;
+}
+
+/** One in-tab source shared by the Sessions heading menu and its body. */
+export function sessionViewPreferenceSnapshot(botSlug: string): SessionViewPreference {
+  return storeEntry(botSlug).snapshot;
+}
+
+export function subscribeSessionViewPreference(botSlug: string, listener: () => void): () => void {
+  const entry = storeEntry(botSlug);
+  entry.listeners.add(listener);
+  return () => entry.listeners.delete(listener);
+}
+
+export function updateSessionViewPreference(
+  botSlug: string,
+  update: (current: SessionViewPreference) => SessionViewPreference,
+): void {
+  const entry = storeEntry(botSlug);
+  entry.snapshot = update(entry.snapshot);
+  writeSessionViewPreference(botSlug, entry.snapshot);
+  entry.listeners.forEach((listener) => listener());
 }

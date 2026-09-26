@@ -3,6 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   readSessionViewPreference,
   SESSION_VIEW_PREFERENCES_KEY,
+  sessionViewPreferenceSnapshot,
+  subscribeSessionViewPreference,
+  updateSessionViewPreference,
   writeSessionViewPreference,
 } from '../src/client/session-view-prefs.js';
 import type { ConfigStorage } from '../src/client/roster-config.js';
@@ -21,6 +24,33 @@ function memoryStorage(): ConfigStorage & { values: Map<string, string> } {
 }
 
 describe('PersonaBot Session view preferences', () => {
+  it('keeps the heading menu and Session rows on one per-Bot snapshot', () => {
+    const changes: string[] = [];
+    const unsubscribe = subscribeSessionViewPreference('menu-bot-a', () => changes.push('a'));
+    const unsubscribeOther = subscribeSessionViewPreference('menu-bot-b', () => changes.push('b'));
+
+    updateSessionViewPreference('menu-bot-a', (current) => ({ ...current, scope: 'all' }));
+    updateSessionViewPreference('menu-bot-a', (current) => ({
+      ...current,
+      layout: 'workspace',
+      collapsedWorkspaces: ['cwd:/projects/a'],
+    }));
+
+    expect(sessionViewPreferenceSnapshot('menu-bot-a')).toEqual({
+      scope: 'all',
+      layout: 'workspace',
+      collapsedWorkspaces: ['cwd:/projects/a'],
+    });
+    expect(sessionViewPreferenceSnapshot('menu-bot-b')).toEqual({
+      scope: 'current',
+      layout: 'flat',
+      collapsedWorkspaces: [],
+    });
+    expect(changes).toEqual(['a', 'a']);
+    unsubscribe();
+    unsubscribeOther();
+  });
+
   it('persists scope, layout and workspace collapse independently for each Bot', () => {
     const storage = memoryStorage();
     writeSessionViewPreference(

@@ -1,9 +1,13 @@
-import { useEffect, useId, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useEffect, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
+  IconCheckOutlineRegular,
   IconChevronDownOutlineRegular,
-  SegmentedControl,
+  IconEllipsisOutlineRegular,
+  Menu,
   Tag,
+  Tooltip,
+  type MenuEntry,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
@@ -16,9 +20,9 @@ import {
   type PersonaBotSessionRow,
 } from './session-rows.js';
 import {
-  readSessionViewPreference,
-  writeSessionViewPreference,
-  type SessionViewPreference,
+  sessionViewPreferenceSnapshot,
+  subscribeSessionViewPreference,
+  updateSessionViewPreference,
 } from './session-view-prefs.js';
 
 export interface NativeSessionCatalog {
@@ -33,6 +37,82 @@ function workspaceName(path: string | undefined): string | undefined {
   return path?.split(/[\\/]/u).filter(Boolean).at(-1);
 }
 
+function useSessionViewPreference(botSlug: string) {
+  return useSyncExternalStore(
+    (listener) => subscribeSessionViewPreference(botSlug, listener),
+    () => sessionViewPreferenceSnapshot(botSlug),
+    () => sessionViewPreferenceSnapshot(botSlug),
+  );
+}
+
+export function SessionsHeaderAction({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
+  const [open, setOpen] = useState(false);
+  const slug = botSlug ?? '';
+  const preference = useSessionViewPreference(slug);
+  const items: MenuEntry[] = [
+    { type: 'label', id: 'scope-label', text: t('sessions.view') },
+    {
+      id: 'scope-current',
+      label: t('sessions.current'),
+      icon: preference.scope === 'current' ? <IconCheckOutlineRegular /> : undefined,
+    },
+    {
+      id: 'scope-all',
+      label: t('sessions.all'),
+      icon: preference.scope === 'all' ? <IconCheckOutlineRegular /> : undefined,
+    },
+    { type: 'separator', id: 'layout-separator' },
+    { type: 'label', id: 'layout-label', text: t('sessions.layout') },
+    {
+      id: 'layout-flat',
+      label: t('sessions.layout.flat'),
+      icon: preference.layout === 'flat' ? <IconCheckOutlineRegular /> : undefined,
+    },
+    {
+      id: 'layout-workspace',
+      label: t('sessions.layout.workspace'),
+      icon: preference.layout === 'workspace' ? <IconCheckOutlineRegular /> : undefined,
+    },
+  ];
+  return (
+    <Menu
+      open={open}
+      portal
+      dense
+      align="end"
+      anchor={
+        <Tooltip label={t('sessions.menu')} side="bottom" delayMs={500}>
+          <button
+            type="button"
+            className="bh-channel-sidebar-entry-action"
+            aria-label={t('sessions.menu')}
+            aria-expanded={open}
+            onClick={() => setOpen((value) => !value)}
+          >
+            <IconEllipsisOutlineRegular size={16} />
+          </button>
+        </Tooltip>
+      }
+      items={items}
+      onSelect={(id) => {
+        if (id === 'scope-current' || id === 'scope-all') {
+          updateSessionViewPreference(slug, (current) => ({
+            ...current,
+            scope: id === 'scope-current' ? 'current' : 'all',
+          }));
+        } else if (id === 'layout-flat' || id === 'layout-workspace') {
+          updateSessionViewPreference(slug, (current) => ({
+            ...current,
+            layout: id === 'layout-flat' ? 'flat' : 'workspace',
+          }));
+        }
+        setOpen(false);
+      }}
+      onClose={() => setOpen(false)}
+    />
+  );
+}
+
 function SessionsPanel({
   botSlug,
   actions,
@@ -45,9 +125,8 @@ function SessionsPanel({
     nativeSessions.getSnapshot,
     nativeSessions.getSnapshot,
   );
-  const [preference, setPreference] = useState(() => readSessionViewPreference(botSlug ?? ''));
-  const scopeId = useId();
-  const layoutId = useId();
+  const slug = botSlug ?? '';
+  const preference = useSessionViewPreference(slug);
   const signature = native.ids
     .map((id) => id + ':' + (native.byId[id]?.running === true ? '1' : '0'))
     .join('|');
@@ -56,15 +135,13 @@ function SessionsPanel({
     if (botSlug !== undefined) void actions.refreshSessions(botSlug);
   }, [actions, botSlug, signature]);
 
-  const updatePreference = (next: SessionViewPreference): void => {
-    setPreference(next);
-    if (botSlug !== undefined) writeSessionViewPreference(botSlug, next);
-  };
   const toggleWorkspace = (key: string): void => {
-    const collapsed = preference.collapsedWorkspaces.includes(key)
-      ? preference.collapsedWorkspaces.filter((item) => item !== key)
-      : [...preference.collapsedWorkspaces, key];
-    updatePreference({ ...preference, collapsedWorkspaces: collapsed });
+    updateSessionViewPreference(slug, (current) => ({
+      ...current,
+      collapsedWorkspaces: current.collapsedWorkspaces.includes(key)
+        ? current.collapsedWorkspaces.filter((item) => item !== key)
+        : [...current.collapsedWorkspaces, key],
+    }));
   };
   const rows = personaBotSessionRows(owned.items, native.byId, preference.scope);
   const groups = groupSessionRowsByWorkspace(rows);
@@ -107,28 +184,6 @@ function SessionsPanel({
 
   return (
     <div className="bh-sessions">
-      <div className="bh-session-controls">
-        <SegmentedControl
-          id={scopeId}
-          label={t('sessions.view')}
-          value={preference.scope}
-          options={[
-            { value: 'current', label: t('sessions.current') },
-            { value: 'all', label: t('sessions.all') },
-          ]}
-          onChange={(scope) => updatePreference({ ...preference, scope })}
-        />
-        <SegmentedControl
-          id={layoutId}
-          label={t('sessions.layout')}
-          value={preference.layout}
-          options={[
-            { value: 'flat', label: t('sessions.layout.flat') },
-            { value: 'workspace', label: t('sessions.layout.workspace') },
-          ]}
-          onChange={(layout) => updatePreference({ ...preference, layout })}
-        />
-      </div>
       {owned.status === 'loading' ? <div className="bh-note">{t('sessions.loading')}</div> : null}
       {owned.status === 'error' && owned.error !== undefined ? (
         <div className="bh-error">{t('sessions.error', { error: owned.error })}</div>
