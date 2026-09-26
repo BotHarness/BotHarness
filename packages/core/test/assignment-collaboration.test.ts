@@ -199,6 +199,14 @@ describe('Assignment collaboration', () => {
       });
       expect(query.list({ category: 'action' }).items).toHaveLength(1);
       await channels.appendMessage(dmChannelId, {
+        id: 'human-uppercase-unvalidated',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: 'I AUTHORIZED WORKSPACE “Project”; please continue.',
+        replyTo: 'grant-request-1',
+      });
+      expect(query.list({ category: 'action' }).items).toHaveLength(1);
+      await channels.appendMessage(dmChannelId, {
         id: 'human-approved',
         at: FIXED_NOW().toISOString(),
         author: { kind: 'human' },

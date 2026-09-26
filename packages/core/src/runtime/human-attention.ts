@@ -197,8 +197,8 @@ export function createHumanAttentionQuery(
                       '$.grantRequestResolution.requestMessageId') = e.message_id
                     OR (
                       json_extract(resolution.payload_json, '$.replyTo') = e.message_id
-                      AND (resolution.body LIKE '已授权工作区「%'
-                           OR resolution.body LIKE 'I authorized workspace “%')
+                      AND (resolution.body GLOB '已授权工作区「*'
+                           OR resolution.body GLOB 'I authorized workspace “*')
                     )
                   )
              )

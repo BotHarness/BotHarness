@@ -126,6 +126,13 @@ describe('bridge methods', () => {
         replyTo: 'grant-request-1',
       }),
     ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: dm.id,
+        body: 'I AUTHORIZED WORKSPACE “Project”; please continue.',
+        replyTo: 'grant-request-1',
+      }),
+    ).toMatchObject({ ok: true });
     expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
     expect(channels.message(dm.id, payload.messageId)?.grantRequestResolution).toEqual(
       payload.grantRequestResolution,
