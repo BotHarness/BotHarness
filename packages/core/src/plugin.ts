@@ -86,6 +86,36 @@ export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefa
 
 export const PERSONA_SECTION_ORDER = 10400;
 
+const COMPACTION_END_EVENT: string = 'compaction/end';
+
+export interface CompactionRefreshSink {
+  ownership: { resolve(sessionId: string): { botSlug: string } | undefined };
+  memory: {
+    refreshPersonaAfterCompaction(botSlug: string, sessionId: string): { refreshed: boolean };
+  };
+  warn(message: string): void;
+}
+
+/**
+ * Compaction-boundary trigger for persona refresh, extracted for testing.
+ * Only an owned Session's `compaction/end` reaches the refresh; everything
+ * else is a silent no-op and failures never propagate into event dispatch.
+ */
+export function handleCompactionEvent(
+  sink: CompactionRefreshSink,
+  sessionId: string,
+  eventType: string,
+): void {
+  if (eventType !== COMPACTION_END_EVENT) return;
+  const owner = sink.ownership.resolve(sessionId);
+  if (owner === undefined) return;
+  try {
+    sink.memory.refreshPersonaAfterCompaction(owner.botSlug, sessionId);
+  } catch (error) {
+    sink.warn(`botharness: persona refresh after compaction failed: ${String(error)}`);
+  }
+}
+
 export interface BotHarnessConfig {
   enabled: boolean;
   /** Defaulted by the schema in production; optional so tests can pass a partial config. */
@@ -541,23 +571,19 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   // Runtime-verified in dsh-compaction-basic 0.1.7-rc.2 (appends
   // compaction/start|summary|end session events); absent from its ctx.on
   // typing, hence the widening.
-  const COMPACTION_END_EVENT: string = 'compaction/end';
   ctx.on(
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
-      if (event.type === COMPACTION_END_EVENT) {
-        const owner = core.ownership.resolve(session.id);
-        if (owner !== undefined) {
-          try {
-            core.memory.refreshPersonaAfterCompaction(owner.botSlug, session.id);
-          } catch (error) {
-            ctx.logger.warn(
-              `botharness: persona refresh after compaction failed: ${String(error)}`,
-            );
-          }
-        }
-      }
+      handleCompactionEvent(
+        {
+          ownership: core.ownership,
+          memory: core.memory,
+          warn: (message) => ctx.logger.warn(message),
+        },
+        session.id,
+        event.type,
+      );
     },
     { global: true },
   );
