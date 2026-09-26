@@ -8,7 +8,7 @@ export type ChannelType = 'dm' | 'group';
 
 /** Human-owned per-member notification choice for ordinary Group messages. */
 export interface GroupWakePolicy {
-  mode: 'mentions' | 'digest';
+  mode: 'mentions' | 'digest' | 'silent';
   count: number;
   intervalSeconds: number;
   revision: number;
@@ -228,7 +228,9 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
       if (!members.includes(slug) || typeof value !== 'object' || value === null) return false;
       const policy = value as Record<string, unknown>;
       if (
-        (policy['mode'] !== 'mentions' && policy['mode'] !== 'digest') ||
+        (policy['mode'] !== 'mentions' &&
+          policy['mode'] !== 'digest' &&
+          policy['mode'] !== 'silent') ||
         !Number.isSafeInteger(policy['count']) ||
         (policy['count'] as number) < 1 ||
         (policy['count'] as number) > 100 ||

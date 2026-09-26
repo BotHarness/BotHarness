@@ -297,6 +297,133 @@ describe('Group ordinary-message digest', () => {
     }
   });
 
+  it('keeps silent ordinary admissions durable without waking, including after restart, while direct @ still wakes', async () => {
+    const home = createTempRoot('botharness-silent-restart-');
+    const beforeRuns: string[] = [];
+    const before = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        beforeRuns.push(run.message);
+      }),
+    });
+    let groupId = '';
+    try {
+      before.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = before.channels.createGroup({ name: 'Team', members: ['ada'] });
+      groupId = group.id;
+      const methods = createBridgeMethods({ ...before, sessions: { list: () => [] } });
+      expect(
+        methods.channelGroupWakeSet({
+          channelId: group.id,
+          botSlug: 'ada',
+          mode: 'silent',
+          count: 5,
+          intervalSeconds: 1,
+        }),
+      ).toMatchObject({
+        ok: true,
+        value: { channel: { wakePolicies: { ada: { mode: 'silent', revision: 1 } } } },
+      });
+      await ordinary(before, group.id, 'quiet');
+      await before.runtime.whenIdle();
+      expect(beforeRuns).toEqual([]);
+      expect(before.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('pending');
+      expect(
+        attachOperationalModule(before.operationalDatabase, 'silent-test').read((db) =>
+          db
+            .prepare(
+              "SELECT attempt_state, observed_at, wake_count, wake_interval_ms, wake_policy_revision FROM inbox_admissions WHERE reason = 'group-ordinary'",
+            )
+            .get(),
+        ),
+      ).toEqual({
+        attempt_state: 'pending',
+        observed_at: null,
+        wake_count: null,
+        wake_interval_ms: null,
+        wake_policy_revision: 1,
+      });
+    } finally {
+      await before.runtime.close();
+      before.operationalDatabase.close();
+    }
+    const afterRuns: string[] = [];
+    const after = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        afterRuns.push(run.message);
+      }),
+    });
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await after.runtime.whenIdle();
+      expect(afterRuns).toEqual([]);
+      await after.channels.appendMessage(groupId, {
+        id: 'mention-after-silent',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '@Ada please inspect',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      after.runtime.admitGroupMessage(groupId, 'mention-after-silent');
+      await after.runtime.whenIdle();
+      expect(afterRuns).toHaveLength(1);
+      expect(afterRuns[0]).toContain('direct Group mention');
+    } finally {
+      await after.runtime.close();
+      after.operationalDatabase.close();
+    }
+  });
+
+  it('does not include old silent admissions in a later digest threshold', async () => {
+    const home = createTempRoot('botharness-silent-to-digest-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'silent',
+        count: 5,
+        intervalSeconds: 3600,
+      });
+      await ordinary(core, group.id, 'old-silent');
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'digest',
+        count: 2,
+        intervalSeconds: 3600,
+      });
+      await ordinary(core, group.id, 'new-one');
+      await core.runtime.whenIdle();
+      expect(runs).toEqual([]);
+      await ordinary(core, group.id, 'new-two');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain('ordinary new-one');
+      expect(runs[0]).toContain('ordinary new-two');
+      const rows = attachOperationalModule(core.operationalDatabase, 'silent-switch').read((db) =>
+        db
+          .prepare(
+            "SELECT e.message_id, a.attempt_state, a.wake_count FROM inbox_admissions a JOIN source_events e ON e.source_event_id = a.source_event_id WHERE a.reason = 'group-ordinary' ORDER BY e.rowid",
+          )
+          .all(),
+      );
+      expect(rows).toEqual([
+        { message_id: 'old-silent', attempt_state: 'pending', wake_count: null },
+        { message_id: 'new-one', attempt_state: 'handled', wake_count: 2 },
+        { message_id: 'new-two', attempt_state: 'handled', wake_count: 2 },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('revokes pending digest admission when a member leaves and keeps deleted records valid', async () => {
     const home = createTempRoot('botharness-digest-revoke-');
     const core = createCore({ dshHome: home, agents: adapter(async () => {}) });

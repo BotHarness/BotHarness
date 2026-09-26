@@ -293,7 +293,7 @@ export interface ChannelStore {
   setGroupWakePolicy(
     channelId: string,
     botSlug: string,
-    policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+    policy: { mode: 'mentions' | 'digest' | 'silent'; count: number; intervalSeconds: number },
   ): ChannelRecord;
   removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
   /** Human-only logical deletion; past operational events remain for recovery/audit. */

@@ -638,7 +638,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const rows = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.source_event_id, a.bot_slug, a.attempt_state
+        SELECT a.source_event_id, a.bot_slug, a.attempt_state, a.wake_count
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE e.channel_id = ? AND e.message_id = ? AND a.reason = ?
@@ -648,10 +648,12 @@ class BotRuntimeImplementation implements BotRuntime {
       source_event_id: string;
       bot_slug: string;
       attempt_state: SourceEventAttemptState;
+      wake_count: number | null;
     }>;
     for (const row of rows) {
       if (row.attempt_state !== 'pending' && row.attempt_state !== 'retryable') continue;
       if (reason === 'group-ordinary') {
+        if (row.wake_count === null) continue;
         this.#scheduleDigest(row.bot_slug, channelId);
         continue;
       }
@@ -812,7 +814,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT DISTINCT e.channel_id, a.bot_slug
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
-         WHERE a.reason = 'group-ordinary'
+         WHERE a.reason = 'group-ordinary' AND a.wake_count IS NOT NULL
            AND a.attempt_state IN ('pending', 'retryable')
            AND e.channel_id IS NOT NULL
            AND (? IS NULL OR a.bot_slug = ?)
@@ -842,6 +844,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+           AND a.wake_count IS NOT NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
          ORDER BY e.created_at, e.rowid LIMIT 1
       `)
@@ -877,6 +880,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT count(*) AS count FROM inbox_admissions a
         JOIN source_events e ON e.source_event_id = a.source_event_id
         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+          AND a.wake_count IS NOT NULL
           AND a.attempt_state IN ('pending', 'retryable')
           AND e.channel_id = ? AND a.wake_policy_revision = ?
       `)
@@ -936,6 +940,7 @@ class BotRuntimeImplementation implements BotRuntime {
         SELECT a.wake_policy_revision FROM inbox_admissions a
         JOIN source_events e ON e.source_event_id = a.source_event_id
         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+          AND a.wake_count IS NOT NULL
           AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
         ORDER BY e.created_at, e.rowid LIMIT 1
       `)
@@ -950,6 +955,7 @@ class BotRuntimeImplementation implements BotRuntime {
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+           AND a.wake_count IS NOT NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
            AND a.wake_policy_revision = ?
          ORDER BY e.created_at, e.rowid LIMIT 20

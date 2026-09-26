@@ -97,7 +97,7 @@ export function createBotAttentionQuery(
                    WHEN a.attempt_state = 'handled' THEN 'handled'
                    WHEN a.observed_at IS NOT NULL THEN 'observed'
                    WHEN a.attempt_state IN ('running', 'retryable') OR
-                        (a.reason = 'group-ordinary' AND a.attempt_state = 'pending')
+                        (a.reason = 'group-ordinary' AND a.wake_count IS NOT NULL AND a.attempt_state = 'pending')
                      THEN 'deferred'
                    ELSE 'pending'
                  END AS state
