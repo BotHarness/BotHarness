@@ -1942,6 +1942,10 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-delivery-legend-running {
   color: var(--dsw-alias-state-business-primary);
 }
+.bh-delivery-sector-observed,
+.bh-delivery-legend-observed {
+  color: var(--dsw-alias-label-primary);
+}
 .bh-delivery-sector-pending,
 .bh-delivery-legend-pending {
   color: var(--dsw-alias-label-secondary);

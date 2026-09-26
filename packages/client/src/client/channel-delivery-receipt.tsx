@@ -12,6 +12,7 @@ type DeliveryState = Delivery['state'];
 const STATE_ORDER: readonly DeliveryState[] = [
   'handled',
   'running',
+  'observed',
   'pending',
   'ignored',
   'retryable',

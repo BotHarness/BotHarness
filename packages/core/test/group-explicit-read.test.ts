@@ -67,6 +67,12 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
       changed.mockClear();
       await ask(core, 'ada', 'ask-read');
       expect(changed).toHaveBeenCalledWith(group.id, returnedId);
+      expect(core.channels.message(group.id, returnedId)?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'observed' },
+      ]);
+      expect(
+        core.channels.message(group.id, returnedId === 'one' ? 'two' : 'one')?.deliveries,
+      ).toEqual([{ botSlug: 'ada', state: 'pending' }]);
       const facts = attachOperationalModule(core.operationalDatabase, 'explicit-read-test').read(
         (db) =>
           db

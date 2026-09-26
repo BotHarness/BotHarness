@@ -7,14 +7,16 @@ import { ChannelDeliveryReceipt } from '../src/client/channel-delivery-receipt.j
 import { zhTranslate } from '../src/client/locale.js';
 import type { BotSummary, ChannelMessage } from '../src/client/store.js';
 
-const bots: BotSummary[] = ['ada', 'bea', 'cee', 'dee', 'elle', 'fen', 'gia'].map((slug) => ({
-  slug,
-  displayName: slug.toUpperCase(),
-  roles: [],
-  aggregateState: 'idle',
-  workspaces: [],
-  createdAt: '2026-09-26T00:00:00.000Z',
-}));
+const bots: BotSummary[] = ['ada', 'bea', 'cee', 'dee', 'elle', 'fen', 'gia', 'hank'].map(
+  (slug) => ({
+    slug,
+    displayName: slug.toUpperCase(),
+    roles: [],
+    aggregateState: 'idle',
+    workspaces: [],
+    createdAt: '2026-09-26T00:00:00.000Z',
+  }),
+);
 
 const message: ChannelMessage = {
   id: 'm1',
@@ -29,6 +31,7 @@ const message: ChannelMessage = {
     { botSlug: 'elle', state: 'ignored' },
     { botSlug: 'fen', state: 'retryable' },
     { botSlug: 'gia', state: 'needs-repair' },
+    { botSlug: 'hank', state: 'observed' },
   ],
 };
 
@@ -46,7 +49,7 @@ describe('Channel delivery receipt', () => {
       expect(trigger?.getAttribute('aria-label')).toContain('1 已处理');
       expect(trigger?.getAttribute('aria-label')).toContain('1 处理中');
       expect(trigger?.getAttribute('aria-label')).toContain('1 已投递');
-      expect(trigger?.querySelectorAll('.bh-delivery-sector')).toHaveLength(6);
+      expect(trigger?.querySelectorAll('.bh-delivery-sector')).toHaveLength(7);
       expect(trigger?.getAttribute('aria-expanded')).toBe('false');
 
       await act(async () => trigger?.click());
@@ -56,6 +59,8 @@ describe('Channel delivery receipt', () => {
       expect(panel?.textContent).toContain('BEA');
       expect(panel?.textContent).toContain('CEE');
       expect(panel?.textContent).toContain('DEE');
+      expect(panel?.textContent).toContain('HANK');
+      expect(panel?.textContent).toContain('已读');
       expect(panel?.textContent).toContain('已忽略');
       expect(panel?.textContent).toContain('失败，可重试');
       expect(panel?.textContent).toContain('处理失败，需检查');

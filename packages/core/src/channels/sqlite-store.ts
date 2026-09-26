@@ -44,6 +44,7 @@ interface PlacementRow {
 
 interface AdmissionRow {
   bot_slug: string;
+  reason: string;
   attempt_state: string;
   ignored_at: string | null;
   observed_at: string | null;
@@ -188,20 +189,27 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     const rows = database.read((db) =>
       db
         .prepare(
-          'SELECT bot_slug, attempt_state, ignored_at, observed_at FROM inbox_admissions WHERE source_event_id = ? ORDER BY bot_slug',
+          'SELECT bot_slug, reason, attempt_state, ignored_at, observed_at FROM inbox_admissions WHERE source_event_id = ? ORDER BY bot_slug',
         )
         .all(sourceEventId),
     ) as unknown as AdmissionRow[];
     return rows.length === 0
       ? undefined
-      : rows.map((row) => ({
-          botSlug: row.bot_slug,
-          state: (row.attempt_state === 'handled' && row.ignored_at !== null
-            ? 'ignored'
-            : row.attempt_state === 'running' && row.observed_at === null
-              ? 'pending'
-              : row.attempt_state) as NonNullable<ChannelMessage['deliveries']>[number]['state'],
-        }));
+      : rows.map((row) => {
+          const groupAdmission = row.reason === 'group-mention' || row.reason === 'group-ordinary';
+          return {
+            botSlug: row.bot_slug,
+            state: (row.attempt_state === 'handled' && row.ignored_at !== null
+              ? 'ignored'
+              : groupAdmission && row.attempt_state === 'running' && row.observed_at === null
+                ? 'pending'
+                : groupAdmission && row.attempt_state === 'pending' && row.observed_at !== null
+                  ? 'observed'
+                  : row.attempt_state) as NonNullable<
+              ChannelMessage['deliveries']
+            >[number]['state'],
+          };
+        });
   };
 
   const allMessages = (id: string): ChannelMessage[] => {
