@@ -140,6 +140,7 @@ export function createCore(
     agents?: BotAgentAdapter;
     workspaces?: () => DshWorkspaceLookup | undefined;
     activeQuestionMessageIds?: () => readonly string[];
+    activeToolApprovalMessageIds?: () => readonly string[];
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
@@ -185,6 +186,7 @@ export function createCore(
   const humanAttention = createHumanAttentionQuery(
     attachOperationalModule(operationalDatabase, 'human-attention'),
     options.activeQuestionMessageIds,
+    options.activeToolApprovalMessageIds,
   );
   live = createChannelLiveHub(channels);
   if (operationalDatabase.mode === 'ready')
@@ -265,9 +267,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     },
   });
   let userQuestions: ChannelUserQuestions | undefined;
+  let toolApproval: ChannelToolApproval | undefined;
   const core = createCore({
     dshHome,
     activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
+    activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
     workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
@@ -287,7 +291,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
     { global: true },
   );
-  const toolApproval = new ChannelToolApproval(
+  toolApproval = new ChannelToolApproval(
     core.channels,
     core.ownership,
     core.toolRules,

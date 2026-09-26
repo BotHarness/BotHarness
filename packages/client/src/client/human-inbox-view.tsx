@@ -176,9 +176,13 @@ export function HumanInboxView({
                       })
                     : item.kind === 'user-question'
                       ? t('humanInbox.question', { bot: botName(item.botSlug) })
-                      : botName(item.botSlug)}
+                      : item.kind === 'tool-approval'
+                        ? t('humanInbox.approval', { bot: botName(item.botSlug) })
+                        : botName(item.botSlug)}
                 </div>
-                {item.kind === 'bot-dm-message' || item.kind === 'user-question' ? (
+                {item.kind === 'bot-dm-message' ||
+                item.kind === 'user-question' ||
+                item.kind === 'tool-approval' ? (
                   <div className="bh-human-inbox-row-summary">{item.summary}</div>
                 ) : null}
               </div>
