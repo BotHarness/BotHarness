@@ -343,8 +343,8 @@ function BotInboxGroup({
   actions: ChannelSidebarEntryProps['actions'];
   t: BotHarnessTranslate;
 }): ReactElement {
-  const active = items.filter((item) => item.state !== 'handled');
-  const history = items.filter((item) => item.state === 'handled');
+  const active = items.filter((item) => item.state !== 'handled' && item.state !== 'ignored');
+  const history = items.filter((item) => item.state === 'handled' || item.state === 'ignored');
   const [expanded, setExpanded] = useState(active.length > 0);
   return (
     <details
@@ -415,7 +415,11 @@ function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): React
 
 function BotInboxBadge(): ReactElement {
   const items = useClientState().botInbox.items;
-  return <Tag tone="neutral">{items.filter((item) => item.state !== 'handled').length}</Tag>;
+  return (
+    <Tag tone="neutral">
+      {items.filter((item) => item.state !== 'handled' && item.state !== 'ignored').length}
+    </Tag>
+  );
 }
 
 /** Entries BotHarness itself contributes to the Channel sidebar. */

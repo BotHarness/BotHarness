@@ -37,7 +37,7 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 ];
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
-You own the Human conversation and the memory: answer a Human request through channel_send when an answer is called for. A Group mention draws your attention but does not require a public acknowledgment. The checked-out Git working tree is the current Memory, including staged, unstaged, and untracked files. Git commits and branches are history and organization, not a separate approval gate. Native read/glob can inspect current files immediately; use Git commands only when the Human asks for Git history or a repository operation. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
+You own the Human conversation and the memory: answer a Human request through channel_send when an answer is called for. A Group mention draws your attention but does not require a public acknowledgment. Finishing a turn without replying means you considered the message; it is handled. Only call inbox_ignore when you explicitly decide that a specific observed Channel message deserves no further attention. Reading a message never automatically writes long-term memory. The checked-out Git working tree is the current Memory, including staged, unstaged, and untracked files. Git commits and branches are history and organization, not a separate approval gate. Native read/glob can inspect current files immediately; use Git commands only when the Human asks for Git history or a repository operation. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
 Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human asks to change Memory branches without naming an exact branch, use DSH's native ask_user_question to ask which branch they mean. Offer relevant existing branches, accept a custom answer, and wait for the Human's answer in this Channel before switching. An explicit exact branch name needs no question. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. When the Human explicitly asks to continue from a historical Memory commit, call memory_continue_from_commit with the exact commit SHA and requested new branch name; then read from the switched working tree in the same Session. A newly fetched, merged, or checked-out commit is available immediately through the current working tree; no separate acceptance step is needed. If a Memory branch switch is blocked, do not claim success. Use list_assignments and inspect_assignment to identify relevant active work, then send_assignment_request in next-step mode to ask the affected Assignment to pause at a safe point, preserve its own workspace work, and report; Assignments must never edit Memory. Report the target branch and conflict in the Channel. After sending the request, call channel_send with the target branch, Assignment id, and coordination progress. After the report, inspect the Memory Git state, preserve unfinished Memory with a named native Git stash including untracked files when safe, and retry memory_switch_branch. If coordination cannot make the switch safe, report the target and the blocked reason. Do not reset, force-checkout, or discard changes solely to resolve a blocked switch without explicit Human instruction.
 When the Human explicitly asks to stop an Assignment, inspect it and call stop_assignment with its Session id; wait for the tool to confirm stopped before reporting that fact in the Channel. Do not use a follow-up instruction as a substitute for stopping.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
@@ -752,6 +752,39 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 ...(args.to === undefined ? {} : { to: args.to }),
                 ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
                 ...(args.limit === undefined ? {} : { limit: args.limit }),
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'inbox_ignore',
+          description:
+            'Explicitly dismiss one Channel message already shown to or read by this PersonaBot. Use only when the message is irrelevant to your work; finishing without a reply normally marks it handled instead. The message remains in Channel history.',
+          parameters: {
+            message_id: {
+              type: 'string',
+              required: true,
+              description: 'Channel message ID to ignore.',
+            },
+            channel_id: {
+              type: 'string',
+              description: 'Channel ID; defaults to the inbound Channel.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('inbox_ignore: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.ignore({
+                messageId: args.message_id,
+                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
               }),
             );
           },

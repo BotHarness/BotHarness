@@ -598,7 +598,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
         return (
           item === undefined ||
           typeof item['botSlug'] !== 'string' ||
-          !['pending', 'running', 'retryable', 'needs-repair', 'handled'].includes(
+          !['pending', 'running', 'retryable', 'needs-repair', 'handled', 'ignored'].includes(
             String(item['state']),
           )
         );
@@ -1145,7 +1145,9 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
   const required = ['id', 'botSlug', 'reason', 'createdAt', 'sourceKind', 'summary'] as const;
   if (required.some((key) => typeof row[key] !== 'string')) return undefined;
   if (
-    !['pending', 'observed', 'deferred', 'needs-repair', 'handled'].includes(String(row['state']))
+    !['pending', 'observed', 'deferred', 'needs-repair', 'handled', 'ignored'].includes(
+      String(row['state']),
+    )
   )
     return undefined;
   if (!['human', 'bot', 'bridged', 'system'].includes(String(row['authorKind']))) return undefined;
@@ -1153,6 +1155,7 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
   for (const key of [
     'observedAt',
     'handledAt',
+    'ignoredAt',
     'sourceChannelId',
     'sourceChannelName',
     'sourceMessageId',

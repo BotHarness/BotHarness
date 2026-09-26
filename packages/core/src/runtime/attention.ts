@@ -1,7 +1,13 @@
 import type { ChannelStore } from '../channels/store.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
-export type BotAttentionState = 'pending' | 'observed' | 'deferred' | 'needs-repair' | 'handled';
+export type BotAttentionState =
+  | 'pending'
+  | 'observed'
+  | 'deferred'
+  | 'needs-repair'
+  | 'handled'
+  | 'ignored';
 
 /** A Bot-owned Inbox fact projected from one canonical admission and Source Event. */
 export interface BotAttentionItem {
@@ -12,6 +18,7 @@ export interface BotAttentionItem {
   createdAt: string;
   observedAt?: string;
   handledAt?: string;
+  ignoredAt?: string;
   sourceKind: string;
   sourceChannelId?: string;
   sourceChannelName?: string;
@@ -46,6 +53,7 @@ interface AttentionRow {
   attempt_state: string;
   observed_at: string | null;
   handled_at: string | null;
+  ignored_at: string | null;
   source_kind: string;
   channel_id: string | null;
   message_id: string | null;
@@ -95,7 +103,7 @@ export function createBotAttentionQuery(
             .prepare(`
         WITH attention AS (
           SELECT a.source_event_id, a.bot_slug, a.reason, a.attempt_state,
-                 a.observed_at, a.handled_at, e.source_kind, e.channel_id,
+                 a.observed_at, a.handled_at, a.ignored_at, e.source_kind, e.channel_id,
                  e.message_id, p.message_id AS placed_message_id,
                  e.assignment_session_id,
                  assignment.session_id AS available_assignment_session_id,
@@ -105,6 +113,7 @@ export function createBotAttentionQuery(
                  json_extract(e.payload_json, '$.author.slug') AS author_slug,
                  CASE
                    WHEN a.attempt_state = 'needs-repair' THEN 'needs-repair'
+                   WHEN a.ignored_at IS NOT NULL AND a.attempt_state = 'handled' THEN 'ignored'
                    WHEN a.attempt_state = 'handled' THEN 'handled'
                    WHEN a.observed_at IS NOT NULL THEN 'observed'
                    WHEN a.attempt_state IN ('running', 'retryable') OR
@@ -152,6 +161,7 @@ export function createBotAttentionQuery(
           createdAt: row.created_at,
           ...(row.observed_at === null ? {} : { observedAt: row.observed_at }),
           ...(row.handled_at === null ? {} : { handledAt: row.handled_at }),
+          ...(row.ignored_at === null ? {} : { ignoredAt: row.ignored_at }),
           sourceKind: row.source_kind,
           ...(row.channel_id === null ? {} : { sourceChannelId: row.channel_id }),
           ...(channel === undefined ? {} : { sourceChannelName: channel.name }),

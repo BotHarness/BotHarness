@@ -55,7 +55,11 @@ describe('DM Bot Inbox sidebar entry', () => {
     expect(entry?.visible?.(store.getSnapshot())).toBe(false);
     store.setBotInbox({
       status: 'ready',
-      items: [item, { ...item, id: 'source-2', state: 'handled', sourceMessageId: 'm2' }],
+      items: [
+        item,
+        { ...item, id: 'source-2', state: 'handled', sourceMessageId: 'm2' },
+        { ...item, id: 'source-3', state: 'ignored', sourceMessageId: 'm3' },
+      ],
       error: undefined,
     });
     expect(entry?.visible?.(store.getSnapshot())).toBe(true);
@@ -83,7 +87,8 @@ describe('DM Bot Inbox sidebar entry', () => {
       );
       expect(container.textContent).toContain('Team');
       expect(container.textContent).toContain('待处理');
-      expect(container.textContent).toContain('已处理 · 1');
+      expect(container.textContent).toContain('已处理或忽略 · 2');
+      expect(container.textContent).toContain('已忽略');
       const button = [...container.querySelectorAll<HTMLButtonElement>('.bh-inbox-item')].find(
         (node) => node.textContent?.includes('Please check this'),
       );
