@@ -207,6 +207,10 @@ export function createCore(
   const channels = createSqliteChannelStore({
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     databaseOwnerReady: operationalDatabase.mode === 'ready',
+    isBotActive: (botSlug) => {
+      const bot = registry.get(botSlug);
+      return bot !== undefined && bot.paused !== true;
+    },
     attachments,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => live?.publishCommitted(commit),

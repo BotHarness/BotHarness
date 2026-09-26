@@ -297,6 +297,52 @@ describe('Group ordinary-message digest', () => {
     }
   });
 
+  it('commits Group history without admitting a paused Bot and keeps active peers independent', async () => {
+    const home = createTempRoot('botharness-archived-ordinary-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'silent',
+        count: 5,
+        intervalSeconds: 60,
+      });
+      core.channels.setGroupWakePolicy(group.id, 'bea', {
+        mode: 'silent',
+        count: 5,
+        intervalSeconds: 60,
+      });
+      const methods = createBridgeMethods({ ...core });
+      expect(methods.pause({ slug: 'ada' })).toMatchObject({ ok: true });
+      await ordinary(core, group.id, 'while-ada-paused');
+      await core.runtime.whenIdle();
+      expect(core.channels.readMessages(group.id)).toHaveLength(1);
+      expect(core.attention.list({ botSlug: 'ada' }).items).toEqual([]);
+      expect(core.attention.list({ botSlug: 'bea' }).items).toMatchObject([
+        { state: 'pending', sourceMessageId: 'while-ada-paused' },
+      ]);
+      expect(runs).toEqual([]);
+      expect(methods.resume({ slug: 'ada' })).toMatchObject({ ok: true });
+      expect(core.attention.list({ botSlug: 'ada' }).items).toEqual([]);
+      await ordinary(core, group.id, 'after-ada-resumed');
+      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { state: 'pending', sourceMessageId: 'after-ada-resumed' },
+      ]);
+      expect(core.attention.list({ botSlug: 'bea' }).items).toHaveLength(2);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('keeps silent ordinary admissions durable without waking, including after restart, while direct @ still wakes', async () => {
     const home = createTempRoot('botharness-silent-restart-');
     const beforeRuns: string[] = [];

@@ -120,6 +120,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Group messages sent while a PersonaBot is archived stay in Channel history but create no new Inbox Admission or wake for that Bot; active members still receive their own messages ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
 - Revoking a Workspace Grant now expires pending native-tool approval cards in the PersonaBot DM and removes their action buttons immediately. The access list loads independently of secondary sidebar data, and stalled updates recover after a timeout, so a stale card cannot be approved after access is removed. Calls already executing may finish; subsequent Assignment access remains blocked ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 - A PersonaBot can list its own Memory directory with the literal read-only `ls -la` command without an interruption; other shell commands still use Channel approval ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Selected Group @PersonaBot references now appear once inside the composer and sent message, delete as a whole token, and remain visible as Bot text in Orchestrator Sessions instead of showing DSH's file icon ([#254](https://github.com/BotHarness/BotHarness/issues/254)).

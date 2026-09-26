@@ -32,6 +32,8 @@ import { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE, pageChannelTimeline } from './t
 interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   database: OperationalDatabaseModulePort;
   databaseOwnerReady?: boolean;
+  /** Eligibility at the canonical Admission commit boundary. */
+  isBotActive?: (botSlug: string) => boolean;
 }
 
 interface PlacementRow {
@@ -139,6 +141,7 @@ function eventPayload(message: ChannelMessage): string {
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
+  const isBotActive = options.isBotActive ?? (() => true);
   let lowerRegistered = false;
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
     if (
@@ -354,7 +357,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               LIMIT 1
             `)
             .get(targetSlug, rootId) !== undefined;
-        const recipients =
+        const candidateRecipients =
           durable.author.kind === 'human'
             ? channel.type === 'dm' && channel.botSlug !== undefined
               ? [{ botSlug: channel.botSlug, reason: 'human-dm' }]
@@ -380,6 +383,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                   !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
                 ? [{ botSlug: recipient, reason: 'bot-dm' }]
                 : [];
+        const recipients = candidateRecipients.filter((item) => isBotActive(item.botSlug));
         const immediate = new Set(recipients.map((item) => item.botSlug));
         const ordinaryAllowed =
           durable.author.kind === 'human' ||
@@ -389,7 +393,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         const ordinary =
           channel.type === 'group' && ordinaryAllowed
             ? channel.members.flatMap((botSlug) => {
-                if (botSlug === senderSlug || immediate.has(botSlug)) return [];
+                if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
+                  return [];
                 const policy = channel.wakePolicies?.[botSlug];
                 if (policy?.mode !== 'digest' && policy?.mode !== 'silent') return [];
                 if (
