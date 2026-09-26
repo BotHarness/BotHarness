@@ -2187,7 +2187,9 @@ class BotRuntimeImplementation implements BotRuntime {
   #activeAssignmentCount(): number {
     return this.#database.read((database) => {
       const row = database
-        .prepare(`SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working'`)
+        .prepare(
+          `SELECT COUNT(*) AS count FROM assignments WHERE activity = 'working' OR stop_state = 'requested'`,
+        )
         .get() as { count: number };
       return row.count;
     });
