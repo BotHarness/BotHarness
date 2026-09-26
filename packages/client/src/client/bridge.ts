@@ -3,6 +3,9 @@ import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/cli
 
 import type {
   AssignmentDetail,
+  BotAttentionItem,
+  BotAttentionPage,
+  BotAttentionStatus,
   AssignmentReport,
   AssignmentReportState,
   AssignmentSummary,
@@ -1204,6 +1207,54 @@ export async function revokeWorkspaceGrant(
   const grant = parseWorkspaceGrant(value);
   if (grant === undefined) throw new Error('invalid grantRevoke response');
   return grant;
+}
+
+function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
+  const row = asRecord(value);
+  if (row === undefined) return undefined;
+  const required = ['id', 'botSlug', 'reason', 'createdAt', 'sourceKind', 'summary'] as const;
+  if (required.some((key) => typeof row[key] !== 'string')) return undefined;
+  if (
+    !['pending', 'observed', 'deferred', 'needs-repair', 'handled'].includes(String(row['state']))
+  )
+    return undefined;
+  if (!['human', 'bot', 'bridged', 'system'].includes(String(row['authorKind']))) return undefined;
+  if (typeof row['sourceAvailable'] !== 'boolean') return undefined;
+  for (const key of [
+    'observedAt',
+    'handledAt',
+    'sourceChannelId',
+    'sourceChannelName',
+    'sourceMessageId',
+    'authorBotSlug',
+  ])
+    if (row[key] !== undefined && typeof row[key] !== 'string') return undefined;
+  return row as unknown as BotAttentionItem;
+}
+
+export function parseBotAttentionPage(value: unknown): BotAttentionPage {
+  const row = asRecord(value);
+  const raw = row?.['items'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot attention page');
+  const items = raw.map(parseBotAttentionItem);
+  if (items.some((item) => item === undefined)) throw new Error('invalid Bot attention item');
+  const cursor = row?.['nextCursor'];
+  if (cursor !== undefined && typeof cursor !== 'string')
+    throw new Error('invalid Bot attention cursor');
+  return {
+    items: items as BotAttentionItem[],
+    ...(cursor === undefined ? {} : { nextCursor: cursor }),
+  };
+}
+
+export async function loadBotAttention(
+  call: BridgeCall,
+  slug: string,
+  limit = 50,
+  cursor?: string,
+  state?: BotAttentionStatus,
+): Promise<BotAttentionPage> {
+  return parseBotAttentionPage(await unwrap(call, 'botAttention', { slug, limit, cursor, state }));
 }
 
 export async function loadAssignments(

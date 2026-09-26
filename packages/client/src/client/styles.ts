@@ -2205,6 +2205,71 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
 .bh-channel-sidebar-entry-body {
   padding: 2px 12px 10px;
 }
+.bh-inbox-group {
+  border-top: 1px solid var(--dsw-alias-border-l2);
+  padding: 5px 0;
+}
+.bh-inbox-group-head,
+.bh-inbox-history > summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 28px;
+  cursor: pointer;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-inbox-history {
+  margin-left: 8px;
+}
+.bh-inbox-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  width: 100%;
+  margin: 2px 0;
+  padding: 7px 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.bh-inbox-item:hover:not(:disabled) {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-inbox-item:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+.bh-inbox-item:focus-visible,
+.bh-inbox-group-head:focus-visible,
+.bh-inbox-history > summary:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+.bh-inbox-item-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  width: 100%;
+  font-size: 11px;
+}
+.bh-inbox-item-summary {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 12px;
+  line-height: 18px;
+}
+.bh-inbox-item-meta {
+  color: var(--dsw-alias-label-tertiary);
+  font-size: 11px;
+}
 .bh-channel-sidebar-overlay-layer {
   position: absolute;
   inset: 0;

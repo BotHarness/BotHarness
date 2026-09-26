@@ -42,6 +42,7 @@ import { cloneMemoryRepository } from './memory/clone.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
 import {
   grantExecutionDenial,
   grantToolExecutionDenial,
@@ -111,6 +112,7 @@ export interface BotHarnessCore {
   live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
+  attention: BotAttentionQuery;
   grants: WorkspaceGrantStore;
   toolRules: ToolApprovalRuleStore;
   assignmentAccess: AssignmentAccessStore;
@@ -173,6 +175,10 @@ export function createCore(
       live?.publishAdmission(channelId, messageId, message),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
+  const attention = createBotAttentionQuery(
+    attachOperationalModule(operationalDatabase, 'messaging'),
+    channels,
+  );
   live = createChannelLiveHub(channels);
   if (operationalDatabase.mode === 'ready')
     for (const bot of registry.list())
@@ -204,6 +210,7 @@ export function createCore(
     toolRules,
     assignmentAccess,
     channels,
+    attention,
     attachments,
     live,
     roster: createRosterStore({
@@ -408,6 +415,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       memory: core.memory,
       roster: core.roster,
       runtime: core.runtime,
+      attention: core.attention,
       grants: core.grants,
       toolApproval,
       userQuestions,
