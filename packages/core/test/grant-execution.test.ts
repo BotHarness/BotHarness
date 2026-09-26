@@ -68,6 +68,7 @@ describe('Workspace Grant execution boundary', () => {
   it('treats Host-checked Bot DM contact tools as internal Messaging tools', () => {
     expect(requiresHumanToolApproval('list_bot_contacts')).toBe(false);
     expect(requiresHumanToolApproval('channel_list')).toBe(false);
+    expect(requiresHumanToolApproval('inbox_ignore')).toBe(false);
     for (const tool of [
       'group_create',
       'group_invite_bot',

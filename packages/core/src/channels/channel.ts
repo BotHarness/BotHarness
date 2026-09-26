@@ -94,7 +94,7 @@ export interface ChannelReference {
 
 export interface ChannelDelivery {
   botSlug: string;
-  state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
+  state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
 }
 
 /** One committed send shown in the sender's Human DM without copying its body. */

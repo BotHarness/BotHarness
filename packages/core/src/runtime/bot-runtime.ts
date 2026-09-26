@@ -164,6 +164,12 @@ export interface ChannelListPage {
 export interface OrchestratorChannelAccess {
   list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
+  /** Explicitly dismiss an observed Channel message for this PersonaBot. */
+  ignore(input: { channelId?: string; messageId: string }): {
+    sourceEventId: string;
+    ignoredAt: string;
+    alreadyIgnored: boolean;
+  };
   query(
     input?: ChannelMessageQueryOptions & {
       channelId?: string;
@@ -2049,6 +2055,66 @@ class BotRuntimeImplementation implements BotRuntime {
           deliveryKey: input.deliveryKey,
         });
       },
+      ignore: ({ channelId, messageId }) => {
+        const channel = resolve(channelId);
+        if (this.#channels.message(channel.id, messageId) === undefined)
+          throw new Error('inbox_ignore: message is unavailable in this Channel');
+        const decision = this.#database.transaction(
+          (database) => {
+            const row = database
+              .prepare(`
+                SELECT a.source_event_id, a.attempt_state, a.observed_at, a.ignored_at
+                  FROM inbox_admissions a
+                  JOIN source_events e ON e.source_event_id = a.source_event_id
+                 WHERE a.bot_slug = ? AND e.channel_id = ? AND e.message_id = ?
+              `)
+              .get(botSlug, channel.id, messageId) as
+              | {
+                  source_event_id: string;
+                  attempt_state: string;
+                  observed_at: string | null;
+                  ignored_at: string | null;
+                }
+              | undefined;
+            if (row === undefined)
+              return { error: 'inbox_ignore: no Inbox Admission for this Bot' } as const;
+            if (row.attempt_state === 'needs-repair')
+              return { error: 'inbox_ignore: this admission needs repair' } as const;
+            if (row.ignored_at !== null)
+              return {
+                sourceEventId: row.source_event_id,
+                ignoredAt: row.ignored_at,
+                alreadyIgnored: true,
+              };
+            if (
+              row.attempt_state !== 'running' &&
+              row.attempt_state !== 'handled' &&
+              row.observed_at === null
+            )
+              return { error: 'inbox_ignore: observe this message before ignoring it' } as const;
+            const ignoredAt = this.#now().toISOString();
+            database
+              .prepare(`
+                UPDATE inbox_admissions
+                   SET ignored_at = ?, ignored_by_session_id = ?,
+                       observed_at = COALESCE(observed_at, ?),
+                       attempt_state = CASE
+                         WHEN attempt_state IN ('pending', 'retryable', 'running') THEN 'handled'
+                         ELSE attempt_state END,
+                       handled_at = CASE
+                         WHEN attempt_state IN ('pending', 'retryable', 'running') THEN ?
+                         ELSE handled_at END
+                 WHERE source_event_id = ? AND bot_slug = ? AND ignored_at IS NULL
+              `)
+              .run(ignoredAt, sessionId, ignoredAt, ignoredAt, row.source_event_id, botSlug);
+            return { sourceEventId: row.source_event_id, ignoredAt, alreadyIgnored: false };
+          },
+          ['bot-inbox'],
+        );
+        if ('error' in decision) throw new Error(decision.error);
+        this.#channels.admissionChanged?.(channel.id, messageId);
+        return decision;
+      },
       read: (input = {}) => {
         const channel = resolve(input.channelId);
         const messages = this.#channels
@@ -2966,7 +3032,7 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const update = database.prepare(`
           UPDATE inbox_admissions SET observed_at = ?
-           WHERE bot_slug = ? AND reason = 'group-ordinary'
+           WHERE bot_slug = ? AND reason <> 'assignment-report'
              AND attempt_state IN ('pending', 'retryable') AND observed_at IS NULL
              AND source_event_id IN (
                SELECT source_event_id FROM channel_placements

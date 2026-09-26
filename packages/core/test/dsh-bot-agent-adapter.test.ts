@@ -62,6 +62,11 @@ describe('DSH Bot Agent adapter', () => {
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
         read: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
@@ -133,6 +138,11 @@ describe('DSH Bot Agent adapter', () => {
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
         read: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
@@ -191,6 +201,11 @@ describe('DSH Bot Agent adapter', () => {
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
         read: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
@@ -254,6 +269,11 @@ describe('DSH Bot Agent adapter', () => {
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
           },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
           read: () => [],
           requestGrant: async () => undefined as never,
           send: async () => undefined as never,
@@ -304,6 +324,11 @@ describe('DSH Bot Agent adapter', () => {
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
         read: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
@@ -388,6 +413,7 @@ describe('DSH Bot Agent adapter', () => {
       'stop_assignment',
       'channel_list',
       'channel_read',
+      'inbox_ignore',
       'channel_read_image',
       'list_bot_contacts',
       'group_create',
@@ -552,6 +578,11 @@ describe('DSH Bot Agent adapter', () => {
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
           },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
           read: ({ channelId } = {}) => {
             const id = channelId ?? 'dm-test';
             reads.push(id);

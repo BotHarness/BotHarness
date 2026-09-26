@@ -588,6 +588,18 @@ const HUMAN_ATTENTION_DECISION_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_ATTENTION_IGNORE_MIGRATION: SchemaMigration = {
+  generation: 23,
+  module: 'bot-inbox',
+  description: 'Record explicit Bot ignore decisions on canonical Inbox Admissions',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE inbox_admissions ADD COLUMN ignored_at TEXT;
+      ALTER TABLE inbox_admissions ADD COLUMN ignored_by_session_id TEXT;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -610,4 +622,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_STOP_MIGRATION,
   ASSIGNMENT_REPORT_ADMISSION_MIGRATION,
   HUMAN_ATTENTION_DECISION_MIGRATION,
+  BOT_ATTENTION_IGNORE_MIGRATION,
 ]);

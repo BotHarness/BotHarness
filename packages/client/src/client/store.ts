@@ -136,7 +136,7 @@ export interface ChannelMessage {
   channelRefs?: { channelId: string; label: string; start: number; end: number }[];
   deliveries?: {
     botSlug: string;
-    state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
+    state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
   }[];
   /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
   botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
@@ -265,7 +265,13 @@ export interface ConversationState {
   sending: boolean;
 }
 
-export type BotAttentionStatus = 'pending' | 'observed' | 'deferred' | 'needs-repair' | 'handled';
+export type BotAttentionStatus =
+  | 'pending'
+  | 'observed'
+  | 'deferred'
+  | 'needs-repair'
+  | 'handled'
+  | 'ignored';
 
 export interface BotAttentionItem {
   id: string;
@@ -275,6 +281,7 @@ export interface BotAttentionItem {
   createdAt: string;
   observedAt?: string;
   handledAt?: string;
+  ignoredAt?: string;
   sourceKind: string;
   sourceChannelId?: string;
   sourceChannelName?: string;
