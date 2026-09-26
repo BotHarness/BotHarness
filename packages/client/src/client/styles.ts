@@ -2569,6 +2569,9 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
 .bh-session-workspace-chevron-collapsed {
   transform: rotate(-90deg);
 }
+html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
+  transition: none;
+}
 .bh-session-workspace-name {
   flex: 1;
   min-width: 0;
