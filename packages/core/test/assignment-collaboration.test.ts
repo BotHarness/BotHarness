@@ -27,11 +27,17 @@ class ManualAgents implements BotAgentAdapter {
   readonly inboxTurns: string[] = [];
   access: OrchestratorAssignmentAccess | undefined;
   failNextStop = false;
+  failInbox: 'before-side-effect' | 'after-side-effect' | undefined;
   readonly #finish = new Map<string, () => void>();
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.access = run.assignments;
     if (run.message.trim().length > 0) return;
+    if (this.failInbox === 'after-side-effect') {
+      const created = run.assignments.create({ grantId: TEST_GRANT_ID, purpose: 'Follow-up work' });
+      if (created.outcome === 'created') this.finish(created.assignment.sessionId);
+    }
+    if (this.failInbox !== undefined) throw new Error('Inbox turn failed');
     this.inboxTurns.push(run.inbox);
   }
 
@@ -537,6 +543,51 @@ describe('Assignment collaboration', () => {
       reopenedOwner.close();
     }
   });
+
+  it.each(['before-side-effect', 'after-side-effect'] as const)(
+    'tracks every collected report when an Inbox turn fails %s',
+    async (failure) => {
+      const { runtime, agents, owner, admit, close } = await setup();
+      try {
+        await admit('Start research', 'human-1');
+        const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+        if (created.outcome !== 'created') throw new Error('create failed');
+        const run = agents.started[0]!.run;
+        agents.failInbox = failure;
+        await run.report({ state: 'progress', summary: 'First report' });
+        await run.report({ state: 'completed', summary: 'Second report' });
+        agents.finish(created.assignment.sessionId);
+        await runtime.whenIdle();
+        const rows = attachOperationalModule(owner, 'multi-report-recovery-test').read(
+          (db) =>
+            db
+              .prepare(`
+              SELECT a.attempt_state, a.side_effect_started_at, e.observed_at
+                FROM inbox_admissions a
+                JOIN source_events e ON e.source_event_id = a.source_event_id
+               WHERE a.reason = 'assignment-report'
+               ORDER BY e.body
+            `)
+              .all() as Array<{
+              attempt_state: string;
+              side_effect_started_at: string | null;
+              observed_at: string | null;
+            }>,
+        );
+        expect(rows).toHaveLength(2);
+        expect(rows.map((row) => row.attempt_state)).toEqual([
+          failure === 'after-side-effect' ? 'needs-repair' : 'retryable',
+          failure === 'after-side-effect' ? 'needs-repair' : 'retryable',
+        ]);
+        expect(rows.every((row) => row.observed_at === null)).toBe(true);
+        expect(rows.every((row) => row.side_effect_started_at !== null)).toBe(
+          failure === 'after-side-effect',
+        );
+      } finally {
+        await close();
+      }
+    },
+  );
 
   it('shows an interrupted observed report as needs-repair instead of waking it twice', async () => {
     const { agents, owner, home, admit, close } = await setup();

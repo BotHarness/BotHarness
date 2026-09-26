@@ -1047,6 +1047,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.inbox,
         false,
         markSideEffect,
+        collected.eventIds,
       );
       this.#markReportsHandled(collected.eventIds);
       this.#digestRetryAt.delete(`${botSlug}:${channelId}`);
@@ -1147,6 +1148,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.inbox,
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
+        collected.eventIds,
       );
       this.#markReportsHandled(collected.eventIds);
       this.#database.transaction(
@@ -1385,6 +1387,8 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#inboundChannelMessage(channelId, messageId, body),
         collected.inbox,
         this.#channels.message(channelId, messageId)?.memorySwitchTarget !== undefined,
+        undefined,
+        collected.eventIds,
       );
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
@@ -1439,8 +1443,14 @@ class BotRuntimeImplementation implements BotRuntime {
     inbox: string,
     coordinateBranchSwitch = false,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
+    reportEventIds: readonly string[] = [],
   ): Promise<void> {
-    const markSideEffect = markAttemptSideEffect;
+    const markSideEffect = (): void => {
+      // Mark every report in the context before crossing the external boundary.
+      // A crash between markers must conservatively leave reports for repair.
+      this.#markReportSideEffects(reportEventIds, bot.slug);
+      markAttemptSideEffect();
+    };
     this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
     try {
       await this.#agents.runOrchestrator({
@@ -2868,7 +2878,7 @@ class BotRuntimeImplementation implements BotRuntime {
   }
 
   #scheduleInboxTurn(botSlug: string): void {
-    void this.#enqueue(botSlug, () => this.#runInboxTurn(botSlug));
+    void this.#enqueue(botSlug, () => this.#runInboxTurn(botSlug)).catch(() => undefined);
   }
 
   async #runInboxTurn(botSlug: string): Promise<void> {
@@ -2891,6 +2901,8 @@ class BotRuntimeImplementation implements BotRuntime {
         '',
         collected.inbox,
         true,
+        undefined,
+        collected.eventIds,
       );
       this.#markReportsHandled(collected.eventIds);
     } catch (error) {
@@ -2970,6 +2982,24 @@ class BotRuntimeImplementation implements BotRuntime {
     for (const channelId of changedChannels) this.#scheduleDigest(botSlug, channelId);
   }
 
+  #markReportSideEffects(sourceEventIds: readonly string[], botSlug: string): void {
+    if (sourceEventIds.length === 0) return;
+    const placeholders = sourceEventIds.map(() => '?').join(', ');
+    this.#database.transaction(
+      (database) =>
+        database
+          .prepare(`
+            UPDATE inbox_admissions
+               SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+             WHERE bot_slug = ? AND reason = 'assignment-report'
+               AND attempt_state = 'running'
+               AND source_event_id IN (${placeholders})
+          `)
+          .run(this.#now().toISOString(), botSlug, ...sourceEventIds),
+      ['bot-inbox'],
+    );
+  }
+
   #setObserved(sourceEventIds: string[], at: string | null): void {
     if (sourceEventIds.length === 0) return;
     const placeholders = sourceEventIds.map(() => '?').join(', ');
@@ -2985,7 +3015,11 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(`
             UPDATE inbox_admissions
                SET observed_at = ?,
-                   attempt_state = CASE WHEN ? IS NULL THEN 'pending' ELSE 'running' END
+                   attempt_state = CASE
+                     WHEN ? IS NOT NULL THEN 'running'
+                     WHEN side_effect_started_at IS NULL THEN 'retryable'
+                     ELSE 'needs-repair'
+                   END
              WHERE reason = 'assignment-report'
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND source_event_id IN (${placeholders})
