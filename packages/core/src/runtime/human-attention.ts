@@ -182,10 +182,18 @@ export function createHumanAttentionQuery(
                  NULL AS channel_name, a.bot_slug,
                  a.latest_report_summary AS summary, NULL AS request_id,
                  NULL AS message_id, a.session_id AS assignment_session_id,
-                 a.open_ask_source_event_id AS source_event_id
+                 coalesce(a.open_ask_source_event_id, (
+                   SELECT latest.source_event_id FROM source_events latest
+                    WHERE latest.assignment_session_id = a.session_id
+                      AND latest.source_kind = 'assignment-report'
+                    ORDER BY latest.rowid DESC LIMIT 1
+                 )) AS source_event_id
             FROM assignments a
-           WHERE a.latest_report_state IN ('waiting-human', 'blocked')
-             AND a.open_ask_source_event_id IS NOT NULL
+           WHERE ((a.latest_report_state = 'waiting-human'
+                   AND a.open_ask_source_event_id IS NOT NULL)
+               OR (a.latest_report_state = 'blocked'
+                   AND (a.open_ask_source_event_id IS NOT NULL
+                        OR a.activity IN ('idle', 'error'))))
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL
           UNION ALL

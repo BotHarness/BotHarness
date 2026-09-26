@@ -552,6 +552,25 @@ describe('Assignment collaboration', () => {
         answerTo,
       });
       expect(query.list({ category: 'action' }).items).toEqual([]);
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        {
+          id: 'assignment:' + sessionId,
+          kind: 'assignment-blocked',
+          sourceEventId: answerTo,
+          summary: 'Still blocked; need a grant',
+        },
+      ]);
+
+      agents.access!.request({ sessionId, mode: 'next-turn', text: 'Complete the task' });
+      await agents.started.at(-1)!.run.report({
+        state: 'completed',
+        summary: 'Resolved with the new grant',
+      });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      expect(query.list({ category: 'action' }).items).toEqual([]);
     } finally {
       await close();
       owner.close();
