@@ -6,14 +6,20 @@ export type HumanAttentionSort = 'newest' | 'oldest';
 export interface HumanAttentionItem {
   id: string;
   category: HumanAttentionCategory;
-  kind: 'group-join-request' | 'user-question' | 'tool-approval' | 'bot-dm-message';
+  kind:
+    | 'group-join-request'
+    | 'user-question'
+    | 'tool-approval'
+    | 'bot-dm-message'
+    | 'assignment-waiting-human';
   createdAt: string;
-  channelId: string;
-  channelName: string;
+  channelId?: string;
+  channelName?: string;
   botSlug: string;
   summary: string;
   requestId?: string;
   messageId?: string;
+  assignmentSessionId?: string;
 }
 
 export interface HumanAttentionPage {
@@ -37,12 +43,13 @@ interface AttentionRow {
   category: HumanAttentionCategory;
   kind: HumanAttentionItem['kind'];
   created_at: string;
-  channel_id: string;
-  channel_name: string;
+  channel_id: string | null;
+  channel_name: string | null;
   bot_slug: string;
   summary: string;
   request_id: string | null;
   message_id: string | null;
+  assignment_session_id: string | null;
 }
 
 interface Cursor {
@@ -109,7 +116,7 @@ export function createHumanAttentionQuery(
                  c.channel_id, json_extract(c.record_json, '$.name') AS channel_name,
                  json_extract(j.value, '$.requesterBotSlug') AS bot_slug,
                  '' AS summary, json_extract(j.value, '$.id') AS request_id,
-                 NULL AS message_id
+                 NULL AS message_id, NULL AS assignment_session_id
             FROM channel_records c, json_each(c.record_json, '$.joinRequests') j
            WHERE json_extract(c.record_json, '$.type') = 'group'
              AND json_extract(c.record_json, '$.deletedAt') IS NULL
@@ -119,7 +126,8 @@ export function createHumanAttentionQuery(
                  'action' AS category, 'user-question' AS kind,
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -140,7 +148,8 @@ export function createHumanAttentionQuery(
                  'action' AS category, 'tool-approval' AS kind,
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -157,11 +166,24 @@ export function createHumanAttentionQuery(
                     '$.toolApprovalDecision.requestMessageId') = e.message_id
              )
           UNION ALL
+          SELECT 'assignment:' || a.session_id AS id,
+                 'action' AS category, 'assignment-waiting-human' AS kind,
+                 a.latest_report_at AS created_at, NULL AS channel_id,
+                 NULL AS channel_name, a.bot_slug,
+                 a.latest_report_summary AS summary, NULL AS request_id,
+                 NULL AS message_id, a.session_id AS assignment_session_id
+            FROM assignments a
+           WHERE a.latest_report_state = 'waiting-human'
+             AND a.open_ask_source_event_id IS NOT NULL
+             AND a.stop_state = 'running'
+             AND a.latest_report_at IS NOT NULL
+          UNION ALL
           SELECT 'message:' || e.source_event_id AS id,
                  'info' AS category, 'bot-dm-message' AS kind,
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
-                 e.bot_slug, e.body, NULL AS request_id, e.message_id
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -210,12 +232,15 @@ export function createHumanAttentionQuery(
         category: row.category,
         kind: row.kind,
         createdAt: row.created_at,
-        channelId: row.channel_id,
-        channelName: row.channel_name,
+        ...(row.channel_id === null ? {} : { channelId: row.channel_id }),
+        ...(row.channel_name === null ? {} : { channelName: row.channel_name }),
         botSlug: row.bot_slug,
         summary: row.summary,
         ...(row.request_id === null ? {} : { requestId: row.request_id }),
         ...(row.message_id === null ? {} : { messageId: row.message_id }),
+        ...(row.assignment_session_id === null
+          ? {}
+          : { assignmentSessionId: row.assignment_session_id }),
       }));
       const last = page.at(-1);
       return {

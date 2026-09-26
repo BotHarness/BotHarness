@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
@@ -38,16 +39,24 @@ export function HumanInboxView({
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.kind === 'group-join-request') {
-      await actions.openChannel(item.channelId);
+    if (item.kind === 'assignment-waiting-human') {
+      if (item.assignmentSessionId === undefined) return;
+      await actions.openBot(item.botSlug);
+      await actions.openAssignment(item.assignmentSessionId);
+      const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
+      channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
+      channelSidebarPrefs.setEntryExpanded(scopeKey, 'assignments', true);
+    } else if (item.kind === 'group-join-request') {
+      if (item.channelId !== undefined) await actions.openChannel(item.channelId);
     } else {
       await actions.openBot(item.botSlug);
-      if (item.messageId !== undefined) await actions.openAround(item.channelId, item.messageId);
+      if (item.channelId !== undefined && item.messageId !== undefined)
+        await actions.openAround(item.channelId, item.messageId);
     }
   };
 
   const decide = async (item: HumanAttentionItem, accept: boolean): Promise<void> => {
-    if (item.requestId === undefined) return;
+    if (item.requestId === undefined || item.channelId === undefined) return;
     setBusyId(item.id);
     setActionError(undefined);
     try {
@@ -62,7 +71,7 @@ export function HumanInboxView({
   };
 
   const acknowledge = async (item: HumanAttentionItem): Promise<void> => {
-    if (item.messageId === undefined) return;
+    if (item.messageId === undefined || item.channelId === undefined) return;
     setBusyId(item.id);
     setActionError(undefined);
     try {
@@ -172,17 +181,20 @@ export function HumanInboxView({
                   {item.kind === 'group-join-request'
                     ? t('humanInbox.groupJoin', {
                         bot: botName(item.botSlug),
-                        channel: item.channelName,
+                        channel: item.channelName ?? '',
                       })
                     : item.kind === 'user-question'
                       ? t('humanInbox.question', { bot: botName(item.botSlug) })
                       : item.kind === 'tool-approval'
                         ? t('humanInbox.approval', { bot: botName(item.botSlug) })
-                        : botName(item.botSlug)}
+                        : item.kind === 'assignment-waiting-human'
+                          ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
+                          : botName(item.botSlug)}
                 </div>
                 {item.kind === 'bot-dm-message' ||
                 item.kind === 'user-question' ||
-                item.kind === 'tool-approval' ? (
+                item.kind === 'tool-approval' ||
+                item.kind === 'assignment-waiting-human' ? (
                   <div className="bh-human-inbox-row-summary">{item.summary}</div>
                 ) : null}
               </div>

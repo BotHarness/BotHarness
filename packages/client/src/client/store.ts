@@ -217,14 +217,20 @@ export interface HumanInboxFilters {
 export interface HumanAttentionItem {
   id: string;
   category: HumanInboxCategory;
-  kind: 'group-join-request' | 'user-question' | 'tool-approval' | 'bot-dm-message';
+  kind:
+    | 'group-join-request'
+    | 'user-question'
+    | 'tool-approval'
+    | 'bot-dm-message'
+    | 'assignment-waiting-human';
   createdAt: string;
-  channelId: string;
-  channelName: string;
+  channelId?: string;
+  channelName?: string;
   botSlug: string;
   summary: string;
   requestId?: string;
   messageId?: string;
+  assignmentSessionId?: string;
 }
 
 export interface HumanAttentionPage {
