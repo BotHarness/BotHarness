@@ -112,18 +112,21 @@ try {
       { timeout: 20000 },
       title,
     );
-    if (expected) {
-      await page.waitForFunction(
-        (name) =>
-          Array.from(document.querySelectorAll('[data-row-key^="session:"]')).some(
-            (row) =>
-              row.textContent?.includes(name) &&
-              row.querySelector('.bh-native-session-owner[role="img"]'),
-          ),
-        { timeout: 20000 },
-        title,
-      );
-    }
+    await page.waitForFunction(
+      (name, hasOwner) =>
+        Array.from(document.querySelectorAll('[data-row-key^="session:"]')).some(
+          (row) =>
+            row.textContent?.includes(name) &&
+            row.querySelector(
+              hasOwner
+                ? '.bh-native-session-owner[role="img"]'
+                : '[data-bh-native-session-owner="unowned"]',
+            ),
+        ),
+      { timeout: 20000 },
+      title,
+      expected,
+    );
     const actual = await page.evaluate(
       (name) =>
         Array.from(document.querySelectorAll('[data-row-key^="session:"]'))
@@ -213,7 +216,14 @@ try {
   await page.evaluate(() =>
     document.querySelector('button[aria-label="Session actions for Ready"]')?.click(),
   );
-  await new Promise((resolve) => setTimeout(resolve, 600));
+  await page.waitForFunction(
+    () =>
+      document
+        .querySelector('button[aria-label="Session actions for Ready"]')
+        ?.closest('[data-row-key^="session:"]')
+        ?.querySelector('[data-bh-native-session-owner="unowned"]'),
+    { timeout: 20000 },
+  );
   const unownedHasReturn = await page.evaluate(() =>
     Array.from(document.querySelectorAll('[role="menuitem"]')).some((row) =>
       row.textContent?.includes('Back to Bot DM'),

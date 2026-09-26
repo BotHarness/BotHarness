@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useEffect, useRef, useState, type ReactElement } from 'react';
 
 import { Button, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
@@ -25,11 +25,16 @@ export type SessionOwnerLeadingProps = PropsRuntime<'sidebar.session.row.leading
   PropsLocale<typeof LOCALE_NS> &
   InjectFace<Pick<SessionReturnInjected, 'resolveOwner'>>;
 
+interface SessionOwnerResolution {
+  sessionId: string;
+  owner?: SessionBotOwner;
+}
+
 function useSessionOwner(
   sessionId: string,
   resolveOwner: SessionReturnInjected['resolveOwner'],
-): SessionBotOwner | undefined {
-  const [resolved, setResolved] = useState<{ sessionId: string; owner?: SessionBotOwner }>();
+): SessionOwnerResolution | undefined {
+  const [resolved, setResolved] = useState<SessionOwnerResolution>();
   useEffect(() => {
     const controller = new AbortController();
     void resolveOwner(sessionId, controller.signal)
@@ -42,7 +47,7 @@ function useSessionOwner(
       });
     return () => controller.abort();
   }, [sessionId, resolveOwner]);
-  return resolved?.sessionId === sessionId ? resolved.owner : undefined;
+  return resolved?.sessionId === sessionId ? resolved : undefined;
 }
 
 /** A Session-scoped navigation action; unknown and Subagent Sessions render no entry. */
@@ -52,11 +57,16 @@ export function SessionReturnAction({
   returnToBot,
   t,
 }: SessionReturnActionProps): ReactElement | null {
-  const owner = useSessionOwner(sessionId, resolveOwner);
+  const owner = useSessionOwner(sessionId, resolveOwner)?.owner;
+  const currentSessionId = useRef(sessionId);
+  currentSessionId.current = sessionId;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => setFailed(false), [sessionId]);
+  useEffect(() => {
+    setBusy(false);
+    setFailed(false);
+  }, [sessionId]);
 
   if (owner === undefined) return null;
   const open = async (): Promise<void> => {
@@ -65,9 +75,9 @@ export function SessionReturnAction({
     try {
       await returnToBot(owner.botSlug);
     } catch {
-      setFailed(true);
+      if (currentSessionId.current === sessionId) setFailed(true);
     } finally {
-      setBusy(false);
+      if (currentSessionId.current === sessionId) setBusy(false);
     }
   };
   return (
@@ -101,8 +111,11 @@ export function SessionOwnerLeading({
   resolveOwner,
   t,
 }: SessionOwnerLeadingProps): ReactElement | null {
-  const owner = useSessionOwner(sessionId, resolveOwner);
-  if (owner === undefined) return null;
+  const resolution = useSessionOwner(sessionId, resolveOwner);
+  if (resolution === undefined) return null;
+  const owner = resolution.owner;
+  if (owner === undefined)
+    return <span hidden data-bh-native-session-owner="unowned" data-session-id={sessionId} />;
 
   return (
     <PersonaBotAvatar
@@ -125,12 +138,17 @@ export function SessionReturnMenuItem({
   returnToBot,
   t,
 }: SessionReturnMenuItemProps): ReactElement | null {
-  const owner = useSessionOwner(sessionId, resolveOwner);
+  const owner = useSessionOwner(sessionId, resolveOwner)?.owner;
+  const currentSessionId = useRef(sessionId);
+  currentSessionId.current = sessionId;
   const [, setMenuOpen] = useMenuOpenState();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
 
-  useEffect(() => setFailed(false), [sessionId]);
+  useEffect(() => {
+    setBusy(false);
+    setFailed(false);
+  }, [sessionId]);
   if (owner === undefined) return null;
 
   return (
@@ -142,9 +160,15 @@ export function SessionReturnMenuItem({
         setBusy(true);
         setFailed(false);
         void returnToBot(owner.botSlug)
-          .then(() => setMenuOpen(false))
-          .catch(() => setFailed(true))
-          .finally(() => setBusy(false));
+          .then(() => {
+            if (currentSessionId.current === sessionId) setMenuOpen(false);
+          })
+          .catch(() => {
+            if (currentSessionId.current === sessionId) setFailed(true);
+          })
+          .finally(() => {
+            if (currentSessionId.current === sessionId) setBusy(false);
+          });
       }}
     >
       {failed ? t('sessions.return.failed') : t('sessions.return.label')}

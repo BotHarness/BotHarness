@@ -33,7 +33,7 @@ const OWNER: SessionBotOwner = {
 
 function setup(
   resolveOwner: (sessionId: string, signal: AbortSignal) => Promise<SessionBotOwner | undefined>,
-  returnToBot = vi.fn(async (_slug: string) => undefined),
+  returnToBot: (slug: string) => Promise<void> = vi.fn(async (_slug: string) => undefined),
 ) {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   const host = document.createElement('div');
@@ -120,6 +120,39 @@ describe('native Session menu return to PersonaBot', () => {
       await view.dispose();
     }
   });
+  it('ignores an earlier Session return failure after the row changes Session', async () => {
+    let rejectPrevious: ((reason: Error) => void) | undefined;
+    const returnToBot = vi.fn(
+      (_slug: string) =>
+        new Promise<void>((_resolve, reject) => {
+          rejectPrevious = reject;
+        }),
+    );
+    const view = setup(
+      vi.fn(async () => OWNER),
+      returnToBot,
+    );
+    try {
+      await view.render();
+      await act(async () => view.host.querySelector('button')?.click());
+      expect(view.host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(true);
+      await act(async () =>
+        view.root.render(
+          createElement(SessionReturnMenuItem, {
+            ...view.props,
+            sessionId: 'assignment-2',
+          } as never),
+        ),
+      );
+      expect(view.host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(false);
+      await act(async () => rejectPrevious?.(new Error('old Session failed')));
+      expect(view.host.querySelector('button')?.textContent).toContain('返回 Bot 私聊');
+      expect(view.setMenuOpen).not.toHaveBeenCalled();
+    } finally {
+      await view.dispose();
+    }
+  });
+
   it('keeps the menu open and shows a localized retry message when navigation fails', async () => {
     const returnToBot = vi.fn(async () => {
       throw new Error('navigation failed');
@@ -172,6 +205,11 @@ describe('native Session row PersonaBot avatar', () => {
         ),
       );
       expect(host.querySelector('.bh-native-session-owner')).toBeNull();
+      expect(
+        host
+          .querySelector('[data-bh-native-session-owner="unowned"]')
+          ?.getAttribute('data-session-id'),
+      ).toBe('unowned-session');
     } finally {
       await act(async () => root.unmount());
       host.remove();
