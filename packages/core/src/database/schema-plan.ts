@@ -582,6 +582,8 @@ const HUMAN_ATTENTION_DECISION_MIGRATION: SchemaMigration = {
         decision TEXT NOT NULL CHECK (decision IN ('ignored')),
         decided_at TEXT NOT NULL
       );
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
     `);
   },
 };

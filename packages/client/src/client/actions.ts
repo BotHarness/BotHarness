@@ -732,8 +732,17 @@ export function createActions(
       if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
       return loadHumanInboxFor(state.category, selection, state.nextCursor);
     },
-    ignoreHumanReport(sourceEventId) {
-      return ignoreHumanAssignmentReport(call, sourceEventId);
+    async ignoreHumanReport(sourceEventId) {
+      await ignoreHumanAssignmentReport(call, sourceEventId);
+      // Older loaded pages are retained on refresh; remove this decision from
+      // that cache before the fresh head can merge with it.
+      humanInboxScopeVersion += 1;
+      humanInboxHeadSeq += 1;
+      humanInboxPageSeq += 1;
+      const state = clientStore.getSnapshot().humanInbox;
+      clientStore.setHumanInbox({
+        items: state.items.filter((item) => item.sourceEventId !== sourceEventId),
+      });
     },
     openChannel(channelId) {
       return openChannelById(channelId);

@@ -52,6 +52,40 @@ describe('Human Inbox pagination refresh', () => {
     expect(inbox.nextCursor).toBe('cursor-2');
   });
 
+  it('does not restore an ignored report from a loaded older page on refresh', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    const report = (id: string): HumanAttentionItem => ({
+      id: `report:${id}`,
+      category: 'info',
+      kind: 'assignment-report',
+      createdAt: '2026-09-26T00:00:00.000Z',
+      botSlug: 'ada',
+      summary: id,
+      sourceEventId: id,
+      assignmentSessionId: `assignment:${id}`,
+    });
+    const first = Array.from({ length: 50 }, (_, index) => report('head-' + index));
+    const responses: HumanAttentionPage[] = [
+      { items: first, nextCursor: 'cursor-1' },
+      { items: [report('old-ignored'), report('old-kept')], nextCursor: 'cursor-2' },
+      { items: first, nextCursor: 'cursor-new' },
+    ];
+    const call: BridgeCall = async (endpoint) =>
+      endpoint === 'humanAttentionIgnore'
+        ? { ok: true, value: { accepted: true } }
+        : { ok: true, value: responses.shift() };
+    const actions = createActions(call, clientStore);
+    await actions.refreshHumanInbox('info');
+    await actions.loadMoreHumanInbox();
+    await actions.ignoreHumanReport('old-ignored');
+    await actions.refreshHumanInbox();
+    const inbox = clientStore.getSnapshot().humanInbox;
+    expect(inbox.items.map((entry) => entry.sourceEventId)).not.toContain('old-ignored');
+    expect(inbox.items.map((entry) => entry.sourceEventId)).toContain('old-kept');
+    expect(inbox.nextCursor).toBe('cursor-2');
+  });
+
   it('keeps an in-flight load-more result when a background refresh completes first', async () => {
     const clientStore = createStore();
     clientStore.select({ kind: 'inbox' });
