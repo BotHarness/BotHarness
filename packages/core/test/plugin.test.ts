@@ -275,6 +275,7 @@ describe('plugin entry', () => {
       'channelMarkRead',
       'channelSend',
       'botAttention',
+      'humanAttention',
       'assignments',
       'assignment',
       'workspaceOptions',

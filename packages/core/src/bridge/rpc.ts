@@ -18,6 +18,7 @@ import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
 import type { BotAttentionPage, BotAttentionState } from '../runtime/attention.js';
+import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
 import type { SessionSummary } from '../sessions/source.js';
 import type {
   MemoryAcceptedCommit,
@@ -291,6 +292,15 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botAttention({ slug, limit, cursor, state }));
   }
 
+  humanAttention(
+    category?: HumanAttentionCategory,
+    botSlug?: string,
+    channelId?: string,
+    limit?: number,
+    cursor?: string,
+  ): HumanAttentionPage {
+    return unwrap(this.methods.humanAttention({ category, botSlug, channelId, limit, cursor }));
+  }
   assignments(slug: string): { assignments: AssignmentSummary[] } {
     return unwrap(this.methods.assignments({ slug }));
   }
@@ -480,6 +490,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelMarkRead',
   'channelSend',
   'botAttention',
+  'humanAttention',
   'assignments',
   'assignment',
   'workspaceOptions',
