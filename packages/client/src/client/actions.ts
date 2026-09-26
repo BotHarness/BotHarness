@@ -442,6 +442,9 @@ export function createActions(
       if (currentSelection() !== active) return;
       clientStore.setConversation({ status: 'error', error: errorMessage(error), sending: false });
     }
+    if (channel.type === 'dm' && channel.botSlug !== undefined) {
+      await loadAssignmentsFor(channel.botSlug, active);
+    }
   };
 
   const actions: BridgeActions = {

@@ -376,6 +376,31 @@ describe('bridge actions', () => {
     });
   });
 
+  it('loads stopped Assignments when reopening a DM from the Channel list', async () => {
+    const { clientStore, actions } = setup({
+      assignments: () => ({
+        assignments: [
+          {
+            sessionId: 'assignment-stopped',
+            purpose: 'Check the workspace',
+            activity: 'stopped',
+            createdAt: '2026-09-19T00:03:00.000Z',
+            updatedAt: '2026-09-19T00:04:00.000Z',
+          },
+        ],
+      }),
+    });
+    await actions.load();
+
+    await actions.openChannel('dm-ada');
+    expect(clientStore.getSnapshot().assignments.items).toMatchObject([
+      { sessionId: 'assignment-stopped', activity: 'stopped' },
+    ]);
+
+    await actions.openChannel('group-team');
+    expect(clientStore.getSnapshot().assignments.items).toEqual([]);
+  });
+
   it('reopens DM and group Channels around the profile read anchor', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const entry = (id: string) => ({ id, at: BOT.createdAt, author: { kind: 'human' }, body: id });
