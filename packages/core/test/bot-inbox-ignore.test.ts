@@ -193,4 +193,44 @@ describe('explicit Bot Inbox ignore decision', () => {
       core.operationalDatabase.close();
     }
   });
+  it('keeps an ignored running mention terminal even when its turn then fails', async () => {
+    const home = createTempRoot('botharness-inbox-ignore-failed-turn-');
+    let groupId = '';
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (!run.message.includes('Please review')) return;
+        run.channels.ignore({ channelId: groupId, messageId: 'mention' });
+        throw new Error('Failure after explicit ignore');
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      groupId = core.channels.createGroup({ name: 'Team', members: ['ada'] }).id;
+      await core.channels.appendMessage(groupId, {
+        id: 'mention',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '@Ada Please review',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      core.runtime.admitGroupMessage(groupId, 'mention');
+      await core.runtime.whenIdle();
+      expect(core.attention.list({ botSlug: 'ada', state: 'ignored' }).items).toMatchObject([
+        {
+          reason: 'group-mention',
+          sourceMessageId: 'mention',
+          observedAt: expect.any(String),
+          handledAt: expect.any(String),
+        },
+      ]);
+      expect(core.attention.list({ botSlug: 'ada', state: 'needs-repair' }).items).toEqual([]);
+      expect(core.channels.message(groupId, 'mention')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'ignored' },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });

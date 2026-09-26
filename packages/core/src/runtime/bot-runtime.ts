@@ -2099,10 +2099,10 @@ class BotRuntimeImplementation implements BotRuntime {
                    SET ignored_at = ?, ignored_by_session_id = ?,
                        observed_at = COALESCE(observed_at, ?),
                        attempt_state = CASE
-                         WHEN attempt_state IN ('pending', 'retryable') THEN 'handled'
+                         WHEN attempt_state IN ('pending', 'retryable', 'running') THEN 'handled'
                          ELSE attempt_state END,
                        handled_at = CASE
-                         WHEN attempt_state IN ('pending', 'retryable') THEN ?
+                         WHEN attempt_state IN ('pending', 'retryable', 'running') THEN ?
                          ELSE handled_at END
                  WHERE source_event_id = ? AND bot_slug = ? AND ignored_at IS NULL
               `)
