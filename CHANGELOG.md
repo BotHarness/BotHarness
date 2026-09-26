@@ -71,6 +71,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Changed
 
 - A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; a heading menu switches Current/All and Flat/By workspace views, each Bot remembers those choices and collapsed groups in this browser, and a row opens the native Session. An owned root Session shows its Bot avatar before the idle native sidebar title and offers header and Session menu actions back to its DM ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
+- Bot settings now offer a browser-local switch to open new app visits in Bot mode; it is off by default and does not prevent switching back to the native DSH view during a visit ([#340](https://github.com/BotHarness/BotHarness/issues/340)).
 
 - Group @PersonaBot and Bot-to-Bot DM guidance now let a Bot finish without replying when no response is useful; “handled” still means its turn completed, not that it acknowledged the message ([#302](https://github.com/BotHarness/BotHarness/issues/302)).
 

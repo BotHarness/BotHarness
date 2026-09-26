@@ -93,6 +93,7 @@ export function BotSettingsSection({
   setSortMode,
   setBotIcon,
   setDeveloperMode,
+  setStartInBotMode,
 }: BotSettingsSectionProps): ReactElement {
   const prefs = useBotModePrefs((value) => value);
   const [motionOpen, setMotionOpen] = useState(false);
@@ -219,6 +220,17 @@ export function BotSettingsSection({
           checked={prefs.developerMode}
           onChange={setDeveloperMode}
           label={t('developer.row.title')}
+        />
+      </div>
+      <div className="bh-settings-row bh-startup-row">
+        <div className="bh-settings-row-text">
+          <div className="bh-settings-row-title">{t('startup.row.title')}</div>
+          <div className="bh-settings-row-desc">{t('startup.row.description')}</div>
+        </div>
+        <Switch
+          checked={prefs.startInBotMode}
+          onChange={setStartInBotMode}
+          label={t('startup.row.title')}
         />
       </div>
       {/* The slot contract types its ReactNode against the DSH client's React

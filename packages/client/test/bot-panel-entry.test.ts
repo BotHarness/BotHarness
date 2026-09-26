@@ -40,6 +40,7 @@ import {
 
 const useBotModePrefs = ((selector: (value: BotModePrefsSnapshot) => unknown) =>
   selector({
+    startInBotMode: false,
     motionPreference: 'system',
     botIcon: 'mascot' as const,
     developerMode: false,

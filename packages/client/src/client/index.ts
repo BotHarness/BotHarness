@@ -43,6 +43,7 @@ import { saveHmrView, takeHmrView } from './hmr-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
+import { consumeStartInBotMode } from './startup-mode-prefs.js';
 
 export const name = 'botharness-client';
 
@@ -98,6 +99,13 @@ export function apply(ctx: ClientContext): void {
     openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
   });
   const prefs = new BotModePrefs(storage);
+  // Startup mode is browser-local and available before the Host Config form loads.
+  // HMR keeps this document, so consume the choice once even when restoring a view.
+  const startupChoice =
+    typeof window === 'undefined'
+      ? false
+      : consumeStartInBotMode(window as unknown as Record<string, unknown>, storage);
+  let startInBotMode = hmrView === undefined && startupChoice;
   const nativeSessions = {
     subscribe: (listener: () => void) => ctx.sessions.list.subscribe(listener),
     getSnapshot: () => ctx.sessions.list.getSnapshot(),
@@ -244,8 +252,8 @@ export function apply(ctx: ClientContext): void {
     ),
   );
 
-  ctx.slots.inject('main', () =>
-    ctx.slots.register(
+  ctx.slots.inject('main', () => {
+    const dispose = ctx.slots.register(
       {
         name: 'main',
         key: PANEL_ID,
@@ -253,8 +261,20 @@ export function apply(ctx: ClientContext): void {
         inject: () => ({ actions, channelSidebar, nativeChatT }),
       },
       BotPanel,
-    ),
-  );
+    );
+    if (startInBotMode) {
+      startInBotMode = false;
+      queueMicrotask(() => {
+        if (ctx.layout.panelInfo.getSnapshot().activePanelId !== null) return;
+        try {
+          ctx.layout.selectPanel(PANEL_ID);
+        } catch (error) {
+          ctx.logger.warn('botharness: failed to open startup Bot mode', error);
+        }
+      });
+    }
+    return dispose;
+  });
 
   const resolveSessionOwner = (sessionId: string, signal: AbortSignal) =>
     loadSessionBotOwner(call, sessionId, signal);

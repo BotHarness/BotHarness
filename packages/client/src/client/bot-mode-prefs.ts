@@ -28,6 +28,7 @@ import {
   type ConfigStorage,
   type LegacySortPreference,
 } from './roster-config.js';
+import { readStartInBotMode, writeStartInBotMode } from './startup-mode-prefs.js';
 
 /** Path-addressed edit accepted by the settings scope (`set`/`unset` inside the namespace). */
 export type BotModePathOp =
@@ -58,6 +59,8 @@ export interface BotModeScope {
 
 /** Live BOT-mode preference published to the sidebar menu and the Settings row. */
 export interface BotModePrefsSnapshot {
+  /** Browser-local choice to open Bot mode on a fresh app visit. */
+  startInBotMode: boolean;
   /** Human-owned toggle for diagnostic Bot-mode details. */
   developerMode: boolean;
   /** Human-owned preference persisted in the shared settings namespace. */
@@ -99,6 +102,8 @@ export interface BotModePrefsFace {
   setBotIcon: (icon: BotModeIcon) => void;
   /** Show or hide diagnostic controls and history. */
   setDeveloperMode: (enabled: boolean) => void;
+  /** Change the browser-local startup panel choice. */
+  setStartInBotMode: (enabled: boolean) => void;
   /** Change the global BOT-mode list sort mode. */
   setSortMode: (mode: BotModeSortMode) => void;
   /** Override one section's sort mode; `undefined` returns it to `inherit`. */
@@ -120,6 +125,9 @@ export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
     },
     setDeveloperMode: (enabled) => {
       prefs.setDeveloperMode(enabled);
+    },
+    setStartInBotMode: (enabled) => {
+      prefs.setStartInBotMode(enabled);
     },
     setSortMode: (mode) => {
       prefs.setSortMode(mode);
@@ -184,6 +192,7 @@ export class BotModePrefs {
   constructor(storage?: ConfigStorage | undefined) {
     this.storage = storage;
     this.source = createSnapshotStore<BotModePrefsSnapshot>({
+      startInBotMode: readStartInBotMode(storage),
       motionPreference: DEFAULT_BOT_MODE_MOTION,
       botIcon: DEFAULT_BOT_MODE_ICON,
       developerMode: DEFAULT_BOT_MODE_DEVELOPER,
@@ -275,6 +284,18 @@ export class BotModePrefs {
       draft.developerMode = enabled;
     });
     if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_DEVELOPER_FIELD, enabled));
+  }
+
+  /** Save the next fresh visit's panel choice in this browser. */
+  setStartInBotMode(enabled: boolean): void {
+    if (this.source.getSnapshot().startInBotMode === enabled) return;
+    if (!writeStartInBotMode(this.storage, enabled)) {
+      console.warn('botharness: failed to persist the startup mode preference');
+      return;
+    }
+    this.source.update((draft) => {
+      draft.startInBotMode = enabled;
+    });
   }
 
   /**
