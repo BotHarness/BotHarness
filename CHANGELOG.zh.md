@@ -17,6 +17,7 @@
 - Bot 收到的 Channel 消息如需修复，现会进入 Human 收件箱的待办。Human 可打开 Bot 收件箱或原消息；来源 Channel 不可用时安全降级到 Bot 收件箱，修复状态解除后待办消失，不产生第二套收件箱存储（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#126](https://github.com/BotHarness/BotHarness/issues/126)）。
 - 已完成的事项报告可进入 Human 收件箱“仅供了解”；Human 能打开对应事项，或忽略这一份报告。决定在重启后保留，同一事项的新报告仍会重新出现（[#126](https://github.com/BotHarness/BotHarness/issues/126)、[ADR-0071](docs/adr/0071-human-inbox-projects-channel-attention.md)）。
 
+- Bot 收件箱的来源组在新待处理消息或更严重状态到来时会重新展开；内容没有变化时，Human 手动折叠的组保持折叠（[#152](https://github.com/BotHarness/BotHarness/issues/152)）。
 - PersonaBot 私聊的右侧栏现在按来源 Channel 分组显示该 Bot 的收件箱，呈现持久 Attention 状态、来源消息跳转和来源不可用时的降级提示；已处理不代表 Bot 必须回复（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#152](https://github.com/BotHarness/BotHarness/issues/152)、[ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)）。
 - PersonaBot 可用 `inbox_ignore` 明确忽略已收到或读过的 Channel 消息；持久 Bot Inbox 与 Channel 投递状态会区分这项决定和无需回复的正常处理，原始消息仍保留在历史中（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#152](https://github.com/BotHarness/BotHarness/issues/152)）。
 - Assignment 报告现在与 Channel 消息共用持久 Bot Inbox，显示报告状态并可打开所属事项。重启后尚未观察的到期报告会继续处理；进入 Orchestrator 上下文后中断的报告显示“需要修复”，已完成回合也不强制向 Channel 回复（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#152](https://github.com/BotHarness/BotHarness/issues/152)、[ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)）。
