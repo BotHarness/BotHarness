@@ -216,9 +216,9 @@ flowchart LR
   Runtime <--> W1["Independent Assignment Session A"]
   Runtime <--> W2["Independent Assignment Session B"]
   W1 -->|"report_to_orchestrator"| Report["Assignment Report Source Event"]
-  W2 -->|"settled / error / cancel"| Notice["Host Lifecycle Notice"]
+  W2 -.-> Notice["Host Lifecycle Notice<br/>settled / error / cancel<br/>(planned #194)"]
   Report --> Inbox
-  Notice --> Inbox
+  Notice -.-> Inbox
   W1 -.-> Sub["DSH Subagents<br/>aggregate-only"]
 ```
 
