@@ -30,7 +30,15 @@ import {
   setRichSelection,
   type MentionAvatarMount,
 } from './rich-mention-editor.js';
-import type { BotSummary } from './store.js';
+import type { BotSummary, ChannelSummary } from './store.js';
+import {
+  activeChannelRefQuery,
+  deleteSelectedChannelRef,
+  rebaseChannelRefs,
+  selectChannelRef,
+  type ChannelRefQuery,
+  type SelectedChannelRef,
+} from './channel-refs.js';
 import type { ChannelAttachmentRef } from './store.js';
 
 /**
@@ -66,10 +74,12 @@ export interface ChannelComposerProps {
   activity?: ChannelComposerActivity | undefined;
   mentionCandidates?: readonly BotSummary[] | undefined;
   mentions?: readonly SelectedMention[] | undefined;
+  channelCandidates?: readonly ChannelSummary[] | undefined;
+  channelRefs?: readonly SelectedChannelRef[] | undefined;
   reply?: { id: string; author: string; body: string } | undefined;
   /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
   t?: BotHarnessTranslate | undefined;
-  onChange(value: string, mentions?: SelectedMention[]): void;
+  onChange(value: string, mentions?: SelectedMention[], channelRefs?: SelectedChannelRef[]): void;
   onCancelReply?(): void;
   onSubmit(): void | Promise<void>;
 }
@@ -148,6 +158,8 @@ export function ChannelComposer({
   activity,
   mentionCandidates = [],
   mentions = [],
+  channelCandidates = [],
+  channelRefs = [],
   reply,
   t = zhTranslate,
   onChange,
@@ -159,8 +171,13 @@ export function ChannelComposer({
   const requestedCaret = useRef<number | undefined>(undefined);
   const renderedAvatarKey = useRef('');
   const [avatarMounts, setAvatarMounts] = useState<MentionAvatarMount[]>([]);
-  const rich = mentionCandidates.length > 0 || mentions.length > 0;
+  const rich =
+    mentionCandidates.length > 0 ||
+    mentions.length > 0 ||
+    channelCandidates.length > 0 ||
+    channelRefs.length > 0;
   const [mentionQuery, setMentionQuery] = useState<MentionQuery | undefined>();
+  const [channelQuery, setChannelQuery] = useState<ChannelRefQuery | undefined>();
   const [activeMentionIndex, setActiveMentionIndex] = useState(0);
   const candidates =
     mentionQuery === undefined
@@ -175,10 +192,36 @@ export function ChannelComposer({
                 bot.slug.toLocaleLowerCase().includes(mentionQuery.query.toLocaleLowerCase())),
           )
           .slice(0, 8);
+  const channelOptions =
+    channelQuery === undefined
+      ? []
+      : channelCandidates
+          .filter((channel) =>
+            channel.name.toLocaleLowerCase().includes(channelQuery.query.toLocaleLowerCase()),
+          )
+          .slice(0, 8);
+  const chooseChannel = (channel: ChannelSummary): void => {
+    if (channelQuery === undefined) return;
+    const selected = selectChannelRef(value, channelRefs, channelQuery, channel.id, channel.name);
+    onChange(selected.value, rebaseMentions(value, selected.value, mentions), selected.refs);
+    setChannelQuery(undefined);
+    requestedCaret.current = selected.caret;
+    requestAnimationFrame(() => {
+      const editor = richRef.current;
+      if (editor !== null) {
+        editor.focus();
+        setRichSelection(editor, selected.caret);
+      }
+    });
+  };
   const chooseMention = (bot: BotSummary): void => {
     if (mentionQuery === undefined) return;
     const selected = selectMention(value, mentions, mentionQuery, bot.slug, bot.displayName);
-    onChange(selected.value, selected.mentions);
+    onChange(
+      selected.value,
+      selected.mentions,
+      rebaseChannelRefs(value, selected.value, channelRefs),
+    );
     setMentionQuery(undefined);
     requestedCaret.current = selected.caret;
     requestAnimationFrame(() => {
@@ -226,25 +269,37 @@ export function ChannelComposer({
       return;
     }
     const current = readRichMentionDraft(editor);
-    if (sameRichMentionDraft(current, value, mentions) && renderedAvatarKey.current === avatarKey)
+    if (
+      sameRichMentionDraft(current, value, mentions, channelRefs) &&
+      renderedAvatarKey.current === avatarKey
+    )
       return;
     const caret =
       requestedCaret.current ??
       (editor.ownerDocument.activeElement === editor
         ? richSelectionOffsets(editor)?.end
         : undefined);
-    const mounts = renderRichMentionDraft(editor, value, mentions, mentionCandidates);
+    const mounts = renderRichMentionDraft(editor, value, mentions, mentionCandidates, channelRefs);
     setAvatarMounts(mounts);
     renderedAvatarKey.current = avatarKey;
     requestedCaret.current = undefined;
     if (caret !== undefined) setRichSelection(editor, Math.min(caret, value.length));
     syncTextarea(editor);
-  }, [rich, value, mentions, mentionCandidates, avatarKey, syncTextarea]);
+  }, [
+    rich,
+    value,
+    mentions,
+    channelRefs,
+    mentionCandidates,
+    channelCandidates,
+    avatarKey,
+    syncTextarea,
+  ]);
 
   useEffect(() => {
     const element = richRef.current ?? textareaRef.current;
     if (element !== null) syncTextarea(element);
-  }, [syncTextarea, value, mentions, rich]);
+  }, [syncTextarea, value, mentions, channelRefs, rich]);
 
   const replyId = reply?.id;
   useEffect(() => {
@@ -273,14 +328,10 @@ export function ChannelComposer({
     if (editor.innerHTML === '<br>') editor.replaceChildren();
     const next = readRichMentionDraft(editor);
     syncTextarea(editor);
-    onChange(next.value, next.mentions);
-    setMentionQuery(
-      activeMentionQuery(
-        next.value,
-        richSelectionOffsets(editor)?.end ?? next.value.length,
-        next.mentions,
-      ),
-    );
+    onChange(next.value, next.mentions, next.channelRefs);
+    const caret = richSelectionOffsets(editor)?.end ?? next.value.length;
+    setMentionQuery(activeMentionQuery(next.value, caret, next.mentions));
+    setChannelQuery(activeChannelRefQuery(next.value, caret, next.channelRefs));
     setActiveMentionIndex(0);
   };
 
@@ -305,10 +356,57 @@ export function ChannelComposer({
       if (deleted !== undefined) {
         event.preventDefault();
         requestedCaret.current = deleted.caret;
-        onChange(deleted.value, deleted.mentions);
+        onChange(
+          deleted.value,
+          deleted.mentions,
+          rebaseChannelRefs(value, deleted.value, channelRefs),
+        );
         setMentionQuery(undefined);
+        setChannelQuery(undefined);
         if (input instanceof HTMLTextAreaElement)
           requestAnimationFrame(() => input.setSelectionRange(deleted.caret, deleted.caret));
+        return;
+      }
+    }
+    if (
+      (event.key === 'Backspace' || event.key === 'Delete') &&
+      !event.nativeEvent.isComposing &&
+      selection !== undefined
+    ) {
+      const deleted = deleteSelectedChannelRef(
+        value,
+        channelRefs,
+        selection.start,
+        selection.end,
+        event.key,
+      );
+      if (deleted !== undefined) {
+        event.preventDefault();
+        requestedCaret.current = deleted.caret;
+        onChange(deleted.value, rebaseMentions(value, deleted.value, mentions), deleted.refs);
+        setMentionQuery(undefined);
+        setChannelQuery(undefined);
+        return;
+      }
+    }
+    if (channelQuery !== undefined && channelOptions.length > 0) {
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        setActiveMentionIndex(
+          (index) =>
+            (index + (event.key === 'ArrowDown' ? 1 : -1) + channelOptions.length) %
+            channelOptions.length,
+        );
+        return;
+      }
+      if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
+        event.preventDefault();
+        chooseChannel(channelOptions[activeMentionIndex] ?? channelOptions[0]!);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setChannelQuery(undefined);
         return;
       }
     }
@@ -355,6 +453,25 @@ export function ChannelComposer({
 
   return (
     <div className="bh-composer-shell">
+      {channelQuery !== undefined && channelOptions.length > 0 ? (
+        <div className="bh-mention-picker" role="listbox" aria-label="Reference a Group Channel">
+          {channelOptions.map((candidate, index) => (
+            <button
+              key={candidate.id}
+              type="button"
+              className={`bh-mention-option${index === activeMentionIndex ? ' bh-mention-option-active' : ''}`}
+              role="option"
+              aria-selected={index === activeMentionIndex}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => chooseChannel(candidate)}
+            >
+              <span className="bh-mention-option-copy">
+                <strong>#{candidate.name}</strong>
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
       {mentionQuery !== undefined && candidates.length > 0 ? (
         <div className="bh-mention-picker" role="listbox" aria-label="Mention a PersonaBot">
           {candidates.map((candidate, index) => (
@@ -479,9 +596,13 @@ export function ChannelComposer({
                 syncTextarea(event.currentTarget);
                 const next = event.target.value;
                 const nextMentions = rebaseMentions(value, next, mentions);
-                onChange(next, nextMentions);
+                const nextRefs = rebaseChannelRefs(value, next, channelRefs);
+                onChange(next, nextMentions, nextRefs);
                 setMentionQuery(
                   activeMentionQuery(next, event.currentTarget.selectionStart, nextMentions),
+                );
+                setChannelQuery(
+                  activeChannelRefQuery(next, event.currentTarget.selectionStart, nextRefs),
                 );
                 setActiveMentionIndex(0);
               }}

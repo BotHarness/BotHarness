@@ -23,6 +23,7 @@ import {
   type ChannelComposerUpload,
 } from './channel-composer.js';
 import type { SelectedMention } from './mentions.js';
+import type { SelectedChannelRef } from './channel-refs.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { isBotDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
@@ -397,6 +398,7 @@ function ConversationView({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
   const [mentionTokens, setMentionTokens] = useState<SelectedMention[]>([]);
+  const [channelRefTokens, setChannelRefTokens] = useState<SelectedChannelRef[]>([]);
   const [selectedMemoryCommit, setSelectedMemoryCommit] = useState<{
     channelId: string;
     sha: string;
@@ -529,6 +531,7 @@ function ConversationView({
   useEffect(() => {
     setDraft('');
     setMentionTokens([]);
+    setChannelRefTokens([]);
     setSelectedMemoryCommit(undefined);
     setReplyTarget(undefined);
     for (const controller of uploadControllers.current.values()) controller.abort();
@@ -718,6 +721,12 @@ function ConversationView({
   const submit = async (): Promise<void> => {
     const body = draft.trim();
     const leftTrim = draft.length - draft.trimStart().length;
+    const submittedRefs = channelRefTokens.flatMap((token) => {
+      const adjusted = { ...token, start: token.start - leftTrim, end: token.end - leftTrim };
+      return adjusted.start >= 0 && body.slice(adjusted.start, adjusted.end) === '#' + token.label
+        ? [adjusted]
+        : [];
+    });
     const submittedMentions = mentionTokens.flatMap((token) => {
       const adjusted = { ...token, start: token.start - leftTrim, end: token.end - leftTrim };
       return adjusted.start >= 0 && body.slice(adjusted.start, adjusted.end) === '@' + token.label
@@ -744,6 +753,7 @@ function ConversationView({
     );
     setDraft('');
     setMentionTokens([]);
+    setChannelRefTokens([]);
     setUploadItems([]);
     const submittedReplyTo = replyTarget?.id;
     try {
@@ -753,6 +763,7 @@ function ConversationView({
         submittedUploads.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
         undefined,
         submittedMentions,
+        submittedRefs,
       );
       if (sent) {
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
@@ -765,6 +776,7 @@ function ConversationView({
         if (!failedEcho) {
           setDraft((current) => current || body);
           setMentionTokens((current) => (current.length > 0 ? current : submittedMentions));
+          setChannelRefTokens((current) => (current.length > 0 ? current : submittedRefs));
           setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
         }
       }
@@ -947,6 +959,7 @@ function ConversationView({
                         if (!actions.dismissFailedMessage(channelId, message.id)) return;
                         setDraft(message.body);
                         setMentionTokens(message.mentions ?? []);
+                        setChannelRefTokens(message.channelRefs ?? []);
                         setUploadItems(
                           (message.attachments ?? []).map((ref) => ({
                             id: crypto.randomUUID(),
@@ -1030,6 +1043,12 @@ function ConversationView({
                 key={channelId}
                 value={draft}
                 mentions={mentionTokens}
+                channelRefs={channelRefTokens}
+                channelCandidates={
+                  channel?.type === 'dm' && channel.botSlug !== undefined
+                    ? state.channels.filter((candidate) => candidate.type === 'group')
+                    : []
+                }
                 mentionCandidates={
                   channel?.type === 'group'
                     ? channelBots
@@ -1065,9 +1084,10 @@ function ConversationView({
                       }
                 }
                 t={t}
-                onChange={(value, mentions) => {
+                onChange={(value, mentions, channelRefs) => {
                   setDraft(value);
                   setMentionTokens(mentions ?? []);
+                  setChannelRefTokens(channelRefs ?? []);
                   setRestoreBlocked(false);
                 }}
                 onCancelReply={() => setReplyTarget(undefined)}

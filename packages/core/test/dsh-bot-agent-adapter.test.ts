@@ -63,7 +63,6 @@ describe('DSH Bot Agent adapter', () => {
           throw new Error('unexpected Bot DM');
         },
         read: () => [],
-        search: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
           at: BOT.createdAt,
@@ -135,7 +134,6 @@ describe('DSH Bot Agent adapter', () => {
           throw new Error('unexpected Bot DM');
         },
         read: () => [],
-        search: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
           at: BOT.createdAt,
@@ -194,7 +192,6 @@ describe('DSH Bot Agent adapter', () => {
           throw new Error('unexpected Bot DM');
         },
         read: () => [],
-        search: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
           at: BOT.createdAt,
@@ -258,7 +255,6 @@ describe('DSH Bot Agent adapter', () => {
             throw new Error('unexpected Bot DM');
           },
           read: () => [],
-          search: () => [],
           requestGrant: async () => undefined as never,
           send: async () => undefined as never,
         },
@@ -309,7 +305,6 @@ describe('DSH Bot Agent adapter', () => {
           throw new Error('unexpected Bot DM');
         },
         read: () => [],
-        search: () => [],
         requestGrant: async (reason) => ({
           id: 'grant-request-1',
           at: BOT.createdAt,
@@ -394,11 +389,12 @@ describe('DSH Bot Agent adapter', () => {
       'channel_list',
       'channel_read',
       'channel_read_image',
-      'channel_search',
       'list_bot_contacts',
       'group_create',
       'group_invite_bot',
       'group_invite_respond',
+      'group_join_request',
+      'group_join_decide',
       'group_rename',
       'group_remove_member',
       'bot_dm_send',
@@ -562,7 +558,6 @@ describe('DSH Bot Agent adapter', () => {
             if (id === 'outside') throw new Error('not a member');
             return [];
           },
-          search: () => [],
           requestGrant: async (reason) => ({
             id: 'grant-request-1',
             at: BOT.createdAt,

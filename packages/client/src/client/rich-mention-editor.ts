@@ -1,4 +1,5 @@
-import { mentionRuns, type SelectedMention } from './mentions.js';
+import type { SelectedMention } from './mentions.js';
+import { referenceRuns, type SelectedChannelRef } from './channel-refs.js';
 import type { BotSummary } from './store.js';
 
 export interface MentionAvatarMount {
@@ -10,13 +11,23 @@ export interface MentionAvatarMount {
 export interface RichMentionDraft {
   value: string;
   mentions: SelectedMention[];
+  channelRefs: SelectedChannelRef[];
 }
 
-function token(node: Node): { botSlug: string; label: string } | undefined {
+function token(
+  node: Node,
+):
+  | { kind: 'bot'; botSlug: string; label: string }
+  | { kind: 'channel'; channelId: string; label: string }
+  | undefined {
   if (!(node instanceof HTMLElement)) return undefined;
-  const botSlug = node.dataset.botId;
   const label = node.dataset.mentionLabel;
-  return botSlug === undefined || label === undefined ? undefined : { botSlug, label };
+  if (label === undefined) return undefined;
+  const botSlug = node.dataset.botId;
+  if (botSlug !== undefined) return { kind: 'bot', botSlug, label };
+  const channelId = node.dataset.channelId;
+  if (channelId !== undefined) return { kind: 'channel', channelId, label };
+  return undefined;
 }
 
 function rawLength(node: Node): number {
@@ -34,13 +45,25 @@ export function renderRichMentionDraft(
   value: string,
   mentions: readonly SelectedMention[],
   bots: readonly BotSummary[],
+  refs: readonly SelectedChannelRef[] = [],
 ): MentionAvatarMount[] {
   const document = editor.ownerDocument;
   const nodes: Node[] = [];
   const mounts: MentionAvatarMount[] = [];
-  for (const run of mentionRuns(value, mentions)) {
-    if (run.mention === undefined) {
+  for (const run of referenceRuns(value, mentions, refs)) {
+    if (run.mention === undefined && run.channelRef === undefined) {
       nodes.push(document.createTextNode(run.text));
+      continue;
+    }
+    if (run.channelRef !== undefined) {
+      const ref = run.channelRef;
+      const badge = document.createElement('span');
+      badge.className = 'bh-inline-mention bh-inline-mention-sent bh-composer-inline-mention';
+      badge.contentEditable = 'false';
+      badge.dataset.channelId = ref.channelId;
+      badge.dataset.mentionLabel = ref.label;
+      badge.textContent = '#' + ref.label;
+      nodes.push(badge);
       continue;
     }
     const mention = run.mention;
@@ -71,12 +94,21 @@ export function renderRichMentionDraft(
 export function readRichMentionDraft(editor: HTMLElement): RichMentionDraft {
   let value = '';
   const mentions: SelectedMention[] = [];
+  const channelRefs: SelectedChannelRef[] = [];
   const append = (node: Node): void => {
     const mention = token(node);
     if (mention !== undefined) {
       const start = value.length;
-      value += '@' + mention.label;
-      mentions.push({ ...mention, start, end: value.length });
+      value += (mention.kind === 'bot' ? '@' : '#') + mention.label;
+      if (mention.kind === 'bot')
+        mentions.push({ botSlug: mention.botSlug, label: mention.label, start, end: value.length });
+      else
+        channelRefs.push({
+          channelId: mention.channelId,
+          label: mention.label,
+          start,
+          end: value.length,
+        });
       return;
     }
     if (node.nodeType === Node.TEXT_NODE) {
@@ -90,13 +122,14 @@ export function readRichMentionDraft(editor: HTMLElement): RichMentionDraft {
     for (const child of node.childNodes) append(child);
   };
   for (const child of editor.childNodes) append(child);
-  return { value, mentions };
+  return { value, mentions, channelRefs };
 }
 
 export function sameRichMentionDraft(
   left: RichMentionDraft,
   value: string,
   mentions: readonly SelectedMention[],
+  refs: readonly SelectedChannelRef[],
 ): boolean {
   return (
     left.value === value &&
@@ -107,6 +140,14 @@ export function sameRichMentionDraft(
         item.label === mentions[index]?.label &&
         item.start === mentions[index]?.start &&
         item.end === mentions[index]?.end,
+    ) &&
+    left.channelRefs.length === refs.length &&
+    left.channelRefs.every(
+      (item, index) =>
+        item.channelId === refs[index]?.channelId &&
+        item.label === refs[index]?.label &&
+        item.start === refs[index]?.start &&
+        item.end === refs[index]?.end,
     )
   );
 }

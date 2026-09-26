@@ -6,6 +6,14 @@ import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-q
 
 export type ChannelType = 'dm' | 'group';
 
+/** Human-owned per-member notification choice for ordinary Group messages. */
+export interface GroupWakePolicy {
+  mode: 'mentions' | 'digest';
+  count: number;
+  intervalSeconds: number;
+  revision: number;
+}
+
 export interface ChannelRecord {
   id: string;
   type: ChannelType;
@@ -15,6 +23,8 @@ export interface ChannelRecord {
   /** A Bot creator may manage this Group; Human authority remains separate. */
   ownerBotSlug?: string;
   invitations?: GroupInvitation[];
+  joinRequests?: GroupJoinRequest[];
+  wakePolicies?: Record<string, GroupWakePolicy>;
   /** Human-only logical deletion keeps operational evidence durable. */
   deletedAt?: string;
   createdAt: string;
@@ -30,6 +40,17 @@ export interface GroupInvitation {
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
   respondedAt?: string;
+}
+
+/** A nonmember Bot asks to join after a Human-selected #Group reference. */
+export interface GroupJoinRequest {
+  id: string;
+  requesterBotSlug: string;
+  requesterBotCreatedAt: string;
+  status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: 'human' | string;
 }
 
 export type ChannelMessageAuthor =
@@ -63,6 +84,14 @@ export interface ChannelMention {
   end: number;
 }
 
+/** Human-selected #Group identity span; typed #text carries no authority. */
+export interface ChannelReference {
+  channelId: string;
+  label: string;
+  start: number;
+  end: number;
+}
+
 export interface ChannelDelivery {
   botSlug: string;
   state: 'pending' | 'running' | 'retryable' | 'needs-repair' | 'handled';
@@ -91,6 +120,7 @@ export interface ChannelMessage {
   memorySwitchTarget?: string;
   /** Selected identity spans; plain typed @names are never actionable. */
   mentions?: ChannelMention[];
+  channelRefs?: ChannelReference[];
   /** Read-only projection from per-Bot Inbox Admissions. */
   deliveries?: ChannelDelivery[];
   botDmAction?: BotDmAction;
@@ -190,6 +220,27 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
       return false;
   }
   if (record['deletedAt'] !== undefined && typeof record['deletedAt'] !== 'string') return false;
+  const wakePolicies = record['wakePolicies'];
+  if (wakePolicies !== undefined) {
+    if (record['type'] !== 'group' || typeof wakePolicies !== 'object' || wakePolicies === null)
+      return false;
+    for (const [slug, value] of Object.entries(wakePolicies)) {
+      if (!members.includes(slug) || typeof value !== 'object' || value === null) return false;
+      const policy = value as Record<string, unknown>;
+      if (
+        (policy['mode'] !== 'mentions' && policy['mode'] !== 'digest') ||
+        !Number.isSafeInteger(policy['count']) ||
+        (policy['count'] as number) < 1 ||
+        (policy['count'] as number) > 100 ||
+        !Number.isSafeInteger(policy['intervalSeconds']) ||
+        (policy['intervalSeconds'] as number) < 1 ||
+        (policy['intervalSeconds'] as number) > 3600 ||
+        !Number.isSafeInteger(policy['revision']) ||
+        (policy['revision'] as number) < 1
+      )
+        return false;
+    }
+  }
   const invitations = record['invitations'];
   if (invitations !== undefined) {
     if (
@@ -206,6 +257,27 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
           ['pending', 'accepted', 'declined', 'cancelled'].includes(String(invite['status'])) &&
           typeof invite['createdAt'] === 'string' &&
           (invite['respondedAt'] === undefined || typeof invite['respondedAt'] === 'string')
+        );
+      })
+    )
+      return false;
+  }
+  const joinRequests = record['joinRequests'];
+  if (joinRequests !== undefined) {
+    if (
+      record['type'] !== 'group' ||
+      !Array.isArray(joinRequests) ||
+      !joinRequests.every((item: unknown) => {
+        if (typeof item !== 'object' || item === null) return false;
+        const request = item as Record<string, unknown>;
+        return (
+          typeof request['id'] === 'string' &&
+          typeof request['requesterBotSlug'] === 'string' &&
+          typeof request['requesterBotCreatedAt'] === 'string' &&
+          ['pending', 'accepted', 'declined', 'cancelled'].includes(String(request['status'])) &&
+          typeof request['createdAt'] === 'string' &&
+          (request['decidedAt'] === undefined || typeof request['decidedAt'] === 'string') &&
+          (request['decidedBy'] === undefined || typeof request['decidedBy'] === 'string')
         );
       })
     )
@@ -311,6 +383,26 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
           !Number.isSafeInteger(item.end) ||
           item.start < 0 ||
           item.end <= item.start,
+      ))
+  )
+    return false;
+  const channelRefs = message['channelRefs'];
+  if (
+    channelRefs !== undefined &&
+    (!Array.isArray(channelRefs) ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'human' ||
+      channelRefs.some(
+        (item) =>
+          typeof item !== 'object' ||
+          item === null ||
+          !isValidChannelId(item.channelId) ||
+          typeof item.label !== 'string' ||
+          item.label.length === 0 ||
+          !Number.isSafeInteger(item.start) ||
+          !Number.isSafeInteger(item.end) ||
+          item.start < 0 ||
+          item.end <= item.start ||
+          (message['body'] as string).slice(item.start, item.end) !== '#' + item.label,
       ))
   )
     return false;

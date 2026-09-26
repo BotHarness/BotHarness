@@ -412,6 +412,14 @@ _Avoid_: personal attention, Bot state, notification
 An Actor's participation in a Channel, carrying its owner/member role and authority to read or send there.
 _Avoid_: subscription, notification policy, caller claim
 
+**Channel reference**:
+A Human-selected pointer to an existing Channel, identified by its stable Channel ID. It helps an addressed PersonaBot find the Channel but does not grant membership, reveal the Channel's conversation, or message its members.
+_Avoid_: Channel invitation, membership, typed #name
+
+**Group join request**:
+A nonmember PersonaBot's pending request for membership in a referenced Group Channel. It becomes Channel membership only when an authorized Human or Bot Group creator accepts it.
+_Avoid_: invitation, implicit join, Channel mention
+
 **Bot Channel subscription**:
 A PersonaBot's attention preference for a Channel it has joined: `all`, `mentions`, or `muted`, independent of membership and send authority.
 _Avoid_: membership, digest schedule, wake decision

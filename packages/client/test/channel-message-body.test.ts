@@ -10,7 +10,7 @@ import type { BridgeActions } from '../src/client/actions.js';
 import { ChannelMessageBody } from '../src/client/channel-message-body.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { WORKSPACE_GRANTS_CHANGED } from '../src/client/workspace-grants-entry.js';
-import type { ChannelMessage } from '../src/client/store.js';
+import { store, type ChannelMessage } from '../src/client/store.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   MarkdownText: vi.fn(() => null),
@@ -36,6 +36,76 @@ function render(
 beforeEach(() => vi.mocked(MarkdownText).mockClear());
 
 describe('Channel message body', () => {
+  it('opens selected #Group references by stable ID and leaves typed #text inert', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const openChannel = vi.fn(async () => undefined);
+    store.setRoster(
+      [],
+      [
+        {
+          id: 'group-team-2',
+          type: 'group',
+          name: 'Team',
+          members: [],
+          createdAt: '2026-09-25T00:00:00.000Z',
+          updatedAt: '2026-09-25T00:00:00.000Z',
+        },
+      ],
+    );
+    try {
+      await act(async () => {
+        root.render(
+          createElement(ChannelMessageBody, {
+            message: {
+              id: 'm-channel-ref',
+              at: '2026-09-25T00:00:00.000Z',
+              author: { kind: 'human' },
+              body: 'Use #Team and #Plain',
+              channelRefs: [{ channelId: 'group-team-2', label: 'Team', start: 4, end: 9 }],
+            },
+            t: zhTranslate,
+            actions: { openChannel } as unknown as BridgeActions,
+          }),
+        );
+      });
+      const selected = container.querySelector<HTMLButtonElement>(
+        '[data-channel-id="group-team-2"]',
+      );
+      expect(selected?.textContent).toBe('#Team');
+      expect(container.textContent).toContain('#Plain');
+      expect(container.querySelectorAll('[data-channel-id]')).toHaveLength(1);
+      await act(async () => selected?.click());
+      expect(openChannel).toHaveBeenCalledWith('group-team-2');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      store.setRoster([], []);
+    }
+  });
+
+  it('keeps a deleted #Group reference readable without a broken button', () => {
+    store.setRoster([], []);
+    const markup = renderToStaticMarkup(
+      createElement(ChannelMessageBody, {
+        message: {
+          id: 'm-deleted-ref',
+          at: '2026-09-25T00:00:00.000Z',
+          author: { kind: 'human' },
+          body: 'See #Team',
+          channelRefs: [{ channelId: 'group-deleted', label: 'Team', start: 4, end: 9 }],
+        },
+        t: zhTranslate,
+        actions: { openChannel: vi.fn() } as unknown as BridgeActions,
+      }),
+    );
+    expect(markup).toContain('#Team</span>');
+    expect(markup).not.toContain('data-channel-id="group-deleted"');
+    expect(markup).not.toContain('<button');
+  });
+
   it('renders selected Bot mentions as inline DM controls in sent text', () => {
     const markup = renderToStaticMarkup(
       createElement(ChannelMessageBody, {

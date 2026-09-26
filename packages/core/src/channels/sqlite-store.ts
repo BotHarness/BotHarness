@@ -18,6 +18,7 @@ import {
   type ChannelMessage,
   type ChannelRecord,
   type GroupInvitation,
+  type GroupJoinRequest,
 } from './channel.js';
 import {
   ChannelMentionTargetError,
@@ -90,6 +91,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: left.replyTo,
       memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
+      channelRefs: left.channelRefs ?? [],
       botDmAction: left.botDmAction,
       botCausation: left.botCausation,
     }) ===
@@ -100,6 +102,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
       replyTo: right.replyTo,
       memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
+      channelRefs: right.channelRefs ?? [],
       botDmAction: right.botDmAction,
       botCausation: right.botCausation,
     })
@@ -256,6 +259,19 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     ) {
       throw new ChannelMentionTargetError();
     }
+    if (
+      (message.channelRefs?.length ?? 0) > 0 &&
+      (channel.type !== 'dm' ||
+        channel.botSlug === undefined ||
+        message.author.kind !== 'human' ||
+        message.channelRefs?.some((ref) => {
+          const target = readRecord(ref.channelId);
+          return (
+            target?.type !== 'group' || message.body.slice(ref.start, ref.end) !== '#' + ref.label
+          );
+        }))
+    )
+      throw new Error('Selected #Channel reference is no longer available');
     const senderSlug = message.author.kind === 'bot' ? message.author.slug : undefined;
     if (
       channel.type === 'group' &&
@@ -359,11 +375,44 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                   !botAlreadyAdmitted(recipient, durable.botCausation.rootSourceEventId)
                 ? [{ botSlug: recipient, reason: 'bot-dm' }]
                 : [];
+        const immediate = new Set(recipients.map((item) => item.botSlug));
+        const ordinaryAllowed =
+          durable.author.kind === 'human' ||
+          (senderSlug !== undefined &&
+            durable.botCausation !== undefined &&
+            durable.botCausation.hop <= MAX_BOT_HOPS);
+        const ordinary =
+          channel.type === 'group' && ordinaryAllowed
+            ? channel.members.flatMap((botSlug) => {
+                if (botSlug === senderSlug || immediate.has(botSlug)) return [];
+                const policy = channel.wakePolicies?.[botSlug];
+                if (policy?.mode !== 'digest') return [];
+                if (
+                  durable.author.kind === 'bot' &&
+                  durable.botCausation !== undefined &&
+                  botAlreadyAdmitted(botSlug, durable.botCausation.rootSourceEventId)
+                )
+                  return [];
+                return [{ botSlug, policy }];
+              })
+            : [];
         for (const recipient of recipients)
           db.prepare(`
         INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
         VALUES (?, ?, ?)
       `).run(sourceEventId, recipient.botSlug, recipient.reason);
+        for (const recipient of ordinary)
+          db.prepare(`
+        INSERT INTO inbox_admissions (
+          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision
+        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?)
+      `).run(
+            sourceEventId,
+            recipient.botSlug,
+            recipient.policy.count,
+            recipient.policy.intervalSeconds * 1000,
+            recipient.policy.revision,
+          );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
           id,
@@ -752,6 +801,169 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       writeRecord(updated);
       return { channel: updated, invitation: decided };
     },
+    requestGroupJoin(input) {
+      const channel = readRecord(input.channelId);
+      const ownerDm =
+        input.ownerDmChannelId === undefined ? undefined : readRecord(input.ownerDmChannelId);
+      if (
+        channel?.type !== 'group' ||
+        channel.members.includes(input.requesterBotSlug) ||
+        (input.ownerDmChannelId !== undefined &&
+          (ownerDm?.type !== 'dm' || ownerDm.botSlug !== channel.ownerBotSlug))
+      )
+        throw new Error('Group join target is unavailable or requester is already a member');
+      const pending = channel.joinRequests?.find(
+        (item) =>
+          item.requesterBotSlug === input.requesterBotSlug &&
+          item.requesterBotCreatedAt === input.requesterBotCreatedAt &&
+          item.status === 'pending',
+      );
+      if (pending !== undefined) return pending;
+      const timestamp = now().toISOString();
+      const request: GroupJoinRequest = {
+        id: 'group-join-' + randomUUID(),
+        requesterBotSlug: input.requesterBotSlug,
+        requesterBotCreatedAt: input.requesterBotCreatedAt,
+        status: 'pending',
+        createdAt: timestamp,
+      };
+      const updated: ChannelRecord = {
+        ...channel,
+        joinRequests: [...(channel.joinRequests ?? []), request],
+        updatedAt: timestamp,
+      };
+      database.transaction(
+        (db) => {
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify(updated),
+            channel.id,
+          );
+          if (ownerDm !== undefined && channel.ownerBotSlug !== undefined) {
+            const body =
+              'PersonaBot ' +
+              input.requesterBotSlug +
+              ' requests to join your Group Channel ' +
+              channel.name +
+              ' (' +
+              channel.id +
+              '). Request ID: ' +
+              request.id +
+              '. Use group_join_decide with the request ID and accept true or false.';
+            const sourceEventId = randomUUID();
+            db.prepare(`
+              INSERT INTO source_events (
+                source_event_id, source_kind, bot_slug, channel_id, message_id,
+                body, created_at, payload_json
+              ) VALUES (?, 'system-message', ?, ?, ?, ?, ?, ?)
+            `).run(
+              sourceEventId,
+              channel.ownerBotSlug,
+              ownerDm.id,
+              request.id,
+              body,
+              timestamp,
+              JSON.stringify({
+                groupJoinRequest: { channelId: channel.id, requestId: request.id },
+                ...(input.botCausation === undefined ? {} : { botCausation: input.botCausation }),
+              }),
+            );
+            db.prepare(`
+              INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+              VALUES (?, ?, 'group-join-request')
+            `).run(sourceEventId, channel.ownerBotSlug);
+          }
+        },
+        ['channel', 'source-event', 'bot-inbox'],
+      );
+      publishRecordChanged();
+      return request;
+    },
+    decideGroupJoin(input) {
+      const channel = readRecord(input.channelId);
+      const request = channel?.joinRequests?.find((item) => item.id === input.requestId);
+      const dm = readRecord(input.requesterDmChannelId);
+      if (
+        channel?.type !== 'group' ||
+        request === undefined ||
+        request.requesterBotCreatedAt !== input.requesterBotCreatedAt ||
+        dm?.type !== 'dm' ||
+        dm.botSlug !== request.requesterBotSlug ||
+        (input.decidedBy !== 'human' &&
+          (channel.ownerBotSlug !== input.decidedBy || !channel.members.includes(input.decidedBy)))
+      )
+        throw new Error('Group join request is unavailable to this actor');
+      const status = input.accept ? 'accepted' : 'declined';
+      if (request.status === status) return { channel, request, notified: false };
+      if (request.status !== 'pending' || channel.members.includes(request.requesterBotSlug))
+        throw new Error('Group join request is no longer pending');
+      const timestamp = now().toISOString();
+      const decided: GroupJoinRequest = {
+        ...request,
+        status,
+        decidedAt: timestamp,
+        decidedBy: input.decidedBy,
+      };
+      const updated: ChannelRecord = {
+        ...channel,
+        members: input.accept ? [...channel.members, request.requesterBotSlug] : channel.members,
+        joinRequests: (channel.joinRequests ?? []).map((item) =>
+          item.id === request.id ? decided : item,
+        ),
+        updatedAt: timestamp,
+      };
+      const body =
+        'Your request to join Group Channel ' +
+        channel.name +
+        ' (' +
+        channel.id +
+        ') was ' +
+        status +
+        '. ' +
+        (input.accept
+          ? 'You may now use channel_read and channel_send there.'
+          : 'You are not a member of that Group.');
+      database.transaction(
+        (db) => {
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify(updated),
+            channel.id,
+          );
+          const sourceEventId = randomUUID();
+          db.prepare(`
+            INSERT INTO source_events (
+              source_event_id, source_kind, bot_slug, channel_id, message_id,
+              body, created_at, payload_json
+            ) VALUES (?, 'system-message', ?, ?, ?, ?, ?, ?)
+          `).run(
+            sourceEventId,
+            request.requesterBotSlug,
+            dm.id,
+            'group-join-decision-' + request.id,
+            body,
+            timestamp,
+            JSON.stringify({
+              groupJoinDecision: { channelId: channel.id, requestId: request.id, status },
+              ...(input.botCausation === undefined ? {} : { botCausation: input.botCausation }),
+            }),
+          );
+          db.prepare(`
+            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+            VALUES (?, ?, 'group-join-decision')
+          `).run(sourceEventId, request.requesterBotSlug);
+          db.prepare(`
+            UPDATE inbox_admissions
+               SET attempt_state = 'handled', handled_at = ?
+             WHERE reason = 'group-join-request'
+               AND source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE message_id = ?
+               ) AND attempt_state IN ('pending', 'retryable')
+          `).run(timestamp, request.id);
+        },
+        ['channel', 'source-event', 'bot-inbox'],
+      );
+      publishRecordChanged();
+      return { channel: updated, request: decided, notified: true };
+    },
     cancelGroupInvite(channelId, invitationId) {
       const channel = readRecord(channelId);
       const invitation = channel?.invitations?.find((item) => item.id === invitationId);
@@ -792,7 +1004,85 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           if (invitation.targetBotSlug === botSlug && invitation.status === 'pending')
             this.cancelGroupInvite(channel.id, invitation.id);
         }
+        const current = readRecord(channel.id);
+        const pending = (current?.joinRequests ?? []).filter(
+          (request) => request.requesterBotSlug === botSlug && request.status === 'pending',
+        );
+        if (pending.length > 0 && current?.type === 'group') {
+          const timestamp = now().toISOString();
+          const updated: ChannelRecord = {
+            ...current,
+            joinRequests: (current.joinRequests ?? []).map((request) =>
+              pending.some((item) => item.id === request.id)
+                ? { ...request, status: 'cancelled', decidedAt: timestamp }
+                : request,
+            ),
+            updatedAt: timestamp,
+          };
+          database.transaction(
+            (db) => {
+              db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+                JSON.stringify(updated),
+                channel.id,
+              );
+              for (const request of pending)
+                db.prepare(`
+                UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
+                 WHERE reason = 'group-join-request' AND attempt_state IN ('pending', 'retryable')
+                   AND source_event_id IN (
+                     SELECT source_event_id FROM source_events WHERE message_id = ?
+                   )
+              `).run(timestamp, request.id);
+            },
+            ['channel', 'bot-inbox'],
+          );
+          publishRecordChanged();
+        }
       }
+      database.transaction(
+        (db) =>
+          db
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = 'handled', handled_at = ?
+           WHERE bot_slug = ? AND reason = 'group-join-decision'
+             AND attempt_state IN ('pending', 'retryable')
+        `)
+            .run(now().toISOString(), botSlug),
+        ['bot-inbox'],
+      );
+    },
+    setGroupWakePolicy(channelId, botSlug, policy) {
+      const channel = readRecord(channelId);
+      if (channel?.type !== 'group' || !channel.members.includes(botSlug))
+        throw new Error('Group member not found');
+      if (
+        (policy.mode !== 'mentions' && policy.mode !== 'digest') ||
+        !Number.isSafeInteger(policy.count) ||
+        policy.count < 1 ||
+        policy.count > 100 ||
+        !Number.isSafeInteger(policy.intervalSeconds) ||
+        policy.intervalSeconds < 1 ||
+        policy.intervalSeconds > 3600
+      )
+        throw new Error('Invalid Group wake policy');
+      const previous = channel.wakePolicies?.[botSlug];
+      if (
+        previous?.mode === policy.mode &&
+        previous.count === policy.count &&
+        previous.intervalSeconds === policy.intervalSeconds
+      )
+        return channel;
+      const updated: ChannelRecord = {
+        ...channel,
+        wakePolicies: {
+          ...channel.wakePolicies,
+          [botSlug]: { ...policy, revision: (previous?.revision ?? 0) + 1 },
+        },
+        updatedAt: now().toISOString(),
+      };
+      writeRecord(updated);
+      return updated;
     },
     removeGroupMember(channelId, botSlug) {
       const channel = readRecord(channelId);
@@ -810,6 +1100,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       if (channel.ownerBotSlug === botSlug) delete updated.ownerBotSlug;
+      if (updated.wakePolicies !== undefined) {
+        updated.wakePolicies = { ...updated.wakePolicies };
+        delete updated.wakePolicies[botSlug];
+      }
       const cancelled = (channel.invitations ?? []).filter(
         (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
       );
@@ -827,6 +1121,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                  SELECT source_event_id FROM source_events WHERE message_id = ?
                ) AND reason = 'group-invite' AND attempt_state IN ('pending', 'retryable')
             `).run(timestamp, invitation.id);
+          db.prepare(`
+            UPDATE inbox_admissions
+               SET attempt_state = 'needs-repair', last_error = 'Group membership revoked'
+             WHERE bot_slug = ? AND reason = 'group-ordinary'
+               AND attempt_state IN ('pending', 'retryable')
+               AND source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE channel_id = ?
+               )
+          `).run(botSlug, channelId);
         },
         ['channel', 'bot-inbox'],
       );
@@ -845,10 +1148,16 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             ? { ...item, status: 'cancelled', respondedAt: timestamp }
             : item,
         ),
+        joinRequests: (channel.joinRequests ?? []).map((item) =>
+          item.status === 'pending'
+            ? { ...item, status: 'cancelled', decidedAt: timestamp, decidedBy: 'human' }
+            : item,
+        ),
         deletedAt: timestamp,
         updatedAt: timestamp,
       };
       delete deleted.ownerBotSlug;
+      delete deleted.wakePolicies;
       database.transaction(
         (db) => {
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
@@ -871,6 +1180,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                ) AND reason = 'group-invite'
                  AND attempt_state IN ('pending', 'retryable')
             `).run(timestamp, invitation.id);
+          for (const request of channel.joinRequests ?? [])
+            db.prepare(`
+              UPDATE inbox_admissions
+                 SET attempt_state = 'handled', handled_at = ?
+               WHERE source_event_id IN (
+                 SELECT source_event_id FROM source_events WHERE message_id = ?
+               ) AND reason = 'group-join-request'
+                 AND attempt_state IN ('pending', 'retryable')
+            `).run(timestamp, request.id);
         },
         ['channel', 'bot-inbox'],
       );
@@ -965,25 +1283,35 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     queryMessages(id, queryOptions) {
       const query = prepareChannelMessageQuery(id, queryOptions);
       if (!isValidChannelId(id)) return { messages: [] };
-      let beforeRevision: number | undefined;
+      let before: { revision: number; at: string; message_id: string } | undefined;
       if (query.beforeId !== undefined) {
         const beforeId = query.beforeId;
-        const cursor = database.read((db) =>
+        before = database.read((db) =>
           db
-            .prepare(
-              'SELECT revision FROM channel_placements WHERE channel_id = ? AND message_id = ?',
-            )
+            .prepare(`
+              SELECT p.revision, e.created_at AS at, p.message_id
+                FROM channel_placements p
+                JOIN source_events e ON e.source_event_id = p.source_event_id
+               WHERE p.channel_id = ? AND p.message_id = ?
+            `)
             .get(id, beforeId),
-        ) as { revision: number } | undefined;
-        if (cursor === undefined) throw new Error('channel_read: invalid cursor');
-        beforeRevision = cursor.revision;
+        ) as typeof before;
+        if (before === undefined) throw new Error('channel_read: invalid cursor');
       }
       const where = ['p.channel_id = ?'];
       const values: Array<string | number> = [id];
-      if (beforeRevision !== undefined) {
-        where.push('p.revision < ?');
-        values.push(beforeRevision);
+      if (before !== undefined) {
+        if (query.orderBy === 'time') {
+          where.push(
+            '(julianday(e.created_at) < julianday(?) OR (julianday(e.created_at) = julianday(?) AND p.message_id < ?))',
+          );
+          values.push(before.at, before.at, before.message_id);
+        } else {
+          where.push('p.revision < ?');
+          values.push(before.revision);
+        }
       }
+      if (query.orderBy === 'time') where.push('julianday(e.created_at) IS NOT NULL');
       if (query.text !== undefined && query.text.length > 0) {
         where.push('instr(botharness_unicode_lower(e.body), ?) > 0');
         values.push(query.text);
@@ -1018,7 +1346,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             FROM channel_placements p
             JOIN source_events e ON e.source_event_id = p.source_event_id
            WHERE ${where.join(' AND ')}
-           ORDER BY p.revision DESC LIMIT ?
+           ORDER BY ${query.orderBy === 'time' ? 'julianday(e.created_at) DESC, p.message_id DESC' : 'p.revision DESC'} LIMIT ?
         `)
           .all(...values, query.limit + 1);
       }) as unknown as PlacementRow[];

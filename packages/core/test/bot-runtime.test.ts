@@ -637,7 +637,7 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async (run) => {
           expect(() => run.channels.read({ channelId: bobDm!.id })).toThrow(/not a member/);
-          expect(() => run.channels.search({ channelId: bobDm!.id, query: '越权' })).toThrow(
+          expect(() => run.channels.query({ channelId: bobDm!.id, text: '越权' })).toThrow(
             /not a member/,
           );
           await run.channels.send({ channelId: bobDm!.id, body: '冒充 Bob' });

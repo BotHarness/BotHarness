@@ -190,6 +190,57 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
         ];
       })
     : undefined;
+  const joinRequests = Array.isArray(record['joinRequests'])
+    ? record['joinRequests'].flatMap((value: unknown) => {
+        const item = asRecord(value);
+        if (
+          item === undefined ||
+          typeof item['id'] !== 'string' ||
+          typeof item['requesterBotSlug'] !== 'string' ||
+          !['pending', 'accepted', 'declined', 'cancelled'].includes(String(item['status'])) ||
+          typeof item['createdAt'] !== 'string'
+        )
+          return [];
+        return [
+          {
+            id: item['id'],
+            requesterBotSlug: item['requesterBotSlug'],
+            status: item['status'] as 'pending' | 'accepted' | 'declined' | 'cancelled',
+            createdAt: item['createdAt'],
+            ...(typeof item['decidedAt'] === 'string' ? { decidedAt: item['decidedAt'] } : {}),
+            ...(typeof item['decidedBy'] === 'string' ? { decidedBy: item['decidedBy'] } : {}),
+          },
+        ];
+      })
+    : undefined;
+  const rawWakePolicies = asRecord(record['wakePolicies']);
+  const wakePolicies =
+    rawWakePolicies === undefined
+      ? undefined
+      : Object.fromEntries(
+          Object.entries(rawWakePolicies).flatMap(([slug, raw]) => {
+            const value = asRecord(raw);
+            if (
+              value === undefined ||
+              (value['mode'] !== 'mentions' && value['mode'] !== 'digest') ||
+              typeof value['count'] !== 'number' ||
+              typeof value['intervalSeconds'] !== 'number' ||
+              typeof value['revision'] !== 'number'
+            )
+              return [];
+            return [
+              [
+                slug,
+                {
+                  mode: value['mode'] as 'mentions' | 'digest',
+                  count: value['count'],
+                  intervalSeconds: value['intervalSeconds'],
+                  revision: value['revision'],
+                },
+              ],
+            ];
+          }),
+        );
   return {
     id,
     type,
@@ -200,6 +251,8 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
     ...(typeof botSlug === 'string' ? { botSlug } : {}),
     ...(typeof record['ownerBotSlug'] === 'string' ? { ownerBotSlug: record['ownerBotSlug'] } : {}),
     ...(invitations === undefined ? {} : { invitations }),
+    ...(joinRequests === undefined ? {} : { joinRequests }),
+    ...(wakePolicies === undefined ? {} : { wakePolicies }),
     ...(latestMessage === undefined ? {} : { latestMessage }),
   };
 }
@@ -515,6 +568,22 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       }))
   )
     return undefined;
+  const channelRefs = record['channelRefs'];
+  if (
+    channelRefs !== undefined &&
+    (!Array.isArray(channelRefs) ||
+      channelRefs.some((entry) => {
+        const item = asRecord(entry);
+        return (
+          item === undefined ||
+          typeof item['channelId'] !== 'string' ||
+          typeof item['label'] !== 'string' ||
+          typeof item['start'] !== 'number' ||
+          typeof item['end'] !== 'number'
+        );
+      }))
+  )
+    return undefined;
   const deliveries = record['deliveries'];
   if (
     deliveries !== undefined &&
@@ -540,6 +609,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(mentions === undefined
       ? {}
       : { mentions: mentions as NonNullable<ChannelMessage['mentions']> }),
+    ...(channelRefs === undefined
+      ? {}
+      : { channelRefs: channelRefs as NonNullable<ChannelMessage['channelRefs']> }),
     ...(deliveries === undefined
       ? {}
       : { deliveries: deliveries as NonNullable<ChannelMessage['deliveries']> }),
@@ -762,6 +834,20 @@ export async function cancelGroupInvitation(
   return channel;
 }
 
+export async function decideGroupJoin(
+  call: BridgeCall,
+  channelId: string,
+  requestId: string,
+  accept: boolean,
+): Promise<ChannelSummary> {
+  const value = asRecord(
+    await unwrap(call, 'channelGroupJoinDecide', { channelId, requestId, accept }),
+  );
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupJoinDecide response');
+  return channel;
+}
+
 export async function removeGroupMember(
   call: BridgeCall,
   channelId: string,
@@ -770,6 +856,24 @@ export async function removeGroupMember(
   const value = asRecord(await unwrap(call, 'channelGroupMemberRemove', { channelId, botSlug }));
   const channel = parseChannelRecord(value?.['channel']);
   if (channel === undefined) throw new Error('invalid channelGroupMemberRemove response');
+  return channel;
+}
+
+export async function setGroupWakePolicy(
+  call: BridgeCall,
+  channelId: string,
+  botSlug: string,
+  policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+): Promise<ChannelSummary> {
+  const value = asRecord(
+    await unwrap(call, 'channelGroupWakeSet', {
+      channelId,
+      botSlug,
+      ...policy,
+    }),
+  );
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupWakeSet response');
   return channel;
 }
 
@@ -874,6 +978,7 @@ export async function sendChannelMessage(
   signal?: AbortSignal,
   memorySwitchTarget?: string,
   mentions?: ChannelMessage['mentions'],
+  channelRefs?: ChannelMessage['channelRefs'],
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -886,6 +991,7 @@ export async function sendChannelMessage(
       ...(messageId === undefined ? {} : { messageId }),
       ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       ...(mentions === undefined ? {} : { mentions }),
+      ...(channelRefs === undefined ? {} : { channelRefs }),
     },
     signal,
   );
