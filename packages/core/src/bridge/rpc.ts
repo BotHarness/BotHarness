@@ -298,8 +298,11 @@ export class BotharnessBridgeService extends TypertRemoteService {
     channelId?: string,
     limit?: number,
     cursor?: string,
+    sort?: 'newest' | 'oldest',
   ): HumanAttentionPage {
-    return unwrap(this.methods.humanAttention({ category, botSlug, channelId, limit, cursor }));
+    return unwrap(
+      this.methods.humanAttention({ category, botSlug, channelId, limit, cursor, sort }),
+    );
   }
   assignments(slug: string): { assignments: AssignmentSummary[] } {
     return unwrap(this.methods.assignments({ slug }));

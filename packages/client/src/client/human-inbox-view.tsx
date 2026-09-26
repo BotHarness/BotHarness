@@ -26,6 +26,16 @@ export function HumanInboxView({
 
   const botName = (slug: string): string =>
     state.bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
+  const bots = [...state.bots].sort((left, right) =>
+    left.displayName.localeCompare(right.displayName),
+  );
+  const channels = state.channels
+    .filter((channel) =>
+      inbox.category === 'action'
+        ? channel.type === 'group'
+        : channel.type === 'dm' && channel.botSlug !== undefined,
+    )
+    .sort((left, right) => left.name.localeCompare(right.name));
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
     if (item.kind === 'group-join-request') {
@@ -87,6 +97,64 @@ export function HumanInboxView({
               {t(category === 'action' ? 'humanInbox.action' : 'humanInbox.info')}
             </button>
           ))}
+        </div>
+        <div className="bh-human-inbox-filters">
+          <label>
+            <span>{t('humanInbox.filter.bot')}</span>
+            <select
+              value={inbox.botSlug ?? ''}
+              onChange={(event) =>
+                void actions.setHumanInboxFilters({
+                  botSlug: event.target.value || undefined,
+                  channelId: inbox.channelId,
+                  sort: inbox.sort,
+                })
+              }
+            >
+              <option value="">{t('humanInbox.filter.allBots')}</option>
+              {bots.map((bot) => (
+                <option key={bot.slug} value={bot.slug}>
+                  {bot.displayName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('humanInbox.filter.channel')}</span>
+            <select
+              value={inbox.channelId ?? ''}
+              onChange={(event) =>
+                void actions.setHumanInboxFilters({
+                  botSlug: inbox.botSlug,
+                  channelId: event.target.value || undefined,
+                  sort: inbox.sort,
+                })
+              }
+            >
+              <option value="">{t('humanInbox.filter.allChannels')}</option>
+              {channels.map((channel) => (
+                <option key={channel.id} value={channel.id}>
+                  {channel.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            <span>{t('humanInbox.filter.sort')}</span>
+            <select
+              value={inbox.sort}
+              onChange={(event) =>
+                void actions.setHumanInboxFilters({
+                  botSlug: inbox.botSlug,
+                  channelId: inbox.channelId,
+                  sort: event.target.value === 'oldest' ? 'oldest' : 'newest',
+                })
+              }
+            >
+              <option value="newest">{t('humanInbox.filter.newest')}</option>
+              <option value="oldest">{t('humanInbox.filter.oldest')}</option>
+            </select>
+          </label>
         </div>
         {actionError === undefined ? null : <p role="alert">{actionError}</p>}
         {inbox.error === undefined ? null : <p role="alert">{inbox.error}</p>}

@@ -187,7 +187,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 当前 Bot-scoped botAttention Bridge 查询直接从 Inbox Admission、Source Event 与 Channel placement 投影有界页，按 Source Event 时间与 ID 排序，返回状态、发送者、摘要和可用的来源消息引用；它不另建收件内容。Human–PersonaBot DM 的 Channel sidebar 在有事实时显示 Bot Inbox entry，按来源 Channel 分组，待处理项展开，已处理历史折叠；点击仍可访问的来源时复用 Channel timeline 的 around 定位。Group Channel 不显示该 entry。已处理只表示回合处理完成，不代表 Bot 发言；Human 查看侧栏不改变 Bot 的观察事实（ADR-0070、#47、#152）。
 
-Human Inbox 的首个可运行切片在 Bot mode 左侧栏的 Messages 上方提供独立入口，默认显示待 Human 处理的群聊加入申请，可切换到新 Bot→Human DM 消息。Host 从 Channel record 中的待处理申请、Source Event/Channel placement 以及 Human 的 Channel read position 投影列表，不另存 Inbox 内容；批准或拒绝沿用 Group 决策事务，已了解沿用 Channel 已读位置。查询按时间与稳定 ID 分页，并把游标绑定到分类与 Bot/Channel 过滤条件。失败、提问、工具审批和 Grant 请求暂不落入普通资讯项，后续以各自的 action-required 规则扩展（ADR-0071、#126）。
+Human Inbox 的首个可运行切片在 Bot mode 左侧栏的 Messages 上方提供独立入口，默认显示待 Human 处理的群聊加入申请，可切换到新 Bot→Human DM 消息。Host 从 Channel record 中的待处理申请、Source Event/Channel placement 以及 Human 的 Channel read position 投影列表，不另存 Inbox 内容；批准或拒绝沿用 Group 决策事务，已了解沿用 Channel 已读位置。查询按时间与稳定 ID 分页，并把游标绑定到分类、Bot/Channel 过滤条件与排序方向；Client 在切换范围时丢弃旧响应。失败、提问、工具审批和 Grant 请求暂不落入普通资讯项，后续以各自的 action-required 规则扩展（ADR-0071、#126）。
 
 Bot-to-Bot DM 是两个 PersonaBot 参与的真实 `dm` Channel。Bot A 通过可信 Session ownership 以自己的 Actor 身份向 B 发送消息；Messaging 在同一权威中提交 Source Event、Channel placement 与 B 的 Inbox Admission，Bot-hop guard 限制循环，A 不接收自己的输出。Human 可以只读打开此类默认不在 roster 显示的 Channel，但不会成为第三位成员。A 每次向非 Human DM Channel 发出已提交消息时，其 Human–A DM 都会出现居中的动作 chip，指向这次发信与可查看的对话，而不复制正文。
 

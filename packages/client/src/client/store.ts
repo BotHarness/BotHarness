@@ -206,6 +206,13 @@ export interface AssignmentDetail extends AssignmentSummary {
 }
 
 export type HumanInboxCategory = 'action' | 'info';
+export type HumanInboxSort = 'newest' | 'oldest';
+
+export interface HumanInboxFilters {
+  botSlug: string | undefined;
+  channelId: string | undefined;
+  sort: HumanInboxSort;
+}
 
 export interface HumanAttentionItem {
   id: string;
@@ -228,6 +235,9 @@ export interface HumanAttentionPage {
 export interface HumanInboxState {
   status: ClientStatus;
   category: HumanInboxCategory;
+  botSlug: string | undefined;
+  channelId: string | undefined;
+  sort: HumanInboxSort;
   items: readonly HumanAttentionItem[];
   nextCursor: string | undefined;
   error: string | undefined;
@@ -391,7 +401,16 @@ function initialBotInbox(): BotInboxState {
 }
 
 function initialHumanInbox(): HumanInboxState {
-  return { status: 'idle', category: 'action', items: [], nextCursor: undefined, error: undefined };
+  return {
+    status: 'idle',
+    category: 'action',
+    botSlug: undefined,
+    channelId: undefined,
+    sort: 'newest',
+    items: [],
+    nextCursor: undefined,
+    error: undefined,
+  };
 }
 
 function initialRoster(): RosterState {

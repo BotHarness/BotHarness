@@ -9,6 +9,7 @@ import type {
   HumanAttentionItem,
   HumanAttentionPage,
   HumanInboxCategory,
+  HumanInboxFilters,
   AssignmentReport,
   AssignmentReportState,
   AssignmentSummary,
@@ -1300,8 +1301,18 @@ export async function loadHumanAttention(
   category: HumanInboxCategory,
   limit = 50,
   cursor?: string,
+  filters: HumanInboxFilters = { botSlug: undefined, channelId: undefined, sort: 'newest' },
 ): Promise<HumanAttentionPage> {
-  return parseHumanAttentionPage(await unwrap(call, 'humanAttention', { category, limit, cursor }));
+  return parseHumanAttentionPage(
+    await unwrap(call, 'humanAttention', {
+      category,
+      limit,
+      cursor,
+      botSlug: filters.botSlug,
+      channelId: filters.channelId,
+      sort: filters.sort,
+    }),
+  );
 }
 export async function loadAssignments(
   call: BridgeCall,

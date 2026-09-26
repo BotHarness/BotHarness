@@ -1087,12 +1087,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     humanAttention(payload) {
       const source = asObject(payload);
       const category = source['category'];
+      const sort = source['sort'];
       const botSlug = source['botSlug'];
       const channelId = source['channelId'];
       const limit = source['limit'];
       const cursor = source['cursor'];
       if (category !== undefined && category !== 'action' && category !== 'info')
         return invalidInput('category must be action or info');
+      if (sort !== undefined && sort !== 'newest' && sort !== 'oldest')
+        return invalidInput('sort must be newest or oldest');
       if (botSlug !== undefined && (typeof botSlug !== 'string' || !isValidSlug(botSlug)))
         return invalidInput('invalid Bot filter');
       if (
@@ -1115,6 +1118,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ok: true,
           value: deps.humanAttention?.list({
             ...(category === undefined ? {} : { category: category as HumanAttentionCategory }),
+            ...(sort === undefined ? {} : { sort: sort as 'newest' | 'oldest' }),
             ...(botSlug === undefined ? {} : { botSlug: botSlug as string }),
             ...(channelId === undefined ? {} : { channelId: channelId as string }),
             ...(limit === undefined ? {} : { limit: limit as number }),

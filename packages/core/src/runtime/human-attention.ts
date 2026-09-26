@@ -1,6 +1,7 @@
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
 export type HumanAttentionCategory = 'action' | 'info';
+export type HumanAttentionSort = 'newest' | 'oldest';
 
 export interface HumanAttentionItem {
   id: string;
@@ -23,6 +24,7 @@ export interface HumanAttentionPage {
 export interface HumanAttentionQuery {
   list(input: {
     category?: HumanAttentionCategory;
+    sort?: HumanAttentionSort;
     botSlug?: string;
     channelId?: string;
     cursor?: string;
@@ -83,7 +85,16 @@ export function createHumanAttentionQuery(
       if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
         throw new Error('Human attention limit must be 1-100');
       const category = input.category ?? 'action';
-      const filters = JSON.stringify([category, input.botSlug ?? null, input.channelId ?? null]);
+      const sort = input.sort ?? 'newest';
+      if (sort !== 'newest' && sort !== 'oldest') throw new Error('Invalid Human attention sort');
+      const direction = sort === 'newest' ? 'DESC' : 'ASC';
+      const cursorComparison = sort === 'newest' ? '<' : '>';
+      const filters = JSON.stringify([
+        category,
+        input.botSlug ?? null,
+        input.channelId ?? null,
+        sort,
+      ]);
       const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor, filters);
       const rows = database.read(
         (db) =>
@@ -127,9 +138,9 @@ export function createHumanAttentionQuery(
          WHERE category = ?
            AND (? IS NULL OR bot_slug = ?)
            AND (? IS NULL OR channel_id = ?)
-           AND (? IS NULL OR created_at < ? OR
-                (created_at = ? AND id < ?))
-         ORDER BY created_at DESC, id DESC
+           AND (? IS NULL OR created_at ${cursorComparison} ? OR
+                (created_at = ? AND id ${cursorComparison} ?))
+         ORDER BY created_at ${direction}, id ${direction}
          LIMIT ?
       `)
             .all(

@@ -112,6 +112,26 @@ describe('Human attention projection', () => {
       expect(
         core.humanAttention.list({ category: 'info', channelId: 'group-other' }).items,
       ).toEqual([]);
+      const oldest = core.humanAttention.list({ category: 'info', sort: 'oldest', limit: 1 });
+      expect(oldest.items[0]?.messageId).toBe('report-0');
+      expect(oldest.nextCursor).toBeDefined();
+      expect(
+        core.humanAttention.list({
+          category: 'info',
+          sort: 'oldest',
+          limit: 1,
+          cursor: oldest.nextCursor!,
+        }).items[0]?.messageId,
+      ).toBe('report-1');
+      expect(() =>
+        core.humanAttention.list({ category: 'info', cursor: oldest.nextCursor! }),
+      ).toThrow('Human attention cursor is invalid for these filters');
+      expect(
+        core.humanAttention.list({ category: 'info', botSlug: 'ada', channelId: dm.id }).items,
+      ).toHaveLength(3);
+      expect(
+        core.humanAttention.list({ category: 'info', botSlug: 'bea', channelId: dm.id }).items,
+      ).toEqual([]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

@@ -3277,6 +3277,35 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   border-bottom-color: var(--bh-accent);
   color: var(--dsw-alias-label-primary);
 }
+.bh-human-inbox-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0 0 16px;
+}
+.bh-human-inbox-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 145px;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-human-inbox-filters select {
+  min-height: 34px;
+  max-width: 220px;
+  padding: 5px 28px 5px 10px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  font: inherit;
+}
+.bh-human-inbox-filters select:focus-visible {
+  outline: 2px solid var(--bh-accent);
+  outline-offset: 2px;
+}
 .bh-human-inbox-row {
   display: flex;
   align-items: flex-start;
