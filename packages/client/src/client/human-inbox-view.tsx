@@ -222,7 +222,11 @@ export function HumanInboxView({
                 {item.kind === 'bot-message-needs-repair' &&
                 (!item.channelName || !item.messageId) ? (
                   <div className="bh-human-inbox-row-summary">
-                    {t('humanInbox.sourceUnavailable')}
+                    {t(
+                      item.channelId && item.channelName
+                        ? 'humanInbox.messageUnavailable'
+                        : 'humanInbox.sourceUnavailable',
+                    )}
                   </div>
                 ) : null}
               </div>

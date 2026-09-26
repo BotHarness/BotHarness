@@ -232,5 +232,16 @@ describe('Human Inbox center view', () => {
     });
     markup = renderToStaticMarkup(createElement(HumanInboxView, { actions: {} as BridgeActions }));
     expect(markup).toContain('来源频道已不可用');
+
+    const missingMessage = { ...store.getSnapshot().humanInbox.items[0]!, channelName: 'Team' };
+    delete missingMessage.messageId;
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [missingMessage],
+    });
+    markup = renderToStaticMarkup(createElement(HumanInboxView, { actions: {} as BridgeActions }));
+    expect(markup).toContain('来源消息已不可用');
+    expect(markup).not.toContain('来源频道已不可用');
   });
 });
