@@ -114,6 +114,7 @@ export interface MemoryAcceptance {
     sourceEventId: string;
   }): MemoryAcceptedCommit[];
   abortTurn(botSlug: string, sessionId: string): void;
+  takeTurnAnnotation(input: { botSlug: string; sessionId: string }): string | undefined;
   snapshot(botSlug: string): MemoryAcceptedSnapshot;
   readAccepted(
     botSlug: string,
@@ -250,6 +251,94 @@ function dirty(root: string): boolean {
   return run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).length > 0;
 }
 
+interface TurnWorktreeObservation {
+  sessionId: string;
+  branch: string;
+  head: string;
+  porcelain: string[];
+}
+
+const MAX_ANNOTATION_PATHS = 30;
+const MAX_ANNOTATION_BYTES = 4096;
+const MAX_FULL_DIFF_BYTES = 2048;
+
+function porcelainPaths(root: string): string[] {
+  const raw = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString('utf8');
+  if (raw.length === 0) return [];
+  const paths: string[] = [];
+  for (const entry of raw.split('\0')) {
+    if (entry.length < 4) continue;
+    const rest = entry.slice(3);
+    const arrow = rest.indexOf(' -> ');
+    paths.push(arrow < 0 ? rest : rest.slice(arrow + 4));
+  }
+  return paths;
+}
+
+function observeWorktree(root: string): { branch: string; head: string; porcelain: string[] } {
+  return { branch: branchOf(root), head: head(root), porcelain: porcelainPaths(root) };
+}
+
+function capLines(text: string, limit: number): string {
+  const lines = text.split('\n');
+  if (lines.length <= limit) return text;
+  return [...lines.slice(0, limit), `…(+${lines.length - limit} more)`].join('\n');
+}
+
+function safeGit(root: string, args: string[]): string {
+  try {
+    return output(root, args);
+  } catch {
+    return '';
+  }
+}
+
+function buildTurnAnnotation(
+  root: string,
+  previous: TurnWorktreeObservation,
+  current: { branch: string; head: string; porcelain: string[] },
+): string | undefined {
+  const details: string[] = [];
+  if (current.branch !== previous.branch) {
+    details.push(`Memory branch is now '${current.branch}' (was '${previous.branch}').`);
+  }
+  const committedNames: string[] = [];
+  if (current.head !== previous.head) {
+    const stat = safeGit(root, ['diff', '--stat', previous.head, current.head]);
+    for (const name of safeGit(root, ['diff', '--name-only', '-z', previous.head, current.head]).split(
+      '\0',
+    )) {
+      if (name.length > 0) committedNames.push(name);
+    }
+    details.push('Committed Memory changes since your last turn:');
+    details.push(stat.length > 0 ? capLines(stat, MAX_ANNOTATION_PATHS) : '(no file summary available)');
+  }
+  const added = current.porcelain.filter((path) => !previous.porcelain.includes(path));
+  const reverted = previous.porcelain.filter((path) => !current.porcelain.includes(path));
+  if (added.length > 0) {
+    const shown = added.slice(0, MAX_ANNOTATION_PATHS);
+    details.push(
+      `Uncommitted Memory changes since your last turn: ${shown.join(', ')}${added.length > shown.length ? ` (+${added.length - shown.length} more)` : ''}`,
+    );
+    const unstaged = safeGit(root, ['diff', '--stat']);
+    if (unstaged.length > 0) details.push(capLines(unstaged, MAX_ANNOTATION_PATHS));
+    if (added.length <= 10 && current.head === previous.head) {
+      const full = safeGit(root, ['diff', 'HEAD', '--', ...added]);
+      if (full.length > 0 && full.length <= MAX_FULL_DIFF_BYTES) details.push(`Full worktree diff:\n${full}`);
+    }
+  } else if (reverted.length > 0 && current.head === previous.head) {
+    details.push(`Memory worktree no longer differs: ${reverted.slice(0, MAX_ANNOTATION_PATHS).join(', ')} reverted to HEAD.`);
+  }
+  if (details.length === 0) return undefined;
+  if (committedNames.includes('PERSONA.md') || added.includes('PERSONA.md')) {
+    details.push(
+      'PERSONA.md changed on disk; your frozen session copy still applies — the file version reaches new Sessions.',
+    );
+  }
+  const text = `Memory changed since your last turn:\n${details.join('\n')}`;
+  return text.length <= MAX_ANNOTATION_BYTES ? text : `${text.slice(0, MAX_ANNOTATION_BYTES)}\n…(truncated)`;
+}
+
 function validateCommit(root: string, sha: string): string {
   const tree = output(root, ['rev-parse', '--verify', `${sha}^{tree}`]);
   return JSON.stringify({ gitTree: tree });
@@ -318,6 +407,23 @@ export function createMemoryAcceptance(options: {
     string,
     { sessionId: string; branch: string; preservePending?: boolean }
   >();
+  // Last worktree state observed at a turn boundary (reconcile/abort end).
+  // Everything the agent wrote during its own turn is in history by then, so
+  // the next prepare only reports out-of-band changes. In-memory only: after a
+  // Host restart the first prepare re-baselines silently.
+  const observed = new Map<string, TurnWorktreeObservation>();
+  // Take-once annotation staged by prepareTurn for the current turn message.
+  const pendingAnnotation = new Map<string, { sessionId: string; text: string }>();
+
+  const refreshObservation = (botSlug: string, sessionId: string): boolean => {
+    try {
+      observed.set(botSlug, { ...observeWorktree(repository(registry, botSlug)), sessionId });
+      return true;
+    } catch {
+      // A broken repository keeps the previous baseline; the turn error path reports it.
+      return false;
+    }
+  };
 
   const pendingRepair = (botSlug: string): RepairRow | undefined =>
     database.read(
@@ -494,6 +600,14 @@ export function createMemoryAcceptance(options: {
     }
     void options;
     inFlight.set(botSlug, { sessionId, branch: branchOf(root) });
+    const current = observeWorktree(root);
+    const previous = observed.get(botSlug);
+    if (previous === undefined) {
+      observed.set(botSlug, { ...current, sessionId });
+    } else {
+      const text = buildTurnAnnotation(root, previous, current);
+      if (text !== undefined) pendingAnnotation.set(botSlug, { sessionId, text });
+    }
   };
 
   const reconcileTurn = (input: {
@@ -560,6 +674,7 @@ export function createMemoryAcceptance(options: {
             ],
             checkpoint,
           );
+    refreshObservation(input.botSlug, input.sessionId);
     inFlight.delete(input.botSlug);
     return result;
   };
@@ -647,7 +762,17 @@ export function createMemoryAcceptance(options: {
     prepareTurn,
     reconcileTurn,
     abortTurn(botSlug, sessionId) {
-      if (inFlight.get(botSlug)?.sessionId === sessionId) inFlight.delete(botSlug);
+      if (inFlight.get(botSlug)?.sessionId !== sessionId) return;
+      inFlight.delete(botSlug);
+      // The failed turn's tool calls stay in history, so they need no annotation.
+      refreshObservation(botSlug, sessionId);
+    },
+    takeTurnAnnotation(input: { botSlug: string; sessionId: string }): string | undefined {
+      if (inFlight.get(input.botSlug)?.sessionId !== input.sessionId) return undefined;
+      const pending = pendingAnnotation.get(input.botSlug);
+      if (pending === undefined || pending.sessionId !== input.sessionId) return undefined;
+      pendingAnnotation.delete(input.botSlug);
+      return pending.text;
     },
     snapshot(botSlug) {
       const { root, repairing } = readRepository(botSlug);

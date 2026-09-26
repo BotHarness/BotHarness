@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { attachOperationalModule } from '../src/database/owner.js';
@@ -115,6 +117,51 @@ describe('Human DM selected contact context', () => {
           }>,
       );
       expect(admissions).toEqual([{ bot_slug: 'ada' }, { bot_slug: 'ada' }, { bot_slug: 'ada' }]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('appends out-of-band Memory edits to the next turn message only', async () => {
+    const runs: OrchestratorAgentRun[] = [];
+    const agents: BotAgentAdapter = {
+      async runOrchestrator(run) {
+        runs.push(run);
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    const core = createCore({
+      dshHome: createTempRoot('botharness-annotation-'),
+      agents,
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      const memoryDir = core.registry.memoryDirFor('ada');
+      if (memoryDir === undefined) throw new Error('Memory dir missing');
+      const send = async (id: string, body: string) => {
+        await core.channels.appendMessage(dm.id, {
+          id,
+          at: '2026-09-26T00:00:00.000Z',
+          author: { kind: 'human' },
+          body,
+        });
+        core.runtime.admitDmMessage({ channelId: dm.id, messageId: id, body });
+        await core.runtime.whenIdle();
+      };
+      await send('m1', 'hello');
+      expect(runs).toHaveLength(1);
+      expect(runs[0]!.message).not.toContain('Memory changed since your last turn');
+      writeFileSync(join(memoryDir, 'human-note.md'), 'Human wrote this\n');
+      await send('m2', 'anything new?');
+      expect(runs).toHaveLength(2);
+      expect(runs[1]!.message).toContain('Memory changed since your last turn');
+      expect(runs[1]!.message).toContain('human-note.md');
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
