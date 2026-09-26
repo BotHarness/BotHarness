@@ -200,9 +200,37 @@ export interface AssignmentDetail extends AssignmentSummary {
   sourceEventId: string;
 }
 
+export type HumanInboxCategory = 'action' | 'info';
+
+export interface HumanAttentionItem {
+  id: string;
+  category: HumanInboxCategory;
+  kind: 'group-join-request' | 'bot-dm-message';
+  createdAt: string;
+  channelId: string;
+  channelName: string;
+  botSlug: string;
+  summary: string;
+  requestId?: string;
+  messageId?: string;
+}
+
+export interface HumanAttentionPage {
+  items: HumanAttentionItem[];
+  nextCursor?: string;
+}
+
+export interface HumanInboxState {
+  status: ClientStatus;
+  category: HumanInboxCategory;
+  items: readonly HumanAttentionItem[];
+  nextCursor: string | undefined;
+  error: string | undefined;
+}
 export type ConversationSelection =
   | { kind: 'bot'; slug: string }
-  | { kind: 'channel'; channelId: string };
+  | { kind: 'channel'; channelId: string }
+  | { kind: 'inbox' };
 
 export interface ConversationTimeline {
   olderCursor: string | null;
@@ -312,6 +340,7 @@ export interface ClientState {
   conversation: ConversationState;
   assignments: AssignmentsState;
   botInbox: BotInboxState;
+  humanInbox: HumanInboxState;
 }
 
 export interface ClientStore {
@@ -329,6 +358,7 @@ export interface ClientStore {
   setConversation(patch: Partial<ConversationState>): void;
   setAssignments(patch: Partial<AssignmentsState>): void;
   setBotInbox(patch: Partial<BotInboxState>): void;
+  setHumanInbox(patch: Partial<HumanInboxState>): void;
 }
 
 function initialConversation(): ConversationState {
@@ -355,6 +385,10 @@ function initialBotInbox(): BotInboxState {
   return { status: 'idle', items: [], nextCursor: undefined, error: undefined };
 }
 
+function initialHumanInbox(): HumanInboxState {
+  return { status: 'idle', category: 'action', items: [], nextCursor: undefined, error: undefined };
+}
+
 function initialRoster(): RosterState {
   return {
     pins: [],
@@ -371,6 +405,7 @@ function sameSelection(
 ): boolean {
   if (left === right) return true;
   if (left === undefined || right === undefined) return false;
+  if (left.kind === 'inbox' && right.kind === 'inbox') return true;
   if (left.kind === 'bot' && right.kind === 'bot') return left.slug === right.slug;
   if (left.kind === 'channel' && right.kind === 'channel')
     return left.channelId === right.channelId;
@@ -391,6 +426,7 @@ export function createStore(): ClientStore {
     conversation: initialConversation(),
     assignments: initialAssignments(),
     botInbox: initialBotInbox(),
+    humanInbox: initialHumanInbox(),
   };
   const listeners = new Set<() => void>();
 
@@ -441,6 +477,7 @@ export function createStore(): ClientStore {
         conversation: initialConversation(),
         assignments: initialAssignments(),
         botInbox: initialBotInbox(),
+        humanInbox: initialHumanInbox(),
       });
     },
     setConversation(patch) {
@@ -451,6 +488,9 @@ export function createStore(): ClientStore {
     },
     setBotInbox(patch) {
       update({ botInbox: { ...state.botInbox, ...patch } });
+    },
+    setHumanInbox(patch) {
+      update({ humanInbox: { ...state.humanInbox, ...patch } });
     },
   };
 }

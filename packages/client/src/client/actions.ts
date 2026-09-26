@@ -30,6 +30,7 @@ import {
   type WorkspaceGrantView,
   loadAssignments,
   loadBotAttention,
+  loadHumanAttention,
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
@@ -81,6 +82,7 @@ import type {
   ChannelSummary,
   ClientStore,
   ConversationSelection,
+  HumanInboxCategory,
   UserQuestionAnswerItem,
 } from './store.js';
 
@@ -101,6 +103,9 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
+  openHumanInbox(): Promise<void>;
+  refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  loadMoreHumanInbox(): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
@@ -442,6 +447,47 @@ export function createActions(
     }
   };
 
+  let humanInboxHeadSeq = 0;
+  let humanInboxPageSeq = 0;
+  let humanInboxCategoryVersion = 0;
+  const loadHumanInboxFor = async (
+    category: HumanInboxCategory,
+    selection: ConversationSelection,
+    cursor?: string,
+  ): Promise<void> => {
+    const head = cursor === undefined;
+    const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
+    const categoryVersion = humanInboxCategoryVersion;
+    const isCurrent = (): boolean =>
+      currentSelection() === selection &&
+      categoryVersion === humanInboxCategoryVersion &&
+      requestSeq === (head ? humanInboxHeadSeq : humanInboxPageSeq);
+    if (cursor === undefined && clientStore.getSnapshot().humanInbox.status === 'idle')
+      clientStore.setHumanInbox({ status: 'loading', error: undefined });
+    try {
+      const page = await loadHumanAttention(call, category, 50, cursor);
+      if (!isCurrent()) return;
+      const priorState = clientStore.getSnapshot().humanInbox;
+      if (priorState.category !== category) return;
+      const prior = priorState.items;
+      const preserveOlder = head && prior.length > 50 && page.nextCursor !== undefined;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const items = head
+        ? preserveOlder
+          ? [...page.items, ...prior.filter((item) => !refreshedIds.has(item.id))]
+          : page.items
+        : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      clientStore.setHumanInbox({
+        status: 'ready',
+        items,
+        nextCursor: preserveOlder ? priorState.nextCursor : page.nextCursor,
+        error: undefined,
+      });
+    } catch (error) {
+      if (!isCurrent() || clientStore.getSnapshot().humanInbox.category !== category) return;
+      clientStore.setHumanInbox({ status: 'error', error: errorMessage(error) });
+    }
+  };
   const loadOpeningTimeline = async (channelId: string) => {
     const anchor = await loadReadPosition(call, channelId);
     if (anchor !== undefined) {
@@ -626,6 +672,35 @@ export function createActions(
       if (selection?.kind !== 'bot' || selection.slug !== slug || cursor === undefined)
         return Promise.resolve();
       return loadBotInboxFor(slug, selection, cursor);
+    },
+    openHumanInbox() {
+      clientStore.select({ kind: 'inbox' });
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
+    },
+    refreshHumanInbox(category) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      const prior = clientStore.getSnapshot().humanInbox;
+      const nextCategory = category ?? prior.category;
+      if (nextCategory !== prior.category) {
+        humanInboxCategoryVersion += 1;
+        clientStore.setHumanInbox({
+          category: nextCategory,
+          status: 'loading',
+          items: [],
+          nextCursor: undefined,
+          error: undefined,
+        });
+      }
+      return loadHumanInboxFor(nextCategory, selection);
+    },
+    loadMoreHumanInbox() {
+      const selection = currentSelection();
+      const state = clientStore.getSnapshot().humanInbox;
+      if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
+      return loadHumanInboxFor(state.category, selection, state.nextCursor);
     },
     openChannel(channelId) {
       return openChannelById(channelId);

@@ -1,0 +1,179 @@
+import type { OperationalDatabaseModulePort } from '../database/owner.js';
+
+export type HumanAttentionCategory = 'action' | 'info';
+
+export interface HumanAttentionItem {
+  id: string;
+  category: HumanAttentionCategory;
+  kind: 'group-join-request' | 'bot-dm-message';
+  createdAt: string;
+  channelId: string;
+  channelName: string;
+  botSlug: string;
+  summary: string;
+  requestId?: string;
+  messageId?: string;
+}
+
+export interface HumanAttentionPage {
+  items: HumanAttentionItem[];
+  nextCursor?: string;
+}
+
+export interface HumanAttentionQuery {
+  list(input: {
+    category?: HumanAttentionCategory;
+    botSlug?: string;
+    channelId?: string;
+    cursor?: string;
+    limit?: number;
+  }): HumanAttentionPage;
+}
+
+interface AttentionRow {
+  id: string;
+  category: HumanAttentionCategory;
+  kind: HumanAttentionItem['kind'];
+  created_at: string;
+  channel_id: string;
+  channel_name: string;
+  bot_slug: string;
+  summary: string;
+  request_id: string | null;
+  message_id: string | null;
+}
+
+interface Cursor {
+  version: 1;
+  filters: string;
+  createdAt: string;
+  id: string;
+}
+
+function decodeCursor(value: string, filters: string): Cursor {
+  try {
+    if (value.length > 1024) throw new Error('oversized');
+    const parsed: unknown = JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      !('version' in parsed) ||
+      parsed.version !== 1 ||
+      !('filters' in parsed) ||
+      parsed.filters !== filters ||
+      !('createdAt' in parsed) ||
+      typeof parsed.createdAt !== 'string' ||
+      !('id' in parsed) ||
+      typeof parsed.id !== 'string'
+    )
+      throw new Error('invalid');
+    return parsed as Cursor;
+  } catch {
+    throw new Error('Human attention cursor is invalid for these filters');
+  }
+}
+
+/** Projects Human attention from canonical Channel requests, messages, and read positions. */
+export function createHumanAttentionQuery(
+  database: OperationalDatabaseModulePort,
+): HumanAttentionQuery {
+  return {
+    list(input) {
+      const limit = input.limit ?? 30;
+      if (!Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+        throw new Error('Human attention limit must be 1-100');
+      const category = input.category ?? 'action';
+      const filters = JSON.stringify([category, input.botSlug ?? null, input.channelId ?? null]);
+      const cursor = input.cursor === undefined ? undefined : decodeCursor(input.cursor, filters);
+      const rows = database.read(
+        (db) =>
+          db
+            .prepare(`
+        WITH attention AS (
+          SELECT 'join:' || json_extract(j.value, '$.id') AS id,
+                 'action' AS category, 'group-join-request' AS kind,
+                 json_extract(j.value, '$.createdAt') AS created_at,
+                 c.channel_id, json_extract(c.record_json, '$.name') AS channel_name,
+                 json_extract(j.value, '$.requesterBotSlug') AS bot_slug,
+                 '' AS summary, json_extract(j.value, '$.id') AS request_id,
+                 NULL AS message_id
+            FROM channel_records c, json_each(c.record_json, '$.joinRequests') j
+           WHERE json_extract(c.record_json, '$.type') = 'group'
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND json_extract(j.value, '$.status') = 'pending'
+          UNION ALL
+          SELECT 'message:' || e.source_event_id AS id,
+                 'info' AS category, 'bot-dm-message' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+            LEFT JOIN channel_read_positions r ON r.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') IS NOT NULL
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.author.kind') = 'bot'
+             AND json_extract(e.payload_json, '$.sessionFailure') IS NULL
+             AND json_extract(e.payload_json, '$.toolApprovalRequest') IS NULL
+             AND json_extract(e.payload_json, '$.userQuestionRequest') IS NULL
+             AND json_extract(e.payload_json, '$.grantRequest') IS NULL
+             AND length(trim(e.body)) > 0
+             AND p.revision > coalesce(r.revision, 0)
+        )
+        SELECT * FROM attention
+         WHERE category = ?
+           AND (? IS NULL OR bot_slug = ?)
+           AND (? IS NULL OR channel_id = ?)
+           AND (? IS NULL OR created_at < ? OR
+                (created_at = ? AND id < ?))
+         ORDER BY created_at DESC, id DESC
+         LIMIT ?
+      `)
+            .all(
+              category,
+              input.botSlug ?? null,
+              input.botSlug ?? null,
+              input.channelId ?? null,
+              input.channelId ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.createdAt ?? null,
+              cursor?.id ?? null,
+              limit + 1,
+            ) as unknown as AttentionRow[],
+      );
+      const page = rows.slice(0, limit);
+      const items = page.map((row): HumanAttentionItem => ({
+        id: row.id,
+        category: row.category,
+        kind: row.kind,
+        createdAt: row.created_at,
+        channelId: row.channel_id,
+        channelName: row.channel_name,
+        botSlug: row.bot_slug,
+        summary: row.summary,
+        ...(row.request_id === null ? {} : { requestId: row.request_id }),
+        ...(row.message_id === null ? {} : { messageId: row.message_id }),
+      }));
+      const last = page.at(-1);
+      return {
+        items,
+        ...(rows.length > limit && last !== undefined
+          ? {
+              nextCursor: Buffer.from(
+                JSON.stringify({
+                  version: 1,
+                  filters,
+                  createdAt: last.created_at,
+                  id: last.id,
+                } satisfies Cursor),
+              ).toString('base64url'),
+            }
+          : {}),
+      };
+    },
+  };
+}
