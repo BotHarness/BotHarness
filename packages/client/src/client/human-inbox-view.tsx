@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
+import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
@@ -38,17 +39,18 @@ export function HumanInboxView({
     .sort((left, right) => left.name.localeCompare(right.name));
 
   const openRepairBotInbox = async (item: HumanAttentionItem): Promise<void> => {
-    await actions.openBot(item.botSlug);
     const scopeKey = channelSidebarScopeKey('personabot', '', item.botSlug);
     channelSidebarPrefs.setSidebarCollapsed(scopeKey, false);
     channelSidebarPrefs.setEntryExpanded(scopeKey, 'bot-inbox', true);
+    await actions.openBot(item.botSlug);
   };
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
     if (item.kind === 'bot-message-needs-repair') {
-      if (item.channelName && item.channelId && item.messageId)
+      if (item.channelName && item.channelId && item.messageId) {
+        await actions.openChannel(item.channelId);
         await actions.openAround(item.channelId, item.messageId);
-      else await openRepairBotInbox(item);
+      } else await openRepairBotInbox(item);
     } else if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
       if (item.assignmentSessionId === undefined) return;
       await actions.openBot(item.botSlug);
