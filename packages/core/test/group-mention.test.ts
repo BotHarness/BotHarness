@@ -91,6 +91,71 @@ describe('Group mention tracer', () => {
     }
   });
 
+  it('shows processing only after a claimed admission enters an Orchestrator turn', async () => {
+    const home = createTempRoot('botharness-group-observation-');
+    let enteredTurn = (): void => undefined;
+    let releaseTurn = (): void => undefined;
+    const entered = new Promise<void>((resolve) => {
+      enteredTurn = resolve;
+    });
+    const released = new Promise<void>((resolve) => {
+      releaseTurn = resolve;
+    });
+    const agents: BotAgentAdapter = {
+      async runOrchestrator() {
+        enteredTurn();
+        await released;
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    const core = createCore({ dshHome: home, agents });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Observation', members: ['ada'] });
+      await core.channels.appendMessageOnce(group.id, {
+        id: 'observation-1',
+        at: '2026-09-25T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: '@Ada please look',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      expect(core.channels.message(group.id, 'observation-1')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'pending' },
+      ]);
+      const admissions = attachOperationalModule(core.operationalDatabase, 'observation-test');
+      admissions.transaction((db) =>
+        db
+          .prepare("UPDATE inbox_admissions SET attempt_state = 'running' WHERE bot_slug = 'ada'")
+          .run(),
+      );
+      expect(core.channels.message(group.id, 'observation-1')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'pending' },
+      ]);
+      admissions.transaction((db) =>
+        db
+          .prepare("UPDATE inbox_admissions SET attempt_state = 'pending' WHERE bot_slug = 'ada'")
+          .run(),
+      );
+      core.runtime.admitGroupMessage(group.id, 'observation-1');
+      await entered;
+      expect(core.channels.message(group.id, 'observation-1')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'running' },
+      ]);
+      releaseTurn();
+      await core.runtime.whenIdle();
+      expect(core.channels.message(group.id, 'observation-1')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'handled' },
+      ]);
+    } finally {
+      releaseTurn();
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
   it('steers a direct Group mention into an active Orchestrator at its next safe step', async () => {
     const home = createTempRoot('botharness-group-steer-');
     let markStarted = (): void => undefined;

@@ -25,6 +25,7 @@ import {
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
 import { isBotDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { HumanInboxView } from './human-inbox-view.js';
@@ -257,21 +258,7 @@ function MessageGroupView({
                   userQuestionResolution={userQuestionResolutions.get(message.id)}
                 />
               </div>
-              {message.deliveries === undefined ? null : (
-                <div className="bh-mention-deliveries" aria-label={t('message.delivery.label')}>
-                  {message.deliveries.map((delivery) => (
-                    <span
-                      key={delivery.botSlug}
-                      className={`bh-mention-delivery bh-mention-delivery-${delivery.state}`}
-                    >
-                      {bots.find((candidate) => candidate.slug === delivery.botSlug)?.displayName ??
-                        delivery.botSlug}
-                      {' · '}
-                      {t(`message.delivery.${delivery.state}`)}
-                    </span>
-                  ))}
-                </div>
-              )}
+              <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
               <button
                 type="button"
                 className="bh-bubble-quick-action"
