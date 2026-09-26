@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
+import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createBotAttentionQuery } from '../src/runtime/attention.js';
@@ -156,6 +157,96 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
 }
 
 describe('Assignment collaboration', () => {
+  it('projects a Bot Grant request as one Human action until a typed or legacy Human resolution', async () => {
+    const home = createTempRoot('botharness-grant-attention-');
+    const owner = trackTestOwner(
+      mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+    );
+    const channels = createSqliteChannelStore({
+      database: attachOperationalModule(owner, 'grant-messaging-test'),
+      databaseOwnerReady: owner.mode === 'ready',
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const dmChannelId = channels.getOrCreateDm('ada', 'Ada')!.id;
+    try {
+      const query = createHumanAttentionQuery(
+        attachOperationalModule(owner, 'human-grant-attention-test'),
+      );
+      await channels.appendMessage(dmChannelId, {
+        id: 'grant-request-1',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Please give me access to the project.',
+        grantRequest: true,
+      });
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        {
+          kind: 'workspace-grant-request',
+          botSlug: 'ada',
+          channelId: dmChannelId,
+          messageId: 'grant-request-1',
+          summary: 'Please give me access to the project.',
+        },
+      ]);
+      expect(query.list({ category: 'action', botSlug: 'other' }).items).toEqual([]);
+      await channels.appendMessage(dmChannelId, {
+        id: 'human-unrelated',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: 'I will review this.',
+        replyTo: 'grant-request-1',
+      });
+      expect(query.list({ category: 'action' }).items).toHaveLength(1);
+      await channels.appendMessage(dmChannelId, {
+        id: 'human-uppercase-unvalidated',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: 'I AUTHORIZED WORKSPACE “Project”; please continue.',
+        replyTo: 'grant-request-1',
+      });
+      expect(query.list({ category: 'action' }).items).toHaveLength(1);
+      await channels.appendMessage(dmChannelId, {
+        id: 'human-approved',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: 'Workspace authorized.',
+        replyTo: 'grant-request-1',
+        grantRequestResolution: { requestMessageId: 'grant-request-1', grantId: TEST_GRANT_ID },
+      });
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+
+      await channels.appendMessage(dmChannelId, {
+        id: 'grant-request-legacy',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Please give me another folder.',
+        grantRequest: true,
+      });
+      expect(query.list({ category: 'action' }).items).toHaveLength(1);
+      await channels.appendMessage(dmChannelId, {
+        id: 'human-approved-legacy',
+        at: FIXED_NOW().toISOString(),
+        author: { kind: 'human' },
+        body: '已授权工作区「Project」，请继续处理之前的事项。',
+        replyTo: 'grant-request-legacy',
+      });
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+    } finally {
+      owner.close();
+    }
+    const reopened = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    try {
+      const query = createHumanAttentionQuery(attachOperationalModule(reopened, 'grant-restart'));
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+    } finally {
+      reopened.close();
+    }
+  });
+
   it('starts parallel Assignments without blocking the Orchestrator turn', async () => {
     const { runtime, agents, admit, close } = await setup();
     await admit('请同时处理两件事', 'human-1');

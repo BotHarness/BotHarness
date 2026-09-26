@@ -54,6 +54,24 @@ export function committedMessageIds(messages: readonly ChannelMessage[]): Set<st
   );
 }
 
+/** A request card is resolved only by a committed Human reply. */
+export function resolvedGrantRequestIds(messages: readonly ChannelMessage[]): Set<string> {
+  const committed = committedMessageIds(messages);
+  return new Set(
+    messages
+      .filter(
+        (item) =>
+          committed.has(item.id) &&
+          item.author.kind === 'human' &&
+          item.replyTo !== undefined &&
+          (item.grantRequestResolution?.requestMessageId === item.replyTo ||
+            item.body.startsWith('已授权工作区「') ||
+            item.body.startsWith('I authorized workspace “')),
+      )
+      .map((item) => item.replyTo!),
+  );
+}
+
 function memberName(bots: readonly BotSummary[], slug: string): string {
   return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
 }
@@ -910,19 +928,7 @@ function ConversationView({
                       group={group}
                       actions={actions}
                       nativeChatT={nativeChatT}
-                      resolvedGrantRequests={
-                        new Set(
-                          displayMessages
-                            .filter(
-                              (item) =>
-                                item.author.kind === 'human' &&
-                                item.replyTo !== undefined &&
-                                (item.body.startsWith('已授权工作区「') ||
-                                  item.body.startsWith('I authorized workspace “')),
-                            )
-                            .map((item) => item.replyTo!),
-                        )
-                      }
+                      resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
                       toolApprovalDecisions={
                         new Map(
                           displayMessages

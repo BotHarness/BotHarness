@@ -359,6 +359,24 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   const grantRequest = record['grantRequest'];
   if (grantRequest !== undefined && (grantRequest !== true || author.kind !== 'bot'))
     return undefined;
+  let grantRequestResolution: ChannelMessage['grantRequestResolution'];
+  if (record['grantRequestResolution'] !== undefined) {
+    const resolution = asRecord(record['grantRequestResolution']);
+    if (
+      resolution === undefined ||
+      author.kind !== 'human' ||
+      typeof resolution['requestMessageId'] !== 'string' ||
+      typeof resolution['grantId'] !== 'string' ||
+      resolution['requestMessageId'].length === 0 ||
+      resolution['grantId'].length === 0 ||
+      record['replyTo'] !== resolution['requestMessageId']
+    )
+      return undefined;
+    grantRequestResolution = {
+      requestMessageId: resolution['requestMessageId'],
+      grantId: resolution['grantId'],
+    };
+  }
   let toolApprovalRequest: ChannelMessage['toolApprovalRequest'];
   if (record['toolApprovalRequest'] !== undefined) {
     const request = asRecord(record['toolApprovalRequest']);
@@ -621,6 +639,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       ? {}
       : { deliveries: deliveries as NonNullable<ChannelMessage['deliveries']> }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
+    ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
     ...(botDmAction === undefined ? {} : { botDmAction }),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
@@ -930,6 +949,7 @@ export async function sendChannelMessage(
   memorySwitchTarget?: string,
   mentions?: ChannelMessage['mentions'],
   channelRefs?: ChannelMessage['channelRefs'],
+  grantRequestResolution?: ChannelMessage['grantRequestResolution'],
 ): Promise<ChannelMessage> {
   const value = await unwrap(
     call,
@@ -943,6 +963,7 @@ export async function sendChannelMessage(
       ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       ...(mentions === undefined ? {} : { mentions }),
       ...(channelRefs === undefined ? {} : { channelRefs }),
+      ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
     },
     signal,
   );
@@ -1238,6 +1259,7 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'group-join-request' &&
       item['kind'] !== 'user-question' &&
       item['kind'] !== 'tool-approval' &&
+      item['kind'] !== 'workspace-grant-request' &&
       item['kind'] !== 'bot-dm-message' &&
       item['kind'] !== 'assignment-waiting-human' &&
       item['kind'] !== 'assignment-blocked' &&

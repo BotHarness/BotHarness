@@ -269,6 +269,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     memorySwitchTarget?: string,
     mentions?: ChannelMessage['mentions'],
     channelRefs?: ChannelMessage['channelRefs'],
+    grantRequestResolution?: ChannelMessage['grantRequestResolution'],
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
@@ -280,6 +281,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
         ...(mentions === undefined ? {} : { mentions }),
         ...(channelRefs === undefined ? {} : { channelRefs }),
+        ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
       }),
     );
   }

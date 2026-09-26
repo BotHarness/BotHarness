@@ -10,6 +10,7 @@ export interface HumanAttentionItem {
     | 'group-join-request'
     | 'user-question'
     | 'tool-approval'
+    | 'workspace-grant-request'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
     | 'assignment-blocked'
@@ -170,6 +171,36 @@ export function createHumanAttentionQuery(
                 WHERE decision.channel_id = e.channel_id
                   AND json_extract(decision.payload_json,
                     '$.toolApprovalDecision.requestMessageId') = e.message_id
+             )
+          UNION ALL
+          SELECT 'grant:' || e.source_event_id AS id,
+                 'action' AS category, 'workspace-grant-request' AS kind,
+                 e.created_at, c.channel_id,
+                 json_extract(c.record_json, '$.name') AS channel_name,
+                 e.bot_slug, e.body, NULL AS request_id, e.message_id,
+                 NULL AS assignment_session_id, e.source_event_id
+            FROM source_events e
+            JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            JOIN channel_records c ON c.channel_id = p.channel_id
+           WHERE json_extract(c.record_json, '$.type') = 'dm'
+             AND json_extract(c.record_json, '$.botSlug') = e.bot_slug
+             AND json_extract(c.record_json, '$.deletedAt') IS NULL
+             AND e.source_kind = 'bot-message'
+             AND json_extract(e.payload_json, '$.grantRequest') = 1
+             AND NOT EXISTS (
+               SELECT 1 FROM source_events resolution
+                WHERE resolution.channel_id = e.channel_id
+                  AND resolution.source_kind = 'human-message'
+                  AND json_extract(resolution.payload_json, '$.author.kind') = 'human'
+                  AND (
+                    json_extract(resolution.payload_json,
+                      '$.grantRequestResolution.requestMessageId') = e.message_id
+                    OR (
+                      json_extract(resolution.payload_json, '$.replyTo') = e.message_id
+                      AND (resolution.body GLOB '已授权工作区「*'
+                           OR resolution.body GLOB 'I authorized workspace “*')
+                    )
+                  )
              )
           UNION ALL
           SELECT 'assignment:' || a.session_id AS id,

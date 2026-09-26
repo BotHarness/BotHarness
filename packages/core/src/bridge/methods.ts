@@ -940,6 +940,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (replyTo !== undefined && (typeof replyTo !== 'string' || replyTo.length === 0)) {
         return invalidInput('replyTo must be a message id');
       }
+      const rawGrantResolution = source['grantRequestResolution'];
+      let grantRequestResolution: ChannelMessage['grantRequestResolution'];
+      if (rawGrantResolution !== undefined) {
+        if (typeof rawGrantResolution !== 'object' || rawGrantResolution === null)
+          return invalidInput('invalid Grant request resolution');
+        const resolution = rawGrantResolution as Record<string, unknown>;
+        if (
+          typeof resolution['requestMessageId'] !== 'string' ||
+          resolution['requestMessageId'].length === 0 ||
+          typeof resolution['grantId'] !== 'string' ||
+          resolution['grantId'].length === 0 ||
+          replyTo !== resolution['requestMessageId']
+        )
+          return invalidInput('invalid Grant request resolution');
+        grantRequestResolution = {
+          requestMessageId: resolution['requestMessageId'],
+          grantId: resolution['grantId'],
+        };
+      }
       const requestedMessageId = source['messageId'];
       if (
         requestedMessageId !== undefined &&
@@ -975,10 +994,39 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.memorySwitchTarget === memorySwitchTarget &&
           JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []) &&
           JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions) &&
-          JSON.stringify(existing.channelRefs ?? []) === JSON.stringify(channelRefs);
+          JSON.stringify(existing.channelRefs ?? []) === JSON.stringify(channelRefs) &&
+          JSON.stringify(existing.grantRequestResolution) ===
+            JSON.stringify(grantRequestResolution);
         return same
           ? { ok: true, value: { message: existing } }
           : invalidInput('messageId already belongs to different Channel content');
+      }
+      const grantRequestTarget =
+        replyTo === undefined ? undefined : deps.channels.message(channelId, replyTo);
+      if (
+        grantRequestResolution === undefined &&
+        grantRequestTarget?.grantRequest === true &&
+        (body.startsWith('已授权工作区「') || body.startsWith('I authorized workspace “'))
+      )
+        return invalidInput('Grant approval replies must reference an active Workspace Grant');
+      if (grantRequestResolution !== undefined) {
+        if (channel.type !== 'dm' || channel.botSlug === undefined)
+          return invalidInput('Grant request resolution requires a PersonaBot DM');
+        if (
+          grantRequestTarget?.grantRequest !== true ||
+          grantRequestTarget.author.kind !== 'bot' ||
+          grantRequestTarget.author.slug !== channel.botSlug
+        )
+          return invalidInput('Grant request is unavailable in this DM');
+        if (
+          !deps.grants
+            ?.list(channel.botSlug)
+            .some(
+              (grant) =>
+                grant.id === grantRequestResolution.grantId && grant.revokedAt === undefined,
+            )
+        )
+          return invalidInput('Workspace Grant is no longer active for this PersonaBot');
       }
       if (mentions.length > 0 && channel.type === 'dm' && channel.botSlug === undefined)
         return invalidInput('Bot-to-Bot DMs are read-only for Human');
@@ -1011,6 +1059,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(mentions.length === 0 ? {} : { mentions }),
         ...(channelRefs.length === 0 ? {} : { channelRefs }),
         ...(replyTo === undefined ? {} : { replyTo }),
+        ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
         ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
       };
       if (
