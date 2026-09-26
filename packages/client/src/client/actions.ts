@@ -439,33 +439,44 @@ export function createActions(
     }
   };
 
-  let humanInboxRequestSeq = 0;
+  let humanInboxHeadSeq = 0;
+  let humanInboxPageSeq = 0;
+  let humanInboxCategoryVersion = 0;
   const loadHumanInboxFor = async (
     category: HumanInboxCategory,
     selection: ConversationSelection,
     cursor?: string,
   ): Promise<void> => {
-    const requestSeq = ++humanInboxRequestSeq;
+    const head = cursor === undefined;
+    const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
+    const categoryVersion = humanInboxCategoryVersion;
+    const isCurrent = (): boolean =>
+      currentSelection() === selection &&
+      categoryVersion === humanInboxCategoryVersion &&
+      requestSeq === (head ? humanInboxHeadSeq : humanInboxPageSeq);
     if (cursor === undefined && clientStore.getSnapshot().humanInbox.status === 'idle')
       clientStore.setHumanInbox({ status: 'loading', error: undefined });
     try {
       const page = await loadHumanAttention(call, category, 50, cursor);
-      if (currentSelection() !== selection || requestSeq !== humanInboxRequestSeq) return;
+      if (!isCurrent()) return;
       const priorState = clientStore.getSnapshot().humanInbox;
       if (priorState.category !== category) return;
       const prior = priorState.items;
-      const items =
-        cursor === undefined
-          ? page.items
-          : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      const preserveOlder = head && prior.length > 50 && page.nextCursor !== undefined;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const items = head
+        ? preserveOlder
+          ? [...page.items, ...prior.filter((item) => !refreshedIds.has(item.id))]
+          : page.items
+        : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
       clientStore.setHumanInbox({
         status: 'ready',
         items,
-        nextCursor: page.nextCursor,
+        nextCursor: preserveOlder ? priorState.nextCursor : page.nextCursor,
         error: undefined,
       });
     } catch (error) {
-      if (currentSelection() !== selection || requestSeq !== humanInboxRequestSeq) return;
+      if (!isCurrent() || clientStore.getSnapshot().humanInbox.category !== category) return;
       clientStore.setHumanInbox({ status: 'error', error: errorMessage(error) });
     }
   };
@@ -662,7 +673,8 @@ export function createActions(
       if (selection?.kind !== 'inbox') return Promise.resolve();
       const prior = clientStore.getSnapshot().humanInbox;
       const nextCategory = category ?? prior.category;
-      if (nextCategory !== prior.category)
+      if (nextCategory !== prior.category) {
+        humanInboxCategoryVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
           status: 'loading',
@@ -670,6 +682,7 @@ export function createActions(
           nextCursor: undefined,
           error: undefined,
         });
+      }
       return loadHumanInboxFor(nextCategory, selection);
     },
     loadMoreHumanInbox() {
