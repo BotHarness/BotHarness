@@ -1239,9 +1239,18 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
     'sourceChannelId',
     'sourceChannelName',
     'sourceMessageId',
+    'assignmentSessionId',
+    'assignmentPurpose',
     'authorBotSlug',
   ])
     if (row[key] !== undefined && typeof row[key] !== 'string') return undefined;
+  if (
+    row['assignmentReportState'] !== undefined &&
+    !['progress', 'completed', 'blocked', 'waiting-human', 'failed'].includes(
+      String(row['assignmentReportState']),
+    )
+  )
+    return undefined;
   return row as unknown as BotAttentionItem;
 }
 

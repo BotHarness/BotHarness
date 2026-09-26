@@ -6,6 +6,7 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { createBotAttentionQuery } from '../src/runtime/attention.js';
 import {
   createBotRuntime,
   type AssignmentAgentRun,
@@ -95,6 +96,7 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
   grants: WorkspaceGrantStore;
   agents: ManualAgents;
   owner: ReturnType<typeof mountOperationalDatabase>;
+  channels: ReturnType<typeof createChannelStore>;
   home: string;
   admit: (body: string, messageId: string) => Promise<void>;
   close: () => Promise<void>;
@@ -127,6 +129,7 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
     grants,
     agents,
     owner,
+    channels,
     home,
     close: async () => {
       agents.finishAll();
@@ -323,7 +326,7 @@ describe('Assignment collaboration', () => {
   });
 
   it('wakes an idle Orchestrator with one coalesced block and records observation', async () => {
-    const { runtime, agents, owner, admit, close } = await setup();
+    const { runtime, agents, owner, channels, admit, close } = await setup();
     await admit('开始调研', 'human-1');
     if (agents.access === undefined) throw new Error('Orchestrator never ran');
 
@@ -332,10 +335,28 @@ describe('Assignment collaboration', () => {
     const sessionId = created.assignment.sessionId;
     const run = agents.started[0]?.run;
     if (run === undefined) throw new Error('Assignment never started');
+    const attention = createBotAttentionQuery(
+      attachOperationalModule(owner, 'report-attention-test'),
+      channels,
+    );
 
     await run.report({ state: 'progress', summary: '里程碑 1' });
     await Promise.resolve();
     expect(agents.inboxTurns).toEqual([]);
+    expect(attention.list({ botSlug: 'ada' }).items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: 'assignment-report',
+          state: 'pending',
+          sourceKind: 'assignment-report',
+          assignmentSessionId: sessionId,
+          assignmentPurpose: '调研 A 方向',
+          assignmentReportState: 'progress',
+          sourceAvailable: true,
+          summary: '里程碑 1',
+        }),
+      ]),
+    );
 
     await run.report({ state: 'progress', summary: '里程碑 2' });
     await run.report({ state: 'completed', summary: 'A 方向完成' });
@@ -343,6 +364,24 @@ describe('Assignment collaboration', () => {
     await runtime.whenIdle();
 
     expect(agents.inboxTurns).toHaveLength(1);
+    expect(
+      attention
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.reason === 'assignment-report'),
+    ).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          state: 'handled',
+          assignmentReportState: 'completed',
+          assignmentSessionId: sessionId,
+        }),
+        expect.objectContaining({
+          state: 'handled',
+          assignmentReportState: 'progress',
+          assignmentSessionId: sessionId,
+        }),
+      ]),
+    );
     const injected = agents.inboxTurns[0] ?? '';
     expect(injected).toContain('A 方向完成');
     expect(injected).toContain('repeats 3');
@@ -441,5 +480,118 @@ describe('Assignment collaboration', () => {
     expect(refused.outcome === 'capacity' && refused.message).toContain('retryable: true');
     expect(runtime.listAssignments('ada')).toHaveLength(1);
     await close();
+  });
+  it('recovers an unobserved due report once after restart', async () => {
+    const { agents, owner, home, admit, close } = await setup();
+    await admit('Start research', 'human-1');
+    const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    const run = agents.started[0]!.run;
+    await run.report({ state: 'progress', summary: 'Phase one' });
+    const reportId = sourceEvents(owner).find(
+      (row) => row.source_kind === 'assignment-report',
+    )!.source_event_id;
+    const testDatabase = attachOperationalModule(owner, 'report-recovery-test');
+    testDatabase.transaction((db) => {
+      db.prepare(`
+        UPDATE source_events
+           SET payload_json = ?, expects_reply = 1
+         WHERE source_event_id = ?
+      `).run(JSON.stringify({ assignmentReport: { state: 'completed' } }), reportId);
+    });
+    await close();
+    owner.close();
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.inboxTurns).toHaveLength(1);
+      expect(reopenedAgents.inboxTurns[0]).toContain('Phase one');
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'report-recovery-query'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === reportId),
+      ).toMatchObject({
+        state: 'handled',
+        assignmentReportState: 'completed',
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
+  });
+
+  it('shows an interrupted observed report as needs-repair instead of waking it twice', async () => {
+    const { agents, owner, home, admit, close } = await setup();
+    await admit('Start research', 'human-1');
+    const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+    await agents.started[0]!.run.report({ state: 'progress', summary: 'Read this report' });
+    const reportId = sourceEvents(owner).find(
+      (row) => row.source_kind === 'assignment-report',
+    )!.source_event_id;
+    attachOperationalModule(owner, 'report-interruption-test').transaction((db) => {
+      db.prepare('UPDATE source_events SET observed_at = ? WHERE source_event_id = ?').run(
+        FIXED_NOW().toISOString(),
+        reportId,
+      );
+      db.prepare(`
+        UPDATE inbox_admissions SET observed_at = ?, attempt_state = 'running'
+         WHERE source_event_id = ? AND bot_slug = 'ada'
+      `).run(FIXED_NOW().toISOString(), reportId);
+    });
+    await close();
+    owner.close();
+
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopenedAgents = new ManualAgents();
+    const reopenedChannels = createChannelStore({
+      rootDir: join(home, 'channels'),
+      now: FIXED_NOW,
+    });
+    const reopenedRuntime = createBotRuntime({
+      database: reopenedOwner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: reopenedChannels,
+      agents: reopenedAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopenedRuntime.whenIdle();
+      expect(reopenedAgents.inboxTurns).toHaveLength(0);
+      const attention = createBotAttentionQuery(
+        attachOperationalModule(reopenedOwner, 'report-interruption-query'),
+        reopenedChannels,
+      );
+      expect(
+        attention.list({ botSlug: 'ada' }).items.find((item) => item.id === reportId),
+      ).toMatchObject({
+        state: 'needs-repair',
+        observedAt: FIXED_NOW().toISOString(),
+      });
+    } finally {
+      await reopenedRuntime.close();
+      reopenedOwner.close();
+    }
   });
 });

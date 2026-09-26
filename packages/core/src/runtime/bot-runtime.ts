@@ -551,6 +551,7 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#recoverInterruptedAttempts();
       this.#recoverPendingChannelAdmissions();
       this.#recoverPendingDigests();
+      this.#recoverPendingAssignmentReports();
     }
   }
 
@@ -776,6 +777,26 @@ class BotRuntimeImplementation implements BotRuntime {
       ['bot-inbox'],
     );
     this.#channels.admissionChanged?.(channelId, messageId);
+  }
+
+  #recoverPendingAssignmentReports(): void {
+    const due = this.#database.read(
+      (database) =>
+        database
+          .prepare(`
+          SELECT DISTINCT a.bot_slug
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+           WHERE a.reason = 'assignment-report'
+             AND a.attempt_state IN ('pending', 'retryable')
+             AND e.observed_at IS NULL
+             AND (e.expects_reply = 1 OR e.payload_json IS NULL OR
+                  json_extract(e.payload_json, '$.assignmentReport.state')
+                    IN ('completed', 'blocked', 'waiting-human', 'failed'))
+        `)
+          .all() as { bot_slug: string }[],
+    );
+    for (const row of due) this.#scheduleInboxTurn(row.bot_slug);
   }
 
   #recoverPendingChannelAdmissions(): void {
@@ -1027,6 +1048,7 @@ class BotRuntimeImplementation implements BotRuntime {
         false,
         markSideEffect,
       );
+      this.#markReportsHandled(collected.eventIds);
       this.#digestRetryAt.delete(`${botSlug}:${channelId}`);
       this.#digestFailureCount.delete(`${botSlug}:${channelId}`);
       this.#database.transaction(
@@ -1126,6 +1148,7 @@ class BotRuntimeImplementation implements BotRuntime {
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
       );
+      this.#markReportsHandled(collected.eventIds);
       this.#database.transaction(
         (database) => {
           database
@@ -1375,6 +1398,7 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       throw error;
     }
+    this.#markReportsHandled(collected.eventIds);
     const handledAt = this.#now().toISOString();
     this.#database.transaction(
       (database) => {
@@ -1701,6 +1725,15 @@ class BotRuntimeImplementation implements BotRuntime {
           CASE WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END
         WHERE attempt_state = 'running'
       `)
+          .run();
+        database
+          .prepare(`
+            UPDATE inbox_admissions
+               SET attempt_state = 'needs-repair',
+                   last_error = 'Assignment report observation interrupted'
+             WHERE reason = 'assignment-report' AND observed_at IS NOT NULL
+               AND attempt_state = 'retryable'
+          `)
           .run();
       },
       ['bot-inbox'],
@@ -2804,10 +2837,25 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(
             `INSERT INTO source_events (
                source_event_id, source_kind, bot_slug, assignment_session_id,
-               body, created_at, handled_at, attempt_state, expects_reply
-             ) VALUES (?, 'assignment-report', ?, ?, ?, ?, ?, 'handled', ?)`,
+               body, created_at, handled_at, attempt_state, expects_reply, payload_json
+             ) VALUES (?, 'assignment-report', ?, ?, ?, ?, ?, 'handled', ?, ?)`,
           )
-          .run(sourceEventId, botSlug, sessionId, summary, at, at, expectsReply ? 1 : 0);
+          .run(
+            sourceEventId,
+            botSlug,
+            sessionId,
+            summary,
+            at,
+            at,
+            expectsReply ? 1 : 0,
+            JSON.stringify({ assignmentReport: { state: input.state } }),
+          );
+        database
+          .prepare(`
+            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+            VALUES (?, ?, 'assignment-report')
+          `)
+          .run(sourceEventId, botSlug);
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
@@ -2844,6 +2892,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.inbox,
         true,
       );
+      this.#markReportsHandled(collected.eventIds);
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
       await this.#publishSessionFailure({
@@ -2932,8 +2981,34 @@ class BotRuntimeImplementation implements BotRuntime {
               WHERE source_event_id IN (${placeholders})`,
           )
           .run(at, ...sourceEventIds);
+        database
+          .prepare(`
+            UPDATE inbox_admissions
+               SET observed_at = ?,
+                   attempt_state = CASE WHEN ? IS NULL THEN 'pending' ELSE 'running' END
+             WHERE reason = 'assignment-report'
+               AND attempt_state IN ('pending', 'retryable', 'running')
+               AND source_event_id IN (${placeholders})
+          `)
+          .run(at, at, ...sourceEventIds);
       },
       ['source-event', 'bot-inbox'],
+    );
+  }
+
+  #markReportsHandled(sourceEventIds: string[]): void {
+    if (sourceEventIds.length === 0) return;
+    const placeholders = sourceEventIds.map(() => '?').join(', ');
+    this.#database.transaction(
+      (database) =>
+        database
+          .prepare(`
+            UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
+             WHERE reason = 'assignment-report' AND attempt_state = 'running'
+               AND source_event_id IN (${placeholders})
+          `)
+          .run(this.#now().toISOString(), ...sourceEventIds),
+      ['bot-inbox'],
     );
   }
 

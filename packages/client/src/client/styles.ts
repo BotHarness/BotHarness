@@ -2220,6 +2220,13 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
 }
+.bh-inbox-group-head > span:first-child {
+  display: -webkit-box;
+  min-width: 0;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
 .bh-inbox-history {
   margin-left: 8px;
 }
