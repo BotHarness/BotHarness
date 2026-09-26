@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter } from '../src/runtime/bot-runtime.js';
 import { createTempRoot } from './helpers.js';
@@ -276,6 +277,75 @@ describe('Human attention projection', () => {
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
+    }
+  });
+  it('projects one Bot repair admission as an action, retains it across restart, and removes it on resolution', async () => {
+    const home = createTempRoot('botharness-human-repair-');
+    const core = createCore({ dshHome: home, agents: adapter() });
+    let groupId = '';
+    let sourceEventId = '';
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      groupId = group.id;
+      await core.channels.appendMessage(group.id, {
+        id: 'review-1',
+        at: '2026-09-26T05:00:00.000Z',
+        author: { kind: 'human' },
+        body: '@Ada @Bea check the deployment',
+        mentions: [
+          { botSlug: 'ada', label: 'Ada', start: 0, end: 4 },
+          { botSlug: 'bea', label: 'Bea', start: 5, end: 9 },
+        ],
+      });
+      sourceEventId = core.attention.list({ botSlug: 'ada' }).items[0]!.id;
+      attachOperationalModule(core.operationalDatabase, 'human-repair-test').transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET attempt_state = 'needs-repair' WHERE source_event_id = ? AND bot_slug = 'ada'",
+        ).run(sourceEventId);
+      });
+      expect(core.humanAttention.list({ category: 'action' }).items).toMatchObject([
+        {
+          id: 'repair:' + sourceEventId + ':ada',
+          kind: 'bot-message-needs-repair',
+          botSlug: 'ada',
+          channelId: group.id,
+          channelName: 'Team',
+          messageId: 'review-1',
+          sourceEventId,
+          summary: '@Ada @Bea check the deployment',
+        },
+      ]);
+      expect(core.humanAttention.list({ category: 'action', botSlug: 'bea' }).items).toEqual([]);
+      expect(
+        core.humanAttention.list({ category: 'action', channelId: group.id }).items,
+      ).toHaveLength(1);
+      expect(core.humanAttention.list({ category: 'info' }).items).toEqual([]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+    const resumed = createCore({ dshHome: home, agents: adapter() });
+    try {
+      expect(resumed.humanAttention.list({ category: 'action' }).items).toHaveLength(1);
+      resumed.channels.deleteGroup(groupId);
+      expect(resumed.humanAttention.list({ category: 'action' }).items[0]).toMatchObject({
+        channelId: groupId,
+        channelName: '',
+        sourceEventId,
+      });
+      attachOperationalModule(resumed.operationalDatabase, 'human-repair-resolve-test').transaction(
+        (db) => {
+          db.prepare(
+            "UPDATE inbox_admissions SET attempt_state = 'handled' WHERE source_event_id = ? AND bot_slug = 'ada'",
+          ).run(sourceEventId);
+        },
+      );
+      expect(resumed.humanAttention.list({ category: 'action', botSlug: 'ada' }).items).toEqual([]);
+    } finally {
+      await resumed.runtime.close();
+      resumed.operationalDatabase.close();
     }
   });
 });

@@ -12,7 +12,9 @@ export interface HumanAttentionItem {
     | 'tool-approval'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
-    | 'assignment-report';
+    | 'assignment-blocked'
+    | 'assignment-report'
+    | 'bot-message-needs-repair';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -171,17 +173,44 @@ export function createHumanAttentionQuery(
              )
           UNION ALL
           SELECT 'assignment:' || a.session_id AS id,
-                 'action' AS category, 'assignment-waiting-human' AS kind,
+                 'action' AS category,
+                 CASE a.latest_report_state
+                   WHEN 'blocked' THEN 'assignment-blocked'
+                   ELSE 'assignment-waiting-human'
+                 END AS kind,
                  a.latest_report_at AS created_at, NULL AS channel_id,
                  NULL AS channel_name, a.bot_slug,
                  a.latest_report_summary AS summary, NULL AS request_id,
                  NULL AS message_id, a.session_id AS assignment_session_id,
-                 a.open_ask_source_event_id AS source_event_id
+                 coalesce(a.open_ask_source_event_id, (
+                   SELECT latest.source_event_id FROM source_events latest
+                    WHERE latest.assignment_session_id = a.session_id
+                      AND latest.source_kind = 'assignment-report'
+                    ORDER BY latest.rowid DESC LIMIT 1
+                 )) AS source_event_id
             FROM assignments a
-           WHERE a.latest_report_state = 'waiting-human'
-             AND a.open_ask_source_event_id IS NOT NULL
+           WHERE ((a.latest_report_state = 'waiting-human'
+                   AND a.open_ask_source_event_id IS NOT NULL)
+               OR (a.latest_report_state = 'blocked'
+                   AND (a.open_ask_source_event_id IS NOT NULL
+                        OR a.activity IN ('idle', 'error'))))
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL
+          UNION ALL
+          SELECT 'repair:' || a.source_event_id || ':' || a.bot_slug AS id,
+                 'action' AS category, 'bot-message-needs-repair' AS kind,
+                 e.created_at, e.channel_id,
+                 CASE WHEN json_extract(c.record_json, '$.deletedAt') IS NULL
+                      THEN coalesce(json_extract(c.record_json, '$.name'), '')
+                      ELSE '' END AS channel_name,
+                 a.bot_slug, e.body AS summary, NULL AS request_id,
+                 p.message_id, NULL AS assignment_session_id, e.source_event_id
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+            LEFT JOIN channel_placements p ON p.source_event_id = e.source_event_id
+            LEFT JOIN channel_records c ON c.channel_id = e.channel_id
+           WHERE a.attempt_state = 'needs-repair'
+             AND e.channel_id IS NOT NULL
           UNION ALL
           SELECT 'report:' || e.source_event_id AS id,
                  'info' AS category, 'assignment-report' AS kind,

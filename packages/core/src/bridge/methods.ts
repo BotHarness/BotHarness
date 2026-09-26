@@ -111,6 +111,13 @@ export interface OwnedSessionSummary {
   assignmentActivity?: AssignmentActivity;
 }
 
+export interface OwnedSessionBot {
+  botSlug: string;
+  displayName: string;
+  avatar?: string;
+  role: SessionRootRole;
+}
+
 export interface BridgeError {
   code: string;
   message: string;
@@ -160,6 +167,7 @@ export interface BridgeMethods {
   userQuestionStatus(payload: unknown): BridgeResult<{ status: 'pending' | 'expired' }>;
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
+  sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
     payload: unknown,
@@ -1382,6 +1390,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         };
       });
       return { ok: true, value: { sessions } };
+    },
+    sessionOwner(payload) {
+      const sessionId = asNonBlank(asObject(payload), 'sessionId');
+      if (sessionId === undefined) return invalidInput('sessionId is required');
+      const owned = deps.ownership.resolve(sessionId);
+      if (owned === undefined || owned.parentSessionId !== undefined)
+        return { ok: true, value: { owner: null } };
+      const bot = deps.registry.get(owned.botSlug);
+      if (bot === undefined) return { ok: true, value: { owner: null } };
+      return {
+        ok: true,
+        value: {
+          owner: {
+            botSlug: bot.slug,
+            displayName: bot.displayName,
+            ...(bot.avatar === undefined ? {} : { avatar: bot.avatar }),
+            role: owned.rootRole,
+          },
+        },
+      };
     },
     memorySnapshot(payload) {
       const scope = dmMemory(payload);

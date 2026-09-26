@@ -13,7 +13,7 @@ if (token === undefined) throw new Error('Set BH_E2E_TOKEN');
 const origin = process.env.BH_E2E_ORIGIN ?? 'http://127.0.0.1:3220';
 const shots = process.env.BH_SCREENSHOT_DIR ?? '/tmp/bh312-menu-shots';
 mkdirSync(shots, { recursive: true });
-const name = 'SessionMenuQA-' + Date.now();
+const name = process.env.BH_E2E_BOT_NAME ?? 'SessionMenuQA-' + Date.now();
 
 const browser = await puppeteer.launch({
   headless: true,
@@ -22,6 +22,8 @@ const browser = await puppeteer.launch({
 try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 960 });
+  const menuSelector =
+    'button[aria-label="Session view options"], button[aria-label="会话视图选项"]';
   const screenshot = async (filename) => {
     const session = await page.target().createCDPSession();
     try {
@@ -40,40 +42,79 @@ try {
       .find((button) => button.textContent?.trim() === 'Continue')
       ?.click(),
   );
-  await page.click('button[aria-label="Bot mode"]');
-  try {
-    await page.waitForSelector('button[aria-label="New"]', { timeout: 15000 });
-  } catch (error) {
-    await screenshot('00-initial-state.png');
-    console.log(
-      'INITIAL PAGE',
-      await page.evaluate(() => ({
-        url: location.href,
-        text: document.body.innerText.slice(0, 1500),
-        buttons: Array.from(document.querySelectorAll('button'))
-          .slice(0, 30)
-          .map((button) => ({
-            label: button.getAttribute('aria-label'),
-            text: button.textContent?.trim(),
-          })),
-      })),
+  await page
+    .waitForSelector('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]', {
+      timeout: 20000,
+    })
+    .catch(async (error) => {
+      await screenshot('00-startup-failure.png');
+      console.log(
+        'INITIAL PAGE',
+        await page.evaluate(() => ({
+          url: location.origin + location.pathname,
+          text: document.body.innerText.slice(0, 1500),
+          buttons: Array.from(document.querySelectorAll('button'))
+            .slice(0, 30)
+            .map((button) => ({
+              label: button.getAttribute('aria-label'),
+              text: button.textContent?.trim(),
+            })),
+        })),
+      );
+      throw error;
+    });
+  await page.click('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
+  if (process.env.BH_E2E_BOT_NAME !== undefined) {
+    await page.waitForFunction(
+      (botName) =>
+        Array.from(document.querySelectorAll('button')).some((button) =>
+          button.textContent?.includes(botName),
+        ),
+      { timeout: 20000 },
+      name,
     );
-    throw error;
+    await page.evaluate(
+      (botName) =>
+        Array.from(document.querySelectorAll('button'))
+          .find((button) => button.textContent?.includes(botName))
+          ?.click(),
+      name,
+    );
+  } else {
+    try {
+      await page.waitForSelector('button[aria-label="New"]', { timeout: 15000 });
+    } catch (error) {
+      await screenshot('00-initial-state.png');
+      console.log(
+        'INITIAL PAGE',
+        await page.evaluate(() => ({
+          url: location.origin + location.pathname,
+          text: document.body.innerText.slice(0, 1500),
+          buttons: Array.from(document.querySelectorAll('button'))
+            .slice(0, 30)
+            .map((button) => ({
+              label: button.getAttribute('aria-label'),
+              text: button.textContent?.trim(),
+            })),
+        })),
+      );
+      throw error;
+    }
+    await page.click('button[aria-label="New"]');
+    await page.evaluate(() =>
+      Array.from(document.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Create PersonaBot')
+        ?.click(),
+    );
+    await page.waitForSelector('input[placeholder="e.g. Xiao Yan"]');
+    await page.type('input[placeholder="e.g. Xiao Yan"]', name);
+    await page.evaluate(() =>
+      Array.from(document.querySelectorAll('button'))
+        .find((button) => button.textContent?.trim() === 'Create')
+        ?.click(),
+    );
   }
-  await page.click('button[aria-label="New"]');
-  await page.evaluate(() =>
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Create PersonaBot')
-      ?.click(),
-  );
-  await page.waitForSelector('input[placeholder="e.g. Xiao Yan"]');
-  await page.type('input[placeholder="e.g. Xiao Yan"]', name);
-  await page.evaluate(() =>
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Create')
-      ?.click(),
-  );
-  await page.waitForSelector('button[aria-label="Session view options"]');
+  await page.waitForSelector(menuSelector);
   const heading = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.bh-channel-sidebar-entry-head'))
       .find((button) => /Sessions|会话/u.test(button.textContent ?? ''))
@@ -89,11 +130,19 @@ try {
   if ((await page.$('.bh-session-controls')) !== null) {
     throw new Error('Old segmented controls remain');
   }
-  await page.click('button[aria-label="Session view options"]');
+  await page.click(menuSelector);
   await page.waitForSelector('div[role="menu"]');
   const menuText = await page.$eval('div[role="menu"]', (menu) => menu.textContent ?? '');
-  for (const label of ['Session view', 'Current', 'All', 'Layout', 'Flat', 'By workspace']) {
-    if (!menuText.includes(label)) throw new Error('Missing menu item: ' + label);
+  for (const labels of [
+    ['Session view', '会话范围'],
+    ['Current', '当前'],
+    ['All', '全部'],
+    ['Layout', '排列方式'],
+    ['Flat', '平铺'],
+    ['By workspace', '按工作区'],
+  ]) {
+    if (!labels.some((label) => menuText.includes(label)))
+      throw new Error('Missing menu item: ' + labels.join(' / '));
   }
   const expandedAfterMenu = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.bh-channel-sidebar-entry-head'))
@@ -111,24 +160,24 @@ try {
     .catch(() => undefined);
   await screenshot('01-session-menu.png');
   if ((await page.$('div[role="menu"]')) === null) {
-    await page.click('button[aria-label="Session view options"]');
+    await page.click(menuSelector);
     await page.waitForSelector('div[role="menu"]');
   }
 
-  const select = async (label) => {
-    const clicked = await page.evaluate((text) => {
-      const button = Array.from(document.querySelectorAll('div[role="menu"] button')).find(
-        (item) => item.textContent?.trim() === text,
+  const select = async (labels) => {
+    const clicked = await page.evaluate((choices) => {
+      const button = Array.from(document.querySelectorAll('div[role="menu"] button')).find((item) =>
+        choices.includes(item.textContent?.trim() ?? ''),
       );
       button?.click();
       return button !== undefined;
-    }, label);
-    if (!clicked) throw new Error('Could not click menu item: ' + label);
+    }, labels);
+    if (!clicked) throw new Error('Could not click menu item: ' + labels.join(' / '));
   };
-  await select('All');
-  await page.click('button[aria-label="Session view options"]');
+  await select(['All', '全部']);
+  await page.click(menuSelector);
   await page.waitForSelector('div[role="menu"]');
-  await select('By workspace');
+  await select(['By workspace', '按工作区']);
   const chosen = await page.evaluate(() => {
     const records = JSON.parse(localStorage.getItem('botharness/session-views.v1') ?? '{}');
     return Object.values(records).find((record) => record?.scope === 'all') ?? null;
@@ -136,9 +185,9 @@ try {
   if (chosen?.layout !== 'workspace') throw new Error('Menu changes did not persist');
 
   await page.reload({ waitUntil: 'networkidle2' });
-  if ((await page.$('button[aria-label="Session view options"]')) === null) {
-    await page.waitForSelector('button[aria-label="Bot mode"]');
-    await page.click('button[aria-label="Bot mode"]');
+  if ((await page.$(menuSelector)) === null) {
+    await page.waitForSelector('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
+    await page.click('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
     await page.waitForFunction(
       (botName) =>
         Array.from(document.querySelectorAll('button')).some((button) =>
@@ -155,15 +204,18 @@ try {
       name,
     );
   }
-  await page.waitForSelector('button[aria-label="Session view options"]');
-  await page.click('button[aria-label="Session view options"]');
+  await page.waitForSelector(menuSelector);
+  await page.click(menuSelector);
   await page.waitForSelector('div[role="menu"]');
   const checks = await page.$$eval('div[role="menu"] button', (buttons) =>
     buttons
       .filter((button) => button.querySelector('svg'))
       .map((button) => button.textContent?.trim()),
   );
-  if (!checks.includes('All') || !checks.includes('By workspace')) {
+  if (
+    !checks.some((value) => ['All', '全部'].includes(value)) ||
+    !checks.some((value) => ['By workspace', '按工作区'].includes(value))
+  ) {
     throw new Error('Stored menu choices not reflected after reload: ' + JSON.stringify(checks));
   }
   await page
@@ -189,10 +241,10 @@ try {
   );
   if (collapsed !== 'false') throw new Error('Sessions heading did not collapse');
   if ((await page.$('div[role="menu"]')) === null) {
-    await page.click('button[aria-label="Session view options"]');
+    await page.click(menuSelector);
   }
   await page.waitForSelector('div[role="menu"]');
-  await select('Current');
+  await select(['Current', '当前']);
   const collapsedChoice = await page.evaluate(() => {
     const records = JSON.parse(localStorage.getItem('botharness/session-views.v1') ?? '{}');
     return Object.values(records).find((record) => record?.layout === 'workspace')?.scope;

@@ -10,6 +10,7 @@ import type {
   PersonaBotDetail,
   PersonaBotSummary,
   OwnedSessionSummary,
+  OwnedSessionBot,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
@@ -380,6 +381,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.sessions({ slug }));
   }
 
+  sessionOwner(sessionId: string): { owner: OwnedSessionBot | null } {
+    return unwrap(this.methods.sessionOwner({ sessionId }));
+  }
+
   memorySnapshot(channelId: string): { snapshot: MemoryAcceptedSnapshot } {
     return unwrap(this.methods.memorySnapshot({ channelId }));
   }
@@ -514,6 +519,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'userQuestionStatus',
   'userQuestionAnswer',
   'sessions',
+  'sessionOwner',
   'memorySnapshot',
   'memoryFile',
   'memoryHistory',

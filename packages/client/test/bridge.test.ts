@@ -6,11 +6,13 @@ import {
   createBridgeCall,
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
+  loadSessionBotOwner,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
   parseChannelRecords,
   parseOwnedSessionSummaries,
+  parseSessionBotOwner,
   type BridgeCall,
 } from '../src/client/bridge.js';
 import { createStore } from '../src/client/store.js';
@@ -54,6 +56,35 @@ const DM = {
 };
 
 describe('bridge transport', () => {
+  it('loads a bounded owner for one native root Session', async () => {
+    const owner = await loadSessionBotOwner(
+      bridgeCall({
+        sessionOwner: ({ sessionId }) => {
+          expect(sessionId).toBe('session-ada');
+          return {
+            owner: {
+              botSlug: 'ada',
+              displayName: 'Ada',
+              avatar: 'https://example.com/ada.png',
+              role: 'assignment',
+            },
+          };
+        },
+      }),
+      'session-ada',
+    );
+    expect(owner).toEqual({
+      botSlug: 'ada',
+      displayName: 'Ada',
+      avatar: 'https://example.com/ada.png',
+      role: 'assignment',
+    });
+    expect(parseSessionBotOwner({ owner: null })).toBeUndefined();
+    expect(
+      parseSessionBotOwner({ owner: { botSlug: 'ada', displayName: 'Ada', role: 'child' } }),
+    ).toBeUndefined();
+  });
+
   it('decodes the bounded Memory Git graph and changed-file diff from the Host bridge', async () => {
     const sha = 'a'.repeat(40);
     const graph = await loadMemoryGitGraph(

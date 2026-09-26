@@ -140,6 +140,33 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('同意</button>');
   });
 
+  it('shows a blocked Assignment as an action linked to its Session', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'assignment:session-1',
+          category: 'action',
+          kind: 'assignment-blocked',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          botSlug: 'ada',
+          assignmentSessionId: 'session-1',
+          sourceEventId: 'report-event-1',
+          summary: 'Need a new grant.',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 的事项受阻，需要关注');
+    expect(markup).toContain('Need a new grant.');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('忽略');
+  });
+
   it('shows a completed Assignment report as informational with Ignore', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({
@@ -195,5 +222,53 @@ describe('Human Inbox center view', () => {
     expect(markup).toContain('查看来源');
     expect(markup).not.toContain('已了解');
     expect(markup).not.toContain('同意</button>');
+  });
+  it('shows a Bot repair as action with Inbox and source navigation, including a missing source', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'repair:event-1:ada',
+          category: 'action',
+          kind: 'bot-message-needs-repair',
+          createdAt: '2026-09-26T05:00:00.000Z',
+          botSlug: 'ada',
+          channelId: 'group-team',
+          channelName: 'Team',
+          messageId: 'review-1',
+          sourceEventId: 'event-1',
+          summary: 'Check the deployment',
+        },
+      ],
+    });
+    let markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 的消息需要检查');
+    expect(markup).toContain('Check the deployment');
+    expect(markup).toContain('查看 Bot 收件箱');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('忽略</button>');
+
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [{ ...store.getSnapshot().humanInbox.items[0]!, channelName: '' }],
+    });
+    markup = renderToStaticMarkup(createElement(HumanInboxView, { actions: {} as BridgeActions }));
+    expect(markup).toContain('来源频道已不可用');
+
+    const missingMessage = { ...store.getSnapshot().humanInbox.items[0]!, channelName: 'Team' };
+    delete missingMessage.messageId;
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [missingMessage],
+    });
+    markup = renderToStaticMarkup(createElement(HumanInboxView, { actions: {} as BridgeActions }));
+    expect(markup).toContain('来源消息已不可用');
+    expect(markup).not.toContain('来源频道已不可用');
   });
 });

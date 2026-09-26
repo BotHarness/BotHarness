@@ -223,11 +223,16 @@ try {
     { timeout: 10000 },
     assignment.sessionId,
   );
-  await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.bh-session-controls [role="tab"]'))
-      .find((button) => /^(All|全部)$/.test(button.textContent?.trim() ?? ''))
-      ?.click(),
-  );
+  await page.click('button[aria-label="Session view options"]');
+  await page.waitForSelector('div[role="menu"]', { timeout: 10000 });
+  const selectedAll = await page.evaluate(() => {
+    const button = Array.from(document.querySelectorAll('div[role="menu"] button')).find((item) =>
+      /^(All|全部)$/.test(item.textContent?.trim() ?? ''),
+    );
+    button?.click();
+    return button !== undefined;
+  });
+  if (!selectedAll) throw new Error('Could not select All from the Sessions menu');
   await page.waitForFunction(() => document.querySelectorAll('.bh-session-row').length >= 2, {
     timeout: 10000,
     polling: 500,

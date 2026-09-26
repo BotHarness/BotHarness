@@ -57,26 +57,34 @@ try {
     );
     if (button?.getAttribute('aria-expanded') !== 'true') button?.click();
   });
-  await page.waitForSelector('.bh-session-controls', { timeout: 20000 });
-  const chooseTab = async (label, option) => {
-    const selected = await page.evaluate(
-      (label, option) => {
-        const group = Array.from(
-          document.querySelectorAll('.bh-session-controls [role="tablist"]'),
-        ).find((node) => node.getAttribute('aria-label') === label);
-        const tab = Array.from(group?.querySelectorAll('[role="tab"]') ?? []).find(
-          (node) => node.textContent?.trim() === option,
-        );
-        tab?.click();
-        return tab !== undefined;
-      },
-      label,
-      option,
-    );
-    if (!selected) throw new Error('Missing Session option: ' + label + ' / ' + option);
+  await page.waitForSelector('button[aria-label="Session view options"]', { timeout: 20000 });
+  const openViewMenu = async () => {
+    await page.click('button[aria-label="Session view options"]');
+    await page.waitForSelector('div[role="menu"]', { timeout: 10000 });
   };
-  await chooseTab('Session view', 'All');
-  await chooseTab('Layout', 'By workspace');
+  const chooseOption = async (option) => {
+    await openViewMenu();
+    const selected = await page.evaluate((label) => {
+      const button = Array.from(document.querySelectorAll('div[role="menu"] button')).find(
+        (node) => node.textContent?.trim() === label,
+      );
+      button?.click();
+      return button !== undefined;
+    }, option);
+    if (!selected) throw new Error('Missing Session option: ' + option);
+  };
+  const readSelectedOptions = async () => {
+    await openViewMenu();
+    const selected = await page.$$eval('div[role="menu"] button', (buttons) =>
+      buttons
+        .filter((button) => button.querySelector('svg'))
+        .map((button) => button.textContent?.trim()),
+    );
+    await page.keyboard.press('Escape');
+    return selected;
+  };
+  await chooseOption('All');
+  await chooseOption('By workspace');
   await page.waitForFunction(
     () => document.querySelectorAll('.bh-session-workspace-heading').length >= 2,
     {
@@ -146,26 +154,22 @@ try {
     );
     if (button?.getAttribute('aria-expanded') !== 'true') button?.click();
   });
-  await page.waitForSelector('.bh-session-controls', { timeout: 20000 });
+  await page.waitForSelector('button[aria-label="Session view options"]', { timeout: 20000 });
+  const restoredChoices = await readSelectedOptions();
   const restored = await page.evaluate(() => ({
-    all: Array.from(document.querySelectorAll('.bh-session-controls [role="tab"]'))
-      .find((tab) => tab.textContent?.trim() === 'All')
-      ?.getAttribute('aria-selected'),
-    workspace: Array.from(document.querySelectorAll('.bh-session-controls [role="tab"]'))
-      .find((tab) => tab.textContent?.trim() === 'By workspace')
-      ?.getAttribute('aria-selected'),
     collapsed: Array.from(document.querySelectorAll('.bh-session-workspace-heading')).map(
       (heading) => heading.getAttribute('aria-expanded'),
     ),
     rows: document.querySelectorAll('.bh-session-row').length,
   }));
   if (
-    restored.all !== 'true' ||
-    restored.workspace !== 'true' ||
+    restoredChoices.join(',') !== 'All,By workspace' ||
     restored.collapsed.join(',') !== 'true,false' ||
     restored.rows !== 1
   )
-    throw new Error('View preference did not survive reload: ' + JSON.stringify(restored));
+    throw new Error(
+      'View preference did not survive reload: ' + JSON.stringify({ restoredChoices, restored }),
+    );
   console.log('RELOAD', JSON.stringify(restored));
 
   const otherName = 'SessionsViewOtherQA-' + Date.now();
@@ -222,11 +226,8 @@ try {
     );
     if (button?.getAttribute('aria-expanded') !== 'true') button?.click();
   });
-  await page.waitForSelector('.bh-session-controls', { timeout: 20000 });
-  const other = await page.$$eval(
-    '.bh-session-controls [role="tab"][aria-selected="true"]',
-    (nodes) => nodes.map((node) => node.textContent?.trim()),
-  );
+  await page.waitForSelector('button[aria-label="Session view options"]', { timeout: 20000 });
+  const other = await readSelectedOptions();
   if (other.join(',') !== 'Current,Flat') {
     throw new Error('New Bot inherited another Bot view: ' + JSON.stringify(other));
   }
@@ -250,11 +251,8 @@ try {
     );
     if (button?.getAttribute('aria-expanded') !== 'true') button?.click();
   });
-  await page.waitForSelector('.bh-session-controls', { timeout: 20000 });
-  const first = await page.$$eval(
-    '.bh-session-controls [role="tab"][aria-selected="true"]',
-    (nodes) => nodes.map((node) => node.textContent?.trim()),
-  );
+  await page.waitForSelector('button[aria-label="Session view options"]', { timeout: 20000 });
+  const first = await readSelectedOptions();
   if (first.join(',') !== 'All,By workspace') {
     throw new Error('Original Bot lost its own view: ' + JSON.stringify(first));
   }
