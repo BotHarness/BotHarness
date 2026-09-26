@@ -538,10 +538,26 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ownership: core.ownership,
     states: core.states,
   });
+  // Runtime-verified in dsh-compaction-basic 0.1.7-rc.2 (appends
+  // compaction/start|summary|end session events); absent from its ctx.on
+  // typing, hence the widening.
+  const COMPACTION_END_EVENT: string = 'compaction/end';
   ctx.on(
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      if (event.type === COMPACTION_END_EVENT) {
+        const owner = core.ownership.resolve(session.id);
+        if (owner !== undefined) {
+          try {
+            core.memory.refreshPersonaAfterCompaction(owner.botSlug, session.id);
+          } catch (error) {
+            ctx.logger.warn(
+              `botharness: persona refresh after compaction failed: ${String(error)}`,
+            );
+          }
+        }
+      }
     },
     { global: true },
   );

@@ -279,7 +279,12 @@ export interface BotRuntimeOptions {
   agents: BotAgentAdapter;
   memory?: Pick<
     MemoryService,
-    'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
+    | 'prepareTurn'
+    | 'reconcileTurn'
+    | 'abortTurn'
+    | 'switchBranch'
+    | 'continueFromCommit'
+    | 'takeTurnAnnotation'
   >;
   /** Profile-scoped Channel attachment authority. */
   attachments?: AttachmentStore;
@@ -1458,12 +1463,20 @@ class BotRuntimeImplementation implements BotRuntime {
       markAttemptSideEffect();
     };
     this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
+    const annotation = this.#memory?.takeTurnAnnotation({
+      botSlug: bot.slug,
+      sessionId: orchestrator.sessionId,
+    });
+    const text =
+      annotation === undefined
+        ? body
+        : [body, annotation].filter((part) => part.trim().length > 0).join('\n\n');
     try {
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
         bot,
-        message: body,
+        message: text,
         inbox,
         inboundChannelId: channelId,
         channels: this.#channelAccess(

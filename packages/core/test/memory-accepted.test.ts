@@ -284,3 +284,131 @@ describe('current Git working tree is Memory', () => {
     }
   });
 });
+
+describe('turn-annotation for out-of-band worktree changes', () => {
+  function agentTurn(
+    memory: ReturnType<typeof fixture>['memory'],
+    addSource: (id: string) => void,
+    id: string,
+    edit?: () => void,
+  ) {
+    addSource(id);
+    memory.prepareTurn('atlas', 'session-atlas');
+    expect(
+      memory.takeTurnAnnotation({ botSlug: 'atlas', sessionId: 'session-atlas' }),
+    ).toBeUndefined();
+    edit?.();
+    return memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: id });
+  }
+
+  function gitIdentity(root: string) {
+    git(root, 'config', 'user.name', 'Out Of Band');
+    git(root, 'config', 'user.email', 'oob@example.com');
+  }
+
+  function takeNote(memory: ReturnType<typeof fixture>['memory']) {
+    return memory.takeTurnAnnotation({ botSlug: 'atlas', sessionId: 'session-atlas' });
+  }
+
+  it('stays silent on the first turn and for the agent’s own committed turn', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'turn-one', () => {
+        writeFileSync(join(root, 'agent-note.md'), 'Agent wrote this\n');
+        git(root, 'add', 'agent-note.md');
+        git(root, 'commit', '-m', 'agent note');
+      });
+      addSource('turn-two');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('annotates an out-of-band unstaged edit with its path, once', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      writeFileSync(join(root, 'human-note.md'), 'Human wrote this\n');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain('Memory changed since your last turn');
+      expect(note).toContain('human-note.md');
+      expect(takeNote(memory)).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('annotates an out-of-band disk commit with their paths', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'baseline');
+      writeFileSync(join(root, 'human-note.md'), 'Human wrote this\n');
+      git(root, 'add', 'human-note.md');
+      git(root, 'commit', '-m', 'human note');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain('Memory changed since your last turn');
+      expect(note).toContain('human-note.md');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('notes an out-of-band branch switch', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '-c', 'detour');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain("Memory branch is now 'detour'");
+    } finally {
+      database.close();
+    }
+  });
+
+  it('adds the frozen-persona sentence for PERSONA.md', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      writeFileSync(join(root, 'PERSONA.md'), 'You are now someone else.\n');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain('PERSONA.md');
+      expect(note).toContain('frozen');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('reports Human UI saves as out-of-band', () => {
+    const { database, memory, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      const baselineHead = memory.snapshot('atlas').head;
+      if (baselineHead === null) throw new Error('Memory head missing');
+      const saved = memory.saveHuman({
+        botSlug: 'atlas',
+        path: 'ui-note.md',
+        body: 'Saved in the UI\n',
+        expectedHead: baselineHead,
+        editId: 'edit-ui',
+      });
+      expect(saved.actorKind).toBe('human');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toContain('ui-note.md');
+    } finally {
+      database.close();
+    }
+  });
+});

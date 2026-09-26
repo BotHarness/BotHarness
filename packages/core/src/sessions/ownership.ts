@@ -106,6 +106,13 @@ export interface SessionOwnership {
    * Session to another PersonaBot clears the snapshot for a fresh baseline.
    */
   recordPersonaSnapshot(sessionId: string, body: string, at: string): SessionPersonaSnapshot;
+  /**
+   * Compaction-boundary refresh: overwrite the recorded snapshot with the
+   * current file body. The only sanctioned rewrite of a live Session's
+   * snapshot; callers must compare first and skip identical content so the
+   * prefix is never churned for no change.
+   */
+  refreshPersonaSnapshot(sessionId: string, body: string, at: string): SessionPersonaSnapshot;
   /** Bounded diagnostic listing of every owned Session. */
   list(): SessionOwnershipRecord[];
 }
@@ -336,6 +343,32 @@ export function createSessionOwnership(database: OperationalDatabaseModulePort):
             const recorded = readPersonaSnapshot(connection, sessionId);
             if (recorded === undefined) {
               throw new Error(`Persona snapshot write failed: ${sessionId}`);
+            }
+            return recorded;
+          },
+          ['session-ownership'],
+        );
+      } catch (error) {
+        return rethrowDomainError(error);
+      }
+    },
+    refreshPersonaSnapshot(sessionId, body, at) {
+      try {
+        return database.transaction(
+          (connection) => {
+            if (readRow(connection, sessionId) === undefined) {
+              throw new SessionOwnershipError(`Unknown Session ownership: ${sessionId}`);
+            }
+            connection
+              .prepare(
+                `UPDATE session_ownership
+                    SET persona_snapshot = ?, persona_snapshot_at = ?
+                  WHERE session_id = ?`,
+              )
+              .run(body, at, sessionId);
+            const recorded = readPersonaSnapshot(connection, sessionId);
+            if (recorded === undefined) {
+              throw new Error(`Persona snapshot refresh failed: ${sessionId}`);
             }
             return recorded;
           },

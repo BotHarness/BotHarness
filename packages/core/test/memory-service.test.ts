@@ -112,4 +112,29 @@ describe('createMemoryService', () => {
     expect(service.storeForSession('session-research')?.read('note.md')?.body).toBe('hello\n');
     expect(registry.memoryDirFor('research')).toBe(memoryDir);
   });
+
+  it('refreshes a frozen persona only when the file changed', () => {
+    const { registry, service } = setup();
+    const memoryDir = registry.memoryDirFor('research');
+    if (memoryDir === undefined) throw new Error('memory dir missing');
+    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v1\n');
+    expect(service.personaForSession('session-research')).toBe('# Persona v1\n');
+
+    writeFileSync(join(memoryDir, 'PERSONA.md'), '# Persona v2\n');
+    expect(service.personaForSession('session-research')).toBe('# Persona v1\n');
+    expect(service.refreshPersonaAfterCompaction('research', 'session-research')).toEqual({
+      refreshed: true,
+    });
+    expect(service.personaForSession('session-research')).toBe('# Persona v2\n');
+    expect(service.refreshPersonaAfterCompaction('research', 'session-research')).toEqual({
+      refreshed: false,
+    });
+
+    expect(service.refreshPersonaAfterCompaction('research', 'unowned-session')).toEqual({
+      refreshed: false,
+    });
+    expect(service.refreshPersonaAfterCompaction('other', 'session-research')).toEqual({
+      refreshed: false,
+    });
+  });
 });
