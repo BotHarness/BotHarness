@@ -386,7 +386,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             ? channel.members.flatMap((botSlug) => {
                 if (botSlug === senderSlug || immediate.has(botSlug)) return [];
                 const policy = channel.wakePolicies?.[botSlug];
-                if (policy?.mode !== 'digest') return [];
+                if (policy?.mode !== 'digest' && policy?.mode !== 'silent') return [];
                 if (
                   durable.author.kind === 'bot' &&
                   durable.botCausation !== undefined &&
@@ -409,8 +409,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       `).run(
             sourceEventId,
             recipient.botSlug,
-            recipient.policy.count,
-            recipient.policy.intervalSeconds * 1000,
+            recipient.policy.mode === 'digest' ? recipient.policy.count : null,
+            recipient.policy.mode === 'digest' ? recipient.policy.intervalSeconds * 1000 : null,
             recipient.policy.revision,
           );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
@@ -1057,7 +1057,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
         throw new Error('Group member not found');
       if (
-        (policy.mode !== 'mentions' && policy.mode !== 'digest') ||
+        (policy.mode !== 'mentions' && policy.mode !== 'digest' && policy.mode !== 'silent') ||
         !Number.isSafeInteger(policy.count) ||
         policy.count < 1 ||
         policy.count > 100 ||

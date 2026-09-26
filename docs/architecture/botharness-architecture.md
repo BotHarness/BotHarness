@@ -183,7 +183,7 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 ### Bot 之间的 Channel 协作（ADR-0065）
 
-当前 #47 首个高流量 Group 切片把每位成员的普通消息 Wake Policy 写在 Channel record；Human 可在成员侧栏选择仅直接 @ 唤醒，或设置 N 条 / T 秒汇总。每条普通消息仍先作为 Source Event 与该 Bot 的 `group-ordinary` Inbox Admission 在同一 SQLite 事务中提交，Admission 固定当时的阈值与 policy revision。直接 @ 走独立的即时 Admission，不等待汇总。Host 在达到数量或非空队列的时间上限后，为该 Bot 排入一个汇总回合；若 Orchestrator 正忙，按每 Bot 的串行队列在当前回合结束后执行，不打断正在运行的 step。重启从 pending/retryable Admission 重建计时，汇总进入 Orchestrator context 后记录 observed，回合结束标为 handled；是否向 Channel 回复仍由 Bot 决定。此切片尚未实现 silent、完整 Attention 聚合和 #47 其余 Wake Policy seam。
+当前 #47 首个高流量 Group 切片把每位成员的普通消息 Wake Policy 写在 Channel record；Human 可在成员侧栏选择仅直接 @ 唤醒、N 条 / T 秒汇总，或静默收件。启用汇总或静默收件时，普通消息作为 Source Event 与该 Bot 的 `group-ordinary` Inbox Admission 在同一 SQLite 事务中提交，Admission 固定当时的 policy revision；汇总记录阈值，静默记录空阈值。直接 @ 走独立的即时 Admission，不等待汇总。Host 在达到数量或非空队列的时间上限后，为该 Bot 排入一个汇总回合；若 Orchestrator 正忙，按每 Bot 的串行队列在当前回合结束后执行，不打断正在运行的 step。重启从 pending/retryable Admission 重建计时，汇总进入 Orchestrator context 后记录 observed，回合结束标为 handled；是否向 Channel 回复仍由 Bot 决定。后续静默切片为普通消息保留待处理 Admission，但不设置汇总阈值，不在当前进程或重启后排入自动唤醒；直接 @ 仍即时。完整 Attention 聚合和 #47 其余 Wake Policy seam 尚待实现。
 
 当前 Bot-scoped botAttention Bridge 查询直接从 Inbox Admission、Source Event 与 Channel placement 投影有界页，按 Source Event 时间与 ID 排序，返回状态、发送者、摘要和可用的来源消息引用；它不另建收件内容。Human–PersonaBot DM 的 Channel sidebar 在有事实时显示 Bot Inbox entry，按来源 Channel 分组，待处理项展开，已处理历史折叠；点击仍可访问的来源时复用 Channel timeline 的 around 定位。Group Channel 不显示该 entry。已处理只表示回合处理完成，不代表 Bot 发言；Human 查看侧栏不改变 Bot 的观察事实（ADR-0070、#47、#152）。
 

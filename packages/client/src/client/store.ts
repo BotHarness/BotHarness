@@ -26,7 +26,12 @@ export interface ChannelSummary {
   ownerBotSlug?: string;
   wakePolicies?: Record<
     string,
-    { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number; revision: number }
+    {
+      mode: 'mentions' | 'digest' | 'silent';
+      count: number;
+      intervalSeconds: number;
+      revision: number;
+    }
   >;
   joinRequests?: Array<{
     id: string;

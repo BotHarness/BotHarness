@@ -7,7 +7,7 @@ Date: 2026-09-26
 
 The Human-visible Bot Inbox entry and the Bot-scoped Attention query read inbox_admissions, source_events, and channel_placements from the operational database. They do not own a separate inbox item or message body. A query page is scoped to one stable PersonaBot ID and ordered by Source Event creation time and ID; its cursor may not be reused for another Bot. Each item carries a stable Source Event reference and, when still available, the Channel and placed message ID for navigation.
 
-The first projection maps pending, running, retryable, needs-repair, and handled Admission attempts to the UI states pending, deferred, needs-repair, and handled, using an explicit observed timestamp when present. A pending ordinary Group Admission is deferred until its digest threshold. This is a read projection, not a new Attention Decision authority. The query keeps facts visible when a Channel has been deleted but disables navigation when the source placement is unavailable.
+The first projection maps pending, running, retryable, needs-repair, and handled Admission attempts to the UI states pending, deferred, needs-repair, and handled, using an explicit observed timestamp when present. A pending digest Group Admission is deferred until its threshold; a silent ordinary Group Admission stays pending without automatic wake. This is a read projection, not a new Attention Decision authority. The query keeps facts visible when a Channel has been deleted but disables navigation when the source placement is unavailable.
 
 ## Why
 

@@ -205,7 +205,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
   channelGroupWakeSet(
     channelId: string,
     botSlug: string,
-    mode: 'mentions' | 'digest',
+    mode: 'mentions' | 'digest' | 'silent',
     count: number,
     intervalSeconds: number,
   ): { channel: ChannelRecord } {

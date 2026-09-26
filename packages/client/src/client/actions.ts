@@ -178,7 +178,7 @@ export interface BridgeActions {
   setGroupWakePolicy(
     channelId: string,
     botSlug: string,
-    policy: { mode: 'mentions' | 'digest'; count: number; intervalSeconds: number },
+    policy: { mode: 'mentions' | 'digest' | 'silent'; count: number; intervalSeconds: number },
   ): Promise<boolean>;
   deleteGroupChannel(channelId: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;

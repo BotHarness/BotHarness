@@ -146,7 +146,7 @@ function MemberWakeControls({
   apply: (result: Promise<boolean>) => Promise<void>;
 }): ReactElement {
   const saved = channel.wakePolicies?.[slug];
-  const [mode, setMode] = useState<'mentions' | 'digest'>(saved?.mode ?? 'mentions');
+  const [mode, setMode] = useState<'mentions' | 'digest' | 'silent'>(saved?.mode ?? 'mentions');
   const [count, setCount] = useState(saved?.count ?? 5);
   const [seconds, setSeconds] = useState(saved?.intervalSeconds ?? 30);
   const [busy, setBusy] = useState(false);
@@ -169,7 +169,11 @@ function MemberWakeControls({
     <details className="bh-member-wake">
       <summary>
         {t('members.wake')} ·{' '}
-        {saved?.mode === 'digest' ? t('members.wake.digest') : t('members.wake.mentions')}
+        {saved?.mode === 'digest'
+          ? t('members.wake.digest')
+          : saved?.mode === 'silent'
+            ? t('members.wake.silent')
+            : t('members.wake.mentions')}
       </summary>
       <div className="bh-member-wake-form">
         <div className="bh-member-wake-choices" role="group" aria-label={t('members.wake')}>
@@ -188,6 +192,14 @@ function MemberWakeControls({
             onClick={() => setMode('digest')}
           >
             {t('members.wake.digest')}
+          </button>
+          <button
+            type="button"
+            className="bh-group-manage-button"
+            aria-pressed={mode === 'silent'}
+            onClick={() => setMode('silent')}
+          >
+            {t('members.wake.silent')}
           </button>
         </div>
         {mode === 'digest' ? (

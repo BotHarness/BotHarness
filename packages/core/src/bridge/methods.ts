@@ -733,7 +733,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .object({
           channelId: z.string().min(1),
           botSlug: z.string().min(1),
-          mode: z.enum(['mentions', 'digest']),
+          mode: z.enum(['mentions', 'digest', 'silent']),
           count: z.number().int().min(1).max(100),
           intervalSeconds: z.number().int().min(1).max(3600),
         })
