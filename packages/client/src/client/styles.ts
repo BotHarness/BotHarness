@@ -382,7 +382,7 @@ nav:has(> .bh-panel-inbox) > button:has(.bh-panel-glyph) {
   color: var(--dsw-alias-label-primary);
 }
 .bh-panel-inbox[aria-current='page'] {
-  background: var(--bh-selected);
+  background: var(--dsw-specific-sidebar-nav-item-active);
   color: var(--dsw-alias-label-primary);
 }
 .bh-panel-inbox:focus-visible {
