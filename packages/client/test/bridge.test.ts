@@ -240,13 +240,19 @@ describe('bridge parsers', () => {
     expect(
       parseOwnedSessionSummaries({
         sessions: [
-          { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
+          {
+            sessionId: 'orchestrator-1',
+            role: 'orchestrator',
+            createdAt: BOT.createdAt,
+            assignmentAccessMode: 'danger-full-access',
+          },
           {
             sessionId: 'assignment-1',
             role: 'assignment',
             createdAt: BOT.createdAt,
             cwdReference: '/srv/ada',
             assignmentActivity: 'stopped',
+            assignmentAccessMode: 'danger-full-access',
           },
           { sessionId: 'child', role: 'subagent', createdAt: BOT.createdAt },
         ],
@@ -259,6 +265,7 @@ describe('bridge parsers', () => {
         createdAt: BOT.createdAt,
         cwdReference: '/srv/ada',
         assignmentActivity: 'stopped',
+        assignmentAccessMode: 'danger-full-access',
       },
     ]);
   });

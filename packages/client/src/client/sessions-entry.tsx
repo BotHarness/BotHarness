@@ -80,6 +80,11 @@ export function SessionsEntry({
                 ? t('sessions.role.orchestrator')
                 : t('sessions.role.assignment')}
             </Tag>
+            {row.assignmentAccessMode === 'danger-full-access' ? (
+              <span title={t('sessions.access.dangerDetails')}>
+                <Tag tone="warning">{t('sessions.access.danger')}</Tag>
+              </span>
+            ) : null}
             <span className={`bh-session-status bh-session-status-${row.status}`}>
               {statusLabel[row.status]}
             </span>

@@ -247,6 +247,9 @@ export const zh = {
   'sessions.empty': '当前没有可显示的会话。',
   'sessions.role.orchestrator': 'Orchestrator',
   'sessions.role.assignment': 'Assignment',
+  'sessions.access.danger': '完整文件访问',
+  'sessions.access.dangerDetails':
+    '此事项会话可访问授权工作区之外的文件；关闭 Bot 默认设置不会降低此会话的权限。',
   'sessions.status.running': '运行中',
   'sessions.status.stopping': '正在停止',
   'sessions.status.attention': '需要关注',
@@ -728,6 +731,9 @@ export const en = {
   'sessions.empty': 'No Sessions to show in this view.',
   'sessions.role.orchestrator': 'Orchestrator',
   'sessions.role.assignment': 'Assignment',
+  'sessions.access.danger': 'Full file access',
+  'sessions.access.dangerDetails':
+    'This Assignment Session can access files outside its workspace. Turning off the Bot default does not downgrade this Session.',
   'sessions.status.running': 'Running',
   'sessions.status.stopping': 'Stopping',
   'sessions.status.attention': 'Needs attention',
