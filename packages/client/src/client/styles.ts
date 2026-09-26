@@ -1891,22 +1891,143 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-composer-inline-mention {
   user-select: all;
 }
-.bh-mention-deliveries {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 4px 0 2px;
+.bh-delivery-trigger {
+  position: absolute;
+  z-index: 2;
+  right: -27px;
+  bottom: 2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
+  cursor: pointer;
 }
-.bh-mention-delivery {
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  padding: 2px 7px;
+.bh-message-group-me .bh-delivery-trigger {
+  right: auto;
+  left: -27px;
+}
+.bh-delivery-trigger:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-delivery-trigger:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+.bh-bubble-wrap:has(.bh-delivery-trigger) .bh-bubble-quick-action {
+  top: -19px;
+  transform: none;
+}
+.bh-delivery-track,
+.bh-delivery-sector {
+  fill: none;
+  stroke-width: 2.5;
+}
+.bh-delivery-track {
+  stroke: var(--dsw-alias-border-l2);
+}
+.bh-delivery-sector {
+  stroke: currentColor;
+  transform: rotate(-90deg);
+  transform-origin: 50% 50%;
+}
+.bh-delivery-sector-handled,
+.bh-delivery-legend-handled {
+  color: var(--dsw-alias-state-success-primary);
+}
+.bh-delivery-sector-running,
+.bh-delivery-legend-running {
+  color: var(--dsw-alias-state-business-primary);
+}
+.bh-delivery-sector-observed,
+.bh-delivery-legend-observed {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-delivery-sector-pending,
+.bh-delivery-legend-pending {
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
 }
-.bh-mention-delivery-retryable,
-.bh-mention-delivery-needs-repair {
+.bh-delivery-sector-ignored,
+.bh-delivery-legend-ignored {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-delivery-sector-retryable,
+.bh-delivery-sector-needs-repair,
+.bh-delivery-legend-retryable,
+.bh-delivery-legend-needs-repair {
   color: var(--dsw-alias-state-error-primary);
+}
+/* The receipt card portals to body so it remains visible at the edge of the
+   scrolling Channel timeline. It reads DSH tokens directly, like HoverCard. */
+.bh-delivery-panel {
+  position: fixed;
+  z-index: 1000;
+  width: min(320px, calc(100vw - 16px));
+  max-height: min(400px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+  color: var(--dsw-alias-label-primary);
+  font: 12px/1.5 var(--dsw-font-family);
+}
+.bh-delivery-panel:focus {
+  outline: none;
+}
+.bh-delivery-panel-summary {
+  margin-bottom: 10px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-delivery-panel-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.bh-delivery-panel-groups:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bh-delivery-panel-group {
+  min-width: 0;
+}
+.bh-delivery-panel-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.bh-delivery-legend {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+.bh-delivery-panel-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-delivery-panel-group li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+.bh-delivery-panel-group li > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bh-mention-picker {
   max-height: 280px;

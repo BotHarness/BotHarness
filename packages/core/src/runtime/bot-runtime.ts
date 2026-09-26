@@ -750,6 +750,7 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#channels.admissionChanged?.(channelId, messageId);
       return false;
     }
+    this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
     void active
       .then(
         () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
@@ -1037,6 +1038,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['bot-inbox'],
     );
+    for (const row of admitted) this.#channels.admissionChanged?.(channelId, row.message_id);
     const prompt = [
       '[Bot Inbox: Group digest]',
       `Channel: ${channel.name} (${channelId})`,
@@ -1132,7 +1134,8 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const result = database
           .prepare(`
-        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+        UPDATE inbox_admissions
+           SET attempt_state = 'running', observed_at = NULL, last_error = NULL
          WHERE source_event_id = ? AND bot_slug = ?
            AND attempt_state IN ('pending', 'retryable')
       `)
@@ -1150,6 +1153,7 @@ class BotRuntimeImplementation implements BotRuntime {
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
       collected = this.#collectInbox(botSlug);
       this.#setObserved(collected.eventIds, timestamp);
+      this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,
@@ -1271,6 +1275,26 @@ class BotRuntimeImplementation implements BotRuntime {
       );
     }
     return parts.join('\n\n');
+  }
+
+  #observeAdmission(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): void {
+    const changed = this.#database.transaction(
+      (database) =>
+        database
+          .prepare(`
+        UPDATE inbox_admissions
+           SET observed_at = COALESCE(observed_at, ?)
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+          .run(this.#now().toISOString(), sourceEventId, botSlug).changes > 0,
+      ['bot-inbox'],
+    );
+    if (changed) this.#channels.admissionChanged?.(channelId, messageId);
   }
 
   #markAdmissionSideEffect(sourceEventId: string, botSlug: string): void {
