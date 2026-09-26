@@ -1280,7 +1280,11 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     for (const key of ['id', 'createdAt', 'channelId', 'channelName', 'botSlug', 'summary'])
       if (typeof item[key] !== 'string') return undefined;
     if (item['category'] !== 'action' && item['category'] !== 'info') return undefined;
-    if (item['kind'] !== 'group-join-request' && item['kind'] !== 'bot-dm-message')
+    if (
+      item['kind'] !== 'group-join-request' &&
+      item['kind'] !== 'user-question' &&
+      item['kind'] !== 'bot-dm-message'
+    )
       return undefined;
     if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
     if (item['messageId'] !== undefined && typeof item['messageId'] !== 'string') return undefined;

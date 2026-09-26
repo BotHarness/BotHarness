@@ -136,6 +136,12 @@ export class ChannelUserQuestions {
     }
   }
 
+  activeMessageIds(): string[] {
+    return [...this.#pending]
+      .filter(([messageId, pending]) => this.status(pending.botSlug, messageId) === 'pending')
+      .map(([messageId]) => messageId);
+  }
+
   status(botSlug: string, messageId: string): 'pending' | 'expired' {
     const pending = this.#pending.get(messageId);
     if (pending === undefined || pending.botSlug !== botSlug) return 'expired';

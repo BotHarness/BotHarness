@@ -137,4 +137,92 @@ describe('Human attention projection', () => {
       core.operationalDatabase.close();
     }
   });
+  it('shows native questions as actions until their durable answer or cancellation, including after restart', async () => {
+    const home = createTempRoot('botharness-human-question-');
+    let activeQuestions = ['question-one'];
+    const before = createCore({
+      dshHome: home,
+      agents: adapter(),
+      activeQuestionMessageIds: () => activeQuestions,
+    });
+    const dmId = 'dm-ada';
+    try {
+      before.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const dm = before.channels.getOrCreateDm('ada', 'Ada')!;
+      await before.channels.appendMessage(dm.id, {
+        id: 'question-one',
+        at: '2026-09-26T03:00:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Which branch should I use?',
+        userQuestionRequest: {
+          sessionId: 'session-one',
+          questions: [{ id: 'branch', question: 'Which branch should I use?' }],
+        },
+      });
+      expect(before.humanAttention.list({ category: 'action' }).items).toMatchObject([
+        {
+          kind: 'user-question',
+          channelId: dm.id,
+          botSlug: 'ada',
+          messageId: 'question-one',
+          summary: 'Which branch should I use?',
+        },
+      ]);
+      expect(before.humanAttention.list({ category: 'info' }).items).toEqual([]);
+      expect(
+        before.humanAttention.list({ category: 'action', channelId: 'group-other' }).items,
+      ).toEqual([]);
+    } finally {
+      await before.runtime.close();
+      before.operationalDatabase.close();
+    }
+
+    activeQuestions = [];
+    const resumed = createCore({
+      dshHome: home,
+      agents: adapter(),
+      activeQuestionMessageIds: () => activeQuestions,
+    });
+    try {
+      expect(resumed.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      await resumed.channels.appendMessage(dmId, {
+        id: 'answer-one',
+        at: '2026-09-26T03:01:00.000Z',
+        author: { kind: 'human' },
+        body: 'main',
+        replyTo: 'question-one',
+        userQuestionResolution: {
+          requestMessageId: 'question-one',
+          state: 'answered',
+          answers: [{ id: 'branch', selected: [], custom: 'main' }],
+        },
+      });
+      expect(resumed.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      activeQuestions = ['question-two'];
+      await resumed.channels.appendMessage(dmId, {
+        id: 'question-two',
+        at: '2026-09-26T03:02:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Should I continue?',
+        userQuestionRequest: {
+          sessionId: 'session-two',
+          questions: [{ id: 'continue', question: 'Should I continue?' }],
+        },
+      });
+      expect(resumed.humanAttention.list({ category: 'action' }).items).toHaveLength(1);
+      await resumed.channels.appendMessage(dmId, {
+        id: 'cancel-two',
+        at: '2026-09-26T03:03:00.000Z',
+        author: { kind: 'bot', slug: 'ada' },
+        body: 'Question cancelled',
+        replyTo: 'question-two',
+        userQuestionResolution: { requestMessageId: 'question-two', state: 'cancelled' },
+      });
+      expect(resumed.humanAttention.list({ category: 'action' }).items).toEqual([]);
+      expect(resumed.humanAttention.list({ category: 'info' }).items).toEqual([]);
+    } finally {
+      await resumed.runtime.close();
+      resumed.operationalDatabase.close();
+    }
+  });
 });
