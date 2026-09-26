@@ -56,6 +56,11 @@ import type {
 } from '../workspaces/assignment-access.js';
 import type { BotSessionSource, SessionSummary } from '../sessions/source.js';
 import type {
+  BotAttentionQuery,
+  BotAttentionPage,
+  BotAttentionState,
+} from '../runtime/attention.js';
+import type {
   AssignmentDetail,
   AssignmentSummary,
   BotRuntime,
@@ -121,6 +126,7 @@ export interface BridgeMethods {
   channelMarkRead(payload: unknown): Promise<BridgeResult<{ position: ChannelReadPosition }>>;
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
+  botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
   workspaceOptions(
@@ -169,6 +175,7 @@ export interface BridgeMethodsDeps {
   memory?: MemoryService;
   roster: RosterStore;
   runtime?: BotRuntime;
+  attention?: BotAttentionQuery;
   grants?: WorkspaceGrantStore;
   toolApproval?: ChannelToolApproval;
   userQuestions?: ChannelUserQuestions;
@@ -1032,6 +1039,43 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         }
       }
       return { ok: true, value: { message: appended } };
+    },
+    botAttention(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const limit = source['limit'];
+      const cursor = source['cursor'];
+      const state = source['state'];
+      if (
+        limit !== undefined &&
+        (!Number.isSafeInteger(limit) || (limit as number) < 1 || (limit as number) > 100)
+      )
+        return invalidInput('limit must be an integer from 1 to 100');
+      if (
+        cursor !== undefined &&
+        (typeof cursor !== 'string' || cursor.length === 0 || cursor.length > 150)
+      )
+        return invalidInput('cursor must be a Source Event ID');
+      if (
+        state !== undefined &&
+        !['pending', 'observed', 'deferred', 'needs-repair', 'handled'].includes(String(state))
+      )
+        return invalidInput('unknown Bot attention state');
+      try {
+        return {
+          ok: true,
+          value: deps.attention?.list({
+            botSlug: slug,
+            ...(limit === undefined ? {} : { limit: limit as number }),
+            ...(cursor === undefined ? {} : { cursor: cursor as string }),
+            ...(state === undefined ? {} : { state: state as BotAttentionState }),
+          }) ?? { items: [] },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     assignments(payload) {
       const slug = asSlug(payload);

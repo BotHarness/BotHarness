@@ -96,6 +96,7 @@ describe('bridge typert service', () => {
       'channelReadPosition',
       'channelMarkRead',
       'channelSend',
+      'botAttention',
       'assignments',
       'assignment',
       'workspaceOptions',
@@ -186,6 +187,7 @@ describe('bridge typert service', () => {
       'mentions',
       'channelRefs',
     ]);
+    expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);

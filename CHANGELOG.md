@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A PersonaBot DM sidebar now shows a Bot-scoped Inbox grouped by source Channel, with durable attention status, source-message navigation, and unavailable-source fallback; completed attention does not imply a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47), [#152](https://github.com/BotHarness/BotHarness/issues/152), [ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)).
+
 - A Human can select a Group Channel with `#` in a PersonaBot DM; the Bot receives its current ID and name without gaining membership or seeing its roster or history. The Bot can request to join, a Human or the Group's Bot creator can approve or decline, and the Human can click the sent reference to open that Group ([#292](https://github.com/BotHarness/BotHarness/issues/292), [ADR-0069](docs/adr/0069-selected-channel-references-and-bot-join-requests.md)).
 
 - Group Channel members can use a per-Bot ordinary-message digest: after N messages or T seconds with a nonempty queue, the Bot receives one bounded Inbox summary at its next idle turn. Direct @ mentions remain immediate; a busy Bot finishes its current turn first, and a completed digest does not require a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
@@ -150,6 +152,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 Consolidated the implemented foundation and public documentation that preceded DeepSeekBot's first release; this is development history, not a released or installable version.
 
 ### Added
+
+- A PersonaBot DM sidebar now shows a Bot-scoped Inbox grouped by source Channel, with durable attention status, source-message navigation, and unavailable-source fallback; completed attention does not imply a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47), [#152](https://github.com/BotHarness/BotHarness/issues/152), [ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)).
 
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Added durable PersonaBot identity, file-based Memory tools, and the BOT-mode creation flow ([#22](https://github.com/BotHarness/BotHarness/pull/22), [#98](https://github.com/BotHarness/BotHarness/pull/98)).

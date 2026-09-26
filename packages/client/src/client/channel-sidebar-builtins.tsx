@@ -11,7 +11,7 @@ import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { BotSummary, ChannelSummary } from './store.js';
+import type { BotAttentionItem, BotSummary, ChannelSummary } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
 
@@ -375,6 +375,130 @@ function MembersBadge(): ReactElement {
   return <Tag tone="neutral">{useClientState().conversation.channel?.members.length ?? 0}</Tag>;
 }
 
+function BotInboxItemRow({
+  item,
+  actions,
+  t,
+}: {
+  item: BotAttentionItem;
+  actions: ChannelSidebarEntryProps['actions'];
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const author =
+    item.authorKind === 'human'
+      ? t('main.author.human')
+      : item.authorKind === 'bot'
+        ? (item.authorBotSlug ?? t('inbox.bot'))
+        : t('inbox.system');
+  const open = async (): Promise<void> => {
+    if (
+      !item.sourceAvailable ||
+      item.sourceChannelId === undefined ||
+      item.sourceMessageId === undefined
+    )
+      return;
+    await actions.openChannel(item.sourceChannelId);
+    await actions.openAround(item.sourceChannelId, item.sourceMessageId);
+  };
+  return (
+    <button
+      type="button"
+      className="bh-inbox-item"
+      disabled={!item.sourceAvailable}
+      onClick={() => void open()}
+    >
+      <span className="bh-inbox-item-top">
+        <span>{author}</span>
+        <Tag tone="neutral">{t(`inbox.state.${item.state}`)}</Tag>
+      </span>
+      <span className="bh-inbox-item-summary">{item.summary || t('inbox.system')}</span>
+      <span className="bh-inbox-item-meta">
+        {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
+        {!item.sourceAvailable ? ` · ${t('inbox.sourceUnavailable')}` : ''}
+      </span>
+    </button>
+  );
+}
+
+function BotInboxGroup({
+  name,
+  items,
+  actions,
+  t,
+}: {
+  name: string;
+  items: BotAttentionItem[];
+  actions: ChannelSidebarEntryProps['actions'];
+  t: BotHarnessTranslate;
+}): ReactElement {
+  const active = items.filter((item) => item.state !== 'handled');
+  const history = items.filter((item) => item.state === 'handled');
+  const [expanded, setExpanded] = useState(active.length > 0);
+  return (
+    <details
+      className="bh-inbox-group"
+      open={expanded}
+      onToggle={(event) => setExpanded(event.currentTarget.open)}
+    >
+      <summary className="bh-inbox-group-head">
+        <span>{name}</span>
+        <Tag tone="neutral">{items.length}</Tag>
+      </summary>
+      {active.map((item) => (
+        <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+      ))}
+      {history.length > 0 ? (
+        <details className="bh-inbox-history">
+          <summary>{t('inbox.handledHistory', { count: history.length })}</summary>
+          {history.map((item) => (
+            <BotInboxItemRow key={item.id} item={item} actions={actions} t={t} />
+          ))}
+        </details>
+      ) : null}
+    </details>
+  );
+}
+function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): ReactElement {
+  const inbox = useClientState().botInbox;
+  const groups = new Map<string, { name: string; items: BotAttentionItem[] }>();
+  for (const item of inbox.items) {
+    const key = item.sourceChannelId ?? `system:${item.reason}`;
+    const group = groups.get(key) ?? {
+      name: item.sourceChannelName ?? item.sourceChannelId ?? t('inbox.system'),
+      items: [],
+    };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  return (
+    <>
+      {inbox.status === 'loading' ? <div className="bh-note">{t('inbox.loading')}</div> : null}
+      {inbox.status === 'error' ? (
+        <div className="bh-error" role="alert">
+          {t('inbox.error', { error: inbox.error ?? '' })}
+        </div>
+      ) : null}
+      {[...groups.entries()].map(([key, group]) => (
+        <BotInboxGroup key={key} name={group.name} items={group.items} actions={actions} t={t} />
+      ))}
+      {inbox.nextCursor !== undefined && botSlug !== undefined ? (
+        <button
+          type="button"
+          className="bh-group-manage-button"
+          onClick={() => void actions.loadMoreBotInbox(botSlug)}
+        >
+          {t('inbox.more')}
+        </button>
+      ) : null}
+    </>
+  );
+}
+
+function BotInboxBadge(): ReactElement {
+  const items = useClientState().botInbox.items;
+  return <Tag tone="neutral">{items.filter((item) => item.state !== 'handled').length}</Tag>;
+}
+
 /** Entries BotHarness itself contributes to the Channel sidebar. */
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
@@ -402,6 +526,18 @@ export function createChannelSidebarBuiltins(
       scope: 'personabot',
       component: AssignmentsEntry,
       badge: AssignmentsBadge,
+    },
+    {
+      id: 'bot-inbox',
+      label: t('entry.botInbox'),
+      order: 15,
+      scope: 'personabot',
+      component: BotInboxEntry,
+      badge: BotInboxBadge,
+      visible: (state) =>
+        state.botInbox.status === 'loading' ||
+        state.botInbox.status === 'error' ||
+        state.botInbox.items.length > 0,
     },
     {
       id: 'workspace-grants',

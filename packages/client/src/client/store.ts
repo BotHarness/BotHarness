@@ -244,6 +244,38 @@ export interface ConversationState {
   sending: boolean;
 }
 
+export type BotAttentionStatus = 'pending' | 'observed' | 'deferred' | 'needs-repair' | 'handled';
+
+export interface BotAttentionItem {
+  id: string;
+  botSlug: string;
+  reason: string;
+  state: BotAttentionStatus;
+  createdAt: string;
+  observedAt?: string;
+  handledAt?: string;
+  sourceKind: string;
+  sourceChannelId?: string;
+  sourceChannelName?: string;
+  sourceMessageId?: string;
+  sourceAvailable: boolean;
+  authorKind: 'human' | 'bot' | 'bridged' | 'system';
+  authorBotSlug?: string;
+  summary: string;
+}
+
+export interface BotAttentionPage {
+  items: BotAttentionItem[];
+  nextCursor?: string;
+}
+
+export interface BotInboxState {
+  status: ClientStatus;
+  items: readonly BotAttentionItem[];
+  nextCursor: string | undefined;
+  error: string | undefined;
+}
+
 export interface AssignmentsState {
   status: ClientStatus;
   items: readonly AssignmentSummary[];
@@ -279,6 +311,7 @@ export interface ClientState {
   selection: ConversationSelection | undefined;
   conversation: ConversationState;
   assignments: AssignmentsState;
+  botInbox: BotInboxState;
 }
 
 export interface ClientStore {
@@ -295,6 +328,7 @@ export interface ClientStore {
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
   setAssignments(patch: Partial<AssignmentsState>): void;
+  setBotInbox(patch: Partial<BotInboxState>): void;
 }
 
 function initialConversation(): ConversationState {
@@ -315,6 +349,10 @@ function initialConversation(): ConversationState {
 
 function initialAssignments(): AssignmentsState {
   return { status: 'idle', items: [], selected: undefined, error: undefined };
+}
+
+function initialBotInbox(): BotInboxState {
+  return { status: 'idle', items: [], nextCursor: undefined, error: undefined };
 }
 
 function initialRoster(): RosterState {
@@ -352,6 +390,7 @@ export function createStore(): ClientStore {
     selection: undefined,
     conversation: initialConversation(),
     assignments: initialAssignments(),
+    botInbox: initialBotInbox(),
   };
   const listeners = new Set<() => void>();
 
@@ -401,6 +440,7 @@ export function createStore(): ClientStore {
         selection,
         conversation: initialConversation(),
         assignments: initialAssignments(),
+        botInbox: initialBotInbox(),
       });
     },
     setConversation(patch) {
@@ -408,6 +448,9 @@ export function createStore(): ClientStore {
     },
     setAssignments(patch) {
       update({ assignments: { ...state.assignments, ...patch } });
+    },
+    setBotInbox(patch) {
+      update({ botInbox: { ...state.botInbox, ...patch } });
     },
   };
 }

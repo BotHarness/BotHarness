@@ -195,6 +195,11 @@ export function ChannelSidebar({
     () => registry.entries(scope),
     () => registry.entries(scope),
   );
+  useEffect(() => {
+    if (selection?.kind !== 'bot' || controller.mode === 'hidden') return;
+    const timer = window.setInterval(() => void actions.refreshBotInbox(selection.slug), 10_000);
+    return () => window.clearInterval(timer);
+  }, [selection, controller.mode, actions]);
   const closeRef = useRef(controller);
   useEffect(() => {
     closeRef.current = controller;
@@ -223,6 +228,7 @@ export function ChannelSidebar({
     onMemoryCommitSelect,
     selectedMemoryCommitSha,
   };
+  const visibleEntries = entries.filter((entry) => entry.visible?.(state) ?? true);
   const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (
     <div
@@ -281,10 +287,10 @@ export function ChannelSidebar({
       )}
       <div className="bh-channel-sidebar-head" aria-hidden="true" />
       <div className="bh-channel-sidebar-entries">
-        {entries.length === 0 ? (
+        {visibleEntries.length === 0 ? (
           <div className="bh-note">{t('sidebar.empty')}</div>
         ) : (
-          entries.map((entry) => (
+          visibleEntries.map((entry) => (
             <ChannelSidebarEntrySection
               key={entry.id}
               entry={entry}

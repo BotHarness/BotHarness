@@ -29,6 +29,7 @@ import {
   type WorkspaceOption,
   type WorkspaceGrantView,
   loadAssignments,
+  loadBotAttention,
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
@@ -99,6 +100,8 @@ export interface BridgeActions {
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
+  refreshBotInbox(slug: string): Promise<void>;
+  loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
@@ -398,6 +401,33 @@ export function createActions(
     }
   };
 
+  const loadBotInboxFor = async (
+    slug: string,
+    selection: ConversationSelection,
+    cursor?: string,
+  ): Promise<void> => {
+    if (cursor === undefined && clientStore.getSnapshot().botInbox.status === 'idle')
+      clientStore.setBotInbox({ status: 'loading', error: undefined });
+    try {
+      const page = await loadBotAttention(call, slug, 50, cursor);
+      if (currentSelection() !== selection) return;
+      const prior = clientStore.getSnapshot().botInbox.items;
+      const items =
+        cursor === undefined
+          ? page.items
+          : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      clientStore.setBotInbox({
+        status: 'ready',
+        items,
+        nextCursor: page.nextCursor,
+        error: undefined,
+      });
+    } catch (error) {
+      if (currentSelection() !== selection) return;
+      clientStore.setBotInbox({ status: 'error', error: errorMessage(error) });
+    }
+  };
+
   const loadOpeningTimeline = async (channelId: string) => {
     const anchor = await loadReadPosition(call, channelId);
     if (anchor !== undefined) {
@@ -566,7 +596,19 @@ export function createActions(
           sending: false,
         });
       }
-      await loadAssignmentsFor(slug, active);
+      await Promise.all([loadAssignmentsFor(slug, active), loadBotInboxFor(slug, active)]);
+    },
+    refreshBotInbox(slug) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'bot' || selection.slug !== slug) return Promise.resolve();
+      return loadBotInboxFor(slug, selection);
+    },
+    loadMoreBotInbox(slug) {
+      const selection = currentSelection();
+      const cursor = clientStore.getSnapshot().botInbox.nextCursor;
+      if (selection?.kind !== 'bot' || selection.slug !== slug || cursor === undefined)
+        return Promise.resolve();
+      return loadBotInboxFor(slug, selection, cursor);
     },
     openChannel(channelId) {
       return openChannelById(channelId);
