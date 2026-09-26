@@ -83,6 +83,7 @@ import type {
   ClientStore,
   ConversationSelection,
   HumanInboxCategory,
+  HumanInboxFilters,
   UserQuestionAnswerItem,
 } from './store.js';
 
@@ -105,6 +106,7 @@ export interface BridgeActions {
   refreshBotInbox(slug: string): Promise<void>;
   openHumanInbox(): Promise<void>;
   refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
@@ -449,7 +451,7 @@ export function createActions(
 
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
-  let humanInboxCategoryVersion = 0;
+  let humanInboxScopeVersion = 0;
   const loadHumanInboxFor = async (
     category: HumanInboxCategory,
     selection: ConversationSelection,
@@ -457,15 +459,20 @@ export function createActions(
   ): Promise<void> => {
     const head = cursor === undefined;
     const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
-    const categoryVersion = humanInboxCategoryVersion;
+    const scopeVersion = humanInboxScopeVersion;
+    const { botSlug, channelId, sort } = clientStore.getSnapshot().humanInbox;
     const isCurrent = (): boolean =>
       currentSelection() === selection &&
-      categoryVersion === humanInboxCategoryVersion &&
+      scopeVersion === humanInboxScopeVersion &&
       requestSeq === (head ? humanInboxHeadSeq : humanInboxPageSeq);
     if (cursor === undefined && clientStore.getSnapshot().humanInbox.status === 'idle')
       clientStore.setHumanInbox({ status: 'loading', error: undefined });
     try {
-      const page = await loadHumanAttention(call, category, 50, cursor);
+      const page = await loadHumanAttention(call, category, 50, cursor, {
+        botSlug,
+        channelId,
+        sort,
+      });
       if (!isCurrent()) return;
       const priorState = clientStore.getSnapshot().humanInbox;
       if (priorState.category !== category) return;
@@ -685,9 +692,10 @@ export function createActions(
       const prior = clientStore.getSnapshot().humanInbox;
       const nextCategory = category ?? prior.category;
       if (nextCategory !== prior.category) {
-        humanInboxCategoryVersion += 1;
+        humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
+          channelId: undefined,
           status: 'loading',
           items: [],
           nextCursor: undefined,
@@ -695,6 +703,26 @@ export function createActions(
         });
       }
       return loadHumanInboxFor(nextCategory, selection);
+    },
+    setHumanInboxFilters(filters) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      const prior = clientStore.getSnapshot().humanInbox;
+      if (
+        prior.botSlug === filters.botSlug &&
+        prior.channelId === filters.channelId &&
+        prior.sort === filters.sort
+      )
+        return Promise.resolve();
+      humanInboxScopeVersion += 1;
+      clientStore.setHumanInbox({
+        ...filters,
+        status: 'loading',
+        items: [],
+        nextCursor: undefined,
+        error: undefined,
+      });
+      return loadHumanInboxFor(prior.category, selection);
     },
     loadMoreHumanInbox() {
       const selection = currentSelection();

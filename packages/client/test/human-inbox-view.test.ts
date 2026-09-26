@@ -35,6 +35,9 @@ describe('Human Inbox center view', () => {
       createElement(HumanInboxView, { actions: {} as BridgeActions }),
     );
     expect(markup).toContain('需要我处理');
+    expect(markup).toContain('全部 Bot');
+    expect(markup).toContain('全部频道');
+    expect(markup).toContain('最新在前');
     expect(markup).toContain('aria-selected="true"');
     expect(markup).toContain('申请加入');
     expect(markup).toContain('查看来源');

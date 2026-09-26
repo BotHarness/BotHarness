@@ -74,6 +74,55 @@ describe('Human Inbox pagination refresh', () => {
     expect(inbox.nextCursor).toBe('cursor-2');
   });
 
+  it('passes Bot, Channel, and sort filters to the Host and clears a Channel filter on tab change', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    const requests: Record<string, unknown>[] = [];
+    const call: BridgeCall = async (endpoint, payload) => {
+      if (endpoint === 'humanAttention') requests.push(payload);
+      return { ok: true, value: { items: [] } };
+    };
+    const actions = createActions(call, clientStore);
+    await actions.setHumanInboxFilters({
+      botSlug: 'ada',
+      channelId: 'group-team',
+      sort: 'oldest',
+    });
+    expect(requests.at(-1)).toMatchObject({
+      category: 'action',
+      botSlug: 'ada',
+      channelId: 'group-team',
+      sort: 'oldest',
+    });
+    await actions.refreshHumanInbox('info');
+    expect(requests.at(-1)).toMatchObject({
+      category: 'info',
+      botSlug: 'ada',
+      sort: 'oldest',
+    });
+    expect(requests.at(-1)?.['channelId']).toBeUndefined();
+    expect(clientStore.getSnapshot().humanInbox.channelId).toBeUndefined();
+  });
+
+  it('discards a stale response after filters change', async () => {
+    const clientStore = createStore();
+    clientStore.select({ kind: 'inbox' });
+    const stale = deferred<HumanAttentionPage>();
+    const responses = [stale.promise, Promise.resolve({ items: [] })];
+    const call: BridgeCall = async () => ({ ok: true, value: await responses.shift()! });
+    const actions = createActions(call, clientStore);
+    const first = actions.refreshHumanInbox();
+    await actions.setHumanInboxFilters({
+      botSlug: 'ada',
+      channelId: undefined,
+      sort: 'oldest',
+    });
+    stale.resolve({ items: [item('stale')] });
+    await first;
+    expect(clientStore.getSnapshot().humanInbox.items).toEqual([]);
+    expect(clientStore.getSnapshot().humanInbox.sort).toBe('oldest');
+  });
+
   it('discards an old category response after switching category', async () => {
     const clientStore = createStore();
     clientStore.select({ kind: 'inbox' });
