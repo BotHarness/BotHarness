@@ -257,7 +257,11 @@ describe('Assignment collaboration', () => {
     await admit('开始调研', 'human-stop-failure');
     const access = agents.access;
     if (access === undefined) throw new Error('Orchestrator never ran');
-    const created = access.create({ grantId: TEST_GRANT_ID, purpose: '可复用的事项' });
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '可复用的事项',
+      key: 'stopping-key',
+    });
     if (created.outcome !== 'created') throw new Error('create failed');
     const sessionId = created.assignment.sessionId;
     agents.finish(sessionId);
@@ -267,6 +271,13 @@ describe('Assignment collaboration', () => {
     agents.failNextStop = true;
     await expect(access.stop(sessionId)).rejects.toThrow('DSH stop failed');
     expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('stopping');
+    expect(
+      access.create({
+        grantId: TEST_GRANT_ID,
+        purpose: '不得复用停止中的续接键',
+        key: 'stopping-key',
+      }).outcome,
+    ).toBe('key-busy');
     expect(access.create({ grantId: TEST_GRANT_ID, purpose: '不得抢占停止中的名额' }).outcome).toBe(
       'capacity',
     );

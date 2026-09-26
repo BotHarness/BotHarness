@@ -2494,7 +2494,7 @@ class BotRuntimeImplementation implements BotRuntime {
       if (holder !== undefined && holder.grant_id !== grant.id) {
         throw new Error('Continuity Key belongs to an Assignment with a different Workspace Grant');
       }
-      if (holder !== undefined && holder.activity === 'idle') {
+      if (holder !== undefined && holder.activity === 'idle' && holder.stop_state === 'running') {
         this.#requestAssignment(bot, {
           sessionId: holder.session_id,
           mode: 'next-turn',

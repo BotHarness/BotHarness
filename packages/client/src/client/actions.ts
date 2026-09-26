@@ -289,6 +289,14 @@ export function createActions(
   };
   const currentSelection = (): ConversationSelection | undefined =>
     clientStore.getSnapshot().selection;
+  const selectedBotSlug = (selection: ConversationSelection | undefined): string | undefined => {
+    if (selection?.kind === 'bot') return selection.slug;
+    if (selection?.kind !== 'channel') return undefined;
+    const channel = clientStore.getSnapshot().conversation.channel;
+    return channel?.id === selection.channelId && channel.type === 'dm'
+      ? channel.botSlug
+      : undefined;
+  };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
     const [rosterResult, channelResult] = await Promise.allSettled([
@@ -764,9 +772,10 @@ export function createActions(
     memoryRepair: (input) => repairMemory(call, input),
     async openAssignment(sessionId) {
       const selection = currentSelection();
-      if (selection?.kind !== 'bot') return;
+      const slug = selectedBotSlug(selection);
+      if (selection === undefined || slug === undefined) return;
       try {
-        const assignment = await loadAssignment(call, selection.slug, sessionId);
+        const assignment = await loadAssignment(call, slug, sessionId);
         if (currentSelection() !== selection) return;
         clientStore.setAssignments({ selected: assignment, error: undefined });
       } catch (error) {
@@ -866,8 +875,9 @@ export function createActions(
             messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
           });
         }
-        if (selection?.kind === 'bot') {
-          void loadAssignments(call, selection.slug)
+        const slug = selectedBotSlug(selection);
+        if (selection !== undefined && slug !== undefined) {
+          void loadAssignments(call, slug)
             .then((items) => {
               if (currentSelection() !== selection) return;
               clientStore.setAssignments({ status: 'ready', items, error: undefined });
