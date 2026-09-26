@@ -169,6 +169,10 @@ describe('@botharness/ui browser bundle', () => {
       },
       layout: {
         selectPanel: () => undefined,
+        panelInfo: {
+          getSnapshot: () => ({ activePanelId: null }),
+          subscribe: () => () => undefined,
+        },
       },
       inputTriggers: {
         registerSource: (source: unknown) => {

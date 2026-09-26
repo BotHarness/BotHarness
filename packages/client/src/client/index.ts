@@ -40,6 +40,7 @@ import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
 import { mountDevClientRefresh } from './dev-client-refresh.js';
 import { saveHmrView, takeHmrView } from './hmr-view.js';
+import { consumeLastView, writeLastView } from './last-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
@@ -98,6 +99,12 @@ export function apply(ctx: ClientContext): void {
     openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
   });
   const prefs = new BotModePrefs(storage);
+  // Read the last actual view once per document. HMR has its own in-document handoff.
+  const lastView =
+    typeof window === 'undefined'
+      ? undefined
+      : consumeLastView(window as unknown as Record<string, unknown>, storage);
+  let restoreBotMode = hmrView === undefined && lastView?.mode === 'bot';
   const nativeSessions = {
     subscribe: (listener: () => void) => ctx.sessions.list.subscribe(listener),
     getSnapshot: () => ctx.sessions.list.getSnapshot(),
@@ -244,8 +251,8 @@ export function apply(ctx: ClientContext): void {
     ),
   );
 
-  ctx.slots.inject('main', () =>
-    ctx.slots.register(
+  ctx.slots.inject('main', () => {
+    const dispose = ctx.slots.register(
       {
         name: 'main',
         key: PANEL_ID,
@@ -253,8 +260,20 @@ export function apply(ctx: ClientContext): void {
         inject: () => ({ actions, channelSidebar, nativeChatT }),
       },
       BotPanel,
-    ),
-  );
+    );
+    if (restoreBotMode) {
+      restoreBotMode = false;
+      queueMicrotask(() => {
+        if (ctx.layout.panelInfo.getSnapshot().activePanelId !== null) return;
+        try {
+          ctx.layout.selectPanel(PANEL_ID);
+        } catch (error) {
+          ctx.logger.warn('botharness: failed to restore Bot mode', error);
+        }
+      });
+    }
+    return dispose;
+  });
 
   const resolveSessionOwner = (sessionId: string, signal: AbortSignal) =>
     loadSessionBotOwner(call, sessionId, signal);
@@ -368,7 +387,9 @@ export function apply(ctx: ClientContext): void {
   };
   ctx.effect(() => ctx.inputTriggers.registerSource(mention), 'botharness: @ mention');
 
-  if (hmrView !== undefined) {
+  const viewToRestore =
+    hmrView ?? (lastView?.mode === 'bot' ? { selection: lastView.selection } : undefined);
+  if (viewToRestore !== undefined) {
     ctx.effect(() => {
       let restored = false;
       const restore = (): void => {
@@ -376,26 +397,57 @@ export function apply(ctx: ClientContext): void {
         restored = true;
         unsubscribe();
         try {
-          ctx.layout.selectPanel(PANEL_ID);
-          const selection = hmrView.selection;
+          if (hmrView !== undefined) ctx.layout.selectPanel(PANEL_ID);
+          if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) return;
+          const selection = viewToRestore.selection;
+          const snapshot = store.getSnapshot();
           const opening =
-            selection?.kind === 'bot'
+            selection?.kind === 'bot' && snapshot.bots.some((bot) => bot.slug === selection.slug)
               ? actions.openBot(selection.slug)
-              : selection?.kind === 'channel'
+              : selection?.kind === 'channel' &&
+                  snapshot.channels.some((channel) => channel.id === selection.channelId)
                 ? actions.openChannel(selection.channelId)
-                : undefined;
+                : selection?.kind === 'inbox'
+                  ? actions.openHumanInbox()
+                  : undefined;
           void opening?.catch((error: unknown) => {
-            ctx.logger.warn('botharness: HMR view restore failed', error);
+            ctx.logger.warn('botharness: Bot view restore failed', error);
           });
         } catch (error) {
-          ctx.logger.warn('botharness: HMR view restore failed', error);
+          ctx.logger.warn('botharness: Bot view restore failed', error);
         }
       };
       const unsubscribe = store.subscribe(restore);
       restore();
       return unsubscribe;
-    }, 'botharness: HMR view restore');
+    }, 'botharness: Bot view restore');
   }
+  ctx.effect(() => {
+    let enteredBotMode = false;
+    let lastWritten: string | undefined;
+    const persist = (): void => {
+      const active = ctx.layout.panelInfo.getSnapshot().activePanelId === PANEL_ID;
+      if (active) enteredBotMode = true;
+      if (!enteredBotMode) return;
+      const view = {
+        mode: active ? 'bot' : 'dsh',
+        selection: store.getSnapshot().selection,
+      } as const;
+      const serialized = JSON.stringify(view);
+      if (serialized === lastWritten) return;
+      lastWritten = serialized;
+      writeLastView(storage, view);
+    };
+    const unsubscribePanel = ctx.layout.panelInfo.subscribe(persist);
+    const unsubscribeStore = store.subscribe(() => {
+      if (ctx.layout.panelInfo.getSnapshot().activePanelId === PANEL_ID) persist();
+    });
+    persist();
+    return () => {
+      unsubscribePanel();
+      unsubscribeStore();
+    };
+  }, 'botharness: last visible view');
   ctx.effect(
     () => () => {
       if (typeof window === 'undefined') return;
