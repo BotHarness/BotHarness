@@ -195,7 +195,9 @@ export function HumanInboxView({
                 item.kind === 'user-question' ||
                 item.kind === 'tool-approval' ||
                 item.kind === 'assignment-waiting-human' ? (
-                  <div className="bh-human-inbox-row-summary">{item.summary}</div>
+                  <div className="bh-human-inbox-row-summary" title={item.summary}>
+                    {item.summary}
+                  </div>
                 ) : null}
               </div>
               <div className="bh-human-inbox-row-actions">
