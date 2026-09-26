@@ -948,6 +948,63 @@ describe('bridge methods', () => {
     expect(result.value.sessions.map((session) => session.sessionId)).not.toContain('session-3');
   });
 
+  it('resolves only owned root Sessions to their PersonaBot for return navigation', () => {
+    const ownership = createTestOwnership({
+      'session-orchestrator': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-assignment': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-other': { botSlug: 'bob', rootRole: 'orchestrator' },
+    });
+    ownership.claim({
+      sessionId: 'session-child',
+      botSlug: 'ada',
+      rootRole: 'assignment',
+      parentSessionId: 'session-assignment',
+      provenance: 'subagent',
+      at: '2026-09-19T00:00:01.000Z',
+    });
+    const { methods } = setup([], ['ada'], undefined, ownership);
+    methods.create({ slug: 'ada', displayName: 'Ada', avatarSeed: 'https://example.com/ada.png' });
+
+    expect(methods.sessionOwner({ sessionId: 'session-orchestrator' })).toEqual({
+      ok: true,
+      value: {
+        owner: {
+          botSlug: 'ada',
+          displayName: 'Ada',
+          avatar: 'https://example.com/ada.png',
+          role: 'orchestrator',
+        },
+      },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-assignment' })).toEqual({
+      ok: true,
+      value: {
+        owner: {
+          botSlug: 'ada',
+          displayName: 'Ada',
+          avatar: 'https://example.com/ada.png',
+          role: 'assignment',
+        },
+      },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-child' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-other' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({ sessionId: 'unowned' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'sessionId is required' },
+    });
+  });
+
   it('rejects malformed or unknown session reads', () => {
     const { methods } = setup();
 
