@@ -51,6 +51,7 @@ import type { ChannelUserQuestions } from '../channels/user-questions.js';
 import type { AskUserQuestionAnswer } from '@deepseek-ai/dsh-user-questions/types';
 import type { ToolApprovalRuleStore, ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
 import type {
+  AssignmentAccessMode,
   AssignmentAccessStore,
   AssignmentAccessPreset,
 } from '../workspaces/assignment-access.js';
@@ -109,6 +110,7 @@ export interface OwnedSessionSummary {
   createdAt: string;
   cwdReference?: string;
   assignmentActivity?: AssignmentActivity;
+  assignmentAccessMode?: AssignmentAccessMode;
 }
 
 export interface OwnedSessionBot {
@@ -1387,6 +1389,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           createdAt: root.createdAt,
           ...(root.cwdReference === undefined ? {} : { cwdReference: root.cwdReference }),
           ...(assignment === undefined ? {} : { assignmentActivity: assignment.activity }),
+          ...(assignment?.permission === undefined
+            ? {}
+            : { assignmentAccessMode: assignment.permission.mode }),
         };
       });
       return { ok: true, value: { sessions } };

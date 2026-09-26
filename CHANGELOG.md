@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Existing full-access Assignments remain visibly marked in the Bot's Session list after the Bot default is turned off or the Host restarts, using each Session's original permission snapshot ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 - Group Channel members can choose a silent inbox for a Bot: ordinary messages remain as durable pending admissions without an automatic wake, including after restart; direct @ mentions still wake immediately ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
 - Orchestrators can stop an Assignment through DSH cancellation; its stopped state survives restart, late reports cannot revive it, and the same continuity key can start a new Session ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Bot mode has a Human Inbox above Messages for pending Group join requests, live native Bot questions and tool approvals, and new Bot DM information. Users can return to each source to decide, mark informational messages read, filter by Bot or Channel, and sort by time ([#126](https://github.com/BotHarness/BotHarness/issues/126), [ADR-0071](docs/adr/0071-human-inbox-projects-channel-attention.md)).

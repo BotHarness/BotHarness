@@ -948,6 +948,66 @@ describe('bridge methods', () => {
     expect(result.value.sessions.map((session) => session.sessionId)).not.toContain('session-3');
   });
 
+  it('projects each Assignment access snapshot independently of the Bot default', () => {
+    const ownership = createTestOwnership({
+      'session-orchestrator': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-safe': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-danger': { botSlug: 'ada', rootRole: 'assignment' },
+    });
+    const { methods } = setup(
+      [],
+      ['ada'],
+      () => ({
+        admitGroupMessage() {},
+        admitBotDmMessage() {},
+        admitGroupInvitation() {},
+        admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
+        listAssignments: () =>
+          (['session-safe', 'session-danger'] as const).map((sessionId) => ({
+            sessionId,
+            purpose: 'Inspect files',
+            activity: 'idle' as const,
+            createdAt: '2026-09-19T00:00:00.000Z',
+            updatedAt: '2026-09-19T00:00:00.000Z',
+            permission: {
+              grantId: 'grant',
+              workspaceId: 'workspace',
+              primaryCwd: '/projects/ada',
+              mode:
+                sessionId === 'session-danger'
+                  ? ('danger-full-access' as const)
+                  : ('workspace-write' as const),
+              approval: sessionId === 'session-danger' ? ('never' as const) : ('ask' as const),
+              presetRevision: sessionId === 'session-danger' ? 1 : 0,
+            },
+          })),
+        getAssignment: () => undefined,
+        whenIdle: async () => undefined,
+        close: async () => undefined,
+      }),
+      ownership,
+    );
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    const result = methods.sessions({ slug: 'ada' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sessions).toHaveLength(3);
+    expect(result.value.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sessionId: 'session-orchestrator', role: 'orchestrator' }),
+        expect.objectContaining({
+          sessionId: 'session-safe',
+          assignmentAccessMode: 'workspace-write',
+        }),
+        expect.objectContaining({
+          sessionId: 'session-danger',
+          assignmentAccessMode: 'danger-full-access',
+        }),
+      ]),
+    );
+  });
+
   it('resolves only owned root Sessions to their PersonaBot for return navigation', () => {
     const ownership = createTestOwnership({
       'session-orchestrator': { botSlug: 'ada', rootRole: 'orchestrator' },

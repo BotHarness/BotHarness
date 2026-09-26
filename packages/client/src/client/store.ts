@@ -173,6 +173,7 @@ export interface OwnedSessionSummary {
   createdAt: string;
   cwdReference?: string;
   assignmentActivity?: 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
+  assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
 export type HumanInboxCategory = 'action' | 'info';

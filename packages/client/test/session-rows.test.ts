@@ -23,6 +23,7 @@ const owned = [
     createdAt,
     cwdReference: '/projects/b',
     assignmentActivity: 'stopped' as const,
+    assignmentAccessMode: 'danger-full-access' as const,
   },
   {
     sessionId: 'missing',
@@ -62,7 +63,10 @@ describe('PersonaBot Session projection', () => {
       'missing',
       'stopped',
     ]);
-    expect(rows.find((row) => row.sessionId === 'stopped')?.status).toBe('stopped');
+    expect(rows.find((row) => row.sessionId === 'stopped')).toMatchObject({
+      status: 'stopped',
+      assignmentAccessMode: 'danger-full-access',
+    });
     expect(rows).toHaveLength(owned.length);
   });
 });
