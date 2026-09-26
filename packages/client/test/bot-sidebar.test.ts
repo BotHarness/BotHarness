@@ -122,6 +122,7 @@ function stubActions(): BridgeActions {
     refreshHumanInbox: vi.fn(async () => undefined),
     setHumanInboxFilters: vi.fn(async () => undefined),
     loadMoreHumanInbox: vi.fn(async () => undefined),
+    ignoreHumanReport: vi.fn(async () => undefined),
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),

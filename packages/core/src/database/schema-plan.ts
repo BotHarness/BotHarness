@@ -571,6 +571,23 @@ const ASSIGNMENT_REPORT_ADMISSION_MIGRATION: SchemaMigration = {
   },
 };
 
+const HUMAN_ATTENTION_DECISION_MIGRATION: SchemaMigration = {
+  generation: 22,
+  module: 'human-attention',
+  description: 'Record Human decisions for informational Source Events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE human_attention_decisions (
+        source_event_id TEXT PRIMARY KEY REFERENCES source_events(source_event_id),
+        decision TEXT NOT NULL CHECK (decision IN ('ignored')),
+        decided_at TEXT NOT NULL
+      );
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -592,4 +609,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   GROUP_JOIN_ADMISSION_MIGRATION,
   ASSIGNMENT_STOP_MIGRATION,
   ASSIGNMENT_REPORT_ADMISSION_MIGRATION,
+  HUMAN_ATTENTION_DECISION_MIGRATION,
 ]);

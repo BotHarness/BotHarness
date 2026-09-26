@@ -31,6 +31,7 @@ import {
   loadAssignments,
   loadBotAttention,
   loadHumanAttention,
+  ignoreHumanAssignmentReport,
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
@@ -108,6 +109,7 @@ export interface BridgeActions {
   refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
+  ignoreHumanReport(sourceEventId: string): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
@@ -729,6 +731,18 @@ export function createActions(
       const state = clientStore.getSnapshot().humanInbox;
       if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
       return loadHumanInboxFor(state.category, selection, state.nextCursor);
+    },
+    async ignoreHumanReport(sourceEventId) {
+      await ignoreHumanAssignmentReport(call, sourceEventId);
+      // Older loaded pages are retained on refresh; remove this decision from
+      // that cache before the fresh head can merge with it.
+      humanInboxScopeVersion += 1;
+      humanInboxHeadSeq += 1;
+      humanInboxPageSeq += 1;
+      const state = clientStore.getSnapshot().humanInbox;
+      clientStore.setHumanInbox({
+        items: state.items.filter((item) => item.sourceEventId !== sourceEventId),
+      });
     },
     openChannel(channelId) {
       return openChannelById(channelId);

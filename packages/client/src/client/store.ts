@@ -222,7 +222,8 @@ export interface HumanAttentionItem {
     | 'user-question'
     | 'tool-approval'
     | 'bot-dm-message'
-    | 'assignment-waiting-human';
+    | 'assignment-waiting-human'
+    | 'assignment-report';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -231,6 +232,7 @@ export interface HumanAttentionItem {
   requestId?: string;
   messageId?: string;
   assignmentSessionId?: string;
+  sourceEventId?: string;
 }
 
 export interface HumanAttentionPage {

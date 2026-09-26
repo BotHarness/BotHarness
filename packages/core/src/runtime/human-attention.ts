@@ -11,7 +11,8 @@ export interface HumanAttentionItem {
     | 'user-question'
     | 'tool-approval'
     | 'bot-dm-message'
-    | 'assignment-waiting-human';
+    | 'assignment-waiting-human'
+    | 'assignment-report';
   createdAt: string;
   channelId?: string;
   channelName?: string;
@@ -20,6 +21,7 @@ export interface HumanAttentionItem {
   requestId?: string;
   messageId?: string;
   assignmentSessionId?: string;
+  sourceEventId?: string;
 }
 
 export interface HumanAttentionPage {
@@ -50,6 +52,7 @@ interface AttentionRow {
   request_id: string | null;
   message_id: string | null;
   assignment_session_id: string | null;
+  source_event_id: string | null;
 }
 
 interface Cursor {
@@ -116,7 +119,8 @@ export function createHumanAttentionQuery(
                  c.channel_id, json_extract(c.record_json, '$.name') AS channel_name,
                  json_extract(j.value, '$.requesterBotSlug') AS bot_slug,
                  '' AS summary, json_extract(j.value, '$.id') AS request_id,
-                 NULL AS message_id, NULL AS assignment_session_id
+                 NULL AS message_id, NULL AS assignment_session_id,
+                 NULL AS source_event_id
             FROM channel_records c, json_each(c.record_json, '$.joinRequests') j
            WHERE json_extract(c.record_json, '$.type') = 'group'
              AND json_extract(c.record_json, '$.deletedAt') IS NULL
@@ -127,7 +131,7 @@ export function createHumanAttentionQuery(
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
                  e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id
+                 NULL AS assignment_session_id, e.source_event_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -149,7 +153,7 @@ export function createHumanAttentionQuery(
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
                  e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id
+                 NULL AS assignment_session_id, e.source_event_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -171,19 +175,37 @@ export function createHumanAttentionQuery(
                  a.latest_report_at AS created_at, NULL AS channel_id,
                  NULL AS channel_name, a.bot_slug,
                  a.latest_report_summary AS summary, NULL AS request_id,
-                 NULL AS message_id, a.session_id AS assignment_session_id
+                 NULL AS message_id, a.session_id AS assignment_session_id,
+                 a.open_ask_source_event_id AS source_event_id
             FROM assignments a
            WHERE a.latest_report_state = 'waiting-human'
              AND a.open_ask_source_event_id IS NOT NULL
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL
           UNION ALL
+          SELECT 'report:' || e.source_event_id AS id,
+                 'info' AS category, 'assignment-report' AS kind,
+                 e.created_at, NULL AS channel_id, NULL AS channel_name,
+                 e.bot_slug, e.body AS summary, NULL AS request_id,
+                 NULL AS message_id, a.session_id AS assignment_session_id,
+                 e.source_event_id
+            FROM assignments a
+            JOIN source_events e ON e.source_event_id = (
+              SELECT latest.source_event_id FROM source_events latest
+               WHERE latest.assignment_session_id = a.session_id
+                 AND latest.source_kind = 'assignment-report'
+               ORDER BY latest.rowid DESC LIMIT 1
+            )
+            LEFT JOIN human_attention_decisions d ON d.source_event_id = e.source_event_id
+           WHERE a.latest_report_state = 'completed'
+             AND d.source_event_id IS NULL
+          UNION ALL
           SELECT 'message:' || e.source_event_id AS id,
                  'info' AS category, 'bot-dm-message' AS kind,
                  e.created_at, c.channel_id,
                  json_extract(c.record_json, '$.name') AS channel_name,
                  e.bot_slug, e.body, NULL AS request_id, e.message_id,
-                 NULL AS assignment_session_id
+                 NULL AS assignment_session_id, e.source_event_id
             FROM source_events e
             JOIN channel_placements p ON p.source_event_id = e.source_event_id
             JOIN channel_records c ON c.channel_id = p.channel_id
@@ -241,6 +263,7 @@ export function createHumanAttentionQuery(
         ...(row.assignment_session_id === null
           ? {}
           : { assignmentSessionId: row.assignment_session_id }),
+        ...(row.source_event_id === null ? {} : { sourceEventId: row.source_event_id }),
       }));
       const last = page.at(-1);
       return {
@@ -258,6 +281,48 @@ export function createHumanAttentionQuery(
             }
           : {}),
       };
+    },
+  };
+}
+
+/** Human decisions record only a disposition, never another copy of Inbox content. */
+export interface HumanAttentionDecisions {
+  ignoreAssignmentReport(sourceEventId: string): boolean;
+}
+
+export function createHumanAttentionDecisions(
+  database: OperationalDatabaseModulePort,
+  now: () => Date = () => new Date(),
+): HumanAttentionDecisions {
+  return {
+    ignoreAssignmentReport(sourceEventId) {
+      return database.transaction(
+        (db) => {
+          const latest = db
+            .prepare(`
+            SELECT e.source_event_id
+              FROM source_events e
+              JOIN assignments a ON a.session_id = e.assignment_session_id
+             WHERE e.source_event_id = ?
+               AND e.source_kind = 'assignment-report'
+               AND a.latest_report_state = 'completed'
+               AND e.source_event_id = (
+                 SELECT newer.source_event_id FROM source_events newer
+                  WHERE newer.assignment_session_id = a.session_id
+                    AND newer.source_kind = 'assignment-report'
+                  ORDER BY newer.rowid DESC LIMIT 1
+               )
+          `)
+            .get(sourceEventId);
+          if (latest === undefined) return false;
+          db.prepare(`
+            INSERT OR IGNORE INTO human_attention_decisions
+              (source_event_id, decision, decided_at) VALUES (?, 'ignored', ?)
+          `).run(sourceEventId, now().toISOString());
+          return true;
+        },
+        ['human-attention'],
+      );
     },
   };
 }
