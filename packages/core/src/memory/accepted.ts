@@ -265,11 +265,14 @@ function porcelainPaths(root: string): string[] {
   const raw = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString('utf8');
   if (raw.length === 0) return [];
   const paths: string[] = [];
-  for (const entry of raw.split('\0')) {
+  const entries = raw.split('\0');
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index] ?? '';
     if (entry.length < 4) continue;
-    const rest = entry.slice(3);
-    const arrow = rest.indexOf(' -> ');
-    paths.push(arrow < 0 ? rest : rest.slice(arrow + 4));
+    paths.push(entry.slice(3));
+    // Rename/copy entries carry the original path as the next NUL field,
+    // which has no XY prefix and must not be parsed as its own entry.
+    if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') index += 1;
   }
   return paths;
 }
@@ -286,6 +289,37 @@ function safeGit(root: string, args: string[]): string {
   }
 }
 
+const PERSONA_FROZEN_SENTENCE =
+  'PERSONA.md changed on disk; your frozen session copy still applies — the file version reaches new Sessions.';
+
+function truncateUtf8(text: string, maxBytes: number): string {
+  const encoded = new TextEncoder().encode(text);
+  if (encoded.length <= maxBytes) return text;
+  const byteAt = (index: number): number => encoded[index] ?? 0;
+  // Walk back past continuation bytes, then drop a lead byte whose sequence
+  // was cut short, so the cut always lands on a character boundary.
+  let end = maxBytes;
+  while (end > 0 && byteAt(end - 1) >= 0x80 && byteAt(end - 1) < 0xc0) end -= 1;
+  const lead = byteAt(end - 1);
+  const need = lead >= 0xf0 ? 4 : lead >= 0xe0 ? 3 : lead >= 0xc0 ? 2 : 1;
+  if (need > 1 && maxBytes - (end - 1) < need) end -= 1;
+  return `${new TextDecoder().decode(encoded.slice(0, end))}\n…(truncated)`;
+}
+
+function finishAnnotation(details: string[]): string | undefined {
+  if (details.length === 0) return undefined;
+  return truncateUtf8(`Memory changed since your last turn:\n${details.join('\n')}`, MAX_ANNOTATION_BYTES);
+}
+
+function personaDiffersAcrossHeads(root: string, oldHead: string, newHead: string): boolean {
+  return (
+    safeGit(root, ['diff', '--name-only', '-z', oldHead, newHead, '--', 'PERSONA.md']).replaceAll(
+      '\0',
+      '',
+    ).length > 0
+  );
+}
+
 function buildTurnAnnotation(
   root: string,
   previous: TurnWorktreeObservation,
@@ -295,10 +329,17 @@ function buildTurnAnnotation(
   // details itself with ordinary git and file tools (including untracked
   // files, which porcelain already lists). Stat and full-diff blocks were
   // cut: the turn pays for what it names, nothing more.
-  const details: string[] = [];
   if (current.branch !== previous.branch) {
-    details.push(`Memory branch is now '${current.branch}' (was '${previous.branch}').`);
+    // A branch swap re-contextualizes the whole tree; file-by-file lists
+    // would be noise. Only PERSONA.md earns a targeted check: its frozen
+    // copy still governs this Session.
+    const details = [`Memory branch is now '${current.branch}' (was '${previous.branch}').`];
+    if (personaDiffersAcrossHeads(root, previous.head, current.head)) {
+      details.push(PERSONA_FROZEN_SENTENCE);
+    }
+    return finishAnnotation(details);
   }
+  const details: string[] = [];
   const committedNames: string[] = [];
   if (current.head !== previous.head) {
     for (const name of safeGit(root, ['diff', '--name-only', '-z', previous.head, current.head]).split(
@@ -324,12 +365,9 @@ function buildTurnAnnotation(
   }
   if (details.length === 0) return undefined;
   if (committedNames.includes('PERSONA.md') || added.includes('PERSONA.md')) {
-    details.push(
-      'PERSONA.md changed on disk; your frozen session copy still applies — the file version reaches new Sessions.',
-    );
+    details.push(PERSONA_FROZEN_SENTENCE);
   }
-  const text = `Memory changed since your last turn:\n${details.join('\n')}`;
-  return text.length <= MAX_ANNOTATION_BYTES ? text : `${text.slice(0, MAX_ANNOTATION_BYTES)}\n…(truncated)`;
+  return finishAnnotation(details);
 }
 
 function validateCommit(root: string, sha: string): string {
@@ -592,8 +630,10 @@ export function createMemoryAcceptance(options: {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
     void options;
-    inFlight.set(botSlug, { sessionId, branch: branchOf(root) });
+    // Observe before marking the turn in flight: a throwing observation must
+    // not leak an entry that blocks every later turn until Host restart.
     const current = observeWorktree(root);
+    inFlight.set(botSlug, { sessionId, branch: current.branch });
     const previous = observed.get(botSlug);
     if (previous === undefined) {
       observed.set(botSlug, { ...current, sessionId });

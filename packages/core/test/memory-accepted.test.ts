@@ -411,4 +411,128 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       database.close();
     }
   });
+
+  it('parses staged renames without corrupting the original path', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'baseline', () => {
+        writeFileSync(join(root, 'alpha-note.md'), 'Alpha\n');
+        git(root, 'add', 'alpha-note.md');
+        git(root, 'commit', '-m', 'alpha note');
+      });
+      git(root, 'mv', 'alpha-note.md', 'beta-note.md');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain('beta-note.md');
+      expect(note).not.toContain('alpha-note.md');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('names only the branch on an out-of-band switch, even when many files differ', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '-c', 'side');
+      writeFileSync(join(root, 'side-file-1.md'), 'one\n');
+      writeFileSync(join(root, 'side-file-2.md'), 'two\n');
+      git(root, 'add', '-A');
+      git(root, 'commit', '-m', 'side work');
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain("Memory branch is now 'side'");
+      expect(note).not.toContain('side-file-1.md');
+      expect(note).not.toContain('frozen');
+    } finally {
+      database.close();
+    }
+  });
+
+  it('stays silent after a tool-driven branch switch', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '-c', 'side');
+      writeFileSync(join(root, 'side-note.md'), 'Side\n');
+      git(root, 'add', 'side-note.md');
+      git(root, 'commit', '-m', 'side note');
+      addSource('adopt-side');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toContain("Memory branch is now 'side'");
+      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'adopt-side' });
+      addSource('switch-back');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toBeUndefined();
+      const switched = memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'main' });
+      expect(switched.to).toBe('main');
+      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'switch-back' });
+      addSource('after');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('leaves no stuck turn behind when worktree observation fails', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '--detach', 'HEAD');
+      addSource('broken');
+      expect(() => memory.prepareTurn('atlas', 'session-atlas')).toThrow(/local branch/);
+      git(root, 'switch', 'main');
+      addSource('recovered');
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(takeNote(memory)).toBeUndefined();
+      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'recovered' });
+    } finally {
+      database.close();
+    }
+  });
+
+  it('counts overflowed paths instead of silently dropping them', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      for (let index = 0; index < 40; index += 1) {
+        writeFileSync(join(root, `overflow-${String(index).padStart(2, '0')}.md`), 'x\n');
+      }
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note).toContain('(+10 more)');
+      expect(note?.endsWith('…(truncated)')).toBe(false);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('caps annotations in UTF-8 bytes without splitting characters', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      for (let index = 0; index < 40; index += 1) {
+        const name = `记忆文件-${String(index).padStart(2, '0')}-${'记'.repeat(60)}.md`;
+        writeFileSync(join(root, name), 'x\n');
+      }
+      addSource('next');
+      memory.prepareTurn('atlas', 'session-atlas');
+      const note = takeNote(memory);
+      expect(note?.endsWith('…(truncated)')).toBe(true);
+      const kept = note?.split('\n…(truncated)')[0] ?? '';
+      expect(Buffer.byteLength(kept, 'utf8')).toBeLessThanOrEqual(4096);
+      expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(note ?? '')).toBe(
+        false,
+      );
+    } finally {
+      database.close();
+    }
+  });
 });
