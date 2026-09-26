@@ -27,7 +27,7 @@ import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
 import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
-import { SessionReturnAction } from './session-return-action.js';
+import { SessionReturnAction, SessionReturnMenuItem } from './session-return-action.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
 import { sessionBotReference } from './mentions.js';
 import { en, LOCALE_NS, zh } from './locale.js';
@@ -272,6 +272,19 @@ export function apply(ctx: ClientContext): void {
         inject: () => ({ resolveOwner: resolveSessionOwner, returnToBot }),
       },
       SessionReturnAction,
+    ),
+  );
+  ctx.slots.inject('sidebar.workspaces.session.menu.item', () =>
+    ctx.slots.register(
+      {
+        name: 'sidebar.workspaces.session.menu.item',
+        id: 'botharness-return-to-bot-menu',
+        order: 500,
+        label: () => t('sessions.return.label'),
+        locale: LOCALE_NS,
+        inject: () => ({ resolveOwner: resolveSessionOwner, returnToBot }),
+      },
+      SessionReturnMenuItem,
     ),
   );
 

@@ -4,6 +4,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
     Button: stub,
+    MenuItemButton: stub,
     IconAgentPresetOutlineRegular: stub,
     IconChevronDownOutlineRegular: stub,
     IconChevronRightOutlineRegular: stub,
@@ -130,6 +131,7 @@ describe('client apply', () => {
       'sidebar.panellist',
       'main',
       'conversation.session.header.actions',
+      'sidebar.workspaces.session.menu.item',
     ]);
     expect(specs[0]).toMatchObject({
       id: PANEL_ID,
@@ -145,21 +147,28 @@ describe('client apply', () => {
       order: 15,
       locale: 'botharness',
     });
+    expect(specs[3]).toMatchObject({
+      name: 'sidebar.workspaces.session.menu.item',
+      id: 'botharness-return-to-bot-menu',
+      order: 500,
+      locale: 'botharness',
+    });
 
     store.setMode('bot');
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
       'conversation.session.header.actions',
+      'sidebar.workspaces.session.menu.item',
       'sidebar.workspaces',
       'main',
     ]);
-    expect(specs[3]).toMatchObject({
+    expect(specs[4]).toMatchObject({
       name: 'sidebar.workspaces',
       priority: -100,
       locale: 'botharness',
     });
-    expect(specs[4]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
+    expect(specs[5]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);

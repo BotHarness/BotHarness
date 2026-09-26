@@ -217,6 +217,14 @@ describe('@botharness/ui browser bundle', () => {
         locale: 'botharness',
         inject: expect.any(Function),
       },
+      {
+        name: 'sidebar.workspaces.session.menu.item',
+        id: 'botharness-return-to-bot-menu',
+        order: 500,
+        label: expect.any(Function),
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
     ]);
     expect(sources).toHaveLength(1);
     expect((sources[0] as { trigger?: string }).trigger).toBe('@');
