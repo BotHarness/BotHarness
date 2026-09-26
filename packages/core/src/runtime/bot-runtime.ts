@@ -3032,7 +3032,7 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const update = database.prepare(`
           UPDATE inbox_admissions SET observed_at = ?
-           WHERE bot_slug = ? AND reason = 'group-ordinary'
+           WHERE bot_slug = ? AND reason <> 'assignment-report'
              AND attempt_state IN ('pending', 'retryable') AND observed_at IS NULL
              AND source_event_id IN (
                SELECT source_event_id FROM channel_placements

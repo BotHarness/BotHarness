@@ -151,4 +151,46 @@ describe('explicit Bot Inbox ignore decision', () => {
       core.operationalDatabase.close();
     }
   });
+  it('allows an explicitly read pending Group mention to be ignored', async () => {
+    const home = createTempRoot('botharness-inbox-ignore-mention-');
+    let groupId = '';
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        if (run.message !== 'Review Group') return;
+        expect(() => run.channels.ignore({ channelId: groupId, messageId: 'mention' })).toThrow(
+          'observe this message',
+        );
+        const read = run.channels.read({ channelId: groupId, limit: 1 });
+        expect(read[0]?.message.id).toBe('mention');
+        run.channels.ignore({ channelId: groupId, messageId: 'mention' });
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      groupId = core.channels.createGroup({ name: 'Team', members: ['ada'] }).id;
+      await core.channels.appendMessage(groupId, {
+        id: 'mention',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '@Ada please check',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id: 'review',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: 'Review Group',
+      });
+      core.runtime.admitDmMessage({ channelId: dm.id, messageId: 'review', body: 'Review Group' });
+      await core.runtime.whenIdle();
+      expect(core.attention.list({ botSlug: 'ada', state: 'ignored' }).items).toMatchObject([
+        { reason: 'group-mention', sourceMessageId: 'mention', observedAt: expect.any(String) },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });
