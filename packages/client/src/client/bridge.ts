@@ -6,6 +6,9 @@ import type {
   BotAttentionItem,
   BotAttentionPage,
   BotAttentionStatus,
+  HumanAttentionItem,
+  HumanAttentionPage,
+  HumanInboxCategory,
   AssignmentReport,
   AssignmentReportState,
   AssignmentSummary,
@@ -1257,6 +1260,40 @@ export async function loadBotAttention(
   return parseBotAttentionPage(await unwrap(call, 'botAttention', { slug, limit, cursor, state }));
 }
 
+function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
+  const row = asRecord(value);
+  const raw = row?.['items'];
+  if (!Array.isArray(raw)) throw new Error('invalid Human attention page');
+  const items = raw.map((entry): HumanAttentionItem | undefined => {
+    const item = asRecord(entry);
+    if (item === undefined) return undefined;
+    for (const key of ['id', 'createdAt', 'channelId', 'channelName', 'botSlug', 'summary'])
+      if (typeof item[key] !== 'string') return undefined;
+    if (item['category'] !== 'action' && item['category'] !== 'info') return undefined;
+    if (item['kind'] !== 'group-join-request' && item['kind'] !== 'bot-dm-message')
+      return undefined;
+    if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
+    if (item['messageId'] !== undefined && typeof item['messageId'] !== 'string') return undefined;
+    return item as unknown as HumanAttentionItem;
+  });
+  if (items.some((item) => item === undefined)) throw new Error('invalid Human attention item');
+  const cursor = row?.['nextCursor'];
+  if (cursor !== undefined && typeof cursor !== 'string')
+    throw new Error('invalid Human attention cursor');
+  return {
+    items: items as HumanAttentionItem[],
+    ...(cursor === undefined ? {} : { nextCursor: cursor }),
+  };
+}
+
+export async function loadHumanAttention(
+  call: BridgeCall,
+  category: HumanInboxCategory,
+  limit = 50,
+  cursor?: string,
+): Promise<HumanAttentionPage> {
+  return parseHumanAttentionPage(await unwrap(call, 'humanAttention', { category, limit, cursor }));
+}
 export async function loadAssignments(
   call: BridgeCall,
   slug: string,

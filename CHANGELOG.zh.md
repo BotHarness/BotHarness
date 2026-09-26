@@ -9,6 +9,8 @@
 
 ### Added
 
+- Bot 模式在“消息”上方新增 Human 收件箱：待处理群聊加入申请可直接批准或拒绝，新 PersonaBot 私聊消息可在独立的“仅供了解”页查看并标记已读；两类事项均可返回来源 Channel（[#126](https://github.com/BotHarness/BotHarness/issues/126)、[ADR-0071](docs/adr/0071-human-inbox-projects-channel-attention.md)）。
+
 - PersonaBot 私聊的右侧栏现在按来源 Channel 分组显示该 Bot 的收件箱，呈现持久 Attention 状态、来源消息跳转和来源不可用时的降级提示；已处理不代表 Bot 必须回复（[#47](https://github.com/BotHarness/BotHarness/issues/47)、[#152](https://github.com/BotHarness/BotHarness/issues/152)、[ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)）。
 
 - Human 可在 PersonaBot 私聊里通过 `#` 选择 Group Channel；Bot 仅收到当前 ID 与名称，不会因此入群或看见成员和历史。Bot 可申请加入，由 Human 或群的 Bot 创建者批准或拒绝；Human 点击已发送的引用可打开对应群聊（[#292](https://github.com/BotHarness/BotHarness/issues/292)、[ADR-0069](docs/adr/0069-selected-channel-references-and-bot-join-requests.md)）。

@@ -118,6 +118,9 @@ function stubActions(): BridgeActions {
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
     refreshBotInbox: vi.fn(async () => undefined),
+    openHumanInbox: vi.fn(async () => undefined),
+    refreshHumanInbox: vi.fn(async () => undefined),
+    loadMoreHumanInbox: vi.fn(async () => undefined),
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),
@@ -316,6 +319,18 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
+  it('places the Human Inbox above Messages and keeps one compact entry', () => {
+    store.select({ kind: 'inbox' });
+    const expanded = renderSidebar();
+    expect(expanded.indexOf('bh-human-inbox-entry')).toBeLessThan(
+      expanded.indexOf('bh-header-label'),
+    );
+    expect(expanded).toContain('aria-current="page"');
+    expect(expanded).toContain('收件箱');
+    const compact = renderSidebar(false);
+    expect(compact.match(/bh-human-inbox-entry/g)).toHaveLength(1);
+  });
+
   it('renders the glyph-free section header anatomy', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);

@@ -1396,12 +1396,22 @@ export function BotSidebar({
     };
     return (
       <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
+        <button
+          type="button"
+          className="bh-human-inbox-entry"
+          aria-label={t('humanInbox.title')}
+          aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
+          onClick={() => void actions.openHumanInbox()}
+        >
+          {t('humanInbox.title')}
+        </button>
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
         {railPinnedChannels.length > 0 && railChannels.length > 0 ? (
           <span className="bh-rail-divider" aria-hidden="true" />
         ) : null}
+
         <div className="bh-rail-group">
           {railChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1473,6 +1483,14 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      <button
+        type="button"
+        className="bh-human-inbox-entry"
+        aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
+        onClick={() => void actions.openHumanInbox()}
+      >
+        {t('humanInbox.title')}
+      </button>{' '}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}
@@ -1592,7 +1610,6 @@ export function BotSidebar({
           />
         </div>
       </div>
-
       {state.status === 'loading' && state.bots.length === 0 ? (
         <div className="bh-note">{t('roster.loading')}</div>
       ) : null}
@@ -1613,7 +1630,6 @@ export function BotSidebar({
           {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : t('roster.noMatch')}
         </div>
       ) : null}
-
       {batchError !== undefined ? (
         <div className="bh-error">
           {t(
@@ -1625,7 +1641,6 @@ export function BotSidebar({
           )}
         </div>
       ) : null}
-
       {hasPinnableChannels ? (
         <div
           className={`bh-pin-zone${hasPinnedChannels ? ' bh-pin-zone-filled' : ' bh-pin-zone-empty'}${!hasPinnedChannels && !pinZoneArmed ? ' bh-pin-zone-hidden' : ''}${pinZoneHovered ? ' bh-pin-zone-active' : ''}`}
@@ -1804,7 +1819,6 @@ export function BotSidebar({
           )}
         </div>
       ) : null}
-
       <div
         className={`bh-unpin-zone${!unpinZoneArmed ? ' bh-unpin-zone-hidden' : ''}${unpinZoneHovered ? ' bh-unpin-zone-active' : ''}`}
         role="region"
@@ -1838,7 +1852,6 @@ export function BotSidebar({
           {t(unpinZoneHovered ? 'pin.restore.release' : 'pin.restore.drop')}
         </span>
       </div>
-
       <div className="bh-roster-list">
         {flatBlocks.map((block) => {
           if (block.kind === 'loose') {
@@ -2109,7 +2122,6 @@ export function BotSidebar({
           );
         })}
       </div>
-
       {createRequest?.kind === 'bot' ? (
         <CreatePersonaBotModal
           t={t}
@@ -2158,7 +2170,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {renameTarget !== undefined ? (
         <SectionRenameModal
           t={t}
@@ -2188,7 +2199,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {deleteTarget !== undefined ? (
         <SectionDeleteModal
           t={t}
@@ -2204,7 +2214,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {hiddenManagerOpen ? (
         <HiddenChannelsModal
           items={hiddenItems}
@@ -2234,7 +2243,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {channelMenu !== undefined && (channelMenu.channelIds?.length ?? 0) > 1 ? (
         <BulkChannelMenu
           menu={channelMenu}

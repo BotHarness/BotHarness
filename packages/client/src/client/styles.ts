@@ -3221,4 +3221,98 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   color: var(--dsw-alias-label-tertiary);
   font-size: 12px;
 }
-`;
+/* Human Inbox follows the native Bot mode inset and semantic theme aliases. */
+.bh-human-inbox-entry {
+  display: flex;
+  align-items: center;
+  width: calc(100% - 12px);
+  min-height: 38px;
+  margin: 8px 6px 10px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-region-rail .bh-human-inbox-entry {
+  justify-content: center;
+  padding: 0 4px;
+  font-size: 11px;
+}.bh-human-inbox-entry:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-human-inbox-entry[aria-current='page'] {
+  background: var(--bh-selected);
+}
+.bh-human-inbox {
+  overflow: auto;
+  padding: 28px min(6vw, 64px);
+}
+.bh-human-inbox-inner {
+  width: min(100%, 760px);
+  margin: 0 auto;
+}
+.bh-human-inbox h1 {
+  margin: 0 0 20px;
+  font-size: 24px;
+  font-weight: 600;
+}
+.bh-human-inbox-tabs {
+  display: flex;
+  gap: 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l3);
+  margin-bottom: 20px;
+}
+.bh-human-inbox-tabs button {
+  border: 0;
+  border-bottom: 2px solid transparent;
+  padding: 9px 12px;
+  color: var(--dsw-alias-label-secondary);
+  background: transparent;
+  cursor: pointer;
+}
+.bh-human-inbox-tabs button[aria-selected='true'] {
+  border-bottom-color: var(--bh-accent);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-human-inbox-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--dsw-alias-border-l3);
+}
+.bh-human-inbox-row-main {
+  min-width: 0;
+}
+.bh-human-inbox-row-title {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+.bh-human-inbox-row-summary {
+  margin-top: 4px;
+  color: var(--dsw-alias-label-secondary);
+  overflow-wrap: anywhere;
+}
+.bh-human-inbox-row-actions {
+  display: flex;
+  flex: none;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.bh-human-inbox-row-actions button,
+.bh-human-inbox-more {
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-border-l3);
+  border-radius: 8px;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  cursor: pointer;
+}
+.bh-human-inbox-row-actions button:hover,
+.bh-human-inbox-more:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}`;

@@ -61,6 +61,11 @@ import type {
   BotAttentionState,
 } from '../runtime/attention.js';
 import type {
+  HumanAttentionQuery,
+  HumanAttentionPage,
+  HumanAttentionCategory,
+} from '../runtime/human-attention.js';
+import type {
   AssignmentDetail,
   AssignmentSummary,
   BotRuntime,
@@ -127,6 +132,7 @@ export interface BridgeMethods {
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
+  humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
   assignment(payload: unknown): BridgeResult<{ assignment: AssignmentDetail }>;
   workspaceOptions(
@@ -176,6 +182,7 @@ export interface BridgeMethodsDeps {
   roster: RosterStore;
   runtime?: BotRuntime;
   attention?: BotAttentionQuery;
+  humanAttention?: HumanAttentionQuery;
   grants?: WorkspaceGrantStore;
   toolApproval?: ChannelToolApproval;
   userQuestions?: ChannelUserQuestions;
@@ -1071,6 +1078,47 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             ...(limit === undefined ? {} : { limit: limit as number }),
             ...(cursor === undefined ? {} : { cursor: cursor as string }),
             ...(state === undefined ? {} : { state: state as BotAttentionState }),
+          }) ?? { items: [] },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    humanAttention(payload) {
+      const source = asObject(payload);
+      const category = source['category'];
+      const botSlug = source['botSlug'];
+      const channelId = source['channelId'];
+      const limit = source['limit'];
+      const cursor = source['cursor'];
+      if (category !== undefined && category !== 'action' && category !== 'info')
+        return invalidInput('category must be action or info');
+      if (botSlug !== undefined && (typeof botSlug !== 'string' || !isValidSlug(botSlug)))
+        return invalidInput('invalid Bot filter');
+      if (
+        channelId !== undefined &&
+        (typeof channelId !== 'string' || !isValidChannelId(channelId))
+      )
+        return invalidInput('invalid Channel filter');
+      if (
+        limit !== undefined &&
+        (!Number.isSafeInteger(limit) || (limit as number) < 1 || (limit as number) > 100)
+      )
+        return invalidInput('limit must be an integer from 1 to 100');
+      if (
+        cursor !== undefined &&
+        (typeof cursor !== 'string' || cursor.length === 0 || cursor.length > 1024)
+      )
+        return invalidInput('invalid cursor');
+      try {
+        return {
+          ok: true,
+          value: deps.humanAttention?.list({
+            ...(category === undefined ? {} : { category: category as HumanAttentionCategory }),
+            ...(botSlug === undefined ? {} : { botSlug: botSlug as string }),
+            ...(channelId === undefined ? {} : { channelId: channelId as string }),
+            ...(limit === undefined ? {} : { limit: limit as number }),
+            ...(cursor === undefined ? {} : { cursor: cursor as string }),
           }) ?? { items: [] },
         };
       } catch (error) {

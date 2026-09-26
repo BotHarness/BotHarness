@@ -30,6 +30,7 @@ import {
   type WorkspaceGrantView,
   loadAssignments,
   loadBotAttention,
+  loadHumanAttention,
   loadBots,
   loadMemorySnapshot,
   loadMemoryFile,
@@ -81,6 +82,7 @@ import type {
   ChannelSummary,
   ClientStore,
   ConversationSelection,
+  HumanInboxCategory,
   UserQuestionAnswerItem,
 } from './store.js';
 
@@ -101,6 +103,9 @@ export interface BridgeActions {
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
+  openHumanInbox(): Promise<void>;
+  refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  loadMoreHumanInbox(): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
@@ -434,6 +439,36 @@ export function createActions(
     }
   };
 
+  let humanInboxRequestSeq = 0;
+  const loadHumanInboxFor = async (
+    category: HumanInboxCategory,
+    selection: ConversationSelection,
+    cursor?: string,
+  ): Promise<void> => {
+    const requestSeq = ++humanInboxRequestSeq;
+    if (cursor === undefined && clientStore.getSnapshot().humanInbox.status === 'idle')
+      clientStore.setHumanInbox({ status: 'loading', error: undefined });
+    try {
+      const page = await loadHumanAttention(call, category, 50, cursor);
+      if (currentSelection() !== selection || requestSeq !== humanInboxRequestSeq) return;
+      const priorState = clientStore.getSnapshot().humanInbox;
+      if (priorState.category !== category) return;
+      const prior = priorState.items;
+      const items =
+        cursor === undefined
+          ? page.items
+          : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      clientStore.setHumanInbox({
+        status: 'ready',
+        items,
+        nextCursor: page.nextCursor,
+        error: undefined,
+      });
+    } catch (error) {
+      if (currentSelection() !== selection || requestSeq !== humanInboxRequestSeq) return;
+      clientStore.setHumanInbox({ status: 'error', error: errorMessage(error) });
+    }
+  };
   const loadOpeningTimeline = async (channelId: string) => {
     const anchor = await loadReadPosition(call, channelId);
     if (anchor !== undefined) {
@@ -615,6 +650,33 @@ export function createActions(
       if (selection?.kind !== 'bot' || selection.slug !== slug || cursor === undefined)
         return Promise.resolve();
       return loadBotInboxFor(slug, selection, cursor);
+    },
+    openHumanInbox() {
+      clientStore.select({ kind: 'inbox' });
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
+    },
+    refreshHumanInbox(category) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      const prior = clientStore.getSnapshot().humanInbox;
+      const nextCategory = category ?? prior.category;
+      if (nextCategory !== prior.category)
+        clientStore.setHumanInbox({
+          category: nextCategory,
+          status: 'loading',
+          items: [],
+          nextCursor: undefined,
+          error: undefined,
+        });
+      return loadHumanInboxFor(nextCategory, selection);
+    },
+    loadMoreHumanInbox() {
+      const selection = currentSelection();
+      const state = clientStore.getSnapshot().humanInbox;
+      if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
+      return loadHumanInboxFor(state.category, selection, state.nextCursor);
     },
     openChannel(channelId) {
       return openChannelById(channelId);
