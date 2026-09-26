@@ -1215,6 +1215,7 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'tool-approval' &&
       item['kind'] !== 'bot-dm-message' &&
       item['kind'] !== 'assignment-waiting-human' &&
+      item['kind'] !== 'assignment-blocked' &&
       item['kind'] !== 'assignment-report' &&
       item['kind'] !== 'bot-message-needs-repair'
     )
@@ -1223,7 +1224,9 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     if (item['channelName'] !== undefined && typeof item['channelName'] !== 'string')
       return undefined;
     if (
-      item['kind'] === 'assignment-waiting-human' || item['kind'] === 'assignment-report'
+      item['kind'] === 'assignment-waiting-human' ||
+      item['kind'] === 'assignment-blocked' ||
+      item['kind'] === 'assignment-report'
         ? typeof item['assignmentSessionId'] !== 'string'
         : typeof item['channelId'] !== 'string' || typeof item['channelName'] !== 'string'
     )

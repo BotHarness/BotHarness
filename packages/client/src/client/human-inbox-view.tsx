@@ -51,7 +51,11 @@ export function HumanInboxView({
         await actions.openChannel(item.channelId);
         await actions.openAround(item.channelId, item.messageId);
       } else await openRepairBotInbox(item);
-    } else if (item.kind === 'assignment-waiting-human' || item.kind === 'assignment-report') {
+    } else if (
+      item.kind === 'assignment-waiting-human' ||
+      item.kind === 'assignment-blocked' ||
+      item.kind === 'assignment-report'
+    ) {
       if (item.assignmentSessionId === undefined) return;
       await actions.openBot(item.botSlug);
       await actions.openSession(item.assignmentSessionId);
@@ -203,16 +207,19 @@ export function HumanInboxView({
                         ? t('humanInbox.approval', { bot: botName(item.botSlug) })
                         : item.kind === 'assignment-waiting-human'
                           ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
-                          : item.kind === 'assignment-report'
-                            ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
-                            : item.kind === 'bot-message-needs-repair'
-                              ? t('humanInbox.repair', { bot: botName(item.botSlug) })
-                              : botName(item.botSlug)}
+                          : item.kind === 'assignment-blocked'
+                            ? t('humanInbox.assignmentBlocked', { bot: botName(item.botSlug) })
+                            : item.kind === 'assignment-report'
+                              ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
+                              : item.kind === 'bot-message-needs-repair'
+                                ? t('humanInbox.repair', { bot: botName(item.botSlug) })
+                                : botName(item.botSlug)}
                 </div>
                 {item.kind === 'bot-dm-message' ||
                 item.kind === 'user-question' ||
                 item.kind === 'tool-approval' ||
                 item.kind === 'assignment-waiting-human' ||
+                item.kind === 'assignment-blocked' ||
                 item.kind === 'assignment-report' ||
                 item.kind === 'bot-message-needs-repair' ? (
                   <div className="bh-human-inbox-row-summary" title={item.summary}>

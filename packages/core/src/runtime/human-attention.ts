@@ -12,6 +12,7 @@ export interface HumanAttentionItem {
     | 'tool-approval'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
+    | 'assignment-blocked'
     | 'assignment-report'
     | 'bot-message-needs-repair';
   createdAt: string;
@@ -172,14 +173,18 @@ export function createHumanAttentionQuery(
              )
           UNION ALL
           SELECT 'assignment:' || a.session_id AS id,
-                 'action' AS category, 'assignment-waiting-human' AS kind,
+                 'action' AS category,
+                 CASE a.latest_report_state
+                   WHEN 'blocked' THEN 'assignment-blocked'
+                   ELSE 'assignment-waiting-human'
+                 END AS kind,
                  a.latest_report_at AS created_at, NULL AS channel_id,
                  NULL AS channel_name, a.bot_slug,
                  a.latest_report_summary AS summary, NULL AS request_id,
                  NULL AS message_id, a.session_id AS assignment_session_id,
                  a.open_ask_source_event_id AS source_event_id
             FROM assignments a
-           WHERE a.latest_report_state = 'waiting-human'
+           WHERE a.latest_report_state IN ('waiting-human', 'blocked')
              AND a.open_ask_source_event_id IS NOT NULL
              AND a.stop_state = 'running'
              AND a.latest_report_at IS NOT NULL

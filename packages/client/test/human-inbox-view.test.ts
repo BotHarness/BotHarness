@@ -140,6 +140,33 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('同意</button>');
   });
 
+  it('shows a blocked Assignment as an action linked to its Session', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'assignment:session-1',
+          category: 'action',
+          kind: 'assignment-blocked',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          botSlug: 'ada',
+          assignmentSessionId: 'session-1',
+          sourceEventId: 'report-event-1',
+          summary: 'Need a new grant.',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('ada 的事项受阻，需要关注');
+    expect(markup).toContain('Need a new grant.');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('忽略');
+  });
+
   it('shows a completed Assignment report as informational with Ignore', () => {
     store.select({ kind: 'inbox' });
     store.setHumanInbox({

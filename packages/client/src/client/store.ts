@@ -193,6 +193,7 @@ export interface HumanAttentionItem {
     | 'tool-approval'
     | 'bot-dm-message'
     | 'assignment-waiting-human'
+    | 'assignment-blocked'
     | 'assignment-report'
     | 'bot-message-needs-repair';
   createdAt: string;
