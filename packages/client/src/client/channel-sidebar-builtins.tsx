@@ -10,7 +10,11 @@ import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-si
 import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
-import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
+import {
+  SessionsEntry,
+  SessionsHeaderAction,
+  type NativeSessionCatalog,
+} from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, BotSummary, ChannelSummary } from './store.js';
 
@@ -467,6 +471,7 @@ export function createChannelSidebarBuiltins(
       order: 10,
       scope: 'personabot',
       component: SessionsWithNative,
+      headerAction: SessionsHeaderAction,
     },
     {
       id: 'bot-inbox',

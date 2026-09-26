@@ -33,6 +33,8 @@ export interface ChannelSidebarEntry {
   order?: number;
   scope: ChannelSidebarScope;
   component: ComponentType<ChannelSidebarEntryProps>;
+  /** Optional control rendered beside the collapsible entry heading. */
+  headerAction?: ComponentType<ChannelSidebarEntryProps>;
   /** Optional short status rendered beside the label (counts, state). */
   badge?: ComponentType<ChannelSidebarEntryProps>;
   /** Hide an entry when this selection has no relevant read-model facts. */

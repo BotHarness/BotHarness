@@ -27,8 +27,31 @@ try {
     waitUntil: 'networkidle2',
     timeout: 60000,
   });
+  await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => button.textContent?.trim() === 'Continue')
+      ?.click(),
+  );
   await page.click('button[aria-label="Bot mode"]');
-  await page.waitForSelector('button[aria-label="New"]', { timeout: 10000 });
+  try {
+    await page.waitForSelector('button[aria-label="New"]', { timeout: 20000 });
+  } catch (error) {
+    await page.screenshot({ path: resolve(shots, '00-initial-state.png'), fullPage: true });
+    console.log(
+      'INITIAL PAGE',
+      await page.evaluate(() => ({
+        url: location.href,
+        text: document.body.innerText.slice(0, 1500),
+        buttons: Array.from(document.querySelectorAll('button'))
+          .slice(0, 30)
+          .map((button) => ({
+            label: button.getAttribute('aria-label'),
+            text: button.textContent?.trim(),
+          })),
+      })),
+    );
+    throw error;
+  }
   await page.click('button[aria-label="New"]');
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
@@ -200,11 +223,16 @@ try {
     { timeout: 10000 },
     assignment.sessionId,
   );
-  await page.evaluate(() =>
-    Array.from(document.querySelectorAll('.bh-session-view button'))
-      .find((button) => /All|全部/.test(button.textContent ?? ''))
-      ?.click(),
-  );
+  await page.click('button[aria-label="Session view options"]');
+  await page.waitForSelector('div[role="menu"]', { timeout: 10000 });
+  const selectedAll = await page.evaluate(() => {
+    const button = Array.from(document.querySelectorAll('div[role="menu"] button')).find((item) =>
+      /^(All|全部)$/.test(item.textContent?.trim() ?? ''),
+    );
+    button?.click();
+    return button !== undefined;
+  });
+  if (!selectedAll) throw new Error('Could not select All from the Sessions menu');
   await page.waitForFunction(() => document.querySelectorAll('.bh-session-row').length >= 2, {
     timeout: 10000,
     polling: 500,

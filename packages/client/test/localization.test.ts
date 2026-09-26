@@ -8,6 +8,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   return {
     Button: stub,
     IconAgentPresetOutlineRegular: stub,
+    IconCheckOutlineRegular: stub,
     IconChevronDownOutlineRegular: stub,
     IconCloseOutlineRegular: stub,
     IconEllipsisOutlineRegular: stub,
@@ -21,6 +22,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Menu: stub,
     MarkdownText: stub,
     Modal: stub,
+    SegmentedControl: stub,
     StateDot: stub,
     Tag,
     Tooltip: stub,

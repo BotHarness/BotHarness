@@ -72,3 +72,33 @@ export function personaBotSessionRows(
       left.sessionId.localeCompare(right.sessionId),
   );
 }
+
+export interface SessionWorkspaceGroup {
+  key: string;
+  path: string | undefined;
+  name: string | undefined;
+  rows: PersonaBotSessionRow[];
+}
+
+/** Group only for presentation; the already-prioritized rows keep their order within each group. */
+export function groupSessionRowsByWorkspace(
+  rows: readonly PersonaBotSessionRow[],
+): SessionWorkspaceGroup[] {
+  const groups = new Map<string, SessionWorkspaceGroup>();
+  for (const row of rows) {
+    const path = row.cwd?.replace(/\\/gu, '/').replace(/\/+$/u, '') || row.cwd;
+    const key = path === undefined ? 'unknown' : 'cwd:' + path;
+    let group = groups.get(key);
+    if (group === undefined) {
+      group = {
+        key,
+        path,
+        name: path?.split('/').filter(Boolean).at(-1) ?? path,
+        rows: [],
+      };
+      groups.set(key, group);
+    }
+    group.rows.push(row);
+  }
+  return [...groups.values()];
+}

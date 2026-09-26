@@ -139,28 +139,32 @@ export function ChannelSidebarEntrySection({
 }): ReactElement {
   const bodyId = useId();
   const Badge = entry.badge;
+  const HeaderAction = entry.headerAction;
   return (
     <section className="bh-channel-sidebar-entry">
-      <button
-        type="button"
-        className="bh-channel-sidebar-entry-head"
-        aria-expanded={expanded}
-        aria-controls={bodyId}
-        onClick={onToggle}
-      >
-        <span
-          className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
-          aria-hidden="true"
+      <div className="bh-channel-sidebar-entry-header">
+        <button
+          type="button"
+          className="bh-channel-sidebar-entry-head"
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+          onClick={onToggle}
         >
-          <IconChevronDownOutlineRegular size={14} />
-        </span>
-        <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
-        {Badge === undefined ? null : (
-          <span className="bh-channel-sidebar-entry-badge">
-            <Badge {...entryProps} />
+          <span
+            className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
+            aria-hidden="true"
+          >
+            <IconChevronDownOutlineRegular size={14} />
           </span>
-        )}
-      </button>
+          <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
+          {Badge === undefined ? null : (
+            <span className="bh-channel-sidebar-entry-badge">
+              <Badge {...entryProps} />
+            </span>
+          )}
+        </button>
+        {HeaderAction === undefined ? null : <HeaderAction {...entryProps} />}
+      </div>
       {expanded ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...entryProps} />
