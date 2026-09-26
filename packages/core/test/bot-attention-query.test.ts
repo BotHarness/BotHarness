@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter } from '../src/runtime/bot-runtime.js';
 import { createTempRoot } from './helpers.js';
@@ -51,6 +52,24 @@ describe('Bot-scoped attention projection', () => {
             },
           ],
         },
+      });
+      const testDatabase = attachOperationalModule(core.operationalDatabase, 'attention-test');
+      testDatabase.transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET attempt_state = 'running' WHERE bot_slug = 'ada'",
+        ).run();
+      });
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('deferred');
+      testDatabase.transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET observed_at = '2026-09-26T00:00:01.000Z' WHERE bot_slug = 'ada'",
+        ).run();
+      });
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('observed');
+      testDatabase.transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET attempt_state = 'pending', observed_at = NULL WHERE bot_slug = 'ada'",
+        ).run();
       });
       expect(methods.botAttention({ slug: 'bea' })).toMatchObject({
         ok: true,
@@ -109,11 +128,11 @@ describe('Bot-scoped attention projection', () => {
       const second = core.attention.list({
         botSlug: 'ada',
         limit: 1,
-        cursor: first.nextCursor,
+        cursor: first.nextCursor!,
       });
       expect(second.items).toHaveLength(1);
       expect(second.items[0]?.id).not.toBe(first.items[0]?.id);
-      expect(() => core.attention.list({ botSlug: 'bea', cursor: first.nextCursor })).toThrow(
+      expect(() => core.attention.list({ botSlug: 'bea', cursor: first.nextCursor! })).toThrow(
         'Bot attention cursor is unavailable',
       );
       expect(core.attention.list({ botSlug: 'ada', state: 'handled' }).items).toEqual([]);

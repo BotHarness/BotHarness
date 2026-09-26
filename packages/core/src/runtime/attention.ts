@@ -95,10 +95,10 @@ export function createBotAttentionQuery(
                  CASE
                    WHEN a.attempt_state = 'needs-repair' THEN 'needs-repair'
                    WHEN a.attempt_state = 'handled' THEN 'handled'
-                   WHEN a.attempt_state = 'retryable' OR
+                   WHEN a.observed_at IS NOT NULL THEN 'observed'
+                   WHEN a.attempt_state IN ('running', 'retryable') OR
                         (a.reason = 'group-ordinary' AND a.attempt_state = 'pending')
                      THEN 'deferred'
-                   WHEN a.observed_at IS NOT NULL THEN 'observed'
                    ELSE 'pending'
                  END AS state
           FROM inbox_admissions a

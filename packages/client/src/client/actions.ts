@@ -401,29 +401,35 @@ export function createActions(
     }
   };
 
+  let botInboxRequestSeq = 0;
   const loadBotInboxFor = async (
     slug: string,
     selection: ConversationSelection,
     cursor?: string,
   ): Promise<void> => {
+    const requestSeq = ++botInboxRequestSeq;
     if (cursor === undefined && clientStore.getSnapshot().botInbox.status === 'idle')
       clientStore.setBotInbox({ status: 'loading', error: undefined });
     try {
       const page = await loadBotAttention(call, slug, 50, cursor);
-      if (currentSelection() !== selection) return;
-      const prior = clientStore.getSnapshot().botInbox.items;
+      if (currentSelection() !== selection || requestSeq !== botInboxRequestSeq) return;
+      const priorState = clientStore.getSnapshot().botInbox;
+      const prior = priorState.items;
+      const seen = new Set(page.items.map((item) => item.id));
       const items =
         cursor === undefined
-          ? page.items
+          ? [...page.items, ...prior.filter((item) => !seen.has(item.id))]
           : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      const nextCursor =
+        cursor === undefined && prior.length > 50 ? priorState.nextCursor : page.nextCursor;
       clientStore.setBotInbox({
         status: 'ready',
         items,
-        nextCursor: page.nextCursor,
+        nextCursor,
         error: undefined,
       });
     } catch (error) {
-      if (currentSelection() !== selection) return;
+      if (currentSelection() !== selection || requestSeq !== botInboxRequestSeq) return;
       clientStore.setBotInbox({ status: 'error', error: errorMessage(error) });
     }
   };

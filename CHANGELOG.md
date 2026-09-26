@@ -153,8 +153,6 @@ Consolidated the implemented foundation and public documentation that preceded D
 
 ### Added
 
-- A PersonaBot DM sidebar now shows a Bot-scoped Inbox grouped by source Channel, with durable attention status, source-message navigation, and unavailable-source fallback; completed attention does not imply a reply ([#47](https://github.com/BotHarness/BotHarness/issues/47), [#152](https://github.com/BotHarness/BotHarness/issues/152), [ADR-0070](docs/adr/0070-bot-inbox-projects-canonical-admissions.md)).
-
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Added durable PersonaBot identity, file-based Memory tools, and the BOT-mode creation flow ([#22](https://github.com/BotHarness/BotHarness/pull/22), [#98](https://github.com/BotHarness/BotHarness/pull/98)).
 - Added the BOT-mode Channel shell, roster sections, per-scope sorting and drag movement, with durable Host-side arrangement ([#51](https://github.com/BotHarness/BotHarness/pull/51), [#64](https://github.com/BotHarness/BotHarness/pull/64), [#72](https://github.com/BotHarness/BotHarness/pull/72), [#73](https://github.com/BotHarness/BotHarness/pull/73), [#95](https://github.com/BotHarness/BotHarness/pull/95)).
