@@ -343,7 +343,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
     }
   });
 
-  it('annotates an out-of-band disk commit with its stat', () => {
+  it('annotates an out-of-band disk commit with their paths', () => {
     const { database, memory, root, addSource } = fixture();
     try {
       gitIdentity(root);

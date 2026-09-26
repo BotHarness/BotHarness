@@ -260,7 +260,6 @@ interface TurnWorktreeObservation {
 
 const MAX_ANNOTATION_PATHS = 30;
 const MAX_ANNOTATION_BYTES = 4096;
-const MAX_FULL_DIFF_BYTES = 2048;
 
 function porcelainPaths(root: string): string[] {
   const raw = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString('utf8');
@@ -279,12 +278,6 @@ function observeWorktree(root: string): { branch: string; head: string; porcelai
   return { branch: branchOf(root), head: head(root), porcelain: porcelainPaths(root) };
 }
 
-function capLines(text: string, limit: number): string {
-  const lines = text.split('\n');
-  if (lines.length <= limit) return text;
-  return [...lines.slice(0, limit), `…(+${lines.length - limit} more)`].join('\n');
-}
-
 function safeGit(root: string, args: string[]): string {
   try {
     return output(root, args);
@@ -298,36 +291,36 @@ function buildTurnAnnotation(
   previous: TurnWorktreeObservation,
   current: { branch: string; head: string; porcelain: string[] },
 ): string | undefined {
+  // Webhook shape, deliberately: paths only, never bodies. The agent reads
+  // details itself with ordinary git and file tools (including untracked
+  // files, which porcelain already lists). Stat and full-diff blocks were
+  // cut: the turn pays for what it names, nothing more.
   const details: string[] = [];
   if (current.branch !== previous.branch) {
     details.push(`Memory branch is now '${current.branch}' (was '${previous.branch}').`);
   }
   const committedNames: string[] = [];
   if (current.head !== previous.head) {
-    const stat = safeGit(root, ['diff', '--stat', previous.head, current.head]);
     for (const name of safeGit(root, ['diff', '--name-only', '-z', previous.head, current.head]).split(
       '\0',
     )) {
       if (name.length > 0) committedNames.push(name);
     }
-    details.push('Committed Memory changes since your last turn:');
-    details.push(stat.length > 0 ? capLines(stat, MAX_ANNOTATION_PATHS) : '(no file summary available)');
+    const shown = committedNames.slice(0, MAX_ANNOTATION_PATHS);
+    if (shown.length > 0) {
+      details.push(
+        `Committed Memory changes since your last turn: ${shown.join(', ')}${committedNames.length > shown.length ? ` (+${committedNames.length - shown.length} more)` : ''}`,
+      );
+    } else {
+      details.push('Memory commits changed since your last turn; inspect them with git commands.');
+    }
   }
   const added = current.porcelain.filter((path) => !previous.porcelain.includes(path));
-  const reverted = previous.porcelain.filter((path) => !current.porcelain.includes(path));
   if (added.length > 0) {
     const shown = added.slice(0, MAX_ANNOTATION_PATHS);
     details.push(
       `Uncommitted Memory changes since your last turn: ${shown.join(', ')}${added.length > shown.length ? ` (+${added.length - shown.length} more)` : ''}`,
     );
-    const unstaged = safeGit(root, ['diff', '--stat']);
-    if (unstaged.length > 0) details.push(capLines(unstaged, MAX_ANNOTATION_PATHS));
-    if (added.length <= 10 && current.head === previous.head) {
-      const full = safeGit(root, ['diff', 'HEAD', '--', ...added]);
-      if (full.length > 0 && full.length <= MAX_FULL_DIFF_BYTES) details.push(`Full worktree diff:\n${full}`);
-    }
-  } else if (reverted.length > 0 && current.head === previous.head) {
-    details.push(`Memory worktree no longer differs: ${reverted.slice(0, MAX_ANNOTATION_PATHS).join(', ')} reverted to HEAD.`);
   }
   if (details.length === 0) return undefined;
   if (committedNames.includes('PERSONA.md') || added.includes('PERSONA.md')) {
