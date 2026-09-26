@@ -495,6 +495,100 @@ describe('Assignment collaboration', () => {
     }
   });
 
+  it('coalesces a blocked Assignment ask, opens its source, and clears it on reply', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup();
+    let sessionId = '';
+    try {
+      await admit('Start research', 'human-1');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      sessionId = created.assignment.sessionId;
+      const run = agents.started[0]!.run;
+      await run.report({
+        state: 'waiting-human',
+        summary: 'Need a decision',
+        expectsReply: true,
+      });
+      const query = createHumanAttentionQuery(
+        attachOperationalModule(owner, 'assignment-blocked-human-attention-test'),
+      );
+      const first = query.list({ category: 'action' }).items;
+      expect(first).toMatchObject([
+        {
+          id: 'assignment:' + sessionId,
+          kind: 'assignment-waiting-human',
+          botSlug: 'ada',
+          assignmentSessionId: sessionId,
+          summary: 'Need a decision',
+        },
+      ]);
+      const originalSource = first[0]?.sourceEventId;
+      expect(originalSource).toBeDefined();
+
+      await run.report({
+        state: 'blocked',
+        summary: 'Still blocked; need a grant',
+        expectsReply: true,
+      });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      const revised = query.list({ category: 'action' }).items;
+      expect(revised).toHaveLength(1);
+      expect(revised[0]).toMatchObject({
+        id: 'assignment:' + sessionId,
+        kind: 'assignment-blocked',
+        summary: 'Still blocked; need a grant',
+      });
+      expect(revised[0]?.sourceEventId).not.toBe(originalSource);
+      expect(query.list({ category: 'info' }).items).toEqual([]);
+      expect(query.list({ category: 'action', botSlug: 'bea' }).items).toEqual([]);
+
+      const answerTo = revised[0]?.sourceEventId;
+      if (answerTo === undefined) throw new Error('Open blocker missing source');
+      agents.access!.request({
+        sessionId,
+        mode: 'next-turn',
+        text: 'Use the new grant',
+        answerTo,
+      });
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      expect(query.list({ category: 'action' }).items).toMatchObject([
+        {
+          id: 'assignment:' + sessionId,
+          kind: 'assignment-blocked',
+          sourceEventId: answerTo,
+          summary: 'Still blocked; need a grant',
+        },
+      ]);
+
+      agents.access!.request({ sessionId, mode: 'next-turn', text: 'Complete the task' });
+      await agents.started.at(-1)!.run.report({
+        state: 'completed',
+        summary: 'Resolved with the new grant',
+      });
+      agents.finish(sessionId);
+      await runtime.whenIdle();
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+    } finally {
+      await close();
+      owner.close();
+    }
+    const reopened = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    try {
+      const query = createHumanAttentionQuery(
+        attachOperationalModule(reopened, 'assignment-blocked-restart-test'),
+      );
+      expect(query.list({ category: 'action' }).items).toEqual([]);
+    } finally {
+      reopened.close();
+    }
+  });
+
   it('keeps an open ask across a restart', async () => {
     const { runtime, agents, owner, home, admit, close } = await setup();
     await admit('开始调研', 'human-1');
