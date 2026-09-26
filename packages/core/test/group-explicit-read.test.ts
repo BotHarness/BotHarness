@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
@@ -63,7 +63,10 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
       });
       await ordinary(core, group.id, 'one');
       await ordinary(core, group.id, 'two');
+      const changed = vi.spyOn(core.channels, 'admissionChanged');
+      changed.mockClear();
       await ask(core, 'ada', 'ask-read');
+      expect(changed).toHaveBeenCalledWith(group.id, returnedId);
       const facts = attachOperationalModule(core.operationalDatabase, 'explicit-read-test').read(
         (db) =>
           db

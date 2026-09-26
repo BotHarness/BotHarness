@@ -2893,7 +2893,7 @@ class BotRuntimeImplementation implements BotRuntime {
   #observeReadMessages(botSlug: string, messages: ChannelMessageView[]): void {
     if (messages.length === 0) return;
     const observedAt = this.#now().toISOString();
-    const changedChannels = this.#database.transaction(
+    const { changedChannels, changedMessages } = this.#database.transaction(
       (database) => {
         const update = database.prepare(`
           UPDATE inbox_admissions SET observed_at = ?
@@ -2904,14 +2904,20 @@ class BotRuntimeImplementation implements BotRuntime {
                 WHERE channel_id = ? AND message_id = ?
              )
         `);
-        const changed = new Set<string>();
-        for (const item of messages)
-          if (update.run(observedAt, botSlug, item.channelId, item.message.id).changes > 0)
-            changed.add(item.channelId);
-        return changed;
+        const changedChannels = new Set<string>();
+        const changedMessages: Array<{ channelId: string; messageId: string }> = [];
+        for (const item of messages) {
+          if (update.run(observedAt, botSlug, item.channelId, item.message.id).changes === 0)
+            continue;
+          changedChannels.add(item.channelId);
+          changedMessages.push({ channelId: item.channelId, messageId: item.message.id });
+        }
+        return { changedChannels, changedMessages };
       },
       ['bot-inbox'],
     );
+    for (const { channelId, messageId } of changedMessages)
+      this.#channels.admissionChanged?.(channelId, messageId);
     for (const channelId of changedChannels) this.#scheduleDigest(botSlug, channelId);
   }
 
