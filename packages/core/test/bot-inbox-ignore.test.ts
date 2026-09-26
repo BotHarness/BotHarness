@@ -62,18 +62,22 @@ describe('explicit Bot Inbox ignore decision', () => {
       expect(items.find((item) => item.sourceMessageId === 'one')).toMatchObject({
         state: 'ignored',
         ignoredAt: expect.any(String),
+        observedAt: expect.any(String),
       });
       expect(items.find((item) => item.sourceMessageId === 'two')?.state).toBe('handled');
       expect(core.attention.list({ botSlug: 'ada', state: 'ignored' }).items).toHaveLength(1);
       expect(core.channels.message(groupId, 'one')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'ignored' },
       ]);
-      const fact = attachOperationalModule(core.operationalDatabase, 'ignore-test').read((db) =>
-        db.prepare(`
+      const fact = attachOperationalModule(core.operationalDatabase, 'ignore-test').read(
+        (db) =>
+          db
+            .prepare(`
           SELECT ignored_by_session_id FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
           WHERE e.message_id = 'one'
-        `).get() as { ignored_by_session_id: string },
+        `)
+            .get() as { ignored_by_session_id: string },
       );
       expect(fact.ignored_by_session_id).toBeTruthy();
     } finally {
@@ -105,9 +109,9 @@ describe('explicit Bot Inbox ignore decision', () => {
       dshHome: home,
       agents: adapter(async (run) => {
         if (run.message !== 'Review Group') return;
-        expect(() =>
-          run.channels.ignore({ channelId: groupId, messageId: 'one' }),
-        ).toThrow('observe this message');
+        expect(() => run.channels.ignore({ channelId: groupId, messageId: 'one' })).toThrow(
+          'observe this message',
+        );
         const views = run.channels.read({ channelId: groupId, limit: 1 });
         expect(views).toHaveLength(1);
         observedMessageId = views[0]!.message.id;

@@ -2097,6 +2097,7 @@ class BotRuntimeImplementation implements BotRuntime {
               .prepare(`
                 UPDATE inbox_admissions
                    SET ignored_at = ?, ignored_by_session_id = ?,
+                       observed_at = COALESCE(observed_at, ?),
                        attempt_state = CASE
                          WHEN attempt_state IN ('pending', 'retryable') THEN 'handled'
                          ELSE attempt_state END,
@@ -2105,7 +2106,7 @@ class BotRuntimeImplementation implements BotRuntime {
                          ELSE handled_at END
                  WHERE source_event_id = ? AND bot_slug = ? AND ignored_at IS NULL
               `)
-              .run(ignoredAt, sessionId, ignoredAt, row.source_event_id, botSlug);
+              .run(ignoredAt, sessionId, ignoredAt, ignoredAt, row.source_event_id, botSlug);
             return { sourceEventId: row.source_event_id, ignoredAt, alreadyIgnored: false };
           },
           ['bot-inbox'],

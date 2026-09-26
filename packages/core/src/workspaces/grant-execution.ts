@@ -80,6 +80,7 @@ const BOT_TOOL_NAMES = new Set([
   'stop_assignment',
   'channel_list',
   'channel_read',
+  'inbox_ignore',
   'channel_read_image',
   'list_bot_contacts',
   'group_create',
