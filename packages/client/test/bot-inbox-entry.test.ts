@@ -106,6 +106,77 @@ describe('DM Bot Inbox sidebar entry', () => {
     }
   });
 
+  it('reveals newly active or escalated attention in an existing collapsed source group', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const previous = store.getSnapshot().botInbox;
+    const entry = createChannelSidebarBuiltins(zhTranslate).find(
+      (candidate) => candidate.id === 'bot-inbox',
+    )!;
+    store.setBotInbox({
+      status: 'ready',
+      items: [{ ...item, state: 'handled' }],
+      error: undefined,
+    });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const render = async (): Promise<void> => {
+      await act(async () =>
+        root.render(
+          createElement(ChannelSidebarEntrySection, {
+            entry,
+            expanded: true,
+            onToggle: () => undefined,
+            entryProps: {
+              scope: 'personabot',
+              channelId: 'dm-ada',
+              botSlug: 'ada',
+              actions: {} as BridgeActions,
+              t: zhTranslate,
+            },
+          }),
+        ),
+      );
+    };
+    try {
+      await render();
+      const group = container.querySelector<HTMLDetailsElement>('.bh-inbox-group')!;
+      expect(group.open).toBe(false);
+      await act(async () =>
+        store.setBotInbox({
+          status: 'ready',
+          items: [
+            { ...item, state: 'handled' },
+            { ...item, id: 'source-2', state: 'pending' },
+          ],
+        }),
+      );
+      await render();
+      expect(group.open).toBe(true);
+      await act(async () => {
+        group.open = false;
+        group.dispatchEvent(new Event('toggle', { bubbles: true }));
+      });
+      await render();
+      expect(group.open).toBe(false);
+      await act(async () =>
+        store.setBotInbox({
+          status: 'ready',
+          items: [
+            { ...item, state: 'handled' },
+            { ...item, id: 'source-2', state: 'needs-repair' },
+          ],
+        }),
+      );
+      await render();
+      expect(group.open).toBe(true);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      store.setBotInbox(previous);
+    }
+  });
+
   it('keeps an unavailable source readable without a broken action', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const previous = store.getSnapshot().botInbox;

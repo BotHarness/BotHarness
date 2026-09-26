@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import { Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -345,7 +345,18 @@ function BotInboxGroup({
 }): ReactElement {
   const active = items.filter((item) => item.state !== 'handled' && item.state !== 'ignored');
   const history = items.filter((item) => item.state === 'handled' || item.state === 'ignored');
+  const activeSignature = active
+    .map((item) => item.id + ':' + item.state)
+    .sort()
+    .join('|');
+  const previousActiveSignature = useRef(activeSignature);
   const [expanded, setExpanded] = useState(active.length > 0);
+  useEffect(() => {
+    if (activeSignature !== previousActiveSignature.current) {
+      if (active.length > 0) setExpanded(true);
+      previousActiveSignature.current = activeSignature;
+    }
+  }, [activeSignature, active.length]);
   return (
     <details
       className="bh-inbox-group"
