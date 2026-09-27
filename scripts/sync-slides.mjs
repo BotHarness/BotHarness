@@ -13,31 +13,42 @@
  * The deck is built with `OPEN_SLIDE_BASE=/slides/` so asset URLs resolve
  * under the docs subpath. Local iteration keeps base `/`:
  * `pnpm slides:dev` → http://localhost:5173/s/<id>.
+ *
+ * Workers static assets rejects a self-prefix SPA fallback (`/slides/s/*` →
+ * `/slides/index.html` trips its redirect-loop validator), so deep links are
+ * served as static copies instead: every deck id gets `s/<id>/index.html` and
+ * `s/<id>/presenter/index.html` cloned from the SPA shell. The client router
+ * takes over from there; asset URLs are absolute so they resolve anywhere.
  */
 import { execFileSync } from 'node:child_process';
-import { rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const SLIDES_DIR = resolve(ROOT, 'apps', 'presentations', 'slides');
 const TARGET = resolve(ROOT, 'apps', 'docs', 'public', 'slides');
 
 rmSync(TARGET, { recursive: true, force: true });
 execFileSync(
   'pnpm',
-  [
-    '--filter',
-    '@botharness/presentations',
-    'exec',
-    'open-slide',
-    'build',
-    '--out-dir',
-    TARGET,
-  ],
+  ['--filter', '@botharness/presentations', 'exec', 'open-slide', 'build', '--out-dir', TARGET],
   {
     cwd: ROOT,
     stdio: 'inherit',
     env: { ...process.env, OPEN_SLIDE_BASE: '/slides/' },
   },
 );
+
+const shell = resolve(TARGET, 'index.html');
+for (const id of readdirSync(SLIDES_DIR)) {
+  if (id.startsWith('.')) continue;
+  if (!statSync(resolve(SLIDES_DIR, id)).isDirectory()) continue;
+  for (const route of [`s/${id}`, `s/${id}/presenter`]) {
+    const dir = resolve(TARGET, route);
+    mkdirSync(dir, { recursive: true });
+    copyFileSync(shell, resolve(dir, 'index.html'));
+    console.log(`slides route → /slides/${route}/`);
+  }
+}
 console.log(`slides → ${TARGET}`);
