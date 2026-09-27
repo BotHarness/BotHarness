@@ -11,7 +11,6 @@ import { BRIDGE_NAMESPACE, BRIDGE_SERVICE_KEY, registerBridge } from '../src/bri
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
-import type { BotSessionSource } from '../src/sessions/source.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 
@@ -29,12 +28,10 @@ function setup() {
     rootDir: join(root, 'channels'),
     now: () => new Date('2026-09-19T00:00:00.000Z'),
   });
-  const sessions: BotSessionSource = { list: () => [] };
   const methods: BridgeMethods = createBridgeMethods({
     registry,
     states: createBotStateTracker(),
     channels,
-    sessions,
     ownership: createTestOwnership(),
     roster: createRosterStore(),
     createBotId: () => 'ada',
@@ -71,13 +68,14 @@ describe('bridge typert service', () => {
     expect(service.typertRemote.namespace).toBe(BRIDGE_NAMESPACE);
   });
 
-  it('marks exactly the twenty-eight bridge endpoints for typert claims', () => {
+  it('marks every bridge endpoint for typert claims', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
       'list',
       'get',
       'create',
+      'createFromGit',
       'update',
       'pause',
       'resume',
@@ -85,14 +83,43 @@ describe('bridge typert service', () => {
       'channelDm',
       'channelCreate',
       'channelRename',
+      'channelGroupInviteCancel',
+      'channelGroupMemberRemove',
+      'channelGroupJoinDecide',
+      'channelGroupWakeSet',
+      'channelGroupDelete',
       'channelMessages',
       'channelTimeline',
       'channelReadPosition',
       'channelMarkRead',
       'channelSend',
+      'botAttention',
+      'humanAttention',
+      'humanAttentionIgnore',
       'assignments',
       'assignment',
+      'workspaceOptions',
+      'grants',
+      'grantCreate',
+      'grantRevoke',
+      'assignmentAccessGet',
+      'assignmentAccessSet',
+      'toolApprovalRules',
+      'toolApprovalRuleRevoke',
+      'toolApprovalStatus',
+      'toolApprovalDecide',
+      'userQuestionStatus',
+      'userQuestionAnswer',
       'sessions',
+      'sessionOwner',
+      'memorySnapshot',
+      'memoryFile',
+      'memoryHistory',
+      'memoryDiff',
+      'memoryGitGraph',
+      'memoryGitCommitDiff',
+      'memorySave',
+      'memoryRepair',
       'rosterGet',
       'sectionCreate',
       'sectionRename',
@@ -103,6 +130,7 @@ describe('bridge typert service', () => {
       'pinsSet',
       'hiddenSet',
       'rosterBatch',
+      'developerModeSet',
     ]);
   });
 
@@ -130,6 +158,12 @@ describe('bridge typert service', () => {
     expect(parameterNames(service.update)).toEqual(['slug', 'patch']);
     expect(parameterNames(service.pause)).toEqual(['slug']);
     expect(parameterNames(service.resume)).toEqual(['slug']);
+    expect(parameterNames(service.createFromGit)).toEqual([
+      'displayName',
+      'gitUrl',
+      'roles',
+      'description',
+    ]);
     expect(parameterNames(service.channels)).toEqual([]);
     expect(parameterNames(service.channelDm)).toEqual(['slug', 'displayName']);
     expect(parameterNames(service.channelCreate)).toEqual(['name', 'members']);
@@ -150,10 +184,16 @@ describe('bridge typert service', () => {
       'replyTo',
       'attachments',
       'messageId',
+      'memorySwitchTarget',
+      'mentions',
+      'channelRefs',
+      'grantRequestResolution',
     ]);
+    expect(parameterNames(service.botAttention)).toEqual(['slug', 'limit', 'cursor', 'state']);
     expect(parameterNames(service.assignments)).toEqual(['slug']);
     expect(parameterNames(service.assignment)).toEqual(['slug', 'sessionId']);
     expect(parameterNames(service.sessions)).toEqual(['slug']);
+    expect(parameterNames(service.sessionOwner)).toEqual(['sessionId']);
     expect(parameterNames(service.rosterGet)).toEqual([]);
     expect(parameterNames(service.sectionCreate)).toEqual(['name']);
     expect(parameterNames(service.sectionRename)).toEqual(['sectionId', 'name']);
@@ -189,6 +229,7 @@ describe('bridge typert service', () => {
     expect(service.channelMessages('dm-ada').messages[0]?.body).toBe('hello');
     expect(service.assignments('ada').assignments).toEqual([]);
     expect(service.sessions('ada').sessions).toEqual([]);
+    expect(service.sessionOwner('unknown').owner).toBeNull();
   });
 
   it('throws RemoteError failures so the gateway keeps code and message on the wire', () => {

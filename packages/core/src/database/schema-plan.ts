@@ -143,6 +143,545 @@ const SESSION_PERSONA_SNAPSHOT_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
+  generation: 10,
+  module: 'memory',
+  description: 'Record accepted Memory Commit lineage and repository heads',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_accepted_commits (
+        bot_slug TEXT NOT NULL,
+        sha TEXT NOT NULL,
+        parent_sha TEXT,
+        actor_kind TEXT NOT NULL CHECK (actor_kind IN ('agent', 'human', 'system')),
+        actor_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind IN ('source-event', 'human-edit', 'repository-init')),
+        cause_id TEXT NOT NULL,
+        validation_result TEXT NOT NULL,
+        accepted_at TEXT NOT NULL,
+        PRIMARY KEY (bot_slug, sha)
+      );
+      CREATE INDEX memory_accepted_commits_history
+        ON memory_accepted_commits (bot_slug, accepted_at DESC, sha);
+      CREATE TABLE memory_accepted_heads (
+        bot_slug TEXT PRIMARY KEY,
+        head_sha TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        FOREIGN KEY (bot_slug, head_sha)
+          REFERENCES memory_accepted_commits(bot_slug, sha)
+      );
+      CREATE TABLE memory_repair_events (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        accepted_head_sha TEXT NOT NULL,
+        provisional_head_sha TEXT NOT NULL,
+        backup_path TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        actor_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind = 'human-repair'),
+        status TEXT NOT NULL CHECK (status IN ('started', 'completed')),
+        requested_at TEXT NOT NULL,
+        completed_at TEXT
+      );
+      CREATE INDEX memory_repair_events_bot_time
+        ON memory_repair_events (bot_slug, requested_at DESC);
+    `);
+  },
+};
+
+/** Reserved after #115's accepted-Memory migration (generation 10). */
+export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
+  generation: 11,
+  module: 'workspace-grants',
+  description: 'Record Human Workspace Grants and immutable Assignment permission provenance',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE workspace_grants (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        workspace_id TEXT NOT NULL,
+        workspace_path TEXT NOT NULL,
+        workspace_title TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        revoked_at TEXT
+      );
+      CREATE UNIQUE INDEX workspace_grants_active_target
+        ON workspace_grants (bot_slug, workspace_id) WHERE revoked_at IS NULL;
+      ALTER TABLE assignments ADD COLUMN grant_id TEXT REFERENCES workspace_grants(id);
+      ALTER TABLE assignments ADD COLUMN workspace_id TEXT;
+      ALTER TABLE assignments ADD COLUMN primary_cwd TEXT;
+      ALTER TABLE assignments ADD COLUMN permission_mode TEXT;
+      ALTER TABLE assignments ADD COLUMN approval_policy TEXT;
+      ALTER TABLE assignments ADD COLUMN preset_revision INTEGER;
+    `);
+  },
+};
+
+export const TOOL_APPROVAL_RULE_MIGRATION: SchemaMigration = {
+  generation: 12,
+  module: 'tool-approval-rules',
+  description: 'Persist revocable Human rules for native tool approval',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE tool_approval_rules (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        role TEXT NOT NULL CHECK (role IN ('orchestrator', 'assignment')),
+        scope_key TEXT NOT NULL,
+        kind TEXT NOT NULL CHECK (kind IN ('exact', 'all-opaque')),
+        tool_name TEXT NOT NULL,
+        input TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        active INTEGER NOT NULL CHECK (active IN (0, 1)),
+        revoked_at TEXT
+      );
+      CREATE INDEX tool_approval_rules_lookup
+        ON tool_approval_rules (bot_slug, role, scope_key, active, revoked_at);
+    `);
+  },
+};
+
+export const ASSIGNMENT_ACCESS_MIGRATION: SchemaMigration = {
+  generation: 13,
+  module: 'assignment-access',
+  description: 'Persist Human-owned per-Bot Assignment access preset and audit',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_assignment_access (
+        bot_slug TEXT PRIMARY KEY,
+        mode TEXT NOT NULL CHECK (mode IN ('workspace-write', 'danger-full-access')),
+        revision INTEGER NOT NULL,
+        changed_at TEXT NOT NULL
+      );
+      CREATE TABLE bot_assignment_access_events (
+        bot_slug TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        prior_mode TEXT NOT NULL,
+        mode TEXT NOT NULL,
+        changed_at TEXT NOT NULL,
+        actor_kind TEXT NOT NULL CHECK (actor_kind = 'human'),
+        PRIMARY KEY (bot_slug, revision)
+      );
+    `);
+  },
+};
+
+export const MEMORY_BRANCH_HEAD_MIGRATION: SchemaMigration = {
+  generation: 14,
+  module: 'memory',
+  description: 'Track the accepted Memory head independently for each local branch',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_accepted_heads_by_branch (
+        bot_slug TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        head_sha TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (bot_slug, branch_name),
+        FOREIGN KEY (bot_slug, head_sha)
+          REFERENCES memory_accepted_commits(bot_slug, sha)
+      );
+      INSERT INTO memory_accepted_heads_by_branch (bot_slug, branch_name, head_sha, updated_at)
+        SELECT bot_slug, 'main', head_sha, updated_at FROM memory_accepted_heads;
+      DROP TABLE memory_accepted_heads;
+      ALTER TABLE memory_accepted_heads_by_branch RENAME TO memory_accepted_heads;
+    `);
+  },
+};
+
+export const CHANNEL_MESSAGING_MIGRATION: SchemaMigration = {
+  generation: 15,
+  module: 'messaging',
+  description:
+    'Move Channel messages to canonical Source Events, placements, and per-Bot admissions',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next (
+        source_event_id, source_kind, bot_slug, channel_id, message_id,
+        assignment_session_id, body, created_at, handled_at, attempt_state,
+        side_effect_started_at, expects_reply, observed_at
+      )
+      SELECT source_event_id, source_kind, bot_slug, channel_id, message_id,
+             assignment_session_id, body, created_at, handled_at, attempt_state,
+             side_effect_started_at, expects_reply, observed_at
+        FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE TABLE channel_records (
+        channel_id TEXT PRIMARY KEY,
+        record_json TEXT NOT NULL
+      );
+      CREATE TABLE channel_placements (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        revision INTEGER NOT NULL,
+        source_event_id TEXT NOT NULL UNIQUE REFERENCES source_events(source_event_id),
+        message_id TEXT NOT NULL,
+        PRIMARY KEY (channel_id, revision),
+        UNIQUE (channel_id, message_id)
+      );
+      CREATE TABLE channel_read_positions (
+        channel_id TEXT PRIMARY KEY REFERENCES channel_records(channel_id),
+        message_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        read_at TEXT NOT NULL
+      );
+      CREATE TABLE inbox_admissions (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
+const BOT_DM_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 16,
+  module: 'messaging',
+  description: 'Admit Bot-to-Bot DM messages through the canonical Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention', 'bot-dm')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
+const GROUP_INVITATION_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 17,
+  module: 'messaging',
+  description: 'Deliver Group invitations through the Bot Inbox before membership',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN ('human-dm', 'group-mention', 'bot-dm', 'group-invite')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+    `);
+  },
+};
+
+const GROUP_DIGEST_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 18,
+  module: 'messaging',
+  description: 'Capture per-Group ordinary-message digest policy with each Inbox Admission',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
+const GROUP_JOIN_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 19,
+  module: 'messaging',
+  description: 'Admit Group join requests and decisions as durable Bot Inbox notifications',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error,
+         wake_count, wake_interval_ms, wake_policy_revision, observed_at)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error,
+             wake_count, wake_interval_ms, wake_policy_revision, observed_at
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+
+    `);
+  },
+};
+
+const ASSIGNMENT_STOP_MIGRATION: SchemaMigration = {
+  generation: 20,
+  module: 'assignments',
+  description:
+    'Persist stopping and stopped Assignment lifecycle while retaining DSH Session history',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE assignments ADD COLUMN stop_state TEXT NOT NULL DEFAULT 'running'
+        CHECK (stop_state IN ('running', 'requested', 'stopped'));
+    `);
+  },
+};
+const ASSIGNMENT_REPORT_ADMISSION_MIGRATION: SchemaMigration = {
+  generation: 21,
+  module: 'messaging',
+  description: 'Admit Assignment reports to their PersonaBot Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision', 'assignment-report')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state,
+         side_effect_started_at, handled_at, last_error,
+         wake_count, wake_interval_ms, wake_policy_revision, observed_at)
+      SELECT source_event_id, bot_slug, reason, attempt_state,
+             side_effect_started_at, handled_at, last_error,
+             wake_count, wake_interval_ms, wake_policy_revision, observed_at
+        FROM inbox_admissions;
+      INSERT OR IGNORE INTO inbox_admissions_next
+        (source_event_id, bot_slug, reason, attempt_state, handled_at, observed_at)
+      SELECT source_event_id, bot_slug, 'assignment-report',
+             CASE WHEN observed_at IS NULL THEN 'pending' ELSE 'handled' END,
+             observed_at, observed_at
+        FROM source_events
+       WHERE source_kind = 'assignment-report' AND bot_slug IS NOT NULL;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
+const HUMAN_ATTENTION_DECISION_MIGRATION: SchemaMigration = {
+  generation: 22,
+  module: 'human-attention',
+  description: 'Record Human decisions for informational Source Events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE human_attention_decisions (
+        source_event_id TEXT PRIMARY KEY REFERENCES source_events(source_event_id),
+        decision TEXT NOT NULL CHECK (decision IN ('ignored')),
+        decided_at TEXT NOT NULL
+      );
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+    `);
+  },
+};
+
+const BOT_ATTENTION_IGNORE_MIGRATION: SchemaMigration = {
+  generation: 23,
+  module: 'bot-inbox',
+  description: 'Record explicit Bot ignore decisions on canonical Inbox Admissions',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE inbox_admissions ADD COLUMN ignored_at TEXT;
+      ALTER TABLE inbox_admissions ADD COLUMN ignored_by_session_id TEXT;
+    `);
+  },
+};
+
+const ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION: SchemaMigration = {
+  generation: 24,
+  module: 'assignments',
+  description: 'Admit Host-origin Assignment lifecycle notices to the Bot Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report',
+           'assignment-lifecycle')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next (
+        source_event_id, source_kind, bot_slug, channel_id, message_id,
+        assignment_session_id, body, created_at, handled_at, attempt_state,
+        side_effect_started_at, expects_reply, observed_at, payload_json
+      )
+      SELECT source_event_id, source_kind, bot_slug, channel_id, message_id,
+             assignment_session_id, body, created_at, handled_at, attempt_state,
+             side_effect_started_at, expects_reply, observed_at, payload_json
+        FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision', 'assignment-report',
+           'assignment-lifecycle')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        ignored_at TEXT,
+        ignored_by_session_id TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next (
+        source_event_id, bot_slug, reason, attempt_state, side_effect_started_at,
+        handled_at, last_error, wake_count, wake_interval_ms, wake_policy_revision,
+        observed_at, ignored_at, ignored_by_session_id
+      )
+      SELECT source_event_id, bot_slug, reason, attempt_state, side_effect_started_at,
+             handled_at, last_error, wake_count, wake_interval_ms, wake_policy_revision,
+             observed_at, ignored_at, ignored_by_session_id
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -152,4 +691,19 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SOURCE_EVENT_SIDE_EFFECT_MIGRATION,
   ASSIGNMENT_COLLABORATION_MIGRATION,
   SESSION_PERSONA_SNAPSHOT_MIGRATION,
+  MEMORY_ACCEPTED_COMMIT_MIGRATION,
+  WORKSPACE_GRANT_MIGRATION,
+  TOOL_APPROVAL_RULE_MIGRATION,
+  ASSIGNMENT_ACCESS_MIGRATION,
+  MEMORY_BRANCH_HEAD_MIGRATION,
+  CHANNEL_MESSAGING_MIGRATION,
+  BOT_DM_ADMISSION_MIGRATION,
+  GROUP_INVITATION_ADMISSION_MIGRATION,
+  GROUP_DIGEST_ADMISSION_MIGRATION,
+  GROUP_JOIN_ADMISSION_MIGRATION,
+  ASSIGNMENT_STOP_MIGRATION,
+  ASSIGNMENT_REPORT_ADMISSION_MIGRATION,
+  HUMAN_ATTENTION_DECISION_MIGRATION,
+  BOT_ATTENTION_IGNORE_MIGRATION,
+  ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION,
 ]);

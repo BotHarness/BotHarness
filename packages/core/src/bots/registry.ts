@@ -1,9 +1,11 @@
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
   realpathSync,
+  renameSync,
   rmSync,
   writeFileSync,
   type Dirent,
@@ -21,9 +23,11 @@ import {
   type UpdatePersonaBotResult,
 } from './persona-bot.js';
 import { isValidSlug } from './slug.js';
+import type { MemoryCloneResult } from '../memory/clone.js';
 
 export interface MemoryRepositoryInitialization {
   ok: boolean;
+  code?: 'git-not-found';
   message?: string;
 }
 
@@ -36,11 +40,15 @@ export interface PersonaBotRegistryOptions {
    * rather than pretending it is fully executable.
    */
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
+  cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
 }
 
 export interface PersonaBotRegistry {
   rootDir: string;
   create(input: CreatePersonaBotInput): CreatePersonaBotResult;
+  createFromGit(
+    input: Omit<CreatePersonaBotInput, 'memoryDir'> & { gitUrl: string },
+  ): Promise<CreatePersonaBotResult>;
   get(slug: string): PersonaBotRecord | undefined;
   list(): PersonaBotRecord[];
   findByWorkspace(workspace: string): PersonaBotRecord | undefined;
@@ -173,12 +181,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ...(memoryDir ? { memoryDir } : {}),
       };
       const targetMemoryDir = memoryDirOf(record);
+      const newBotDirectory = !existsSync(botDir(record.slug));
       mkdirSync(targetMemoryDir, { recursive: true });
       const initialized = options.initializeMemory?.(targetMemoryDir) ?? { ok: true };
       if (!initialized.ok) {
+        if (newBotDirectory && !memoryDir) {
+          rmSync(botDir(record.slug), { recursive: true, force: true });
+        }
         return {
           ok: false,
-          reason: 'memory-unavailable',
+          reason: initialized.code === 'git-not-found' ? 'git-not-found' : 'memory-unavailable',
           ...(initialized.message === undefined ? {} : { detail: initialized.message }),
         };
       }
@@ -188,6 +200,41 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         ensurePersonaFile(targetMemoryDir, persona);
       }
       return { ok: true, record };
+    },
+    async createFromGit(input) {
+      if (!isValidSlug(input.slug)) return { ok: false, reason: 'invalid-slug' };
+      if (read(input.slug) !== undefined || existsSync(botDir(input.slug))) {
+        return { ok: false, reason: 'duplicate' };
+      }
+      if (options.cloneMemory === undefined) return { ok: false, reason: 'memory-unavailable' };
+
+      let staging: string | undefined;
+      let ownsBotDir = false;
+      let created = false;
+      try {
+        mkdirSync(rootDir, { recursive: true });
+        staging = mkdtempSync(join(rootDir, '.git-import-'));
+        const cloned = await options.cloneMemory(staging, input.gitUrl);
+        if (!cloned.ok) return { ok: false, reason: cloned.code };
+        if (existsSync(botDir(input.slug))) return { ok: false, reason: 'duplicate' };
+
+        mkdirSync(botDir(input.slug));
+        ownsBotDir = true;
+        renameSync(staging, defaultMemoryDir(input.slug));
+        staging = undefined;
+        const { gitUrl, ...recordInput } = input;
+        void gitUrl;
+        const result = this.create(recordInput);
+        created = result.ok;
+        return result;
+      } catch {
+        return { ok: false, reason: 'memory-unavailable' };
+      } finally {
+        if (staging !== undefined) rmSync(staging, { recursive: true, force: true });
+        if (ownsBotDir && !created && !existsSync(botFile(input.slug))) {
+          rmSync(botDir(input.slug), { recursive: true, force: true });
+        }
+      }
     },
     get(slug) {
       return read(slug);

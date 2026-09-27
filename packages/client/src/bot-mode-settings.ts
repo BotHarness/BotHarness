@@ -5,7 +5,7 @@
  */
 
 /** Settings namespace owning BOT-mode view preferences. */
-export const BOT_MODE_NAMESPACE = 'ui-bot-mode';
+export const BOT_MODE_NAMESPACE = 'botharness-client';
 
 /** Field carrying the global list sort mode. */
 export const BOT_MODE_SORT_FIELD = 'sortMode';
@@ -21,6 +21,9 @@ export const BOT_MODE_MOTION_FIELD = 'motionPreference';
 
 /** Field carrying the Human-owned Bot icon choice. */
 export const BOT_MODE_ICON_FIELD = 'botIcon';
+
+/** Field controlling optional diagnostic details in Bot mode. */
+export const BOT_MODE_DEVELOPER_FIELD = 'developerMode';
 
 /** Sort modes accepted at settings boundaries. */
 export const BOT_MODE_SORT_MODES = ['updated', 'manual'] as const;
@@ -49,6 +52,9 @@ export const DEFAULT_BOT_MODE_MOTION: BotModeMotionPreference = 'system';
 /** The shipped DeepSeekBot mascot until the Human picks another mark. */
 export const DEFAULT_BOT_MODE_ICON: BotModeIcon = 'mascot';
 
+/** Diagnostic details are hidden until the Human opts in. */
+export const DEFAULT_BOT_MODE_DEVELOPER = false;
+
 /** Narrow one wire, storage, or registry value to a persistable sort mode. */
 export function isBotModeSortMode(value: unknown): value is BotModeSortMode {
   return value === 'updated' || value === 'manual';
@@ -66,6 +72,8 @@ export function isBotModeIcon(value: unknown): value is BotModeIcon {
 
 /** Durable BOT-mode section shared by the Host schema and the browser scope. */
 export interface BotModeSettings {
+  /** Human-owned toggle; the schema resolves older stored sections to false. */
+  developerMode: boolean;
   /** Human-owned motion preference for every BotHarness Client surface. */
   motionPreference: BotModeMotionPreference;
   /** Human-owned Bot mark shared by the app sidebar and the Settings navigation. */

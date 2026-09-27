@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
 
 import {
-  IconAgentPresetOutline16,
-  IconCopyOutline16,
-  IconPanelLeftOutline16,
+  IconAgentPresetOutlineRegular,
+  IconCopyOutlineRegular,
+  IconPanelLeftOutlineRegular,
   Menu,
   Tag,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -22,10 +23,16 @@ import {
   type ChannelComposerActivity,
   type ChannelComposerUpload,
 } from './channel-composer.js';
-import { ChannelMessageBody } from './channel-message-body.js';
+import type { SelectedMention } from './mentions.js';
+import type { SelectedChannelRef } from './channel-refs.js';
+import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
+import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
+import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
+import { HumanInboxView } from './human-inbox-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
+import { MemoryCommitView } from './memory-commit-view.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
@@ -46,6 +53,24 @@ export function committedMessageIds(messages: readonly ChannelMessage[]): Set<st
           message.pending !== true && message.streaming !== true && message.failed === undefined,
       )
       .map((message) => message.id),
+  );
+}
+
+/** A request card is resolved only by a committed Human reply. */
+export function resolvedGrantRequestIds(messages: readonly ChannelMessage[]): Set<string> {
+  const committed = committedMessageIds(messages);
+  return new Set(
+    messages
+      .filter(
+        (item) =>
+          committed.has(item.id) &&
+          item.author.kind === 'human' &&
+          item.replyTo !== undefined &&
+          (item.grantRequestResolution?.requestMessageId === item.replyTo ||
+            item.body.startsWith('已授权工作区「') ||
+            item.body.startsWith('I authorized workspace “')),
+      )
+      .map((item) => item.replyTo!),
   );
 }
 
@@ -79,7 +104,7 @@ function Welcome({ state, t }: { state: ClientState; t: BotHarnessTranslate }): 
     <div className="bh-root bh-main">
       <div className="bh-content">
         <div className="bh-placeholder">
-          <IconAgentPresetOutline16 size={32} />
+          <IconAgentPresetOutlineRegular size={32} />
           <div className="bh-big">{t('main.welcome.title')}</div>
           <div>{t('main.welcome.hint')}</div>
           {state.bots.length === 0 ? <div className="bh-dim">{t('main.welcome.empty')}</div> : null}
@@ -133,25 +158,53 @@ function ReplyQuote({
   );
 }
 
+function ReplyIcon(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 7 4 12l5 5M4 12h9a7 7 0 0 1 7 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MessageGroupView({
   group,
   bots,
   focusMessageId,
   onContextMenu,
+  onReply,
   onJumpReply,
   onRestoreFailed,
+  actions,
+  resolvedGrantRequests,
+  toolApprovalDecisions,
+  userQuestionResolutions,
+  nativeChatT,
   t,
 }: {
   group: MessageGroup;
   focusMessageId?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  onReply?: ((message: ChannelMessage) => void) | undefined;
   onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
+  actions: BridgeActions;
+  resolvedGrantRequests: ReadonlySet<string>;
+  toolApprovalDecisions: ReadonlyMap<
+    string,
+    'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected'
+  >;
+  userQuestionResolutions: ReadonlyMap<string, 'answered' | 'cancelled'>;
   t: BotHarnessTranslate;
+  nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const first = group.messages[0]!;
-  const last = group.messages.at(-1)!;
   const author = first.author;
   const human = author.kind === 'human';
   const authorBot =
@@ -194,47 +247,83 @@ function MessageGroupView({
                 onContextMenu(message, event.clientX, event.clientY);
               }}
             >
-              {message.failed === undefined ? null : (
-                <button
-                  type="button"
-                  className="bh-bubble-failed-action"
-                  aria-label={t('message.failedRestore')}
-                  title={message.failed}
-                  onClick={() => onRestoreFailed(message)}
-                >
-                  {t('message.failed')}
-                </button>
-              )}
               <div
-                className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
-                data-group-position={position}
+                className={`bh-bubble-surface${message.failed === undefined ? '' : ' bh-bubble-surface-failed'}`}
               >
-                <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
-                <ChannelMessageBody message={message} t={t} />
+                {message.failed === undefined ? null : (
+                  <button
+                    type="button"
+                    className="bh-bubble-failed-action"
+                    aria-label={t('message.failedRestore')}
+                    title={message.failed}
+                    onClick={() => onRestoreFailed(message)}
+                  >
+                    {t('message.failed')}
+                  </button>
+                )}
+                <div
+                  className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
+                  data-group-position={position}
+                >
+                  <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
+                  <ChannelMessageBody
+                    message={message}
+                    t={t}
+                    nativeChatT={nativeChatT}
+                    actions={actions}
+                    bots={bots}
+                    grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                    toolApprovalDecision={toolApprovalDecisions.get(message.id)}
+                    userQuestionResolution={userQuestionResolutions.get(message.id)}
+                  />
+                </div>
+                <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
               </div>
-              <button
-                type="button"
-                className="bh-bubble-quick-action"
-                aria-label={t('message.copy')}
-                title={t('message.copy')}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(message.body);
-                }}
+              <div
+                className={`bh-bubble-meta${message.pending === true || message.streaming === true || message.failed !== undefined ? ' bh-bubble-meta-persistent' : ''}`}
               >
-                <IconCopyOutline16 size={16} />
-              </button>
+                <span className="bh-bubble-time">
+                  {message.streaming === true
+                    ? t('message.generating')
+                    : message.failed !== undefined
+                      ? t('message.failed')
+                      : message.pending === true
+                        ? t('message.sending')
+                        : clockTime(message.at)}
+                </span>
+                <div className="bh-bubble-actions">
+                  {onReply !== undefined &&
+                  message.pending !== true &&
+                  message.streaming !== true &&
+                  message.failed === undefined ? (
+                    <Tooltip label={t('message.reply')} side="top" portal delayMs={400}>
+                      <button
+                        type="button"
+                        className="bh-bubble-action"
+                        aria-label={t('message.reply')}
+                        onClick={() => onReply(message)}
+                      >
+                        <ReplyIcon />
+                      </button>
+                    </Tooltip>
+                  ) : null}
+                  <Tooltip label={t('message.copy')} side="top" portal delayMs={400}>
+                    <button
+                      type="button"
+                      className="bh-bubble-action"
+                      aria-label={t('message.copy')}
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(message.body);
+                      }}
+                    >
+                      <IconCopyOutlineRegular size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
             </div>
           );
         })}
-        <div className="bh-bubble-time">
-          {last.streaming === true
-            ? t('message.generating')
-            : last.failed !== undefined
-              ? t('message.failed')
-              : last.pending === true
-                ? t('message.sending')
-                : clockTime(last.at)}
-        </div>
       </div>
     </div>
   );
@@ -282,7 +371,7 @@ function MessageActionMenu({
             ? []
             : [{ id: 'reply', label: t('message.reply') }]),
           { id: 'locate', label: t('message.locate') },
-          { id: 'copy', label: t('message.copy'), icon: <IconCopyOutline16 /> },
+          { id: 'copy', label: t('message.copy'), icon: <IconCopyOutlineRegular /> },
         ]}
         onSelect={(id) => {
           if (id === 'reply') onReply(request.message);
@@ -344,16 +433,25 @@ function ConversationView({
   state,
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   const sidebar = useChannelSidebar(state);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const [draft, setDraft] = useState('');
+  const [mentionTokens, setMentionTokens] = useState<SelectedMention[]>([]);
+  const [channelRefTokens, setChannelRefTokens] = useState<SelectedChannelRef[]>([]);
+  const [selectedMemoryCommit, setSelectedMemoryCommit] = useState<{
+    channelId: string;
+    sha: string;
+  }>();
+  const chatScrollBeforeDiff = useRef(0);
   const [uploadItems, setUploadItems] = useState<ChannelComposerUpload[]>([]);
   const [restoreBlocked, setRestoreBlocked] = useState(false);
   const [restoreFocusSignal, setRestoreFocusSignal] = useState(0);
@@ -390,10 +488,19 @@ function ConversationView({
     selection?.kind === 'bot'
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
-  const title = channel?.name ?? bot?.displayName ?? t('main.group.title');
+  const botDm = isBotDmChannel(channel);
+  const readOnlyDm = isHumanReadOnlyDmChannel(channel);
+  const title =
+    channel?.type === 'dm'
+      ? botDm
+        ? channel.members.map((slug) => memberName(state.bots, slug)).join(' ↔ ')
+        : (bot?.displayName ??
+          state.bots.find((candidate) => candidate.slug === channel.botSlug)?.displayName ??
+          channel.name)
+      : (channel?.name ?? bot?.displayName ?? t('main.group.title'));
   const botActivity = bot === undefined ? undefined : personaBotActivity(state, bot);
   const channelBots =
-    channel?.type === 'group'
+    channel !== undefined && (channel.type === 'group' || botDm)
       ? channel.members.flatMap((slug) => {
           const member = state.bots.find((candidate) => candidate.slug === slug);
           return member === undefined ? [] : [member];
@@ -430,6 +537,10 @@ function ConversationView({
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
+  const selectedMemoryCommitSha =
+    selectedMemoryCommit !== undefined && selectedMemoryCommit.channelId === channelId
+      ? selectedMemoryCommit.sha
+      : undefined;
   const scheduleReadMark = (): void => {
     const element = scrollRef.current;
     if (channelId === undefined || element === null || conversation.status !== 'ready') return;
@@ -468,6 +579,9 @@ function ConversationView({
 
   useEffect(() => {
     setDraft('');
+    setMentionTokens([]);
+    setChannelRefTokens([]);
+    setSelectedMemoryCommit(undefined);
     setReplyTarget(undefined);
     for (const controller of uploadControllers.current.values()) controller.abort();
     uploadControllers.current.clear();
@@ -655,6 +769,19 @@ function ConversationView({
 
   const submit = async (): Promise<void> => {
     const body = draft.trim();
+    const leftTrim = draft.length - draft.trimStart().length;
+    const submittedRefs = channelRefTokens.flatMap((token) => {
+      const adjusted = { ...token, start: token.start - leftTrim, end: token.end - leftTrim };
+      return adjusted.start >= 0 && body.slice(adjusted.start, adjusted.end) === '#' + token.label
+        ? [adjusted]
+        : [];
+    });
+    const submittedMentions = mentionTokens.flatMap((token) => {
+      const adjusted = { ...token, start: token.start - leftTrim, end: token.end - leftTrim };
+      return adjusted.start >= 0 && body.slice(adjusted.start, adjusted.end) === '@' + token.label
+        ? [adjusted]
+        : [];
+    });
     if (
       (body.length === 0 && uploadItems.length === 0) ||
       uploadItems.some((item) => item.status !== 'ready' || item.ref === undefined) ||
@@ -674,6 +801,8 @@ function ConversationView({
         .map((item) => item.id),
     );
     setDraft('');
+    setMentionTokens([]);
+    setChannelRefTokens([]);
     setUploadItems([]);
     const submittedReplyTo = replyTarget?.id;
     try {
@@ -681,6 +810,9 @@ function ConversationView({
         body,
         submittedReplyTo,
         submittedUploads.flatMap((item) => (item.ref === undefined ? [] : [item.ref])),
+        undefined,
+        submittedMentions,
+        submittedRefs,
       );
       if (sent) {
         setReplyTarget((current) => (current?.id === submittedReplyTo ? undefined : current));
@@ -692,6 +824,8 @@ function ConversationView({
           );
         if (!failedEcho) {
           setDraft((current) => current || body);
+          setMentionTokens((current) => (current.length > 0 ? current : submittedMentions));
+          setChannelRefTokens((current) => (current.length > 0 ? current : submittedRefs));
           setUploadItems((current) => (current.length > 0 ? current : submittedUploads));
         }
       }
@@ -741,8 +875,32 @@ function ConversationView({
               )}
             </button>
           </div>
-          <div className="bh-chat-top-fade" aria-hidden="true" />
-          <div className="bh-chat-body" ref={scrollRef} onScroll={onTimelineScroll}>
+          <div
+            className="bh-chat-top-fade"
+            aria-hidden="true"
+            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+          />
+          {selectedMemoryCommitSha === undefined || channelId === undefined ? null : (
+            <MemoryCommitView
+              actions={actions}
+              channelId={channelId}
+              sha={selectedMemoryCommitSha}
+              t={t}
+              onClose={() => {
+                setSelectedMemoryCommit(undefined);
+                window.requestAnimationFrame(() => {
+                  if (scrollRef.current !== null)
+                    scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
+                });
+              }}
+            />
+          )}
+          <div
+            className="bh-chat-body"
+            ref={scrollRef}
+            onScroll={onTimelineScroll}
+            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+          >
             {conversation.timeline.hasOlder ? (
               <div className="bh-timeline-top-sentinel">
                 {conversation.timeline.loadingOlder ? (
@@ -795,42 +953,87 @@ function ConversationView({
                       })}
                     </div>
                   ) : null}
-                  <MessageGroupView
-                    group={group}
-                    focusMessageId={conversation.focusMessageId}
-                    bots={state.bots}
-                    onContextMenu={(message, x, y) => {
-                      setMessageMenu({ message, x, y });
-                    }}
-                    onJumpReply={(messageId) => {
-                      if (channelId !== undefined) void actions.openAround(channelId, messageId);
-                    }}
-                    onRestoreFailed={(message) => {
-                      if (channelId === undefined) return;
-                      if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
-                        setRestoreBlocked(true);
-                        return;
+                  {first.botDmAction === undefined ? (
+                    <MessageGroupView
+                      group={group}
+                      actions={actions}
+                      nativeChatT={nativeChatT}
+                      resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
+                      toolApprovalDecisions={
+                        new Map(
+                          displayMessages
+                            .filter((item) => item.toolApprovalDecision !== undefined)
+                            .map((item) => [
+                              item.toolApprovalDecision!.requestMessageId,
+                              item.toolApprovalDecision!.outcome,
+                            ]),
+                        )
                       }
-                      if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                      setDraft(message.body);
-                      setUploadItems(
-                        (message.attachments ?? []).map((ref) => ({
-                          id: crypto.randomUUID(),
-                          file: new File([], ref.name, { type: ref.mime }),
-                          ref,
-                          status: 'ready' as const,
-                        })),
-                      );
-                      setReplyTarget(
-                        message.replyTo === undefined
-                          ? undefined
-                          : messages.find((candidate) => candidate.id === message.replyTo),
-                      );
-                      setRestoreBlocked(false);
-                      setRestoreFocusSignal((value) => value + 1);
-                    }}
-                    t={t}
-                  />
+                      userQuestionResolutions={
+                        new Map(
+                          displayMessages
+                            .filter((item) => item.userQuestionResolution !== undefined)
+                            .map((item) => [
+                              item.userQuestionResolution!.requestMessageId,
+                              item.userQuestionResolution!.state,
+                            ]),
+                        )
+                      }
+                      focusMessageId={conversation.focusMessageId}
+                      bots={state.bots}
+                      onContextMenu={(message, x, y) => {
+                        setMessageMenu({ message, x, y });
+                      }}
+                      onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
+                      onJumpReply={(messageId) => {
+                        if (channelId !== undefined) void actions.openAround(channelId, messageId);
+                      }}
+                      onRestoreFailed={(message) => {
+                        if (channelId === undefined) return;
+                        if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
+                          setRestoreBlocked(true);
+                          return;
+                        }
+                        if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                        setDraft(message.body);
+                        setMentionTokens(message.mentions ?? []);
+                        setChannelRefTokens(message.channelRefs ?? []);
+                        setUploadItems(
+                          (message.attachments ?? []).map((ref) => ({
+                            id: crypto.randomUUID(),
+                            file: new File([], ref.name, { type: ref.mime }),
+                            ref,
+                            status: 'ready' as const,
+                          })),
+                        );
+                        setReplyTarget(
+                          message.replyTo === undefined
+                            ? undefined
+                            : messages.find((candidate) => candidate.id === message.replyTo),
+                        );
+                        setRestoreBlocked(false);
+                        setRestoreFocusSignal((value) => value + 1);
+                      }}
+                      t={t}
+                    />
+                  ) : (
+                    <button
+                      type="button"
+                      className="bh-bot-dm-action"
+                      data-message-id={first.id}
+                      onClick={() => {
+                        const action = first.botDmAction!;
+                        void actions
+                          .openChannel(action.channelId)
+                          .then(() => actions.openAround(action.channelId, action.messageId));
+                      }}
+                    >
+                      {t('botDm.action', {
+                        sender: authorLabel(first, state.bots, t),
+                        recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
+                      })}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -853,53 +1056,86 @@ function ConversationView({
               </div>
             ) : null}
           </div>
-          {unseen > 0 || conversation.timeline.hasNewer ? (
+          {selectedMemoryCommitSha === undefined &&
+          (unseen > 0 || conversation.timeline.hasNewer) ? (
             <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
               {conversation.timeline.hasNewer
                 ? t('messages.latest')
                 : t('messages.unseen', { count: unseen })}
             </button>
           ) : null}
-          {restoreBlocked ? (
+          {selectedMemoryCommitSha === undefined && restoreBlocked ? (
             <div className="bh-note" role="alert">
               {t('message.restoreBlocked')}
             </div>
           ) : null}
-          <ChannelComposer
-            value={draft}
-            placeholder={t('composer.placeholder', { name: title })}
-            sending={conversation.sending}
-            focusSignal={restoreFocusSignal}
-            attachments={uploadItems}
-            onAddFiles={addFiles}
-            onRetryAttachment={(id) => {
-              const item = uploadItems.find((candidate) => candidate.id === id);
-              if (item !== undefined) startUpload(item);
-            }}
-            onRemoveAttachment={(id) => {
-              uploadControllers.current.get(id)?.abort();
-              uploadControllers.current.delete(id);
-              setUploadItems((current) => current.filter((item) => item.id !== id));
-            }}
-            activity={composerActivity}
-            reply={
-              replyTarget === undefined
-                ? undefined
-                : {
-                    id: replyTarget.id,
-                    author: authorLabel(replyTarget, state.bots, t),
-                    body: replyTarget.body,
-                  }
-            }
-            t={t}
-            onChange={(value) => {
-              setDraft(value);
-              setRestoreBlocked(false);
-            }}
-            onCancelReply={() => setReplyTarget(undefined)}
-            onSubmit={submit}
-          />
-          {messageMenu === undefined ? null : (
+          {readOnlyDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
+          {readOnlyDm ? null : (
+            <div
+              className="bh-memory-chat-composer"
+              style={{
+                display: selectedMemoryCommitSha === undefined ? 'contents' : 'none',
+              }}
+            >
+              <ChannelComposer
+                key={channelId}
+                value={draft}
+                mentions={mentionTokens}
+                channelRefs={channelRefTokens}
+                channelCandidates={
+                  channel?.type === 'dm' && channel.botSlug !== undefined
+                    ? state.channels.filter((candidate) => candidate.type === 'group')
+                    : []
+                }
+                mentionCandidates={
+                  channel?.type === 'group'
+                    ? channelBots
+                    : channel?.type === 'dm' && channel.botSlug !== undefined
+                      ? state.bots.filter(
+                          (candidate) =>
+                            candidate.slug !== channel.botSlug && candidate.paused !== true,
+                        )
+                      : []
+                }
+                placeholder={t('composer.placeholder', { name: title })}
+                sending={conversation.sending}
+                focusSignal={restoreFocusSignal}
+                attachments={uploadItems}
+                onAddFiles={addFiles}
+                onRetryAttachment={(id) => {
+                  const item = uploadItems.find((candidate) => candidate.id === id);
+                  if (item !== undefined) startUpload(item);
+                }}
+                onRemoveAttachment={(id) => {
+                  uploadControllers.current.get(id)?.abort();
+                  uploadControllers.current.delete(id);
+                  setUploadItems((current) => current.filter((item) => item.id !== id));
+                }}
+                activity={composerActivity}
+                reply={
+                  replyTarget === undefined
+                    ? undefined
+                    : {
+                        id: replyTarget.id,
+                        author: authorLabel(replyTarget, state.bots, t),
+                        body: replyTarget.body,
+                      }
+                }
+                t={t}
+                onChange={(value, mentions, channelRefs) => {
+                  setDraft(value);
+                  setMentionTokens(mentions ?? []);
+                  setChannelRefTokens(channelRefs ?? []);
+                  setRestoreBlocked(false);
+                }}
+                onCancelReply={() => setReplyTarget(undefined)}
+                onSubmit={submit}
+              />
+            </div>
+          )}
+          {selectedMemoryCommitSha !== undefined ||
+          messageMenu === undefined ||
+          readOnlyDm ? null : (
             <MessageActionMenu
               request={messageMenu}
               t={t}
@@ -919,6 +1155,12 @@ function ConversationView({
           actions={actions}
           controller={sidebar}
           t={t}
+          selectedMemoryCommitSha={selectedMemoryCommitSha}
+          onMemoryCommitSelect={(sha) => {
+            if (selectedMemoryCommitSha === undefined)
+              chatScrollBeforeDiff.current = scrollRef.current?.scrollTop ?? 0;
+            if (channelId !== undefined) setSelectedMemoryCommit({ channelId, sha });
+          }}
         />
         <button
           type="button"
@@ -928,7 +1170,7 @@ function ConversationView({
           aria-controls="bh-channel-sidebar"
           onClick={sidebar.toggle}
         >
-          <IconPanelLeftOutline16 size={16} />
+          <IconPanelLeftOutlineRegular size={16} />
         </button>
       </div>
     </div>
@@ -938,24 +1180,37 @@ function ConversationView({
 export function BotMain({
   actions,
   channelSidebar,
+  nativeChatT,
   t = zhTranslate,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
-  return <ConversationView state={state} actions={actions} channelSidebar={channelSidebar} t={t} />;
+  if (state.selection.kind === 'inbox') return <HumanInboxView actions={actions} t={t} />;
+  return (
+    <ConversationView
+      state={state}
+      actions={actions}
+      channelSidebar={channelSidebar}
+      nativeChatT={nativeChatT}
+      t={t}
+    />
+  );
 }
 
 export function BotPanel({
   actions,
   channelSidebar,
+  nativeChatT,
   t,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
   useEffect(() => {
@@ -964,5 +1219,7 @@ export function BotPanel({
       store.setMode('dsh');
     };
   }, []);
-  return <BotMain actions={actions} channelSidebar={channelSidebar} t={t} />;
+  return (
+    <BotMain actions={actions} channelSidebar={channelSidebar} nativeChatT={nativeChatT} t={t} />
+  );
 }

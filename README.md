@@ -10,6 +10,7 @@
 ## 文档
 
 - 架构与数据流（持续维护）：[docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · 文档站 https://botharness.ai
+- 介绍 Slides：https://botharness.ai/slides/s/botharness-intro（源码 `apps/presentations`，`pnpm slides:dev` 本地迭代）
 - BotHarness 产品术语：[CONTEXT.zh.md](CONTEXT.zh.md) · 决策：[docs/adr/](docs/adr/)
 - 里程碑与 tickets：仓库 Issues 与 Projects
 
@@ -22,12 +23,14 @@
 
 ## 灵感
 
-- **Grok Bot**：每个 Bot 有自己的电脑、记忆、状态、自主工作
-- **DeepSeek Harness**：插件宿主，承载其他插件
+- [**Grok Bot**](https://x.ai/bot)：持久 Bot 与像同事一样沟通、委派工作的产品灵感
+- [**Rakazo**](https://github.com/elie222/rakazo)：开源的持久 AI 队友、对话与记忆体验参考
+- [**deepseek-harness-workbench-plugin**](https://github.com/loadingvx/deepseek-harness-workbench-plugin)：Memory Git graph 的分支线、提交列表与 diff 呈现参考
+- [**DeepSeek Harness**](https://github.com/deepseek-ai/deepseek-harness)：BotHarness 的插件宿主
 
 ## 开发
 
-工具链：pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown；客户端包（`@botharness/client`）使用 React（DSH 客户端契约）+ blobatar。
+工具链：pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown；客户端包（`@botharness/ui`）使用 React（DSH 客户端契约）+ blobatar。
 
 ```bash
 pnpm install
@@ -49,7 +52,7 @@ pnpm docs:dev      # 不用 portless 的直连方式 → http://localhost:4321
 
 ```text
 packages/core        @botharness/core   # PersonaBot registry / 状态（记忆在 M2）
-packages/client      @botharness/client # React：roster / 详情 / 委派入口（M3）
+packages/client      @botharness/ui # React：roster / 详情 / 委派入口（M3）
 packages/im          @botharness/im     # IM 适配器（M5）
 packages/deepseekbot deepseekbot        # bundle + 应用（后续）
 ```

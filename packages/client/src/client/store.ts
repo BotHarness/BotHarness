@@ -11,6 +11,7 @@ export interface BotSummary {
   roles: string[];
   description?: string;
   avatar?: string;
+  paused?: boolean;
   aggregateState: string;
   workspaces: string[];
   createdAt: string;
@@ -22,6 +23,32 @@ export interface ChannelSummary {
   name: string;
   members: string[];
   botSlug?: string;
+  ownerBotSlug?: string;
+  wakePolicies?: Record<
+    string,
+    {
+      mode: 'mentions' | 'digest' | 'silent';
+      count: number;
+      intervalSeconds: number;
+      revision: number;
+    }
+  >;
+  joinRequests?: Array<{
+    id: string;
+    requesterBotSlug: string;
+    status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    createdAt: string;
+    decidedAt?: string;
+    decidedBy?: string;
+  }>;
+  invitations?: Array<{
+    id: string;
+    targetBotSlug: string;
+    inviterBotSlug: string;
+    status: 'pending' | 'accepted' | 'declined' | 'cancelled';
+    createdAt: string;
+    respondedAt?: string;
+  }>;
   createdAt: string;
   updatedAt: string;
   /** Latest durable message projected by the Channel list query for compact previews. */
@@ -45,11 +72,88 @@ export interface ChannelAttachmentRef {
   size: number;
 }
 
+export interface ToolApprovalRequestCard {
+  sessionId: string;
+  callId: string;
+  toolName: string;
+  role: 'orchestrator' | 'assignment';
+  cwd: string;
+  input: string;
+}
+
+export interface ToolApprovalDecision {
+  requestMessageId: string;
+  outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected';
+}
+
+export interface UserQuestionOption {
+  label: string;
+  description?: string;
+}
+
+export interface UserQuestionItem {
+  id: string;
+  question: string;
+  detail?: string;
+  header?: string;
+  options?: UserQuestionOption[];
+  multiSelect?: boolean;
+}
+
+export interface UserQuestionAnswerItem {
+  id: string;
+  selected: string[];
+  custom?: string;
+}
+
+export interface UserQuestionRequestCard {
+  sessionId: string;
+  questions: UserQuestionItem[];
+}
+
+export interface UserQuestionResolution {
+  requestMessageId: string;
+  state: 'answered' | 'cancelled';
+  answers?: UserQuestionAnswerItem[];
+}
+
+export interface SessionFailureCard {
+  role: 'orchestrator' | 'assignment';
+  sessionId: string;
+  code?: string;
+  status?: number;
+  detail: string;
+  context?: string;
+}
+
 export interface ChannelMessage {
   id: string;
   at: string;
   author: ChannelAuthor;
   body: string;
+  memorySwitchTarget?: string;
+  mentions?: { botSlug: string; label: string; start: number; end: number }[];
+  channelRefs?: { channelId: string; label: string; start: number; end: number }[];
+  deliveries?: {
+    botSlug: string;
+    state:
+      | 'pending'
+      | 'observed'
+      | 'running'
+      | 'retryable'
+      | 'needs-repair'
+      | 'handled'
+      | 'ignored';
+  }[];
+  /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
+  botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
+  grantRequest?: true;
+  grantRequestResolution?: { requestMessageId: string; grantId: string };
+  toolApprovalRequest?: ToolApprovalRequestCard;
+  sessionFailure?: SessionFailureCard;
+  toolApprovalDecision?: ToolApprovalDecision;
+  userQuestionRequest?: UserQuestionRequestCard;
+  userQuestionResolution?: UserQuestionResolution;
   attachments?: ChannelAttachmentRef[];
   format?: 'markdown' | 'text';
   replyTo?: string;
@@ -71,39 +175,67 @@ export interface ChannelDraft {
   body: string;
 }
 
-export interface SessionSummary {
-  id: string;
-  title: string;
-  cwd: string;
-  updatedAt: string;
-}
-
-export type AssignmentActivity = 'working' | 'idle' | 'error';
-export type AssignmentReportState = 'completed' | 'blocked' | 'waiting-human' | 'failed';
-
-export interface AssignmentReport {
-  state: AssignmentReportState;
-  summary: string;
-  at: string;
-}
-
-export interface AssignmentSummary {
+export interface OwnedSessionSummary {
   sessionId: string;
-  purpose: string;
-  activity: AssignmentActivity;
-  latestReport?: AssignmentReport;
+  role: 'orchestrator' | 'assignment';
   createdAt: string;
-  updatedAt: string;
+  cwdReference?: string;
+  assignmentActivity?: 'working' | 'idle' | 'error' | 'stopping' | 'stopped';
+  assignmentAccessMode?: 'workspace-write' | 'danger-full-access';
 }
 
-export interface AssignmentDetail extends AssignmentSummary {
+export type HumanInboxCategory = 'action' | 'info';
+export type HumanInboxSort = 'newest' | 'oldest';
+
+export interface HumanInboxFilters {
+  botSlug: string | undefined;
+  channelId: string | undefined;
+  sort: HumanInboxSort;
+}
+
+export interface HumanAttentionItem {
+  id: string;
+  category: HumanInboxCategory;
+  kind:
+    | 'group-join-request'
+    | 'user-question'
+    | 'tool-approval'
+    | 'workspace-grant-request'
+    | 'bot-dm-message'
+    | 'assignment-waiting-human'
+    | 'assignment-blocked'
+    | 'assignment-report'
+    | 'bot-message-needs-repair';
+  createdAt: string;
+  channelId?: string;
+  channelName?: string;
   botSlug: string;
-  sourceEventId: string;
+  summary: string;
+  requestId?: string;
+  messageId?: string;
+  assignmentSessionId?: string;
+  sourceEventId?: string;
 }
 
+export interface HumanAttentionPage {
+  items: HumanAttentionItem[];
+  nextCursor?: string;
+}
+
+export interface HumanInboxState {
+  status: ClientStatus;
+  category: HumanInboxCategory;
+  botSlug: string | undefined;
+  channelId: string | undefined;
+  sort: HumanInboxSort;
+  items: readonly HumanAttentionItem[];
+  nextCursor: string | undefined;
+  error: string | undefined;
+}
 export type ConversationSelection =
   | { kind: 'bot'; slug: string }
-  | { kind: 'channel'; channelId: string };
+  | { kind: 'channel'; channelId: string }
+  | { kind: 'inbox' };
 
 export interface ConversationTimeline {
   olderCursor: string | null;
@@ -145,10 +277,51 @@ export interface ConversationState {
   sending: boolean;
 }
 
-export interface AssignmentsState {
+export type BotAttentionStatus =
+  | 'pending'
+  | 'observed'
+  | 'deferred'
+  | 'needs-repair'
+  | 'handled'
+  | 'ignored';
+
+export interface BotAttentionItem {
+  id: string;
+  botSlug: string;
+  reason: string;
+  state: BotAttentionStatus;
+  createdAt: string;
+  observedAt?: string;
+  handledAt?: string;
+  ignoredAt?: string;
+  sourceKind: string;
+  sourceChannelId?: string;
+  sourceChannelName?: string;
+  sourceMessageId?: string;
+  assignmentSessionId?: string;
+  assignmentPurpose?: string;
+  assignmentReportState?: 'progress' | 'completed' | 'blocked' | 'waiting-human' | 'failed';
+  sourceAvailable: boolean;
+  authorKind: 'human' | 'bot' | 'bridged' | 'system';
+  authorBotSlug?: string;
+  summary: string;
+}
+
+export interface BotAttentionPage {
+  items: BotAttentionItem[];
+  nextCursor?: string;
+}
+
+export interface BotInboxState {
   status: ClientStatus;
-  items: readonly AssignmentSummary[];
-  selected: AssignmentDetail | undefined;
+  items: readonly BotAttentionItem[];
+  nextCursor: string | undefined;
+  error: string | undefined;
+}
+
+export interface SessionsState {
+  status: ClientStatus;
+  items: readonly OwnedSessionSummary[];
   error: string | undefined;
 }
 
@@ -179,7 +352,9 @@ export interface ClientState {
   roster: RosterState;
   selection: ConversationSelection | undefined;
   conversation: ConversationState;
-  assignments: AssignmentsState;
+  sessions: SessionsState;
+  botInbox: BotInboxState;
+  humanInbox: HumanInboxState;
 }
 
 export interface ClientStore {
@@ -195,7 +370,9 @@ export interface ClientStore {
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
-  setAssignments(patch: Partial<AssignmentsState>): void;
+  setSessions(patch: Partial<SessionsState>): void;
+  setBotInbox(patch: Partial<BotInboxState>): void;
+  setHumanInbox(patch: Partial<HumanInboxState>): void;
 }
 
 function initialConversation(): ConversationState {
@@ -214,8 +391,25 @@ function initialConversation(): ConversationState {
   };
 }
 
-function initialAssignments(): AssignmentsState {
-  return { status: 'idle', items: [], selected: undefined, error: undefined };
+function initialSessions(): SessionsState {
+  return { status: 'idle', items: [], error: undefined };
+}
+
+function initialBotInbox(): BotInboxState {
+  return { status: 'idle', items: [], nextCursor: undefined, error: undefined };
+}
+
+function initialHumanInbox(): HumanInboxState {
+  return {
+    status: 'idle',
+    category: 'action',
+    botSlug: undefined,
+    channelId: undefined,
+    sort: 'newest',
+    items: [],
+    nextCursor: undefined,
+    error: undefined,
+  };
 }
 
 function initialRoster(): RosterState {
@@ -234,6 +428,7 @@ function sameSelection(
 ): boolean {
   if (left === right) return true;
   if (left === undefined || right === undefined) return false;
+  if (left.kind === 'inbox' && right.kind === 'inbox') return true;
   if (left.kind === 'bot' && right.kind === 'bot') return left.slug === right.slug;
   if (left.kind === 'channel' && right.kind === 'channel')
     return left.channelId === right.channelId;
@@ -252,7 +447,9 @@ export function createStore(): ClientStore {
     roster: initialRoster(),
     selection: undefined,
     conversation: initialConversation(),
-    assignments: initialAssignments(),
+    sessions: initialSessions(),
+    botInbox: initialBotInbox(),
+    humanInbox: initialHumanInbox(),
   };
   const listeners = new Set<() => void>();
 
@@ -301,14 +498,22 @@ export function createStore(): ClientStore {
       update({
         selection,
         conversation: initialConversation(),
-        assignments: initialAssignments(),
+        sessions: initialSessions(),
+        botInbox: initialBotInbox(),
+        humanInbox: initialHumanInbox(),
       });
     },
     setConversation(patch) {
       update({ conversation: { ...state.conversation, ...patch } });
     },
-    setAssignments(patch) {
-      update({ assignments: { ...state.assignments, ...patch } });
+    setSessions(patch) {
+      update({ sessions: { ...state.sessions, ...patch } });
+    },
+    setBotInbox(patch) {
+      update({ botInbox: { ...state.botInbox, ...patch } });
+    },
+    setHumanInbox(patch) {
+      update({ humanInbox: { ...state.humanInbox, ...patch } });
     },
   };
 }

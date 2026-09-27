@@ -1,9 +1,9 @@
 import type { Context } from '@deepseek-ai/cordis';
 import { mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 
 import {
   installModelSelection,
+  type Agent,
   type AgentHandle,
   type AssistantStreamFrame,
   type CreateAgentOptions,
@@ -14,8 +14,11 @@ import { AttachmentId, type ImageMediaType } from '@deepseek-ai/dsh-attachment';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
+import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
+import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import { MemoryAcceptError } from '../memory/accepted.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
 import type {
   AssignmentAgentRun,
@@ -34,19 +37,26 @@ const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
 ];
 
 const ORCHESTRATOR_PROMPT = `You are the Orchestrator for one PersonaBot, and your working directory is its Memory Repository.
-You own the Human conversation and the memory: answer the triggering Channel with channel_send whenever the Human is waiting, and record durable facts yourself with ordinary file, Shell, grep, and git capabilities inside your working directory. Reading an Assignment report never writes memory for you — you decide what to persist.
-create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated.
+You own the Human conversation and the memory: answer a Human request through channel_send when an answer is called for. A Group mention draws your attention but does not require a public acknowledgment. Finishing a turn without replying means you considered the message; it is handled. An FYI about coworkers or the company can be useful context even when no reply or action is requested; finish such a turn without a Channel reply and leave it handled. Do not equate "no reply", "no action needed", or "another colleague owns this" with ignored. Reserve inbox_ignore for a specific observed message that is truly irrelevant, spam, misdelivered, or explicitly requested to be dismissed. Reading a message never automatically writes long-term memory. The checked-out Git working tree is the current Memory, including staged, unstaged, and untracked files. Git commits and branches are history and organization, not a separate approval gate. Native read/glob can inspect current files immediately; use Git commands only when the Human asks for Git history or a repository operation. Use DSH's native read, write, edit, glob, and grep tools for files. You may read your Memory Repository and active Workspace Grants, but write only your Memory Repository. Shell and other tools that cannot be checked by file path require one-time Human approval in the Bot Channel. Explain why you need the call and wait for the decision. Reading an Assignment report never writes memory for you — you decide what to persist.
+Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then pass its grant_id to create_assignment. If no active Grant fits the Human's requested work, call request_workspace_grant with a concise reason in the current DM, then end your turn. The Human chooses and authorizes a folder on that card; their action returns to this same Orchestrator Session, where you list Grants again and create the Assignment. create_assignment starts one Assignment immediately and returns its Session id; it does not wait. Delegate bounded independent work that benefits from its own working directory or parallel execution, and always pass a short continuity key naming that direction; reuse a key only for the same direction, so an idle keyed Assignment continues with your new instruction instead of a second Session being created. Two independent directions may run at the same time. A simple question, a memory update, or a Channel reply stays with you and must not be delegated. When the Human asks to change Memory branches without naming an exact branch, use DSH's native ask_user_question to ask which branch they mean. Offer relevant existing branches, accept a custom answer, and wait for the Human's answer in this Channel before switching. An explicit exact branch name needs no question. When the Human explicitly requests switching to an existing Memory branch, call memory_switch_branch with its exact name, then use the native file tools to read the new branch content and report the result in the Channel. When the Human explicitly asks to continue from a historical Memory commit, call memory_continue_from_commit with the exact commit SHA and requested new branch name; then read from the switched working tree in the same Session. A newly fetched, merged, or checked-out commit is available immediately through the current working tree; no separate acceptance step is needed. If a Memory branch switch is blocked, do not claim success. Your persona section in this system prompt is frozen for this Session's life; if PERSONA.md on disk differs, yours still applies — the file version reaches new Sessions. Use list_assignments and inspect_assignment to identify relevant active work, then send_assignment_request in next-step mode to ask the affected Assignment to pause at a safe point, preserve its own workspace work, and report; Assignments must never edit Memory. Report the target branch and conflict in the Channel. After sending the request, call channel_send with the target branch, Assignment id, and coordination progress. After the report, inspect the Memory Git state, preserve unfinished Memory with a named native Git stash including untracked files when safe, and retry memory_switch_branch. If coordination cannot make the switch safe, report the target and the blocked reason. Do not reset, force-checkout, or discard changes solely to resolve a blocked switch without explicit Human instruction.
+When the Human explicitly asks to stop an Assignment, inspect it and call stop_assignment with its Session id; wait for the tool to confirm stopped before reporting that fact in the Channel. Do not use a follow-up instruction as a substitute for stopping.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. Keep Assignment purposes concise and self-contained; long results belong in files the Assignment can point at, not in the summary.
-Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; channel_read and channel_search can inspect Channels that this PersonaBot has joined. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
-
+An item marked Host lifecycle notice is a runtime fact, not a report authored by the Assignment Agent. Use it to verify settlement and inform the Human when relevant; never attribute its wording to the Assignment Agent.
+Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; call channel_list to discover joined Channels and current members, then channel_read to inspect one Channel or search across joined Channels with scope joined and a text filter. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, use channel_send in that same Channel only when a reply is useful. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. A Human-selected #Group reference in your Human DM gives you only the current Group ID and name. If you need to collaborate there, call group_join_request in that same turn; it does not grant access. A Human or the Bot Group creator may approve. You receive a separate Inbox decision, and only then can you read or send in that Group. If you created a Group, group_join_decide can accept or decline its pending join requests. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
-Work in your own working directory with the tools available in this Agent scope, and never write to the PersonaBot's Memory Repository — only the Orchestrator owns memory.
+Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
+Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
+If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
+
+const DANGER_ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
+The Human explicitly enabled dangerous full access before this Assignment was created. Native tools may access files outside the selected Workspace Grant and do not ask for each call. Keep actions within the Orchestrator's requested task; report any wider file access. The selected Grant still identifies this Assignment and revoking it stops future calls. Only the Orchestrator owns PersonaBot memory unless your task explicitly requires interacting with it.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
 If you cannot proceed without an Orchestrator decision, report with state blocked (or waiting-human when the Human must decide) and expects_reply true, then end your turn: you will be resumed with the answer as your next message. Do not block waiting, do not address the Human directly, and keep summaries short — point at files instead of pasting long content.`;
 
 export interface DshAgentHost {
   create(options: CreateAgentOptions): Promise<AgentHandle>;
   resume(options: ResumeAgentOptions): Promise<AgentHandle>;
+  get?(id: ReturnType<typeof SessionId>): Agent | undefined;
 }
 
 /**
@@ -61,7 +71,6 @@ export interface DshAgentPresetHost {
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
-  defaultWorkspaceRoot: string;
   /**
    * Resolves the preset roster lazily: a service may mount after this plugin
    * applies, so the roster is looked up per agent creation, not captured once.
@@ -80,6 +89,8 @@ export interface DshBotAgentAdapterOptions {
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   ensureWorkspace?: (path: string) => void;
   publishDraft?: (event: ChannelDraftEvent) => void;
+  /** Validate a foreign live Agent before attaching BotHarness role behavior. */
+  authorizeBorrow?: (agent: Agent, role: 'orchestrator' | 'assignment') => void;
 }
 
 export interface DshDefaultModelHost {
@@ -102,10 +113,10 @@ function agentOptions(
 function createMeta(
   run: OrchestratorAgentRun | AssignmentAgentRun,
   cwd: string,
-  ensureWorkspace: (path: string) => void,
+  ensureWorkspace: ((path: string) => void) | undefined,
   defaultAgentPreset: string | undefined,
 ) {
-  ensureWorkspace(cwd);
+  ensureWorkspace?.(cwd);
   const agentPreset = run.bot.preset ?? defaultAgentPreset;
   return {
     cwd,
@@ -133,7 +144,11 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return;
   if (reason.kind === 'error') {
-    throw new Error(`${reason.error.code}: ${reason.error.message}`);
+    const failure = new Error(`${reason.error.code}: ${reason.error.message}`);
+    if ('status' in reason.error && typeof reason.error.status === 'number') {
+      Object.assign(failure, { status: reason.error.status });
+    }
+    throw failure;
   }
   throw new Error(`Agent turn ended without completion: ${reason.kind}`);
 }
@@ -141,22 +156,25 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
 class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
-  readonly #defaultWorkspaceRoot: string;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
+  readonly #authorizeBorrow:
+    | ((agent: Agent, role: 'orchestrator' | 'assignment') => void)
+    | undefined;
   readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
   readonly #runs = new Map<string, ActiveRun>();
+  readonly #stopping = new Set<string>();
   readonly #drafts: ChannelDraftTracker;
   #closed = false;
 
   constructor(options: DshBotAgentAdapterOptions) {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
-    this.#defaultWorkspaceRoot = options.defaultWorkspaceRoot;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
+    this.#authorizeBorrow = options.authorizeBorrow;
     this.#resolveAgentPresets = options.resolveAgentPresets;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
@@ -202,6 +220,23 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     }
   }
 
+  steerOrchestrator(botSlug: string, text: string): boolean {
+    this.#assertOpen();
+    for (const [sessionId, active] of this.#runs) {
+      if (active.role !== 'orchestrator' || active.run.bot.slug !== botSlug) continue;
+      const handle = this.#handles.get(sessionId);
+      if (handle === undefined) return false;
+      handle.agent.steer(
+        createUserMessage({
+          content: [{ type: 'text', text }],
+          source: { kind: 'user' },
+        }),
+      );
+      return true;
+    }
+    return false;
+  }
+
   acceptAssistantStream(sessionId: string, frame: AssistantStreamFrame): void {
     this.#drafts.accept(sessionId, frame);
   }
@@ -229,11 +264,21 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     return { delivery: 'followup', done: this.#driveAssignment(run) };
   }
 
+  async stopAssignment(sessionId: string): Promise<void> {
+    this.#stopping.add(sessionId);
+    const handle = this.#handles.get(sessionId);
+    if (handle !== undefined && this.#runs.get(sessionId)?.role === 'assignment') {
+      handle.agent.cancel({ kind: 'user' });
+      await handle.agent.whenIdle();
+    }
+  }
+
   async #driveAssignment(run: AssignmentAgentRun): Promise<void> {
     const entry: ActiveRun = { role: 'assignment', run, reported: false };
     this.#runs.set(run.sessionId, entry);
     try {
       const handle = await this.#assignmentHandle(run);
+      if (this.#stopping.has(run.sessionId)) return;
       const fromSeq = handle.agent.session.seq;
       handle.agent.followup(
         createUserMessage({
@@ -242,6 +287,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
       await handle.agent.whenIdle();
+      if (this.#stopping.has(run.sessionId)) return;
       requireCompletedTurn(handle, fromSeq);
       if (run.resume === true) return;
       if (!entry.reported) {
@@ -259,6 +305,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#handles.clear();
     for (const sessionId of this.#runs.keys()) this.#drafts.end(sessionId);
     this.#runs.clear();
+    this.#stopping.clear();
     await Promise.all(handles.map(async (handle) => handle.dispose()));
   }
 
@@ -266,15 +313,136 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
-    const setup: NonNullable<CreateAgentOptions['setup']> = async (agentCtx) => {
-      await this.#composePreset(agentCtx, run.bot);
-      installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-      agentCtx.systemPrompt.section({
+    const borrowedDisposers: Array<() => void> = [];
+    const setup = async (agentCtx: Context, agent: Agent, borrowed = false): Promise<void> => {
+      setSandboxMode(agent.session, 'workspace-write');
+      setApprovalPolicy(agent.session, 'ask');
+      if (!borrowed) {
+        await this.#composePreset(agentCtx, run.bot);
+        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+      }
+      const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+        const dispose = agentCtx.tools.register(tool);
+        if (borrowed) borrowedDisposers.push(dispose);
+        return dispose;
+      };
+      const disposePresentation = agentCtx.tools.presentAs('native');
+      if (borrowed) borrowedDisposers.push(disposePresentation);
+      const disposeRolePrompt = agentCtx.systemPrompt.section({
         name: 'botharness:orchestrator-role',
         order: ROLE_PROMPT_ORDER,
         text: ORCHESTRATOR_PROMPT,
       });
-      agentCtx.tools.register(
+      if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+      registerTool(
+        defineTool({
+          name: 'memory_switch_branch',
+          description:
+            'Switch this PersonaBot Memory Repository to an existing local Git branch. Use for a clear Human branch-switch request; do not create or reset branches.',
+          parameters: {
+            branch: {
+              type: 'string',
+              required: true,
+              description: 'Exact existing local branch name.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('memory_switch_branch: Orchestrator run is unavailable');
+            }
+            if (active.run.memory === undefined) throw new Error('Memory is unavailable');
+            await active.run.channels.send({ body: `正在切换记忆分支：${args.branch}` });
+            try {
+              const result = active.run.memory.switchBranch(args.branch);
+              await active.run.channels.send({
+                body: `记忆分支已从 ${result.from} 切换到 ${result.to}（${result.head.slice(0, 12)}）。`,
+              });
+              return JSON.stringify({ outcome: 'switched', ...result });
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : String(error);
+              const blocked =
+                error instanceof MemoryAcceptError && error.code === 'memory-conflict';
+              const workingAssignments = blocked
+                ? active.run.assignments
+                    .list()
+                    .filter((assignment) => assignment.activity === 'working')
+                    .map((assignment) => ({
+                      sessionId: assignment.sessionId,
+                      purpose: assignment.purpose,
+                      workspace: assignment.permission?.primaryCwd,
+                    }))
+                : [];
+              await active.run.channels.send({
+                body: blocked
+                  ? `记忆分支 ${args.branch} 尚未切换：${detail}。当前分支与未完成改动已保留。`
+                  : `记忆分支 ${args.branch} 切换失败：${detail}`,
+              });
+              return JSON.stringify({
+                outcome: blocked ? 'blocked' : 'failed',
+                branch: args.branch,
+                detail,
+                workingAssignments,
+              });
+            }
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'memory_continue_from_commit',
+          description:
+            'Create and switch to a new local Memory Git branch at an exact historical commit chosen by the Human. The branch name must be new. The checked-out files become current Memory immediately.',
+          parameters: {
+            sha: {
+              type: 'string',
+              required: true,
+              description: 'Full 40-character Git commit SHA.',
+            },
+            branch: {
+              type: 'string',
+              required: true,
+              description: 'New local Git branch name chosen by the Human.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('memory_continue_from_commit: Orchestrator run is unavailable');
+            }
+            if (active.run.memory === undefined) throw new Error('Memory is unavailable');
+            await active.run.channels.send({
+              body: '正在从提交 ' + args.sha.slice(0, 12) + ' 创建记忆分支：' + args.branch,
+            });
+            try {
+              const result = active.run.memory.continueFromCommit(args.sha, args.branch);
+              await active.run.channels.send({
+                body:
+                  '已从提交 ' + result.head.slice(0, 12) + ' 创建并切换到分支 ' + result.to + '。',
+              });
+              return JSON.stringify({ outcome: 'created', ...result });
+            } catch (error) {
+              const detail = error instanceof Error ? error.message : String(error);
+              await active.run.channels.send({ body: '从历史提交继续失败：' + detail });
+              return JSON.stringify({
+                outcome: 'failed',
+                sha: args.sha,
+                branch: args.branch,
+                detail,
+              });
+            }
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'create_assignment',
           description:
@@ -284,6 +452,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               required: true,
               description: 'A concise, bounded description of the work to complete.',
+            },
+            grant_id: {
+              type: 'string',
+              required: true,
+              description:
+                'Active Workspace Grant id from list_workspace_grants; raw paths are not accepted.',
             },
             key: {
               type: 'string',
@@ -302,6 +476,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             }
             const outcome = active.run.assignments.create({
               purpose: args.purpose,
+              grantId: args.grant_id,
               ...(args.key === undefined ? {} : { key: args.key }),
             });
             if (outcome.outcome === 'created' || outcome.outcome === 'reused') {
@@ -320,7 +495,52 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
+        defineTool({
+          name: 'request_workspace_grant',
+          description:
+            'Ask the Human in this PersonaBot DM to authorize a folder so the current task can continue. Use only when no active Workspace Grant fits; this does not create an Assignment.',
+          parameters: {
+            reason: {
+              type: 'string',
+              required: true,
+              description: 'Briefly explain which work needs folder access.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('request_workspace_grant: Orchestrator run is unavailable');
+            }
+            const message = await active.run.channels.requestGrant(args.reason);
+            return `Sent Workspace Grant request card ${message.id}; wait for Human authorization.`;
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'list_workspace_grants',
+          description:
+            'List Human-authorized Workspace Grants for this PersonaBot. Only active Grant ids can be passed to create_assignment.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('list_workspace_grants: Orchestrator run is unavailable');
+            }
+            return JSON.stringify(active.run.assignments.grants());
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'list_assignments',
           description:
@@ -339,7 +559,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'inspect_assignment',
           description:
@@ -367,7 +587,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
           name: 'send_assignment_request',
           description:
@@ -419,17 +639,96 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
+        defineTool({
+          name: 'stop_assignment',
+          description:
+            'Stop one Assignment Session for this PersonaBot. Cancels active DSH work, clears queued input, and durably prevents further requests or continuity reuse. Confirm the returned activity before telling the Human.',
+          parameters: {
+            session_id: {
+              type: 'string',
+              required: true,
+              description:
+                'Assignment Session id returned by create_assignment or list_assignments.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('stop_assignment: Orchestrator run is unavailable');
+            }
+            const assignment = await active.run.assignments.stop(args.session_id);
+            return JSON.stringify({
+              sessionId: assignment.sessionId,
+              activity: assignment.activity,
+            });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'channel_list',
+          description:
+            'List Channels this PersonaBot currently belongs to, including Group, Human DM, and Bot DM Channels and their current Bot members. Filter by name, type, or stable member Bot IDs; use channel_id for one exact Channel.',
+          parameters: {
+            channel_id: { type: 'string', description: 'Exact Channel id to inspect.' },
+            name: { type: 'string', description: 'Case-insensitive Channel name substring.' },
+            type: { type: 'string', description: 'Channel type: group or dm.' },
+            member_bot_ids: {
+              type: 'array',
+              items: { type: 'string' },
+              description: 'Require all of these stable PersonaBot IDs as current members.',
+            },
+            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
+            limit: { type: 'number', description: 'Page size from 1 to 100.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator') {
+              throw new Error('channel_list: Orchestrator run is unavailable');
+            }
+            return JSON.stringify(
+              active.run.channels.list({
+                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+                ...(args.name === undefined ? {} : { name: args.name }),
+                ...(args.type === undefined ? {} : { type: args.type as 'group' | 'dm' }),
+                ...(args.member_bot_ids === undefined ? {} : { memberBotIds: args.member_bot_ids }),
+                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+                ...(args.limit === undefined ? {} : { limit: args.limit }),
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'channel_read',
           description:
-            'Read recent messages from a Channel this PersonaBot has joined. Omit channel_id to read the Channel that triggered the current turn.',
+            'Query the full history of a joined Channel. Filter by text, author, or date; follow nextCursor for older results. Omit channel_id to use the Channel that triggered this turn.',
           parameters: {
             channel_id: {
               type: 'string',
               description: 'Channel id; defaults to the inbound Channel.',
             },
-            before: { type: 'string', description: 'Message id cursor for the previous page.' },
+            scope: {
+              type: 'string',
+              description:
+                'Use joined with text to search all currently joined Channels; otherwise query one Channel.',
+            },
+            text: { type: 'string', description: 'Case-insensitive body substring.' },
+            author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
+            author_kind: { type: 'string', description: 'Author kind: human, bot, or bridged.' },
+            from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
+            to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
+            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
             limit: { type: 'number', description: 'Page size from 1 to 200.' },
           },
           output: {
@@ -442,16 +741,57 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               throw new Error('channel_read: Orchestrator run is unavailable');
             }
             return JSON.stringify(
-              active.run.channels.read({
+              active.run.channels.query({
                 ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.before === undefined ? {} : { before: args.before }),
+                ...(args.scope === undefined ? {} : { scope: args.scope as 'channel' | 'joined' }),
+                ...(args.text === undefined ? {} : { text: args.text }),
+                ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
+                ...(args.author_kind === undefined
+                  ? {}
+                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' }),
+                ...(args.from === undefined ? {} : { from: args.from }),
+                ...(args.to === undefined ? {} : { to: args.to }),
+                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
                 ...(args.limit === undefined ? {} : { limit: args.limit }),
               }),
             );
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
+        defineTool({
+          name: 'inbox_ignore',
+          description:
+            'Explicitly dismiss one Channel message already shown to or read by this PersonaBot. Use only for spam, misdelivery, truly irrelevant content, or an explicit request to dismiss. FYI context about colleagues remains handled even when no reply or action is needed. The message remains in Channel history.',
+          parameters: {
+            message_id: {
+              type: 'string',
+              required: true,
+              description: 'Channel message ID to ignore.',
+            },
+            channel_id: {
+              type: 'string',
+              description: 'Channel ID; defaults to the inbound Channel.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('inbox_ignore: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.ignore({
+                messageId: args.message_id,
+                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'channel_read_image',
           description:
@@ -574,15 +914,31 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
         defineTool({
-          name: 'channel_search',
+          name: 'list_bot_contacts',
           description:
-            'Search messages in Channels this PersonaBot has joined. Omit channel_id to search every joined Channel.',
+            'List active PersonaBot colleagues with stable IDs and bounded descriptions.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('list_bot_contacts: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.channels.contacts());
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_create',
+          description:
+            'Create a Group Channel owned by this PersonaBot; initially only you are a member.',
           parameters: {
-            query: { type: 'string', required: true, description: 'Case-insensitive substring.' },
-            channel_id: { type: 'string', description: 'Optional Channel id to limit the search.' },
-            limit: { type: 'number', description: 'Maximum results from 1 to 100.' },
+            name: { type: 'string', required: true, description: 'Group title.' },
           },
           output: {
             schema: { type: 'string' },
@@ -590,24 +946,226 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           },
           execute: async (args) => {
             const active = this.#runs.get(run.sessionId);
-            if (active?.role !== 'orchestrator') {
-              throw new Error('channel_search: Orchestrator run is unavailable');
-            }
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_create: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.channels.createGroup(args.name));
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_invite_bot',
+          description:
+            'Invite one active PersonaBot to a Group you created. The invitee decides before gaining membership.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            bot_id: { type: 'string', required: true, description: 'Stable PersonaBot ID.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_invite_bot: Orchestrator run is unavailable');
             return JSON.stringify(
-              active.run.channels.search({
-                query: args.query,
-                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.limit === undefined ? {} : { limit: args.limit }),
+              active.run.channels.inviteGroup({
+                channelId: args.channel_id,
+                targetBotSlug: args.bot_id,
               }),
             );
           },
         }),
       );
-      agentCtx.tools.register(
+      registerTool(
+        defineTool({
+          name: 'group_invite_respond',
+          description: 'Accept or decline one Group invitation addressed to this PersonaBot.',
+          parameters: {
+            invite_id: {
+              type: 'string',
+              required: true,
+              description: 'Invitation ID from the Inbox.',
+            },
+            accept: {
+              type: 'boolean',
+              required: true,
+              description: 'True to join; false to decline.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_invite_respond: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.respondToGroupInvite({
+                invitationId: args.invite_id,
+                accept: args.accept,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_join_request',
+          description:
+            'Request membership in a Group selected as #Channel by the Human in this DM turn. No access is granted until a Human or Group creator approves.',
+          parameters: {
+            channel_id: {
+              type: 'string',
+              required: true,
+              description: 'Selected Group Channel ID.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (
+              active?.role !== 'orchestrator' ||
+              active.run.channels.requestGroupJoin === undefined
+            )
+              throw new Error('group_join_request: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.requestGroupJoin({ channelId: args.channel_id }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_join_decide',
+          description:
+            'As the Bot creator of a Group, accept or decline one pending Bot join request.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            request_id: { type: 'string', required: true, description: 'Pending join request ID.' },
+            accept: { type: 'boolean', required: true, description: 'True to approve membership.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (
+              active?.role !== 'orchestrator' ||
+              active.run.channels.decideGroupJoin === undefined
+            )
+              throw new Error('group_join_decide: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.decideGroupJoin({
+                channelId: args.channel_id,
+                requestId: args.request_id,
+                accept: args.accept,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_rename',
+          description: 'Rename a Group Channel you created.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            name: { type: 'string', required: true, description: 'New Group title.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_rename: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.renameGroup({
+                channelId: args.channel_id,
+                name: args.name,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_remove_member',
+          description: 'Remove another Bot member from a Group Channel you created.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Your Group Channel ID.' },
+            bot_id: {
+              type: 'string',
+              required: true,
+              description: 'Joined PersonaBot ID to remove.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_remove_member: Orchestrator run is unavailable');
+            return JSON.stringify(
+              active.run.channels.removeGroupMember({
+                channelId: args.channel_id,
+                botSlug: args.bot_id,
+              }),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'bot_dm_send',
+          description:
+            'Send one private message to another active PersonaBot. The recipient receives it in a two-Bot DM and may reply there.',
+          parameters: {
+            bot_id: {
+              type: 'string',
+              required: true,
+              description: 'Stable PersonaBot ID from list_bot_contacts.',
+            },
+            body: {
+              type: 'string',
+              required: true,
+              description: 'The message to send to that Bot.',
+            },
+            reply_to: { type: 'string', description: 'Optional message ID in the same Bot DM.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args, exec) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('bot_dm_send: Orchestrator run is unavailable');
+            const sent = await active.run.channels.sendToBot({
+              botSlug: args.bot_id,
+              body: args.body,
+              ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
+              ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),
+            });
+            return `Sent Bot DM ${sent.message.id} in Channel ${sent.channelId}.`;
+          },
+        }),
+      );
+      registerTool(
         defineTool({
           name: 'channel_send',
           description:
-            'Send one Human-facing message as this PersonaBot to a Channel it has joined. Omit channel_id to use the Channel that triggered the current turn.',
+            'Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them.',
           parameters: {
             body: {
               type: 'string',
@@ -636,21 +1194,31 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               description: 'Optional message id to reply to in that same Channel.',
             },
+            mention_bot_ids: {
+              type: 'array',
+              description:
+                'Stable IDs of joined PersonaBots to mention in a Group Channel; do not repeat their names in body.',
+              items: { type: 'string' },
+            },
           },
           output: {
             schema: { type: 'string' },
             render: (_args, value) => [{ type: 'text', text: value }],
           },
-          execute: async (args) => {
+          execute: async (args, exec) => {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_send: Orchestrator run is unavailable');
             }
             const message = await active.run.channels.send({
               body: args.body,
+              ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),
               ...(args.attachments === undefined ? {} : { attachments: args.attachments }),
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
               ...(args.reply_to === undefined ? {} : { replyTo: args.reply_to }),
+              ...(args.mention_bot_ids === undefined
+                ? {}
+                : { mentionBotIds: args.mention_bot_ids }),
             });
             this.#drafts.settle(
               run.sessionId,
@@ -662,10 +1230,28 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }),
       );
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'orchestrator');
+      try {
+        await setup(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const options = { agentOptions: resolvedAgentOptions, setup };
     const meta = createMeta(
       run,
-      this.#resolveCwd(run.bot, 'orchestrator'),
+      this.#resolveOrchestratorCwd(run.bot),
       this.#ensureWorkspace,
       this.#defaultAgentPreset,
     );
@@ -689,37 +1275,51 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     await presets.mount(agentCtx, bot.preset ?? this.#defaultAgentPreset);
   }
 
-  #resolveCwd(bot: PersonaBotRecord, role: 'orchestrator' | 'assignment'): string {
-    if (role === 'orchestrator') {
-      const explicit = this.#orchestratorCwd?.(bot);
-      if (explicit !== undefined) return explicit;
+  #resolveOrchestratorCwd(bot: PersonaBotRecord): string {
+    const cwd = this.#orchestratorCwd?.(bot);
+    if (cwd === undefined) {
+      throw new Error(`Memory workspace unavailable for Orchestrator ${bot.slug}`);
     }
-    return bot.workspaces[0] ?? join(this.#defaultWorkspaceRoot, bot.slug);
+    return cwd;
   }
 
   async #assignmentHandle(run: AssignmentAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const meta = createMeta(
-      run,
-      this.#resolveCwd(run.bot, 'assignment'),
-      this.#ensureWorkspace,
-      this.#defaultAgentPreset,
-    );
+    const meta = createMeta(run, run.permission.primaryCwd, undefined, this.#defaultAgentPreset);
     const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
+    const borrowedDisposers: Array<() => void> = [];
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),
       ...(meta === undefined ? {} : { meta }),
       agentOptions: resolvedAgentOptions,
-      setup: async (agentCtx) => {
-        await this.#composePreset(agentCtx, run.bot);
-        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
-        agentCtx.systemPrompt.section({
+      setup: async (agentCtx, agent, borrowed = false) => {
+        if (agent.session.header.cwd !== run.permission.primaryCwd) {
+          throw new Error('Assignment Session cwd differs from its Workspace Grant snapshot');
+        }
+        setSandboxMode(agent.session, run.permission.mode);
+        setApprovalPolicy(agent.session, run.permission.approval);
+        if (!borrowed) {
+          await this.#composePreset(agentCtx, run.bot);
+          installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
+        }
+        const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
+          const dispose = agentCtx.tools.register(tool);
+          if (borrowed) borrowedDisposers.push(dispose);
+          return dispose;
+        };
+        const disposePresentation = agentCtx.tools.presentAs('native');
+        if (borrowed) borrowedDisposers.push(disposePresentation);
+        const disposeRolePrompt = agentCtx.systemPrompt.section({
           name: 'botharness:assignment-role',
           order: ROLE_PROMPT_ORDER,
-          text: ASSIGNMENT_PROMPT,
+          text:
+            run.permission.mode === 'danger-full-access'
+              ? DANGER_ASSIGNMENT_PROMPT
+              : ASSIGNMENT_PROMPT,
         });
-        agentCtx.tools.register(
+        if (borrowed) borrowedDisposers.push(disposeRolePrompt);
+        registerTool(
           defineTool({
             name: 'report_to_orchestrator',
             description:
@@ -770,6 +1370,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         );
       },
     };
+    const live = this.#agents.get?.(SessionId(run.sessionId));
+    if (live !== undefined) {
+      this.#authorizeBorrow?.(live, 'assignment');
+      try {
+        await (
+          createOptions.setup as (ctx: Context, agent: Agent, borrowed: boolean) => Promise<void>
+        )(live.ctx, live, true);
+      } catch (error) {
+        for (const dispose of borrowedDisposers.reverse()) dispose();
+        throw error;
+      }
+      const borrowed: AgentHandle = {
+        agent: live,
+        dispose: async () => {
+          for (const dispose of borrowedDisposers.reverse()) dispose();
+        },
+      };
+      this.#handles.set(run.sessionId, borrowed);
+      return borrowed;
+    }
     const handle =
       run.resume === true
         ? await this.#agents.resume({

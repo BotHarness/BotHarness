@@ -9,6 +9,8 @@ import type {
   ChannelListItem,
   PersonaBotDetail,
   PersonaBotSummary,
+  OwnedSessionSummary,
+  OwnedSessionBot,
 } from './methods.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
@@ -17,7 +19,21 @@ import type { RosterSection, RosterSnapshot } from '../roster/store.js';
 import type { TopOrderEntry } from '../roster/spec.js';
 import type { ChannelTimelinePage, TimelineDirection } from '../channels/timeline.js';
 import type { AssignmentDetail, AssignmentSummary } from '../runtime/bot-runtime.js';
-import type { SessionSummary } from '../sessions/source.js';
+import type { BotAttentionPage, BotAttentionState } from '../runtime/attention.js';
+import type { HumanAttentionCategory, HumanAttentionPage } from '../runtime/human-attention.js';
+import type {
+  MemoryAcceptedCommit,
+  MemoryAcceptedSnapshot,
+  MemoryGitGraph,
+  MemoryGitCommitDiff,
+  MemoryRepairEvent,
+} from '../memory/accepted.js';
+import type { WorkspaceGrant } from '../workspaces/grants.js';
+import type { ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
+import type {
+  AssignmentAccessPreset,
+  AssignmentAccessMode,
+} from '../workspaces/assignment-access.js';
 
 export const BRIDGE_NAMESPACE = 'botharness';
 export const BRIDGE_SERVICE_KEY = 'botharnessBridge';
@@ -29,6 +45,12 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
     duplicate: Record<string, never>;
     'not-found': Record<string, never>;
     'storage-unavailable': Record<string, never>;
+    'unknown-workspace': Record<string, never>;
+    'unavailable-workspace': Record<string, never>;
+    'invalid-grant': Record<string, never>;
+    'invalid-git-url': Record<string, never>;
+    'git-clone-failed': Record<string, never>;
+    'git-clone-timeout': Record<string, never>;
   }
 }
 
@@ -125,6 +147,15 @@ export class BotharnessBridgeService extends TypertRemoteService {
     );
   }
 
+  async createFromGit(
+    displayName: string,
+    gitUrl: string,
+    roles?: string[],
+    description?: string,
+  ): Promise<{ bot: PersonaBotDetail }> {
+    return unwrapAsync(this.methods.createFromGit({ displayName, gitUrl, roles, description }));
+  }
+
   update(slug: string, patch: PersonaBotPatch): { bot: PersonaBotDetail } {
     return unwrap(this.methods.update({ slug, patch }));
   }
@@ -154,6 +185,38 @@ export class BotharnessBridgeService extends TypertRemoteService {
     name: string,
   ): { channel: ChannelRecord; bot?: PersonaBotDetail } {
     return unwrap(this.methods.channelRename({ channelId, name }));
+  }
+
+  channelGroupInviteCancel(channelId: string, invitationId: string): { channel: ChannelRecord } {
+    return unwrap(this.methods.channelGroupInviteCancel({ channelId, invitationId }));
+  }
+
+  channelGroupJoinDecide(
+    channelId: string,
+    requestId: string,
+    accept: boolean,
+  ): { channel: ChannelRecord } {
+    return unwrap(this.methods.channelGroupJoinDecide({ channelId, requestId, accept }));
+  }
+
+  channelGroupMemberRemove(channelId: string, botSlug: string): { channel: ChannelRecord } {
+    return unwrap(this.methods.channelGroupMemberRemove({ channelId, botSlug }));
+  }
+
+  channelGroupWakeSet(
+    channelId: string,
+    botSlug: string,
+    mode: 'mentions' | 'digest' | 'silent',
+    count: number,
+    intervalSeconds: number,
+  ): { channel: ChannelRecord } {
+    return unwrap(
+      this.methods.channelGroupWakeSet({ channelId, botSlug, mode, count, intervalSeconds }),
+    );
+  }
+
+  channelGroupDelete(channelId: string): { deleted: boolean } {
+    return unwrap(this.methods.channelGroupDelete({ channelId }));
   }
 
   channelMessages(
@@ -203,6 +266,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     replyTo?: string,
     attachments?: ChannelAttachmentRef[],
     messageId?: string,
+    memorySwitchTarget?: string,
+    mentions?: ChannelMessage['mentions'],
+    channelRefs?: ChannelMessage['channelRefs'],
+    grantRequestResolution?: ChannelMessage['grantRequestResolution'],
   ): Promise<{ message: ChannelMessage }> {
     return unwrap(
       await this.methods.channelSend({
@@ -211,8 +278,37 @@ export class BotharnessBridgeService extends TypertRemoteService {
         ...(replyTo === undefined ? {} : { replyTo }),
         ...(attachments === undefined ? {} : { attachments }),
         ...(messageId === undefined ? {} : { messageId }),
+        ...(memorySwitchTarget === undefined ? {} : { memorySwitchTarget }),
+        ...(mentions === undefined ? {} : { mentions }),
+        ...(channelRefs === undefined ? {} : { channelRefs }),
+        ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
       }),
     );
+  }
+
+  botAttention(
+    slug: string,
+    limit?: number,
+    cursor?: string,
+    state?: BotAttentionState,
+  ): BotAttentionPage {
+    return unwrap(this.methods.botAttention({ slug, limit, cursor, state }));
+  }
+
+  humanAttention(
+    category?: HumanAttentionCategory,
+    botSlug?: string,
+    channelId?: string,
+    limit?: number,
+    cursor?: string,
+    sort?: 'newest' | 'oldest',
+  ): HumanAttentionPage {
+    return unwrap(
+      this.methods.humanAttention({ category, botSlug, channelId, limit, cursor, sort }),
+    );
+  }
+  humanAttentionIgnore(sourceEventId: string): { accepted: boolean } {
+    return unwrap(this.methods.humanAttentionIgnore({ sourceEventId }));
   }
 
   assignments(slug: string): { assignments: AssignmentSummary[] } {
@@ -223,8 +319,117 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.assignment({ slug, sessionId }));
   }
 
-  sessions(slug: string): { sessions: SessionSummary[] } {
+  workspaceOptions(): { workspaces: { id: string; path: string; title: string }[] } {
+    return unwrap(this.methods.workspaceOptions({}));
+  }
+
+  grants(slug: string): { grants: WorkspaceGrant[] } {
+    return unwrap(this.methods.grants({ slug }));
+  }
+
+  grantCreate(slug: string, workspaceId: string): Promise<{ grant: WorkspaceGrant }> {
+    return unwrapAsync(this.methods.grantCreate({ slug, workspaceId }));
+  }
+
+  grantRevoke(slug: string, grantId: string): { grant: WorkspaceGrant } {
+    return unwrap(this.methods.grantRevoke({ slug, grantId }));
+  }
+
+  assignmentAccessGet(slug: string): { preset: AssignmentAccessPreset } {
+    return unwrap(this.methods.assignmentAccessGet({ slug }));
+  }
+
+  assignmentAccessSet(
+    slug: string,
+    mode: AssignmentAccessMode,
+    acknowledgeRisk: boolean,
+  ): { preset: AssignmentAccessPreset } {
+    return unwrap(this.methods.assignmentAccessSet({ slug, mode, acknowledgeRisk }));
+  }
+
+  toolApprovalRules(slug: string): { rules: ToolApprovalRule[] } {
+    return unwrap(this.methods.toolApprovalRules({ slug }));
+  }
+
+  toolApprovalRuleRevoke(slug: string, id: string): { rule: ToolApprovalRule } {
+    return unwrap(this.methods.toolApprovalRuleRevoke({ slug, id }));
+  }
+
+  toolApprovalStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+    return unwrap(this.methods.toolApprovalStatus({ channelId, messageId }));
+  }
+
+  toolApprovalDecide(
+    channelId: string,
+    messageId: string,
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+  ): Promise<{ accepted: boolean }> {
+    return unwrapAsync(this.methods.toolApprovalDecide({ channelId, messageId, outcome }));
+  }
+
+  userQuestionStatus(channelId: string, messageId: string): { status: 'pending' | 'expired' } {
+    return unwrap(this.methods.userQuestionStatus({ channelId, messageId }));
+  }
+
+  userQuestionAnswer(
+    channelId: string,
+    messageId: string,
+    answer: { answers: { id: string; selected: string[]; custom?: string }[] },
+  ): Promise<{ accepted: boolean }> {
+    return unwrapAsync(this.methods.userQuestionAnswer({ channelId, messageId, answer }));
+  }
+
+  sessions(slug: string): { sessions: OwnedSessionSummary[] } {
     return unwrap(this.methods.sessions({ slug }));
+  }
+
+  sessionOwner(sessionId: string): { owner: OwnedSessionBot | null } {
+    return unwrap(this.methods.sessionOwner({ sessionId }));
+  }
+
+  memorySnapshot(channelId: string): { snapshot: MemoryAcceptedSnapshot } {
+    return unwrap(this.methods.memorySnapshot({ channelId }));
+  }
+
+  memoryFile(
+    channelId: string,
+    path: string,
+  ): { file?: { path: string; body: string; head: string } } {
+    return unwrap(this.methods.memoryFile({ channelId, path }));
+  }
+
+  memoryHistory(channelId: string): { commits: MemoryAcceptedCommit[] } {
+    return unwrap(this.methods.memoryHistory({ channelId }));
+  }
+
+  memoryDiff(channelId: string, sha: string): { sha: string; diff: string } {
+    return unwrap(this.methods.memoryDiff({ channelId, sha }));
+  }
+
+  memoryGitGraph(channelId: string, offset: number): MemoryGitGraph {
+    return unwrap(this.methods.memoryGitGraph({ channelId, offset }));
+  }
+
+  memoryGitCommitDiff(channelId: string, sha: string): MemoryGitCommitDiff {
+    return unwrap(this.methods.memoryGitCommitDiff({ channelId, sha }));
+  }
+
+  memorySave(
+    channelId: string,
+    path: string,
+    body: string,
+    expectedHead: string,
+    editId: string,
+  ): { commit: MemoryAcceptedCommit } {
+    return unwrap(this.methods.memorySave({ channelId, path, body, expectedHead, editId }));
+  }
+
+  memoryRepair(
+    channelId: string,
+    expectedHead: string,
+    repairId: string,
+  ): { repair: MemoryRepairEvent } {
+    return unwrap(this.methods.memoryRepair({ channelId, expectedHead, repairId }));
   }
 
   rosterGet(): RosterSnapshot {
@@ -274,12 +479,17 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): Promise<RosterSnapshot> {
     return unwrapAsync(this.methods.rosterBatch({ action, channelIds, sectionId }));
   }
+
+  developerModeSet(enabled: boolean): { accepted: boolean } {
+    return unwrap(this.methods.developerModeSet({ enabled }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
   'list',
   'get',
   'create',
+  'createFromGit',
   'update',
   'pause',
   'resume',
@@ -287,14 +497,43 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'channelDm',
   'channelCreate',
   'channelRename',
+  'channelGroupInviteCancel',
+  'channelGroupMemberRemove',
+  'channelGroupJoinDecide',
+  'channelGroupWakeSet',
+  'channelGroupDelete',
   'channelMessages',
   'channelTimeline',
   'channelReadPosition',
   'channelMarkRead',
   'channelSend',
+  'botAttention',
+  'humanAttention',
+  'humanAttentionIgnore',
   'assignments',
   'assignment',
+  'workspaceOptions',
+  'grants',
+  'grantCreate',
+  'grantRevoke',
+  'assignmentAccessGet',
+  'assignmentAccessSet',
+  'toolApprovalRules',
+  'toolApprovalRuleRevoke',
+  'toolApprovalStatus',
+  'toolApprovalDecide',
+  'userQuestionStatus',
+  'userQuestionAnswer',
   'sessions',
+  'sessionOwner',
+  'memorySnapshot',
+  'memoryFile',
+  'memoryHistory',
+  'memoryDiff',
+  'memoryGitGraph',
+  'memoryGitCommitDiff',
+  'memorySave',
+  'memoryRepair',
   'rosterGet',
   'sectionCreate',
   'sectionRename',
@@ -305,6 +544,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pinsSet',
   'hiddenSet',
   'rosterBatch',
+  'developerModeSet',
 ]);
 
 /**

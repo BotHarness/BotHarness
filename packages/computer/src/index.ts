@@ -7,11 +7,19 @@ import { basename, isAbsolute, join } from 'node:path';
 import { Readable, type Duplex } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
-import type { Context } from '@deepseek-ai/cordis';
-import type { SettingsScope } from '@deepseek-ai/dsh-settings';
+import type { Context, Volatile } from '@deepseek-ai/cordis';
+import type {} from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
-import { createComputerDiagnostics } from './diagnostics.js';
+import { DIAGNOSTICS_LIMIT, createComputerDiagnostics, toLogEntry } from './diagnostics.js';
+// Deep relative import, not the package root: the log module is leaf-only
+// (node builtins) and must not pull core's barrel types into this bundle.
+import {
+  openLogDatabase,
+  type LogDatabase,
+  type LogOwnerScope,
+  type LogQuery,
+} from '../../core/src/logs/log-db.js';
 import { createTransferTokens } from './transfer-tokens.js';
 import { createIdleWatcher } from './idle.js';
 import {
@@ -56,6 +64,16 @@ export interface ComputerConfig {
   dataDir: string;
 }
 
+type ComputerRuntimeConfig = Omit<ComputerConfig, 'exportDir' | 'idleStopMinutes'> & {
+  exportDir: string | Volatile<string>;
+  idleStopMinutes: number | Volatile<number>;
+};
+
+function readLive<T>(value: T | Volatile<T>): T {
+  return typeof value === 'object' && value !== null && 'get' in value
+    ? ((value as Volatile<T>).get() as T)
+    : (value as T);
+}
 /** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
 export function desktopLocale(language: string): string {
   return /^zh([-_]|$)/i.test(language) ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
@@ -78,15 +96,6 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   dataDir: '',
 };
 
-/** Runtime-editable fields; the plugin config supplies their base values. */
-export const ComputerSettingsSchema: Schema<
-  Partial<ComputerSettings>,
-  ComputerSettings
-> = Schema.object({
-  [COMPUTER_EXPORT_DIR_FIELD]: Schema.string().default(DEFAULT_CONFIG.exportDir),
-  [COMPUTER_IDLE_STOP_FIELD]: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
-});
-
 export const Config = Schema.object({
   enabled: Schema.boolean().default(DEFAULT_CONFIG.enabled).description('启用 Computer'),
   image: Schema.string().default(DEFAULT_CONFIG.image),
@@ -97,14 +106,14 @@ export const Config = Schema.object({
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
-  idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes),
+  idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),
   hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
   language: Schema.string().default(DEFAULT_CONFIG.language),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description(
       '导出目录；为空时回退到默认目录（~/Desktop/BotHarness Exports，无 Desktop 时为 ~/BotHarness Exports）',
-    ),
+    ).volatile(),
   dataDir: Schema.string()
     .default(DEFAULT_CONFIG.dataDir)
     .description('持久目录（仅 Linux 生效，bind mount 到 /config；为空时用命名卷）'),
@@ -243,10 +252,27 @@ interface HostWebServerLike {
 
 export const VIEWER_PREFIX = '/botharness-computer/viewer';
 
-export function apply(ctx: Context, config: ComputerConfig): void {
+export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   if (!config.enabled) return;
 
-  const diagnostics = createComputerDiagnostics();
+  // Durable drain for the diagnostics ring (slice 1 of the operational log
+  // timeline): best effort — without a home, or when the file is unusable,
+  // the ring keeps serving reads on its own.
+  let logDb: LogDatabase | undefined;
+  try {
+    const home = process.env.DSH_HOME?.trim();
+    logDb =
+      home === undefined || home === ''
+        ? undefined
+        : openLogDatabase({ dir: join(home, 'botharness') });
+  } catch {
+    logDb = undefined;
+  }
+  const diagnostics = createComputerDiagnostics(DIAGNOSTICS_LIMIT, {
+    write: (event) => {
+      logDb?.write(toLogEntry(event, 'computer', 'profile-shared'));
+    },
+  });
   const transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
@@ -264,7 +290,7 @@ export function apply(ctx: Context, config: ComputerConfig): void {
       memory: config.memory,
       shmSize: config.shmSize,
       pidsLimit: config.pidsLimit,
-      idleStopMinutes: config.idleStopMinutes,
+      idleStopMinutes: readLive(config.idleStopMinutes),
       hardenDesktop: config.hardenDesktop,
       language: config.language,
     },
@@ -279,15 +305,11 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     diagnostics.record('lifecycle', message);
   };
 
-  // Runtime settings: the plugin config is the composition base and a Human
-  // override in the settings document wins without a restart. Reads happen at
-  // call time, so export/import and the idle policy follow edits immediately.
-  let settings: SettingsScope<ComputerSettings> | undefined;
-  const effective = (): ComputerSettings =>
-    settings?.get() ?? {
-      exportDir: config.exportDir,
-      idleStopMinutes: config.idleStopMinutes,
-    };
+  // The profile Config is the durable authority; read live values at call time.
+  const effective = (): ComputerSettings => ({
+    exportDir: readLive(config.exportDir),
+    idleStopMinutes: readLive(config.idleStopMinutes),
+  });
   // Export/import always resolve a concrete directory: the configured path,
   // or the built-in default when none is set — so pickerless deployments can
   // export, import, and open the folder without ever typing a path.
@@ -295,19 +317,8 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     const dir = effective().exportDir;
     return dir === '' ? defaultExportDir() : dir;
   };
-  ctx.inject(['settings'], (settingsCtx) => {
-    const scope = settingsCtx.settings.register(
-      COMPUTER_SETTINGS_NAMESPACE,
-      ComputerSettingsSchema,
-      {
-        base: { exportDir: config.exportDir, idleStopMinutes: config.idleStopMinutes },
-      },
-    );
-    settings = scope;
-    log(`runtime settings registered (${COMPUTER_SETTINGS_NAMESPACE})`);
-    return () => {
-      settings = undefined;
-    };
+  ctx.inject(['settings'], (child) => {
+    child.effect(() => child.settings.configure({ auto: false }, ctx.fiber));
   });
 
   const watcher = createIdleWatcher({
@@ -547,6 +558,40 @@ export function apply(ctx: Context, config: ComputerConfig): void {
     connectionCtx.effect(
       () => connection.fetch.register(viewerEventRoute),
       'botharness-computer: viewer diagnostics route',
+    );
+
+    // Operational-log read side (slice 2 of the timeline): newest-first rows
+    // from logs.db with optional plugin/owner/entity/since/limit filters.
+    // Same trust domain as the diagnostics GET above — the in-harness web
+    // client on this host — so no extra authorize gate; without a home there
+    // is no durable store and the answer is an empty list.
+    const logsRoute = {
+      path: '/api/computer/logs',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const params = new URL(request.url).searchParams;
+        const sinceRaw = params.get('since');
+        const limitRaw = params.get('limit');
+        const since = sinceRaw === null || sinceRaw === '' ? undefined : Number(sinceRaw);
+        const limit = limitRaw === null || limitRaw === '' ? undefined : Number(limitRaw);
+        const plugin = params.get('plugin');
+        const owner = params.get('owner');
+        const entity = params.get('entity');
+        const filter: LogQuery = Object.assign(
+          {},
+          plugin === null || plugin === '' ? null : { plugin },
+          owner === null || owner === '' ? null : { owner: owner as LogOwnerScope },
+          entity === null || entity === '' ? null : { entity },
+          since === undefined ? null : { since },
+          limit === undefined ? null : { limit },
+        );
+        return json({ ok: true, entries: logDb?.query(filter) ?? [] });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(logsRoute),
+      'botharness-computer: operational logs route',
     );
 
     const exportsRoute = {

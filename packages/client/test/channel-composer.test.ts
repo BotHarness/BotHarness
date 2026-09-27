@@ -9,7 +9,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     ...props
   }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & { icon?: unknown }>) =>
     createElement('button', props, children),
-  IconSendOutline16: () => null,
+  IconSendOutlineRegular: () => null,
 }));
 
 import {
@@ -48,6 +48,23 @@ describe('Channel composer', () => {
     expect(markup).toContain('class="bh-composer bh-composer-compact"');
     expect(markup).not.toContain('bh-composer-with-footer');
     expect(markup).toContain('data-layout="compact"');
+  });
+
+  it('shows a selected Bot only inside the draft, without a second chip row', () => {
+    const markup = renderToStaticMarkup(
+      createElement(ChannelComposer, {
+        value: '@Ada hello',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+        placeholder: 'Message',
+        sending: false,
+        onChange: () => undefined,
+        onSubmit: () => undefined,
+      }),
+    );
+    expect(markup).toContain('class="bh-composer-input bh-composer-rich-input"');
+    expect(markup).toContain('role="textbox"');
+    expect(markup).not.toContain('bh-composer-mention-mirror');
+    expect(markup).not.toContain('bh-composer-selected-mentions');
   });
 
   it('does not render status chrome when no active projection is available', () => {

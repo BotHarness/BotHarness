@@ -1,6 +1,6 @@
 # deepseekbot
 
-The BotHarness bundle: installs `@botharness/core` and `@botharness/client` as one profile layer (`dsh.bundle.patch`).
+The BotHarness bundle: installs `@botharness/core` and `@botharness/ui` as one profile layer (`dsh.bundle.patch`).
 
 Package publication is not set up yet (`private: true`); for the local dev profile install the three packages from the checkout:
 

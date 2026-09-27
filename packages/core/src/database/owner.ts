@@ -508,6 +508,15 @@ function migrateInStaging(
     let staging: DatabaseSync | undefined;
     try {
       staging = openDatabase(stagingPath);
+      // A referenced-table rebuild needs FK checks after the staged transaction.
+      // The complete staged copy is integrity-checked before it can replace the active DB.
+      if (
+        plan.migrations.some(
+          (migration) =>
+            migration.generation > sourceGeneration && migration.rebuildsReferencedTables === true,
+        )
+      )
+        staging.exec('PRAGMA foreign_keys = OFF');
       staging.exec('PRAGMA journal_mode = DELETE; BEGIN IMMEDIATE');
       if (sourceGeneration === 0) bootstrapFoundation(staging);
       for (const migration of plan.migrations) {
@@ -753,7 +762,7 @@ function cleanupSidecars(path: string): void {
 }
 
 function fsyncFile(path: string): void {
-  const descriptor = openSync(path, 'r');
+  const descriptor = openSync(path, 'r+');
   try {
     fsyncSync(descriptor);
   } finally {
@@ -762,6 +771,8 @@ function fsyncFile(path: string): void {
 }
 
 function fsyncDirectory(path: string): void {
+  // Node cannot open directories for fsync on Windows (EPERM).
+  if (process.platform === 'win32') return;
   let descriptor: number | undefined;
   try {
     descriptor = openSync(path, 'r');

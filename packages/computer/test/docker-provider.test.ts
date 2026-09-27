@@ -1082,3 +1082,59 @@ describe('Docker bind-mount QA override', () => {
     }
   });
 });
+
+describe('Docker mount comparison', () => {
+  function mountsRunner(mountsLine: string, calls: string[][] = []): ComputerRuntimeRunner {
+    return runnerWith((argv) => {
+      calls.push([...argv]);
+      if (argv[1] === 'info') return ok('27.0.0');
+      if (argv[1] === 'inspect') {
+        const format = argv.join(' ');
+        if (format.includes('HostConfig.Memory')) return specLine();
+        if (format.includes('.Mounts')) return ok(mountsLine);
+        return ok('exited\n');
+      }
+      if (argv[1] === 'image') return ok('webtop-image');
+      return ok('ok');
+    });
+  }
+
+  it('matches named volumes by name, not by host path', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: mountsRunner(
+        'volume /var/lib/docker/volumes/botharness-computer-config/_data /config;',
+        calls,
+      ),
+      platform: () => 'linux',
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    const status = await provider.status();
+    expect(status.storage?.migrationHint).toBeUndefined();
+  });
+
+  it('matches bind sources exactly', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: mountsRunner('bind /srv/bh-computer /config;', calls),
+      config: { dataDir: '/srv/bh-computer' },
+      platform: () => 'linux',
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(false);
+    const run = calls.find((argv) => argv[1] === 'start');
+    expect(run).toBeDefined();
+  });
+
+  it('still rebuilds when the bind path actually changed', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: mountsRunner('bind /srv/old-place /config;', calls),
+      config: { dataDir: '/srv/bh-computer' },
+      platform: () => 'linux',
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+  });
+});

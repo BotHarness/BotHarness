@@ -10,7 +10,7 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
-import type { BotSessionSource, SessionSummary } from '../src/sessions/source.js';
+import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createBotStateTracker } from '../src/state/bot-state.js';
 import { createTestOwnership } from './helpers.js';
 
@@ -25,10 +25,12 @@ function tickingNow(): () => Date {
 }
 
 function setup(
-  sessionSummaries: SessionSummary[] = [],
+  _sessionSummaries: unknown[] = [],
   botIds: string[] = ['ada'],
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
   ownership = createTestOwnership(),
+  grants?: WorkspaceGrantStore,
+  developerMode?: { set(enabled: boolean): void },
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -40,7 +42,6 @@ function setup(
     attachments,
     now: tickingNow(),
   });
-  const sessions: BotSessionSource = { list: () => sessionSummaries };
   let botIdIndex = 0;
   return {
     root,
@@ -52,10 +53,11 @@ function setup(
       registry,
       states,
       channels,
-      sessions,
       ownership,
       roster: createRosterStore(),
+      ...(grants === undefined ? {} : { grants }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
+      ...(developerMode === undefined ? {} : { developerMode }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
     }),
   };
@@ -66,9 +68,172 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('commits only a Grant-backed typed resolution for this Bot DM and retries it idempotently', async () => {
+    const grant = {
+      id: 'grant-1',
+      botSlug: 'ada',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: '2026-09-26T00:00:00.000Z',
+    };
+    let revoked = false;
+    const grants: WorkspaceGrantStore = {
+      list: (slug) =>
+        slug === 'ada' ? [{ ...grant, ...(revoked ? { revokedAt: grant.createdAt } : {}) }] : [],
+      create: async () => grant,
+      revoke: () => grant,
+      requireActive: () => grant,
+      availableWorkspaces: () => [],
+    };
+    const { registry, channels, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      grants,
+    );
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    await channels.appendMessage(dm.id, {
+      id: 'grant-request-1',
+      at: '2026-09-26T00:00:00.000Z',
+      author: { kind: 'bot', slug: 'ada' },
+      body: 'Please grant this workspace.',
+      grantRequest: true,
+    });
+    const payload = {
+      channelId: dm.id,
+      messageId: 'human-25f4609a-2aee-446a-a5d9-ea53607aba13',
+      body: 'Workspace authorized.',
+      replyTo: 'grant-request-1',
+      grantRequestResolution: { requestMessageId: 'grant-request-1', grantId: 'grant-1' },
+    };
+    expect(
+      await methods.channelSend({
+        ...payload,
+        grantRequestResolution: { ...payload.grantRequestResolution, grantId: 'unknown' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        ...payload,
+        grantRequestResolution: { ...payload.grantRequestResolution, requestMessageId: 'missing' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: dm.id,
+        body: '已授权工作区「Project」，请继续处理之前的事项。',
+        replyTo: 'grant-request-1',
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: dm.id,
+        body: 'I AUTHORIZED WORKSPACE “Project”; please continue.',
+        replyTo: 'grant-request-1',
+      }),
+    ).toMatchObject({ ok: true });
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(channels.message(dm.id, payload.messageId)?.grantRequestResolution).toEqual(
+      payload.grantRequestResolution,
+    );
+    revoked = true;
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({
+        ...payload,
+        messageId: 'human-35f4609a-2aee-446a-a5d9-ea53607aba13',
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  });
+
+  it('keeps Bot-to-Bot DMs inspectable but rejects Human sends and renames', async () => {
+    const { registry, channels, methods } = setup([], ['ada', 'bea']);
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    const dm = channels.getOrCreateBotDm('ada', 'bea', 'Ada · Bea')!;
+    expect(methods.channelMessages({ channelId: dm.id })).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({ channelId: dm.id, body: 'Human interjection' }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(methods.channelRename({ channelId: dm.id, name: 'Changed' })).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input' },
+    });
+    expect(channels.readMessages(dm.id)).toEqual([]);
+  });
+
+  it('requires selected joined Bot identities and preserves committed retry identity', async () => {
+    const wakes: string[] = [];
+    const { registry, channels, methods } = setup([], ['ada', 'bea'], () => ({
+      admitGroupMessage(channelId, messageId) {
+        wakes.push(channelId + ':' + messageId);
+      },
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
+      admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
+      listAssignments: () => [],
+      getAssignment: () => undefined,
+      whenIdle: async () => undefined,
+      close: async () => undefined,
+    }));
+    expect(registry.create({ slug: 'ada', displayName: 'Alex' }).ok).toBe(true);
+    expect(registry.create({ slug: 'bea', displayName: 'Alex' }).ok).toBe(true);
+    const group = channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+    const body = '@Alex @Alex hello';
+    const payload = {
+      channelId: group.id,
+      messageId: 'human-25f4609a-2aee-446a-a5d9-ea53607aba13',
+      body,
+      mentions: [
+        { botSlug: 'ada', label: 'Alex', start: 0, end: 5 },
+        { botSlug: 'bea', label: 'Alex', start: 6, end: 11 },
+      ],
+    };
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(wakes).toHaveLength(1);
+    expect(channels.readMessages(group.id)).toHaveLength(1);
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(wakes).toHaveLength(1);
+    registry.setPaused('bea', true);
+    expect(await methods.channelSend(payload)).toMatchObject({ ok: true });
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'bea', label: 'Alex', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'outsider', label: 'Alex', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.channelSend({
+        channelId: group.id,
+        body: '@Alex hello',
+        mentions: [{ botSlug: 'ada', label: 'wrong', start: 0, end: 5 }],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(await methods.channelSend({ channelId: group.id, body: '@Alex hello' })).toMatchObject({
+      ok: true,
+    });
+    expect(wakes).toHaveLength(2);
+    expect(channels.readMessages(group.id)).toHaveLength(2);
+  });
+
   it('admits blank attachment-only DMs and rejects forged refs', async () => {
     const admitted: string[] = [];
     const { channels, attachments, methods } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         return { admitted: true as const, settled: Promise.resolve() };
@@ -103,9 +268,36 @@ describe('bridge methods', () => {
     expect(channels.readMessages('dm-ada')).toHaveLength(2);
   });
 
+  it('persists a Human Memory branch choice and rejects a conflicting retry', async () => {
+    const { channels, methods } = setup();
+    channels.getOrCreateDm('ada', 'Ada');
+    const payload = {
+      channelId: 'dm-ada',
+      body: 'Switch Memory to history',
+      messageId: 'human-12345678-1234-4234-8234-123456789abc',
+      memorySwitchTarget: 'history',
+    };
+    const first = await methods.channelSend(payload);
+    expect(first).toMatchObject({
+      ok: true,
+      value: { message: { author: { kind: 'human' }, memorySwitchTarget: 'history' } },
+    });
+    expect(channels.readMessages('dm-ada')[0]?.memorySwitchTarget).toBe('history');
+    expect(await methods.channelSend(payload)).toEqual(first);
+    await expect(
+      methods.channelSend({ ...payload, memorySwitchTarget: 'main' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    await expect(
+      methods.channelSend({ ...payload, memorySwitchTarget: '' }),
+    ).resolves.toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  });
+
   it('deduplicates one Human client message id before a second runtime admission', async () => {
     let admissions = 0;
     const { channels, methods } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage() {
         admissions += 1;
         return { admitted: true as const, settled: Promise.resolve() };
@@ -202,6 +394,7 @@ describe('bridge methods', () => {
     expect(result.ok && result.value.bot).toMatchObject({
       roles: ['研究'],
       description: '数学与计算',
+      memoryDir: registry.memoryDirFor('ada'),
     });
   });
 
@@ -274,6 +467,19 @@ describe('bridge methods', () => {
     );
   });
 
+  it('reports a missing Git prerequisite without exposing a spawn error', () => {
+    const { registry, methods } = setup();
+    registry.create = () => ({ ok: false, reason: 'git-not-found', detail: 'spawn git ENOENT' });
+
+    expect(methods.create({ displayName: 'No Git' })).toEqual({
+      ok: false,
+      error: {
+        code: 'git-not-found',
+        message: 'Install Git, make it available on PATH, restart DeepSeek Harness, then retry.',
+      },
+    });
+    expect(registry.list()).toEqual([]);
+  });
   it('creates a name-only bot with its Memory directory and no Persona file', () => {
     const { root, methods } = setup([], ['plain']);
 
@@ -612,6 +818,9 @@ describe('bridge methods', () => {
     const handled: Array<{ channelId: string; messageId: string; body: string }> = [];
     let settled: Promise<void> = Promise.resolve();
     const { methods } = setup([], ['ada'], (channels) => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         handled.push(input);
         settled = (async () => {
@@ -714,6 +923,9 @@ describe('bridge methods', () => {
     const settledTurns: Promise<void>[] = [];
     const admitted: string[] = [];
     const { methods } = setup([], ['ada'], (channels) => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage(input) {
         admitted.push(input.body);
         const settled = (async () => {
@@ -761,6 +973,9 @@ describe('bridge methods', () => {
 
   it('rejects an archived PersonaBot before committing a Human DM', async () => {
     const { methods, registry, channels } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'archived-bot' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -782,6 +997,9 @@ describe('bridge methods', () => {
 
   it('reports a post-commit admission refusal without mislabeling a durable message as failed', async () => {
     const { methods, channels } = setup([], ['ada'], () => ({
+      admitGroupMessage() {},
+      admitBotDmMessage() {},
+      admitGroupInvitation() {},
       admitDmMessage: () => ({ admitted: false as const, reason: 'runtime-closed' as const }),
       listAssignments: () => [],
       getAssignment: () => undefined,
@@ -797,41 +1015,140 @@ describe('bridge methods', () => {
     expect(channels.readMessages('dm-ada').map((message) => message.body)).toEqual(['hello']);
   });
 
-  it('lists Sessions owned by the bot through explicit ownership, newest first', () => {
-    const summaries: SessionSummary[] = [
-      { id: 'session-1', title: 'older', cwd: '/srv/ada', updatedAt: '2026-09-19T01:00:00.000Z' },
-      {
-        id: 'session-2',
-        title: 'newer',
-        cwd: '/srv/shared',
-        updatedAt: '2026-09-19T03:00:00.000Z',
-      },
-      {
-        id: 'session-3',
-        title: 'other bot',
-        cwd: '/srv/ada',
-        updatedAt: '2026-09-19T04:00:00.000Z',
-      },
-      { id: 'session-4', title: 'unowned', cwd: '/srv/ada', updatedAt: '2026-09-19T05:00:00.000Z' },
-    ];
-    const { methods } = setup(
-      summaries,
-      ['ada'],
-      undefined,
-      createTestOwnership({
-        'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
-        'session-2': { botSlug: 'ada', rootRole: 'assignment' },
-        'session-3': { botSlug: 'bob', rootRole: 'assignment' },
-      }),
-    );
+  it('lists only root Sessions owned by the bot, preserving role and cwd evidence', () => {
+    const ownership = createTestOwnership({
+      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-2': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-3': { botSlug: 'bob', rootRole: 'assignment' },
+    });
+    const { methods } = setup([], ['ada'], undefined, ownership);
     methods.create({ slug: 'ada', displayName: 'Ada', workspaces: ['/srv/ada/'] });
 
     const result = methods.sessions({ slug: 'ada' });
-
-    expect(result.ok && result.value.sessions.map((session) => session.id)).toEqual([
-      'session-2',
-      'session-1',
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sessions).toEqual([
+      expect.objectContaining({ sessionId: 'session-1', role: 'orchestrator' }),
+      expect.objectContaining({ sessionId: 'session-2', role: 'assignment' }),
     ]);
+    expect(result.value.sessions.map((session) => session.sessionId)).not.toContain('session-3');
+  });
+
+  it('projects each Assignment access snapshot independently of the Bot default', () => {
+    const ownership = createTestOwnership({
+      'session-orchestrator': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-safe': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-danger': { botSlug: 'ada', rootRole: 'assignment' },
+    });
+    const { methods } = setup(
+      [],
+      ['ada'],
+      () => ({
+        admitGroupMessage() {},
+        admitBotDmMessage() {},
+        admitGroupInvitation() {},
+        admitDmMessage: () => ({ admitted: true as const, settled: Promise.resolve() }),
+        listAssignments: () =>
+          (['session-safe', 'session-danger'] as const).map((sessionId) => ({
+            sessionId,
+            purpose: 'Inspect files',
+            activity: 'idle' as const,
+            createdAt: '2026-09-19T00:00:00.000Z',
+            updatedAt: '2026-09-19T00:00:00.000Z',
+            permission: {
+              grantId: 'grant',
+              workspaceId: 'workspace',
+              primaryCwd: '/projects/ada',
+              mode:
+                sessionId === 'session-danger'
+                  ? ('danger-full-access' as const)
+                  : ('workspace-write' as const),
+              approval: sessionId === 'session-danger' ? ('never' as const) : ('ask' as const),
+              presetRevision: sessionId === 'session-danger' ? 1 : 0,
+            },
+          })),
+        getAssignment: () => undefined,
+        whenIdle: async () => undefined,
+        close: async () => undefined,
+      }),
+      ownership,
+    );
+    methods.create({ slug: 'ada', displayName: 'Ada' });
+
+    const result = methods.sessions({ slug: 'ada' });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.sessions).toHaveLength(3);
+    expect(result.value.sessions).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sessionId: 'session-orchestrator', role: 'orchestrator' }),
+        expect.objectContaining({
+          sessionId: 'session-safe',
+          assignmentAccessMode: 'workspace-write',
+        }),
+        expect.objectContaining({
+          sessionId: 'session-danger',
+          assignmentAccessMode: 'danger-full-access',
+        }),
+      ]),
+    );
+  });
+
+  it('resolves only owned root Sessions to their PersonaBot for return navigation', () => {
+    const ownership = createTestOwnership({
+      'session-orchestrator': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-assignment': { botSlug: 'ada', rootRole: 'assignment' },
+      'session-other': { botSlug: 'bob', rootRole: 'orchestrator' },
+    });
+    ownership.claim({
+      sessionId: 'session-child',
+      botSlug: 'ada',
+      rootRole: 'assignment',
+      parentSessionId: 'session-assignment',
+      provenance: 'subagent',
+      at: '2026-09-19T00:00:01.000Z',
+    });
+    const { methods } = setup([], ['ada'], undefined, ownership);
+    methods.create({ slug: 'ada', displayName: 'Ada', avatarSeed: 'https://example.com/ada.png' });
+
+    expect(methods.sessionOwner({ sessionId: 'session-orchestrator' })).toEqual({
+      ok: true,
+      value: {
+        owner: {
+          botSlug: 'ada',
+          displayName: 'Ada',
+          avatar: 'https://example.com/ada.png',
+          role: 'orchestrator',
+        },
+      },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-assignment' })).toEqual({
+      ok: true,
+      value: {
+        owner: {
+          botSlug: 'ada',
+          displayName: 'Ada',
+          avatar: 'https://example.com/ada.png',
+          role: 'assignment',
+        },
+      },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-child' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({ sessionId: 'session-other' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({ sessionId: 'unowned' })).toEqual({
+      ok: true,
+      value: { owner: null },
+    });
+    expect(methods.sessionOwner({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'sessionId is required' },
+    });
   });
 
   it('rejects malformed or unknown session reads', () => {
@@ -844,6 +1161,42 @@ describe('bridge methods', () => {
     expect(methods.sessions({ slug: 'missing' })).toEqual({
       ok: false,
       error: { code: 'not-found', message: 'unknown PersonaBot: missing' },
+    });
+  });
+
+  it('drives the developer-mode skill gate from the bridge', () => {
+    const seen: boolean[] = [];
+    const { methods } = setup([], ['ada'], undefined, createTestOwnership(), undefined, {
+      set: (enabled: boolean) => {
+        seen.push(enabled);
+      },
+    });
+
+    expect(methods.developerModeSet({ enabled: true })).toEqual({
+      ok: true,
+      value: { accepted: true },
+    });
+    expect(methods.developerModeSet({ enabled: false })).toEqual({
+      ok: true,
+      value: { accepted: true },
+    });
+    expect(seen).toEqual([true, false]);
+    expect(methods.developerModeSet({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'enabled is required' },
+    });
+    expect(methods.developerModeSet({ enabled: 'yes' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'enabled is required' },
+    });
+  });
+
+  it('reports unaccepted developer-mode sets without a gate', () => {
+    const { methods } = setup();
+
+    expect(methods.developerModeSet({ enabled: true })).toEqual({
+      ok: true,
+      value: { accepted: false },
     });
   });
 });

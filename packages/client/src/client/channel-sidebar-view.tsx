@@ -8,7 +8,7 @@ import {
   type ReactElement,
 } from 'react';
 
-import { IconChevronDownOutline14 } from '@deepseek-ai/dsh-client-ui-primitives';
+import { IconChevronDownOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
 import type {
@@ -139,28 +139,32 @@ export function ChannelSidebarEntrySection({
 }): ReactElement {
   const bodyId = useId();
   const Badge = entry.badge;
+  const HeaderAction = entry.headerAction;
   return (
     <section className="bh-channel-sidebar-entry">
-      <button
-        type="button"
-        className="bh-channel-sidebar-entry-head"
-        aria-expanded={expanded}
-        aria-controls={bodyId}
-        onClick={onToggle}
-      >
-        <span
-          className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
-          aria-hidden="true"
+      <div className="bh-channel-sidebar-entry-header">
+        <button
+          type="button"
+          className="bh-channel-sidebar-entry-head"
+          aria-expanded={expanded}
+          aria-controls={bodyId}
+          onClick={onToggle}
         >
-          <IconChevronDownOutline14 size={14} />
-        </span>
-        <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
-        {Badge === undefined ? null : (
-          <span className="bh-channel-sidebar-entry-badge">
-            <Badge {...entryProps} />
+          <span
+            className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}
+            aria-hidden="true"
+          >
+            <IconChevronDownOutlineRegular size={14} />
           </span>
-        )}
-      </button>
+          <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
+          {Badge === undefined ? null : (
+            <span className="bh-channel-sidebar-entry-badge">
+              <Badge {...entryProps} />
+            </span>
+          )}
+        </button>
+        {HeaderAction === undefined ? null : <HeaderAction {...entryProps} />}
+      </div>
       {expanded ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
           <entry.component {...entryProps} />
@@ -176,12 +180,16 @@ export function ChannelSidebar({
   actions,
   controller,
   t,
+  onMemoryCommitSelect,
+  selectedMemoryCommitSha,
 }: {
   registry: ChannelSidebarRegistry;
   state: ClientState;
   actions: BridgeActions;
   controller: ChannelSidebarController;
   t: BotHarnessTranslate;
+  onMemoryCommitSelect?: ((sha: string) => void) | undefined;
+  selectedMemoryCommitSha?: string | undefined;
 }): ReactElement | null {
   const selection = state.selection;
   const channel = state.conversation.channel;
@@ -191,6 +199,11 @@ export function ChannelSidebar({
     () => registry.entries(scope),
     () => registry.entries(scope),
   );
+  useEffect(() => {
+    if (selection?.kind !== 'bot' || controller.mode === 'hidden') return;
+    const timer = window.setInterval(() => void actions.refreshBotInbox(selection.slug), 10_000);
+    return () => window.clearInterval(timer);
+  }, [selection, controller.mode, actions]);
   const closeRef = useRef(controller);
   useEffect(() => {
     closeRef.current = controller;
@@ -212,10 +225,14 @@ export function ChannelSidebar({
   const entryProps: ChannelSidebarEntryProps = {
     scope,
     channelId: channel.id,
+    conversationRevision: state.conversation.revision,
     botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
     actions,
     t,
+    onMemoryCommitSelect,
+    selectedMemoryCommitSha,
   };
+  const visibleEntries = entries.filter((entry) => entry.visible?.(state) ?? true);
   const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (
     <div
@@ -272,14 +289,12 @@ export function ChannelSidebar({
           onDoubleClick={() => controller.setWidth(DEFAULT_CHANNEL_SIDEBAR_WIDTH)}
         />
       )}
-      <div className="bh-channel-sidebar-head">
-        <span className="bh-channel-sidebar-title">{channel.name}</span>
-      </div>
+      <div className="bh-channel-sidebar-head" aria-hidden="true" />
       <div className="bh-channel-sidebar-entries">
-        {entries.length === 0 ? (
+        {visibleEntries.length === 0 ? (
           <div className="bh-note">{t('sidebar.empty')}</div>
         ) : (
-          entries.map((entry) => (
+          visibleEntries.map((entry) => (
             <ChannelSidebarEntrySection
               key={entry.id}
               entry={entry}

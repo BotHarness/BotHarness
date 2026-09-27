@@ -5,7 +5,7 @@ Date: 2026-09-21
 
 # Memory is a default Git-backed Service with file-first Agent access
 
-> Superseded in part by ADR-0060: pinned bodies, the pin budget, and any generated index are gone; Persona is delivered to a Session's system prompt from a per-Session snapshot, and the Agent explores the repository with ordinary file tools.
+> Superseded in part by ADR-0060 and ADR-0068. ADR-0068 makes the checked-out Git working tree current Memory, including code and binary files, without an accepted-commit gate. Earlier accepted-commit, Markdown-only, and branch-admission paragraphs below remain historical rationale.
 
 ## Original decision (superseded in part by the update below)
 
@@ -49,3 +49,21 @@ Application-defined Cordis Events report reconciliation and accepted or rejected
 ADR-0060 supersedes the pin mechanism above. The system prompt prefix is append-only and carries no derived Memory state: the Memory Tree section and the generated `MEMORY.md` index are removed, pin frontmatter is no longer consumed by prompt assembly, and there is no pin budget or full-body injection. The Agent reads, searches, and versions repository files with ordinary filesystem, Shell, `grep`, and `git` capabilities.
 
 Persona remains conventional content but is delivered differently: each owned Session freezes the `PERSONA.md` body at its first prompt assembly, and that Session's system prompt keeps those bytes for its whole life, including across a Host restart. A Human edit reaches Sessions that have not snapshotted yet. The repository lifecycle, file-first access, accepted-commit boundary, and Memory Service ownership above are unchanged.
+
+## Update (2026-09-25) — accepted Memory heads follow local branches
+
+The accepted ledger remains distinct from raw Git history, but its current head is scoped to each local branch. The first branch-aware slice migrates the former single head into `main`. A clean switch to an existing branch is made by the Orchestrator in its current Session through native Git. The target tip must already be an accepted Memory Commit; otherwise the switch is refused, and a raw commit is never silently promoted. A new branch at an accepted historical commit inherits that commit as its branch baseline when it is first observed. Later accepted work advances only that branch's head and retains actor, cause, and validation records in the shared commit ledger.
+
+The working tree changes as soon as Git switches. Ordinary file tools in the same Session therefore read the new branch's files; a missing file is an ordinary missing-file result. The Session-frozen Persona prompt remains unchanged under ADR-0060. Uncommitted changes block the switch operation without a force reset; the Orchestrator coordinates the conflict in [#263](https://github.com/BotHarness/BotHarness/issues/263), while branch creation is delivered in [#262](https://github.com/BotHarness/BotHarness/issues/262).
+
+## Update (2026-09-25) — continue from a historical commit
+
+The Human may select an exact commit in the raw Git graph and name a new local branch. The Orchestrator creates and checks out that branch in its current DSH Session after checking ownership, Git branch syntax, ref uniqueness, reachability from a local branch, an accepted ancestor, and a clean accepted source branch. No ref is overwritten and unfinished work is retained on refusal.
+
+A branch created at an accepted commit begins with that accepted head and can advance through ordinary validated Memory turns. A branch created at a raw pending commit records only its previously accepted ancestor as the branch baseline. The branch ref and working tree switch immediately, but the current Source Event does not promote that raw point or later edits in the same turn. The graph marks the current raw head as needing repair, accepted history remains unchanged, and subsequent Memory turns wait for explicit Human Repair. Repair archives the whole provisional repository, then resets only the new branch to its accepted ancestor; the original raw ref remains in the restored graph. An interrupted archive move recovers the branch identity from archived Git HEAD. Git refs, checked-out branch, and accepted provenance survive process restart independently.
+
+## Update (2026-09-25) — preserve conflicts while coordinating a switch
+
+A Human's explicit branch choice is carried as Channel message intent, so an Orchestrator turn can start even when the current Memory tree already has provisional edits. The accepted ledger remains the authority: this coordination turn cannot silently accept edits that predated it. The first switch attempt refuses dirty or unaccepted source state and keeps the current branch, staged index, and working files intact. The Orchestrator reports the target and block in the Channel, asks affected active Assignments to pause through their existing addressed request/report seam, and waits for their reports. An Assignment does not write the Memory repository.
+
+Once it is safe, the Orchestrator may preserve uncommitted Memory work in a named native Git stash including untracked files, then retry the same Memory switch in the same DSH Session. The stash remains available for recovery; no force checkout, reset, or discard is authorized by this flow. If Git still refuses, the Channel states the unresolved block and the original branch and files remain in place. A successful retry uses the existing branch acceptance check and reads the switched working tree immediately; the Session-frozen Persona prompt does not change.

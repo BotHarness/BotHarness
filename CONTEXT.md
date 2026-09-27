@@ -121,8 +121,16 @@ A single host directory a Session works in; it maps one-to-one to a DSH workspac
 _Avoid_: project, multi-root folder, group
 
 **Workspace Grant**:
-A durable, revocable, application-defined authorization that lets one PersonaBot use one resolved Workspace across Assignments. It is reusable after one Human approval and is neither a DSH Workspace nor a per-Assignment prompt.
+A durable, revocable, application-defined authorization for one PersonaBot and one resolved Workspace. Its Orchestrator may read that Workspace; an Assignment selected under the Grant may read and write it. The Grant is neither a DSH Workspace nor a per-Assignment prompt.
 _Avoid_: Service Grant, Workspace, one-time approval, cwd inference
+
+**Tool Approval Rule**:
+A Human-saved, revocable instruction to answer future DSH approval requests automatically for one PersonaBot role and Workspace Grant scope. An exact rule matches the native tool name and complete input; an all-opaque rule covers every opaque native tool in that scope. Each matching call still receives its own DSH approval decision and audit event.
+_Avoid_: Workspace Grant, provider Service Grant, sandbox preset, inferred command similarity
+
+**Assignment Access Preset**:
+A Human-controlled per-PersonaBot choice applied when a new Assignment is created. The default is DSH workspace-write with ask; dangerous full access is an explicit opt-in to DSH danger-full-access with never. The chosen mode is frozen in each Assignment's permission snapshot, while its selected Workspace Grant remains required.
+_Avoid_: Workspace Grant, in-place Session mode switch, Orchestrator permission
 
 **Delegation**:
 Handing responsibility to a PersonaBot from a Chat or the Roster. Its Orchestrator may answer directly or create or reuse one or more Assignment Sessions.
@@ -135,6 +143,10 @@ _Avoid_: integration, connector, channel binding
 **Orchestrator Session**:
 The PersonaBot's long-lived dispatch root Session: at most one is active, consuming the Bot Inbox and deciding replies, dispatch, and new Assignment Sessions. Its working directory is always the PersonaBot's Memory Repository; it is the PersonaBot's social voice, not a Human-managed Conversation or an Assignment row. Ordinary Session output remains execution history; only an explicit Channel messaging command authorized from trusted Session ownership and Channel membership speaks to a Human-facing Channel.
 _Avoid_: main agent, brain, supervisor
+
+**Developer Mode**:
+A Human-owned Bot-mode preference that reveals diagnostics surfaces (operational log views, verbose states) otherwise hidden by default. It gates Human visibility only — never agent capability: an agent with shell access can always reach the same underlying data, so Developer Mode must never be described or relied upon as a read boundary.
+_Avoid_: debug flag, admin mode, agent permission, read boundary
 
 ### Computer
 
@@ -161,15 +173,15 @@ _Avoid_: PersonaBot export, backup file, disk image
 ### Memory
 
 **Memory**:
-Persistent knowledge held as ordinary human-readable Markdown files in the Memory Repository created with every PersonaBot. Agents work with those files through ordinary filesystem, Shell, search, and Git capabilities; an accepted Memory Commit makes changes effective.
+Persistent knowledge in the PersonaBot's checked-out Memory Repository working tree. Ordinary files, including code and binary files, become current Memory as soon as Git or a file tool changes the worktree; no additional acceptance step is required. The Orchestrator explores it through native file, search, Shell, and Git capabilities within its access boundary.
 _Avoid_: knowledge base, vector store, RAG, database, context
 
 **Memory Repository**:
-A PersonaBot-owned Git repository of Memory files, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Its lifecycle follows the PersonaBot while archive, export, restore, and purge remain explicit operations.
+A PersonaBot-owned ordinary Git repository, created automatically with the PersonaBot and used as its Orchestrator Session's working directory. Git controls branches, merges, and file history; archive, export, restore, and purge remain explicit PersonaBot operations.
 _Avoid_: optional attachment, Session memory, generated index, project Workspace
 
 **Topic file**:
-A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository.
+A Memory file devoted to one subject — a customer, a process, a decision — inside a Memory Repository. It is a convention, not a restriction on repository file types.
 _Avoid_: note, document, page, record
 
 **Customer profile**:
@@ -177,16 +189,16 @@ The north-star topic file: one per customer, holding timeline, key facts, commit
 _Avoid_: CRM record, account, contact sheet
 
 **Memory Service**:
-The application-defined capability that owns Memory Repository lifecycle, validation, reconciliation, accepted commits, history, and queries. In v1 it serves runtime and Human-facing Consumers but does not expose model-callable Memory read/write Tools.
+The application-defined capability that owns repository identity and lifecycle, trusted Session access, Host-to-Client file and Git queries, and audit/recovery checkpoints. It does not define a second admission gate for current repository contents or expose model-callable Memory CRUD Tools.
 _Avoid_: Memory tool, filesystem watcher, Git event source, generic repository
 
 **Memory Commit**:
-An accepted Git commit that makes a coherent set of Memory file changes effective, with actor and cause attribution. Uncommitted working-tree changes are provisional and do not change a Session's frozen persona, history projections, or Memory events.
-_Avoid_: file save, filesystem event, raw Git commit, auto-save
+An ordinary Git commit in a Memory Repository. Git authorship and topology remain intact. BotHarness may record the HEAD observed after a trusted operation with its own actor and cause; the record is an audit/recovery checkpoint, not permission for the file to become Memory.
+_Avoid_: accepted commit, file save, filesystem event, auto-save
 
-**Memory Reconciliation**:
-The Memory Service process that validates repository state and accepts or rejects candidate Git commits against Memory invariants. Live Cordis Events describe reconciliation and accepted Memory Commits; they never treat `.git` filesystem activity as durable fact.
-_Avoid_: filesystem watch, background distillation, event-sourced Git
+**Memory Observation**:
+A trusted record of the Memory Repository HEAD after an Orchestrator operation. Observation does not stage, commit, reject, or hide current working-tree files.
+_Avoid_: commit acceptance, filesystem watch, background distillation
 
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.
@@ -281,11 +293,11 @@ A PersonaBot's current consideration of one Source Event revision chain; unobser
 _Avoid_: mailbox item, message copy, delivery attempt
 
 **Channel**:
-A platform-native conversation space; its type is `dm` (a PersonaBot and one human) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a DM keeps its PersonaBot avatar presentation.
+A platform-native conversation space; its type is `dm` (two Actors: one Human and one PersonaBot, or two PersonaBots) or `group chat` (several members; informally a chatroom). A Channel keeps its history locally. Both types participate in the same Channel-section membership, top-level ordering, drag, and move rules; a Human–PersonaBot DM keeps its PersonaBot avatar presentation.
 _Avoid_: room, server, board
 
 **Hidden Channel**:
-A Channel omitted from expanded and collapsed roster navigation by an explicit Human presentation choice. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can restore it from the hidden-Channel manager.
+A Channel omitted from expanded and collapsed roster navigation by a Human presentation choice or the default for a Bot-to-Bot DM. Hiding retains Channel membership, history, routing, PersonaBot and Memory state, plus its pin, section, and order placement; the Human can open it for inspection, and can restore a Channel hidden by their own choice.
 _Avoid_: deleted Channel, archived Channel, muted Channel, Content Purge
 
 **Channel section**:
@@ -317,7 +329,7 @@ The durable relationship saying why a Source Event is eligible for one PersonaBo
 _Avoid_: inbox item body, delivery job, message copy
 
 **Inbox Trigger**:
-A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. Shared templates may create it, but a Bridge never owns it or invokes the Agent.
+A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. The PersonaBot shapes its own rules and the Human may inspect, override, or freeze them; templates may supply initial values, a Bridge never owns attention or wake behavior, and safety gates are never part of a rule.
 _Avoid_: bridge, wake policy, model trigger, scheduler
 
 **Messaging Policy**:
@@ -381,8 +393,12 @@ The deterministic Host policy that decides whether an admitted event wakes a Per
 _Avoid_: model decision, delivery mechanism, scheduler
 
 **Delivery Policy**:
-The Host policy that maps a Wake Policy decision and Orchestrator liveness to the next step, the next turn, or an explicit whole-turn abort.
+The Host policy that maps a Wake Policy decision and Orchestrator liveness to a safe-step steer, the next harvest, or no wake.
 _Avoid_: wake policy, inferred step state, message priority
+
+**Turn harvest**:
+One Orchestrator turn that consumes the ready attention set — every unhandled immediate item, every digest batch at its threshold, and passive notices — instead of one turn per event. A steered direct address joins the running turn instead.
+_Avoid_: per-event queue, wake storm, batch (bare)
 
 **Human Inbox**:
 A Human-level attention projection that classifies Channel Attention and PersonaBot Attention as either action-required or informational. It references their owning facts and does not copy Channel content or flatten every Bot Inbox item into Human work.
@@ -400,9 +416,21 @@ _Avoid_: personal attention, Bot state, notification
 An Actor's participation in a Channel, carrying its owner/member role and authority to read or send there.
 _Avoid_: subscription, notification policy, caller claim
 
+**Channel reference**:
+A Human-selected pointer to an existing Channel, identified by its stable Channel ID. It helps an addressed PersonaBot find the Channel but does not grant membership, reveal the Channel's conversation, or message its members.
+_Avoid_: Channel invitation, membership, typed #name
+
+**Group invitation**:
+A Group Bot creator's pending offer of membership to an active nonmember PersonaBot. It becomes Channel membership only when the invited Bot accepts; a Bot-mode auto-accept default may accept on the Bot's behalf. The invitation grants no read or send authority before acceptance.
+_Avoid_: join request, membership grant, Channel reference
+
+**Group join request**:
+A nonmember PersonaBot's pending request for membership in a referenced Group Channel. It becomes Channel membership only when an authorized Human or Bot Group creator accepts it.
+_Avoid_: invitation, implicit join, Channel mention
+
 **Bot Channel subscription**:
-A PersonaBot's attention preference for a Channel it has joined: `all`, `mentions`, or `muted`, independent of membership and send authority.
-_Avoid_: membership, digest schedule, wake decision
+A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `all` (every ordinary message becomes attention), `digest` (ordinary messages join the wake digest at its count and interval; the default), `mentions` (only direct mentions reach the Bot), or `silent` (ordinary messages are recorded and never wake). Direct mentions and DMs always reach the Bot; the Human may override the preference, and it is independent of membership and send authority.
+_Avoid_: membership, wake decision, digest schedule
 
 **Message provenance**:
 The trusted origin and causal identity of a Channel message — its Actor, ingress surface and external identity, plus any reply or Bot-to-Bot chain.
@@ -415,8 +443,12 @@ A Feishu/Lark conversation — group or p2p — that a PersonaBot takes part in,
 _Avoid_: room, channel, group (when p2p is meant too)
 
 **DM**:
-A 1:1 conversation between a PersonaBot and one human — a Channel of type `dm`, or its bridged equivalent.
+A 1:1 conversation between two Actors — a Channel of type `dm`, or its bridged equivalent. A Human–PersonaBot DM is the Human's direct conversation with one Bot; a Bot-to-Bot DM has two PersonaBot participants and may be inspected read-only by a Human without making that Human a participant.
 _Avoid_: private chat, PM
+
+**Bot-to-Bot DM**:
+A DM Channel whose two participants are PersonaBots. A message from one Bot is a Source Event in that Channel and may enter the other Bot's Inbox; the Human's read-only inspection is separate from Channel membership.
+_Avoid_: peer relay bus, copied inbox conversation
 
 **Thread**:
 A sub-conversation opened by replying to a message inside a Chat or a Channel.

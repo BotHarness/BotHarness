@@ -20,6 +20,12 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 const roots: string[] = [];
 const owners: OperationalDatabaseOwner[] = [];
 
+/** Ensure manually mounted test databases close before Windows temp-root cleanup. */
+export function trackTestOwner(owner: OperationalDatabaseOwner): OperationalDatabaseOwner {
+  owners.push(owner);
+  return owner;
+}
+
 export const FIXED_NOW = (): Date => new Date('2026-09-17T00:00:00.000Z');
 
 export function createTempRoot(prefix = 'botharness-test-'): string {
@@ -50,7 +56,7 @@ export function createTestOwnership(
     dshHome: createTempRoot('botharness-test-ownership-'),
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
-  owners.push(owner);
+  trackTestOwner(owner);
   const ownership = createSessionOwnership(attachOperationalModule(owner, 'session-ownership'));
   for (const [sessionId, entry] of Object.entries(seeded)) {
     ownership.claim({

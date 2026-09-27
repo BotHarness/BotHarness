@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, type ReactElement } from 'react';
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
+import { isBotDmChannel } from './channel-kind.js';
 import { HashIcon } from './hash-icon.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
@@ -19,16 +20,40 @@ export interface HiddenChannelsModalProps {
   items: readonly HiddenChannelItem[];
   t: BotHarnessTranslate;
   onRestore: (channelId: string) => void;
+  onOpen: (channelId: string) => void;
   onClose: () => void;
 }
 
 export const HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS = 180;
+
+/** Keep explicit hide order independent of live Channel upserts; append implicit Bot DMs once. */
+export function hiddenChannelSequence(
+  channels: readonly ChannelSummary[],
+  hiddenIds: readonly string[],
+): ChannelSummary[] {
+  const byId = new Map(channels.map((channel) => [channel.id, channel]));
+  const seen = new Set<string>();
+  const ordered: ChannelSummary[] = [];
+  for (const id of hiddenIds) {
+    const channel = byId.get(id);
+    if (channel === undefined || seen.has(id)) continue;
+    ordered.push(channel);
+    seen.add(id);
+  }
+  for (const channel of [...channels].reverse()) {
+    if (!isBotDmChannel(channel) || seen.has(channel.id)) continue;
+    ordered.push(channel);
+    seen.add(channel.id);
+  }
+  return ordered;
+}
 
 /** Searchable recovery surface for Channels omitted from roster navigation. */
 export function HiddenChannelsModal({
   items,
   t,
   onRestore,
+  onOpen,
   onClose,
 }: HiddenChannelsModalProps): ReactElement {
   const [query, setQuery] = useState('');
@@ -95,13 +120,25 @@ export function HiddenChannelsModal({
             <span className="bh-hidden-copy">
               <span className="bh-hidden-name">{bot?.displayName ?? channel.name}</span>
               <span className="bh-hidden-meta">
-                {t(channel.type === 'dm' ? 'hidden.dm' : 'hidden.group')}
+                {t(
+                  isBotDmChannel(channel)
+                    ? 'botDm.label'
+                    : channel.type === 'dm'
+                      ? 'hidden.dm'
+                      : 'hidden.group',
+                )}
                 {bot !== undefined && bot.roles.length > 0 ? ` · ${bot.roles.join(' · ')}` : ''}
               </span>
             </span>
-            <Button variant="outline" size="sm" onClick={() => onRestore(channel.id)}>
-              {t('hidden.restore')}
-            </Button>
+            {isBotDmChannel(channel) ? (
+              <Button variant="outline" size="sm" onClick={() => onOpen(channel.id)}>
+                {t('botDm.view')}
+              </Button>
+            ) : (
+              <Button variant="outline" size="sm" onClick={() => onRestore(channel.id)}>
+                {t('hidden.restore')}
+              </Button>
+            )}
           </div>
         ))}
         {visible.length === 0 ? (

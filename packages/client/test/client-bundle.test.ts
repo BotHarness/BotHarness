@@ -103,11 +103,16 @@ afterAll(() => {
   rmSync(tempDir, { recursive: true, force: true });
 });
 
-describe('@botharness/client browser bundle', () => {
+describe('@botharness/ui browser bundle', () => {
   it('self-registers with the lazy-CJS module-loader contract', () => {
     const loaded = loadedEntry();
-    expect(loaded.id).toBe('@botharness/client');
+    expect(loaded.id).toBe('@botharness/ui');
     expect(loaded.factory).toBeTypeOf('function');
+  });
+
+  it('uses a package ID that the RC2 Client Modules HMR path can resolve', () => {
+    // RC2 stripClientSuffix treats a trailing /client as an export subpath.
+    expect(loadedEntry().id).not.toMatch(/\/client$/);
   });
 
   it('externalizes the shell baseline and inlines everything else', () => {
@@ -124,7 +129,16 @@ describe('@botharness/client browser bundle', () => {
   it('exposes the plugin and registers the bot-mode panel plus the @ mention source', () => {
     const plugin = loadedEntry().factory(shellRequire);
     expect(plugin['name']).toBe('botharness-client');
-    expect(plugin['inject']).toEqual(['slots', 'connection', 'inputTriggers', 'layout', 'locale']);
+    expect(plugin['inject']).toEqual([
+      'slots',
+      'connection',
+      'inputTriggers',
+      'layout',
+      'locale',
+      'sessions',
+      'uiWorkspace',
+      'workspaces',
+    ]);
 
     const registered: {
       name: string;
@@ -155,6 +169,10 @@ describe('@botharness/client browser bundle', () => {
       },
       layout: {
         selectPanel: () => undefined,
+        panelInfo: {
+          getSnapshot: () => ({ activePanelId: null }),
+          subscribe: () => () => undefined,
+        },
       },
       inputTriggers: {
         registerSource: (source: unknown) => {
@@ -166,6 +184,9 @@ describe('@botharness/client browser bundle', () => {
         subscribe: () => () => undefined,
         register: () => () => undefined,
         bind: () => (key: string) => key,
+      },
+      sessions: {
+        list: { subscribe: () => () => undefined, getSnapshot: () => ({ ids: [], byId: {} }) },
       },
       provide: () => () => undefined,
       effect: (callback: () => unknown) => {
@@ -189,6 +210,29 @@ describe('@botharness/client browser bundle', () => {
       {
         name: 'main',
         key: 'botharness',
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
+      {
+        name: 'conversation.session.header.actions',
+        id: 'botharness-return-to-bot',
+        order: 15,
+        label: expect.any(Function),
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
+      {
+        name: 'sidebar.session.row.leading',
+        id: 'botharness-session-owner-avatar',
+        order: 20,
+        locale: 'botharness',
+        inject: expect.any(Function),
+      },
+      {
+        name: 'sidebar.workspaces.session.menu.item',
+        id: 'botharness-return-to-bot-menu',
+        order: 500,
+        label: expect.any(Function),
         locale: 'botharness',
         inject: expect.any(Function),
       },

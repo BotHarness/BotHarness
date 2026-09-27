@@ -1,13 +1,13 @@
 # 客户端桥（Client Bridge）规格
 
-| 项       | 内容                                                                                                                                                                             |
-| -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 版本     | v0.7（Roster 多选经单次 `rosterBatch` 提交，#215）                                                                                                                               |
-| 日期     | 2026-09-23                                                                                                                                                                       |
-| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法 + `sessions` + 十个 roster 方法）                                                                         |
-| 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/client` ↔ `@botharness/core` 的读模型契约                                                                                 |
-| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）及其 2026-09-19 更新、ADR-0029 / ADR-0030（Channel 与本地 NDJSON 历史）、ADR-0034（持久化地图与主客分界，#66 落地陈列迁 Host） |
-| 设计权威 | `docs/architecture/botharness-architecture.md`；取舍与理由见相关 ADR                                                                                                             |
+| 项       | 内容                                                                                                                                                                               |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 版本     | v0.7（Roster 多选经单次 `rosterBatch` 提交，#215）                                                                                                                                 |
+| 日期     | 2026-09-23                                                                                                                                                                         |
+| 状态     | Implemented（`list/get/create/update/pause/resume` + 五个 channel 方法 + `sessions` + 十个 roster 方法）                                                                           |
+| 适用范围 | M3（Roster、Chat 壳与本地 Channel 历史）：`@botharness/ui` ↔ `@botharness/core` 的读模型契约                                                                                       |
+| 决策记录 | ADR-0023（客户端桥是读模型 RPC，不是 Cordis 注入）及其 2026-09-19 更新、ADR-0037（Channel 与 Bot Inbox 的同一 SQLite 权威）、ADR-0034（持久化地图与主客分界，#66 落地陈列迁 Host） |
+| 设计权威 | `docs/architecture/botharness-architecture.md`；取舍与理由见相关 ADR                                                                                                               |
 
 ## 1. 为什么需要桥
 
@@ -51,7 +51,7 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | `botharness/channelRename`   | `{ channelId, name }`                                                                                | `{ channel, bot? }`                                                             | 重命名 group Channel；DM 同步 PersonaBot displayName，但保留 Channel ID 与内部 PersonaBot ID      |
 | `botharness/channelMessages` | `{ channelId, before?, limit? }`                                                                     | `{ messages, revision }`                                                        | 历史快照与该 Channel 的提交修订号；`before` 用于分页                                              |
 | `botharness/channelTimeline` | `{ channelId, direction?, cursor?, around?, limit?, olderLimit?, newerLimit? }`                      | `{ page: { entries, olderCursor, newerCursor, hasOlder, hasNewer }, revision }` | #143 当前读路径；Host 解释不透明游标，按持久提交顺序返回 latest / older / newer / around 连续窗口 |
-| `botharness/channelSend`     | `{ channelId, body, replyTo? }`                                                                      | `{ message }`                                                                   | 可选同 Channel 消息引用；Host 校验目标后写入 Human 消息并按现有规则投递                           |
+| `botharness/channelSend`     | `{ channelId, body, replyTo?, mentions?: {botSlug,label,start,end}[] }`                              | `{ message }`                                                                   | 可选同 Channel 引用；Group mention 必须来自已选 token，Host 校验成员及活跃身份后分别投递          |
 | `botharness/assignments`     | `{ slug }`                                                                                           | `{ assignments }`                                                               | PersonaBot 的 Assignment Directory 摘要                                                           |
 | `botharness/assignment`      | `{ slug, sessionId }`                                                                                | `{ assignment }`                                                                | 一项 Assignment 的目的、状态、报告与 Session 关联                                                 |
 | `botharness/sessions`        | `{ slug }`                                                                                           | `{ sessions: SessionSummary[] }`                                                | BOT 的会话列表：cwd 落在其 workspace 内；`updatedAt` 新→旧                                        |
@@ -66,11 +66,11 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 | `botharness/hiddenSet`       | `{ hidden }`                                                                                         | `{ hidden }`                                                                    | 隐藏 Channel ID 列表；去重；不改 pin、section 或 topOrder                                         |
 | `botharness/rosterBatch`     | `{ action, channelIds, sectionId? }`                                                                 | `RosterSnapshot`                                                                | 一次处理 1–100 个不同 Channel；pin/unpin/hide/move；move 可指定分组或未分组；一次完成通知         |
 
-`ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (PersonaBot IDs) / botSlug? (dm；当前 wire 键) / createdAt / updatedAt`；`ChannelListItem` 在它之上附加可选 `latestMessage`，由现有消息权威读取并投影给折叠 rail，不写回 `channel.json`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。当前 M3 bridge 仍以每 Channel 的 `messages.ndjson` 作为历史权威，只读写本地文件、不做投递，群聊暂不写 BOT 回复（v1.1 Channel 工具）；这是迁移前的实现事实，不是新架构终态。ADR-0037 与 #79/#80 会将 Messaging operational facts 单向迁入 `botharness.db`，迁移后不双写 NDJSON。`before` 是消息 id 游标：返回比该消息更旧的一页。
+`ChannelRecord` 含 `id / type ('dm' | 'group') / name / members (PersonaBot IDs) / botSlug? (dm；当前 wire 键) / createdAt / updatedAt`；`ChannelListItem` 在它之上附加可选 `latestMessage`，由现有消息权威读取并投影给折叠 rail，不写回 `channel.json`；`ChannelMessage` 含 `id / at / author ({ kind: 'human' } | { kind: 'bot', slug } | { kind: 'bridged', source }) / body / external? ({ id, thread? })`。当前 Channel 的 Source Event、placement 与 Inbox Admission 已由 `botharness.db` 统一提交；旧 `channel.json`、`messages.ndjson` 与 `read-position.json` 只在首次升级时导入，之后不再作为读写权威。Group Channel 的 Human 可选中多个已入群的 PersonaBot，Host 验证身份与成员关系后独立唤醒，回复仍经显式 `channel_send` 回到群里。`before` 是消息 id 游标：返回比该消息更旧的一页。
 
 `ChannelMessage.format?: 'markdown' | 'text'` 是可选的内容表示提示；旧记录无需迁移。Client 默认把 Human 消息按原样文本和换行呈现，把 Bot / bridged 消息交给 DSH 公开的 `MarkdownText`；显式 `format` 可覆盖默认值。原生渲染器不允许危险协议、相对链接或原始 HTML 生效，也不传入本地文件扩展词汇。
 
-#143 起，Client 读取历史首选 `channelTimeline`，旧 `channelMessages` 只保留兼容。当前 NDJSON 实现仍会扫描文件后切片；Client 不解释游标，也不将整段历史无限累计到内存。游标与消息 revision 各司其职：前者定位历史页，后者是 SSE 重连水位。详见 ADR-0061。
+#143 起，Client 读取历史首选 `channelTimeline`，旧 `channelMessages` 只保留兼容。当前 Host 从 SQLite Channel placement 读取并切片；Client 不解释游标，也不将整段历史无限累计到内存。游标与消息 revision 各司其职：前者定位历史页，后者是 SSE 重连水位。详见 ADR-0061。
 #145 的 `replyTo` 是可选的同 Channel 已提交消息 ID；Human 的 `channelSend` 与 Bot 的 `channel_send.reply_to` 共用 ChannelStore 校验，目标不存在或属于其他 Channel 时返回稳定的 `invalid-input`，不写消息。持久化只保存 `replyTo`；时间线/历史读取用同次扫描的消息索引投影 `replyToPreview: { author, body } | null`，正文摘要最多 140 个 Unicode code points，不逐条额外查询。目标后来不可见时显示不可点击的「原消息不可用」。Client 的回复模式可取消或按 Esc 退出，成功发送后清除；点击引用通过既有 `around` 窗口定位并高亮目标。
 
 `SessionSummary` 含 `id / title / cwd / updatedAt`；标题取会话日志里第一条 `user/message` 的文本（无则空串，客户端回退展示），`updatedAt` 取最后一条事件时间（无事件回退 `createdAt`）。`sessions` 只读 DSH Host 当前在册的会话（`ctx.sessions.list()`），按 cwd 是否位于 BOT 的任一 workspace 内过滤。这是已实现 M3 bridge 的临时兼容启发式，只用于描述当前 wire 行为；新领域逻辑不得把 cwd 当 ownership。#80 会以 durable explicit Session ownership 和 Orchestrator / Assignment role projection 替换它（ADR-0035/0045）。
@@ -102,27 +102,40 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 
 ## 6. 客户端包与 bundle 约束
 
-- **独立包** `@botharness/client`（DSH 默认是「同一包两半侧」，本仓库按 ADR-0023 显式偏离）：package.json 声明 `dsh.client = { platform: 'web', inject: [...] }` 与 `exports['./client']`，并作为独立 Loader entry 挂载。
-- **产物格式**：lazy-CJS closure factory，入口 `lib/client.js`，自注册 `window.__ModuleLoader__.load({ id: '@botharness/client', factory: (require) => { … } })`，带 sourcemap。
+- **独立包** `@botharness/ui`（DSH 默认是「同一包两半侧」，本仓库按 ADR-0023 显式偏离）：package.json 声明 `dsh.client = { platform: 'web', inject: [] }` 与 `exports['./client']`，并作为独立 Loader entry 挂载。
+- **产物格式**：lazy-CJS closure factory，入口 `lib/client.js`，自注册 `window.__ModuleLoader__.load({ id: '@botharness/ui', factory: (require) => { … } })`，带 sourcemap。
 - **外置基线**：只外置 shell 注入的模块表（`react`、`react/jsx-runtime`、`react-dom`、`react-dom/client`、`@deepseek-ai/cordis`、`@deepseek-ai/dsh-client-store`、`@deepseek-ai/dsh-client-ui-slots`、`@deepseek-ai/dsh-client-ui-primitives`、`@deepseek-ai/dsh-client-ui-dockkit`）；其余依赖（含 blobatar）全部内联。
 - **纯净门禁**：跨插件只允许 `import type`，不得值导入；跨包协作走 Cordis 服务或 slot。
 - **构建**：共享 preset（`clientBundle()`）未发布，等价构建已在根 `tsdown.config.ts`（`clientBundleOptions`）实现：banner/footer 生成 closure factory，`pnpm build` 产出 `lib/client.js` + `lib/client.js.map`。契约由 `packages/client/test/client-bundle.test.ts` 覆盖（自注册、只外置 shell 基线、插件注册）。剩余风险转移到 M3.5：把该 Loader entry 装进真实 profile 并加载。
 
-## 7. 本地开发环路（dev profile + HMR）
+## 7. 本地开发环路（DSH 0.1.7 RC2）
 
-M3 起在本地联调客户端半侧；M3.5 安装门复用同一环路做真实验收。
+日常 UI 迭代可使用隔离 Web Profile，或在原生 Windows checkout 的官方 Desktop 上使用本地链接 Client；官方 Desktop 的安装、文件夹选择和重启行为仍需原生验收。每个工作树使用独立的 DSH_HOME 与端口，启动器固定调用该工作树安装的 DSH CLI，并在版本不符时失败，避免误用系统级 0.1.5。
 
-- **准备（一次）**：pin `@deepseek-ai/dsh@0.1.5-rc.2`，用隔离 `DSH_HOME`。先把 `@botharness/core` 与 `@botharness/client` 作为普通 profile dependency 链接，再只用 `dsh plugin --profile web-dev add ./packages/deepseekbot` 挂载 umbrella bundle。`dsh.profile.bundles` 必须包含 `deepseekbot`、不得包含两个成员包；否则 umbrella patch 与顶层 bundle 会重复注册 Loader。bundle 成员变化需要重启。
-- **运行**：`dsh web --profile web-dev`。
-- **迭代客户端**：改 `packages/client` 后跑根 `pnpm build`，产出新的 `lib/client.js`；`dsh-client-hmr` 检测 bundle 字节变化（`ClientModuleRegistry.rebuilt` 重哈希 → revision 变化 → 推送新入口图），浏览器自动换新。仅 sourcemap 变化不触发重载。
-- **迭代 Host**：Cordis 插件注册都走 `ctx.effect`，vendored HMR 直接生效，无需重启。
-- **参考**：client-modules（bundle 路由、revision、`onRebuilt`/`onGraphChanged`）；extension-cookbook（plugin hot-reload）。
-- **Agent 一键实例**：`node scripts/dev-instance.mjs --home ~/.dsh-<name> --port <port> [--worktree <path>] [--build]` 自动完成「建 profile → 链接该 worktree 的包 → pnpm install → 后台启动 → 等待 token URL → 探测 `/api` 健康」，适合并行 worktree/端口/token 互不干扰。若存在机器级共享密钥，会按 env > `~/.config/botharness/dev.env` > macOS Keychain 的顺序注入；否则 DSH 仍可从该 profile 的 `$DSH_HOME/.credentials.yaml` 读取密钥。启动摘要只报告检测到的来源，不代表模型请求已成功；判断可用性须实测一条真实 DM → 模型 → Channel 回复。
-- **共享测试密钥（一次）**：若已有一个可用的 DSH profile，先运行 `node scripts/dev-secret.mjs adopt-profile --home <该 profile 的 DSH_HOME>`。命令只从该 profile 的受保护 `.credentials.yaml` 提取 `DEEPSEEK_API_KEY`，以仅创建、不覆盖的方式写入本机 `~/.config/botharness/dev.env`（目录 0700、文件 0600），不打印密钥、不复制其他凭据。此后用 `dev-instance.mjs` 启动的每个新隔离 profile 都会自动继承该密钥；单次运行可用进程环境变量覆盖。直接运行 `dsh web` 不经过 AX 启动器，仍需继承环境变量或使用该 profile 自身的凭据。若共享文件权限过宽，启动器会拒绝读取；`node scripts/dev-secret.mjs check` 仅显示来源，不显示值。
+```bash
+corepack pnpm install --frozen-lockfile
+corepack pnpm build
+node scripts/dev-instance.mjs --home /tmp/bh-rc2-web --port 31967 --json
+corepack pnpm dev:client
+```
+
+- 启动器从 Web 模板创建 Profile，将 Core、Client 和 DeepSeekBot 本地链接；只有 umbrella Bundle `deepseekbot` 出现在 `dsh.profile.bundles`。它检查认证 API Gateway，JSON 摘要包含进程 PID、健康状态和本地登录 URL。登录 URL 仅用于本机浏览器，不写入 Issue 或日志。
+- 在本机打开登录 URL，运行 `pnpm dev:client` 后，Client bundle 改动会自动构建。Web Profile 使用本机开发监听器在 `rebuilt` 事件后整页刷新，需重新进入 Bot mode；官方 Desktop 则由 DSH Client HMR 替换 `@botharness/ui` Fiber，BotHarness 仅暂存当前 Bot/Channel 选择并在新 Fiber 就绪后恢复同一 DM。此视图状态不持久化；一般 UI 改动无需重启 Host。
+- Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。RC2 的 Host 热替换当前关闭；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
+- 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。
+- 自动回归：`node scripts/e2e-rc2-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。
+
+### Windows Desktop 检查点
+
+在原生 Windows checkout 执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm build`，再从官方 Desktop 的插件页选择本地 `packages/deepseekbot`，启用插件并重启应用及 Host。`pnpm-workspace.yaml` 只放行 Desktop 安装实际需要执行的 native postinstall。用独立 `DSH_HOME` 保持 profile 与日常使用隔离；本机 AX 密钥只通过启动进程的 `DEEPSEEK_API_KEY` 环境变量注入，不写入仓库或 issue。
+
+官方 RC2 的开发构建提供「重新加载页面」和「重启应用及 Host」；安装版可能没有前一项。两者都不构建源码；Host 修改须先构建，再重启应用及 Host。[官方 Desktop 开发说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.7-rc.2/apps/desktop/README.md#develop)。
+
+RC2 的 Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0066](adr/0066-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。
 
 ## 8. 未决
 
-- 二十八个桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 九个、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 九个方法读写 `<channels-dir>/<channel-id>/{channel.json,messages.ndjson,read-position.json}`（ADR-0030）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
+- 桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 相关方法、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 方法经 Messaging module 读写 `botharness.db` 的 Source Event、placement 与已读位置（ADR-0037）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。
 - 委派与取消的方法形状（工位会话就绪后）。
 - 记忆编辑是否走同一桥，还是继续只由 `memory_*` 工具在会话内负责。
 - 六态 Activity 的独立实时性与未来 Channel SSE 的慢消费者背压策略（#141 首个切片只覆盖选中 Channel 的已提交消息）。

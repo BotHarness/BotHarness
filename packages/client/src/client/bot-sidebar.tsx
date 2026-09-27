@@ -10,15 +10,15 @@ import { createPortal } from 'react-dom';
 
 import {
   Button,
-  IconAgentPresetOutline16,
-  IconChevronDownOutline14,
-  IconCloseFill14,
-  IconEllipsisOutline16,
-  IconFolderOpenOutline16,
-  IconNewChatOutline16,
-  IconPlusOutline16,
-  IconSearchOutline16,
-  IconSettingsOutline16,
+  IconAgentPresetOutlineRegular,
+  IconChevronDownOutlineRegular,
+  IconCloseFillRegular,
+  IconEllipsisOutlineRegular,
+  IconFolderOpenOutlineRegular,
+  IconNewChatOutlineRegular,
+  IconPlusOutlineRegular,
+  IconSearchOutlineRegular,
+  IconSettingsOutlineRegular,
   HoverCard,
   Menu,
   StateDot,
@@ -50,7 +50,11 @@ import {
   type ChannelSelection,
   type ChannelSelectionGesture,
 } from './channel-selection.js';
-import { HiddenChannelsModal, type HiddenChannelItem } from './hidden-channels.js';
+import {
+  HiddenChannelsModal,
+  hiddenChannelSequence,
+  type HiddenChannelItem,
+} from './hidden-channels.js';
 import {
   useChannelDrag,
   useSectionDrag,
@@ -194,7 +198,7 @@ export function BotPanelIcon({
                     openSettings();
                   }}
                 >
-                  <IconSettingsOutline16 size={14} />
+                  <IconSettingsOutlineRegular size={14} />
                 </span>
               ) : null}
             </>,
@@ -900,17 +904,15 @@ export function BotSidebar({
   }, [actions]);
   const shortcutFor = (channelId: string): string | undefined =>
     webChannelShortcutLabel(shortcutIds.indexOf(channelId));
-  const hiddenItems: HiddenChannelItem[] = state.roster.hidden.flatMap((channelId) => {
-    const channel = state.channels.find((candidate) => candidate.id === channelId);
-    if (channel === undefined || (channel.type === 'dm' && channel.botSlug === undefined))
-      return [];
+  const hiddenItems: HiddenChannelItem[] = hiddenChannelSequence(
+    state.channels,
+    state.roster.hidden,
+  ).map((channel) => {
     const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
-    return [
-      {
-        channel,
-        ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
-      },
-    ];
+    return {
+      channel,
+      ...(bot === undefined ? {} : { bot, activity: personaBotActivity(state, bot) }),
+    };
   });
   const visibleCount =
     pinnedChannels.length + flatBlocks.reduce((total, block) => total + block.channels.length, 0);
@@ -1394,12 +1396,22 @@ export function BotSidebar({
     };
     return (
       <div className="bh-root bh-region bh-region-rail" aria-label={t('rail.label')}>
+        <button
+          type="button"
+          className="bh-human-inbox-entry"
+          aria-label={t('humanInbox.title')}
+          aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
+          onClick={() => void actions.openHumanInbox()}
+        >
+          {t('humanInbox.title')}
+        </button>
         <div className="bh-rail-group">
           {railPinnedChannels.map((channel) => renderRailChannel(channel))}
         </div>
         {railPinnedChannels.length > 0 && railChannels.length > 0 ? (
           <span className="bh-rail-divider" aria-hidden="true" />
         ) : null}
+
         <div className="bh-rail-group">
           {railChannels.map((channel) => renderRailChannel(channel))}
         </div>
@@ -1471,6 +1483,14 @@ export function BotSidebar({
         channelGapDropProps(resolved.sectionId).drop(resolved.half);
       }}
     >
+      <button
+        type="button"
+        className="bh-human-inbox-entry"
+        aria-current={state.selection?.kind === 'inbox' ? 'page' : undefined}
+        onClick={() => void actions.openHumanInbox()}
+      >
+        {t('humanInbox.title')}
+      </button>{' '}
       <div className="bh-header">
         <span className={`bh-header-label${searchOpen ? ' bh-header-label-hidden' : ''}`}>
           {t('roster.messages')}
@@ -1503,7 +1523,7 @@ export function BotSidebar({
                   setSearchOpen(true);
                 }}
               >
-                <IconSearchOutline16 size={searchOpen ? 11 : 14} />
+                <IconSearchOutlineRegular size={searchOpen ? 11 : 14} />
               </button>
             </Tooltip>
             <input
@@ -1531,7 +1551,7 @@ export function BotSidebar({
                   setSearchOpen(false);
                 }}
               >
-                <IconCloseFill14 />
+                <IconCloseFillRegular />
               </button>
             ) : null}
           </div>
@@ -1552,7 +1572,7 @@ export function BotSidebar({
                     setSortMenuOpen((value) => !value);
                   }}
                 >
-                  <IconEllipsisOutline16 size={16} />
+                  <IconEllipsisOutlineRegular size={16} />
                 </button>
               </Tooltip>
             }
@@ -1578,7 +1598,7 @@ export function BotSidebar({
                     setMenuOpen((value) => !value);
                   }}
                 >
-                  <IconPlusOutline16 size={16} />
+                  <IconPlusOutlineRegular size={16} />
                 </button>
               </Tooltip>
             }
@@ -1590,7 +1610,6 @@ export function BotSidebar({
           />
         </div>
       </div>
-
       {state.status === 'loading' && state.bots.length === 0 ? (
         <div className="bh-note">{t('roster.loading')}</div>
       ) : null}
@@ -1611,7 +1630,6 @@ export function BotSidebar({
           {query.length === 0 && hiddenItems.length > 0 ? t('hidden.all') : t('roster.noMatch')}
         </div>
       ) : null}
-
       {batchError !== undefined ? (
         <div className="bh-error">
           {t(
@@ -1623,7 +1641,6 @@ export function BotSidebar({
           )}
         </div>
       ) : null}
-
       {hasPinnableChannels ? (
         <div
           className={`bh-pin-zone${hasPinnedChannels ? ' bh-pin-zone-filled' : ' bh-pin-zone-empty'}${!hasPinnedChannels && !pinZoneArmed ? ' bh-pin-zone-hidden' : ''}${pinZoneHovered ? ' bh-pin-zone-active' : ''}`}
@@ -1675,7 +1692,7 @@ export function BotSidebar({
                       aria-label={t('pin.sort')}
                       onClick={() => setPinSortMenuOpen((value) => !value)}
                     >
-                      <IconEllipsisOutline16 />
+                      <IconEllipsisOutlineRegular />
                     </button>
                   }
                   items={pinnedSortMenuItems(t)}
@@ -1802,7 +1819,6 @@ export function BotSidebar({
           )}
         </div>
       ) : null}
-
       <div
         className={`bh-unpin-zone${!unpinZoneArmed ? ' bh-unpin-zone-hidden' : ''}${unpinZoneHovered ? ' bh-unpin-zone-active' : ''}`}
         role="region"
@@ -1836,7 +1852,6 @@ export function BotSidebar({
           {t(unpinZoneHovered ? 'pin.restore.release' : 'pin.restore.drop')}
         </span>
       </div>
-
       <div className="bh-roster-list">
         {flatBlocks.map((block) => {
           if (block.kind === 'loose') {
@@ -2021,7 +2036,7 @@ export function BotSidebar({
                   }}
                 >
                   <span className="bh-section-name">{section.name}</span>
-                  <IconChevronDownOutline14
+                  <IconChevronDownOutlineRegular
                     size={14}
                     className={
                       collapsed ? 'bh-section-chevron bh-chevron-collapsed' : 'bh-section-chevron'
@@ -2048,7 +2063,7 @@ export function BotSidebar({
                             setSectionCreateMenuId(undefined);
                           }}
                         >
-                          <IconEllipsisOutline16 />
+                          <IconEllipsisOutlineRegular />
                         </button>
                       }
                       items={sectionMenuItems(t, {
@@ -2080,7 +2095,7 @@ export function BotSidebar({
                             );
                           }}
                         >
-                          <IconPlusOutline16 />
+                          <IconPlusOutlineRegular />
                         </button>
                       }
                       items={sectionCreateMenuItems(t)}
@@ -2107,7 +2122,6 @@ export function BotSidebar({
           );
         })}
       </div>
-
       {createRequest?.kind === 'bot' ? (
         <CreatePersonaBotModal
           t={t}
@@ -2156,7 +2170,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {renameTarget !== undefined ? (
         <SectionRenameModal
           t={t}
@@ -2186,7 +2199,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {deleteTarget !== undefined ? (
         <SectionDeleteModal
           t={t}
@@ -2202,13 +2214,16 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {hiddenManagerOpen ? (
         <HiddenChannelsModal
           items={hiddenItems}
           t={t}
           onRestore={(channelId) => {
             void actions.setChannelHidden(channelId, false);
+          }}
+          onOpen={(channelId) => {
+            setHiddenManagerOpen(false);
+            void actions.openChannel(channelId);
           }}
           onClose={() => {
             setHiddenManagerOpen(false);
@@ -2228,7 +2243,6 @@ export function BotSidebar({
           }}
         />
       ) : null}
-
       {channelMenu !== undefined && (channelMenu.channelIds?.length ?? 0) > 1 ? (
         <BulkChannelMenu
           menu={channelMenu}
@@ -2509,17 +2523,17 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
     {
       id: 'bot',
       label: t('roster.menu.createBot'),
-      icon: <IconAgentPresetOutline16 size={16} />,
+      icon: <IconAgentPresetOutlineRegular size={16} />,
     },
     {
       id: 'channel',
       label: t('roster.menu.createChannel'),
-      icon: <IconNewChatOutline16 size={16} />,
+      icon: <IconNewChatOutlineRegular size={16} />,
     },
     {
       id: 'section',
       label: t('roster.menu.createSection'),
-      icon: <IconFolderOpenOutline16 size={16} />,
+      icon: <IconFolderOpenOutlineRegular size={16} />,
     },
   ];
 }

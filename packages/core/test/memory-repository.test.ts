@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { ensureMemoryRepository, inspectMemoryRepository } from '../src/memory/repository.js';
 import { createTempRoot } from './helpers.js';
@@ -12,6 +12,19 @@ function headOf(memoryDir: string): string {
 }
 
 describe('Memory Repository lifecycle', () => {
+  it('reports a missing Git executable without exposing a raw spawn error', () => {
+    const root = createTempRoot();
+    vi.stubEnv('PATH', join(root, 'no-git-on-path'));
+    try {
+      expect(ensureMemoryRepository({ memoryDir: join(root, 'memory') })).toMatchObject({
+        ok: false,
+        code: 'git-not-found',
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('creates a real Git repository with a seed commit and is idempotent', () => {
     const memoryDir = join(createTempRoot(), 'memory');
 
@@ -54,6 +67,33 @@ describe('Memory Repository lifecycle', () => {
     expect(inspectMemoryRepository({ memoryDir })).toMatchObject({ state: 'ready', dirty: false });
   });
 
+  it('does not add seed files when reopening an imported Git branch', () => {
+    const root = createTempRoot();
+    const source = join(root, 'source');
+    const memoryDir = join(root, 'memory');
+    mkdirSync(source);
+    execFileSync('git', ['init', '-b', 'imported'], { cwd: source });
+    execFileSync('git', ['config', 'user.name', 'QA'], { cwd: source });
+    execFileSync('git', ['config', 'user.email', 'qa@example.invalid'], { cwd: source });
+    writeFileSync(join(source, 'code.ts'), 'export const imported = true;\n');
+    execFileSync('git', ['add', 'code.ts'], { cwd: source });
+    execFileSync('git', ['commit', '-m', 'Imported memory'], { cwd: source });
+    ensureMemoryRepository({ memoryDir });
+    execFileSync('git', ['remote', 'add', 'qa', source], { cwd: memoryDir });
+    execFileSync('git', ['fetch', 'qa', 'imported'], { cwd: memoryDir });
+    execFileSync('git', ['switch', '-c', 'imported', 'FETCH_HEAD'], { cwd: memoryDir });
+    const head = headOf(memoryDir);
+
+    expect(existsSync(join(memoryDir, '.gitattributes'))).toBe(false);
+    expect(ensureMemoryRepository({ memoryDir })).toEqual({
+      ok: true,
+      memoryDir,
+      created: false,
+    });
+    expect(headOf(memoryDir)).toBe(head);
+    expect(existsSync(join(memoryDir, '.gitattributes'))).toBe(false);
+    expect(inspectMemoryRepository({ memoryDir })).toMatchObject({ state: 'ready', dirty: false });
+  });
   it('reports a missing or invalid repository without mutating it', () => {
     const root = createTempRoot();
     expect(inspectMemoryRepository({ memoryDir: join(root, 'absent') })).toEqual({

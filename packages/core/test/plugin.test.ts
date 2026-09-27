@@ -20,10 +20,11 @@ import { createTempRoot, remember } from './helpers.js';
 import { createFakeRosterDomain } from './roster-fixture.js';
 
 interface Stubs {
-  tools: { register: ReturnType<typeof vi.fn> };
+  tools: { register: ReturnType<typeof vi.fn>; guard: ReturnType<typeof vi.fn> };
   systemPrompt: { section: ReturnType<typeof vi.fn> };
   sessions: { list: ReturnType<typeof vi.fn> };
   agents: { create: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
+  skills: { register: ReturnType<typeof vi.fn> };
 }
 
 const contexts: Context[] = [];
@@ -44,15 +45,17 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
   const ctx = new Context();
   contexts.push(ctx);
   const stubs: Stubs = {
-    tools: { register: vi.fn(() => () => undefined) },
+    tools: { register: vi.fn(() => () => undefined), guard: vi.fn(() => () => undefined) },
     systemPrompt: { section: vi.fn(() => () => undefined) },
     sessions: { list: vi.fn(() => []) },
     agents: { create: vi.fn(), resume: vi.fn() },
+    skills: { register: vi.fn(() => () => undefined) },
   };
   ctx.provide('tools', stubs.tools);
   ctx.provide('systemPrompt', stubs.systemPrompt);
   ctx.provide('sessions', stubs.sessions);
   ctx.provide('agents', stubs.agents as never);
+  ctx.provide('skills', stubs.skills);
   return { ctx, stubs };
 }
 
@@ -71,6 +74,7 @@ describe('plugin entry', () => {
     expect(ctx.get('botharnessBridge')).toBeUndefined();
     expect(stubs.tools.register).not.toHaveBeenCalled();
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
+    expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 
   it('provides the core without model-visible memory tools', () => {
@@ -89,6 +93,18 @@ describe('plugin entry', () => {
       runtime: expect.anything(),
     });
     expect(stubs.tools.register).not.toHaveBeenCalled();
+  });
+
+  it('leaves the operational-logs skill unregistered until developer mode', async () => {
+    const { ctx, stubs } = createStubContext();
+
+    apply(ctx, { enabled: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    // Default off: the DeveloperModeSkillGate registers only on a bridge
+    // `developerModeSet` report (gate transitions unit-tested in
+    // log-skill.test.ts; the method-to-gate drive in bridge-methods.test.ts).
+    expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 
   it('rebuilds the activity projection from owned Session logs and follows live events', () => {
@@ -226,6 +242,7 @@ describe('plugin entry', () => {
       'list',
       'get',
       'create',
+      'createFromGit',
       'update',
       'pause',
       'resume',
@@ -233,14 +250,43 @@ describe('plugin entry', () => {
       'channelDm',
       'channelCreate',
       'channelRename',
+      'channelGroupInviteCancel',
+      'channelGroupMemberRemove',
+      'channelGroupJoinDecide',
+      'channelGroupWakeSet',
+      'channelGroupDelete',
       'channelMessages',
       'channelTimeline',
       'channelReadPosition',
       'channelMarkRead',
       'channelSend',
+      'botAttention',
+      'humanAttention',
+      'humanAttentionIgnore',
       'assignments',
       'assignment',
+      'workspaceOptions',
+      'grants',
+      'grantCreate',
+      'grantRevoke',
+      'assignmentAccessGet',
+      'assignmentAccessSet',
+      'toolApprovalRules',
+      'toolApprovalRuleRevoke',
+      'toolApprovalStatus',
+      'toolApprovalDecide',
+      'userQuestionStatus',
+      'userQuestionAnswer',
       'sessions',
+      'sessionOwner',
+      'memorySnapshot',
+      'memoryFile',
+      'memoryHistory',
+      'memoryDiff',
+      'memoryGitGraph',
+      'memoryGitCommitDiff',
+      'memorySave',
+      'memoryRepair',
       'rosterGet',
       'sectionCreate',
       'sectionRename',
@@ -251,6 +297,7 @@ describe('plugin entry', () => {
       'pinsSet',
       'hiddenSet',
       'rosterBatch',
+      'developerModeSet',
     ]);
   });
 

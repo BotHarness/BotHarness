@@ -7,20 +7,22 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const Tag = ({ children }: PropsWithChildren) => createElement('span', null, children);
   return {
     Button: stub,
-    IconAgentPresetOutline16: stub,
-    IconChevronDownOutline14: stub,
-    IconCloseOutline16: stub,
-    IconEllipsisOutline16: stub,
-    IconFolderOpenOutline16: stub,
-    IconNewChatOutline16: stub,
-    IconPlusOutline16: stub,
-    IconSearchOutline16: stub,
-    IconSendOutline16: stub,
-    IconTrashOutline16: stub,
+    IconAgentPresetOutlineRegular: stub,
+    IconCheckOutlineRegular: stub,
+    IconChevronDownOutlineRegular: stub,
+    IconCloseOutlineRegular: stub,
+    IconEllipsisOutlineRegular: stub,
+    IconFolderOpenOutlineRegular: stub,
+    IconNewChatOutlineRegular: stub,
+    IconPlusOutlineRegular: stub,
+    IconSearchOutlineRegular: stub,
+    IconSendOutlineRegular: stub,
+    IconTrashOutlineRegular: stub,
     Input: stub,
     Menu: stub,
     MarkdownText: stub,
     Modal: stub,
+    SegmentedControl: stub,
     StateDot: stub,
     Tag,
     Tooltip: stub,
@@ -55,7 +57,7 @@ describe('localization coverage', () => {
 
   it('renders Channel sidebar entries in English', () => {
     const entry = createChannelSidebarBuiltins(tEn).find(
-      (candidate) => candidate.id === 'assignments',
+      (candidate) => candidate.id === 'sessions',
     );
     expect(entry).toBeDefined();
     const markup = renderToStaticMarkup(
@@ -72,7 +74,56 @@ describe('localization coverage', () => {
         },
       }),
     );
-    expect(markup).toContain('Assignments');
+    expect(markup).toContain('Sessions');
+  });
+
+  it('renders Human-openable Group invitation status and management controls', () => {
+    const group = {
+      id: 'group-team',
+      type: 'group' as const,
+      name: 'Team',
+      members: ['ada', 'bea'],
+      ownerBotSlug: 'ada',
+      invitations: [
+        {
+          id: 'invite-bea',
+          inviterBotSlug: 'ada',
+          targetBotSlug: 'bea',
+          status: 'accepted' as const,
+          createdAt: '2026-09-25T00:00:00.000Z',
+        },
+        {
+          id: 'invite-cee',
+          inviterBotSlug: 'ada',
+          targetBotSlug: 'cee',
+          status: 'pending' as const,
+          createdAt: '2026-09-25T00:00:00.000Z',
+        },
+      ],
+      createdAt: '2026-09-25T00:00:00.000Z',
+      updatedAt: '2026-09-25T00:00:00.000Z',
+    };
+    store.setRoster([], [group]);
+    store.select({ kind: 'channel', channelId: group.id });
+    store.setConversation({ status: 'ready', channel: group });
+    const entry = createChannelSidebarBuiltins(tEn).find(
+      (candidate) => candidate.id === 'members',
+    )!;
+    const markup = renderToStaticMarkup(
+      createElement(entry.component, {
+        scope: 'channel',
+        channelId: group.id,
+        botSlug: undefined,
+        actions: {} as BridgeActions,
+        t: tEn,
+      }),
+    );
+    expect(markup).toContain('Creator');
+    expect(markup).toContain('Pending');
+    expect(markup).toContain('Accepted');
+    expect(markup).toContain('Cancel invitation');
+    expect(markup).toContain('Remove from Group');
+    expect(markup).toContain('Delete Group');
   });
 
   it('renders the empty conversation state in English', () => {

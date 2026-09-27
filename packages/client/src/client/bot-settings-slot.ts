@@ -2,7 +2,7 @@
  * The BotHarness settings section's child slot: one seat per optional feature
  * package that owns BotHarness-adjacent settings. The section itself declares
  * the slot (it owns the page) and the feature registers its rows into it, so
- * `@botharness/client` never depends on the Computer being installed.
+ * `@botharness/ui` never depends on the Computer being installed.
  */
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {

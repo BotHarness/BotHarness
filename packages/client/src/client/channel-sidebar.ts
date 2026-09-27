@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
+import type { ClientState } from './store.js';
 
 /** Which selection a Channel sidebar entry belongs to. */
 export type ChannelSidebarScope = 'channel' | 'personabot';
@@ -10,8 +11,11 @@ export type ChannelSidebarScope = 'channel' | 'personabot';
 export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;
   channelId: string;
+  conversationRevision?: number;
   botSlug: string | undefined;
   actions: BridgeActions;
+  onMemoryCommitSelect?: ((sha: string) => void) | undefined;
+  selectedMemoryCommitSha?: string | undefined;
   /** Locale-bound translate of the BotHarness namespace. */
   t: BotHarnessTranslate;
 }
@@ -29,8 +33,12 @@ export interface ChannelSidebarEntry {
   order?: number;
   scope: ChannelSidebarScope;
   component: ComponentType<ChannelSidebarEntryProps>;
+  /** Optional control rendered beside the collapsible entry heading. */
+  headerAction?: ComponentType<ChannelSidebarEntryProps>;
   /** Optional short status rendered beside the label (counts, state). */
   badge?: ComponentType<ChannelSidebarEntryProps>;
+  /** Hide an entry when this selection has no relevant read-model facts. */
+  visible?: (state: ClientState) => boolean;
 }
 
 /** Ordered, disposable registry the Channel sidebar shell renders from. */

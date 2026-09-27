@@ -17,17 +17,17 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     createElement('span', { 'data-icon': name, className: props.className });
   return {
     Button: (props: { children?: ReactNode }) => createElement('button', null, props.children),
-    IconAgentPresetOutline16: icon('IconAgentPresetOutline16'),
-    IconCheckOutline16: icon('IconCheckOutline16'),
-    IconChevronDownOutline14: icon('IconChevronDownOutline14'),
+    IconAgentPresetOutlineRegular: icon('IconAgentPresetOutlineRegular'),
+    IconCheckOutlineRegular: icon('IconCheckOutlineRegular'),
+    IconChevronDownOutlineRegular: icon('IconChevronDownOutlineRegular'),
     IconCloseFill14: icon('IconCloseFill14'),
-    IconEditOutline16: icon('IconEditOutline16'),
-    IconEllipsisOutline16: icon('IconEllipsisOutline16'),
-    IconFolderOpenOutline16: icon('IconFolderOpenOutline16'),
-    IconNewChatOutline16: icon('IconNewChatOutline16'),
-    IconPlusOutline16: icon('IconPlusOutline16'),
-    IconSearchOutline16: icon('IconSearchOutline16'),
-    IconTrashOutline16: icon('IconTrashOutline16'),
+    IconEditOutlineRegular: icon('IconEditOutlineRegular'),
+    IconEllipsisOutlineRegular: icon('IconEllipsisOutlineRegular'),
+    IconFolderOpenOutlineRegular: icon('IconFolderOpenOutlineRegular'),
+    IconNewChatOutlineRegular: icon('IconNewChatOutlineRegular'),
+    IconPlusOutlineRegular: icon('IconPlusOutlineRegular'),
+    IconSearchOutlineRegular: icon('IconSearchOutlineRegular'),
+    IconTrashOutlineRegular: icon('IconTrashOutlineRegular'),
     IconTriangleRightFill14: icon('IconTriangleRightFill14'),
     HoverCard: (props: { anchor: ReactNode; content: ReactNode }) =>
       createElement('span', { 'data-hover-card': 'true' }, props.anchor, props.content),
@@ -102,9 +102,28 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    listHostFolders: vi.fn(async () => ({
+      path: '/',
+      home: '/',
+      crumbs: [],
+      entries: [],
+      truncated: false,
+    })),
+    addWorkspaceFolder: vi.fn(async () => undefined),
+    userQuestionStatus: vi.fn(async () => 'expired' as const),
+    answerUserQuestion: vi.fn(async () => undefined),
+    authorizeWorkspacePath: vi.fn(async () => ({ id: 'grant-1' }) as never),
+    memoryDirectory: vi.fn(async () => undefined),
     load: vi.fn(async () => undefined),
     refreshRoster: vi.fn(async () => undefined),
     openBot: vi.fn(async () => undefined),
+    refreshBotInbox: vi.fn(async () => undefined),
+    openHumanInbox: vi.fn(async () => undefined),
+    refreshHumanInbox: vi.fn(async () => undefined),
+    setHumanInboxFilters: vi.fn(async () => undefined),
+    loadMoreHumanInbox: vi.fn(async () => undefined),
+    ignoreHumanReport: vi.fn(async () => undefined),
+    loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
@@ -113,11 +132,73 @@ function stubActions(): BridgeActions {
     markRead: vi.fn(async () => undefined),
     refreshChannelMessages: vi.fn(async () => undefined),
     dismissFailedMessage: vi.fn(() => false),
-    openAssignment: vi.fn(async () => undefined),
+    openSession: vi.fn(() => undefined),
+    refreshSessions: vi.fn(async () => undefined),
+    memorySnapshot: vi.fn(async () => ({ head: null, files: [], provisional: false })),
+    memoryFile: vi.fn(async () => undefined),
+    memoryHistory: vi.fn(async () => []),
+    memoryDiff: vi.fn(async () => ''),
+    memoryGitGraph: vi.fn(async () => ({
+      head: '',
+      currentBranch: 'main',
+      branches: ['main'],
+      dirty: false,
+      commits: [],
+      hasMore: false,
+    })),
+    memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
+    memoryRepair: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
+    memorySave: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
+    listWorkspaceOptions: vi.fn(async () => []),
+    listWorkspaceGrants: vi.fn(async () => []),
+    createWorkspaceGrant: vi.fn(async () => ({
+      id: 'grant-1',
+      path: '/project',
+      title: 'Project',
+      botSlug: 'atlas',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: AT,
+    })),
+    assignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    setAssignmentAccess: vi.fn(async () => ({
+      botSlug: 'ada',
+      mode: 'workspace-write' as const,
+      revision: 0,
+    })),
+    listToolApprovalRules: vi.fn(async () => []),
+    revokeToolApprovalRule: vi.fn(async () => undefined),
+    toolApprovalStatus: vi.fn(async () => 'expired' as const),
+    decideToolApproval: vi.fn(async () => undefined),
+    revokeWorkspaceGrant: vi.fn(async () => ({
+      id: 'grant-1',
+      path: '/project',
+      title: 'Project',
+      botSlug: 'atlas',
+      workspaceId: 'workspace-1',
+      workspacePath: '/project',
+      workspaceTitle: 'Project',
+      createdAt: AT,
+      revokedAt: AT,
+    })),
     send: vi.fn(async () => false),
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
+    cancelGroupInvitation: vi.fn(async () => true),
+    decideGroupJoin: vi.fn(async () => true),
+    setGroupWakePolicy: vi.fn(async () => true),
+    removeGroupMember: vi.fn(async () => true),
+    deleteGroupChannel: vi.fn(async () => true),
     createSection: vi.fn(async () => undefined),
     renameSection: vi.fn(async () => true),
     removeSection: vi.fn(async () => true),
@@ -160,6 +241,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
   sortModes: {},
@@ -218,6 +300,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
     sortModes: {},
@@ -239,6 +322,18 @@ afterEach(() => {
 });
 
 describe('bot sidebar rows', () => {
+  it('places the Human Inbox above Messages and keeps one compact entry', () => {
+    store.select({ kind: 'inbox' });
+    const expanded = renderSidebar();
+    expect(expanded.indexOf('bh-human-inbox-entry')).toBeLessThan(
+      expanded.indexOf('bh-header-label'),
+    );
+    expect(expanded).toContain('aria-current="page"');
+    expect(expanded).toContain('收件箱');
+    const compact = renderSidebar(false);
+    expect(compact.match(/bh-human-inbox-entry/g)).toHaveLength(1);
+  });
+
   it('renders the glyph-free section header anatomy', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
     store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
@@ -251,7 +346,7 @@ describe('bot sidebar rows', () => {
     expect(markup).not.toContain('bh-arrow');
     expect(markup).not.toContain('bh-row-slot');
     expect(markup).toContain('bh-section-name');
-    expect(markup).toContain('data-icon="IconChevronDownOutline14"');
+    expect(markup).toContain('data-icon="IconChevronDownOutlineRegular"');
     expect(markup).toContain('bh-section-chevron');
     expect(markup).not.toContain('bh-chevron-collapsed');
     expect(markup).toContain('bh-row-actions');
@@ -438,9 +533,9 @@ describe('bot sidebar rows', () => {
 
   it('orders the header icons search, ellipsis, plus', () => {
     const markup = renderSidebar();
-    const search = markup.indexOf('data-icon="IconSearchOutline16"');
-    const ellipsis = markup.indexOf('data-icon="IconEllipsisOutline16"');
-    const plus = markup.indexOf('data-icon="IconPlusOutline16"');
+    const search = markup.indexOf('data-icon="IconSearchOutlineRegular"');
+    const ellipsis = markup.indexOf('data-icon="IconEllipsisOutlineRegular"');
+    const plus = markup.indexOf('data-icon="IconPlusOutlineRegular"');
 
     expect(search).toBeGreaterThan(-1);
     expect(ellipsis).toBeGreaterThan(search);
@@ -506,6 +601,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -526,7 +622,7 @@ describe('bot sidebar rows', () => {
     expect(menu.items.slice(1).every((item) => item['danger'] === undefined)).toBe(true);
     expect(
       menu.items.filter((item) => item['label'] !== undefined).map((item) => item['label']),
-    ).toEqual(['最近更新', '手动排序', '隐藏的频道']);
+    ).toEqual(['最近更新', '手动排序', '隐藏的频道与 Bot 私聊']);
     expect(menu.selectedId).toBe('manual');
   });
 
@@ -547,6 +643,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -629,6 +726,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: { s1: 'manual' },
@@ -641,6 +739,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},
@@ -669,6 +768,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
       sortModes: {},
@@ -682,6 +782,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
       sortModes: {},

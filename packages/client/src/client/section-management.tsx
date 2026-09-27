@@ -2,9 +2,9 @@ import { useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
-  IconCheckOutline16,
-  IconEditOutline16,
-  IconTrashOutline16,
+  IconCheckOutlineRegular,
+  IconEditOutlineRegular,
+  IconTrashOutlineRegular,
   type MenuEntry,
   type MenuItem,
 } from '@deepseek-ai/dsh-client-ui-primitives';
@@ -58,8 +58,8 @@ export function sectionMenuItems(
     { id: 'move-up', label: t('section.moveUp'), disabled: !canMoveUp },
     { id: 'move-down', label: t('section.moveDown'), disabled: !canMoveDown },
     { type: 'separator', id: 'section-action-separator' },
-    { id: 'rename', label: t('section.rename'), icon: <IconEditOutline16 /> },
-    { id: 'delete', label: t('section.delete'), icon: <IconTrashOutline16 />, danger: true },
+    { id: 'rename', label: t('section.rename'), icon: <IconEditOutlineRegular /> },
+    { id: 'delete', label: t('section.delete'), icon: <IconTrashOutlineRegular />, danger: true },
   ];
 }
 
@@ -76,7 +76,7 @@ function checkedTargetLabel(text: string): ReactElement {
   return (
     <span className="bh-move-checked">
       <span className="bh-move-checked-text">{text}</span>
-      <IconCheckOutline16 />
+      <IconCheckOutlineRegular />
     </span>
   );
 }

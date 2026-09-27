@@ -4,12 +4,15 @@ import { createActions } from '../src/client/actions.js';
 import {
   BridgeCallError,
   createBridgeCall,
-  parseAssignmentSummaries,
+  loadMemoryGitGraph,
+  loadMemoryGitCommitDiff,
+  loadSessionBotOwner,
   parseBotSummary,
   parseChannelMessages,
   parseChannelRecord,
   parseChannelRecords,
-  parseSessionSummaries,
+  parseOwnedSessionSummaries,
+  parseSessionBotOwner,
   type BridgeCall,
 } from '../src/client/bridge.js';
 import { createStore } from '../src/client/store.js';
@@ -53,6 +56,76 @@ const DM = {
 };
 
 describe('bridge transport', () => {
+  it('loads a bounded owner for one native root Session', async () => {
+    const owner = await loadSessionBotOwner(
+      bridgeCall({
+        sessionOwner: ({ sessionId }) => {
+          expect(sessionId).toBe('session-ada');
+          return {
+            owner: {
+              botSlug: 'ada',
+              displayName: 'Ada',
+              avatar: 'https://example.com/ada.png',
+              role: 'assignment',
+            },
+          };
+        },
+      }),
+      'session-ada',
+    );
+    expect(owner).toEqual({
+      botSlug: 'ada',
+      displayName: 'Ada',
+      avatar: 'https://example.com/ada.png',
+      role: 'assignment',
+    });
+    expect(parseSessionBotOwner({ owner: null })).toBeUndefined();
+    expect(
+      parseSessionBotOwner({ owner: { botSlug: 'ada', displayName: 'Ada', role: 'child' } }),
+    ).toBeUndefined();
+  });
+
+  it('decodes the bounded Memory Git graph and changed-file diff from the Host bridge', async () => {
+    const sha = 'a'.repeat(40);
+    const graph = await loadMemoryGitGraph(
+      bridgeCall({
+        memoryGitGraph: ({ channelId, offset }) => {
+          expect({ channelId, offset }).toEqual({ channelId: 'dm-ada', offset: 0 });
+          return {
+            head: sha,
+            currentBranch: 'main',
+            branches: ['main'],
+            dirty: false,
+            hasMore: false,
+            commits: [
+              {
+                sha,
+                parents: [],
+                subject: 'Seed',
+                authoredAt: '2026-09-25T00:00:00Z',
+                branches: ['main'],
+                status: 'accepted',
+              },
+            ],
+          };
+        },
+      }),
+      'dm-ada',
+      0,
+    );
+    expect(graph.commits[0]).toMatchObject({ sha, branches: ['main'], status: 'accepted' });
+    const detail = await loadMemoryGitCommitDiff(
+      bridgeCall({
+        memoryGitCommitDiff: ({ channelId, sha: requested }) => {
+          expect({ channelId, requested }).toEqual({ channelId: 'dm-ada', requested: sha });
+          return { sha, files: [{ path: 'MEMORY.md', status: 'A' }], diff: '+Memory' };
+        },
+      }),
+      'dm-ada',
+      sha,
+    );
+    expect(detail.files).toEqual([{ path: 'MEMORY.md', status: 'A' }]);
+  });
   it('wraps named arguments in the typert args envelope and drops undefined', async () => {
     const calls: unknown[][] = [];
     const ctx = {
@@ -163,48 +236,37 @@ describe('bridge parsers', () => {
     expect(messages[1]?.replyToPreview).toBeNull();
   });
 
-  it('parses Assignment summaries and drops malformed rows', () => {
+  it('parses owned root Sessions and drops malformed rows', () => {
     expect(
-      parseAssignmentSummaries({
-        assignments: [
+      parseOwnedSessionSummaries({
+        sessions: [
+          {
+            sessionId: 'orchestrator-1',
+            role: 'orchestrator',
+            createdAt: BOT.createdAt,
+            assignmentAccessMode: 'danger-full-access',
+          },
           {
             sessionId: 'assignment-1',
-            purpose: '核对发布状态',
-            activity: 'idle',
-            latestReport: {
-              state: 'completed',
-              summary: '发布状态正常',
-              at: '2026-09-19T00:03:00.000Z',
-            },
-            createdAt: '2026-09-19T00:02:00.000Z',
-            updatedAt: '2026-09-19T00:03:00.000Z',
+            role: 'assignment',
+            createdAt: BOT.createdAt,
+            cwdReference: '/srv/ada',
+            assignmentActivity: 'stopped',
+            assignmentAccessMode: 'danger-full-access',
           },
-          { sessionId: '', purpose: 'bad', activity: 'idle' },
+          { sessionId: 'child', role: 'subagent', createdAt: BOT.createdAt },
         ],
       }),
     ).toEqual([
-      expect.objectContaining({
+      { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
+      {
         sessionId: 'assignment-1',
-        purpose: '核对发布状态',
-        activity: 'idle',
-        latestReport: expect.objectContaining({ state: 'completed', summary: '发布状态正常' }),
-      }),
-    ]);
-  });
-
-  it('keeps session rows with a cwd and defaults a missing title', () => {
-    const sessions = parseSessionSummaries({
-      sessions: [
-        { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
-        { id: 's2', cwd: '/srv/ada' },
-        { id: 's3', title: 'no cwd', updatedAt: 'x' },
-        null,
-      ],
-    });
-
-    expect(sessions).toEqual([
-      { id: 's1', title: '研究', cwd: '/srv/ada', updatedAt: '2026-09-19T00:00:00.000Z' },
-      { id: 's2', title: '', cwd: '/srv/ada', updatedAt: '' },
+        role: 'assignment',
+        createdAt: BOT.createdAt,
+        cwdReference: '/srv/ada',
+        assignmentActivity: 'stopped',
+        assignmentAccessMode: 'danger-full-access',
+      },
     ]);
   });
 });
@@ -257,37 +319,17 @@ describe('bridge actions', () => {
         channel: { ...DM, name: payload['name'] },
         bot: { ...BOT, displayName: payload['name'] },
       }),
-      assignments: () => ({
-        assignments: [
+      sessions: () => ({
+        sessions: [
+          { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
           {
             sessionId: 'assignment-1',
-            purpose: '研究发布状态',
-            activity: 'idle',
-            latestReport: {
-              state: 'completed',
-              summary: '发布状态正常',
-              at: '2026-09-19T00:04:00.000Z',
-            },
-            createdAt: '2026-09-19T00:03:00.000Z',
-            updatedAt: '2026-09-19T00:04:00.000Z',
+            role: 'assignment',
+            createdAt: BOT.createdAt,
+            cwdReference: '/srv/ada',
+            assignmentActivity: 'idle',
           },
         ],
-      }),
-      assignment: () => ({
-        assignment: {
-          sessionId: 'assignment-1',
-          botSlug: 'ada',
-          sourceEventId: 'source-1',
-          purpose: '研究发布状态',
-          activity: 'idle',
-          latestReport: {
-            state: 'completed',
-            summary: '发布状态正常',
-            at: '2026-09-19T00:04:00.000Z',
-          },
-          createdAt: '2026-09-19T00:03:00.000Z',
-          updatedAt: '2026-09-19T00:04:00.000Z',
-        },
       }),
       rosterGet: () => ({ pins, sections: [], topOrder }),
       pinsSet: (payload) => {
@@ -303,6 +345,37 @@ describe('bridge actions', () => {
     });
     return { clientStore, actions: createActions(call, clientStore) };
   }
+
+  it('keeps Session rows visible and ignores an older refresh response', async () => {
+    const initial = { sessionId: 'initial', role: 'orchestrator', createdAt: BOT.createdAt };
+    const latest = { sessionId: 'latest', role: 'orchestrator', createdAt: BOT.createdAt };
+    const stale = { sessionId: 'stale', role: 'orchestrator', createdAt: BOT.createdAt };
+    const pending: Array<(value: unknown) => void> = [];
+    let loads = 0;
+    const { clientStore, actions } = setup({
+      sessions: () => {
+        if (++loads === 1) return { sessions: [initial] };
+        return new Promise((resolve) => pending.push(resolve));
+      },
+    });
+    await actions.load();
+    await actions.openBot('ada');
+    const first = actions.refreshSessions('ada');
+    const second = actions.refreshSessions('ada');
+    expect(pending).toHaveLength(2);
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'initial' }],
+    });
+    pending[1]!({ sessions: [latest] });
+    await second;
+    pending[0]!({ sessions: [stale] });
+    await first;
+    expect(clientStore.getSnapshot().sessions).toMatchObject({
+      status: 'ready',
+      items: [{ sessionId: 'latest' }],
+    });
+  });
 
   it('loads the roster and opens a DM with its history in chronological order', async () => {
     const { clientStore, actions } = setup();
@@ -323,14 +396,39 @@ describe('bridge actions', () => {
     expect(state.channels.find((channel) => channel.id === 'dm-ada')?.latestMessage?.body).toBe(
       'newer',
     );
-    expect(state.assignments.items.map((assignment) => assignment.sessionId)).toEqual([
+    expect(state.sessions.items.map((session) => session.sessionId)).toEqual([
+      'orchestrator-1',
       'assignment-1',
     ]);
-    await actions.openAssignment('assignment-1');
-    expect(clientStore.getSnapshot().assignments.selected).toMatchObject({
-      sessionId: 'assignment-1',
-      sourceEventId: 'source-1',
+  });
+
+  it('refreshes owned Sessions from a Channel-selected DM after sending', async () => {
+    let reads = 0;
+    const { clientStore, actions } = setup({
+      sessions: () => {
+        reads += 1;
+        return {
+          sessions: [
+            { sessionId: 'orchestrator-1', role: 'orchestrator', createdAt: BOT.createdAt },
+          ],
+        };
+      },
     });
+    await actions.load();
+    await actions.openChannel('dm-ada');
+    expect(reads).toBe(1);
+    expect(clientStore.getSnapshot().sessions.items[0]?.sessionId).toBe('orchestrator-1');
+    await actions.send('检查进度');
+    expect(reads).toBe(2);
+  });
+
+  it('clears owned Sessions when selecting a Group after a Bot DM', async () => {
+    const { clientStore, actions } = setup();
+    await actions.load();
+    await actions.openChannel('dm-ada');
+    expect(clientStore.getSnapshot().sessions.items).toHaveLength(2);
+    await actions.openChannel('group-team');
+    expect(clientStore.getSnapshot().sessions.items).toEqual([]);
   });
 
   it('reopens DM and group Channels around the profile read anchor', async () => {
@@ -835,7 +933,7 @@ describe('bridge actions', () => {
   });
 
   it('echoes a DM message locally, then reconciles it with the committed message', async () => {
-    let assignmentReads = 0;
+    let sessionReads = 0;
     let resolveSend: (value: { message: Record<string, unknown> }) => void = () => undefined;
     let requestedId = '';
     const response = new Promise<{ message: Record<string, unknown> }>((resolve) => {
@@ -846,9 +944,9 @@ describe('bridge actions', () => {
         requestedId = String(payload['messageId']);
         return response;
       },
-      assignments: () => {
-        assignmentReads += 1;
-        return { assignments: [] };
+      sessions: () => {
+        sessionReads += 1;
+        return { sessions: [] };
       },
     });
     await actions.load();
@@ -882,7 +980,7 @@ describe('bridge actions', () => {
         body: 'hello',
       },
     ]);
-    expect(assignmentReads).toBe(2);
+    expect(sessionReads).toBe(2);
     expect(settled.channels.find((channel) => channel.id === 'dm-ada')?.updatedAt).toBe(
       '2026-09-19T00:03:00.000Z',
     );
@@ -1209,6 +1307,30 @@ describe('bridge actions', () => {
     });
   });
 
+  it('routes Git-backed creation through its async Host endpoint and opens the DM', async () => {
+    const imports: Array<Record<string, unknown>> = [];
+    const { actions, clientStore } = setup({
+      createFromGit: (payload) => {
+        imports.push(payload);
+        return { bot: { ...BOT, slug: 'bot-imported', displayName: payload['displayName'] } };
+      },
+      channelDm: () => ({ channel: { ...DM, id: 'dm-bot-imported', botSlug: 'bot-imported' } }),
+    });
+    await actions.load();
+
+    const created = await actions.createBot({
+      displayName: 'Imported',
+      roles: [],
+      gitUrl: 'https://github.com/owner/memory.git',
+    });
+
+    expect(imports).toEqual([
+      { displayName: 'Imported', roles: [], gitUrl: 'https://github.com/owner/memory.git' },
+    ]);
+    expect(created.slug).toBe('bot-imported');
+    expect(clientStore.getSnapshot().selection).toEqual({ kind: 'bot', slug: 'bot-imported' });
+    await expect(actions.send('What is in your memory?')).resolves.toBe(true);
+  });
   it('creates a PersonaBot DM as the first row of a target section', async () => {
     const assignments: Array<Record<string, unknown>> = [];
     const { actions } = setup({
@@ -1241,6 +1363,56 @@ describe('bridge actions', () => {
       status: 'error',
       error: 'RPC is not available',
     });
+  });
+
+  it('keeps successful roster metadata when the channel refresh fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failChannels = false;
+    let pins: string[] = [];
+    const { clientStore, actions } = setup({
+      channels: () => {
+        if (failChannels) throw new Error('channel read failed');
+        return { channels: [GROUP, DM] };
+      },
+      rosterGet: () => ({ pins, sections: [] }),
+    });
+    try {
+      await actions.load();
+      failChannels = true;
+      pins = ['ada'];
+      await actions.refreshRoster();
+      expect(clientStore.getSnapshot().roster.pins).toEqual(['ada']);
+      expect(clientStore.getSnapshot().channels.map((channel) => channel.id)).toEqual([
+        GROUP.id,
+        DM.id,
+      ]);
+      expect(clientStore.getSnapshot().roster.readOnly).toBe(false);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it('removes a deleted Group locally even when the reload fails', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    let failChannels = false;
+    const { clientStore, actions } = setup({
+      channels: () => {
+        if (failChannels) throw new Error('channel read failed');
+        return { channels: [GROUP, DM] };
+      },
+      channelGroupDelete: () => ({ deleted: true }),
+    });
+    try {
+      await actions.load();
+      clientStore.select({ kind: 'channel', channelId: GROUP.id });
+      clientStore.setConversation({ channel: GROUP });
+      failChannels = true;
+      await expect(actions.deleteGroupChannel(GROUP.id)).resolves.toBe(true);
+      expect(clientStore.getSnapshot().selection).toBeUndefined();
+      expect(clientStore.getSnapshot().channels.map((channel) => channel.id)).toEqual([DM.id]);
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('mirrors the host arrangement into the roster state', async () => {
@@ -1575,5 +1747,55 @@ describe('bridge actions', () => {
       readOnly: false,
     });
     warn.mockRestore();
+  });
+});
+
+describe('Workspace folder authorization action', () => {
+  it('uses the Host picker, DSH Workspace registration, and BotHarness Grant in that order', async () => {
+    const steps: string[] = [];
+    const grant = {
+      id: 'grant-1',
+      botSlug: 'ada',
+      workspaceId: 'workspace-1',
+      workspacePath: '/tmp/project',
+      workspaceTitle: 'project',
+      createdAt: '2026-09-24T00:00:00.000Z',
+    };
+    const call = bridgeCall({
+      grantCreate(payload) {
+        steps.push('grant');
+        expect(payload).toEqual({ slug: 'ada', workspaceId: 'workspace-1' });
+        return { grant };
+      },
+    });
+    const actions = createActions(call, createStore(), {
+      async pickDirectory() {
+        steps.push('pick');
+        return '/tmp/project';
+      },
+      async createWorkspace(input) {
+        steps.push('register');
+        expect(input).toEqual({ path: '/tmp/project' });
+        return { workspaceId: 'workspace-1' };
+      },
+    });
+
+    await expect(actions.addWorkspaceFolder('ada')).resolves.toMatchObject(grant);
+    expect(steps).toEqual(['pick', 'register', 'grant']);
+  });
+
+  it('does not register or grant a cancelled folder choice', async () => {
+    const createWorkspace = vi.fn(async () => ({ workspaceId: 'workspace-1' }));
+    const call: BridgeCall = vi.fn(async () => {
+      throw new Error('unexpected Grant call');
+    });
+    const actions = createActions(call, createStore(), {
+      pickDirectory: async () => null,
+      createWorkspace,
+    });
+
+    await expect(actions.addWorkspaceFolder('ada')).resolves.toBeUndefined();
+    expect(createWorkspace).not.toHaveBeenCalled();
+    expect(call).not.toHaveBeenCalled();
   });
 });

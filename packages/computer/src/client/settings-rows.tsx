@@ -4,15 +4,15 @@
  * shared settings scope, use the Host's directory picker, and drive the
  * export/import endpoints with an explicit authorization step. Copy stays in
  * this bundle's own words; the section's row classes come from
- * `@botharness/client`, which is always mounted when this page renders.
+ * `@botharness/ui`, which is always mounted when this page renders.
  * @module @botharness/computer/settings-rows
  */
 
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import {
-  IconChevronDownOutline14,
-  IconFolderOpenOutline16,
+  IconChevronDownOutlineRegular,
+  IconFolderOpenOutlineRegular,
   Menu,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
@@ -316,7 +316,7 @@ function Selector({
       onClick={onToggle}
     >
       {label}
-      <IconChevronDownOutline14 className="bh-settings-chevron" />
+      <IconChevronDownOutlineRegular className="bh-settings-chevron" />
     </button>
   );
 }
@@ -582,7 +582,7 @@ export function ComputerSettingsRows({
               disabled={!writable}
               onClick={pickExportDir}
             >
-              <IconFolderOpenOutline16 size={14} />
+              <IconFolderOpenOutlineRegular size={14} />
               {t('rows.exportDir.pick')}
             </button>
           ) : null}

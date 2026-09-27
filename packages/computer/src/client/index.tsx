@@ -37,12 +37,12 @@ import {
 } from './locale.js';
 import {
   Button,
-  IconFullscreenOutline16,
+  IconFullscreenOutlineRegular,
   Pill,
   StateDot,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
-import type { SettingsScope } from '@deepseek-ai/dsh-client-ui-settings/client';
+import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 
 import { COMPUTER_SETTINGS_NAMESPACE, type ComputerSettings } from '../settings.js';
 import type { ComputerStorage } from '../provider.js';
@@ -57,7 +57,7 @@ export const name = 'botharness-computer-client';
 
 /**
  * The Channel sidebar registry is a client-side service provided by
- * `@botharness/client`; the entry types are duplicated structurally so this
+ * `@botharness/ui`; the entry types are duplicated structurally so this
  * bundle stays self-contained (importing that package at runtime would inline
  * its client code into ours).
  */
@@ -376,7 +376,7 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
           gap: 6,
         }}
       >
-        <IconFullscreenOutline16 size={14} />
+        <IconFullscreenOutlineRegular size={14} />
         {t('entry.openFullscreen')}
       </Pill>
     </div>
@@ -458,6 +458,75 @@ function ScaledFrame({
 }
 
 /** minimize-2: two arrows converging, used to collapse the fullscreen viewer. */
+/** One operational-log row as the read API returns it. */
+export interface RecentLogRow {
+  readonly id: number;
+  readonly ts: number;
+  readonly plugin: string;
+  readonly owner: string;
+  readonly kind: string;
+  readonly detail: string;
+}
+
+/** Pure newest-first list; the container supplies rows and the empty state. */
+export function RecentLogsList({
+  entries,
+}: {
+  readonly entries: readonly RecentLogRow[];
+}): ReactElement {
+  return (
+    <div style={terminalStyle}>
+      {entries.map((entry) => (
+        <div key={entry.id}>
+          {new Date(entry.ts).toLocaleTimeString()} [{entry.kind}] {entry.detail}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Collapsed "recent activity" section under the resting card chrome.
+ * Fetches once on first expand; a closed section costs no requests.
+ */
+export function RecentLogs({ t }: { readonly t: ComputerTranslate }): ReactElement {
+  const [open, setOpen] = useState(false);
+  const [entries, setEntries] = useState<readonly RecentLogRow[] | undefined>(undefined);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    if (!open || entries !== undefined || failed) return () => {};
+    let cancelled = false;
+    requestJson<{ entries: RecentLogRow[] }>('/api/computer/logs?limit=10')
+      .then((result) => {
+        if (!cancelled) setEntries(result.entries);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, entries, failed]);
+  return (
+    <div>
+      <button type="button" onClick={() => setOpen(!open)} style={buttonStyle}>
+        {t('entry.recentLogs')}
+      </button>
+      {open ? (
+        failed ? (
+          <div style={noteStyle}>{t('entry.recentLogs.failed')}</div>
+        ) : entries === undefined ? (
+          <div style={noteStyle}>…</div>
+        ) : entries.length === 0 ? (
+          <div style={noteStyle}>{t('entry.recentLogs.empty')}</div>
+        ) : (
+          <RecentLogsList entries={entries} />
+        )
+      ) : null}
+    </div>
+  );
+}
+
 function CollapseIcon(): ReactElement {
   return (
     <svg
@@ -831,6 +900,7 @@ function RunningCard({
               {t('entry.reconnect')}
             </button>
           </div>
+          <RecentLogs t={t} />
         </Fragment>
       )}
     </div>
@@ -1163,10 +1233,8 @@ function ComputerEntry({
 
 export function apply(ctx: ClientContext): void {
   const settingsPrefs = new ComputerSettingsPrefs();
-  ctx.inject(['settingsScope'], (settingsCtx) => {
-    const scope = settingsCtx.settingsScope.bind<ComputerSettings>({
-      namespace: COMPUTER_SETTINGS_NAMESPACE,
-    }) as unknown as ComputerSettingsScope;
+  ctx.inject(['configForms'], (settingsCtx) => {
+    const scope = settingsCtx.configForms.get<ComputerSettings>(COMPUTER_SETTINGS_NAMESPACE) as unknown as ComputerSettingsScope;
     const release = settingsPrefs.attach(scope);
     return () => {
       release();

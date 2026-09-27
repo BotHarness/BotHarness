@@ -1,5 +1,7 @@
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
+import { createMemoryAcceptance, type MemoryAcceptance } from './accepted.js';
 import { inspectMemoryRepository, type MemoryRepositoryInspection } from './repository.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
 
@@ -10,10 +12,11 @@ export interface MemoryAgentRef {
 export interface MemoryServiceOptions {
   registry: PersonaBotRegistry;
   ownership: SessionOwnership;
+  database?: OperationalDatabaseOwner;
   now?: () => Date;
 }
 
-export interface MemoryService {
+export interface MemoryService extends MemoryAcceptance {
   /**
    * Resolve the Memory Repository of the PersonaBot that owns one Session.
    * Ownership is explicit; cwd, workspace membership, and UI selection never
@@ -29,6 +32,13 @@ export interface MemoryService {
    * Human edited the file. Unowned or unready Sessions contribute nothing.
    */
   personaForSession(sessionId: string | undefined): string;
+  /**
+   * Compaction-boundary persona refresh: compare the current PERSONA.md body
+   * against the Session's recorded snapshot and overwrite only on difference.
+   * Unowned, unknown-bot, or unready Sessions report no refresh. An empty body
+   * follows the same rule as first assembly: a missing file reads as no persona.
+   */
+  refreshPersonaAfterCompaction(botSlug: string, sessionId: string): { refreshed: boolean };
   /** Explicit repository path for diagnostics and repair surfaces. */
   memoryDirFor(sessionId: string | undefined): string | undefined;
   /** Repository health for the Memory surface; never mutates. */
@@ -38,6 +48,19 @@ export interface MemoryService {
 export function createMemoryService(options: MemoryServiceOptions): MemoryService {
   const { registry, ownership } = options;
   const stores = new Map<string, MemoryStore>();
+  const acceptance =
+    options.database === undefined
+      ? undefined
+      : createMemoryAcceptance({
+          registry,
+          ownership,
+          database: attachOperationalModule(options.database, 'memory'),
+          ...(options.now === undefined ? {} : { now: options.now }),
+        });
+  const requireAcceptance = (): MemoryAcceptance => {
+    if (acceptance === undefined) throw new Error('Memory acceptance storage is unavailable');
+    return acceptance;
+  };
 
   const memoryDirFor = (sessionId: string | undefined): string | undefined => {
     if (sessionId === undefined || sessionId.length === 0) return undefined;
@@ -81,10 +104,44 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     return ownership.recordPersonaSnapshot(sessionId, body, at).body;
   };
 
+  const refreshPersonaAfterCompaction = (
+    botSlug: string,
+    sessionId: string,
+  ): { refreshed: boolean } => {
+    const owner = ownership.resolve(sessionId);
+    if (owner === undefined || owner.botSlug !== botSlug) return { refreshed: false };
+    const store = storeForSession(sessionId);
+    if (store === undefined) return { refreshed: false };
+    const current = store.persona() ?? '';
+    if (ownership.personaSnapshot(sessionId)?.body === current) return { refreshed: false };
+    ownership.refreshPersonaSnapshot(
+      sessionId,
+      current,
+      (options.now ?? (() => new Date()))().toISOString(),
+    );
+    return { refreshed: true };
+  };
+
   return {
+    continueFromCommit: (input) => requireAcceptance().continueFromCommit(input),
+    switchBranch: (input) => requireAcceptance().switchBranch(input),
+    prepareTurn: (botSlug, sessionId, options) =>
+      requireAcceptance().prepareTurn(botSlug, sessionId, options),
+    reconcileTurn: (input) => requireAcceptance().reconcileTurn(input),
+    takeTurnAnnotation: (input) => requireAcceptance().takeTurnAnnotation(input),
+    abortTurn: (botSlug, sessionId) => requireAcceptance().abortTurn(botSlug, sessionId),
+    snapshot: (botSlug) => requireAcceptance().snapshot(botSlug),
+    readAccepted: (botSlug, path) => requireAcceptance().readAccepted(botSlug, path),
+    history: (botSlug, limit) => requireAcceptance().history(botSlug, limit),
+    diff: (botSlug, sha) => requireAcceptance().diff(botSlug, sha),
+    gitGraph: (botSlug, offset) => requireAcceptance().gitGraph(botSlug, offset),
+    gitCommitDiff: (botSlug, sha) => requireAcceptance().gitCommitDiff(botSlug, sha),
+    saveHuman: (input) => requireAcceptance().saveHuman(input),
+    repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,
     repositoryFor,
     personaForSession,
+    refreshPersonaAfterCompaction,
     storeForSession,
     storeForAgent: (agent) => storeForSession(agent?.session?.id),
   };

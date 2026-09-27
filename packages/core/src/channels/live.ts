@@ -1,8 +1,10 @@
 import type { ChannelDraft, ChannelDraftEvent } from './draft.js';
+import type { ChannelMessage } from './channel.js';
 import type { ChannelMessageCommit, ChannelStore } from './store.js';
 
 export const CHANNEL_STREAM_PATH = '/api/botharness/stream';
 export const CHANNEL_COMMIT_EVENT = 'channel/message';
+export const CHANNEL_ADMISSION_EVENT = 'channel/admission';
 export const CHANNEL_DRAFT_EVENT = 'channel/draft';
 export const CHANNEL_DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
 export const CHANNEL_DRAFT_SETTLED_EVENT = 'channel/draft-settled';
@@ -27,12 +29,14 @@ type PublishedDraftEvent =
 interface Subscriber {
   push(commit: ChannelMessageCommit): void;
   pushDraft(event: PublishedDraftEvent): void;
+  pushAdmission(messageId: string, message: ChannelMessage): void;
   close(): void;
 }
 
 export interface ChannelLiveHub {
   open(request: Request): Response;
   publishCommitted(commit: ChannelMessageCommit): void;
+  publishAdmission(channelId: string, messageId: string, message: ChannelMessage): void;
   publishDraft(event: ChannelDraftEvent): void;
   publishRosterCommitted(): void;
   close(): void;
@@ -160,6 +164,22 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           };
           subscriber = {
             push,
+            pushAdmission(messageId, message) {
+              if (ended) return;
+              try {
+                controller.enqueue(
+                  encoder.encode(
+                    `event: ${CHANNEL_ADMISSION_EVENT}\ndata: ${JSON.stringify({
+                      channelId,
+                      messageId,
+                      deliveries: message.deliveries ?? [],
+                    })}\n\n`,
+                  ),
+                );
+              } catch {
+                this.close();
+              }
+            },
             pushDraft(event) {
               if (ended) return;
               try {
@@ -236,6 +256,10 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           attemptId: draft.attemptId,
         });
       }
+    },
+    publishAdmission(channelId, messageId, message) {
+      for (const subscriber of subscribers.get(channelId) ?? [])
+        subscriber.pushAdmission(messageId, message);
     },
     publishDraft(event) {
       const channelId = event.type === 'update' ? event.draft.channelId : event.channelId;

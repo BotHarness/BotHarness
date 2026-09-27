@@ -5,6 +5,10 @@
  * @module @botharness/computer/diagnostics
  */
 
+// Deep relative import, not the package root: the log module is leaf-only
+// (node builtins) and must not pull core's barrel types into this bundle.
+import type { LogOwnerScope } from '../../core/src/logs/log-db.js';
+
 export interface ComputerDiagnosticEvent {
   readonly at: string;
   readonly kind: 'lifecycle' | 'container' | 'viewer';
@@ -16,14 +20,56 @@ export interface ComputerDiagnostics {
   tail(limit?: number): readonly ComputerDiagnosticEvent[];
 }
 
+/** Durable drain for recorded events; failures never break recording. */
+export interface ComputerDiagnosticsSink {
+  write(event: ComputerDiagnosticEvent): void;
+}
+
+/** Durable row shape for the operational log database. */
+export interface ComputerLogEntry {
+  readonly plugin: string;
+  readonly owner: LogOwnerScope;
+  readonly kind: string;
+  readonly detail: string;
+  readonly ts: number;
+}
+
+/**
+ * Maps a ring event onto a log row. Unparseable timestamps fall back to now
+ * rather than NaN — the row must stay sortable.
+ */
+export function toLogEntry(
+  event: ComputerDiagnosticEvent,
+  plugin: string,
+  owner: LogOwnerScope,
+): ComputerLogEntry {
+  const ts = Date.parse(event.at);
+  return {
+    plugin,
+    owner,
+    kind: event.kind,
+    detail: event.detail,
+    ts: Number.isNaN(ts) ? Date.now() : ts,
+  };
+}
+
 export const DIAGNOSTICS_LIMIT = 200;
 
-export function createComputerDiagnostics(limit = DIAGNOSTICS_LIMIT): ComputerDiagnostics {
+export function createComputerDiagnostics(
+  limit = DIAGNOSTICS_LIMIT,
+  sink?: ComputerDiagnosticsSink | undefined,
+): ComputerDiagnostics {
   const events: ComputerDiagnosticEvent[] = [];
   return {
     record(kind, detail) {
-      events.push({ at: new Date().toISOString(), kind, detail });
+      const event: ComputerDiagnosticEvent = { at: new Date().toISOString(), kind, detail };
+      events.push(event);
       if (events.length > limit) events.splice(0, events.length - limit);
+      try {
+        sink?.write(event);
+      } catch {
+        // Persistence is best effort by design.
+      }
     },
     tail(count = limit) {
       const size = Math.max(0, Math.min(count, events.length));

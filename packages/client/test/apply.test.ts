@@ -4,19 +4,20 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
   const stub = () => null;
   return {
     Button: stub,
-    IconAgentPresetOutline16: stub,
-    IconChevronDownOutline14: stub,
-    IconChevronRightOutline14: stub,
-    IconCloseOutline16: stub,
-    IconEditOutline16: stub,
-    IconEllipsisOutline16: stub,
-    IconNewChatOutline16: stub,
-    IconPanelLeftOutline16: stub,
+    MenuItemButton: stub,
+    IconAgentPresetOutlineRegular: stub,
+    IconChevronDownOutlineRegular: stub,
+    IconChevronRightOutlineRegular: stub,
+    IconCloseOutlineRegular: stub,
+    IconEditOutlineRegular: stub,
+    IconEllipsisOutlineRegular: stub,
+    IconNewChatOutlineRegular: stub,
+    IconPanelLeftOutlineRegular: stub,
     IconTriangleRightFill14: stub,
-    IconTrashOutline16: stub,
-    IconPlusOutline16: stub,
-    IconSearchOutline16: stub,
-    IconSendOutline16: stub,
+    IconTrashOutlineRegular: stub,
+    IconPlusOutlineRegular: stub,
+    IconSearchOutlineRegular: stub,
+    IconSendOutlineRegular: stub,
     Input: stub,
     Menu: stub,
     MarkdownText: stub,
@@ -65,6 +66,7 @@ function fakeScope(): FakeScope {
       status: 'ready',
       value: {
         botIcon: 'mascot' as const,
+        developerMode: false,
         motionPreference: 'system',
         sortMode: 'updated',
         sortModes: {},
@@ -79,7 +81,7 @@ function fakeScope(): FakeScope {
   };
 }
 
-function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
+function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, withPanelInfo = true) {
   const scoped: Record<string, unknown> = {
     slots: {
       inject: (_name: string, callback: () => unknown) => callback(),
@@ -94,6 +96,17 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
       rpc: {
         call: async () => ({ ok: true, value: { bots: [], channels: [] } }),
       },
+    },
+    layout: {
+      selectPanel: () => undefined,
+      ...(withPanelInfo
+        ? {
+            panelInfo: {
+              getSnapshot: () => ({ activePanelId: null }),
+              subscribe: () => () => undefined,
+            },
+          }
+        : {}),
     },
     inputTriggers: {
       registerSource: () => () => undefined,
@@ -110,7 +123,7 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
     },
     inject: (_deps: string[], callback: (ctx: unknown) => unknown) => {
       if (withSettings) {
-        callback({ ...scoped, settingsScope: { bind: () => fakeScope() } });
+        callback({ ...scoped, configForms: { get: () => fakeScope() } });
       }
       return () => undefined;
     },
@@ -125,7 +138,13 @@ describe('client apply', () => {
     const disposed: Spec[] = [];
     apply(createScoped(specs, disposed) as never);
 
-    expect(specs.map((spec) => spec.name)).toEqual(['sidebar.panellist', 'main']);
+    expect(specs.map((spec) => spec.name)).toEqual([
+      'sidebar.panellist',
+      'main',
+      'conversation.session.header.actions',
+      'sidebar.session.row.leading',
+      'sidebar.workspaces.session.menu.item',
+    ]);
     expect(specs[0]).toMatchObject({
       id: PANEL_ID,
       order: 10,
@@ -134,25 +153,47 @@ describe('client apply', () => {
     });
     expect(specs[1]).toMatchObject({ key: PANEL_ID });
 
+    expect(specs[2]).toMatchObject({
+      name: 'conversation.session.header.actions',
+      id: 'botharness-return-to-bot',
+      order: 15,
+      locale: 'botharness',
+    });
+    expect(specs[3]).toMatchObject({
+      name: 'sidebar.session.row.leading',
+      id: 'botharness-session-owner-avatar',
+      order: 20,
+      locale: 'botharness',
+    });
+    expect(specs[4]).toMatchObject({
+      name: 'sidebar.workspaces.session.menu.item',
+      id: 'botharness-return-to-bot-menu',
+      order: 500,
+      locale: 'botharness',
+    });
+
     store.setMode('bot');
     expect(specs.map((spec) => spec.name)).toEqual([
       'sidebar.panellist',
       'main',
+      'conversation.session.header.actions',
+      'sidebar.session.row.leading',
+      'sidebar.workspaces.session.menu.item',
       'sidebar.workspaces',
       'main',
     ]);
-    expect(specs[2]).toMatchObject({
+    expect(specs[5]).toMatchObject({
       name: 'sidebar.workspaces',
       priority: -100,
       locale: 'botharness',
     });
-    expect(specs[3]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
+    expect(specs[6]).toMatchObject({ name: 'main', key: 'conversation', priority: -100 });
 
     store.setMode('dsh');
     expect(disposed.map((spec) => spec.name)).toEqual(['sidebar.workspaces', 'main']);
   });
 
-  it('registers the BotHarness settings section only while settingsScope is served', () => {
+  it('registers the BotHarness settings section only while configForms is served', () => {
     store.setMode('dsh');
     const specs: Spec[] = [];
     const disposed: Spec[] = [];
@@ -169,5 +210,14 @@ describe('client apply', () => {
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);
     expect(withoutSettings.some((spec) => spec.name === 'settings.section')).toBe(false);
+  });
+
+  it('boots without the panelInfo facet, skipping view-persist', () => {
+    store.setMode('dsh');
+    const specs: Spec[] = [];
+    const disposed: Spec[] = [];
+    expect(() => apply(createScoped(specs, disposed, false, false) as never)).not.toThrow();
+    expect(specs.map((spec) => spec.name)).toContain('sidebar.panellist');
+    expect(specs.map((spec) => spec.name)).toContain('main');
   });
 });

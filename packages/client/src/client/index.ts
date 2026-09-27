@@ -3,9 +3,14 @@ import type {} from '@deepseek-ai/dsh-client-locale/client';
 import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigger/client';
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
-// Type-only: the `settingsScope` Context merge and the settings slot contract.
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
+// Type-only: the `configForms` Context merge and the settings slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
+import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
+import type {} from '@deepseek-ai/dsh-api-workspace-controller/client';
+import type {} from '@deepseek-ai/dsh-api-session-controller/client';
+import type { SessionId } from '@deepseek-ai/dsh-session/types';
 
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
 import { createActions, type BridgeActions } from './actions.js';
@@ -21,21 +26,49 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
-import { createBridgeCall } from './bridge.js';
+import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
+import {
+  SessionOwnerLeading,
+  SessionReturnAction,
+  SessionReturnMenuItem,
+} from './session-return-action.js';
 import { mountChannelLive, mountRosterLive } from './channel-live.js';
+import { sessionBotReference } from './mentions.js';
 import { en, LOCALE_NS, zh } from './locale.js';
 import { registerModeShadow } from './mode.js';
 import { browserSystemMotionSource, mountMotionPolicyAttribute } from './motion-preference.js';
 import { defaultStorage, loadRosterConfig } from './roster-config.js';
+import { mountDevClientRefresh } from './dev-client-refresh.js';
+import { saveHmrView, takeHmrView } from './hmr-view.js';
+import { consumeLastView, writeLastView } from './last-view.js';
 import { migrateLegacyRoster } from './roster-migration.js';
 import { CSS } from './styles.js';
 import { store } from './store.js';
 
 export const name = 'botharness-client';
 
-export const inject = ['slots', 'connection', 'inputTriggers', 'layout', 'locale'];
+export const inject = [
+  'slots',
+  'connection',
+  'inputTriggers',
+  'layout',
+  'locale',
+  'sessions',
+  'uiWorkspace',
+  'workspaces',
+];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
+
+/** Newer layout facet behind view-persist; compositions without it skip that feature instead of crashing boot (#357). */
+interface PanelInfoLike {
+  getSnapshot(): { activePanelId: string | null };
+  subscribe(listener: () => void): () => void;
+}
+
+function panelInfoOf(layout: { panelInfo?: PanelInfoLike }): PanelInfoLike | undefined {
+  return layout.panelInfo;
+}
 
 function installStyles(): () => void {
   if (typeof document === 'undefined') return () => {};
@@ -50,10 +83,42 @@ function installStyles(): () => void {
 
 export function apply(ctx: ClientContext): void {
   const storage = defaultStorage();
+  const hmrView =
+    typeof window === 'undefined'
+      ? undefined
+      : takeHmrView(window as unknown as Record<string, unknown>);
   const t = ctx.locale.bind(LOCALE_NS);
+  const nativeChatT = ctx.locale.bind('chat');
   const call = createBridgeCall(ctx);
-  const actions: BridgeActions = createActions(call, store);
+  const actions: BridgeActions = createActions(call, store, {
+    pickDirectory: () => {
+      const picker = ctx.get('uiWorkspace');
+      if (picker === undefined) throw new Error('DSH folder picker is unavailable');
+      return picker.pickDirectory();
+    },
+    listDirectory: (path, signal) => {
+      const picker = ctx.get('uiWorkspace');
+      if (picker === undefined) throw new Error('DSH folder browser is unavailable');
+      return picker.listDirectory(path, signal);
+    },
+    createWorkspace: (input) => {
+      const workspaces = ctx.get('workspaces');
+      if (workspaces === undefined) throw new Error('DSH Workspace controller is unavailable');
+      return workspaces.create(input);
+    },
+    openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
+  });
   const prefs = new BotModePrefs(storage);
+  // Read the last actual view once per document. HMR has its own in-document handoff.
+  const lastView =
+    typeof window === 'undefined'
+      ? undefined
+      : consumeLastView(window as unknown as Record<string, unknown>, storage);
+  let restoreBotMode = hmrView === undefined && lastView?.mode === 'bot';
+  const nativeSessions = {
+    subscribe: (listener: () => void) => ctx.sessions.list.subscribe(listener),
+    getSnapshot: () => ctx.sessions.list.getSnapshot(),
+  };
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
   ctx.effect(() => {
@@ -62,7 +127,9 @@ export function apply(ctx: ClientContext): void {
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
-      disposers = createChannelSidebarBuiltins(t).map((entry) => channelSidebar.register(entry));
+      disposers = createChannelSidebarBuiltins(t, prefs, nativeSessions).map((entry) =>
+        channelSidebar.register(entry),
+      );
     };
     reconcile();
     const unsubscribe = ctx.locale.subscribe(reconcile);
@@ -73,6 +140,7 @@ export function apply(ctx: ClientContext): void {
   }, 'botharness: Channel sidebar entries');
 
   ctx.effect(installStyles, 'botharness: client styles');
+  ctx.effect(mountDevClientRefresh, 'botharness: local development refresh');
   ctx.effect(
     () => prefs.attachSystemMotion(browserSystemMotionSource()),
     'botharness: system motion preference',
@@ -134,11 +202,28 @@ export function apply(ctx: ClientContext): void {
       controller.abort();
     };
   }, 'botharness: roster load');
+  ctx.effect(() => {
+    // Report the Human-owned developerMode to the Host on every client
+    // connect and on every toggle; the Host gates the operational-logs skill
+    // catalog on it (#248). Fire-and-forget: an unreachable Host just misses
+    // one report and gets the next toggle or reconnect.
+    let stopped = false;
+    const report = (): void => {
+      if (stopped) return;
+      void call('developerModeSet', {
+        enabled: prefs.source.getSnapshot().developerMode,
+      }).catch(() => undefined);
+    };
+    report();
+    const unsubscribe = prefs.source.subscribe(report);
+    return () => {
+      stopped = true;
+      unsubscribe();
+    };
+  }, 'botharness: developer mode report');
 
-  ctx.inject(['settingsScope'], (settingsCtx) => {
-    const scope = settingsCtx.settingsScope.bind<BotModeSettings>({
-      namespace: BOT_MODE_NAMESPACE,
-    });
+  ctx.inject(['configForms'], (settingsCtx) => {
+    const scope = settingsCtx.configForms.get<BotModeSettings>(BOT_MODE_NAMESPACE);
     prefs.attach(scope);
     // The shell owns the Settings nav glyph; tag our cell and wear the chosen
     // mark instead of its gear fallback (see bot-icon-nav).
@@ -195,15 +280,76 @@ export function apply(ctx: ClientContext): void {
     ),
   );
 
-  ctx.slots.inject('main', () =>
-    ctx.slots.register(
+  ctx.slots.inject('main', () => {
+    const dispose = ctx.slots.register(
       {
         name: 'main',
         key: PANEL_ID,
         locale: LOCALE_NS,
-        inject: () => ({ actions, channelSidebar }),
+        inject: () => ({ actions, channelSidebar, nativeChatT }),
       },
       BotPanel,
+    );
+    if (restoreBotMode) {
+      restoreBotMode = false;
+      queueMicrotask(() => {
+        const info = panelInfoOf(ctx.layout);
+        if (info === undefined || info.getSnapshot().activePanelId !== null) return;
+        try {
+          ctx.layout.selectPanel(PANEL_ID);
+        } catch (error) {
+          ctx.logger.warn('botharness: failed to restore Bot mode', error);
+        }
+      });
+    }
+    return dispose;
+  });
+
+  const resolveSessionOwner = (sessionId: string, signal: AbortSignal) =>
+    loadSessionBotOwner(call, sessionId, signal);
+  const returnToBot = async (slug: string): Promise<void> => {
+    if (!store.getSnapshot().bots.some((bot) => bot.slug === slug)) await actions.load();
+    if (!store.getSnapshot().bots.some((bot) => bot.slug === slug))
+      throw new Error('PersonaBot is unavailable');
+    ctx.layout.selectPanel(PANEL_ID);
+    await actions.openBot(slug);
+  };
+  ctx.slots.inject('conversation.session.header.actions', () =>
+    ctx.slots.register(
+      {
+        name: 'conversation.session.header.actions',
+        id: 'botharness-return-to-bot',
+        order: 15,
+        label: () => t('sessions.return.label'),
+        locale: LOCALE_NS,
+        inject: () => ({ resolveOwner: resolveSessionOwner, returnToBot }),
+      },
+      SessionReturnAction,
+    ),
+  );
+  ctx.slots.inject('sidebar.session.row.leading', () =>
+    ctx.slots.register(
+      {
+        name: 'sidebar.session.row.leading',
+        id: 'botharness-session-owner-avatar',
+        order: 20,
+        locale: LOCALE_NS,
+        inject: () => ({ resolveOwner: resolveSessionOwner }),
+      },
+      SessionOwnerLeading,
+    ),
+  );
+  ctx.slots.inject('sidebar.workspaces.session.menu.item', () =>
+    ctx.slots.register(
+      {
+        name: 'sidebar.workspaces.session.menu.item',
+        id: 'botharness-return-to-bot-menu',
+        order: 500,
+        label: () => t('sessions.return.label'),
+        locale: LOCALE_NS,
+        inject: () => ({ resolveOwner: resolveSessionOwner, returnToBot }),
+      },
+      SessionReturnMenuItem,
     ),
   );
 
@@ -231,7 +377,7 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions, channelSidebar }),
+          inject: () => ({ actions, channelSidebar, nativeChatT }),
         },
         BotMain,
       ),
@@ -258,17 +404,90 @@ export function apply(ctx: ClientContext): void {
     },
     codec: {
       clipboardText: (ref) => `@${ref}`,
-      serialize: async (ref) => `@${ref}`,
+      serialize: async (ref) => sessionBotReference(ref),
     },
     onPick: (pick) => ({
       insert: {
         source: 'personabot',
         ref: pick.candidate.name,
         label: pick.candidate.description ?? pick.candidate.name,
-        appearance: 'session',
         clipboardText: `@${pick.candidate.name}`,
       },
     }),
   };
   ctx.effect(() => ctx.inputTriggers.registerSource(mention), 'botharness: @ mention');
+
+  const viewToRestore =
+    hmrView ?? (lastView?.mode === 'bot' ? { selection: lastView.selection } : undefined);
+  if (viewToRestore !== undefined) {
+    ctx.effect(() => {
+      let restored = false;
+      const restore = (): void => {
+        if (restored || store.getSnapshot().status !== 'ready') return;
+        restored = true;
+        unsubscribe();
+        try {
+          if (hmrView !== undefined) ctx.layout.selectPanel(PANEL_ID);
+          const info = panelInfoOf(ctx.layout);
+          if (info === undefined || info.getSnapshot().activePanelId !== PANEL_ID) return;
+          const selection = viewToRestore.selection;
+          const snapshot = store.getSnapshot();
+          const opening =
+            selection?.kind === 'bot' && snapshot.bots.some((bot) => bot.slug === selection.slug)
+              ? actions.openBot(selection.slug)
+              : selection?.kind === 'channel' &&
+                  snapshot.channels.some((channel) => channel.id === selection.channelId)
+                ? actions.openChannel(selection.channelId)
+                : selection?.kind === 'inbox'
+                  ? actions.openHumanInbox()
+                  : undefined;
+          void opening?.catch((error: unknown) => {
+            ctx.logger.warn('botharness: Bot view restore failed', error);
+          });
+        } catch (error) {
+          ctx.logger.warn('botharness: Bot view restore failed', error);
+        }
+      };
+      const unsubscribe = store.subscribe(restore);
+      restore();
+      return unsubscribe;
+    }, 'botharness: Bot view restore');
+  }
+  ctx.effect(() => {
+    const info = panelInfoOf(ctx.layout);
+    if (info === undefined) return () => {};
+    let enteredBotMode = false;
+    let lastWritten: string | undefined;
+    const persist = (): void => {
+      const active = info.getSnapshot().activePanelId === PANEL_ID;
+      if (active) enteredBotMode = true;
+      if (!enteredBotMode) return;
+      const view = {
+        mode: active ? 'bot' : 'dsh',
+        selection: store.getSnapshot().selection,
+      } as const;
+      const serialized = JSON.stringify(view);
+      if (serialized === lastWritten) return;
+      lastWritten = serialized;
+      writeLastView(storage, view);
+    };
+    const unsubscribePanel = info.subscribe(persist);
+    const unsubscribeStore = store.subscribe(() => {
+      if (info.getSnapshot().activePanelId === PANEL_ID) persist();
+    });
+    persist();
+    return () => {
+      unsubscribePanel();
+      unsubscribeStore();
+    };
+  }, 'botharness: last visible view');
+  ctx.effect(
+    () => () => {
+      if (typeof window === 'undefined') return;
+      const info = panelInfoOf(ctx.layout);
+      if (info === undefined || info.getSnapshot().activePanelId !== PANEL_ID) return;
+      saveHmrView(window as unknown as Record<string, unknown>, store.getSnapshot().selection);
+    },
+    'botharness: HMR view handoff',
+  );
 }

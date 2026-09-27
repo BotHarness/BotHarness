@@ -39,8 +39,9 @@ vi.mock('../src/client/avatar.js', () => ({
 import {
   HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS,
   HiddenChannelsModal,
+  hiddenChannelSequence,
 } from '../src/client/hidden-channels.js';
-import { zh, zhTranslate, type BotHarnessKey } from '../src/client/locale.js';
+import { zhTranslate } from '../src/client/locale.js';
 
 const t = zhTranslate;
 const AT = '2026-09-21T00:00:00.000Z';
@@ -54,6 +55,69 @@ it('debounces filtering without delaying the controlled input', () => {
   expect(HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS).toBe(180);
 });
 
+it('preserves explicit hide order when Channel updates reorder the live list', () => {
+  const channel = (id: string, botSlug?: string) => ({
+    id,
+    type: (botSlug === undefined ? 'group' : 'dm') as 'group' | 'dm',
+    name: id,
+    members: [],
+    ...(botSlug === undefined ? {} : { botSlug }),
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const hidden = [channel('hidden-first'), channel('hidden-second')];
+  const botDm = { ...channel('dm-bots-ada-bea'), type: 'dm' as const, members: ['ada', 'bea'] };
+  const latestFirst = [botDm, hidden[1]!, hidden[0]!];
+  expect(
+    hiddenChannelSequence(latestFirst, ['hidden-first', 'hidden-second', botDm.id]).map(
+      (item) => item.id,
+    ),
+  ).toEqual(['hidden-first', 'hidden-second', botDm.id]);
+  expect(
+    hiddenChannelSequence(latestFirst, ['hidden-first', 'hidden-second']).map((item) => item.id),
+  ).toEqual(['hidden-first', 'hidden-second', botDm.id]);
+});
+
+it('shows the newest implicit Bot DM first after the modal reverses its items', () => {
+  const botDm = (id: string) => ({
+    id,
+    type: 'dm' as const,
+    name: id,
+    members: ['ada', 'bea'],
+    createdAt: AT,
+    updatedAt: AT,
+  });
+  const newest = botDm('dm-bots-new');
+  const oldest = botDm('dm-bots-old');
+  const sequence = hiddenChannelSequence([newest, oldest], []);
+  expect(sequence.map((channel) => channel.id)).toEqual([oldest.id, newest.id]);
+  expect([...sequence].reverse().map((channel) => channel.id)).toEqual([newest.id, oldest.id]);
+});
+
+it('does not classify malformed persisted DMs as Bot DMs', () => {
+  const malformed = [[], ['ada'], ['ada', 'bea', 'cora']].map((members, index) => ({
+    id: `malformed-${index}`,
+    type: 'dm' as const,
+    name: `Malformed ${index}`,
+    members,
+    createdAt: AT,
+    updatedAt: AT,
+  }));
+  expect(hiddenChannelSequence(malformed, [])).toEqual([]);
+  const markup = renderToStaticMarkup(
+    createElement(HiddenChannelsModal, {
+      t: t as never,
+      onRestore: vi.fn(),
+      onOpen: vi.fn(),
+      onClose: vi.fn(),
+      items: malformed.map((channel) => ({ channel })),
+    }),
+  );
+  expect(markup).not.toContain('Bot 私聊 · 只读');
+  expect(captured.buttons.filter((button) => button['children'] === '查看')).toHaveLength(0);
+  expect(captured.buttons.filter((button) => button['children'] === '恢复')).toHaveLength(3);
+});
+
 describe('hidden Channels modal', () => {
   it('lists hidden DM and group Channels and restores the selected id', () => {
     const onRestore = vi.fn();
@@ -61,6 +125,7 @@ describe('hidden Channels modal', () => {
       createElement(HiddenChannelsModal, {
         t: t as never,
         onRestore,
+        onOpen: vi.fn(),
         onClose: vi.fn(),
         items: [
           {
@@ -107,11 +172,42 @@ describe('hidden Channels modal', () => {
     expect(onRestore).toHaveBeenCalledWith('group-team');
   });
 
+  it('offers a read-only view action for a Bot-to-Bot DM', () => {
+    const onOpen = vi.fn();
+    const onRestore = vi.fn();
+    const markup = renderToStaticMarkup(
+      createElement(HiddenChannelsModal, {
+        t: t as never,
+        onRestore,
+        onOpen,
+        onClose: vi.fn(),
+        items: [
+          {
+            channel: {
+              id: 'dm-bots-ada-bea',
+              type: 'dm',
+              name: 'Ada · Bea',
+              members: ['ada', 'bea'],
+              createdAt: AT,
+              updatedAt: AT,
+            },
+          },
+        ],
+      }),
+    );
+    expect(markup).toContain('Bot 私聊 · 只读');
+    const view = captured.buttons.find((button) => button['children'] === '查看');
+    (view?.['onClick'] as (() => void) | undefined)?.();
+    expect(onOpen).toHaveBeenCalledWith('dm-bots-ada-bea');
+    expect(onRestore).not.toHaveBeenCalled();
+  });
+
   it('shows the most recently hidden Channel first', () => {
     const markup = renderToStaticMarkup(
       createElement(HiddenChannelsModal, {
         t: t as never,
         onRestore: vi.fn(),
+        onOpen: vi.fn(),
         onClose: vi.fn(),
         items: [
           {
@@ -147,11 +243,12 @@ describe('hidden Channels modal', () => {
         items: [],
         t: t as never,
         onRestore: vi.fn(),
+        onOpen: vi.fn(),
         onClose: vi.fn(),
       }),
     );
 
     expect(markup).toContain('没有隐藏的频道');
-    expect(markup).toContain('不会删除频道、消息或 PersonaBot');
+    expect(markup).toContain('只读查看 Bot 之间的私聊');
   });
 });

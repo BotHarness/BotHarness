@@ -121,8 +121,16 @@ Session 工作所在的单一 Host 目录；它与一个 DSH workspace 一一映
 _避免使用_：project、multi-root folder、group
 
 **Workspace Grant**：
-一种持久、可撤销、application-defined 的 authorization，允许一个 PersonaBot 跨多个 Assignment 使用一个已解析的 Workspace。Human 授权一次后可以复用；它既不是 DSH Workspace，也不是每个 Assignment 都要重复确认的 prompt。
+一种面向单个 PersonaBot 与单个已解析 Workspace 的持久、可撤销、application-defined 授权。其 Orchestrator 可读取该 Workspace；选用此授权的 Assignment 可读写它。它既不是 DSH Workspace，也不是逐事项确认的 prompt。
 _避免使用_：Service Grant、Workspace、one-time approval、cwd inference
+
+**Tool Approval Rule**：
+Human 保存且可撤销的规则，针对一个 PersonaBot 角色与 Workspace Grant 范围，自动回答后续 DSH 审批请求。精确规则匹配原生工具名称与完整输入；全部不透明工具规则覆盖该范围内所有无法按路径核对的原生工具。每次命中仍产生独立的 DSH 审批决定与审计事件。
+_避免使用_：Workspace Grant、Provider Service Grant、sandbox preset、推断的命令相似性
+
+**Assignment Access Preset**：
+Human 为单个 PersonaBot 选择、在新建 Assignment 时应用的权限预设。默认是 DSH workspace-write 与 ask；危险完全访问需要明确开启 DSH danger-full-access 与 never。所选模式固化在每个 Assignment 的权限快照中，仍须选择有效 Workspace Grant。
+_避免使用_：Workspace Grant、就地切换 Session 模式、Orchestrator 权限
 
 **Delegation**：
 从 Chat 或 Roster 把责任交给 PersonaBot。其 Orchestrator 可以直接回答，也可以创建或复用一个或多个 Assignment Session。
@@ -135,6 +143,10 @@ _避免使用_：integration、connector、channel binding
 **Orchestrator Session**：
 PersonaBot 长期存在的 dispatch root Session：同时至多一个处于 active，负责消费 Bot Inbox，并决定 reply、dispatch 以及是否创建新 Assignment Session。它的 working directory 始终是 PersonaBot 的 Memory Repository；它是 PersonaBot 的对外发声者，不是由 Human 管理的 Conversation，也不是 Assignment 列表中的一行。普通 Session output 只保留为 execution history；只有从可信 Session ownership 推导身份、并经过 Channel membership 授权的显式 Channel messaging command，才会向 Human-facing Channel 发声。
 _避免使用_：main agent、brain、supervisor
+
+**Developer Mode**：
+Human 拥有的 Bot-mode 偏好，用于揭示默认隐藏的诊断表面（operational log 视图、verbose 状态）。它只控制 Human 的可见性——绝不是 agent 能力的门：有 shell 通道的 agent 总能触及同一份底层数据，因此绝不能把 Developer Mode 描述或依赖为读取边界。
+_避免使用_：debug flag、admin mode、agent permission、read boundary
 
 **Computer**：
 一个 profile 级共享的 Linux 桌面，由该 profile 的所有 PersonaBot 共用；它拥有一个持久卷，保存其文件、浏览器 profile（Cookie 与登录态）与 CLI 凭据。它的隔离边界是 profile，绝不是某个 PersonaBot。
@@ -159,15 +171,15 @@ _避免使用_：PersonaBot export、backup file、disk image
 ### Memory（记忆）
 
 **Memory**：
-保存在每个 PersonaBot 创建时自动生成的 Memory Repository 中、由普通且便于 Human 阅读的 Markdown 文件组成的持久知识。Agent 通过普通 filesystem、Shell、search 与 Git capability 操作这些文件；只有被接受的 Memory Commit 才让变更正式生效。
+PersonaBot 当前检出的 Memory Repository 工作树中的持久知识。普通文件（包括代码与二进制文件）在 Git 或文件工具改变工作树后立即成为当前记忆，不需要额外“接纳”。Orchestrator 在访问边界内通过原生文件、搜索、Shell 和 Git 能力探索它。
 _避免使用_：knowledge base、vector store、RAG、database、context
 
 **Memory Repository**：
-由 PersonaBot 拥有、在 PersonaBot 创建时自动生成，并固定作为其 Orchestrator Session working directory 的 Memory 文件 Git repository。其 lifecycle 跟随 PersonaBot，但 archive、export、restore 与 purge 仍是显式操作。
+PersonaBot 拥有的普通 Git 仓库，在创建 PersonaBot 时自动生成，并作为其 Orchestrator Session 的 working directory。分支、合并与文件历史由 Git 管理；archive、export、restore 和 purge 仍是显式操作。
 _避免使用_：optional attachment、Session memory、generated index、project Workspace
 
 **Topic file**：
-Memory Repository 中专门记录一个主题——例如某个 customer、process 或 decision——的 Memory 文件。
+Memory Repository 中专门记录某一主题（例如 customer、process 或 decision）的文件。这是一种组织约定，不限制仓库中的文件类型。
 _避免使用_：note、document、page、record
 
 **Customer profile**：
@@ -175,16 +187,16 @@ _避免使用_：note、document、page、record
 _避免使用_：CRM record、account、contact sheet
 
 **Memory Service**：
-拥有 Memory Repository lifecycle、validation、reconciliation、accepted commit、history 与 query 的 application-defined capability。v1 中它服务 runtime 与 Human-facing Consumer，但不暴露 model-callable Memory read/write Tool。
+拥有 repository identity 和 lifecycle、可信 Session 访问、Host-to-Client 文件与 Git 查询，以及审计/恢复检查点的 application-defined capability。它不为当前仓库内容设置第二道接纳门槛，也不暴露 model-callable Memory CRUD Tool。
 _避免使用_：Memory tool、filesystem watcher、Git event source、generic repository
 
 **Memory Commit**：
-一项被接受的 Git commit，以带 actor 与 cause attribution 的方式让一组一致的 Memory 文件变更正式生效。尚未 commit 的 working-tree change 是 provisional state，不改变 Session 已冻结的 persona、history projection 或 Memory event。
-_避免使用_：file save、filesystem event、raw Git commit、auto-save
+Memory Repository 中的普通 Git commit。Git 作者和拓扑保持原样；BotHarness 可以另记一次可信操作结束时的 HEAD、actor 与 cause，作为审计/恢复检查点，而不是文件成为记忆的许可。
+_避免使用_：accepted commit、file save、filesystem event、auto-save
 
-**Memory Reconciliation**：
-Memory Service 用于校验 repository state，并依据 Memory invariant 接受或拒绝 candidate Git commit 的过程。live Cordis Event 描述 reconciliation 与 accepted Memory Commit，绝不会把 `.git` filesystem activity 当作 durable fact。
-_避免使用_：filesystem watch、background distillation、event-sourced Git
+**Memory Observation**：
+Orchestrator 的可信操作结束后，对 Memory Repository HEAD 的记录。观察不会暂存、提交、拒绝或隐藏当前工作树文件。
+_避免使用_：commit acceptance、filesystem watch、background distillation
 
 **Attachment**：
 随 Source Event 接收的 content-addressed 文件；所有引用它的 Channel 或 PersonaBot 共同保留唯一一份。只有 PersonaBot 主动将该文件保存在自己的 Memory 或 Workspace 中时，它才拥有单独副本。
@@ -279,11 +291,11 @@ PersonaBot 当前对一条 Source Event revision chain 的一次 consideration�
 _避免使用_：mailbox item、message copy、delivery attempt
 
 **Channel**：
-平台原生的 conversation space；类型为 `dm`（一个 PersonaBot 与一位 Human）或 `group chat`（多个 member；非正式称为 chatroom）。Channel 在本地保留自己的历史。两种类型遵循同一套 Channel section 归属、顶层顺序、拖拽与移动规则；DM 保留其 PersonaBot 头像表现。
+平台原生的 conversation space；类型为 `dm`（两位 Actor：一位 Human 与一个 PersonaBot，或两个 PersonaBot）或 `group chat`（多个 member；非正式称为 chatroom）。Channel 在本地保留自己的历史。两种类型遵循同一套 Channel section 归属、顶层顺序、拖拽与移动规则；Human–PersonaBot DM 保留其 PersonaBot 头像表现。
 _避免使用_：room、server、board
 
 **Hidden Channel**：
-由 Human 明确选择、从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可从隐藏频道管理器恢复它。
+因 Human 的呈现选择或 Bot-to-Bot DM 的默认规则而从展开与折叠 roster navigation 中省略的 Channel。隐藏会保留 Channel membership、history、routing、PersonaBot 与 Memory 状态，也会保留它的 pin、section 和 order placement；Human 可以打开查看，也可以恢复自己主动隐藏的 Channel。
 _避免使用_：deleted Channel、archived Channel、muted Channel、Content Purge
 
 **Channel section**：
@@ -315,7 +327,7 @@ _避免使用_：queue、mailbox、backlog
 _避免使用_：inbox item body、delivery job、message copy
 
 **Inbox Trigger**：
-由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。shared template 可以创建它，但 Bridge 绝不拥有它，也不会调用 Agent。
+由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。PersonaBot 自己塑造这些规则，Human 可以查看、覆盖或冻结；template 可以提供初值，Bridge 绝不拥有 attention 或 wake behavior，安全闸门永远不属于规则。
 _避免使用_：bridge、wake policy、model trigger、scheduler
 
 **Messaging Policy**：
@@ -379,8 +391,12 @@ _避免使用_：failure、timeout、retryable error、success
 _避免使用_：model decision、delivery mechanism、scheduler
 
 **Delivery Policy**：
-Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射到 next step、next turn 或显式 whole-turn abort。
+Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射为安全 step 处的 steer、下一次 harvest，或不唤醒。
 _避免使用_：wake policy、inferred step state、message priority
+
+**Turn harvest**：
+一次 Orchestrator turn 消费整个就绪 attention 集合——所有未处理的即时项、达到阈值的 digest 批次与被动 notice——而不是一事件一回合。steer 的直达地址改为加入正在运行的回合。
+_避免使用_：per-event queue、wake storm、batch（单独使用）
 
 **Human Inbox**：
 面向 Human 的 attention projection，把 Channel Attention 与 PersonaBot Attention 分类为 action-required 或 informational。它引用各自的权威事实，不复制 Channel 内容，也不会把每一条 Bot Inbox item 都摊平成 Human 工作。
@@ -398,9 +414,21 @@ _避免使用_：personal attention、Bot state、notification
 Actor 对 Channel 的参与关系，携带 owner/member role 以及在其中 read 或 send 的 authority。
 _避免使用_：subscription、notification policy、caller claim
 
+**Channel reference**：
+Human 选中的现有 Channel 指针（Channel 引用），以稳定的 Channel ID 标识。它帮助被告知的 PersonaBot 找到 Channel，但不授予成员资格，也不披露对话内容或向成员发消息。
+_避免_：Channel 邀请、成员资格、手打的 #名称
+
+**Group invitation**：
+Group 的 Bot 创建者向活跃的非成员 PersonaBot 发出的待处理入群邀请。只有受邀 Bot 接受后才成为 Channel membership；Bot 模式的默认自动接受可代为接受。接受前邀请不授予任何 read 或 send 权限。
+_避免使用_：join request、成员授予、Channel 引用
+
+**Group join request**：
+尚未入群的 PersonaBot 请求加入被引用的 Group Channel 的待处理事实（入群申请）。只有获得授权的 Human 或该群的 Bot 创建者接受后，它才成为 Channel 成员。
+_避免_：邀请、自动入群、Channel 提及
+
 **Bot Channel subscription**：
-PersonaBot 对其已加入 Channel 的 attention preference：`all`、`mentions` 或 `muted`，独立于 membership 与 send authority。
-_避免使用_：membership、digest schedule、wake decision
+PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`all`（每条普通消息都成为 attention）、`digest`（普通消息按 count 与 interval 进入唤醒汇总；默认）、`mentions`（只有直接 @ 能到达 Bot）、或 `silent`（普通消息记录为 attention，但永不唤醒）。直接 @ 与 DM 永远可达；Human 可以覆盖该 preference，它独立于 membership 与 send authority。
+_避免使用_：membership、wake decision、digest schedule
 
 **Message provenance**：
 Channel message 的可信 origin 与 causal identity——包括它的 Actor、ingress surface 与 external identity，以及任何 reply 或 Bot-to-Bot chain。
@@ -413,8 +441,12 @@ PersonaBot 参与的 Feishu/Lark conversation——group 或 p2p——通过 `ch
 _避免使用_：room、channel、group（当含义也包括 p2p 时）
 
 **DM**：
-PersonaBot 与一位 Human 之间的一对一 conversation——即 `dm` 类型的 Channel，或它的 bridged equivalent。
+两位 Actor 之间的一对一 conversation——即 `dm` 类型的 Channel，或它的 bridged equivalent。Human–PersonaBot DM 是 Human 与一个 Bot 的直接对话；Bot-to-Bot DM 有两个 PersonaBot 参与者，Human 可以只读查看而不成为参与者。
 _避免使用_：private chat、PM
+
+**Bot-to-Bot DM**：
+两个参与者都是 PersonaBot 的 DM Channel。一个 Bot 发出的消息是该 Channel 中的 Source Event，可以进入另一个 Bot 的 Inbox；Human 的只读查看独立于 Channel membership。
+_避免使用_：peer relay bus、copied inbox conversation
 
 **Thread**：
 通过回复 Chat 或 Channel 中某条 message 而开启的 sub-conversation。

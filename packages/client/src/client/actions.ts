@@ -3,12 +3,43 @@ import {
   assignRosterChannel,
   BridgeCallError,
   createGroupChannel,
+  cancelGroupInvitation,
+  decideGroupJoin,
+  removeGroupMember,
+  setGroupWakePolicy,
+  deleteGroupChannel,
   createPersonaBot,
   createRosterSection,
   errorMessage,
-  loadAssignment,
-  loadAssignments,
+  loadWorkspaceOptions,
+  loadWorkspaceGrants,
+  loadToolApprovalRules,
+  loadAssignmentAccess,
+  setAssignmentAccess,
+  type AssignmentAccessPresetView,
+  revokeToolApprovalRule,
+  type ToolApprovalRuleView,
+  createWorkspaceGrant,
+  revokeWorkspaceGrant,
+  loadToolApprovalStatus,
+  decideToolApproval,
+  loadUserQuestionStatus,
+  answerUserQuestion,
+  type WorkspaceOption,
+  type WorkspaceGrantView,
+  loadBotAttention,
+  loadHumanAttention,
+  ignoreHumanAssignmentReport,
+  loadSessions,
   loadBots,
+  loadMemorySnapshot,
+  loadMemoryFile,
+  loadMemoryHistory,
+  loadMemoryDiff,
+  loadMemoryGitGraph,
+  loadMemoryGitCommitDiff,
+  saveMemoryFile,
+  repairMemory,
   loadTimelinePage,
   loadReadPosition,
   markReadPosition,
@@ -24,6 +55,11 @@ import {
   setRosterHidden,
   setRosterPins,
   type BridgeCall,
+  type MemoryAcceptedCommit,
+  type MemorySnapshot,
+  type MemoryGitGraph,
+  type MemoryGitCommitDiff,
+  type MemoryRepairEvent,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -46,12 +82,34 @@ import type {
   ChannelSummary,
   ClientStore,
   ConversationSelection,
+  HumanInboxCategory,
+  HumanInboxFilters,
+  UserQuestionAnswerItem,
 } from './store.js';
 
+export interface HostDirectoryListing {
+  path: string;
+  home: string;
+  crumbs: { name: string; path: string; hidden: boolean }[];
+  entries: { name: string; path: string; hidden: boolean }[];
+  truncated: boolean;
+}
+
 export interface BridgeActions {
+  listHostFolders(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
+  addWorkspaceFolder(slug: string): Promise<WorkspaceGrantView | undefined>;
+  authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
+  memoryDirectory(slug: string): Promise<string | undefined>;
   load(signal?: AbortSignal): Promise<void>;
   refreshRoster(signal?: AbortSignal): Promise<void>;
   openBot(slug: string): Promise<void>;
+  refreshBotInbox(slug: string): Promise<void>;
+  openHumanInbox(): Promise<void>;
+  refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
+  setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
+  loadMoreHumanInbox(): Promise<void>;
+  ignoreHumanReport(sourceEventId: string): Promise<void>;
+  loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
@@ -60,11 +118,74 @@ export interface BridgeActions {
   markRead(channelId: string, messageId: string): Promise<void>;
   refreshChannelMessages(channelId: string): Promise<void>;
   dismissFailedMessage(channelId: string, messageId: string): boolean;
-  openAssignment(sessionId: string): Promise<void>;
-  send(body: string, replyTo?: string, attachments?: ChannelAttachmentRef[]): Promise<boolean>;
+  openSession(sessionId: string): void;
+  refreshSessions(slug: string): Promise<void>;
+  memorySnapshot(channelId: string): Promise<MemorySnapshot>;
+  memoryFile(
+    channelId: string,
+    path: string,
+  ): Promise<{ path: string; body: string; head: string } | undefined>;
+  memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
+  memoryDiff(channelId: string, sha: string): Promise<string>;
+  memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
+  memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
+  memoryRepair(input: {
+    channelId: string;
+    expectedHead: string;
+    repairId: string;
+  }): Promise<MemoryRepairEvent>;
+  memorySave(input: {
+    channelId: string;
+    path: string;
+    body: string;
+    expectedHead: string;
+    editId: string;
+  }): Promise<MemoryAcceptedCommit>;
+  listWorkspaceOptions(): Promise<WorkspaceOption[]>;
+  listWorkspaceGrants(slug: string): Promise<WorkspaceGrantView[]>;
+  createWorkspaceGrant(slug: string, workspaceId: string): Promise<WorkspaceGrantView>;
+  revokeWorkspaceGrant(slug: string, grantId: string): Promise<WorkspaceGrantView>;
+  assignmentAccess(slug: string): Promise<AssignmentAccessPresetView>;
+  setAssignmentAccess(
+    slug: string,
+    mode: AssignmentAccessPresetView['mode'],
+    acknowledgeRisk: boolean,
+  ): Promise<AssignmentAccessPresetView>;
+  listToolApprovalRules(slug: string): Promise<ToolApprovalRuleView[]>;
+  revokeToolApprovalRule(slug: string, id: string): Promise<void>;
+  toolApprovalStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  decideToolApproval(
+    channelId: string,
+    messageId: string,
+    outcome: 'allowed-once' | 'allowed-always-exact' | 'allowed-always-all' | 'rejected',
+  ): Promise<void>;
+  userQuestionStatus(channelId: string, messageId: string): Promise<'pending' | 'expired'>;
+  answerUserQuestion(
+    channelId: string,
+    messageId: string,
+    answers: UserQuestionAnswerItem[],
+  ): Promise<void>;
+  send(
+    body: string,
+    replyTo?: string,
+    attachments?: ChannelAttachmentRef[],
+    memorySwitchTarget?: string,
+    mentions?: ChannelMessage['mentions'],
+    channelRefs?: ChannelMessage['channelRefs'],
+    grantRequestResolution?: ChannelMessage['grantRequestResolution'],
+  ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
+  cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
+  decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
+  removeGroupMember(channelId: string, botSlug: string): Promise<boolean>;
+  setGroupWakePolicy(
+    channelId: string,
+    botSlug: string,
+    policy: { mode: 'mentions' | 'digest' | 'silent'; count: number; intervalSeconds: number },
+  ): Promise<boolean>;
+  deleteGroupChannel(channelId: string): Promise<boolean>;
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
@@ -156,7 +277,16 @@ function mergeLatestWindow(
   return { messages, keptPrefix: overlap >= 0 };
 }
 
-export function createActions(call: BridgeCall, clientStore: ClientStore): BridgeActions {
+export function createActions(
+  call: BridgeCall,
+  clientStore: ClientStore,
+  folderAccess?: {
+    pickDirectory(): Promise<string | null>;
+    listDirectory?(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
+    createWorkspace(input: { path: string }): Promise<{ workspaceId: string }>;
+    openSession?(sessionId: string): void;
+  },
+): BridgeActions {
   const failedByChannel = new Map<string, ChannelMessage[]>();
   const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
   const remainingFailures = (
@@ -173,11 +303,34 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
   };
   const currentSelection = (): ConversationSelection | undefined =>
     clientStore.getSnapshot().selection;
+  const selectedBotSlug = (selection: ConversationSelection | undefined): string | undefined => {
+    if (selection?.kind === 'bot') return selection.slug;
+    if (selection?.kind !== 'channel') return undefined;
+    const channel = clientStore.getSnapshot().conversation.channel;
+    return channel?.id === selection.channelId && channel.type === 'dm'
+      ? channel.botSlug
+      : undefined;
+  };
 
   const refreshRoster = async (signal?: AbortSignal): Promise<void> => {
-    try {
-      const snapshot = await loadRoster(call, signal);
-      if (signal?.aborted === true) return;
+    const [rosterResult, channelResult] = await Promise.allSettled([
+      loadRoster(call, signal),
+      loadChannels(call, signal),
+    ]);
+    if (signal?.aborted === true) return;
+    if (channelResult.status === 'fulfilled') {
+      const channels = channelResult.value;
+      const current = clientStore.getSnapshot().conversation.channel;
+      clientStore.setRoster(clientStore.getSnapshot().bots, channels);
+      if (current !== undefined) {
+        const updated = channels.find((item) => item.id === current.id);
+        if (updated !== undefined) clientStore.setConversation({ channel: updated });
+      }
+    } else {
+      console.warn('botharness: channel refresh failed', channelResult.reason);
+    }
+    if (rosterResult.status === 'fulfilled') {
+      const snapshot = rosterResult.value;
       clientStore.setRosterState({
         pins: snapshot.pins,
         hidden: snapshot.hidden,
@@ -185,13 +338,13 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         topOrder: snapshot.topOrder,
         readOnly: false,
       });
-    } catch (error) {
-      if (signal?.aborted === true) return;
-      if (error instanceof BridgeCallError && error.code === 'storage-unavailable') {
-        clientStore.setRosterState({ readOnly: true });
-        return;
-      }
-      console.warn('botharness: roster refresh failed', error);
+    } else if (
+      rosterResult.reason instanceof BridgeCallError &&
+      rosterResult.reason.code === 'storage-unavailable'
+    ) {
+      clientStore.setRosterState({ readOnly: true });
+    } else {
+      console.warn('botharness: roster refresh failed', rosterResult.reason);
     }
   };
 
@@ -242,31 +395,101 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
     });
   };
 
-  const loadAssignmentsFor = async (
-    slug: string,
-    selection: ConversationSelection,
-  ): Promise<void> => {
-    clientStore.setAssignments({
-      status: 'loading',
-      items: [],
-      selected: undefined,
-      error: undefined,
-    });
+  let sessionsRequestSeq = 0;
+  const loadSessionsFor = async (slug: string, selection: ConversationSelection): Promise<void> => {
+    const requestSeq = ++sessionsRequestSeq;
+    const prior = clientStore.getSnapshot().sessions;
+    if (prior.status === 'idle' || prior.items.length === 0)
+      clientStore.setSessions({ status: 'loading', error: undefined });
     try {
-      const items = await loadAssignments(call, slug);
-      if (currentSelection() !== selection) return;
-      clientStore.setAssignments({ status: 'ready', items, error: undefined });
+      const items = await loadSessions(call, slug);
+      if (currentSelection() !== selection || requestSeq !== sessionsRequestSeq) return;
+      clientStore.setSessions({ status: 'ready', items, error: undefined });
     } catch (error) {
-      if (currentSelection() !== selection) return;
-      clientStore.setAssignments({
-        status: 'error',
-        items: [],
-        selected: undefined,
-        error: errorMessage(error),
-      });
+      if (currentSelection() !== selection || requestSeq !== sessionsRequestSeq) return;
+      clientStore.setSessions({ status: 'error', error: errorMessage(error) });
     }
   };
 
+  let botInboxRequestSeq = 0;
+  const loadBotInboxFor = async (
+    slug: string,
+    selection: ConversationSelection,
+    cursor?: string,
+  ): Promise<void> => {
+    const requestSeq = ++botInboxRequestSeq;
+    if (cursor === undefined && clientStore.getSnapshot().botInbox.status === 'idle')
+      clientStore.setBotInbox({ status: 'loading', error: undefined });
+    try {
+      const page = await loadBotAttention(call, slug, 50, cursor);
+      if (currentSelection() !== selection || requestSeq !== botInboxRequestSeq) return;
+      const priorState = clientStore.getSnapshot().botInbox;
+      const prior = priorState.items;
+      const seen = new Set(page.items.map((item) => item.id));
+      const items =
+        cursor === undefined
+          ? [...page.items, ...prior.filter((item) => !seen.has(item.id))]
+          : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      const nextCursor =
+        cursor === undefined && prior.length > 50 ? priorState.nextCursor : page.nextCursor;
+      clientStore.setBotInbox({
+        status: 'ready',
+        items,
+        nextCursor,
+        error: undefined,
+      });
+    } catch (error) {
+      if (currentSelection() !== selection || requestSeq !== botInboxRequestSeq) return;
+      clientStore.setBotInbox({ status: 'error', error: errorMessage(error) });
+    }
+  };
+
+  let humanInboxHeadSeq = 0;
+  let humanInboxPageSeq = 0;
+  let humanInboxScopeVersion = 0;
+  const loadHumanInboxFor = async (
+    category: HumanInboxCategory,
+    selection: ConversationSelection,
+    cursor?: string,
+  ): Promise<void> => {
+    const head = cursor === undefined;
+    const requestSeq = head ? ++humanInboxHeadSeq : ++humanInboxPageSeq;
+    const scopeVersion = humanInboxScopeVersion;
+    const { botSlug, channelId, sort } = clientStore.getSnapshot().humanInbox;
+    const isCurrent = (): boolean =>
+      currentSelection() === selection &&
+      scopeVersion === humanInboxScopeVersion &&
+      requestSeq === (head ? humanInboxHeadSeq : humanInboxPageSeq);
+    if (cursor === undefined && clientStore.getSnapshot().humanInbox.status === 'idle')
+      clientStore.setHumanInbox({ status: 'loading', error: undefined });
+    try {
+      const page = await loadHumanAttention(call, category, 50, cursor, {
+        botSlug,
+        channelId,
+        sort,
+      });
+      if (!isCurrent()) return;
+      const priorState = clientStore.getSnapshot().humanInbox;
+      if (priorState.category !== category) return;
+      const prior = priorState.items;
+      const preserveOlder = head && prior.length > 50 && page.nextCursor !== undefined;
+      const refreshedIds = new Set(page.items.map((item) => item.id));
+      const items = head
+        ? preserveOlder
+          ? [...page.items, ...prior.filter((item) => !refreshedIds.has(item.id))]
+          : page.items
+        : [...prior, ...page.items.filter((item) => !prior.some((seen) => seen.id === item.id))];
+      clientStore.setHumanInbox({
+        status: 'ready',
+        items,
+        nextCursor: preserveOlder ? priorState.nextCursor : page.nextCursor,
+        error: undefined,
+      });
+    } catch (error) {
+      if (!isCurrent() || clientStore.getSnapshot().humanInbox.category !== category) return;
+      clientStore.setHumanInbox({ status: 'error', error: errorMessage(error) });
+    }
+  };
   const loadOpeningTimeline = async (channelId: string) => {
     const anchor = await loadReadPosition(call, channelId);
     if (anchor !== undefined) {
@@ -320,9 +543,52 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
       if (currentSelection() !== active) return;
       clientStore.setConversation({ status: 'error', error: errorMessage(error), sending: false });
     }
+    if (channel.type === 'dm' && channel.botSlug !== undefined) {
+      await loadSessionsFor(channel.botSlug, active);
+    }
   };
 
   const actions: BridgeActions = {
+    listHostFolders(path, signal) {
+      if (folderAccess?.listDirectory === undefined)
+        throw new Error('DSH folder browser is unavailable');
+      return folderAccess.listDirectory(path, signal);
+    },
+    async addWorkspaceFolder(slug) {
+      if (folderAccess === undefined) throw new Error('DSH folder picker is unavailable');
+      const path = await folderAccess.pickDirectory();
+      if (path === null) return undefined;
+      const workspace = await folderAccess.createWorkspace({ path });
+      return createWorkspaceGrant(call, slug, workspace.workspaceId);
+    },
+    async authorizeWorkspacePath(slug, path) {
+      if (folderAccess === undefined) throw new Error('DSH Workspace controller is unavailable');
+      const workspace = await folderAccess.createWorkspace({ path });
+      return createWorkspaceGrant(call, slug, workspace.workspaceId);
+    },
+    async memoryDirectory(slug) {
+      const result = await call('get', { slug });
+      if (!result.ok) throw new BridgeCallError(result.error.code, result.error.message);
+      const bot = (result.value as { bot?: { memoryDir?: unknown } }).bot;
+      return typeof bot?.memoryDir === 'string' ? bot.memoryDir : undefined;
+    },
+    listWorkspaceOptions: () => loadWorkspaceOptions(call),
+    listWorkspaceGrants: (slug) => loadWorkspaceGrants(call, slug),
+    createWorkspaceGrant: (slug, workspaceId) => createWorkspaceGrant(call, slug, workspaceId),
+    revokeWorkspaceGrant: (slug, grantId) => revokeWorkspaceGrant(call, slug, grantId),
+    assignmentAccess: (slug) => loadAssignmentAccess(call, slug),
+    setAssignmentAccess: (slug, mode, acknowledgeRisk) =>
+      setAssignmentAccess(call, slug, mode, acknowledgeRisk),
+    listToolApprovalRules: (slug) => loadToolApprovalRules(call, slug),
+    revokeToolApprovalRule: (slug, id) => revokeToolApprovalRule(call, slug, id),
+    toolApprovalStatus: (channelId, messageId) =>
+      loadToolApprovalStatus(call, channelId, messageId),
+    decideToolApproval: (channelId, messageId, outcome) =>
+      decideToolApproval(call, channelId, messageId, outcome),
+    userQuestionStatus: (channelId, messageId) =>
+      loadUserQuestionStatus(call, channelId, messageId),
+    answerUserQuestion: (channelId, messageId, answers) =>
+      answerUserQuestion(call, channelId, messageId, answers),
     async load(signal) {
       clientStore.setRosterStatus('loading', undefined);
       try {
@@ -395,7 +661,81 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           sending: false,
         });
       }
-      await loadAssignmentsFor(slug, active);
+      await Promise.all([loadSessionsFor(slug, active), loadBotInboxFor(slug, active)]);
+    },
+    refreshBotInbox(slug) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'bot' || selection.slug !== slug) return Promise.resolve();
+      return loadBotInboxFor(slug, selection);
+    },
+    loadMoreBotInbox(slug) {
+      const selection = currentSelection();
+      const cursor = clientStore.getSnapshot().botInbox.nextCursor;
+      if (selection?.kind !== 'bot' || selection.slug !== slug || cursor === undefined)
+        return Promise.resolve();
+      return loadBotInboxFor(slug, selection, cursor);
+    },
+    openHumanInbox() {
+      clientStore.select({ kind: 'inbox' });
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
+    },
+    refreshHumanInbox(category) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      const prior = clientStore.getSnapshot().humanInbox;
+      const nextCategory = category ?? prior.category;
+      if (nextCategory !== prior.category) {
+        humanInboxScopeVersion += 1;
+        clientStore.setHumanInbox({
+          category: nextCategory,
+          channelId: undefined,
+          status: 'loading',
+          items: [],
+          nextCursor: undefined,
+          error: undefined,
+        });
+      }
+      return loadHumanInboxFor(nextCategory, selection);
+    },
+    setHumanInboxFilters(filters) {
+      const selection = currentSelection();
+      if (selection?.kind !== 'inbox') return Promise.resolve();
+      const prior = clientStore.getSnapshot().humanInbox;
+      if (
+        prior.botSlug === filters.botSlug &&
+        prior.channelId === filters.channelId &&
+        prior.sort === filters.sort
+      )
+        return Promise.resolve();
+      humanInboxScopeVersion += 1;
+      clientStore.setHumanInbox({
+        ...filters,
+        status: 'loading',
+        items: [],
+        nextCursor: undefined,
+        error: undefined,
+      });
+      return loadHumanInboxFor(prior.category, selection);
+    },
+    loadMoreHumanInbox() {
+      const selection = currentSelection();
+      const state = clientStore.getSnapshot().humanInbox;
+      if (selection?.kind !== 'inbox' || state.nextCursor === undefined) return Promise.resolve();
+      return loadHumanInboxFor(state.category, selection, state.nextCursor);
+    },
+    async ignoreHumanReport(sourceEventId) {
+      await ignoreHumanAssignmentReport(call, sourceEventId);
+      // Older loaded pages are retained on refresh; remove this decision from
+      // that cache before the fresh head can merge with it.
+      humanInboxScopeVersion += 1;
+      humanInboxHeadSeq += 1;
+      humanInboxPageSeq += 1;
+      const state = clientStore.getSnapshot().humanInbox;
+      clientStore.setHumanInbox({
+        items: state.items.filter((item) => item.sourceEventId !== sourceEventId),
+      });
     },
     openChannel(channelId) {
       return openChannelById(channelId);
@@ -580,19 +920,33 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         },
       });
     },
-    async openAssignment(sessionId) {
-      const selection = currentSelection();
-      if (selection?.kind !== 'bot') return;
-      try {
-        const assignment = await loadAssignment(call, selection.slug, sessionId);
-        if (currentSelection() !== selection) return;
-        clientStore.setAssignments({ selected: assignment, error: undefined });
-      } catch (error) {
-        if (currentSelection() !== selection) return;
-        clientStore.setAssignments({ error: errorMessage(error) });
-      }
+    memorySnapshot: (channelId) => loadMemorySnapshot(call, channelId),
+    memoryFile: (channelId, path) => loadMemoryFile(call, channelId, path),
+    memoryHistory: (channelId) => loadMemoryHistory(call, channelId),
+    memoryDiff: (channelId, sha) => loadMemoryDiff(call, channelId, sha),
+    memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
+    memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
+    memorySave: (input) => saveMemoryFile(call, input),
+    memoryRepair: (input) => repairMemory(call, input),
+    openSession(sessionId) {
+      if (folderAccess?.openSession === undefined)
+        throw new Error('DSH Session navigation is unavailable');
+      folderAccess.openSession(sessionId);
     },
-    async send(body, replyTo, attachments) {
+    async refreshSessions(slug) {
+      const selection = currentSelection();
+      if (selection === undefined || selectedBotSlug(selection) !== slug) return;
+      await loadSessionsFor(slug, selection);
+    },
+    async send(
+      body,
+      replyTo,
+      attachments,
+      memorySwitchTarget,
+      mentions,
+      channelRefs,
+      grantRequestResolution,
+    ) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
@@ -633,6 +987,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
             author: { kind: 'human' },
             body: text,
             ...(attachments === undefined ? {} : { attachments }),
+            ...(mentions === undefined ? {} : { mentions }),
+            ...(channelRefs === undefined ? {} : { channelRefs }),
+            ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
             ...(replyTo === undefined
               ? {}
               : {
@@ -657,6 +1014,11 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           replyTo,
           attachments,
           localId,
+          undefined,
+          memorySwitchTarget,
+          mentions,
+          channelRefs,
+          grantRequestResolution,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();
@@ -678,15 +1040,9 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
             messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
           });
         }
-        if (selection?.kind === 'bot') {
-          void loadAssignments(call, selection.slug)
-            .then((items) => {
-              if (currentSelection() !== selection) return;
-              clientStore.setAssignments({ status: 'ready', items, error: undefined });
-            })
-            .catch((error: unknown) => {
-              console.warn('botharness: assignment refresh failed', error);
-            });
+        const slug = selectedBotSlug(selection);
+        if (selection !== undefined && slug !== undefined) {
+          void loadSessionsFor(slug, selection);
         }
         return true;
       } catch (error) {
@@ -699,6 +1055,20 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
           remainingFailures(channel.id, [matching]);
           clientStore.setConversation({ sending: false, error: undefined });
           return true;
+        }
+        if (
+          error instanceof BridgeCallError &&
+          error.code === 'invalid-input' &&
+          error.message.includes('Mentioned PersonaBot')
+        ) {
+          if (latest.conversation.channel?.id === channel.id) {
+            clientStore.setConversation({
+              sending: false,
+              error: error.message,
+              messages: latest.conversation.messages.filter((message) => message.id !== localId),
+            });
+          }
+          return false;
         }
         const failedEcho: ChannelMessage = {
           ...localEcho,
@@ -769,6 +1139,74 @@ export function createActions(call: BridgeCall, clientStore: ClientStore): Bridg
         console.warn('botharness: channel rename failed', error);
         return false;
       }
+    },
+    async cancelGroupInvitation(channelId, invitationId) {
+      try {
+        const channel = await cancelGroupInvitation(call, channelId, invitationId);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group invitation cancellation failed', error);
+        return false;
+      }
+    },
+    async decideGroupJoin(channelId, requestId, accept) {
+      try {
+        const channel = await decideGroupJoin(call, channelId, requestId, accept);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group join decision failed', error);
+        return false;
+      }
+    },
+    async removeGroupMember(channelId, botSlug) {
+      try {
+        const channel = await removeGroupMember(call, channelId, botSlug);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group member removal failed', error);
+        return false;
+      }
+    },
+    async setGroupWakePolicy(channelId, botSlug, policy) {
+      try {
+        const channel = await setGroupWakePolicy(call, channelId, botSlug, policy);
+        clientStore.upsertChannel(channel);
+        if (clientStore.getSnapshot().conversation.channel?.id === channelId)
+          clientStore.setConversation({ channel });
+        return true;
+      } catch (error) {
+        console.warn('botharness: Group wake policy update failed', error);
+        return false;
+      }
+    },
+    async deleteGroupChannel(channelId) {
+      try {
+        await deleteGroupChannel(call, channelId);
+      } catch (error) {
+        console.warn('botharness: Group deletion failed', error);
+        return false;
+      }
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.conversation.channel?.id === channelId) clientStore.select(undefined);
+      clientStore.setRoster(
+        snapshot.bots,
+        snapshot.channels.filter((channel) => channel.id !== channelId),
+      );
+      try {
+        await actions.load();
+      } catch (error) {
+        console.warn('botharness: Group deletion refresh failed', error);
+      }
+      return true;
     },
     async createSection(name) {
       try {

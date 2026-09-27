@@ -25,7 +25,7 @@ export function toMemoryRelativePath(input: string): string {
     if (segment === '..') {
       throw new MemoryPathError(`memory path escapes the memory directory: ${input}`);
     }
-    if (segment.toLowerCase().startsWith('.git')) {
+    if (segment.toLowerCase() === '.git') {
       throw new MemoryPathError(`memory path is reserved: ${input}`);
     }
     segments.push(segment);

@@ -47,6 +47,23 @@ describe('Channel message visual groups', () => {
     ).toHaveLength(2);
   });
 
+  it('isolates bodyless Bot DM actions as centered timeline items', () => {
+    const action: ChannelMessage = {
+      ...message('action', 1),
+      body: '',
+      botDmAction: {
+        channelId: 'dm-bots-ada-bea',
+        messageId: 'bot-send',
+        recipientBotSlug: 'bea',
+      },
+    };
+    expect(
+      groupChannelMessages([message('before', 0), action, message('after', 2)]).map((group) =>
+        group.messages.map((item) => item.id),
+      ),
+    ).toEqual([['before'], ['action'], ['after']]);
+  });
+
   it('never merges bridged messages from different sources', () => {
     const groups = groupChannelMessages([
       message('feishu', 0, { kind: 'bridged', source: 'Feishu' }),

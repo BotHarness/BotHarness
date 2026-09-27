@@ -6,6 +6,7 @@ node_modules/
 dist/
 coverage/
 packages/client/lib/
+apps/docs/public/slides/
 *.tsbuildinfo
 
 # env / secrets

@@ -21,7 +21,7 @@ pnpm build
 
 Toolchain: pnpm 12.4.2 · Node ≥22 (`.node-version` = v24.21.0) · TypeScript 7 · oxlint · oxfmt · vitest · tsdown.
 In WSL, use the fnm node and `corepack pnpm` — Windows pnpm cannot create symlinks on WSL paths.
-Local dev loop (M3.5 pulled forward): install the local bundle into a `web-dev` profile and run `dsh web --profile web-dev` (pinned `0.1.5-rc.2`, isolated `DSH_HOME`); rebuild the client bundle with `pnpm build` — `dsh-client-hmr` pushes the new revision, and Host-side changes ride Cordis HMR. Details: `docs/client-bridge.md` §7. Agents boot an isolated, verified instance with `node scripts/dev-instance.mjs --home <path> --port <n> [--worktree <path>] [--build]`; it links that worktree, installs the profile, injects a shared machine-local `DEEPSEEK_API_KEY` when available (env > `~/.config/botharness/dev.env` > Keychain `botharness-deepseek`), and prints the one-shot token URL after probing `/api`. DSH may also use that profile's `$DSH_HOME/.credentials.yaml`; `node scripts/dev-secret.mjs check` reports only the shared injection source. Verify model usability with a real DM reply before declaring a key missing. Secrets stay machine-local and never enter the repo.
+Local DSH development uses the worktree's pinned `0.1.7-rc.2` CLI through `node scripts/dev-instance.mjs --home <isolated-DSH_HOME> --port <n> [--worktree <path>] [--build]`; the launcher links the local Bundle, verifies the authenticated `/api`, and rejects a mismatched CLI. Run `pnpm dev:client` for automatic Client builds; append `?botharness-dev-reload=1` in the Web tab for a full-page refresh when RC2 publishes a rebuilt Client event. Host changes use `pnpm build`, stop the launcher's exact PID, then restart the same isolated Profile. Details: `docs/client-bridge.md` §7. Agents boot an isolated, verified instance with the helper; it injects a shared machine-local `DEEPSEEK_API_KEY` when available (env > `~/.config/botharness/dev.env` > Keychain `botharness-deepseek`) and prints the local login URL. DSH may also use that profile's `$DSH_HOME/.credentials.yaml`; `node scripts/dev-secret.mjs check` reports only the shared injection source. Verify model usability with a real DM reply before declaring a key missing. Secrets stay machine-local and never enter the repo.
 For all future AX-launched isolated profiles to use the same DeepSeek key without re-entry, run `node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>` once. This copies only the DeepSeek reference into a private machine-local file (0600); it never copies the full profile credential store or commits a secret. See `docs/client-bridge.md` §7. Direct `dsh web` launches outside the AX helper still need an inherited environment key or their own profile credential.
 
 ## Conventions
@@ -36,6 +36,7 @@ For all future AX-launched isolated profiles to use the same DeepSeek key withou
 - OG cards: `apps/docs/src/pages/og/**` renders at build time with CanvasKit; Chinese titles use the committed Noto Sans SC subset. After editing Chinese page copy, run `pnpm og:font` (needs network) to regenerate `apps/docs/public/fonts/NotoSansSC-Bold.og-subset.otf`.
 - Installed agent skills are third-party files under `.agents/skills/` — do not reformat them (locked by hash in `skills-lock.json`). First-party skills live in the same tree and are ours to edit — `dsh-plugin-dev` (stable DSH/Cordis Context and Decision Tree), `dsh-dev`, and `dsh-ui` (all symlinked into `.claude/skills/`, not in the lock file).
 - Local docs dev: `pnpm dev` (portless from `apps/docs` → https://docs.botharness.localhost; no-sudo variant `PORTLESS_PORT=8788 PORTLESS_HTTPS=0`) or `pnpm docs:dev` (http://localhost:4321); `syncDocs()` runs at Astro config load, so plain `astro dev`/`astro build` also works.
+- Presentations: open-slide workspace in `apps/presentations` (one deck per `slides/<id>/`, authoring rules in its own `AGENTS.md`); iterate with `pnpm slides:dev`, embed into the docs site at `/slides/` with `pnpm slides:build` (`scripts/sync-slides.mjs`, output `apps/docs/public/slides/` is generated — never edit or commit it). `pnpm docs:build` rebuilds the embed automatically.
 
 ### Developer diagnostics (AX)
 
@@ -80,6 +81,10 @@ verified.
 ### Pull requests
 
 When creating or updating a PR, use the `visual-pr` skill to write the description: one-sentence "why", `/show-me`-style change outline, saved under `.humanlayer/tasks/` and applied with `gh pr edit --body-file`.
+For every PR, follow [merge-risk classification](docs/agents/pr-merge-risk.md) and summarize reversibility, blast radius, and review focus in one `Special things to note` bullet.
+For PRs that change visible UI or user interactions, follow [UI/UX PR visual evidence](docs/agents/pr-ui-visual-evidence.md) for before/after screenshots in the existing `Change outline`.
+
+For PRs that change architecture or data flow across modules, read [the optional PR Lens supplement](docs/agents/visual-pr-pr-lens.md) and use a diagram when it clarifies the review. Keep routine PRs on the visual-pr description alone.
 
 ### Domain docs
 

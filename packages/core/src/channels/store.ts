@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import { join } from 'node:path';
@@ -7,6 +8,7 @@ import { ChannelAttachmentError, type AttachmentStore } from '../attachments/sto
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
+  botDmChannelId,
   dmChannelId,
   groupChannelIdBase,
   isChannelMessage,
@@ -14,6 +16,9 @@ import {
   isValidChannelId,
   type ChannelMessage,
   type ChannelRecord,
+  type GroupInvitation,
+  type GroupJoinRequest,
+  type BotMessageCausation,
 } from './channel.js';
 import {
   DEFAULT_MESSAGE_PAGE,
@@ -30,6 +35,8 @@ export interface ChannelStoreOptions {
   attachments?: AttachmentStore;
   now?: () => Date;
   onCommitted?: (commit: ChannelMessageCommit) => void;
+  onRecordChanged?: () => void;
+  onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
   warn?: (message: string) => void;
 }
 
@@ -57,9 +64,171 @@ export interface ChannelReadOptions {
   limit?: number;
 }
 
+export interface ChannelMessageQueryOptions {
+  text?: string;
+  authorBotId?: string;
+  authorKind?: 'human' | 'bot' | 'bridged';
+  from?: string;
+  to?: string;
+  cursor?: string;
+  limit?: number;
+  /** Internal joined-search order; default remains Channel commit revision. */
+  orderBy?: 'time';
+}
+
+export interface ChannelMessageQueryPage {
+  messages: ChannelMessage[];
+  nextCursor?: string;
+}
+
+export interface PreparedChannelMessageQuery {
+  text?: string;
+  authorBotId?: string;
+  authorKind?: 'human' | 'bot' | 'bridged';
+  from?: number;
+  to?: number;
+  beforeId?: string;
+  orderBy?: 'time';
+  filter: string;
+  limit: number;
+}
+
+/** Normalize filters and bind an opaque cursor to its exact query. */
+export function prepareChannelMessageQuery(
+  channelId: string,
+  options: ChannelMessageQueryOptions = {},
+): PreparedChannelMessageQuery {
+  if (
+    options.authorBotId !== undefined &&
+    options.authorKind !== undefined &&
+    options.authorKind !== 'bot'
+  ) {
+    throw new Error('channel_read: author_bot_id requires author_kind bot');
+  }
+  if (
+    options.authorKind !== undefined &&
+    !['human', 'bot', 'bridged'].includes(options.authorKind)
+  ) {
+    throw new Error('channel_read: invalid author_kind');
+  }
+  const from = options.from === undefined ? undefined : Date.parse(options.from);
+  const to =
+    options.to === undefined
+      ? undefined
+      : Date.parse(options.to) + (/^\d{4}-\d{2}-\d{2}$/u.test(options.to) ? 86_400_000 - 1 : 0);
+  if (
+    (from !== undefined && !Number.isFinite(from)) ||
+    (to !== undefined && !Number.isFinite(to)) ||
+    (from !== undefined && to !== undefined && from > to)
+  )
+    throw new Error('channel_read: invalid date range');
+  const text = options.text?.trim().toLowerCase();
+  const filter = createHash('sha256')
+    .update(
+      JSON.stringify({
+        channelId,
+        text,
+        authorBotId: options.authorBotId,
+        authorKind: options.authorKind,
+        from,
+        to,
+        orderBy: options.orderBy,
+      }),
+    )
+    .digest('hex')
+    .slice(0, 16);
+  let beforeId: string | undefined;
+  if (options.cursor !== undefined) {
+    try {
+      const decoded: unknown = JSON.parse(
+        Buffer.from(options.cursor, 'base64url').toString('utf8'),
+      );
+      if (
+        typeof decoded !== 'object' ||
+        decoded === null ||
+        !('beforeId' in decoded) ||
+        typeof decoded.beforeId !== 'string' ||
+        !('filter' in decoded) ||
+        decoded.filter !== filter
+      )
+        throw new Error('invalid');
+      beforeId = decoded.beforeId;
+    } catch {
+      throw new Error('channel_read: invalid cursor');
+    }
+  }
+  return {
+    ...(text === undefined ? {} : { text }),
+    ...(options.authorBotId === undefined ? {} : { authorBotId: options.authorBotId }),
+    ...(options.authorKind === undefined ? {} : { authorKind: options.authorKind }),
+    ...(from === undefined ? {} : { from }),
+    ...(to === undefined ? {} : { to }),
+    ...(beforeId === undefined ? {} : { beforeId }),
+    ...(options.orderBy === undefined ? {} : { orderBy: options.orderBy }),
+    filter,
+    limit: Math.max(
+      1,
+      Math.min(Math.floor(options.limit ?? DEFAULT_MESSAGE_PAGE), MAX_MESSAGE_PAGE),
+    ),
+  };
+}
+
+/** Query the full ordered history before applying the bounded page. */
+export function queryChannelMessages(
+  channelId: string,
+  messages: readonly ChannelMessage[],
+  options: ChannelMessageQueryOptions = {},
+): ChannelMessageQueryPage {
+  const query = prepareChannelMessageQuery(channelId, options);
+  const ordered =
+    query.orderBy === 'time'
+      ? messages
+          .filter((message) => Number.isFinite(Date.parse(message.at)))
+          .sort(
+            (left, right) =>
+              Date.parse(right.at) - Date.parse(left.at) ||
+              (right.id < left.id ? -1 : right.id > left.id ? 1 : 0),
+          )
+      : [...messages].reverse();
+  const beforeIndex =
+    query.beforeId === undefined
+      ? -1
+      : ordered.findIndex((message) => message.id === query.beforeId);
+  if (query.beforeId !== undefined && beforeIndex < 0)
+    throw new Error('channel_read: invalid cursor');
+  const matching = ordered.slice(beforeIndex + 1).filter((message) => {
+    if (query.text !== undefined && !message.body.toLowerCase().includes(query.text)) return false;
+    if (
+      query.authorBotId !== undefined &&
+      (message.author.kind !== 'bot' || message.author.slug !== query.authorBotId)
+    )
+      return false;
+    if (query.authorKind !== undefined && message.author.kind !== query.authorKind) return false;
+    const at = Date.parse(message.at);
+    if ((query.from !== undefined || query.to !== undefined) && !Number.isFinite(at)) return false;
+    if (query.from !== undefined && at < query.from) return false;
+    if (query.to !== undefined && at > query.to) return false;
+    return true;
+  });
+  const page = matching.slice(0, query.limit + 1);
+  const selected = page.slice(0, query.limit);
+  const last = selected.at(-1);
+  return {
+    messages: selected,
+    ...(page.length <= query.limit || last === undefined
+      ? {}
+      : {
+          nextCursor: Buffer.from(
+            JSON.stringify({ beforeId: last.id, filter: query.filter }),
+          ).toString('base64url'),
+        }),
+  };
+}
+
 export interface CreateChannelGroupInput {
   name: string;
   members: string[];
+  ownerBotSlug?: string;
 }
 
 export interface ChannelStore {
@@ -75,20 +244,82 @@ export interface ChannelStore {
   /** Durable mark set for a profile-scoped Attachment Store sweep. */
   referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
+  getOrCreateBotDm(
+    firstBotSlug: string,
+    secondBotSlug: string,
+    name: string,
+  ): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
+  /** One pending invitation and its Inbox Admission are committed together. */
+  inviteGroupBot(input: {
+    channelId: string;
+    inviterBotSlug: string;
+    targetBotSlug: string;
+    targetBotCreatedAt: string;
+    targetDmChannelId: string;
+    botCausation?: BotMessageCausation;
+  }): GroupInvitation;
+  /** Only the named invitee may decide; acceptance adds membership atomically. */
+  respondToGroupInvite(input: {
+    invitationId: string;
+    targetBotSlug: string;
+    targetBotCreatedAt: string;
+    accept: boolean;
+  }): {
+    channel: ChannelRecord;
+    invitation: GroupInvitation;
+  };
+  /** Durable request for a Human-referenced Group; requester remains a nonmember. */
+  requestGroupJoin(input: {
+    channelId: string;
+    requesterBotSlug: string;
+    requesterBotCreatedAt: string;
+    ownerDmChannelId?: string;
+    botCausation?: BotMessageCausation;
+  }): GroupJoinRequest;
+  /** A Human or current Bot Group creator decides; first decision wins. */
+  decideGroupJoin(input: {
+    channelId: string;
+    requestId: string;
+    accept: boolean;
+    decidedBy: 'human' | string;
+    requesterBotCreatedAt: string;
+    requesterDmChannelId: string;
+    botCausation?: BotMessageCausation;
+  }): { channel: ChannelRecord; request: GroupJoinRequest; notified: boolean };
+  /** The Human may cancel a pending invite or remove a joined Bot. */
+  cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
+  cancelInvitationsForBot(botSlug: string): void;
+  setGroupWakePolicy(
+    channelId: string,
+    botSlug: string,
+    policy: { mode: 'mentions' | 'digest' | 'silent'; count: number; intervalSeconds: number },
+  ): ChannelRecord;
+  removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
+  /** Human-only logical deletion; past operational events remain for recovery/audit. */
+  deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
   readPosition(id: string): ChannelReadPosition | undefined;
   markRead(id: string, messageId: string): Promise<ChannelReadPosition | undefined>;
   appendMessage(id: string, message: ChannelMessage): Promise<ChannelMessage | undefined>;
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
+  queryMessages(id: string, options?: ChannelMessageQueryOptions): ChannelMessageQueryPage;
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
+  admissionChanged?(channelId: string, messageId: string): void;
 }
 
 function isMissing(error: unknown): boolean {
   return (error as NodeJS.ErrnoException).code === 'ENOENT';
+}
+
+export class ChannelMentionTargetError extends Error {
+  constructor() {
+    super('Mentioned PersonaBot is not eligible for this Channel');
+    this.name = 'ChannelMentionTargetError';
+  }
 }
 
 export class ChannelReplyTargetError extends Error {
@@ -350,6 +581,37 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       write(record);
       return record;
     },
+    getOrCreateBotDm(firstBotSlug, secondBotSlug, name) {
+      if (
+        !isValidSlug(firstBotSlug) ||
+        !isValidSlug(secondBotSlug) ||
+        firstBotSlug === secondBotSlug
+      )
+        return undefined;
+      const id = botDmChannelId(firstBotSlug, secondBotSlug);
+      const members = [firstBotSlug, secondBotSlug].sort();
+      const existing = read(id);
+      if (existing !== undefined) {
+        if (
+          existing.type !== 'dm' ||
+          existing.botSlug !== undefined ||
+          JSON.stringify(existing.members) !== JSON.stringify(members)
+        )
+          throw new Error(`Bot DM identity collision: ${id}`);
+        return existing;
+      }
+      const timestamp = now().toISOString();
+      const record: ChannelRecord = {
+        id,
+        type: 'dm',
+        name: name.trim() || members.join(' · '),
+        members,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      };
+      write(record);
+      return record;
+    },
     createGroup(input) {
       const id = nextGroupId(input.name);
       const name = input.name.trim();
@@ -359,11 +621,39 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         type: 'group',
         name: name.length > 0 ? name : id,
         members: [...input.members],
+        ...(input.ownerBotSlug === undefined ? {} : { ownerBotSlug: input.ownerBotSlug }),
         createdAt: timestamp,
         updatedAt: timestamp,
       };
       write(record);
       return record;
+    },
+    inviteGroupBot() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    respondToGroupInvite() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    requestGroupJoin() {
+      throw new Error('Group join requests require the operational Channel store');
+    },
+    decideGroupJoin() {
+      throw new Error('Group join requests require the operational Channel store');
+    },
+    cancelGroupInvite() {
+      throw new Error('Group invitations require the operational Channel store');
+    },
+    cancelInvitationsForBot() {
+      // Legacy file Channels cannot contain Inbox-backed invitations.
+    },
+    setGroupWakePolicy() {
+      throw new Error('Group wake policy requires the operational Channel store');
+    },
+    removeGroupMember() {
+      throw new Error('Group management requires the operational Channel store');
+    },
+    deleteGroup() {
+      throw new Error('Group deletion requires the operational Channel store');
     },
     rename(id, name) {
       const record = read(id);
@@ -453,6 +743,12 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
         .slice(Math.max(0, end - limit), end)
         .reverse()
         .map((message) => projectReply(message, byId));
+    },
+    queryMessages(id, queryOptions) {
+      const messages = readValidMessages(id);
+      const page = queryChannelMessages(id, messages, queryOptions);
+      const byId = messageIndex(messages);
+      return { ...page, messages: page.messages.map((message) => projectReply(message, byId)) };
     },
     readTimeline(id, request) {
       const messages = readValidMessages(id);

@@ -5,6 +5,7 @@ import type {} from '@deepseek-ai/dsh-agent';
 import type {} from '@deepseek-ai/dsh-session';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
+import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
@@ -18,7 +19,9 @@ import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
-import { createChannelStore, type ChannelStore } from './channels/store.js';
+import { DeveloperModeSkillGate } from './logs/skill.js';
+import type { ChannelStore } from './channels/store.js';
+import { createSqliteChannelStore } from './channels/sqlite-store.js';
 import {
   attachOperationalModule,
   mountOperationalDatabase,
@@ -27,16 +30,45 @@ import {
 import { BOT_HARNESS_SCHEMA_PLAN } from './database/schema-plan.js';
 import { resolveDshHome } from './im/config-store.js';
 import { ensureMemoryRepository } from './memory/repository.js';
+import { cloneMemoryRepository } from './memory/clone.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
 import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
+import {
+  createHumanAttentionQuery,
+  createHumanAttentionDecisions,
+  type HumanAttentionQuery,
+  type HumanAttentionDecisions,
+} from './runtime/human-attention.js';
+import {
+  grantExecutionDenial,
+  grantToolExecutionDenial,
+  isSafeMemoryDirectoryListing,
+  requiresHumanToolApproval,
+} from './workspaces/grant-execution.js';
+import { ChannelToolApproval } from './workspaces/tool-approval.js';
+import { ChannelUserQuestions } from './channels/user-questions.js';
+import {
+  createAssignmentAccessStore,
+  type AssignmentAccessStore,
+} from './workspaces/assignment-access.js';
+import {
+  createToolApprovalRuleStore,
+  type ToolApprovalRuleStore,
+} from './workspaces/tool-approval-rules.js';
+import {
+  createWorkspaceGrantStore,
+  type DshWorkspaceLookup,
+  type WorkspaceGrantStore,
+} from './workspaces/grants.js';
 import {
   createDshBotAgentAdapter,
   type DshAgentPresetHost,
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
 import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
-import { createDshSessionSource, type DshSessionStore } from './sessions/source.js';
+import type { DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
 
@@ -45,6 +77,36 @@ export const name = 'botharness-core';
 export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel'];
 
 export const PERSONA_SECTION_ORDER = 10400;
+
+const COMPACTION_END_EVENT: string = 'compaction/end';
+
+export interface CompactionRefreshSink {
+  ownership: { resolve(sessionId: string): { botSlug: string } | undefined };
+  memory: {
+    refreshPersonaAfterCompaction(botSlug: string, sessionId: string): { refreshed: boolean };
+  };
+  warn(message: string): void;
+}
+
+/**
+ * Compaction-boundary trigger for persona refresh, extracted for testing.
+ * Only an owned Session's `compaction/end` reaches the refresh; everything
+ * else is a silent no-op and failures never propagate into event dispatch.
+ */
+export function handleCompactionEvent(
+  sink: CompactionRefreshSink,
+  sessionId: string,
+  eventType: string,
+): void {
+  if (eventType !== COMPACTION_END_EVENT) return;
+  const owner = sink.ownership.resolve(sessionId);
+  if (owner === undefined) return;
+  try {
+    sink.memory.refreshPersonaAfterCompaction(owner.botSlug, sessionId);
+  } catch (error) {
+    sink.warn(`botharness: persona refresh after compaction failed: ${String(error)}`);
+  }
+}
 
 export interface BotHarnessConfig {
   enabled: boolean;
@@ -78,6 +140,12 @@ export interface BotHarnessCore {
   live: ChannelLiveHub;
   roster: RosterStore;
   runtime: BotRuntime;
+  attention: BotAttentionQuery;
+  humanAttention: HumanAttentionQuery;
+  humanAttentionDecisions: HumanAttentionDecisions;
+  grants: WorkspaceGrantStore;
+  toolRules: ToolApprovalRuleStore;
+  assignmentAccess: AssignmentAccessStore;
 }
 
 function unavailableAgentAdapter(): BotAgentAdapter {
@@ -98,17 +166,25 @@ export function createCore(
     dshHome?: string;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
+    workspaces?: () => DshWorkspaceLookup | undefined;
+    activeQuestionMessageIds?: () => readonly string[];
+    activeToolApprovalMessageIds?: () => readonly string[];
   } = {},
 ): BotHarnessCore {
   const dshHome = options.dshHome ?? resolveDshHome();
   const rootDir = join(dshHome, 'botharness', 'bots');
   const registry = createPersonaBotRegistry({
     rootDir,
+    cloneMemory: (destination, url) => cloneMemoryRepository({ destination, url }),
     initializeMemory: (memoryDir) => {
       const repository = ensureMemoryRepository({ memoryDir });
       return repository.ok
         ? { ok: true }
-        : { ok: false, message: `${repository.code}: ${repository.message}` };
+        : {
+            ok: false,
+            ...(repository.code === 'git-not-found' ? { code: 'git-not-found' as const } : {}),
+            message: `${repository.code}: ${repository.message}`,
+          };
     },
   });
   const states = createBotStateTracker();
@@ -116,21 +192,54 @@ export function createCore(
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
-  const channels = createChannelStore({
-    attachments,
-    rootDir: join(dshHome, 'botharness', 'channels'),
-    onCommitted: (commit) => live?.publishCommitted(commit),
-    ...(options.warn === undefined ? {} : { warn: options.warn }),
-  });
-  live = createChannelLiveHub(channels);
   const operationalDatabase = mountOperationalDatabase({
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const channels = createSqliteChannelStore({
+    database: attachOperationalModule(operationalDatabase, 'messaging'),
+    databaseOwnerReady: operationalDatabase.mode === 'ready',
+    isBotActive: (botSlug) => {
+      const bot = registry.get(botSlug);
+      return bot !== undefined && bot.paused !== true;
+    },
+    attachments,
+    rootDir: join(dshHome, 'botharness', 'channels'),
+    onCommitted: (commit) => live?.publishCommitted(commit),
+    onRecordChanged: () => live?.publishRosterCommitted(),
+    onAdmissionChanged: (channelId, messageId, message) =>
+      live?.publishAdmission(channelId, messageId, message),
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
+  const attention = createBotAttentionQuery(
+    attachOperationalModule(operationalDatabase, 'messaging'),
+    channels,
+  );
+  const humanAttentionDatabase = attachOperationalModule(operationalDatabase, 'human-attention');
+  const humanAttention = createHumanAttentionQuery(
+    humanAttentionDatabase,
+    options.activeQuestionMessageIds,
+    options.activeToolApprovalMessageIds,
+  );
+  const humanAttentionDecisions = createHumanAttentionDecisions(humanAttentionDatabase);
+  live = createChannelLiveHub(channels);
+  if (operationalDatabase.mode === 'ready')
+    for (const bot of registry.list())
+      if (bot.paused === true) channels.cancelInvitationsForBot(bot.slug);
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
-  const memory = createMemoryService({ registry, ownership });
+  const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
+  const grants = createWorkspaceGrantStore({
+    database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
+    workspaces: options.workspaces ?? (() => undefined),
+  });
+  const toolRules = createToolApprovalRuleStore(
+    attachOperationalModule(operationalDatabase, 'tool-approval-rules'),
+  );
+  const assignmentAccess = createAssignmentAccessStore(
+    attachOperationalModule(operationalDatabase, 'assignment-access'),
+  );
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
   return {
@@ -140,7 +249,13 @@ export function createCore(
     states,
     ownership,
     memory,
+    grants,
+    toolRules,
+    assignmentAccess,
     channels,
+    attention,
+    humanAttention,
+    humanAttentionDecisions,
     attachments,
     live,
     roster: createRosterStore({
@@ -153,9 +268,13 @@ export function createCore(
       channels,
       attachments,
       agents: options.agents ?? unavailableAgentAdapter(),
+      memory,
       ownership,
+      grants,
+      assignmentAccess,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
+      ...(options.warn === undefined ? {} : { warn: options.warn }),
     }),
   };
 }
@@ -167,22 +286,166 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
     defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
-    defaultWorkspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     publishDraft: (event) => publishDraft(event),
+    authorizeBorrow: (agent, role) => {
+      const owner = core.ownership.resolve(agent.session.id);
+      if (owner?.rootRole !== role) throw new Error('BotHarness Agent role mismatch');
+      const denial = grantExecutionDenial(
+        core,
+        agent.session,
+        ctx.get('sandboxPolicy'),
+        ctx.get('approval'),
+      );
+      if (denial !== undefined) throw new Error(denial);
+    },
   });
+  let userQuestions: ChannelUserQuestions | undefined;
+  let toolApproval: ChannelToolApproval | undefined;
   const core = createCore({
     dshHome,
+    activeQuestionMessageIds: () => userQuestions?.activeMessageIds() ?? [],
+    activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
+    workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
   });
   publishDraft = (event) => core.live.publishDraft(event);
   ctx.effect(() => () => core.operationalDatabase.close(), 'botharness: operational database');
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
+
+  const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
+    grantExecutionDenial(core, session, ctx.get('sandboxPolicy'), ctx.get('approval'));
+  // Native DSH prompt/resume also enters this waterfall, including after a Host restart.
+  ctx.on(
+    'agent/pre-step',
+    async ({ agent }, next) =>
+      permissionDenial(agent.session) === undefined ? next() : { kind: 'reject' },
+    { global: true },
+  );
+  toolApproval = new ChannelToolApproval(
+    core.channels,
+    core.ownership,
+    core.toolRules,
+    (agent, owner) => {
+      const cwd = agent.session.header.cwd ?? '';
+      if (owner.rootRole === 'assignment') {
+        const assignment = core.runtime.getAssignment(owner.botSlug, owner.sessionId);
+        const grantId = assignment?.permission?.grantId;
+        if (grantId === undefined) return undefined;
+        try {
+          core.grants.requireActive(owner.botSlug, grantId);
+        } catch {
+          return undefined;
+        }
+        return JSON.stringify(['assignment', cwd, grantId]);
+      }
+      const activeIds = core.grants
+        .list(owner.botSlug)
+        .filter((grant) => grant.revokedAt === undefined)
+        .map((grant) => grant.id)
+        .sort();
+      return JSON.stringify(['orchestrator', cwd, activeIds]);
+    },
+  );
+  userQuestions = new ChannelUserQuestions(
+    core.channels,
+    core.ownership,
+    (agent) => ctx.agents.get(agent.id) === agent,
+    (message) => ctx.logger.warn(message),
+  );
+  ctx.effect(() => () => userQuestions.close(), 'botharness: Channel user questions');
+  ctx.on(
+    'user-questions/request',
+    async (request, next) => (await userQuestions.ask(request)) ?? next(),
+    { global: true },
+  );
+  const approvedCalls = new Set<symbol>();
+  ctx.effect(() => () => toolApproval.close(), 'botharness: Channel tool approvals');
+  ctx.on('approval/request', async (request, next) => (await toolApproval.ask(request)) ?? next(), {
+    global: true,
+  });
+  ctx.on(
+    'tools/pre-execute',
+    async (execution, next) => {
+      const agent = execution.agent;
+      if (agent === undefined || core.ownership.resolve(agent.session.id) === undefined)
+        return next();
+      if (!requiresHumanToolApproval(execution.name)) return next();
+      if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
+        return next();
+      const denial = permissionDenial(agent.session);
+      if (denial !== undefined) return { kind: 'deny', reason: denial };
+      if (
+        typeof execution.arguments === 'object' &&
+        execution.arguments !== null &&
+        'sandbox_permissions' in execution.arguments
+      ) {
+        return {
+          kind: 'deny',
+          reason: 'BotHarness Session cannot request sandbox permission escalation',
+        };
+      }
+      const owner = core.ownership.resolve(agent.session.id);
+      const snapshot =
+        owner?.rootRole === 'assignment'
+          ? core.runtime.getAssignment(owner.botSlug, owner.sessionId)?.permission
+          : undefined;
+      if (snapshot?.mode === 'danger-full-access') return next();
+      const approval = ctx.get('approval') as ApprovalService | undefined;
+      const untrack = toolApproval.track(execution);
+      if (approval === undefined || untrack === undefined) {
+        return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
+      }
+      try {
+        const outcome = await approval.request({
+          agent,
+          toolName: execution.name,
+          callId: execution.callId,
+          reason: 'This tool call may access files outside the authorized folder.',
+          signal: execution.signal,
+        });
+        if (outcome !== 'allowed-once') {
+          return { kind: 'deny', reason: 'Human approval was ' + outcome };
+        }
+        if (!toolApproval.validAfterDecision(agent, execution.callId))
+          return { kind: 'deny', reason: 'Approval rule scope changed' };
+        approvedCalls.add(execution.token);
+        return await next();
+      } catch {
+        return { kind: 'deny', reason: 'Human approval is unavailable' };
+      } finally {
+        untrack();
+      }
+    },
+    { global: true },
+  );
+  // Every call is rechecked after the Human's decision; a revoked Assignment still fails.
+  ctx.tools.guard(({ agent, name, arguments: args, token }) => {
+    const allowedOnce = approvedCalls.delete(token);
+    return agent === undefined
+      ? undefined
+      : grantToolExecutionDenial(
+          core,
+          agent.session,
+          ctx.get('sandboxPolicy'),
+          ctx.get('approval'),
+          name,
+          args,
+          allowedOnce,
+        );
+  });
+  ctx.on(
+    'tools/result',
+    (execution) => {
+      approvedCalls.delete(execution.token);
+    },
+    { global: true },
+  );
 
   ctx.on(
     'agent/assistant-stream',
@@ -191,18 +454,68 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
 
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
+  // Holder filled by the skills inject below; the bridge method degrades to
+  // accepted:false until the skills service resolves it.
+  const developerModeTarget: { gate?: DeveloperModeSkillGate } = {};
   registerBridge(
     ctx,
     createBridgeMethods({
       registry: core.registry,
       states: core.states,
       channels: core.channels,
-      sessions: createDshSessionSource(dshSessions),
       ownership: core.ownership,
+      memory: core.memory,
       roster: core.roster,
       runtime: core.runtime,
+      attention: core.attention,
+      humanAttention: core.humanAttention,
+      humanAttentionDecisions: core.humanAttentionDecisions,
+      grants: core.grants,
+      toolApproval,
+      userQuestions,
+      toolRules: core.toolRules,
+      assignmentAccess: core.assignmentAccess,
+      developerMode: {
+        set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
+      },
     }),
   );
+
+  // DeveloperModeSkillGate owns the global-layer registration, so every
+  // agent scope sees one directory line only while the Human-owned
+  // developerMode preference is on. Clients report the flag over the bridge
+  // (`developerModeSet`); default off registers nothing until the first
+  // report. Runs only when the skills service is composed.
+  ctx.inject(['skills'], (skillsCtx) => {
+    const skills = (
+      skillsCtx as unknown as {
+        skills: {
+          register(skill: {
+            readonly name: string;
+            readonly description: string;
+            readonly whenToUse: string;
+            readonly content: string;
+            readonly invocation: {
+              readonly modelInvocable: boolean;
+              readonly userInvocable: boolean;
+            };
+            readonly source: string;
+            readonly provider: string;
+          }): () => void;
+        };
+      }
+    ).skills;
+    developerModeTarget.gate = new DeveloperModeSkillGate({
+      register: (definition) => {
+        let dispose: (() => void) | undefined;
+        skillsCtx.effect(() => {
+          dispose = skills.register(definition);
+          return () => dispose?.();
+        }, 'botharness: operational logs skill');
+        return () => dispose?.();
+      },
+    });
+  });
 
   // The shared /api carrier authenticates this exact Fetch route.
   ctx.inject(['connection'], (connectionCtx) => {
@@ -256,10 +569,22 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ownership: core.ownership,
     states: core.states,
   });
+  // Runtime-verified in dsh-compaction-basic 0.1.7-rc.2 (appends
+  // compaction/start|summary|end session events); absent from its ctx.on
+  // typing, hence the widening.
   ctx.on(
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      handleCompactionEvent(
+        {
+          ownership: core.ownership,
+          memory: core.memory,
+          warn: (message) => ctx.logger.warn(message),
+        },
+        session.id,
+        event.type,
+      );
     },
     { global: true },
   );

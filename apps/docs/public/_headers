@@ -1,2 +1,6 @@
 /_astro/*
   Cache-Control: public, max-age=31556952, immutable
+
+# Deck assets are content-hashed by the open-slide build.
+/slides/assets/*
+  Cache-Control: public, max-age=31556952, immutable

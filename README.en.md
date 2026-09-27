@@ -10,6 +10,7 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 ## Docs
 
 - Architecture & data flow (living doc): [docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · site https://botharness.ai
+- Intro slides: https://botharness.ai/slides/s/botharness-intro (sources in `apps/presentations`, iterate with `pnpm slides:dev`)
 - BotHarness Product Context: [CONTEXT.md](CONTEXT.md) · Decisions: [docs/adr/](docs/adr/)
 - Milestones & tickets: repository Issues and Projects
 
@@ -22,12 +23,14 @@ A DeepSeek Harness (DSH) plugin layer that gives LLM agents a persistent identit
 
 ## Inspiration
 
-- **Grok Bot**: every Bot has its own computer, memory, state, and works autonomously
-- **DeepSeek Harness**: a plugin host that carries other plugins
+- [**Grok Bot**](https://x.ai/bot): inspiration for persistent Bots that people can message and delegate work to like teammates
+- [**Rakazo**](https://github.com/elie222/rakazo): an open-source reference for persistent AI teammates, conversations, and memory
+- [**deepseek-harness-workbench-plugin**](https://github.com/loadingvx/deepseek-harness-workbench-plugin): visual reference for Memory Git graph rails, commit lists, and diff presentation
+- [**DeepSeek Harness**](https://github.com/deepseek-ai/deepseek-harness): the plugin host for BotHarness
 
 ## Development
 
-Toolchain: pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown; the client package (`@botharness/client`) uses React (DSH client contract) + blobatar.
+Toolchain: pnpm 12.4.2 · Node ≥22 · TypeScript 7 · oxlint / oxfmt · vitest · tsdown; the client package (`@botharness/ui`) uses React (DSH client contract) + blobatar.
 
 ```bash
 pnpm install
@@ -49,7 +52,7 @@ Repository layout (monorepo):
 
 ```text
 packages/core        @botharness/core   # PersonaBot registry / state (memory lands in M2)
-packages/client      @botharness/client # React: roster / detail / delegation entry (M3)
+packages/client      @botharness/ui # React: roster / detail / delegation entry (M3)
 packages/im          @botharness/im     # IM adapter (M5)
 packages/deepseekbot deepseekbot        # bundle + app (later)
 ```

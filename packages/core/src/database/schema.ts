@@ -8,6 +8,8 @@ export interface SchemaMigration {
   /** Deep module that owns the tables and invariants changed by this step. */
   module: string;
   description: string;
+  /** A staged migration that rebuilds a referenced table; integrity is checked before activation. */
+  rebuildsReferencedTables?: boolean;
   migrate(database: DatabaseSync): void;
 }
 

@@ -67,7 +67,7 @@ export function initializeMemoryGit(root: string): { created: boolean } {
   run(root, ['config', 'commit.gpgsign', 'false']);
   run(root, ['config', 'core.autocrlf', 'false']);
   const attributes = join(root, '.gitattributes');
-  if (!existsSync(attributes)) {
+  if (revParse(root) === '' && !existsSync(attributes)) {
     writeFileSync(attributes, GITATTRIBUTES, 'utf8');
   }
   return { created };
