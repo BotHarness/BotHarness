@@ -8,6 +8,7 @@ import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createBotAttentionQuery } from '../src/runtime/attention.js';
+import { readAssignmentReportPage } from '../src/runtime/assignment-tail.js';
 import {
   createHumanAttentionDecisions,
   createHumanAttentionQuery,
@@ -107,7 +108,38 @@ function sourceEvents(owner: ReturnType<typeof mountOperationalDatabase>): Array
   }>;
 }
 
-async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Promise<{
+async function setup(
+  options: {
+    assignmentConcurrencyLimit?: number;
+    saveReportSpill?: (input: {
+      sessionId: string;
+      content: string;
+    }) => Promise<{ locator: string; bytes: number; retrievalHint: string }>;
+    readAssignmentTail?: (sessionId: string) => Promise<{
+      events: Array<{ seq: number; type: string; text: string; truncated: boolean }>;
+      indexedEvents: number;
+      readCount: number;
+      sourceEventBytes: number;
+      returnedCharacters: number;
+      estimatedTokens: number;
+    }>;
+    readAssignmentReportPage?: (
+      sessionId: string,
+      acceptedSummary: string,
+      offset: number,
+    ) => Promise<{
+      text: string;
+      offset: number;
+      nextOffset?: number;
+      totalCharacters: number;
+      matchedEvents: number;
+      readCount: number;
+      sourceEventBytes: number;
+      returnedCharacters: number;
+      estimatedTokens: number;
+    }>;
+  } = {},
+): Promise<{
   runtime: BotRuntime;
   grants: WorkspaceGrantStore;
   agents: ManualAgents;
@@ -135,6 +167,13 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
     channels,
     agents,
     grants,
+    ...(options.saveReportSpill === undefined ? {} : { saveReportSpill: options.saveReportSpill }),
+    ...(options.readAssignmentTail === undefined
+      ? {}
+      : { readAssignmentTail: options.readAssignmentTail }),
+    ...(options.readAssignmentReportPage === undefined
+      ? {}
+      : { readAssignmentReportPage: options.readAssignmentReportPage }),
     now: FIXED_NOW,
     ...(options.assignmentConcurrencyLimit === undefined
       ? {}
@@ -162,6 +201,157 @@ async function setup(options: { assignmentConcurrencyLimit?: number } = {}): Pro
 }
 
 describe('Assignment collaboration', () => {
+  it('keeps a 2 KiB report inline and spills the next byte', async () => {
+    const saved: string[] = [];
+    const { agents, admit, close } = await setup({
+      saveReportSpill: async ({ content }) => {
+        saved.push(content);
+        return {
+          locator: 'opaque-report',
+          bytes: Buffer.byteLength(content),
+          retrievalHint: 'Read the report.',
+        };
+      },
+    });
+    try {
+      await admit('Start research', 'human-spill-boundary');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'progress', summary: 'a'.repeat(2_048) });
+      expect(saved).toEqual([]);
+      await run.report({ state: 'progress', summary: 'b'.repeat(2_049) });
+      expect(saved).toEqual(['b'.repeat(2_049)]);
+    } finally {
+      await close();
+    }
+  });
+
+  it('spills an oversized report before admitting its bounded Inbox summary', async () => {
+    const saved: Array<{ sessionId: string; content: string }> = [];
+    const { runtime, agents, owner, admit, close } = await setup({
+      saveReportSpill: async (input) => {
+        saved.push(input);
+        return {
+          locator: '/private/spill/report.txt',
+          bytes: Buffer.byteLength(input.content),
+          retrievalHint: 'Use read on this locator.',
+        };
+      },
+    });
+    try {
+      await admit('Start research', 'human-spill');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Long research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const content = `Report start ${'α'.repeat(1200)} FINAL-MARKER`;
+      await agents.started[0]!.run.report({ state: 'completed', summary: content });
+      agents.finish(created.assignment.sessionId);
+      await runtime.whenIdle();
+      expect(saved).toEqual([{ sessionId: created.assignment.sessionId, content }]);
+      const summary = runtime.getAssignment('ada', created.assignment.sessionId)?.latestReport
+        ?.summary;
+      expect(summary).toContain('/private/spill/report.txt');
+      expect(summary).toMatch(/sha256: [0-9a-f]{64}/u);
+      expect(summary).not.toContain('FINAL-MARKER');
+      const page = await readAssignmentReportPage(
+        {
+          listEvents: async () => [],
+          filterEvents: async () => [{ seq: 1 }],
+          readEvent: async () => ({
+            target: {
+              type: 'tool/call',
+              data: {
+                name: 'report_to_orchestrator',
+                arguments: JSON.stringify({ summary: saved[0]!.content }),
+              },
+            },
+          }),
+        },
+        created.assignment.sessionId,
+        summary!,
+        1_000,
+      );
+      expect(page.text).toContain('FINAL-MARKER');
+      expect(page.sourceEventBytes).toBeGreaterThan(Buffer.byteLength(content));
+      expect(agents.inboxTurns[0]).toContain('/private/spill/report.txt');
+      expect(agents.inboxTurns[0]).not.toContain('FINAL-MARKER');
+      const source = attachOperationalModule(owner, 'spill-test').read((database) =>
+        database
+          .prepare("SELECT body FROM source_events WHERE source_kind = 'assignment-report'")
+          .get(),
+      ) as { body: string };
+      expect(source.body).toBe(summary);
+      await agents.access!.stop(created.assignment.sessionId);
+      await expect(
+        agents.started[0]!.run.report({ state: 'completed', summary: content }),
+      ).rejects.toThrow('unavailable or stopping');
+      expect(saved).toHaveLength(1);
+    } finally {
+      await close();
+    }
+  });
+
+  it('authorizes Session Query tail reads through the owning Bot Assignment Directory', async () => {
+    const readAssignmentTail = vi.fn(async () => ({
+      events: [],
+      indexedEvents: 0,
+      readCount: 0,
+      sourceEventBytes: 0,
+      returnedCharacters: 0,
+      estimatedTokens: 0,
+    }));
+    const { agents, admit, close } = await setup({ readAssignmentTail });
+    try {
+      await admit('Start', 'human-tail');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      await expect(agents.access!.tail?.(created.assignment.sessionId)).resolves.toMatchObject({
+        indexedEvents: 0,
+      });
+      await expect(agents.access!.tail?.('foreign-session')).rejects.toThrow(
+        'Unknown Assignment Session',
+      );
+      expect(readAssignmentTail).toHaveBeenCalledTimes(1);
+      expect(readAssignmentTail).toHaveBeenCalledWith(created.assignment.sessionId);
+    } finally {
+      await close();
+    }
+  });
+
+  it('only pages the latest accepted report from an owned Assignment', async () => {
+    const readAssignmentReportPage = vi.fn(async () => ({
+      text: 'first page',
+      offset: 0,
+      totalCharacters: 10,
+      matchedEvents: 1,
+      readCount: 1,
+      sourceEventBytes: 100,
+      returnedCharacters: 10,
+      estimatedTokens: 3,
+    }));
+    const { agents, admit, close } = await setup({ readAssignmentReportPage });
+    try {
+      await admit('Start', 'human-report-page');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const sessionId = created.assignment.sessionId;
+      await agents.started[0]!.run.report({ state: 'completed', summary: 'first page' });
+      await expect(agents.access!.reportPage?.(sessionId, 'first page', 0)).resolves.toMatchObject({
+        text: 'first page',
+      });
+      await expect(agents.access!.reportPage?.(sessionId, 'stale page', 0)).rejects.toThrow(
+        'Assignment report changed',
+      );
+      await expect(agents.access!.reportPage?.('foreign-session', 'first page', 0)).rejects.toThrow(
+        'Unknown Assignment Session',
+      );
+      expect(readAssignmentReportPage).toHaveBeenCalledTimes(1);
+      expect(readAssignmentReportPage).toHaveBeenCalledWith(sessionId, 'first page', 0);
+    } finally {
+      await close();
+    }
+  });
+
   it('projects a Bot Grant request as one Human action until a typed or legacy Human resolution', async () => {
     const home = createTempRoot('botharness-grant-attention-');
     const owner = trackTestOwner(
@@ -338,7 +528,7 @@ describe('Assignment collaboration', () => {
     );
     await expect(
       runningTurn.report({ state: 'completed', summary: '取消之后的迟到报告' }),
-    ).rejects.toThrow(/transaction/);
+    ).rejects.toThrow('unavailable or stopping');
     expect(runtime.getAssignment('ada', sessionId)?.latestReport).toBeUndefined();
     expect((await access.stop(sessionId)).activity).toBe('stopped');
 

@@ -41,7 +41,12 @@ import { ensureMemoryRepository } from './memory/repository.js';
 import { cloneMemoryRepository } from './memory/clone.js';
 import { createMemoryService, type MemoryService } from './memory/service.js';
 import { createRosterStore, type RosterStore } from './roster/store.js';
-import { createBotRuntime, type BotAgentAdapter, type BotRuntime } from './runtime/bot-runtime.js';
+import {
+  createBotRuntime,
+  type AssignmentEventTail,
+  type BotAgentAdapter,
+  type BotRuntime,
+} from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
 import {
   createHumanAttentionQuery,
@@ -76,6 +81,12 @@ import {
   type DshDefaultModelHost,
 } from './runtime/dsh-bot-agent-adapter.js';
 import { createSessionOwnership, type SessionOwnership } from './sessions/ownership.js';
+import {
+  readAssignmentReportPage,
+  readBoundedAssignmentTail,
+  type AssignmentSessionQuery,
+  type AssignmentReportPage,
+} from './runtime/assignment-tail.js';
 import type { DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
@@ -174,6 +185,16 @@ export function createCore(
     dshHome?: string;
     warn?: (message: string) => void;
     agents?: BotAgentAdapter;
+    saveReportSpill?: (input: {
+      sessionId: string;
+      content: string;
+    }) => Promise<{ locator: string; bytes: number; retrievalHint: string }>;
+    readAssignmentTail?: (sessionId: string) => Promise<AssignmentEventTail>;
+    readAssignmentReportPage?: (
+      sessionId: string,
+      acceptedSummary: string,
+      offset: number,
+    ) => Promise<AssignmentReportPage>;
     workspaces?: () => DshWorkspaceLookup | undefined;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
@@ -276,6 +297,15 @@ export function createCore(
       channels,
       attachments,
       agents: options.agents ?? unavailableAgentAdapter(),
+      ...(options.saveReportSpill === undefined
+        ? {}
+        : { saveReportSpill: options.saveReportSpill }),
+      ...(options.readAssignmentTail === undefined
+        ? {}
+        : { readAssignmentTail: options.readAssignmentTail }),
+      ...(options.readAssignmentReportPage === undefined
+        ? {}
+        : { readAssignmentReportPage: options.readAssignmentReportPage }),
       memory,
       ownership,
       grants,
@@ -318,6 +348,35 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     activeToolApprovalMessageIds: () => toolApproval?.activeMessageIds() ?? [],
     warn: (message) => ctx.logger.warn(message),
     agents: agentAdapter,
+    saveReportSpill: async ({ sessionId, content }) => {
+      const spillStore = ctx.get('spillStore') as unknown as
+        | {
+            saveText(input: {
+              owner: { sessionId: string };
+              source: { kind: 'session-reference'; sessionId: string; label: string };
+              suggestedName: string;
+              content: string;
+            }): Promise<{ locator: string; bytes: number; retrievalHint: string }>;
+          }
+        | undefined;
+      if (spillStore === undefined) throw new Error('DSH Spill service is unavailable');
+      return spillStore.saveText({
+        owner: { sessionId },
+        source: { kind: 'session-reference', sessionId, label: 'Assignment report' },
+        suggestedName: 'assignment-report.txt',
+        content,
+      });
+    },
+    readAssignmentTail: async (sessionId) => {
+      const query = ctx.get('sessionQuery') as unknown as AssignmentSessionQuery | undefined;
+      if (query === undefined) throw new Error('DSH Session Query is unavailable');
+      return readBoundedAssignmentTail(query, sessionId);
+    },
+    readAssignmentReportPage: async (sessionId, acceptedSummary, offset) => {
+      const query = ctx.get('sessionQuery') as unknown as AssignmentSessionQuery | undefined;
+      if (query === undefined) throw new Error('DSH Session Query is unavailable');
+      return readAssignmentReportPage(query, sessionId, acceptedSummary, offset);
+    },
     workspaces: () => ctx.get('workspaceRegistry') as unknown as DshWorkspaceLookup | undefined,
   });
   publishDraft = (event) => core.live.publishDraft(event);

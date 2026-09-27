@@ -27,6 +27,7 @@ import {
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 import { sessionMentionText } from './session-mentions.js';
+import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
   AssignmentPermissionSnapshot,
   WorkspaceGrant,
@@ -41,6 +42,10 @@ export type AssignmentReportState =
   | 'waiting-human'
   | 'failed';
 export type AssignmentRequestMode = 'next-step' | 'next-turn';
+
+const MAX_INLINE_REPORT_BYTES = 2048;
+const MAX_REPORT_BYTES = 1_048_576;
+const REPORT_PREVIEW_CHARACTERS = 400;
 
 export interface AssignmentReportInput {
   state: AssignmentReportState;
@@ -76,6 +81,15 @@ export interface AssignmentDetail extends AssignmentSummary {
   sourceEventId: string;
 }
 
+export interface AssignmentEventTail {
+  events: Array<{ seq: number; type: string; text: string; truncated: boolean }>;
+  indexedEvents: number;
+  readCount: number;
+  sourceEventBytes: number;
+  returnedCharacters: number;
+  estimatedTokens: number;
+}
+
 export type AssignmentCreateOutcome =
   | { outcome: 'created'; assignment: AssignmentSummary }
   | { outcome: 'reused'; assignment: AssignmentSummary }
@@ -91,6 +105,12 @@ export interface OrchestratorAssignmentAccess {
   grants(): WorkspaceGrant[];
   list(): AssignmentSummary[];
   inspect(sessionId: string): AssignmentDetail | undefined;
+  tail?(sessionId: string): Promise<AssignmentEventTail>;
+  reportPage?(
+    sessionId: string,
+    acceptedSummary: string,
+    offset: number,
+  ): Promise<AssignmentReportPage>;
   request(input: {
     sessionId: string;
     mode: AssignmentRequestMode;
@@ -293,6 +313,18 @@ export interface BotRuntimeOptions {
   /** Human-owned Workspace Grant authority; Assignment creation fails closed when absent. */
   grants?: WorkspaceGrantStore;
   assignmentAccess?: AssignmentAccessStore;
+  /** DSH Spill provider for oversized Assignment reports. */
+  saveReportSpill?: (input: {
+    sessionId: string;
+    content: string;
+  }) => Promise<{ locator: string; bytes: number; retrievalHint: string }>;
+  /** DSH Session Query exact read, supplied by the Host rather than model input. */
+  readAssignmentTail?: (sessionId: string) => Promise<AssignmentEventTail>;
+  readAssignmentReportPage?: (
+    sessionId: string,
+    acceptedSummary: string,
+    offset: number,
+  ) => Promise<AssignmentReportPage>;
   /** Explicit run-configuration root recorded as each Session's cwd reference. */
   workspaceRoot?: string;
   /**
@@ -529,6 +561,9 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
+  readonly #saveReportSpill: BotRuntimeOptions['saveReportSpill'];
+  readonly #readAssignmentTail: BotRuntimeOptions['readAssignmentTail'];
+  readonly #readAssignmentReportPage: BotRuntimeOptions['readAssignmentReportPage'];
   readonly #now: () => Date;
   readonly #createSessionId: () => string;
   readonly #createEventId: () => string;
@@ -560,6 +595,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#agents = options.agents;
     this.#memory = options.memory;
     this.#attachments = options.attachments;
+    this.#saveReportSpill = options.saveReportSpill;
+    this.#readAssignmentTail = options.readAssignmentTail;
+    this.#readAssignmentReportPage = options.readAssignmentReportPage;
     this.#now = options.now ?? (() => new Date());
     this.#createSessionId = options.createSessionId ?? (() => `botharness-${randomUUID()}`);
     this.#createEventId = options.createEventId ?? (() => randomUUID());
@@ -1594,6 +1632,22 @@ class BotRuntimeImplementation implements BotRuntime {
       grants: () => this.#grants?.list(bot.slug) ?? [],
       list: () => this.listAssignments(bot.slug),
       inspect: (sessionId) => this.getAssignment(bot.slug, sessionId),
+      tail: async (sessionId) => {
+        if (this.getAssignment(bot.slug, sessionId) === undefined)
+          throw new Error(`Unknown Assignment Session: ${sessionId}`);
+        if (this.#readAssignmentTail === undefined)
+          throw new Error('DSH Session Query is unavailable');
+        return this.#readAssignmentTail(sessionId);
+      },
+      reportPage: async (sessionId, acceptedSummary, offset) => {
+        const assignment = this.getAssignment(bot.slug, sessionId);
+        if (assignment === undefined) throw new Error(`Unknown Assignment Session: ${sessionId}`);
+        if (assignment.latestReport?.summary !== acceptedSummary)
+          throw new Error('Assignment report changed; inspect it again');
+        if (this.#readAssignmentReportPage === undefined)
+          throw new Error('DSH Session Query is unavailable');
+        return this.#readAssignmentReportPage(sessionId, acceptedSummary, offset);
+      },
       request: (input) => {
         const outcome = this.#requestAssignment(bot, input);
         markSideEffect();
@@ -2932,12 +2986,31 @@ class BotRuntimeImplementation implements BotRuntime {
     return assignment;
   }
 
-  #recordReport(
+  async #recordReport(
     botSlug: string,
     sessionId: string,
     input: AssignmentReportInput,
-  ): AssignmentReport {
-    const summary = requireNonBlank(input.summary, 'Assignment report summary');
+  ): Promise<AssignmentReport> {
+    const content = requireNonBlank(input.summary, 'Assignment report summary');
+    const assignment = this.getAssignment(botSlug, sessionId);
+    if (
+      assignment === undefined ||
+      assignment.activity === 'stopping' ||
+      assignment.activity === 'stopped'
+    )
+      throw new Error(`Assignment Session ${sessionId} is unavailable or stopping`);
+    const byteLength = Buffer.byteLength(content, 'utf8');
+    if (byteLength > MAX_REPORT_BYTES)
+      throw new Error(`Assignment report exceeds ${MAX_REPORT_BYTES} bytes`);
+    let summary = content;
+    if (byteLength > MAX_INLINE_REPORT_BYTES) {
+      if (this.#saveReportSpill === undefined)
+        throw new Error('Assignment report spill storage is unavailable');
+      const spill = await this.#saveReportSpill({ sessionId, content });
+      const preview = Array.from(content).slice(0, REPORT_PREVIEW_CHARACTERS).join('');
+      const digest = createHash('sha256').update(content).digest('hex');
+      summary = `${preview}…\n[Full report: ${spill.bytes} bytes; sha256: ${digest}; locator: ${spill.locator}; ${spill.retrievalHint}]`;
+    }
     const at = this.#now().toISOString();
     const expectsReply = input.expectsReply === true;
     const report: AssignmentReport = {
