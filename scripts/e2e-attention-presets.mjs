@@ -58,6 +58,36 @@ async function waitForAttention(slug, marker, state) {
   throw new Error(`Admission ${marker} did not reach ${state}`);
 }
 
+if (process.argv[4] === '--verify-restart') {
+  const [, , , , , botSlug, groupId, silentMarker] = process.argv;
+  if (!botSlug || !groupId || !silentMarker)
+    throw new Error('Restart check requires <botSlug> <groupId> <silentMarker>');
+  const group = (await rpc('channels')).channels.find((channel) => channel.id === groupId);
+  const policy = group?.wakePolicies?.[botSlug];
+  const admission = (await rpc('botAttention', { slug: botSlug })).items.find((item) =>
+    item.summary?.includes(silentMarker),
+  );
+  if (policy?.mode !== 'silent' || admission?.state !== 'pending') {
+    throw new Error(
+      `Restart lost silent policy or pending admission: ${JSON.stringify({ policy, admission })}`,
+    );
+  }
+  console.log(
+    JSON.stringify(
+      {
+        ok: true,
+        group: group.name,
+        mode: policy.mode,
+        revision: policy.revision,
+        admissionState: admission.state,
+      },
+      null,
+      2,
+    ),
+  );
+  process.exit(0);
+}
+
 const stamp = Date.now();
 const displayName = `AttentionQA-${stamp}`;
 const created = await rpc('create', { displayName });

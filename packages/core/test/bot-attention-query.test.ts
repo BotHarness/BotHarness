@@ -108,13 +108,22 @@ describe('Bot-scoped attention projection', () => {
           "UPDATE inbox_admissions SET attempt_state = 'running' WHERE bot_slug = 'ada'",
         ).run();
       });
-      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('deferred');
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('processing');
       testDatabase.transaction((db) => {
         db.prepare(
           "UPDATE inbox_admissions SET observed_at = '2026-09-26T00:00:01.000Z' WHERE bot_slug = 'ada'",
         ).run();
       });
-      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('observed');
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('processing');
+      testDatabase.transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET attempt_state = 'pending' WHERE bot_slug = 'ada'",
+        ).run();
+      });
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]).toMatchObject({
+        state: 'pending',
+        observedAt: '2026-09-26T00:00:01.000Z',
+      });
       testDatabase.transaction((db) => {
         db.prepare(
           "UPDATE inbox_admissions SET attempt_state = 'pending', observed_at = NULL WHERE bot_slug = 'ada'",

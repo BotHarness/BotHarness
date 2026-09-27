@@ -285,6 +285,7 @@ export interface ConversationState {
 
 export type BotAttentionStatus =
   | 'pending'
+  | 'processing'
   | 'observed'
   | 'deferred'
   | 'needs-repair'

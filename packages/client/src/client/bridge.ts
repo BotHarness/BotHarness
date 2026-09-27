@@ -1234,9 +1234,15 @@ function parseBotAttentionItem(value: unknown): BotAttentionItem | undefined {
   const required = ['id', 'botSlug', 'reason', 'createdAt', 'sourceKind', 'summary'] as const;
   if (required.some((key) => typeof row[key] !== 'string')) return undefined;
   if (
-    !['pending', 'observed', 'deferred', 'needs-repair', 'handled', 'ignored'].includes(
-      String(row['state']),
-    )
+    ![
+      'pending',
+      'processing',
+      'observed',
+      'deferred',
+      'needs-repair',
+      'handled',
+      'ignored',
+    ].includes(String(row['state']))
   )
     return undefined;
   if (!['human', 'bot', 'bridged', 'system'].includes(String(row['authorKind']))) return undefined;
