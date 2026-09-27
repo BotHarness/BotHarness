@@ -327,7 +327,7 @@ _避免使用_：queue、mailbox、backlog
 _避免使用_：inbox item body、delivery job、message copy
 
 **Inbox Trigger**：
-由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。shared template 可以创建它，但 Bridge 绝不拥有它，也不会调用 Agent。
+由 PersonaBot 拥有的持久 Host rule，负责匹配 Source Event 并创建 Inbox Admission，包括 admission reason、priority 与 Wake Policy selection。PersonaBot 自己塑造这些规则，Human 可以查看、覆盖或冻结；template 可以提供初值，Bridge 绝不拥有 attention 或 wake behavior，安全闸门永远不属于规则。
 _避免使用_：bridge、wake policy、model trigger、scheduler
 
 **Messaging Policy**：
@@ -391,8 +391,12 @@ _避免使用_：failure、timeout、retryable error、success
 _避免使用_：model decision、delivery mechanism、scheduler
 
 **Delivery Policy**：
-Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射到 next step、next turn 或显式 whole-turn abort。
+Host policy，依据 Wake Policy decision 与 Orchestrator liveness，将后续动作映射为安全 step 处的 steer、下一次 harvest，或不唤醒。
 _避免使用_：wake policy、inferred step state、message priority
+
+**Turn harvest**：
+一次 Orchestrator turn 消费整个就绪 attention 集合——所有未处理的即时项、达到阈值的 digest 批次与被动 notice——而不是一事件一回合。steer 的直达地址改为加入正在运行的回合。
+_避免使用_：per-event queue、wake storm、batch（单独使用）
 
 **Human Inbox**：
 面向 Human 的 attention projection，把 Channel Attention 与 PersonaBot Attention 分类为 action-required 或 informational。它引用各自的权威事实，不复制 Channel 内容，也不会把每一条 Bot Inbox item 都摊平成 Human 工作。
@@ -423,7 +427,7 @@ _避免使用_：join request、成员授予、Channel 引用
 _避免_：邀请、自动入群、Channel 提及
 
 **Bot Channel subscription**：
-PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`mentions`（仅直接 @ 唤醒）、`digest`（普通消息进入唤醒汇总）、`silent`（普通消息记录为 attention，不自动唤醒）。它独立于 membership 与 send authority，Human 可以覆盖。
+PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`all`（每条普通消息都成为 attention）、`digest`（普通消息按 count 与 interval 进入唤醒汇总；默认）、`mentions`（只有直接 @ 能到达 Bot）、或 `silent`（普通消息记录为 attention，但永不唤醒）。直接 @ 与 DM 永远可达；Human 可以覆盖该 preference，它独立于 membership 与 send authority。
 _避免使用_：membership、wake decision、digest schedule
 
 **Message provenance**：

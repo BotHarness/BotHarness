@@ -329,7 +329,7 @@ The durable relationship saying why a Source Event is eligible for one PersonaBo
 _Avoid_: inbox item body, delivery job, message copy
 
 **Inbox Trigger**:
-A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. Shared templates may create it, but a Bridge never owns it or invokes the Agent.
+A PersonaBot-owned durable Host rule that matches Source Events and creates Inbox Admissions, including the admission reason, priority, and Wake Policy selection. The PersonaBot shapes its own rules and the Human may inspect, override, or freeze them; templates may supply initial values, a Bridge never owns attention or wake behavior, and safety gates are never part of a rule.
 _Avoid_: bridge, wake policy, model trigger, scheduler
 
 **Messaging Policy**:
@@ -393,8 +393,12 @@ The deterministic Host policy that decides whether an admitted event wakes a Per
 _Avoid_: model decision, delivery mechanism, scheduler
 
 **Delivery Policy**:
-The Host policy that maps a Wake Policy decision and Orchestrator liveness to the next step, the next turn, or an explicit whole-turn abort.
+The Host policy that maps a Wake Policy decision and Orchestrator liveness to a safe-step steer, the next harvest, or no wake.
 _Avoid_: wake policy, inferred step state, message priority
+
+**Turn harvest**:
+One Orchestrator turn that consumes the ready attention set — every unhandled immediate item, every digest batch at its threshold, and passive notices — instead of one turn per event. A steered direct address joins the running turn instead.
+_Avoid_: per-event queue, wake storm, batch (bare)
 
 **Human Inbox**:
 A Human-level attention projection that classifies Channel Attention and PersonaBot Attention as either action-required or informational. It references their owning facts and does not copy Channel content or flatten every Bot Inbox item into Human work.
@@ -425,7 +429,7 @@ A nonmember PersonaBot's pending request for membership in a referenced Group Ch
 _Avoid_: invitation, implicit join, Channel mention
 
 **Bot Channel subscription**:
-A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `mentions` (only direct mentions wake it), `digest` (ordinary messages join the wake digest), or `silent` (ordinary messages are recorded without an automatic wake). It is independent of membership and send authority, and the Human may override it.
+A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `all` (every ordinary message becomes attention), `digest` (ordinary messages join the wake digest at its count and interval; the default), `mentions` (only direct mentions reach the Bot), or `silent` (ordinary messages are recorded and never wake). Direct mentions and DMs always reach the Bot; the Human may override the preference, and it is independent of membership and send authority.
 _Avoid_: membership, wake decision, digest schedule
 
 **Message provenance**:
