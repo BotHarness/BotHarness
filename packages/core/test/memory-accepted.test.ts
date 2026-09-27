@@ -284,6 +284,33 @@ describe('current Git working tree is Memory', () => {
     }
   });
 
+  it.each([
+    ['group-join-request', 'owner-join-request'],
+    ['group-join-decision', 'requester-join-decision'],
+  ] as const)('reconciles a %s Bot Inbox notice for its owning Orchestrator', (reason, id) => {
+    const { database, memory } = fixture();
+    try {
+      attachOperationalModule(database, 'memory-test').transaction((db) => {
+        db.prepare(
+          "INSERT INTO source_events (source_event_id, source_kind, bot_slug, channel_id, message_id, body, created_at, attempt_state) VALUES (?, 'system-message', 'atlas', 'dm-atlas', ?, 'Join notice', ?, 'running')",
+        ).run(id, id, FIXED_NOW().toISOString());
+        db.prepare(
+          'INSERT INTO inbox_admissions (source_event_id, bot_slug, reason) VALUES (?, ?, ?)',
+        ).run(id, 'atlas', reason);
+      });
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: id,
+        }),
+      ).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
+
   it('allows an owned Host lifecycle notice to reconcile the Orchestrator Memory turn', () => {
     const { database, memory } = fixture();
     try {
