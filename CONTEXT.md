@@ -159,8 +159,12 @@ The private work surface one PersonaBot uses on a Computer — the windows and t
 _Avoid_: display, virtual screen, workspace, desktop
 
 **Computer Provider**:
-The Provider that runs one Computer and supplies the observation and action capabilities PersonaBots use on it; exactly one is registered at a time.
-_Avoid_: driver, backend, sandbox
+The Provider that runs one Computer and answers its lifecycle, viewer, and transfer operations; exactly one is registered at a time.
+_Avoid_: driver, backend, sandbox, tool provider
+
+**Computer Tool Provider**:
+The Provider registered on DSH's computer-use seam that supplies the observation and action tools PersonaBots use on one Computer; exactly one is registered at a time.
+_Avoid_: driver, backend, computer provider
 
 **Takeover**:
 A human session on a Computer that pauses every PersonaBot acting there and disables model-facing screenshots for its duration. It is initiated from one Bot Screen but always applies to the whole Computer.
@@ -169,6 +173,18 @@ _Avoid_: handoff, screen sharing, per-bot takeover
 **Computer Export**:
 A portable archive of one Computer's persistent volume, produced by an explicit export action and restorable on another Host. It is a profile-scoped facet, never part of a PersonaBot export.
 _Avoid_: PersonaBot export, backup file, disk image
+
+**Computer Access**:
+The per-PersonaBot opt-in, off by default, that makes the Computer tools and their guidance available to that PersonaBot's Orchestrator and Assignment sessions. It never grants another PersonaBot or a Human session access.
+_Avoid_: permission, grant, feature flag, developer mode
+
+**Computer Authorization**:
+The once-per-session Human approval before a PersonaBot's first action on the Computer; a profile-level auto-allow setting can skip asking. Access decides whether the tools exist; Authorization decides whether they may run.
+_Avoid_: takeover, consent dialog, per-action approval
+
+**Computer Audit**:
+The durable, redacted record of Computer observations and actions attributed to the PersonaBot and session that performed them; it never contains typed text or screenshots.
+_Avoid_: logs, history, screenshot trail
 
 ### Memory
 
