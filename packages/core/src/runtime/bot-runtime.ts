@@ -606,7 +606,7 @@ class BotRuntimeImplementation implements BotRuntime {
     return {
       admitted: true,
       settled: this.#enqueue(bot.slug, () =>
-        this.#runDmTurn(bot, channel.id, body, claim, input.messageId),
+        this.#runHumanDmTurn(bot, channel.id, body, claim, input.messageId),
       ),
     };
   }
@@ -691,7 +691,7 @@ class BotRuntimeImplementation implements BotRuntime {
       )
         continue;
       const settled = this.#enqueue(row.bot_slug, () =>
-        this.#runGroupTurn(row.source_event_id, row.bot_slug, channelId, messageId),
+        this.#runChannelEventTurn(row.source_event_id, row.bot_slug, channelId, messageId),
       );
       void settled.finally(() => this.#scheduledAdmissions.delete(key)).catch(() => undefined);
     }
@@ -821,7 +821,7 @@ class BotRuntimeImplementation implements BotRuntime {
         `)
           .all() as { bot_slug: string }[],
     );
-    for (const row of due) this.#scheduleInboxTurn(row.bot_slug);
+    for (const row of due) this.#scheduleAssignmentReportTurn(row.bot_slug);
   }
 
   #recoverPendingChannelAdmissions(): void {
@@ -939,7 +939,7 @@ class BotRuntimeImplementation implements BotRuntime {
       deadline <= this.#now().getTime()
     ) {
       this.#scheduledDigests.add(key);
-      const settled = this.#enqueue(botSlug, () => this.#runDigestTurn(botSlug, channelId));
+      const settled = this.#enqueue(botSlug, () => this.#runGroupDigestTurn(botSlug, channelId));
       void settled
         .finally(() => {
           this.#scheduledDigests.delete(key);
@@ -959,7 +959,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#digestTimers.set(key, timer);
   }
 
-  async #runDigestTurn(botSlug: string, channelId: string): Promise<void> {
+  async #runGroupDigestTurn(botSlug: string, channelId: string): Promise<void> {
     if (this.#closed) return;
     const bot = this.#registry.get(botSlug);
     const channel = this.#channels.get(channelId);
@@ -1127,7 +1127,7 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
-  async #runGroupTurn(
+  async #runChannelEventTurn(
     sourceEventId: string,
     botSlug: string,
     channelId: string,
@@ -1388,7 +1388,7 @@ class BotRuntimeImplementation implements BotRuntime {
     await this.#agents.close();
   }
 
-  async #runDmTurn(
+  async #runHumanDmTurn(
     bot: PersonaBotRecord,
     channelId: string,
     body: string,
@@ -2855,7 +2855,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (stopped) this.#scheduleInboxTurn(bot.slug);
+    if (stopped) this.#scheduleAssignmentReportTurn(bot.slug);
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
@@ -2999,7 +2999,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleInboxTurn(botSlug);
+    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleAssignmentReportTurn(botSlug);
     return report;
   }
 
@@ -3007,11 +3007,11 @@ class BotRuntimeImplementation implements BotRuntime {
     return expectsReply || state !== 'progress';
   }
 
-  #scheduleInboxTurn(botSlug: string): void {
-    void this.#enqueue(botSlug, () => this.#runInboxTurn(botSlug)).catch(() => undefined);
+  #scheduleAssignmentReportTurn(botSlug: string): void {
+    void this.#enqueue(botSlug, () => this.#runAssignmentReportTurn(botSlug)).catch(() => undefined);
   }
 
-  async #runInboxTurn(botSlug: string): Promise<void> {
+  async #runAssignmentReportTurn(botSlug: string): Promise<void> {
     if (this.#closed) return;
     const bot = this.#registry.get(botSlug);
     if (bot === undefined || bot.paused === true) return;
@@ -3112,7 +3112,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     const timer = setTimeout(() => {
       this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1 });
-      if (!this.#closed) this.#scheduleInboxTurn(botSlug);
+      if (!this.#closed) this.#scheduleAssignmentReportTurn(botSlug);
     }, delayMs);
     timer.unref();
     this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1, timer });
