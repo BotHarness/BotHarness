@@ -60,6 +60,16 @@ export const inject = [
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
+/** Newer layout facet behind view-persist; compositions without it skip that feature instead of crashing boot (#357). */
+interface PanelInfoLike {
+  getSnapshot(): { activePanelId: string | null };
+  subscribe(listener: () => void): () => void;
+}
+
+function panelInfoOf(layout: { panelInfo?: PanelInfoLike }): PanelInfoLike | undefined {
+  return layout.panelInfo;
+}
+
 function installStyles(): () => void {
   if (typeof document === 'undefined') return () => {};
   const style = document.createElement('style');
@@ -264,7 +274,8 @@ export function apply(ctx: ClientContext): void {
     if (restoreBotMode) {
       restoreBotMode = false;
       queueMicrotask(() => {
-        if (ctx.layout.panelInfo.getSnapshot().activePanelId !== null) return;
+        const info = panelInfoOf(ctx.layout);
+        if (info === undefined || info.getSnapshot().activePanelId !== null) return;
         try {
           ctx.layout.selectPanel(PANEL_ID);
         } catch (error) {
@@ -398,7 +409,8 @@ export function apply(ctx: ClientContext): void {
         unsubscribe();
         try {
           if (hmrView !== undefined) ctx.layout.selectPanel(PANEL_ID);
-          if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) return;
+          const info = panelInfoOf(ctx.layout);
+          if (info === undefined || info.getSnapshot().activePanelId !== PANEL_ID) return;
           const selection = viewToRestore.selection;
           const snapshot = store.getSnapshot();
           const opening =
@@ -423,10 +435,12 @@ export function apply(ctx: ClientContext): void {
     }, 'botharness: Bot view restore');
   }
   ctx.effect(() => {
+    const info = panelInfoOf(ctx.layout);
+    if (info === undefined) return () => {};
     let enteredBotMode = false;
     let lastWritten: string | undefined;
     const persist = (): void => {
-      const active = ctx.layout.panelInfo.getSnapshot().activePanelId === PANEL_ID;
+      const active = info.getSnapshot().activePanelId === PANEL_ID;
       if (active) enteredBotMode = true;
       if (!enteredBotMode) return;
       const view = {
@@ -438,9 +452,9 @@ export function apply(ctx: ClientContext): void {
       lastWritten = serialized;
       writeLastView(storage, view);
     };
-    const unsubscribePanel = ctx.layout.panelInfo.subscribe(persist);
+    const unsubscribePanel = info.subscribe(persist);
     const unsubscribeStore = store.subscribe(() => {
-      if (ctx.layout.panelInfo.getSnapshot().activePanelId === PANEL_ID) persist();
+      if (info.getSnapshot().activePanelId === PANEL_ID) persist();
     });
     persist();
     return () => {
@@ -451,7 +465,8 @@ export function apply(ctx: ClientContext): void {
   ctx.effect(
     () => () => {
       if (typeof window === 'undefined') return;
-      if (ctx.layout.panelInfo.getSnapshot().activePanelId !== PANEL_ID) return;
+      const info = panelInfoOf(ctx.layout);
+      if (info === undefined || info.getSnapshot().activePanelId !== PANEL_ID) return;
       saveHmrView(window as unknown as Record<string, unknown>, store.getSnapshot().selection);
     },
     'botharness: HMR view handoff',
