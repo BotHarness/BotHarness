@@ -205,19 +205,22 @@ export function HumanInboxView({
                       ? t('humanInbox.question', { bot: botName(item.botSlug) })
                       : item.kind === 'tool-approval'
                         ? t('humanInbox.approval', { bot: botName(item.botSlug) })
-                        : item.kind === 'assignment-waiting-human'
-                          ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
-                          : item.kind === 'assignment-blocked'
-                            ? t('humanInbox.assignmentBlocked', { bot: botName(item.botSlug) })
-                            : item.kind === 'assignment-report'
-                              ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
-                              : item.kind === 'bot-message-needs-repair'
-                                ? t('humanInbox.repair', { bot: botName(item.botSlug) })
-                                : botName(item.botSlug)}
+                        : item.kind === 'workspace-grant-request'
+                          ? t('humanInbox.grant', { bot: botName(item.botSlug) })
+                          : item.kind === 'assignment-waiting-human'
+                            ? t('humanInbox.assignmentWaiting', { bot: botName(item.botSlug) })
+                            : item.kind === 'assignment-blocked'
+                              ? t('humanInbox.assignmentBlocked', { bot: botName(item.botSlug) })
+                              : item.kind === 'assignment-report'
+                                ? t('humanInbox.assignmentReport', { bot: botName(item.botSlug) })
+                                : item.kind === 'bot-message-needs-repair'
+                                  ? t('humanInbox.repair', { bot: botName(item.botSlug) })
+                                  : botName(item.botSlug)}
                 </div>
                 {item.kind === 'bot-dm-message' ||
                 item.kind === 'user-question' ||
                 item.kind === 'tool-approval' ||
+                item.kind === 'workspace-grant-request' ||
                 item.kind === 'assignment-waiting-human' ||
                 item.kind === 'assignment-blocked' ||
                 item.kind === 'assignment-report' ||

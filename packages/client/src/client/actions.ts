@@ -172,6 +172,7 @@ export interface BridgeActions {
     memorySwitchTarget?: string,
     mentions?: ChannelMessage['mentions'],
     channelRefs?: ChannelMessage['channelRefs'],
+    grantRequestResolution?: ChannelMessage['grantRequestResolution'],
   ): Promise<boolean>;
   createBot(input: CreatePersonaBotInput, sectionId?: string): Promise<BotSummary>;
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
@@ -937,7 +938,15 @@ export function createActions(
       if (selection === undefined || selectedBotSlug(selection) !== slug) return;
       await loadSessionsFor(slug, selection);
     },
-    async send(body, replyTo, attachments, memorySwitchTarget, mentions, channelRefs) {
+    async send(
+      body,
+      replyTo,
+      attachments,
+      memorySwitchTarget,
+      mentions,
+      channelRefs,
+      grantRequestResolution,
+    ) {
       let snapshot = clientStore.getSnapshot();
       const channel = snapshot.conversation.channel;
       const text = body.trim();
@@ -980,6 +989,7 @@ export function createActions(
             ...(attachments === undefined ? {} : { attachments }),
             ...(mentions === undefined ? {} : { mentions }),
             ...(channelRefs === undefined ? {} : { channelRefs }),
+            ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
             ...(replyTo === undefined
               ? {}
               : {
@@ -1008,6 +1018,7 @@ export function createActions(
           memorySwitchTarget,
           mentions,
           channelRefs,
+          grantRequestResolution,
         );
         remainingFailures(channel.id, [message]);
         const selection = currentSelection();

@@ -97,6 +97,13 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
         call: async () => ({ ok: true, value: { bots: [], channels: [] } }),
       },
     },
+    layout: {
+      selectPanel: () => undefined,
+      panelInfo: {
+        getSnapshot: () => ({ activePanelId: null }),
+        subscribe: () => () => undefined,
+      },
+    },
     inputTriggers: {
       registerSource: () => () => undefined,
     },

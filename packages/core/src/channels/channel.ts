@@ -127,6 +127,8 @@ export interface ChannelMessage {
   botCausation?: BotMessageCausation;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
+  /** Human response to this Bot's Grant request, backed by an active Workspace Grant. */
+  grantRequestResolution?: { requestMessageId: string; grantId: string };
   /** One exact live DSH tool call waiting for Human approval. */
   toolApprovalRequest?: ToolApprovalRequestCard;
   /** Human-facing projection of a failed DSH Session turn. */
@@ -310,6 +312,24 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       (message['author'] as ChannelMessageAuthor).kind !== 'bot')
   )
     return false;
+  const grantResolution = message['grantRequestResolution'];
+  if (grantResolution !== undefined) {
+    if (
+      typeof grantResolution !== 'object' ||
+      grantResolution === null ||
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'human'
+    )
+      return false;
+    const resolution = grantResolution as Record<string, unknown>;
+    if (
+      typeof resolution['requestMessageId'] !== 'string' ||
+      resolution['requestMessageId'].length === 0 ||
+      typeof resolution['grantId'] !== 'string' ||
+      resolution['grantId'].length === 0 ||
+      message['replyTo'] !== resolution['requestMessageId']
+    )
+      return false;
+  }
   const toolRequest = message['toolApprovalRequest'];
   if (toolRequest !== undefined) {
     if (

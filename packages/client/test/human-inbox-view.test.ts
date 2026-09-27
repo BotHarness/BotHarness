@@ -70,6 +70,34 @@ describe('Human Inbox center view', () => {
     expect(markup).not.toContain('申请加入');
     expect(markup).not.toContain('同意</button>');
   });
+  it('shows a Bot Workspace Grant request as an action linked to its DM card', () => {
+    store.select({ kind: 'inbox' });
+    store.setHumanInbox({
+      status: 'ready',
+      category: 'action',
+      items: [
+        {
+          id: 'grant:source-1',
+          category: 'action',
+          kind: 'workspace-grant-request',
+          createdAt: '2026-09-26T00:00:00.000Z',
+          channelId: 'dm-ada',
+          channelName: 'Ada DM',
+          botSlug: 'ada',
+          summary: 'Please grant access.',
+          messageId: 'grant-request-1',
+        },
+      ],
+    });
+    const markup = renderToStaticMarkup(
+      createElement(HumanInboxView, { actions: {} as BridgeActions }),
+    );
+    expect(markup).toContain('请求工作区授权');
+    expect(markup).toContain('Please grant access.');
+    expect(markup).toContain('查看来源');
+    expect(markup).not.toContain('已了解');
+  });
+
   it('shows an unresolved native question as an action linked to its DM', () => {
     store.setRoster(
       [],

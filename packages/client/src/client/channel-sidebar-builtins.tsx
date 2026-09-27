@@ -1,4 +1,4 @@
-import { useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import { Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -10,7 +10,11 @@ import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-si
 import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
 import { personaBotActivity } from './persona-activity.js';
-import { SessionsEntry, type NativeSessionCatalog } from './sessions-entry.js';
+import {
+  SessionsEntry,
+  SessionsHeaderAction,
+  type NativeSessionCatalog,
+} from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { BotAttentionItem, BotSummary, ChannelSummary } from './store.js';
 
@@ -345,7 +349,18 @@ function BotInboxGroup({
 }): ReactElement {
   const active = items.filter((item) => item.state !== 'handled' && item.state !== 'ignored');
   const history = items.filter((item) => item.state === 'handled' || item.state === 'ignored');
+  const activeSignature = active
+    .map((item) => item.id + ':' + item.state)
+    .sort()
+    .join('|');
+  const previousActiveSignature = useRef(activeSignature);
   const [expanded, setExpanded] = useState(active.length > 0);
+  useEffect(() => {
+    if (activeSignature !== previousActiveSignature.current) {
+      if (active.length > 0) setExpanded(true);
+      previousActiveSignature.current = activeSignature;
+    }
+  }, [activeSignature, active.length]);
   return (
     <details
       className="bh-inbox-group"
@@ -456,6 +471,7 @@ export function createChannelSidebarBuiltins(
       order: 10,
       scope: 'personabot',
       component: SessionsWithNative,
+      headerAction: SessionsHeaderAction,
     },
     {
       id: 'bot-inbox',

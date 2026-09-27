@@ -470,6 +470,11 @@ function GrantRequestCard({
         const sent = await actions.send(
           t('grant.requestApprovedMessage', { name: grant.workspaceTitle }),
           message.id,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          { requestMessageId: message.id, grantId: grant.id },
         );
         if (!sent) throw new Error(t('grant.requestContinueFailed'));
         setCompleted(true);
