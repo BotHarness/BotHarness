@@ -25,6 +25,7 @@ interface Stubs {
   sessions: { list: ReturnType<typeof vi.fn> };
   agents: { create: ReturnType<typeof vi.fn>; resume: ReturnType<typeof vi.fn> };
   skills: { register: ReturnType<typeof vi.fn> };
+  commands: { register: ReturnType<typeof vi.fn> };
 }
 
 const contexts: Context[] = [];
@@ -50,12 +51,14 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
     sessions: { list: vi.fn(() => []) },
     agents: { create: vi.fn(), resume: vi.fn() },
     skills: { register: vi.fn(() => () => undefined) },
+    commands: { register: vi.fn(() => () => undefined) },
   };
   ctx.provide('tools', stubs.tools);
   ctx.provide('systemPrompt', stubs.systemPrompt);
   ctx.provide('sessions', stubs.sessions);
   ctx.provide('agents', stubs.agents as never);
   ctx.provide('skills', stubs.skills);
+  ctx.provide('commands', stubs.commands);
   return { ctx, stubs };
 }
 
@@ -75,6 +78,7 @@ describe('plugin entry', () => {
     expect(stubs.tools.register).not.toHaveBeenCalled();
     expect(stubs.systemPrompt.section).not.toHaveBeenCalled();
     expect(stubs.skills.register).not.toHaveBeenCalled();
+    expect(stubs.commands.register).not.toHaveBeenCalled();
   });
 
   it('provides the core without model-visible memory tools', () => {
@@ -117,8 +121,21 @@ describe('plugin entry', () => {
       readFileSync(
         new URL('../../../docs/dev/guides/reading-operational-logs.md', import.meta.url),
         'utf8',
-      ).replace(/\r\n/g, '\n'),
+      ),
     );
+  });
+
+  it('registers the deepseek-bot-log Human command against the exact agent', async () => {
+    const { ctx, stubs } = createStubContext();
+
+    apply(ctx, { enabled: true });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(stubs.commands.register).toHaveBeenCalledTimes(1);
+    const registration = stubs.commands.register.mock.calls[0]?.[0] as Record<string, unknown>;
+    expect(registration).toMatchObject({ name: 'deepseek-bot-log' });
+    expect(typeof registration['description']).toBe('string');
+    expect(typeof registration['handler']).toBe('function');
   });
 
   it('rebuilds the activity projection from owned Session logs and follows live events', () => {

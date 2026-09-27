@@ -28,6 +28,7 @@ import {
   LOGS_SKILL_SOURCE,
   LOGS_SKILL_WHEN_TO_USE,
 } from './logs/skill.js';
+import { COMMAND_DESCRIPTION, COMMAND_NAME, runDeepseekBotLogCommand } from './logs/command.js';
 import type { ChannelStore } from './channels/store.js';
 import { createSqliteChannelStore } from './channels/sqlite-store.js';
 import {
@@ -517,6 +518,44 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           provider: LOGS_SKILL_PROVIDER,
         }),
       'botharness: operational logs skill',
+    );
+  });
+
+  // Human slash command `/deepseek-bot-log` (issue #252): runs the
+  // LogQuery-equivalent read server-side and renders text straight to the UI
+  // with no model turn. Read-only by construction — the one-shot query below
+  // never migrates or rebuilds the file. Runs only when the commands service
+  // is composed; the unregister disposer rides the effect.
+  ctx.inject(['commands'], (commandsCtx) => {
+    const commands = (
+      commandsCtx as unknown as {
+        commands: {
+          register(definition: {
+            readonly name: string;
+            readonly description: string;
+            readonly handler: (invocation: { readonly rawInput: string }) => Promise<
+              | {
+                  readonly kind: 'success';
+                  readonly text?: string;
+                }
+              | {
+                  readonly kind: 'error';
+                  readonly text: string;
+                }
+            >;
+          }): () => void;
+        };
+      }
+    ).commands;
+    commandsCtx.effect(
+      () =>
+        commands.register({
+          name: COMMAND_NAME,
+          description: COMMAND_DESCRIPTION,
+          handler: async (invocation) =>
+            runDeepseekBotLogCommand(join(dshHome, 'botharness'), invocation.rawInput),
+        }),
+      'botharness: deepseek-bot-log command',
     );
   });
 
