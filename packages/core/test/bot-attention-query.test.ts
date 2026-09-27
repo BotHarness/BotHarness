@@ -71,6 +71,11 @@ describe('Bot-scoped attention projection', () => {
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
       const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
       groupId = group.id;
+      core.channels.setGroupWakePolicy(group.id, 'bea', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
       await core.channels.appendMessage(group.id, {
         id: 'mention-1',
         at: '2026-09-26T00:00:00.000Z',
@@ -157,6 +162,11 @@ describe('Bot-scoped attention projection', () => {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
       const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      core.channels.setGroupWakePolicy(group.id, 'bea', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
       for (let index = 0; index < 3; index += 1) {
         await core.channels.appendMessage(group.id, {
           id: 'mention-' + index,

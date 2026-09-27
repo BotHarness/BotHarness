@@ -8,11 +8,19 @@ export type ChannelType = 'dm' | 'group';
 
 /** Human-owned per-member notification choice for ordinary Group messages. */
 export interface GroupWakePolicy {
-  mode: 'mentions' | 'digest' | 'silent';
+  mode: 'all' | 'mentions' | 'digest' | 'silent';
   count: number;
   intervalSeconds: number;
   revision: number;
 }
+
+/** Applied to Groups with no saved member preference; revision 0 is never persisted. */
+export const DEFAULT_GROUP_WAKE_POLICY: GroupWakePolicy = {
+  mode: 'digest',
+  count: 5,
+  intervalSeconds: 30,
+  revision: 0,
+};
 
 export interface ChannelRecord {
   id: string;
@@ -243,7 +251,8 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
       if (!members.includes(slug) || typeof value !== 'object' || value === null) return false;
       const policy = value as Record<string, unknown>;
       if (
-        (policy['mode'] !== 'mentions' &&
+        (policy['mode'] !== 'all' &&
+          policy['mode'] !== 'mentions' &&
           policy['mode'] !== 'digest' &&
           policy['mode'] !== 'silent') ||
         !Number.isSafeInteger(policy['count']) ||

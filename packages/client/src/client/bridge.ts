@@ -225,7 +225,8 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
             const value = asRecord(raw);
             if (
               value === undefined ||
-              (value['mode'] !== 'mentions' &&
+              (value['mode'] !== 'all' &&
+                value['mode'] !== 'mentions' &&
                 value['mode'] !== 'digest' &&
                 value['mode'] !== 'silent') ||
               typeof value['count'] !== 'number' ||
@@ -237,7 +238,7 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
               [
                 slug,
                 {
-                  mode: value['mode'] as 'mentions' | 'digest' | 'silent',
+                  mode: value['mode'] as 'all' | 'mentions' | 'digest' | 'silent',
                   count: value['count'],
                   intervalSeconds: value['intervalSeconds'],
                   revision: value['revision'],
@@ -871,7 +872,11 @@ export async function setGroupWakePolicy(
   call: BridgeCall,
   channelId: string,
   botSlug: string,
-  policy: { mode: 'mentions' | 'digest' | 'silent'; count: number; intervalSeconds: number },
+  policy: {
+    mode: 'all' | 'mentions' | 'digest' | 'silent';
+    count: number;
+    intervalSeconds: number;
+  },
 ): Promise<ChannelSummary> {
   const value = asRecord(
     await unwrap(call, 'channelGroupWakeSet', {

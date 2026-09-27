@@ -27,7 +27,7 @@ export interface ChannelSummary {
   wakePolicies?: Record<
     string,
     {
-      mode: 'mentions' | 'digest' | 'silent';
+      mode: 'all' | 'mentions' | 'digest' | 'silent';
       count: number;
       intervalSeconds: number;
       revision: number;
