@@ -377,6 +377,15 @@ interface InboxReportRow {
   activity: AssignmentActivity | null;
 }
 
+interface DigestRow {
+  source_event_id: string;
+  message_id: string;
+  body: string;
+  created_at: string;
+  author_kind: string;
+  author_slug: string | null;
+}
+
 interface InboxUnit {
   sourceEventId: string;
   sourceKind: InboxReportRow['source_kind'];
@@ -572,8 +581,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
-  readonly #scheduledAdmissions = new Set<string>();
-  readonly #scheduledDigests = new Set<string>();
+  readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
   readonly #digestRetryAt = new Map<string, number>();
   readonly #digestFailureCount = new Map<string, number>();
@@ -720,20 +728,12 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#scheduleDigest(row.bot_slug, channelId);
         continue;
       }
-      const key = `${row.source_event_id}:${row.bot_slug}`;
-      if (this.#scheduledAdmissions.has(key)) continue;
-      this.#scheduledAdmissions.add(key);
       if (
         reason === 'group-mention' &&
         this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId)
       )
         continue;
-      const settled = this.#enqueue(row.bot_slug, () =>
-        reason === 'group-mention' || reason === 'bot-dm'
-          ? this.#runChannelMessageTurn(row.source_event_id, row.bot_slug, channelId, messageId)
-          : this.#runMembershipTurn(row.source_event_id, row.bot_slug, channelId, messageId),
-      );
-      void settled.finally(() => this.#scheduledAdmissions.delete(key)).catch(() => undefined);
+      this.#scheduleHarvest(row.bot_slug);
     }
   }
 
@@ -784,7 +784,6 @@ class BotRuntimeImplementation implements BotRuntime {
             .run(String(error).slice(0, 500), sourceEventId, botSlug),
         ['bot-inbox'],
       );
-      this.#scheduledAdmissions.delete(`${sourceEventId}:${botSlug}`);
       this.#channels.admissionChanged?.(channelId, messageId);
       return true;
     }
@@ -804,12 +803,10 @@ class BotRuntimeImplementation implements BotRuntime {
       return false;
     }
     this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
-    void active
-      .then(
-        () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
-        () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, false),
-      )
-      .finally(() => this.#scheduledAdmissions.delete(`${sourceEventId}:${botSlug}`));
+    void active.then(
+      () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
+      () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, false),
+    );
     return true;
   }
 
@@ -862,7 +859,7 @@ class BotRuntimeImplementation implements BotRuntime {
         `)
           .all() as { bot_slug: string }[],
     );
-    for (const row of due) this.#scheduleAssignmentReportTurn(row.bot_slug);
+    for (const row of due) this.#scheduleHarvest(row.bot_slug);
   }
 
   #recoverPendingChannelAdmissions(): void {
@@ -914,7 +911,6 @@ class BotRuntimeImplementation implements BotRuntime {
   #scheduleDigest(botSlug: string, channelId: string): void {
     if (this.#closed) return;
     const key = `${botSlug}:${channelId}`;
-    if (this.#scheduledDigests.has(key)) return;
     const channel = this.#channels.get(channelId);
     const bot = this.#registry.get(botSlug);
     if (
@@ -979,14 +975,7 @@ class BotRuntimeImplementation implements BotRuntime {
       !Number.isFinite(deadline) ||
       deadline <= this.#now().getTime()
     ) {
-      this.#scheduledDigests.add(key);
-      const settled = this.#enqueue(botSlug, () => this.#runGroupDigestTurn(botSlug, channelId));
-      void settled
-        .finally(() => {
-          this.#scheduledDigests.delete(key);
-          this.#scheduleDigest(botSlug, channelId);
-        })
-        .catch(() => undefined);
+      this.#scheduleHarvest(botSlug);
       return;
     }
     const timer = setTimeout(
@@ -1000,274 +989,183 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#digestTimers.set(key, timer);
   }
 
-  async #runGroupDigestTurn(botSlug: string, channelId: string): Promise<void> {
-    if (this.#closed) return;
-    const bot = this.#registry.get(botSlug);
-    const channel = this.#channels.get(channelId);
-    if (
-      bot === undefined ||
-      bot.paused === true ||
-      channel?.type !== 'group' ||
-      !channel.members.includes(botSlug)
-    )
-      return;
-    type DigestRow = {
-      source_event_id: string;
-      message_id: string;
-      body: string;
-      created_at: string;
-      author_kind: string;
-      author_slug: string | null;
-      wake_policy_revision: number;
-    };
-    const admitted = this.#database.transaction(
-      (database) => {
-        const first = database
-          .prepare(`
-        SELECT a.wake_policy_revision FROM inbox_admissions a
-        JOIN source_events e ON e.source_event_id = a.source_event_id
-        WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-          AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
-          AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-        ORDER BY e.created_at, e.rowid LIMIT 1
-      `)
-          .get(botSlug, channelId) as { wake_policy_revision: number } | undefined;
-        if (first === undefined) return [];
-        const rows = database
-          .prepare(`
-        SELECT a.source_event_id, e.message_id, e.body, e.created_at,
-               json_extract(e.payload_json, '$.author.kind') AS author_kind,
-               json_extract(e.payload_json, '$.author.slug') AS author_slug,
-               a.wake_policy_revision
-          FROM inbox_admissions a
-          JOIN source_events e ON e.source_event_id = a.source_event_id
-         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-           AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
-           AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-           AND a.wake_policy_revision = ?
-         ORDER BY e.created_at, e.rowid LIMIT 20
-      `)
-          .all(botSlug, channelId, first.wake_policy_revision) as unknown as DigestRow[];
-        for (const row of rows)
-          database
-            .prepare(`
-        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
-         WHERE source_event_id = ? AND bot_slug = ?
-           AND attempt_state IN ('pending', 'retryable')
-      `)
-            .run(row.source_event_id, botSlug);
-        return rows;
-      },
-      ['bot-inbox'],
-    );
-    if (admitted.length === 0) return;
-    const timestamp = this.#now().toISOString();
-    const ids = admitted.map((row) => row.source_event_id);
-    const markSideEffect = (): void => {
-      this.#database.transaction(
-        (database) => {
-          for (const id of ids)
-            database
-              .prepare(`
-          UPDATE inbox_admissions
-             SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
-           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-        `)
-              .run(this.#now().toISOString(), id, botSlug);
-        },
-        ['bot-inbox'],
-      );
-    };
-    const collected = this.#collectInbox(botSlug);
-    this.#setObserved(collected.eventIds, timestamp);
-    this.#database.transaction(
-      (database) => {
-        for (const id of ids)
-          database
-            .prepare(`
-        UPDATE inbox_admissions SET observed_at = ?
-         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-      `)
-            .run(timestamp, id, botSlug);
-      },
-      ['bot-inbox'],
-    );
-    for (const row of admitted) this.#channels.admissionChanged?.(channelId, row.message_id);
-    const prompt = [
-      '[Bot Inbox: Group digest]',
-      `Channel: ${channel.name} (${channelId})`,
-      `${admitted.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
-      ...admitted.map(
-        (row) =>
-          `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
-      ),
-    ].join('\n');
-    let orchestrator: { sessionId: string; resume: boolean } | undefined;
-    try {
-      orchestrator = this.#ensureOrchestrator(bot, timestamp);
-      await this.#runOrchestratorTurn(
-        bot,
-        orchestrator,
-        ids[0]!,
-        channelId,
-        prompt,
-        collected.units,
-        false,
-        markSideEffect,
-        collected.eventIds,
-      );
-      this.#markReportsHandled(collected.eventIds);
-      this.#digestRetryAt.delete(`${botSlug}:${channelId}`);
-      this.#digestFailureCount.delete(`${botSlug}:${channelId}`);
-      this.#database.transaction(
-        (database) => {
-          for (const id of ids)
-            database
-              .prepare(`
-          UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-        `)
-              .run(this.#now().toISOString(), id, botSlug);
-        },
-        ['bot-inbox'],
-      );
-    } catch (error) {
-      const retryKey = `${botSlug}:${channelId}`;
-      const failures = Math.min(6, (this.#digestFailureCount.get(retryKey) ?? 0) + 1);
-      this.#digestFailureCount.set(retryKey, failures);
-      this.#digestRetryAt.set(
-        retryKey,
-        this.#now().getTime() + Math.min(300_000, 10_000 * 2 ** (failures - 1)),
-      );
-      this.#setObserved(collected.eventIds, null);
-      this.#database.transaction(
-        (database) => {
-          for (const id of ids)
-            database
-              .prepare(`
-          UPDATE inbox_admissions
-             SET attempt_state = CASE WHEN side_effect_started_at IS NULL
-               THEN 'retryable' ELSE 'needs-repair' END,
-                 observed_at = NULL, last_error = ?
-           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-        `)
-              .run(String(error).slice(0, 500), id, botSlug);
-        },
-        ['bot-inbox'],
-      );
-      if (orchestrator !== undefined)
-        await this.#publishSessionFailure({
-          channelId,
-          botSlug,
-          sessionId: orchestrator.sessionId,
-          role: 'orchestrator',
-          error,
-        });
-      throw error;
-    } finally {
-      for (const row of admitted) this.#channels.admissionChanged?.(channelId, row.message_id);
-    }
-  }
-
-  #runChannelMessageTurn(
-    sourceEventId: string,
-    botSlug: string,
-    channelId: string,
-    messageId: string,
-  ): Promise<void> {
-    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
-  }
-
-  #runMembershipTurn(
-    sourceEventId: string,
-    botSlug: string,
-    channelId: string,
-    messageId: string,
-  ): Promise<void> {
-    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
-  }
-
-  async #runAdmittedChannelTurn(
-    sourceEventId: string,
-    botSlug: string,
-    channelId: string,
-    messageId: string,
-  ): Promise<void> {
+  #scheduleHarvest(botSlug: string): void {
     if (this.#closed) return;
     const bot = this.#registry.get(botSlug);
     if (bot === undefined || bot.paused === true) return;
-    const source = this.#database.read((database) =>
+    if (this.#pendingHarvests.has(botSlug)) return;
+    this.#pendingHarvests.add(botSlug);
+    const settled = this.#enqueue(botSlug, () => this.#runHarvestTurn(botSlug));
+    void settled
+      .finally(() => {
+        this.#pendingHarvests.delete(botSlug);
+        this.#checkHarvestReadiness(botSlug);
+      })
+      .catch(() => undefined);
+  }
+
+  #checkHarvestReadiness(botSlug: string): void {
+    if (this.#closed) return;
+    const bot = this.#registry.get(botSlug);
+    if (bot === undefined || bot.paused === true) return;
+    const immediate = this.#database.read((database) =>
       database
-        .prepare('SELECT body FROM source_events WHERE source_event_id = ?')
-        .get(sourceEventId),
-    ) as { body: string } | undefined;
-    if (source === undefined) return;
-    const claimed = this.#database.transaction(
-      (database) => {
-        const result = database
-          .prepare(`
-        UPDATE inbox_admissions
-           SET attempt_state = 'running', observed_at = NULL, last_error = NULL
-         WHERE source_event_id = ? AND bot_slug = ?
-           AND attempt_state IN ('pending', 'retryable')
+        .prepare(`
+        SELECT 1 AS found FROM inbox_admissions
+         WHERE bot_slug = ? AND attempt_state = 'pending'
+           AND reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
+         LIMIT 1
       `)
-          .run(sourceEventId, botSlug);
-        return result.changes > 0;
-      },
-      ['bot-inbox'],
+        .get(botSlug),
     );
-    if (!claimed) return;
-    this.#channels.admissionChanged?.(channelId, messageId);
+    if (immediate !== undefined) {
+      this.#scheduleHarvest(botSlug);
+      return;
+    }
+    if (this.#dmChannel(botSlug) !== undefined) {
+      const report = this.#database.read((database) =>
+        database
+          .prepare(`
+          SELECT 1 AS found FROM inbox_admissions a
+           JOIN source_events e ON e.source_event_id = a.source_event_id
+          WHERE a.bot_slug = ? AND a.reason IN ('assignment-report', 'assignment-lifecycle')
+            AND a.attempt_state = 'pending' AND e.observed_at IS NULL
+            AND (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR e.payload_json IS NULL
+                 OR json_extract(e.payload_json, '$.assignmentReport.state')
+                      IN ('completed', 'blocked', 'waiting-human', 'failed'))
+          LIMIT 1
+        `)
+          .get(botSlug),
+      );
+      if (report !== undefined) {
+        this.#scheduleHarvest(botSlug);
+        return;
+      }
+    }
+    for (const channelId of this.#pendingDigestChannels(botSlug)) {
+      this.#scheduleDigest(botSlug, channelId);
+    }
+  }
+
+  #pendingDigestChannels(botSlug: string): string[] {
+    return this.#database
+      .read((database) =>
+        database
+          .prepare(`
+          SELECT DISTINCT e.channel_id AS channel_id
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+           WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+             AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
+             AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id IS NOT NULL
+        `)
+          .all(botSlug),
+      )
+      .map((row) => (row as { channel_id: string }).channel_id);
+  }
+
+  async #runHarvestTurn(botSlug: string): Promise<void> {
+    if (this.#closed) return;
+    const bot = this.#registry.get(botSlug);
+    if (bot === undefined || bot.paused === true) return;
+    const claimed = this.#claimHarvest(botSlug);
+    const collected = this.#collectInbox(botSlug);
+    if (
+      claimed.items.length === 0 &&
+      claimed.digests.length === 0 &&
+      collected.eventIds.length === 0
+    )
+      return;
+    const primaryChannelId =
+      claimed.items[0]?.channelId ?? claimed.digests[0]?.channelId ?? this.#dmChannel(botSlug)?.id;
+    if (primaryChannelId === undefined) return;
+    const digestIds = claimed.digests.flatMap((digest) =>
+      digest.rows.map((row) => row.source_event_id),
+    );
+    const includedIds = [...claimed.items.map((item) => item.sourceEventId), ...digestIds];
+    const sourceEventId = claimed.items[0]?.sourceEventId ?? digestIds[0] ?? collected.eventIds[0];
+    if (sourceEventId === undefined) return;
+    const timestamp = this.#now().toISOString();
+    for (const item of claimed.items)
+      this.#observeAdmission(item.sourceEventId, botSlug, item.channelId, item.messageId);
+    if (digestIds.length > 0)
+      this.#database.transaction(
+        (database) => {
+          for (const id of digestIds)
+            database
+              .prepare(`
+        UPDATE inbox_admissions SET observed_at = ?
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+              .run(timestamp, id, botSlug);
+        },
+        ['bot-inbox'],
+      );
+    this.#setObserved(collected.eventIds, timestamp);
     let orchestrator: { sessionId: string; resume: boolean } | undefined;
-    let collected: { units: InboxUnit[]; eventIds: string[] } | undefined;
     try {
-      const timestamp = this.#now().toISOString();
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
-      collected = this.#collectInbox(botSlug);
-      this.#setObserved(collected.eventIds, timestamp);
-      this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
+      const sections = [
+        ...claimed.items.map((item) =>
+          this.#inboundChannelMessage(item.channelId, item.messageId, item.body),
+        ),
+        ...claimed.digests.map((digest) => this.#digestSection(digest.channelId, digest.rows)),
+      ];
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,
         sourceEventId,
-        channelId,
-        this.#inboundChannelMessage(channelId, messageId, source.body),
+        primaryChannelId,
+        sections.join('\n\n'),
         collected.units,
-        false,
-        () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
+        collected.eventIds.length > 0,
+        () => this.#markAdmissionsSideEffect(botSlug, includedIds),
         collected.eventIds,
       );
       this.#markReportsHandled(collected.eventIds);
-      this.#database.transaction(
-        (database) => {
-          database
-            .prepare(`
-          UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-           WHERE source_event_id = ? AND bot_slug = ?
-        `)
-            .run(this.#now().toISOString(), sourceEventId, botSlug);
-        },
-        ['bot-inbox'],
-      );
+      this.#settleHarvestHandled(botSlug, includedIds);
+      for (const digest of claimed.digests) {
+        this.#digestRetryAt.delete(`${botSlug}:${digest.channelId}`);
+        this.#digestFailureCount.delete(`${botSlug}:${digest.channelId}`);
+      }
+      const retry = this.#inboxFactoryRetries.get(botSlug);
+      if (retry !== undefined) {
+        if (retry.timer !== undefined) clearTimeout(retry.timer);
+        this.#inboxFactoryRetries.delete(botSlug);
+        this.#warn?.(
+          JSON.stringify({
+            component: 'bot-runtime',
+            event: 'inbox-factory-recovered',
+            botSlug,
+            attempts: retry.attempts,
+          }),
+        );
+      }
     } catch (error) {
-      if (collected !== undefined) this.#setObserved(collected.eventIds, null);
-      this.#database.transaction(
-        (database) => {
-          database
-            .prepare(`
-          UPDATE inbox_admissions
-             SET attempt_state = CASE
-                   WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END,
-                 last_error = ?
-           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-        `)
-            .run(String(error).slice(0, 500), sourceEventId, botSlug);
-        },
-        ['bot-inbox'],
-      );
+      this.#setObserved(collected.eventIds, null);
+      this.#settleHarvestFailure(botSlug, includedIds, String(error));
+      for (const digest of claimed.digests) {
+        const key = `${botSlug}:${digest.channelId}`;
+        const failures = Math.min(6, (this.#digestFailureCount.get(key) ?? 0) + 1);
+        this.#digestFailureCount.set(key, failures);
+        this.#digestRetryAt.set(
+          key,
+          this.#now().getTime() + Math.min(300_000, 10_000 * 2 ** (failures - 1)),
+        );
+      }
+      if (
+        collected.eventIds.length > 0 &&
+        this.#retryInboxAfterAgentFactoryStarts(botSlug, collected.eventIds, error)
+      )
+        return;
+      const retry = this.#inboxFactoryRetries.get(botSlug);
+      if (retry !== undefined) {
+        if (retry.timer !== undefined) clearTimeout(retry.timer);
+        this.#inboxFactoryRetries.delete(botSlug);
+      }
       if (orchestrator !== undefined)
         await this.#publishSessionFailure({
-          channelId,
+          channelId: primaryChannelId,
           botSlug,
           sessionId: orchestrator.sessionId,
           role: 'orchestrator',
@@ -1275,8 +1173,172 @@ class BotRuntimeImplementation implements BotRuntime {
         });
       throw error;
     } finally {
-      this.#channels.admissionChanged?.(channelId, messageId);
+      for (const item of claimed.items)
+        this.#channels.admissionChanged?.(item.channelId, item.messageId);
+      for (const digest of claimed.digests)
+        for (const row of digest.rows)
+          this.#channels.admissionChanged?.(digest.channelId, row.message_id);
     }
+  }
+
+  #claimHarvest(botSlug: string): {
+    items: Array<{ sourceEventId: string; channelId: string; messageId: string; body: string }>;
+    digests: Array<{ channelId: string; rows: DigestRow[] }>;
+  } {
+    return this.#database.transaction(
+      (database) => {
+        const itemRows = database
+          .prepare(`
+        SELECT a.source_event_id, e.channel_id, e.message_id, e.body
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.bot_slug = ? AND a.attempt_state IN ('pending', 'retryable')
+           AND a.reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
+           AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+         ORDER BY e.created_at, e.rowid
+         LIMIT 20
+      `)
+          .all(botSlug) as unknown as Array<{
+          source_event_id: string;
+          channel_id: string;
+          message_id: string;
+          body: string;
+        }>;
+        for (const row of itemRows)
+          database
+            .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'running', observed_at = NULL, last_error = NULL
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')
+        `)
+            .run(row.source_event_id, botSlug);
+        const groups = database
+          .prepare(`
+        SELECT e.channel_id AS channel_id, a.wake_policy_revision AS revision,
+               MIN(e.created_at) AS first_at, a.wake_interval_ms AS interval_ms,
+               a.wake_count AS wake_count, COUNT(*) AS count
+          FROM inbox_admissions a
+          JOIN source_events e ON e.source_event_id = a.source_event_id
+         WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+           AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
+           AND a.attempt_state IN ('pending', 'retryable')
+         GROUP BY e.channel_id, a.wake_policy_revision
+      `)
+          .all(botSlug) as unknown as Array<{
+          channel_id: string;
+          revision: number;
+          first_at: string;
+          interval_ms: number;
+          wake_count: number;
+          count: number;
+        }>;
+        const now = this.#now().getTime();
+        const digests: Array<{ channelId: string; rows: DigestRow[] }> = [];
+        for (const group of groups) {
+          if (
+            group.count < group.wake_count &&
+            Date.parse(group.first_at) + group.interval_ms > now
+          )
+            continue;
+          const rows = database
+            .prepare(`
+          SELECT a.source_event_id, e.message_id, e.body, e.created_at,
+                 json_extract(e.payload_json, '$.author.kind') AS author_kind,
+                 json_extract(e.payload_json, '$.author.slug') AS author_slug
+            FROM inbox_admissions a
+            JOIN source_events e ON e.source_event_id = a.source_event_id
+           WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+             AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
+             AND a.attempt_state IN ('pending', 'retryable')
+             AND e.channel_id = ? AND a.wake_policy_revision = ?
+           ORDER BY e.created_at, e.rowid LIMIT 20
+        `)
+            .all(botSlug, group.channel_id, group.revision) as unknown as DigestRow[];
+          for (const row of rows)
+            database
+              .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')
+        `)
+              .run(row.source_event_id, botSlug);
+          if (rows.length > 0) digests.push({ channelId: group.channel_id, rows });
+        }
+        return {
+          items: itemRows.map((row) => ({
+            sourceEventId: row.source_event_id,
+            channelId: row.channel_id,
+            messageId: row.message_id,
+            body: row.body,
+          })),
+          digests,
+        };
+      },
+      ['bot-inbox'],
+    );
+  }
+
+  #digestSection(channelId: string, rows: DigestRow[]): string {
+    const channel = this.#channels.get(channelId);
+    return [
+      '[Bot Inbox: Group digest]',
+      `Channel: ${channel?.name ?? channelId} (${channelId})`,
+      `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
+      ...rows.map(
+        (row) =>
+          `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+      ),
+    ].join('\n');
+  }
+
+  #markAdmissionsSideEffect(botSlug: string, sourceEventIds: string[]): void {
+    if (sourceEventIds.length === 0) return;
+    this.#database.transaction(
+      (database) => {
+        for (const id of sourceEventIds)
+          database
+            .prepare(`
+          UPDATE inbox_admissions
+             SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(this.#now().toISOString(), id, botSlug);
+      },
+      ['bot-inbox'],
+    );
+  }
+
+  #settleHarvestHandled(botSlug: string, sourceEventIds: string[]): void {
+    if (sourceEventIds.length === 0) return;
+    this.#database.transaction(
+      (database) => {
+        for (const id of sourceEventIds)
+          database
+            .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(this.#now().toISOString(), id, botSlug);
+      },
+      ['bot-inbox'],
+    );
+  }
+
+  #settleHarvestFailure(botSlug: string, sourceEventIds: string[], error: string): void {
+    if (sourceEventIds.length === 0) return;
+    this.#database.transaction(
+      (database) => {
+        for (const id of sourceEventIds)
+          database
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = CASE WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END,
+                 observed_at = CASE WHEN reason = 'group-ordinary' THEN NULL ELSE observed_at END,
+                 last_error = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(error.slice(0, 500), id, botSlug);
+      },
+      ['bot-inbox'],
+    );
   }
 
   #groupMentionPrompt(channelId: string, messageId: string, body: string): string {
@@ -2953,7 +3015,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (stopped) this.#scheduleAssignmentReportTurn(bot.slug);
+    if (stopped) this.#scheduleHarvest(bot.slug);
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
@@ -3116,74 +3178,12 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleAssignmentReportTurn(botSlug);
+    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleHarvest(botSlug);
     return report;
   }
 
   #shouldWakeNow(state: AssignmentReportState, expectsReply: boolean): boolean {
     return expectsReply || state !== 'progress';
-  }
-
-  #scheduleAssignmentReportTurn(botSlug: string): void {
-    void this.#enqueue(botSlug, () => this.#runAssignmentReportTurn(botSlug)).catch(
-      () => undefined,
-    );
-  }
-
-  async #runAssignmentReportTurn(botSlug: string): Promise<void> {
-    if (this.#closed) return;
-    const bot = this.#registry.get(botSlug);
-    if (bot === undefined || bot.paused === true) return;
-    const channel = this.#dmChannel(botSlug);
-    if (channel === undefined) return;
-    const collected = this.#collectInbox(botSlug);
-    if (collected.eventIds.length === 0) return;
-    const timestamp = this.#now().toISOString();
-    const orchestrator = this.#ensureOrchestrator(bot, timestamp);
-    this.#setObserved(collected.eventIds, timestamp);
-    try {
-      await this.#runOrchestratorTurn(
-        bot,
-        orchestrator,
-        collected.eventIds[0] ?? orchestrator.sessionId,
-        channel.id,
-        '',
-        collected.units,
-        true,
-        undefined,
-        collected.eventIds,
-      );
-      this.#markReportsHandled(collected.eventIds);
-      const retry = this.#inboxFactoryRetries.get(botSlug);
-      if (retry !== undefined) {
-        if (retry.timer !== undefined) clearTimeout(retry.timer);
-        this.#inboxFactoryRetries.delete(botSlug);
-        this.#warn?.(
-          JSON.stringify({
-            component: 'bot-runtime',
-            event: 'inbox-factory-recovered',
-            botSlug,
-            attempts: retry.attempts,
-          }),
-        );
-      }
-    } catch (error) {
-      this.#setObserved(collected.eventIds, null);
-      if (this.#retryInboxAfterAgentFactoryStarts(botSlug, collected.eventIds, error)) return;
-      const retry = this.#inboxFactoryRetries.get(botSlug);
-      if (retry !== undefined) {
-        if (retry.timer !== undefined) clearTimeout(retry.timer);
-        this.#inboxFactoryRetries.delete(botSlug);
-      }
-      await this.#publishSessionFailure({
-        channelId: channel.id,
-        botSlug,
-        sessionId: orchestrator.sessionId,
-        role: 'orchestrator',
-        error,
-      });
-      throw error;
-    }
   }
 
   #retryInboxAfterAgentFactoryStarts(
@@ -3231,7 +3231,7 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     const timer = setTimeout(() => {
       this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1 });
-      if (!this.#closed) this.#scheduleAssignmentReportTurn(botSlug);
+      if (!this.#closed) this.#scheduleHarvest(botSlug);
     }, delayMs);
     timer.unref();
     this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1, timer });
