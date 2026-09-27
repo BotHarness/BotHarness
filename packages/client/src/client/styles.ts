@@ -2014,7 +2014,8 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font: 12px/1.5 var(--dsw-font-family);
 }
 .bh-delivery-panel:focus {
-  outline: none;
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 .bh-delivery-panel-summary {
   margin-bottom: 10px;
