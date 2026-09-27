@@ -81,7 +81,7 @@ function fakeScope(): FakeScope {
   };
 }
 
-function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
+function createScoped(specs: Spec[], disposed: Spec[], withSettings = false, withPanelInfo = true) {
   const scoped: Record<string, unknown> = {
     slots: {
       inject: (_name: string, callback: () => unknown) => callback(),
@@ -99,10 +99,14 @@ function createScoped(specs: Spec[], disposed: Spec[], withSettings = false) {
     },
     layout: {
       selectPanel: () => undefined,
-      panelInfo: {
-        getSnapshot: () => ({ activePanelId: null }),
-        subscribe: () => () => undefined,
-      },
+      ...(withPanelInfo
+        ? {
+            panelInfo: {
+              getSnapshot: () => ({ activePanelId: null }),
+              subscribe: () => () => undefined,
+            },
+          }
+        : {}),
     },
     inputTriggers: {
       registerSource: () => () => undefined,
@@ -206,5 +210,14 @@ describe('client apply', () => {
     const withoutSettings: Spec[] = [];
     apply(createScoped(withoutSettings, []) as never);
     expect(withoutSettings.some((spec) => spec.name === 'settings.section')).toBe(false);
+  });
+
+  it('boots without the panelInfo facet, skipping view-persist', () => {
+    store.setMode('dsh');
+    const specs: Spec[] = [];
+    const disposed: Spec[] = [];
+    expect(() => apply(createScoped(specs, disposed, false, false) as never)).not.toThrow();
+    expect(specs.map((spec) => spec.name)).toContain('sidebar.panellist');
+    expect(specs.map((spec) => spec.name)).toContain('main');
   });
 });
