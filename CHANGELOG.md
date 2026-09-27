@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Oversized Assignment reports now retain a short Inbox preview with a DSH Spill locator without interrupting the Agent or requiring it to write a file; the Orchestrator can page through the accepted report and inspect recent Session events through bounded DSH Session Query reads, with the returned size and estimated token cost shown ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - The operational-logs skill (the reader guide for `logs.db`) is listed in the skill and `/` catalogs only while the Bot settings Developer mode switch is on: on, a Human can invoke `reading-operational-logs` and the model can load the guide on demand; off (the default), no client sees it ([#248](https://github.com/BotHarness/BotHarness/issues/248)).
 - Stopping an Assignment now records a Host-authored lifecycle notice in the owning PersonaBot's Bot Inbox, so the Orchestrator can report a confirmed stop even without an Assignment report; unobserved notices survive Host restart and briefly retry while DSH's Agent Loop starts ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Existing full-access Assignments remain visibly marked in the Bot's Session list after the Bot default is turned off or the Host restarts, using each Session's original permission snapshot ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
