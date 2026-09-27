@@ -4,6 +4,7 @@ import type { ChannelDraft, ClientStore } from './store.js';
 
 const EVENT_NAME = 'channel/message';
 const ADMISSION_EVENT = 'channel/admission';
+const HUMAN_READ_EVENT = 'channel/human-read';
 const DRAFT_EVENT = 'channel/draft';
 const DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
 const DRAFT_SETTLED_EVENT = 'channel/draft-settled';
@@ -306,12 +307,64 @@ export function mountChannelLive(
         (candidate) => candidate.id === item['messageId'],
       );
       if (message === undefined) return;
-      const parsed = parseChannelMessage({ ...message, deliveries: item['deliveries'] });
-      if (parsed?.deliveries === undefined) return;
+      const parsed = parseChannelMessage({
+        ...message,
+        deliveries: item['deliveries'],
+        humanReceipts: item['humanReceipts'] ?? message.humanReceipts ?? [],
+      });
+      if (parsed?.deliveries === undefined || parsed.humanReceipts === undefined) return;
       store.setConversation({
         messages: latest.conversation.messages.map((candidate) =>
-          candidate.id === parsed.id ? { ...candidate, deliveries: parsed.deliveries! } : candidate,
+          candidate.id === parsed.id
+            ? {
+                ...candidate,
+                deliveries: parsed.deliveries ?? [],
+                humanReceipts: parsed.humanReceipts ?? [],
+              }
+            : candidate,
         ),
+      });
+    });
+    next.addEventListener(HUMAN_READ_EVENT, (event) => {
+      if (!(event instanceof MessageEvent)) return;
+      let payload: unknown;
+      try {
+        payload = JSON.parse(event.data as string);
+      } catch {
+        return;
+      }
+      if (typeof payload !== 'object' || payload === null) return;
+      const item = payload as Record<string, unknown>;
+      const revision = item['revision'];
+      const humanId = item['humanId'];
+      if (
+        item['channelId'] !== activeChannelId ||
+        typeof humanId !== 'string' ||
+        typeof revision !== 'number' ||
+        !Number.isSafeInteger(revision) ||
+        revision < 1
+      )
+        return;
+      const latest = store.getSnapshot();
+      if (latest.conversation.channel?.id !== activeChannelId) return;
+      store.setConversation({
+        messages: latest.conversation.messages.map((message) => {
+          if (
+            message.channelRevision === undefined ||
+            message.channelRevision > revision ||
+            message.author.kind === 'human' ||
+            !message.humanReceipts?.some(
+              (receipt) => receipt.humanId === humanId && receipt.state === 'unread',
+            )
+          )
+            return message;
+          return {
+            ...message,
+            humanReceipts: message.humanReceipts.map((receipt) =>
+              receipt.humanId === humanId ? { ...receipt, state: 'read' as const } : receipt,
+            ),
+          };
+        }),
       });
     });
     next.addEventListener(DRAFT_BASELINE_EVENT, (event) => {

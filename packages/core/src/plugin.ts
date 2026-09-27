@@ -230,6 +230,8 @@ export function createCore(
     onRecordChanged: () => live?.publishRosterCommitted(),
     onAdmissionChanged: (channelId, messageId, message) =>
       live?.publishAdmission(channelId, messageId, message),
+    onHumanReadChanged: (channelId, humanId, revision) =>
+      live?.publishHumanRead(channelId, humanId, revision),
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
   const attention = createBotAttentionQuery(

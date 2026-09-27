@@ -37,6 +37,7 @@ export interface ChannelStoreOptions {
   onCommitted?: (commit: ChannelMessageCommit) => void;
   onRecordChanged?: () => void;
   onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
+  onHumanReadChanged?: (channelId: string, humanId: string, revision: number) => void;
   warn?: (message: string) => void;
 }
 

@@ -92,6 +92,15 @@ export interface ChannelReference {
   end: number;
 }
 
+export const LOCAL_HUMAN_ID = 'local-human';
+
+/** Host-derived receipt; Human identity and read state are never supplied by the browser. */
+export interface ChannelHumanReceipt {
+  humanId: string;
+  displayName: string;
+  state: 'unread' | 'read';
+}
+
 export interface ChannelDelivery {
   botSlug: string;
   state: 'pending' | 'observed' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
@@ -121,8 +130,12 @@ export interface ChannelMessage {
   /** Selected identity spans; plain typed @names are never actionable. */
   mentions?: ChannelMention[];
   channelRefs?: ChannelReference[];
+  /** Read-only Channel placement position for bounded receipt updates. */
+  channelRevision?: number;
   /** Read-only projection from per-Bot Inbox Admissions. */
   deliveries?: ChannelDelivery[];
+  /** Group Human recipients, projected from membership and identity-keyed read positions. */
+  humanReceipts?: ChannelHumanReceipt[];
   botDmAction?: BotDmAction;
   botCausation?: BotMessageCausation;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */

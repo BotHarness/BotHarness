@@ -97,6 +97,57 @@ describe('Channel delivery receipt', () => {
     }
   });
 
+  it('shows local Human unread and read status only for another author', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    const botMessage: ChannelMessage = {
+      ...message,
+      deliveries: [],
+      humanReceipts: [{ humanId: 'local-human', displayName: 'Human', state: 'unread' }],
+    };
+    try {
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, { message: botMessage, bots, t: zhTranslate }),
+        ),
+      );
+      const trigger = host.querySelector<HTMLButtonElement>('.bh-delivery-trigger');
+      expect(trigger?.getAttribute('aria-label')).toContain('1 Human 未读');
+      await act(async () => trigger?.click());
+      expect(document.body.querySelector('.bh-delivery-panel')?.textContent).toContain(
+        '本机 Human',
+      );
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, {
+            message: {
+              ...botMessage,
+              humanReceipts: [{ ...botMessage.humanReceipts![0]!, state: 'read' }],
+            },
+            bots,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      expect(trigger?.getAttribute('aria-label')).toContain('1 Human 已读');
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, {
+            message: { ...botMessage, author: { kind: 'human' } },
+            bots,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      expect(host.querySelector('.bh-delivery-trigger')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
+
   it('shows no pie without an admitted recipient or for an optimistic echo', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const host = document.createElement('div');

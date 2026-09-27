@@ -149,6 +149,40 @@ describe('Roster live Client', () => {
 });
 
 describe('Channel live Client', () => {
+  it('advances loaded Human receipts from one bounded read-position event', () => {
+    const { store, sources, dispose } = setup();
+    store.setConversation({
+      messages: [
+        {
+          id: 'first',
+          at: '2026-09-21T00:00:01.000Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: 'first',
+          channelRevision: 1,
+          humanReceipts: [{ humanId: 'local-human', displayName: 'Human', state: 'unread' }],
+        },
+        {
+          id: 'second',
+          at: '2026-09-21T00:00:02.000Z',
+          author: { kind: 'bot', slug: 'ada' },
+          body: 'second',
+          channelRevision: 2,
+          humanReceipts: [{ humanId: 'local-human', displayName: 'Human', state: 'unread' }],
+        },
+      ],
+      revision: 2,
+    });
+    sources[0]?.listeners.get('channel/human-read')?.(
+      new MessageEvent('channel/human-read', {
+        data: JSON.stringify({ channelId: CHANNEL.id, humanId: 'local-human', revision: 1 }),
+      }),
+    );
+    expect(
+      store.getSnapshot().conversation.messages.map((item) => item.humanReceipts?.[0]?.state),
+    ).toEqual(['read', 'unread']);
+    dispose();
+  });
+
   it('appends once, ignores duplicate revisions, and updates the Channel preview', () => {
     const { store, sources, dispose } = setup();
     expect(sources[0]?.url).toContain('channelId=group-team&after=0');

@@ -7,7 +7,10 @@ import type { BotSummary, ChannelMessage } from './store.js';
 
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 type Delivery = NonNullable<ChannelMessage['deliveries']>[number];
-type DeliveryState = Delivery['state'];
+type DeliveryState = Delivery['state'] | 'human-read' | 'human-unread';
+type Recipient =
+  | { kind: 'bot'; botSlug: string; state: Delivery['state'] }
+  | { kind: 'human'; humanId: string; displayName: string; state: 'human-read' | 'human-unread' };
 
 const STATE_ORDER: readonly DeliveryState[] = [
   'handled',
@@ -17,6 +20,8 @@ const STATE_ORDER: readonly DeliveryState[] = [
   'ignored',
   'retryable',
   'needs-repair',
+  'human-read',
+  'human-unread',
 ];
 
 function stateLabel(state: DeliveryState, t: BotHarnessTranslate): string {
@@ -36,15 +41,31 @@ export function ChannelDeliveryReceipt({
   const deliveries = (message.deliveries ?? []).filter(
     (delivery) => delivery.botSlug !== authorSlug,
   );
+  const recipients: Recipient[] = [
+    ...deliveries.map((delivery) => ({ kind: 'bot' as const, ...delivery })),
+    ...(message.author.kind === 'human'
+      ? []
+      : (message.humanReceipts ?? []).map((receipt) => ({
+          kind: 'human' as const,
+          humanId: receipt.humanId,
+          displayName: receipt.displayName,
+          state: receipt.state === 'read' ? ('human-read' as const) : ('human-unread' as const),
+        }))),
+  ];
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const panelId = useId();
-  const signature = deliveries.map((delivery) => delivery.botSlug + ':' + delivery.state).join('|');
+  const signature = recipients
+    .map(
+      (recipient) =>
+        (recipient.kind === 'bot' ? recipient.botSlug : recipient.humanId) + ':' + recipient.state,
+    )
+    .join('|');
   const groups = STATE_ORDER.flatMap((state) => {
-    const recipients = deliveries.filter((delivery) => delivery.state === state);
-    return recipients.length === 0 ? [] : [{ state, recipients }];
+    const members = recipients.filter((recipient) => recipient.state === state);
+    return members.length === 0 ? [] : [{ state, recipients: members }];
   });
   const summary = groups
     .map(({ state, recipients }) => recipients.length + ' ' + stateLabel(state, t))
@@ -103,19 +124,20 @@ export function ChannelDeliveryReceipt({
     };
   }, [open]);
 
-  if (deliveries.length === 0 || message.pending === true || message.streaming === true)
+  if (recipients.length === 0 || message.pending === true || message.streaming === true)
     return null;
 
   let offset = 0;
+  const allRecipients = recipients.length;
   const sectors = groups.map(({ state, recipients }) => {
-    const length = (recipients.length / deliveries.length) * 360;
+    const length = (recipients.length / allRecipients) * 360;
     const sector = { state, length, offset };
     offset += length;
     return sector;
   });
   // Follow the filled, segmented status badge used by anysoul's message history.
   // Keep a small gap between status groups, but never hollow out the center.
-  const separator = Math.min(1.6, Math.max(0.8, (360 / deliveries.length) * 0.04));
+  const separator = Math.min(1.6, Math.max(0.8, (360 / allRecipients) * 0.04));
   const pieBackground =
     sectors.length === 1
       ? `var(--bh-delivery-color-${sectors[0]!.state})`
@@ -169,13 +191,27 @@ export function ChannelDeliveryReceipt({
                       {recipients.length} {stateLabel(state, t)}
                     </h3>
                     <ul>
-                      {recipients.map((delivery) => {
-                        const bot = bots.find((candidate) => candidate.slug === delivery.botSlug);
-                        const name = bot?.displayName ?? delivery.botSlug;
+                      {recipients.map((recipient) => {
+                        if (recipient.kind === 'human') {
+                          const name =
+                            recipient.humanId === 'local-human'
+                              ? t('message.delivery.localHuman')
+                              : recipient.displayName;
+                          return (
+                            <li key={'human:' + recipient.humanId} title={name}>
+                              <span className="bh-delivery-human-avatar" aria-hidden="true">
+                                {name.slice(0, 1)}
+                              </span>
+                              <span>{name}</span>
+                            </li>
+                          );
+                        }
+                        const bot = bots.find((candidate) => candidate.slug === recipient.botSlug);
+                        const name = bot?.displayName ?? recipient.botSlug;
                         return (
-                          <li key={delivery.botSlug} title={name}>
+                          <li key={'bot:' + recipient.botSlug} title={name}>
                             <PersonaBotAvatar
-                              personaBotId={delivery.botSlug}
+                              personaBotId={recipient.botSlug}
                               name={name}
                               src={bot?.avatar}
                               size={22}

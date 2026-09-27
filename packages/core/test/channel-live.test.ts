@@ -54,6 +54,29 @@ describe('Channel post-commit stream', () => {
     await reader?.cancel();
   });
 
+  it('sends one Human read baseline on connect and one update when the position advances', async () => {
+    const store = createChannelStore({ rootDir: root() });
+    const group = store.createGroup({ name: 'Team', members: [] });
+    await store.appendMessage(group.id, message('one'));
+    await store.markRead(group.id, 'one');
+    const hub = createChannelLiveHub(store);
+    hubs.push(hub);
+    const response = hub.open(
+      new Request(`http://localhost/api/botharness/stream?channelId=${group.id}&after=1`),
+    );
+    const reader = response.body!.getReader();
+    await reader.read(); // retry
+    const baseline = new TextDecoder().decode((await reader.read()).value);
+    expect(baseline).toContain('event: channel/human-read');
+    expect(baseline).toContain('"revision":1');
+    await reader.read(); // draft baseline
+    hub.publishHumanRead(group.id, 'local-human', 2);
+    const update = new TextDecoder().decode((await reader.read()).value);
+    expect(update).toContain('event: channel/human-read');
+    expect(update).toContain('"revision":2');
+    await reader.cancel();
+  });
+
   it('publishes only durable rows and replays from the snapshot cursor', async () => {
     const directory = root();
     const observed: ChannelMessageCommit[] = [];

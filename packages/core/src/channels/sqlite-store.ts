@@ -11,6 +11,7 @@ import {
   dmChannelId,
   isBotDmChannel,
   MAX_BOT_HOPS,
+  LOCAL_HUMAN_ID,
   groupChannelIdBase,
   isChannelMessage,
   isChannelRecord,
@@ -37,6 +38,7 @@ interface SqliteChannelStoreOptions extends ChannelStoreOptions {
 }
 
 interface PlacementRow {
+  revision: number;
   source_event_id: string;
   payload_json: string;
   body: string;
@@ -128,6 +130,8 @@ function rawMessage(message: ChannelMessage): ChannelMessage {
   const result = { ...message };
   delete result.replyToPreview;
   delete result.deliveries;
+  delete result.humanReceipts;
+  delete result.channelRevision;
   return result;
 }
 
@@ -179,6 +183,12 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           record.id,
           JSON.stringify(record),
         );
+        if (record.type === 'group')
+          db.prepare(`
+            INSERT OR IGNORE INTO channel_human_members
+              (channel_id, human_id, display_name, visible_from_revision, joined_at)
+            VALUES (?, ?, 'Human', 1, ?)
+          `).run(record.id, LOCAL_HUMAN_ID, record.createdAt);
       },
       ['channel'],
     );
@@ -212,23 +222,75 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         });
   };
 
+  const humanMembers = (
+    id: string,
+  ): Array<{
+    human_id: string;
+    display_name: string;
+    visible_from_revision: number;
+    read_revision: number;
+  }> =>
+    database.read((db) =>
+      db
+        .prepare(`
+        SELECT m.human_id, m.display_name, m.visible_from_revision,
+               COALESCE(r.revision, 0) AS read_revision
+          FROM channel_human_members m
+          LEFT JOIN channel_read_positions r
+            ON r.channel_id = m.channel_id AND r.human_id = m.human_id
+         WHERE m.channel_id = ? AND m.left_at IS NULL
+         ORDER BY m.human_id
+      `)
+        .all(id),
+    ) as Array<{
+      human_id: string;
+      display_name: string;
+      visible_from_revision: number;
+      read_revision: number;
+    }>;
+
+  const humanReceiptsFor = (
+    message: ChannelMessage,
+    revision: number,
+    members: ReturnType<typeof humanMembers>,
+  ): ChannelMessage['humanReceipts'] => {
+    if (message.author.kind === 'human') return undefined;
+    const recipients = members
+      .filter((member) => member.visible_from_revision <= revision)
+      .map((member) => ({
+        humanId: member.human_id,
+        displayName: member.display_name,
+        state: member.read_revision >= revision ? ('read' as const) : ('unread' as const),
+      }));
+    return recipients.length === 0 ? undefined : recipients;
+  };
+
   const allMessages = (id: string): ChannelMessage[] => {
     if (!isValidChannelId(id)) return [];
     const rows = database.read((db) =>
       db
         .prepare(`
-      SELECT p.source_event_id, e.payload_json, e.body
+      SELECT p.revision, p.source_event_id, e.payload_json, e.body
         FROM channel_placements p
         JOIN source_events e ON e.source_event_id = p.source_event_id
        WHERE p.channel_id = ? ORDER BY p.revision
     `)
         .all(id),
     ) as unknown as PlacementRow[];
+    const members = humanMembers(id);
     return rows.flatMap((row) => {
       const message = parseMessage(row.payload_json, row.body);
       if (message === undefined) return [];
       const deliveries = admissionStatuses(row.source_event_id);
-      return [{ ...message, ...(deliveries === undefined ? {} : { deliveries }) }];
+      const humanReceipts = humanReceiptsFor(message, row.revision, members);
+      return [
+        {
+          ...message,
+          channelRevision: row.revision,
+          ...(deliveries === undefined ? {} : { deliveries }),
+          ...(humanReceipts === undefined ? {} : { humanReceipts }),
+        },
+      ];
     });
   };
 
@@ -474,7 +536,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     );
     const committed = project([...previous, durable], durable);
     const deliveries = admissionStatuses(sourceEventId);
-    const result = { ...committed, ...(deliveries === undefined ? {} : { deliveries }) };
+    const humanReceipts = humanReceiptsFor(committed, revision, humanMembers(id));
+    const result = {
+      ...committed,
+      channelRevision: revision,
+      ...(deliveries === undefined ? {} : { deliveries }),
+      ...(humanReceipts === undefined ? {} : { humanReceipts }),
+    };
     for (const commit of [
       { channelId: id, message: result, revision },
       ...(action === undefined || senderDm === undefined || actionRevision === undefined
@@ -560,6 +628,12 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             record.id,
             JSON.stringify(record),
           );
+          if (record.type === 'group')
+            db.prepare(`
+              INSERT OR IGNORE INTO channel_human_members
+                (channel_id, human_id, display_name, visible_from_revision, joined_at)
+              VALUES (?, ?, 'Human', 1, ?)
+            `).run(record.id, LOCAL_HUMAN_ID, record.createdAt);
           for (const [index, message] of messages.entries()) {
             const existing = db
               .prepare(
@@ -611,9 +685,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           }
           if (readPosition !== undefined)
             db.prepare(`
-          INSERT INTO channel_read_positions (channel_id, message_id, revision, read_at)
-          VALUES (?, ?, ?, ?)
-        `).run(record.id, readPosition.messageId, readPosition.revision, readPosition.readAt);
+          INSERT INTO channel_read_positions (channel_id, human_id, message_id, revision, read_at)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+              record.id,
+              LOCAL_HUMAN_ID,
+              readPosition.messageId,
+              readPosition.revision,
+              readPosition.readAt,
+            );
         }
       },
       ['channel', 'source-event'],
@@ -1245,9 +1325,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const row = database.read((db) =>
         db
           .prepare(`
-        SELECT message_id, revision, read_at FROM channel_read_positions WHERE channel_id = ?
+        SELECT message_id, revision, read_at FROM channel_read_positions WHERE channel_id = ? AND human_id = ?
       `)
-          .get(id),
+          .get(id, LOCAL_HUMAN_ID),
       ) as { message_id: string; revision: number; read_at: string } | undefined;
       return row === undefined
         ? undefined
@@ -1267,14 +1347,21 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         (db) =>
           db
             .prepare(`
-        INSERT INTO channel_read_positions (channel_id, message_id, revision, read_at)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(channel_id) DO UPDATE SET
+        INSERT INTO channel_read_positions (channel_id, human_id, message_id, revision, read_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(channel_id, human_id) DO UPDATE SET
           message_id = excluded.message_id, revision = excluded.revision, read_at = excluded.read_at
       `)
-            .run(id, messageId, position.revision, position.readAt),
+            .run(id, LOCAL_HUMAN_ID, messageId, position.revision, position.readAt),
         ['channel'],
       );
+      if (readRecord(id)?.type === 'group') {
+        try {
+          options.onHumanReadChanged?.(id, LOCAL_HUMAN_ID, position.revision);
+        } catch (error) {
+          options.warn?.('Human read notification failed: ' + String(error));
+        }
+      }
       return position;
     },
     async appendMessage(id, message) {
@@ -1363,7 +1450,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         }
         return db
           .prepare(`
-          SELECT p.source_event_id, e.payload_json, e.body
+          SELECT p.revision, p.source_event_id, e.payload_json, e.body
             FROM channel_placements p
             JOIN source_events e ON e.source_event_id = p.source_event_id
            WHERE ${where.join(' AND ')}
@@ -1371,11 +1458,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         `)
           .all(...values, query.limit + 1);
       }) as unknown as PlacementRow[];
+      const members = humanMembers(id);
       const selected = rows.slice(0, query.limit).flatMap((row) => {
         const message = parseMessage(row.payload_json, row.body);
         if (message === undefined) return [];
         const deliveries = admissionStatuses(row.source_event_id);
-        return [{ ...message, ...(deliveries === undefined ? {} : { deliveries }) }];
+        const humanReceipts = humanReceiptsFor(message, row.revision, members);
+        return [
+          {
+            ...message,
+            channelRevision: row.revision,
+            ...(deliveries === undefined ? {} : { deliveries }),
+            ...(humanReceipts === undefined ? {} : { humanReceipts }),
+          },
+        ];
       });
       const replyIds = [
         ...new Set(
