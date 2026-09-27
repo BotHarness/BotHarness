@@ -10,6 +10,7 @@
 ## 文档
 
 - 架构与数据流（持续维护）：[docs/architecture/botharness-architecture.md](docs/architecture/botharness-architecture.md) · 文档站 https://botharness.ai
+- 介绍 Slides：https://botharness.ai/slides/s/botharness-intro（源码 `apps/presentations`，`pnpm slides:dev` 本地迭代）
 - BotHarness 产品术语：[CONTEXT.zh.md](CONTEXT.zh.md) · 决策：[docs/adr/](docs/adr/)
 - 里程碑与 tickets：仓库 Issues 与 Projects
 

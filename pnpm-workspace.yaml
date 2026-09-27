@@ -300,3 +300,4 @@ minimumReleaseAgeExclude:
   - '@deepseek-ai/libreoffice-kit-win32-arm64@0.1.1'
   - '@deepseek-ai/libreoffice-kit-win32-x64@0.1.1'
   - '@deepseek-ai/libreoffice-kit@0.1.1'
+  - '@open-slide/core@2.0.0'
