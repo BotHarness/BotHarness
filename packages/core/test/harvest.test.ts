@@ -76,9 +76,48 @@ describe('turn-time harvest', () => {
       await core.runtime.whenIdle();
 
       expect(runs).toHaveLength(1);
-      expect(runs[0]?.message).toContain('Message ID: harvest-m1');
-      expect(runs[0]?.message).toContain('Message ID: harvest-m2');
+      const message = runs[0]?.message ?? '';
+      expect(message.startsWith('[Bot Inbox harvest] 2 attention items are ready.')).toBe(true);
+      expect(message).toContain('Message ID: harvest-m1');
+      expect(message).toContain('Message ID: harvest-m2');
       expect(admissionStates(core, 'ada')).toEqual(['handled', 'handled']);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('keeps a single item free of the harvest preamble', async () => {
+    const home = createTempRoot('botharness-harvest-single-');
+    const runs: OrchestratorAgentRun[] = [];
+    const agents: BotAgentAdapter = {
+      async runOrchestrator(run) {
+        runs.push(run);
+      },
+      async runAssignment(_run: AssignmentAgentRun) {},
+      requestAssignment(_run: AssignmentAgentRun): AssignmentRequestDelivery {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    const core = createCore({ dshHome: home, agents });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      await core.channels.appendMessageOnce(group.id, {
+        id: 'harvest-single',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '@Ada solo',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      core.runtime.admitGroupMessage(group.id, 'harvest-single');
+      await core.runtime.whenIdle();
+
+      expect(runs).toHaveLength(1);
+      const message = runs[0]?.message ?? '';
+      expect(message).not.toContain('[Bot Inbox harvest]');
+      expect(message.startsWith('[Bot Inbox: direct Group mention')).toBe(true);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
@@ -126,6 +165,7 @@ describe('turn-time harvest', () => {
 
       expect(runs).toHaveLength(1);
       const message = runs[0]?.message ?? '';
+      expect(message).toContain('[Bot Inbox harvest]');
       expect(message).toContain('Message ID: harvest-m1');
       expect(message).toContain('[Bot Inbox: Group digest]');
       expect(message.indexOf('Message ID: harvest-m1')).toBeLessThan(
