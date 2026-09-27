@@ -1222,6 +1222,20 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                  SELECT source_event_id FROM source_events WHERE message_id = ?
                ) AND reason = 'group-invite' AND attempt_state IN ('pending', 'retryable')
             `).run(timestamp, invitation.id);
+          if (channel.ownerBotSlug === botSlug) {
+            for (const request of channel.joinRequests ?? []) {
+              if (request.status !== 'pending') continue;
+              db.prepare(`
+                UPDATE inbox_admissions
+                   SET attempt_state = 'handled', handled_at = ?
+                 WHERE bot_slug = ? AND reason = 'group-join-request'
+                   AND attempt_state IN ('pending', 'retryable')
+                   AND source_event_id IN (
+                     SELECT source_event_id FROM source_events WHERE message_id = ?
+                   )
+              `).run(timestamp, botSlug, request.id);
+            }
+          }
           db.prepare(`
             UPDATE inbox_admissions
                SET attempt_state = 'needs-repair', last_error = 'Group membership revoked'

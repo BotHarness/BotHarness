@@ -1169,14 +1169,26 @@ class BotRuntimeImplementation implements BotRuntime {
         if (retry.timer !== undefined) clearTimeout(retry.timer);
         this.#inboxFactoryRetries.delete(botSlug);
       }
-      if (orchestrator !== undefined)
-        await this.#publishSessionFailure({
-          channelId: primaryChannelId,
-          botSlug,
-          sessionId: orchestrator.sessionId,
-          role: 'orchestrator',
-          error,
-        });
+      if (orchestrator !== undefined) {
+        try {
+          await this.#publishSessionFailure({
+            channelId: primaryChannelId,
+            botSlug,
+            sessionId: orchestrator.sessionId,
+            role: 'orchestrator',
+            error,
+          });
+        } catch (reportError) {
+          this.#warn?.(
+            JSON.stringify({
+              component: 'bot-runtime',
+              event: 'session-failure-report-failed',
+              botSlug,
+              error: String(reportError),
+            }),
+          );
+        }
+      }
       throw error;
     } finally {
       for (const item of claimed.items)
@@ -1714,7 +1726,9 @@ class BotRuntimeImplementation implements BotRuntime {
     };
     const original = this.#channels.get(input.channelId);
     const target =
-      original !== undefined && isBotDmChannel(original)
+      original !== undefined &&
+      (isBotDmChannel(original) ||
+        (original.type === 'group' && !original.members.includes(input.botSlug)))
         ? this.#channels.getOrCreateDm(
             input.botSlug,
             this.#registry.get(input.botSlug)?.displayName ?? input.botSlug,

@@ -206,4 +206,93 @@ describe('Bot Group self-leave', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('settles a former creator notice while keeping its join request available to Human', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-group-owner-leave-request-') });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const bea = core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      if (!bea.ok) throw new Error('Bot fixture failed');
+      const group = core.channels.createGroup({
+        name: 'Joinable',
+        members: ['ada'],
+        ownerBotSlug: 'ada',
+      });
+      const ownerDm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      const requesterDm = core.channels.getOrCreateDm('bea', 'Bea')!;
+      const request = core.channels.requestGroupJoin({
+        channelId: group.id,
+        requesterBotSlug: 'bea',
+        requesterBotCreatedAt: bea.record.createdAt,
+        ownerDmChannelId: ownerDm.id,
+      });
+      const noticeState = (): string | undefined =>
+        attachOperationalModule(core.operationalDatabase, 'group-leave-owner-notice').read((db) => {
+          const row = db
+            .prepare('SELECT attempt_state FROM inbox_admissions WHERE reason = ? AND bot_slug = ?')
+            .get('group-join-request', 'ada') as { attempt_state: string } | undefined;
+          return row?.attempt_state;
+        });
+      expect(noticeState()).toBe('pending');
+      core.channels.removeGroupMember(group.id, 'ada');
+      expect(noticeState()).toBe('handled');
+      expect(core.channels.get(group.id)?.joinRequests?.[0]?.status).toBe('pending');
+      expect(
+        core.channels.decideGroupJoin({
+          channelId: group.id,
+          requestId: request.id,
+          accept: true,
+          decidedBy: 'human',
+          requesterBotCreatedAt: bea.record.createdAt,
+          requesterDmChannelId: requesterDm.id,
+        }).channel.members,
+      ).toEqual(['bea']);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('reports a failing Group turn to Human DM after the Bot leaves', async () => {
+    let groupId = '';
+    const core = createCore({
+      dshHome: createTempRoot('botharness-group-leave-failure-'),
+      agents: adapter(async (run) => {
+        expect(run.channels.leaveGroup({ channelId: groupId }).left).toBe(true);
+        throw new Error('deliberate Group turn failure');
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({
+        name: 'Failure route',
+        members: ['ada'],
+        ownerBotSlug: 'ada',
+      });
+      groupId = group.id;
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessageOnce(group.id, {
+        id: 'human-1aabb095-e87a-4d52-a923-6a55e882ac40',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '@Ada please check',
+        mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+      });
+      core.runtime.admitGroupMessage(group.id, 'human-1aabb095-e87a-4d52-a923-6a55e882ac40');
+      await core.runtime.whenIdle();
+      expect(core.channels.get(group.id)?.members).toEqual([]);
+      const report = core.channels
+        .readMessages(dm.id)
+        .find((message) => message.sessionFailure !== undefined);
+      expect(report?.sessionFailure?.detail).toBe('deliberate Group turn failure');
+      expect(
+        core.channels
+          .readMessages(group.id)
+          .some((message) => message.sessionFailure !== undefined),
+      ).toBe(false);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });
