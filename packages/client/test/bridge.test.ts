@@ -193,6 +193,17 @@ describe('bridge parsers', () => {
     expect(parseChannelRecord(undefined)).toBeUndefined();
   });
 
+  it('keeps the all attention preset and its revision in a Group snapshot', () => {
+    expect(
+      parseChannelRecord({
+        ...GROUP,
+        wakePolicies: {
+          ada: { mode: 'all', count: 5, intervalSeconds: 30, revision: 2 },
+        },
+      })?.wakePolicies,
+    ).toEqual({ ada: { mode: 'all', count: 5, intervalSeconds: 30, revision: 2 } });
+  });
+
   it('keeps valid message authors and skips malformed rows', () => {
     const messages = parseChannelMessages({
       messages: [

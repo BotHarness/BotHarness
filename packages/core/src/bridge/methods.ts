@@ -755,7 +755,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         .object({
           channelId: z.string().min(1),
           botSlug: z.string().min(1),
-          mode: z.enum(['mentions', 'digest', 'silent']),
+          mode: z.enum(['all', 'mentions', 'digest', 'silent']),
           count: z.number().int().min(1).max(100),
           intervalSeconds: z.number().int().min(1).max(3600),
         })
@@ -1138,7 +1138,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('cursor must be a Source Event ID');
       if (
         state !== undefined &&
-        !['pending', 'observed', 'deferred', 'needs-repair', 'handled'].includes(String(state))
+        !['pending', 'processing', 'observed', 'deferred', 'needs-repair', 'handled'].includes(
+          String(state),
+        )
       )
         return invalidInput('unknown Bot attention state');
       try {

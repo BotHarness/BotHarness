@@ -61,7 +61,7 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
-  it('preserves existing Assignment reports when upgrading for lifecycle notices', () => {
+  it('preserves existing Assignment reports when upgrading to the latest schema', () => {
     const dshHome = createTempRoot('botharness-lifecycle-migration-');
     const priorPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
     const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
@@ -112,6 +112,50 @@ describe('operational database owner', () => {
       admission: { reason: 'assignment-report', attempt_state: 'pending' },
       foreignKeys: [],
     });
+    upgraded.close();
+  });
+
+  it('backfills Group wake modes when upgrading existing Inbox Admissions', () => {
+    const dshHome = createTempRoot('botharness-group-wake-migration-');
+    const priorPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
+    const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+    attachOperationalModule(prior, 'group-wake-migration-seed').transaction((database) => {
+      for (const [id, reason, wakeCount, wakeIntervalMs] of [
+        ['all', 'group-ordinary', 1, 0],
+        ['digest', 'group-ordinary', 5, 60_000],
+        ['silent', 'group-ordinary', null, null],
+        ['mention', 'group-mention', null, null],
+      ] as const) {
+        database
+          .prepare(`INSERT INTO source_events (
+            source_event_id, source_kind, bot_slug, body, created_at
+          ) VALUES (?, 'human-message', 'ada', ?, ?) `)
+          .run(id, id, FIXED_NOW().toISOString());
+        database
+          .prepare(`INSERT INTO inbox_admissions (
+            source_event_id, bot_slug, reason, wake_count, wake_interval_ms
+          ) VALUES (?, 'ada', ?, ?, ?) `)
+          .run(id, reason, wakeCount, wakeIntervalMs);
+      }
+    });
+    prior.close();
+
+    const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(upgraded.mode).toBe('ready');
+    expect(
+      attachOperationalModule(upgraded, 'group-wake-migration-check').read((database) =>
+        database
+          .prepare(
+            'SELECT source_event_id, wake_mode FROM inbox_admissions ORDER BY source_event_id',
+          )
+          .all(),
+      ),
+    ).toEqual([
+      { source_event_id: 'all', wake_mode: 'all' },
+      { source_event_id: 'digest', wake_mode: 'digest' },
+      { source_event_id: 'mention', wake_mode: null },
+      { source_event_id: 'silent', wake_mode: 'silent' },
+    ]);
     upgraded.close();
   });
 

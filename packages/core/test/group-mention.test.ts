@@ -239,6 +239,11 @@ describe('Group mention tracer', () => {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
       const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
       const group = core.channels.createGroup({ name: 'Steer', members: ['ada'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
       await core.channels.appendMessage(dm.id, {
         id: 'dm-start',
         at: '2026-09-25T00:00:00.000Z',
@@ -253,6 +258,13 @@ describe('Group mention tracer', () => {
       expect(dmAdmission.admitted).toBe(true);
       await started;
       await core.channels.appendMessage(group.id, {
+        id: 'group-context',
+        at: '2026-09-25T00:00:00.500Z',
+        author: { kind: 'human' },
+        body: 'The answer is STEER-17',
+      });
+      core.runtime.admitGroupMessage(group.id, 'group-context');
+      await core.channels.appendMessage(group.id, {
         id: 'group-steer',
         at: '2026-09-25T00:00:01.000Z',
         author: { kind: 'human' },
@@ -262,6 +274,7 @@ describe('Group mention tracer', () => {
       core.runtime.admitGroupMessage(group.id, 'group-steer');
       expect(steered).toHaveLength(1);
       expect(steered[0]).toContain(group.id);
+      expect(steered[0]).toContain('The answer is STEER-17');
       expect(steered[0]).toContain('You may finish without replying');
       expect(core.channels.message(group.id, 'group-steer')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'running' },
@@ -270,8 +283,11 @@ describe('Group mention tracer', () => {
       if (dmAdmission.admitted) await dmAdmission.settled;
       await core.runtime.whenIdle();
       expect(runs).toEqual([dm.id]);
-      expect(core.channels.readMessages(group.id).map((message) => message.id)).toEqual([
-        'group-steer',
+      expect(core.channels.readMessages(group.id).map((message) => message.id)).toEqual(
+        expect.arrayContaining(['group-context', 'group-steer']),
+      );
+      expect(core.channels.message(group.id, 'group-context')?.deliveries).toEqual([
+        { botSlug: 'ada', state: 'handled' },
       ]);
       expect(core.channels.message(group.id, 'group-steer')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'handled' },

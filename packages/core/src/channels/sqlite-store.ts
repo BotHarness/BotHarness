@@ -8,6 +8,7 @@ import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import {
   botDmChannelId,
+  DEFAULT_GROUP_WAKE_POLICY,
   dmChannelId,
   isBotDmChannel,
   MAX_BOT_HOPS,
@@ -468,8 +469,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             ? channel.members.flatMap((botSlug) => {
                 if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
                   return [];
-                const policy = channel.wakePolicies?.[botSlug];
-                if (policy?.mode !== 'digest' && policy?.mode !== 'silent') return [];
+                const policy = channel.wakePolicies?.[botSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
                 if (
                   durable.author.kind === 'bot' &&
                   durable.botCausation !== undefined &&
@@ -487,14 +487,23 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         for (const recipient of ordinary)
           db.prepare(`
         INSERT INTO inbox_admissions (
-          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision
-        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?)
+          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision, wake_mode
+        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?)
       `).run(
             sourceEventId,
             recipient.botSlug,
-            recipient.policy.mode === 'digest' ? recipient.policy.count : null,
-            recipient.policy.mode === 'digest' ? recipient.policy.intervalSeconds * 1000 : null,
+            recipient.policy.mode === 'all'
+              ? 1
+              : recipient.policy.mode === 'digest'
+                ? recipient.policy.count
+                : null,
+            recipient.policy.mode === 'all'
+              ? 0
+              : recipient.policy.mode === 'digest'
+                ? recipient.policy.intervalSeconds * 1000
+                : null,
             recipient.policy.revision,
+            recipient.policy.mode,
           );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
@@ -1158,7 +1167,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
         throw new Error('Group member not found');
       if (
-        (policy.mode !== 'mentions' && policy.mode !== 'digest' && policy.mode !== 'silent') ||
+        (policy.mode !== 'all' &&
+          policy.mode !== 'mentions' &&
+          policy.mode !== 'digest' &&
+          policy.mode !== 'silent') ||
         !Number.isSafeInteger(policy.count) ||
         policy.count < 1 ||
         policy.count > 100 ||

@@ -38,7 +38,9 @@ function MemberWakeControls({
   apply: (result: Promise<boolean>) => Promise<void>;
 }): ReactElement {
   const saved = channel.wakePolicies?.[slug];
-  const [mode, setMode] = useState<'mentions' | 'digest' | 'silent'>(saved?.mode ?? 'mentions');
+  const [mode, setMode] = useState<'all' | 'mentions' | 'digest' | 'silent'>(
+    saved?.mode ?? 'digest',
+  );
   const [count, setCount] = useState(saved?.count ?? 5);
   const [seconds, setSeconds] = useState(saved?.intervalSeconds ?? 30);
   const [busy, setBusy] = useState(false);
@@ -61,14 +63,24 @@ function MemberWakeControls({
     <details className="bh-member-wake">
       <summary>
         {t('members.wake')} ·{' '}
-        {saved?.mode === 'digest'
-          ? t('members.wake.digest')
-          : saved?.mode === 'silent'
-            ? t('members.wake.silent')
-            : t('members.wake.mentions')}
+        {(saved?.mode ?? 'digest') === 'all'
+          ? t('members.wake.all')
+          : (saved?.mode ?? 'digest') === 'digest'
+            ? t('members.wake.digest')
+            : saved?.mode === 'silent'
+              ? t('members.wake.silent')
+              : t('members.wake.mentions')}
       </summary>
       <div className="bh-member-wake-form">
         <div className="bh-member-wake-choices" role="group" aria-label={t('members.wake')}>
+          <button
+            type="button"
+            className="bh-group-manage-button"
+            aria-pressed={mode === 'all'}
+            onClick={() => setMode('all')}
+          >
+            {t('members.wake.all')}
+          </button>
           <button
             type="button"
             className="bh-group-manage-button"
@@ -160,15 +172,22 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
         return (
           <div className="bh-member-with-wake" key={slug}>
             <div className="bh-member-row">
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={slug}
-                name={member?.displayName ?? slug}
-                src={member?.avatar}
-                state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-                size={26}
-              />
-              <span className="bh-name">{memberName(state.bots, slug)}</span>
+              <button
+                type="button"
+                className="bh-member-open-dm"
+                aria-label={t('message.mention.openDm', { bot: memberName(state.bots, slug) })}
+                onClick={() => void actions.openBot(slug)}
+              >
+                <PersonaBotAvatar
+                  t={t}
+                  personaBotId={slug}
+                  name={member?.displayName ?? slug}
+                  src={member?.avatar}
+                  state={member === undefined ? 'idle' : personaBotActivity(state, member)}
+                  size={26}
+                />
+                <span className="bh-name">{memberName(state.bots, slug)}</span>
+              </button>
               {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
               {group === undefined ? null : (
                 <button
@@ -183,7 +202,7 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
             </div>
             {group === undefined ? null : (
               <MemberWakeControls
-                key={group.wakePolicies?.[slug]?.revision ?? 0}
+                key={`${group.id}:${group.wakePolicies?.[slug]?.revision ?? 0}`}
                 channel={group}
                 slug={slug}
                 actions={actions}
