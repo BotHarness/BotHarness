@@ -432,6 +432,7 @@ describe('Bot main Sessions pane', () => {
     expect(markup).toContain('data-group-position="first"');
     expect(markup).toContain('data-group-position="last"');
     expect(markup.match(/class="bh-message-group-avatar"/g)).toHaveLength(1);
+    expect(markup).not.toContain('bh-message-group-avatar-link');
     expect(markup.match(/class="bh-bubble-time"/g)).toHaveLength(2);
     expect(markup.match(/class="bh-bubble-meta"/g)).toHaveLength(2);
     expect(markup.match(/aria-label="回复"/g)).toHaveLength(2);

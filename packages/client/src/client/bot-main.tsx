@@ -177,6 +177,7 @@ function MessageGroupView({
   group,
   bots,
   focusMessageId,
+  currentDmBotSlug,
   onContextMenu,
   onReply,
   onJumpReply,
@@ -190,6 +191,7 @@ function MessageGroupView({
 }: {
   group: MessageGroup;
   focusMessageId?: string | undefined;
+  currentDmBotSlug?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
   onReply?: ((message: ChannelMessage) => void) | undefined;
@@ -226,7 +228,18 @@ function MessageGroupView({
       className={`bh-message-group${human ? ' bh-message-group-me' : ''}`}
       data-group-size={group.messages.length}
     >
-      {avatar === undefined ? null : <span className="bh-message-group-avatar">{avatar}</span>}
+      {author.kind !== 'bot' || avatar === undefined ? null : currentDmBotSlug === author.slug ? (
+        <span className="bh-message-group-avatar">{avatar}</span>
+      ) : (
+        <button
+          type="button"
+          className="bh-message-group-avatar bh-message-group-avatar-link"
+          aria-label={t('message.mention.openDm', { bot: authorBot?.displayName ?? author.slug })}
+          onClick={() => void actions.openBot(author.slug)}
+        >
+          {avatar}
+        </button>
+      )}
       <div className="bh-message-stack">
         <div className="bh-bubble-author">{authorLabel(first, bots, t)}</div>
         {group.messages.map((message, index) => {
@@ -970,6 +983,9 @@ function ConversationView({
                         )
                       }
                       focusMessageId={conversation.focusMessageId}
+                      currentDmBotSlug={
+                        channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
+                      }
                       bots={state.bots}
                       onContextMenu={(message, x, y) => {
                         setMessageMenu({ message, x, y });

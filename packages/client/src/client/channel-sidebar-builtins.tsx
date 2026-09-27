@@ -172,15 +172,22 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
         return (
           <div className="bh-member-with-wake" key={slug}>
             <div className="bh-member-row">
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={slug}
-                name={member?.displayName ?? slug}
-                src={member?.avatar}
-                state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-                size={26}
-              />
-              <span className="bh-name">{memberName(state.bots, slug)}</span>
+              <button
+                type="button"
+                className="bh-member-open-dm"
+                aria-label={t('message.mention.openDm', { bot: memberName(state.bots, slug) })}
+                onClick={() => void actions.openBot(slug)}
+              >
+                <PersonaBotAvatar
+                  t={t}
+                  personaBotId={slug}
+                  name={member?.displayName ?? slug}
+                  src={member?.avatar}
+                  state={member === undefined ? 'idle' : personaBotActivity(state, member)}
+                  size={26}
+                />
+                <span className="bh-name">{memberName(state.bots, slug)}</span>
+              </button>
               {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
               {group === undefined ? null : (
                 <button

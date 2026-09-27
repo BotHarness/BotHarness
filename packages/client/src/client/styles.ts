@@ -1609,6 +1609,15 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   display: flex;
   align-items: flex-end;
   margin-bottom: 24px;
+  border: 0;
+  border-radius: 50%;
+  padding: 0;
+  background: transparent;
+}
+.bh-message-group-avatar-link { cursor: pointer; }
+.bh-message-group-avatar-link:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 .bh-message-stack {
   display: flex;
@@ -2842,6 +2851,25 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 .bh-member-row .bh-name {
   flex: 1;
   min-width: 0;
+}
+.bh-member-open-dm {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  border: 0;
+  border-radius: 6px;
+  padding: 2px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-member-open-dm:hover { background: var(--bh-hover); }
+.bh-member-open-dm:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 
 .bh-member-wake {
