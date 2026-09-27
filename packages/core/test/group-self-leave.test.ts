@@ -140,6 +140,7 @@ describe('Bot Group self-leave', () => {
   });
 
   it('lets a non-owner leave without changing the Bot creator', async () => {
+    let hiddenGroupId = '';
     const core = createCore({
       dshHome: createTempRoot('botharness-group-peer-leave-'),
       agents: adapter(async (run) => {
@@ -150,9 +151,8 @@ describe('Bot Group self-leave', () => {
           channelId: group!.id,
           left: true,
         });
-        expect(() => run.channels.leaveGroup({ channelId: run.inboundChannelId! })).toThrow(
-          'Group Channel not found',
-        );
+        for (const channelId of [hiddenGroupId, 'missing-group', run.inboundChannelId!])
+          expect(run.channels.leaveGroup({ channelId })).toEqual({ channelId, left: false });
       }),
     });
     try {
@@ -163,6 +163,7 @@ describe('Bot Group self-leave', () => {
         members: ['ada', 'bea'],
         ownerBotSlug: 'ada',
       });
+      hiddenGroupId = core.channels.createGroup({ name: 'Hidden', members: ['ada'] }).id;
       const dm = core.channels.getOrCreateDm('bea', 'Bea')!;
       await core.channels.appendMessage(dm.id, {
         id: 'peer-leave',

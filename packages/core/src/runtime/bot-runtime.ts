@@ -2432,8 +2432,8 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       leaveGroup: (input) => {
         const channel = this.#channels.get(input.channelId);
-        if (channel?.type !== 'group') throw new Error('Group Channel not found');
-        if (!channel.members.includes(botSlug)) return { channelId: channel.id, left: false };
+        if (channel?.type !== 'group' || !channel.members.includes(botSlug))
+          return { channelId: input.channelId, left: false };
         beforeSend();
         this.#channels.removeGroupMember(channel.id, botSlug);
         return { channelId: channel.id, left: true };
