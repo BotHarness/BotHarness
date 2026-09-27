@@ -193,9 +193,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         const cached = access.get(channelId);
         if (cached !== undefined) return cached;
         try {
-          run.channels.read({ channelId, limit: 1 });
-          access.set(channelId, true);
-          return true;
+          const allowed = run.channels.list({ channelId, limit: 1 }).channels.length > 0;
+          access.set(channelId, allowed);
+          return allowed;
         } catch {
           access.set(channelId, false);
           return false;
