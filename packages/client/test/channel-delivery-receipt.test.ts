@@ -49,7 +49,12 @@ describe('Channel delivery receipt', () => {
       expect(trigger?.getAttribute('aria-label')).toContain('1 已处理');
       expect(trigger?.getAttribute('aria-label')).toContain('1 处理中');
       expect(trigger?.getAttribute('aria-label')).toContain('1 已投递');
-      expect(trigger?.querySelectorAll('.bh-delivery-sector')).toHaveLength(7);
+      const pie = trigger?.querySelector<HTMLElement>('.bh-delivery-pie');
+      expect(pie?.getAttribute('style')).toContain('conic-gradient');
+      expect(pie?.getAttribute('style')).toContain('var(--bh-delivery-color-running)');
+      expect(trigger?.querySelector('svg')).toBeNull();
+      expect(trigger?.hasAttribute('title')).toBe(false);
+      expect(document.body.querySelector('.bh-delivery-panel')).toBeNull();
       expect(trigger?.getAttribute('aria-expanded')).toBe('false');
 
       await act(async () => trigger?.click());
@@ -108,6 +113,27 @@ describe('Channel delivery receipt', () => {
         ),
       );
       expect(host.innerHTML).toBe('');
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, {
+            message: {
+              ...message,
+              deliveries: [
+                { botSlug: 'ada', state: 'handled' },
+                { botSlug: 'bea', state: 'handled' },
+              ],
+            },
+            bots,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      expect(host.querySelector('.bh-delivery-pie')?.getAttribute('style')).toContain(
+        'var(--bh-delivery-color-handled)',
+      );
+      expect(host.querySelector('.bh-delivery-pie')?.getAttribute('style')).not.toContain(
+        'conic-gradient',
+      );
       await act(async () =>
         root.render(
           createElement(ChannelDeliveryReceipt, {

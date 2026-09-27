@@ -108,11 +108,27 @@ export function ChannelDeliveryReceipt({
 
   let offset = 0;
   const sectors = groups.map(({ state, recipients }) => {
-    const length = (recipients.length / deliveries.length) * 100;
+    const length = (recipients.length / deliveries.length) * 360;
     const sector = { state, length, offset };
     offset += length;
     return sector;
   });
+  // Follow the filled, segmented status badge used by anysoul's message history.
+  // Keep a small gap between status groups, but never hollow out the center.
+  const separator = Math.min(1.6, Math.max(0.8, (360 / deliveries.length) * 0.04));
+  const pieBackground =
+    sectors.length === 1
+      ? `var(--bh-delivery-color-${sectors[0]!.state})`
+      : `conic-gradient(from 0deg, ${sectors
+          .flatMap(({ state, length, offset: start }, index) => {
+            const end = start + length;
+            const fillEnd = index === sectors.length - 1 ? end : end - separator;
+            const color = `var(--bh-delivery-color-${state})`;
+            return index === sectors.length - 1
+              ? [`${color} ${start}deg ${end}deg`]
+              : [`${color} ${start}deg ${fillEnd}deg`, `transparent ${fillEnd}deg ${end}deg`];
+          })
+          .join(', ')})`;
 
   return (
     <>
@@ -123,24 +139,11 @@ export function ChannelDeliveryReceipt({
         aria-label={t('message.delivery.label') + ': ' + summary}
         aria-controls={panelId}
         aria-expanded={open}
-        title={summary}
         onClick={() => setOpen((current) => !current)}
       >
-        <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true">
-          <circle className="bh-delivery-track" cx="10" cy="10" r="7.5" />
-          {sectors.map(({ state, length, offset: start }) => (
-            <circle
-              key={state}
-              className={'bh-delivery-sector bh-delivery-sector-' + state}
-              cx="10"
-              cy="10"
-              r="7.5"
-              pathLength={100}
-              strokeDasharray={length + ' ' + (100 - length)}
-              strokeDashoffset={-start}
-            />
-          ))}
-        </svg>
+        <span className="bh-delivery-badge" aria-hidden="true">
+          <span className="bh-delivery-pie" style={{ background: pieBackground }} />
+        </span>
       </button>
       {open && typeof document !== 'undefined'
         ? createPortal(
