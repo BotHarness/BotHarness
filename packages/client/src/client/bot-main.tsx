@@ -6,6 +6,7 @@ import {
   IconPanelLeftOutlineRegular,
   Menu,
   Tag,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -25,7 +26,8 @@ import {
 import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
-import { isBotDmChannel } from './channel-kind.js';
+import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
+import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { HumanInboxView } from './human-inbox-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
@@ -156,11 +158,26 @@ function ReplyQuote({
   );
 }
 
+function ReplyIcon(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 7 4 12l5 5M4 12h9a7 7 0 0 1 7 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MessageGroupView({
   group,
   bots,
   focusMessageId,
   onContextMenu,
+  onReply,
   onJumpReply,
   onRestoreFailed,
   actions,
@@ -174,6 +191,7 @@ function MessageGroupView({
   focusMessageId?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  onReply?: ((message: ChannelMessage) => void) | undefined;
   onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
   actions: BridgeActions;
@@ -187,7 +205,6 @@ function MessageGroupView({
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const first = group.messages[0]!;
-  const last = group.messages.at(-1)!;
   const author = first.author;
   const human = author.kind === 'human';
   const authorBot =
@@ -230,71 +247,83 @@ function MessageGroupView({
                 onContextMenu(message, event.clientX, event.clientY);
               }}
             >
-              {message.failed === undefined ? null : (
-                <button
-                  type="button"
-                  className="bh-bubble-failed-action"
-                  aria-label={t('message.failedRestore')}
-                  title={message.failed}
-                  onClick={() => onRestoreFailed(message)}
-                >
-                  {t('message.failed')}
-                </button>
-              )}
               <div
-                className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
-                data-group-position={position}
+                className={`bh-bubble-surface${message.failed === undefined ? '' : ' bh-bubble-surface-failed'}`}
               >
-                <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
-                <ChannelMessageBody
-                  message={message}
-                  t={t}
-                  nativeChatT={nativeChatT}
-                  actions={actions}
-                  bots={bots}
-                  grantRequestResolved={resolvedGrantRequests.has(message.id)}
-                  toolApprovalDecision={toolApprovalDecisions.get(message.id)}
-                  userQuestionResolution={userQuestionResolutions.get(message.id)}
-                />
-              </div>
-              {message.deliveries === undefined ? null : (
-                <div className="bh-mention-deliveries" aria-label={t('message.delivery.label')}>
-                  {message.deliveries.map((delivery) => (
-                    <span
-                      key={delivery.botSlug}
-                      className={`bh-mention-delivery bh-mention-delivery-${delivery.state}`}
-                    >
-                      {bots.find((candidate) => candidate.slug === delivery.botSlug)?.displayName ??
-                        delivery.botSlug}
-                      {' · '}
-                      {t(`message.delivery.${delivery.state}`)}
-                    </span>
-                  ))}
+                {message.failed === undefined ? null : (
+                  <button
+                    type="button"
+                    className="bh-bubble-failed-action"
+                    aria-label={t('message.failedRestore')}
+                    title={message.failed}
+                    onClick={() => onRestoreFailed(message)}
+                  >
+                    {t('message.failed')}
+                  </button>
+                )}
+                <div
+                  className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
+                  data-group-position={position}
+                >
+                  <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
+                  <ChannelMessageBody
+                    message={message}
+                    t={t}
+                    nativeChatT={nativeChatT}
+                    actions={actions}
+                    bots={bots}
+                    grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                    toolApprovalDecision={toolApprovalDecisions.get(message.id)}
+                    userQuestionResolution={userQuestionResolutions.get(message.id)}
+                  />
                 </div>
-              )}
-              <button
-                type="button"
-                className="bh-bubble-quick-action"
-                aria-label={t('message.copy')}
-                title={t('message.copy')}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(message.body);
-                }}
+                <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
+              </div>
+              <div
+                className={`bh-bubble-meta${message.pending === true || message.streaming === true || message.failed !== undefined ? ' bh-bubble-meta-persistent' : ''}`}
               >
-                <IconCopyOutlineRegular size={16} />
-              </button>
+                <span className="bh-bubble-time">
+                  {message.streaming === true
+                    ? t('message.generating')
+                    : message.failed !== undefined
+                      ? t('message.failed')
+                      : message.pending === true
+                        ? t('message.sending')
+                        : clockTime(message.at)}
+                </span>
+                <div className="bh-bubble-actions">
+                  {onReply !== undefined &&
+                  message.pending !== true &&
+                  message.streaming !== true &&
+                  message.failed === undefined ? (
+                    <Tooltip label={t('message.reply')} side="top" portal delayMs={400}>
+                      <button
+                        type="button"
+                        className="bh-bubble-action"
+                        aria-label={t('message.reply')}
+                        onClick={() => onReply(message)}
+                      >
+                        <ReplyIcon />
+                      </button>
+                    </Tooltip>
+                  ) : null}
+                  <Tooltip label={t('message.copy')} side="top" portal delayMs={400}>
+                    <button
+                      type="button"
+                      className="bh-bubble-action"
+                      aria-label={t('message.copy')}
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(message.body);
+                      }}
+                    >
+                      <IconCopyOutlineRegular size={16} />
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
             </div>
           );
         })}
-        <div className="bh-bubble-time">
-          {last.streaming === true
-            ? t('message.generating')
-            : last.failed !== undefined
-              ? t('message.failed')
-              : last.pending === true
-                ? t('message.sending')
-                : clockTime(last.at)}
-        </div>
       </div>
     </div>
   );
@@ -460,6 +489,7 @@ function ConversationView({
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
   const botDm = isBotDmChannel(channel);
+  const readOnlyDm = isHumanReadOnlyDmChannel(channel);
   const title =
     channel?.type === 'dm'
       ? botDm
@@ -954,6 +984,7 @@ function ConversationView({
                       onContextMenu={(message, x, y) => {
                         setMessageMenu({ message, x, y });
                       }}
+                      onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
                       onJumpReply={(messageId) => {
                         if (channelId !== undefined) void actions.openAround(channelId, messageId);
                       }}
@@ -1038,8 +1069,8 @@ function ConversationView({
               {t('message.restoreBlocked')}
             </div>
           ) : null}
-          {botDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
-          {botDm ? null : (
+          {readOnlyDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
+          {readOnlyDm ? null : (
             <div
               className="bh-memory-chat-composer"
               style={{
@@ -1102,7 +1133,9 @@ function ConversationView({
               />
             </div>
           )}
-          {selectedMemoryCommitSha !== undefined || messageMenu === undefined || botDm ? null : (
+          {selectedMemoryCommitSha !== undefined ||
+          messageMenu === undefined ||
+          readOnlyDm ? null : (
             <MessageActionMenu
               request={messageMenu}
               t={t}

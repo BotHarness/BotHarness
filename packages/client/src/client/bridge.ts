@@ -616,9 +616,15 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
         return (
           item === undefined ||
           typeof item['botSlug'] !== 'string' ||
-          !['pending', 'running', 'retryable', 'needs-repair', 'handled', 'ignored'].includes(
-            String(item['state']),
-          )
+          ![
+            'pending',
+            'observed',
+            'running',
+            'retryable',
+            'needs-repair',
+            'handled',
+            'ignored',
+          ].includes(String(item['state']))
         );
       }))
   )

@@ -1608,7 +1608,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   height: 28px;
   display: flex;
   align-items: flex-end;
-  margin-bottom: 18px;
+  margin-bottom: 24px;
 }
 .bh-message-stack {
   display: flex;
@@ -1633,7 +1633,15 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   width: fit-content;
   max-width: 100%;
 }
-.bh-bubble-wrap-failed {
+.bh-bubble-surface {
+  position: relative;
+  width: fit-content;
+  max-width: 100%;
+}
+.bh-message-group-me .bh-bubble-surface {
+  margin-left: auto;
+}
+.bh-bubble-surface-failed {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1791,34 +1799,65 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   max-width: 100%;
   overflow-x: auto;
 }
-.bh-bubble-time {
-  margin: 4px 2px 0;
-  font-size: 10.5px;
+.bh-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  min-height: 22px;
+  margin: 2px 2px 0;
   color: var(--dsw-alias-label-tertiary);
+  opacity: 0;
+  pointer-events: none;
 }
-.bh-bubble-quick-action {
-  position: absolute;
-  right: -34px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
+.bh-message-group-me .bh-bubble-meta {
+  margin-left: auto;
+}
+.bh-bubble-wrap:hover .bh-bubble-meta,
+.bh-bubble-wrap:focus-within .bh-bubble-meta,
+.bh-bubble-meta-persistent {
+  opacity: 1;
+  pointer-events: auto;
+}
+.bh-bubble-time {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  font-size: 10.5px;
+  line-height: 1;
+  white-space: nowrap;
+  /* The font's visible glyphs sit above the center of its line box beside the icons. */
+  transform: translateY(1px);
+}
+.bh-bubble-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.bh-bubble-action {
   display: grid;
   place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
   border: 0;
-  border-radius: 50%;
+  border-radius: 6px;
   color: var(--dsw-alias-label-secondary);
-  background: var(--dsw-alias-button-elevated-fill);
+  background: transparent;
   cursor: pointer;
-  opacity: 0;
 }
-.bh-message-group-me .bh-bubble-quick-action {
-  right: auto;
-  left: -34px;
+.bh-bubble-action:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
 }
-.bh-bubble-wrap:hover .bh-bubble-quick-action,
-.bh-bubble-quick-action:focus-visible {
-  opacity: 1;
+.bh-bubble-action:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: -2px;
+}
+@media (hover: none) {
+  .bh-bubble-meta {
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 .bh-timeline-new {
   position: absolute;
@@ -1891,22 +1930,144 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-composer-inline-mention {
   user-select: all;
 }
-.bh-mention-deliveries {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-  margin: 4px 0 2px;
+.bh-delivery-trigger {
+  position: absolute;
+  z-index: 2;
+  right: -27px;
+  bottom: 2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--dsw-alias-bg-base);
+  cursor: pointer;
 }
-.bh-mention-delivery {
-  border: 1px solid var(--dsw-alias-border-l2);
-  border-radius: 999px;
-  padding: 2px 7px;
+.bh-message-group-me .bh-delivery-trigger {
+  right: auto;
+  left: -27px;
+}
+.bh-delivery-trigger:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-delivery-trigger:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+
+.bh-delivery-badge {
+  --bh-delivery-color-handled: var(--dsw-alias-state-success-primary);
+  --bh-delivery-color-running: var(--dsw-alias-state-business-primary);
+  --bh-delivery-color-observed: var(--dsw-alias-label-primary);
+  --bh-delivery-color-pending: var(--dsw-alias-label-secondary);
+  --bh-delivery-color-ignored: var(--dsw-alias-label-tertiary);
+  --bh-delivery-color-retryable: var(--dsw-alias-state-error-primary);
+  --bh-delivery-color-needs-repair: var(--dsw-alias-state-error-primary);
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  padding: 2px;
+  border: 1.5px solid var(--dsw-alias-border-l2);
+  border-radius: 50%;
+}
+.bh-delivery-pie {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+.bh-delivery-legend-handled {
+  color: var(--dsw-alias-state-success-primary);
+}
+.bh-delivery-legend-running {
+  color: var(--dsw-alias-state-business-primary);
+}
+.bh-delivery-legend-observed {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-delivery-legend-pending {
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
 }
-.bh-mention-delivery-retryable,
-.bh-mention-delivery-needs-repair {
+.bh-delivery-legend-ignored {
+  color: var(--dsw-alias-label-tertiary);
+}
+.bh-delivery-legend-retryable,
+.bh-delivery-legend-needs-repair {
   color: var(--dsw-alias-state-error-primary);
+}
+/* The receipt card portals to body so it remains visible at the edge of the
+   scrolling Channel timeline. It reads DSH tokens directly, like HoverCard. */
+.bh-delivery-panel {
+  position: fixed;
+  z-index: 1000;
+  width: min(320px, calc(100vw - 16px));
+  max-height: min(400px, calc(100vh - 16px));
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 12px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--dsw-alias-label-primary) 12%, transparent);
+  color: var(--dsw-alias-label-primary);
+  font: 12px/1.5 var(--dsw-font-family);
+}
+.bh-delivery-panel:focus {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
+}
+.bh-delivery-panel-summary {
+  margin-bottom: 10px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-delivery-panel-groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.bh-delivery-panel-groups:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+}
+.bh-delivery-panel-group {
+  min-width: 0;
+}
+.bh-delivery-panel-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.bh-delivery-legend {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: currentColor;
+}
+.bh-delivery-panel-group ul {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-delivery-panel-group li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 6px;
+}
+.bh-delivery-panel-group li > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .bh-mention-picker {
   max-height: 280px;

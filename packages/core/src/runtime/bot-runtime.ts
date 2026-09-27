@@ -644,7 +644,7 @@ class BotRuntimeImplementation implements BotRuntime {
     return {
       admitted: true,
       settled: this.#enqueue(bot.slug, () =>
-        this.#runDmTurn(bot, channel.id, body, claim, input.messageId),
+        this.#runHumanDmTurn(bot, channel.id, body, claim, input.messageId),
       ),
     };
   }
@@ -729,7 +729,9 @@ class BotRuntimeImplementation implements BotRuntime {
       )
         continue;
       const settled = this.#enqueue(row.bot_slug, () =>
-        this.#runGroupTurn(row.source_event_id, row.bot_slug, channelId, messageId),
+        reason === 'group-mention' || reason === 'bot-dm'
+          ? this.#runChannelMessageTurn(row.source_event_id, row.bot_slug, channelId, messageId)
+          : this.#runMembershipTurn(row.source_event_id, row.bot_slug, channelId, messageId),
       );
       void settled.finally(() => this.#scheduledAdmissions.delete(key)).catch(() => undefined);
     }
@@ -801,6 +803,7 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#channels.admissionChanged?.(channelId, messageId);
       return false;
     }
+    this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
     void active
       .then(
         () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
@@ -859,7 +862,7 @@ class BotRuntimeImplementation implements BotRuntime {
         `)
           .all() as { bot_slug: string }[],
     );
-    for (const row of due) this.#scheduleInboxTurn(row.bot_slug);
+    for (const row of due) this.#scheduleAssignmentReportTurn(row.bot_slug);
   }
 
   #recoverPendingChannelAdmissions(): void {
@@ -977,7 +980,7 @@ class BotRuntimeImplementation implements BotRuntime {
       deadline <= this.#now().getTime()
     ) {
       this.#scheduledDigests.add(key);
-      const settled = this.#enqueue(botSlug, () => this.#runDigestTurn(botSlug, channelId));
+      const settled = this.#enqueue(botSlug, () => this.#runGroupDigestTurn(botSlug, channelId));
       void settled
         .finally(() => {
           this.#scheduledDigests.delete(key);
@@ -997,7 +1000,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#digestTimers.set(key, timer);
   }
 
-  async #runDigestTurn(botSlug: string, channelId: string): Promise<void> {
+  async #runGroupDigestTurn(botSlug: string, channelId: string): Promise<void> {
     if (this.#closed) return;
     const bot = this.#registry.get(botSlug);
     const channel = this.#channels.get(channelId);
@@ -1089,6 +1092,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['bot-inbox'],
     );
+    for (const row of admitted) this.#channels.admissionChanged?.(channelId, row.message_id);
     const prompt = [
       '[Bot Inbox: Group digest]',
       `Channel: ${channel.name} (${channelId})`,
@@ -1107,7 +1111,7 @@ class BotRuntimeImplementation implements BotRuntime {
         ids[0]!,
         channelId,
         prompt,
-        collected.inbox,
+        collected.units,
         false,
         markSideEffect,
         collected.eventIds,
@@ -1165,7 +1169,25 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
-  async #runGroupTurn(
+  #runChannelMessageTurn(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): Promise<void> {
+    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
+  }
+
+  #runMembershipTurn(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): Promise<void> {
+    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
+  }
+
+  async #runAdmittedChannelTurn(
     sourceEventId: string,
     botSlug: string,
     channelId: string,
@@ -1184,7 +1206,8 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const result = database
           .prepare(`
-        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+        UPDATE inbox_admissions
+           SET attempt_state = 'running', observed_at = NULL, last_error = NULL
          WHERE source_event_id = ? AND bot_slug = ?
            AND attempt_state IN ('pending', 'retryable')
       `)
@@ -1196,19 +1219,20 @@ class BotRuntimeImplementation implements BotRuntime {
     if (!claimed) return;
     this.#channels.admissionChanged?.(channelId, messageId);
     let orchestrator: { sessionId: string; resume: boolean } | undefined;
-    let collected: { inbox: string; eventIds: string[] } | undefined;
+    let collected: { units: InboxUnit[]; eventIds: string[] } | undefined;
     try {
       const timestamp = this.#now().toISOString();
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
       collected = this.#collectInbox(botSlug);
       this.#setObserved(collected.eventIds, timestamp);
+      this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,
         sourceEventId,
         channelId,
         this.#inboundChannelMessage(channelId, messageId, source.body),
-        collected.inbox,
+        collected.units,
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
         collected.eventIds,
@@ -1325,6 +1349,26 @@ class BotRuntimeImplementation implements BotRuntime {
     return parts.join('\n\n');
   }
 
+  #observeAdmission(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): void {
+    const changed = this.#database.transaction(
+      (database) =>
+        database
+          .prepare(`
+        UPDATE inbox_admissions
+           SET observed_at = COALESCE(observed_at, ?)
+         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+      `)
+          .run(this.#now().toISOString(), sourceEventId, botSlug).changes > 0,
+      ['bot-inbox'],
+    );
+    if (changed) this.#channels.admissionChanged?.(channelId, messageId);
+  }
+
   #markAdmissionSideEffect(sourceEventId: string, botSlug: string): void {
     this.#database.transaction(
       (database) => {
@@ -1426,7 +1470,7 @@ class BotRuntimeImplementation implements BotRuntime {
     await this.#agents.close();
   }
 
-  async #runDmTurn(
+  async #runHumanDmTurn(
     bot: PersonaBotRecord,
     channelId: string,
     body: string,
@@ -1451,7 +1495,7 @@ class BotRuntimeImplementation implements BotRuntime {
         claim.sourceEventId,
         channelId,
         this.#inboundChannelMessage(channelId, messageId, body),
-        collected.inbox,
+        collected.units,
         this.#channels.message(channelId, messageId)?.memorySwitchTarget !== undefined,
         undefined,
         collected.eventIds,
@@ -1506,7 +1550,7 @@ class BotRuntimeImplementation implements BotRuntime {
     sourceEventId: string,
     channelId: string,
     body: string,
-    inbox: string,
+    inboxUnits: InboxUnit[],
     coordinateBranchSwitch = false,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
@@ -1518,6 +1562,7 @@ class BotRuntimeImplementation implements BotRuntime {
       markAttemptSideEffect();
     };
     this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
+    const inbox = inboxUnits.length === 0 ? '' : renderInbox(inboxUnits);
     const annotation = this.#memory?.takeTurnAnnotation({
       botSlug: bot.slug,
       sessionId: orchestrator.sessionId,
@@ -2908,7 +2953,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (stopped) this.#scheduleInboxTurn(bot.slug);
+    if (stopped) this.#scheduleAssignmentReportTurn(bot.slug);
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
@@ -3071,7 +3116,7 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleInboxTurn(botSlug);
+    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleAssignmentReportTurn(botSlug);
     return report;
   }
 
@@ -3079,11 +3124,13 @@ class BotRuntimeImplementation implements BotRuntime {
     return expectsReply || state !== 'progress';
   }
 
-  #scheduleInboxTurn(botSlug: string): void {
-    void this.#enqueue(botSlug, () => this.#runInboxTurn(botSlug)).catch(() => undefined);
+  #scheduleAssignmentReportTurn(botSlug: string): void {
+    void this.#enqueue(botSlug, () => this.#runAssignmentReportTurn(botSlug)).catch(
+      () => undefined,
+    );
   }
 
-  async #runInboxTurn(botSlug: string): Promise<void> {
+  async #runAssignmentReportTurn(botSlug: string): Promise<void> {
     if (this.#closed) return;
     const bot = this.#registry.get(botSlug);
     if (bot === undefined || bot.paused === true) return;
@@ -3101,7 +3148,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds[0] ?? orchestrator.sessionId,
         channel.id,
         '',
-        collected.inbox,
+        collected.units,
         true,
         undefined,
         collected.eventIds,
@@ -3184,14 +3231,14 @@ class BotRuntimeImplementation implements BotRuntime {
     );
     const timer = setTimeout(() => {
       this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1 });
-      if (!this.#closed) this.#scheduleInboxTurn(botSlug);
+      if (!this.#closed) this.#scheduleAssignmentReportTurn(botSlug);
     }, delayMs);
     timer.unref();
     this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1, timer });
     return true;
   }
 
-  #collectInbox(botSlug: string): { inbox: string; eventIds: string[] } {
+  #collectInbox(botSlug: string): { units: InboxUnit[]; eventIds: string[] } {
     const rows = this.#database.read(
       (database) =>
         database
@@ -3215,9 +3262,8 @@ class BotRuntimeImplementation implements BotRuntime {
     // unit keeps the latest summary and its repeat count.
     rows.reverse();
     const units = coalesceInbox(rows);
-    const [firstUnit] = units;
     return {
-      inbox: firstUnit === undefined ? '' : renderInbox(units),
+      units,
       eventIds: rows.map((row) => row.source_event_id),
     };
   }

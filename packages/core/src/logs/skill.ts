@@ -20,7 +20,7 @@ export const LOGS_SKILL_WHEN_TO_USE =
 
 export const LOGS_SKILL_INVOCATION = {
   modelInvocable: true,
-  userInvocable: false,
+  userInvocable: true,
 } as const;
 
 /**
@@ -34,6 +34,55 @@ export const LOGS_SKILL_SOURCE = 'runtime';
 
 /** Attribution for the loaded body; kept distinct from the default. */
 export const LOGS_SKILL_PROVIDER = 'botharness-core';
+
+/** Minimal registrar surface the gate drives; `ctx.skills` satisfies it structurally. */
+export interface SkillRegistrar {
+  register(definition: {
+    readonly name: string;
+    readonly description: string;
+    readonly whenToUse: string;
+    readonly content: string;
+    readonly invocation: { readonly modelInvocable: boolean; readonly userInvocable: boolean };
+    readonly source: string;
+    readonly provider: string;
+  }): () => void;
+}
+
+/**
+ * Developer-Mode gate for the log skill (issue #248, Q6): the skill exists in
+ * catalogs only while the Human-owned `developerMode` preference is on.
+ * Register-once while on, dispose on off; repeated sets are idempotent. The
+ * default is off, so a fresh Host exposes nothing until a client reports.
+ */
+export class DeveloperModeSkillGate {
+  private disposeRegistration: (() => void) | undefined;
+  private enabled = false;
+
+  constructor(private readonly skills: SkillRegistrar) {}
+
+  set(enabled: boolean): void {
+    if (enabled === this.enabled) return;
+    this.enabled = enabled;
+    if (enabled) {
+      this.disposeRegistration = this.skills.register({
+        name: LOGS_SKILL_NAME,
+        description: LOGS_SKILL_DESCRIPTION,
+        whenToUse: LOGS_SKILL_WHEN_TO_USE,
+        content: LOGS_SKILL_CONTENT,
+        invocation: LOGS_SKILL_INVOCATION,
+        source: LOGS_SKILL_SOURCE,
+        provider: LOGS_SKILL_PROVIDER,
+      });
+    } else {
+      this.disposeRegistration?.();
+      this.disposeRegistration = undefined;
+    }
+  }
+
+  get active(): boolean {
+    return this.enabled;
+  }
+}
 
 export const LOGS_SKILL_CONTENT = `# Reading operational logs as an agent
 

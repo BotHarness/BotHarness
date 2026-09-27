@@ -30,6 +30,7 @@ function setup(
   runtimeFactory?: (channels: ChannelStore) => BotRuntime,
   ownership = createTestOwnership(),
   grants?: WorkspaceGrantStore,
+  developerMode?: { set(enabled: boolean): void },
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -56,6 +57,7 @@ function setup(
       roster: createRosterStore(),
       ...(grants === undefined ? {} : { grants }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
+      ...(developerMode === undefined ? {} : { developerMode }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
     }),
   };
@@ -1159,6 +1161,42 @@ describe('bridge methods', () => {
     expect(methods.sessions({ slug: 'missing' })).toEqual({
       ok: false,
       error: { code: 'not-found', message: 'unknown PersonaBot: missing' },
+    });
+  });
+
+  it('drives the developer-mode skill gate from the bridge', () => {
+    const seen: boolean[] = [];
+    const { methods } = setup([], ['ada'], undefined, createTestOwnership(), undefined, {
+      set: (enabled: boolean) => {
+        seen.push(enabled);
+      },
+    });
+
+    expect(methods.developerModeSet({ enabled: true })).toEqual({
+      ok: true,
+      value: { accepted: true },
+    });
+    expect(methods.developerModeSet({ enabled: false })).toEqual({
+      ok: true,
+      value: { accepted: true },
+    });
+    expect(seen).toEqual([true, false]);
+    expect(methods.developerModeSet({})).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'enabled is required' },
+    });
+    expect(methods.developerModeSet({ enabled: 'yes' })).toEqual({
+      ok: false,
+      error: { code: 'invalid-input', message: 'enabled is required' },
+    });
+  });
+
+  it('reports unaccepted developer-mode sets without a gate', () => {
+    const { methods } = setup();
+
+    expect(methods.developerModeSet({ enabled: true })).toEqual({
+      ok: true,
+      value: { accepted: false },
     });
   });
 });

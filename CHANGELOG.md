@@ -10,6 +10,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - Oversized Assignment reports now retain a short Inbox preview with a DSH Spill locator without interrupting the Agent or requiring it to write a file; the Orchestrator can page through the accepted report and inspect recent Session events through bounded DSH Session Query reads, with the returned size and estimated token cost shown ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
+- The operational-logs skill (the reader guide for `logs.db`) is listed in the skill and `/` catalogs only while the Bot settings Developer mode switch is on: on, a Human can invoke `reading-operational-logs` and the model can load the guide on demand; off (the default), no client sees it ([#248](https://github.com/BotHarness/BotHarness/issues/248)).
 - Stopping an Assignment now records a Host-authored lifecycle notice in the owning PersonaBot's Bot Inbox, so the Orchestrator can report a confirmed stop even without an Assignment report; unobserved notices survive Host restart and briefly retry while DSH's Agent Loop starts ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Existing full-access Assignments remain visibly marked in the Bot's Session list after the Bot default is turned off or the Host restarts, using each Session's original permission snapshot ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 - Group Channel members can choose a silent inbox for a Bot: ordinary messages remain as durable pending admissions without an automatic wake, including after restart; direct @ mentions still wake immediately ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
@@ -73,6 +74,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group Channel messages now show a compact filled recipient pie beside each bubble. Open it to see each admitted PersonaBot by name and avatar as delivered, read, processing, handled, ignored, or failed; reading Channel history alone does not imply handling, and processing begins only when the message enters an Orchestrator turn, and a Bot sender is never counted as its own recipient ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
+- DM and Group message bubbles reveal the message time, Reply, and Copy beneath the bubble on hover or keyboard focus; touch devices keep the actions visible ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
 - A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; a heading menu switches Current/All and Flat/By workspace views, each Bot remembers those choices and collapsed groups in this browser, and a row opens the native Session. An owned root Session shows its Bot avatar before the idle native sidebar title and offers header and Session menu actions back to its DM ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
 - The browser now remembers whether the last visible view was Bot mode or native DSH. Reloading a Bot view reopens its selected Channel, while returning to DSH keeps that choice on the next visit ([#340](https://github.com/BotHarness/BotHarness/issues/340)).
 
@@ -153,6 +156,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 ### Documentation
+
+- Recorded the group-and-attention design: invitation-first membership with default auto-accept, four Channel attention presets (`all`/`digest`/`mentions`/`silent`) owned by the Bot with Human override, a PersonaBot-managed attention policy behind Host-owned safety gates, turn-time harvest instead of one turn per event, and Inbox handling classified by Source class rather than platform ([ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md), [ADR-0074](docs/adr/0074-channel-attention-preference-belongs-to-the-personabot.md), [ADR-0075](docs/adr/0075-inbox-handling-classifies-by-source-not-platform.md), [ADR-0076](docs/adr/0076-a-personabot-manages-its-own-attention-policy.md), [ADR-0077](docs/adr/0077-turn-time-harvest-consumes-the-ready-attention-set.md), [#358](https://github.com/BotHarness/BotHarness/issues/358)).
 
 - Documented Bot-to-Bot DM Channels, Human DM contact mentions, and Bot-managed Group invitations as a future collaboration design; runtime behavior is unchanged ([ADR-0065](docs/adr/0065-bots-collaborate-through-channels.md), [#278](https://github.com/BotHarness/BotHarness/issues/278)).
 
