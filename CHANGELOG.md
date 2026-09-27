@@ -9,7 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Group Channel members can choose whether a PersonaBot sees every ordinary message immediately, receives a digest, only receives direct mentions, or records messages silently. New members default to a digest while saved choices remain in effect ([#364](https://github.com/BotHarness/BotHarness/issues/364)).
+- Group Channel members can choose whether a PersonaBot sees every ordinary message immediately, receives a digest, only wakes for direct mentions, or records messages silently. A direct mention now carries bounded pending context from the same Channel, while silent messages remain pending; new members default to a digest ([#364](https://github.com/BotHarness/BotHarness/issues/364)).
 
 - Oversized Assignment reports now retain a short Inbox preview with a DSH Spill locator without interrupting the Agent or requiring it to write a file; the Orchestrator can page through the accepted report and inspect recent Session events through bounded DSH Session Query reads, with the returned size and estimated token cost shown ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Group Channel receipts now include the local Human as a named unread/read recipient for Bot messages, backed by a durable Human membership and identity-keyed read position; sender messages exclude their author ([#347](https://github.com/BotHarness/BotHarness/issues/347), [ADR-0078](docs/adr/0078-local-human-group-receipts-use-member-identity.md)).

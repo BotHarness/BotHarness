@@ -40,6 +40,53 @@ function admit(core: ReturnType<typeof createCore>, groupId: string, id: string)
 }
 
 describe('turn-time harvest', () => {
+  it('brings pending mentions-mode Group context into the same turn as a direct mention', async () => {
+    const home = createTempRoot('botharness-mentions-context-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: {
+        async runOrchestrator(run) {
+          runs.push(run.message);
+        },
+        async runAssignment() {},
+        requestAssignment() {
+          throw new Error('No Assignment expected');
+        },
+        async close() {},
+      },
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      await core.channels.appendMessageOnce(group.id, {
+        id: 'prior-context',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: 'The release code is BLUE-17',
+      });
+      admit(core, group.id, 'prior-context');
+      await core.runtime.whenIdle();
+      expect(runs).toEqual([]);
+      expect(admissionStates(core, 'ada')).toEqual(['pending']);
+      await admitMention(core, group.id, 'context-trigger', '@Ada what is the release code?');
+      admit(core, group.id, 'context-trigger');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain('Message ID: context-trigger');
+      expect(runs[0]).toContain('The release code is BLUE-17');
+      expect(admissionStates(core, 'ada')).toEqual(['handled', 'handled']);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('coalesces two pending mentions into one harvest turn', async () => {
     const home = createTempRoot('botharness-harvest-');
     const runs: OrchestratorAgentRun[] = [];

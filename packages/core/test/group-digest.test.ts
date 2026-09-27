@@ -62,17 +62,32 @@ describe('Group ordinary-message digest', () => {
       expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
         { state: 'deferred', sourceMessageId: 'first' },
       ]);
-      expect(core.attention.list({ botSlug: 'bea' }).items).toEqual([]);
+      expect(core.attention.list({ botSlug: 'bea' }).items).toMatchObject([
+        { state: 'pending', sourceMessageId: 'first' },
+      ]);
       expect(
         attachOperationalModule(core.operationalDatabase, 'default-digest').read((db) =>
           db
             .prepare(
-              "SELECT bot_slug, wake_count, wake_interval_ms, wake_policy_revision FROM inbox_admissions WHERE reason = 'group-ordinary'",
+              "SELECT bot_slug, wake_count, wake_interval_ms, wake_policy_revision, wake_mode FROM inbox_admissions WHERE reason = 'group-ordinary' ORDER BY bot_slug",
             )
             .all(),
         ),
       ).toEqual([
-        { bot_slug: 'ada', wake_count: 5, wake_interval_ms: 30000, wake_policy_revision: 0 },
+        {
+          bot_slug: 'ada',
+          wake_count: 5,
+          wake_interval_ms: 30000,
+          wake_policy_revision: 0,
+          wake_mode: 'digest',
+        },
+        {
+          bot_slug: 'bea',
+          wake_count: null,
+          wake_interval_ms: null,
+          wake_policy_revision: 1,
+          wake_mode: 'mentions',
+        },
       ]);
     } finally {
       await core.runtime.close();
@@ -155,10 +170,10 @@ describe('Group ordinary-message digest', () => {
       await core.runtime.whenIdle();
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('ordinary after-switch');
-      expect(runs[0]).not.toContain('ordinary before-switch');
+      expect(runs[0]).toContain('ordinary before-switch');
       expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
         { sourceMessageId: 'after-switch', state: 'handled' },
-        { sourceMessageId: 'before-switch', state: 'deferred' },
+        { sourceMessageId: 'before-switch', state: 'handled' },
       ]);
     } finally {
       await core.runtime.close();
@@ -547,6 +562,11 @@ describe('Group ordinary-message digest', () => {
       await after.runtime.whenIdle();
       expect(afterRuns).toHaveLength(1);
       expect(afterRuns[0]).toContain('direct Group mention');
+      expect(afterRuns[0]).not.toContain('ordinary quiet');
+      expect(after.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { sourceMessageId: 'mention-after-silent', state: 'handled' },
+        { sourceMessageId: 'quiet', state: 'pending' },
+      ]);
     } finally {
       await after.runtime.close();
       after.operationalDatabase.close();

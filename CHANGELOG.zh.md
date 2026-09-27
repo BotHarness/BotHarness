@@ -9,7 +9,7 @@
 
 ### Added
 
-- Group Channel 成员可选择让 PersonaBot 即时处理每条普通消息、定期汇总、仅处理直接提及，或静默记录；新成员默认使用汇总，已有设置保持不变（[#364](https://github.com/BotHarness/BotHarness/issues/364)）。
+- Group Channel 成员可选择让 PersonaBot 即时处理每条普通消息、定期汇总、仅由直接提及唤醒，或静默记录；直接提及现会带入同群有界的待处理上下文，静默消息继续待处理；新成员默认使用汇总（[#364](https://github.com/BotHarness/BotHarness/issues/364)）。
 
 - 长事项报告现在只向 Bot 收件箱发送简短预览和 DSH Spill 定位信息，无需打断 Agent 或要求它先写文件；Orchestrator 可通过 DSH Session Query 分页读取已接收的完整报告，或按需查看最近的 Session 事件，并获得返回量与估算 token 成本（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 - Group Channel 回执现可在 Bot 消息旁显示本机 Human 具名未读／已读状态，依据持久 Human 成员关系与按身份保存的阅读位置；发送者不计入自己的收件人数（[#347](https://github.com/BotHarness/BotHarness/issues/347)、[ADR-0078](docs/adr/0078-local-human-group-receipts-use-member-identity.md)）。

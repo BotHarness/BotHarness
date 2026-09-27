@@ -470,7 +470,6 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                 if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
                   return [];
                 const policy = channel.wakePolicies?.[botSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
-                if (policy.mode === 'mentions') return [];
                 if (
                   durable.author.kind === 'bot' &&
                   durable.botCausation !== undefined &&
@@ -488,8 +487,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         for (const recipient of ordinary)
           db.prepare(`
         INSERT INTO inbox_admissions (
-          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision
-        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?)
+          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision, wake_mode
+        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?)
       `).run(
             sourceEventId,
             recipient.botSlug,
@@ -504,6 +503,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                 ? recipient.policy.intervalSeconds * 1000
                 : null,
             recipient.policy.revision,
+            recipient.policy.mode,
           );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),

@@ -723,6 +723,25 @@ const LOCAL_HUMAN_RECEIPTS_MIGRATION: SchemaMigration = {
   },
 };
 
+const GROUP_WAKE_MODE_MIGRATION: SchemaMigration = {
+  generation: 26,
+  module: 'bot-inbox',
+  description: 'Preserve the Group wake policy mode on each ordinary Inbox Admission',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE inbox_admissions ADD COLUMN wake_mode TEXT
+        CHECK (wake_mode IN ('all', 'digest', 'mentions', 'silent'));
+      UPDATE inbox_admissions
+         SET wake_mode = CASE
+           WHEN wake_count IS NULL THEN 'silent'
+           WHEN wake_count = 1 AND wake_interval_ms = 0 THEN 'all'
+           ELSE 'digest'
+         END
+       WHERE reason = 'group-ordinary';
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -748,4 +767,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_ATTENTION_IGNORE_MIGRATION,
   ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION,
   LOCAL_HUMAN_RECEIPTS_MIGRATION,
+  GROUP_WAKE_MODE_MIGRATION,
 ]);
