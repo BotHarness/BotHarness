@@ -1069,7 +1069,7 @@ class BotRuntimeImplementation implements BotRuntime {
         ids[0]!,
         channelId,
         prompt,
-        collected.inbox,
+        collected.units,
         false,
         markSideEffect,
         collected.eventIds,
@@ -1158,7 +1158,7 @@ class BotRuntimeImplementation implements BotRuntime {
     if (!claimed) return;
     this.#channels.admissionChanged?.(channelId, messageId);
     let orchestrator: { sessionId: string; resume: boolean } | undefined;
-    let collected: { inbox: string; eventIds: string[] } | undefined;
+    let collected: { units: InboxUnit[]; eventIds: string[] } | undefined;
     try {
       const timestamp = this.#now().toISOString();
       orchestrator = this.#ensureOrchestrator(bot, timestamp);
@@ -1170,7 +1170,7 @@ class BotRuntimeImplementation implements BotRuntime {
         sourceEventId,
         channelId,
         this.#inboundChannelMessage(channelId, messageId, source.body),
-        collected.inbox,
+        collected.units,
         false,
         () => this.#markAdmissionSideEffect(sourceEventId, botSlug),
         collected.eventIds,
@@ -1413,7 +1413,7 @@ class BotRuntimeImplementation implements BotRuntime {
         claim.sourceEventId,
         channelId,
         this.#inboundChannelMessage(channelId, messageId, body),
-        collected.inbox,
+        collected.units,
         this.#channels.message(channelId, messageId)?.memorySwitchTarget !== undefined,
         undefined,
         collected.eventIds,
@@ -1468,7 +1468,7 @@ class BotRuntimeImplementation implements BotRuntime {
     sourceEventId: string,
     channelId: string,
     body: string,
-    inbox: string,
+    inboxUnits: InboxUnit[],
     coordinateBranchSwitch = false,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
@@ -1480,6 +1480,7 @@ class BotRuntimeImplementation implements BotRuntime {
       markAttemptSideEffect();
     };
     this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
+    const inbox = inboxUnits.length === 0 ? '' : renderInbox(inboxUnits);
     const annotation = this.#memory?.takeTurnAnnotation({
       botSlug: bot.slug,
       sessionId: orchestrator.sessionId,
@@ -3028,7 +3029,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds[0] ?? orchestrator.sessionId,
         channel.id,
         '',
-        collected.inbox,
+        collected.units,
         true,
         undefined,
         collected.eventIds,
@@ -3118,7 +3119,7 @@ class BotRuntimeImplementation implements BotRuntime {
     return true;
   }
 
-  #collectInbox(botSlug: string): { inbox: string; eventIds: string[] } {
+  #collectInbox(botSlug: string): { units: InboxUnit[]; eventIds: string[] } {
     const rows = this.#database.read(
       (database) =>
         database
@@ -3142,9 +3143,8 @@ class BotRuntimeImplementation implements BotRuntime {
     // unit keeps the latest summary and its repeat count.
     rows.reverse();
     const units = coalesceInbox(rows);
-    const [firstUnit] = units;
     return {
-      inbox: firstUnit === undefined ? '' : renderInbox(units),
+      units,
       eventIds: rows.map((row) => row.source_event_id),
     };
   }
