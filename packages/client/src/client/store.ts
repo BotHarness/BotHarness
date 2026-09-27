@@ -58,7 +58,8 @@ export interface ChannelSummary {
 export type ChannelAuthor =
   | { kind: 'human' }
   | { kind: 'bot'; slug: string }
-  | { kind: 'bridged'; source: string };
+  | { kind: 'bridged'; source: string }
+  | { kind: 'system' };
 
 export interface ChannelReplyPreview {
   author: ChannelAuthor;
@@ -153,6 +154,7 @@ export interface ChannelMessage {
   }[];
   /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
   botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
+  memberDeparture?: { memberKind: 'bot' | 'human'; memberId: string; displayName: string };
   grantRequest?: true;
   grantRequestResolution?: { requestMessageId: string; grantId: string };
   toolApprovalRequest?: ToolApprovalRequestCard;

@@ -755,7 +755,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             },
             text: { type: 'string', description: 'Case-insensitive body substring.' },
             author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
-            author_kind: { type: 'string', description: 'Author kind: human, bot, or bridged.' },
+            author_kind: {
+              type: 'string',
+              description: 'Author kind: human, bot, bridged, or system.',
+            },
             from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
             to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
             cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
@@ -778,7 +781,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
                 ...(args.author_kind === undefined
                   ? {}
-                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' }),
+                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' | 'system' }),
                 ...(args.from === undefined ? {} : { from: args.from }),
                 ...(args.to === undefined ? {} : { to: args.to }),
                 ...(args.cursor === undefined ? {} : { cursor: args.cursor }),

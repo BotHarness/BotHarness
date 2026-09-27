@@ -254,7 +254,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     revision: number,
     members: ReturnType<typeof humanMembers>,
   ): ChannelMessage['humanReceipts'] => {
-    if (message.author.kind === 'human') return undefined;
+    if (message.author.kind === 'human' || message.author.kind === 'system') return undefined;
     const recipients = members
       .filter((member) => member.visible_from_revision <= revision)
       .map((member) => ({
@@ -1208,12 +1208,45 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const cancelled = (channel.invitations ?? []).filter(
         (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
       );
+      const displayName = options.botDisplayName?.(botSlug) ?? botSlug;
+      const departure: ChannelMessage = {
+        id: 'member-left-' + randomUUID(),
+        at: timestamp,
+        author: { kind: 'system' },
+        body: displayName + ' left the Channel.',
+        memberDeparture: {
+          memberKind: 'bot',
+          memberId: botSlug,
+          displayName,
+        },
+        format: 'text',
+      };
+      const sourceEventId = randomUUID();
+      const revision = revisionOf(channelId) + 1;
       database.transaction(
         (db) => {
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
             JSON.stringify(updated),
             channelId,
           );
+          db.prepare(`
+            INSERT INTO source_events (
+              source_event_id, source_kind, bot_slug, channel_id, message_id,
+              body, created_at, handled_at, attempt_state, payload_json
+            ) VALUES (?, 'system-message', NULL, ?, ?, ?, ?, ?, 'handled', ?)
+          `).run(
+            sourceEventId,
+            channelId,
+            departure.id,
+            departure.body,
+            timestamp,
+            timestamp,
+            eventPayload(departure),
+          );
+          db.prepare(`
+            INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+            VALUES (?, ?, ?, ?)
+          `).run(channelId, revision, sourceEventId, departure.id);
           for (const invitation of cancelled)
             db.prepare(`
               UPDATE inbox_admissions
@@ -1249,6 +1282,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ['channel', 'bot-inbox'],
       );
       publishRecordChanged();
+      try {
+        options.onCommitted?.({
+          channelId,
+          message: { ...departure, channelRevision: revision },
+          revision,
+        });
+      } catch (error) {
+        options.warn?.('Channel post-commit notification failed: ' + String(error));
+      }
       return updated;
     },
     deleteGroup(channelId) {

@@ -277,6 +277,8 @@ function parseAuthor(value: unknown): ChannelAuthor | undefined {
   switch (record['kind']) {
     case 'human':
       return { kind: 'human' };
+    case 'system':
+      return { kind: 'system' };
     case 'bot':
       return typeof record['slug'] === 'string' && record['slug'].length > 0
         ? { kind: 'bot', slug: record['slug'] }
@@ -472,6 +474,27 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       ...(typeof failure['status'] === 'number' ? { status: failure['status'] } : {}),
       ...(typeof failure['context'] === 'string' ? { context: failure['context'] } : {}),
     };
+  }
+  let memberDeparture: ChannelMessage['memberDeparture'];
+  if (record['memberDeparture'] !== undefined) {
+    const departure = asRecord(record['memberDeparture']);
+    if (
+      departure === undefined ||
+      author.kind !== 'system' ||
+      (departure['memberKind'] !== 'bot' && departure['memberKind'] !== 'human') ||
+      typeof departure['memberId'] !== 'string' ||
+      departure['memberId'].length === 0 ||
+      typeof departure['displayName'] !== 'string' ||
+      departure['displayName'].length === 0
+    )
+      return undefined;
+    memberDeparture = {
+      memberKind: departure['memberKind'],
+      memberId: departure['memberId'],
+      displayName: departure['displayName'],
+    };
+  } else if (author.kind === 'system') {
+    return undefined;
   }
   let botDmAction: ChannelMessage['botDmAction'];
   if (record['botDmAction'] !== undefined) {
@@ -674,6 +697,7 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
     ...(botDmAction === undefined ? {} : { botDmAction }),
+    ...(memberDeparture === undefined ? {} : { memberDeparture }),
     ...(toolApprovalRequest === undefined ? {} : { toolApprovalRequest }),
     ...(sessionFailure === undefined ? {} : { sessionFailure }),
     ...(toolApprovalDecision === undefined ? {} : { toolApprovalDecision }),

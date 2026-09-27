@@ -225,6 +225,7 @@ export function createCore(
       return bot !== undefined && bot.paused !== true;
     },
     attachments,
+    botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => live?.publishCommitted(commit),
     onRecordChanged: () => live?.publishRosterCommitted(),

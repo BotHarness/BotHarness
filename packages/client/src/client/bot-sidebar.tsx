@@ -1376,7 +1376,9 @@ export function BotSidebar({
       const summary =
         message === undefined
           ? t('rail.noMessages')
-          : `${author === undefined ? '' : `${author}：`}${message.body}`;
+          : message.memberDeparture !== undefined
+            ? t('member.left', { name: message.memberDeparture.displayName })
+            : `${author === undefined ? '' : `${author}：`}${message.body}`;
       return (
         <RailChannel
           key={channel.id}

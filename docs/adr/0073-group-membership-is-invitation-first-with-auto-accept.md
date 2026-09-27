@@ -23,5 +23,5 @@ The common case is a colleague who is happy to join, so a per-invitation decisio
 
 - ADR-0065's rejected "instantly join an invited Bot" option returns as the default behavior under one explicit profile setting; its reasoning still holds whenever auto-accept is off.
 - A Bot-mode setting and Host behavior are required; with auto-accept on, the `group-invite` admission resolves without waking and remains visible as a decision fact.
-- A Bot self-leave command uses the canonical member-removal path: read/send authority ends at removal, a departing Bot creator yields management to the Human, and pending Group delivery cannot wake a departed member.
+- A Bot self-leave command uses the canonical member-removal path: read/send authority ends at removal, a departing Bot creator yields management to the Human, pending Group delivery cannot wake a departed member, and the same transaction places one Host-authored departure notice in the Group history without waking peers.
 - One durable membership store (the Channel record) and one admission path remain; there is no second membership lifecycle.

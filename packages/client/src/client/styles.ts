@@ -3423,6 +3423,18 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
 .bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
 
+.bh-member-departure {
+  max-width: min(100%, 520px);
+  width: fit-content;
+  margin: 6px auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  background: var(--dsw-alias-button-elevated-fill);
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  text-align: center;
+}
+
 .bh-bot-dm-action {
   display: block;
   max-width: min(100%, 520px);

@@ -87,12 +87,21 @@ describe('Bot Group self-leave', () => {
       expect(turns).toEqual(['ada', 'bea']);
       expect(core.channels.get(groupId)).toMatchObject({ members: ['bea'] });
       expect(core.channels.get(groupId)?.ownerBotSlug).toBeUndefined();
+      const departures = core.channels
+        .readMessages(groupId)
+        .filter((item) => item.memberDeparture !== undefined);
+      expect(departures).toHaveLength(1);
+      expect(departures[0]).toMatchObject({
+        author: { kind: 'system' },
+        body: 'ADA left the Channel.',
+        memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'ADA' },
+      });
       expect(
         core.channels
           .readMessages(groupId)
           .map((item) => item.body)
           .sort(),
-      ).toEqual(['Before departure', 'Bea remains joined'].sort());
+      ).toEqual(['Before departure', 'ADA left the Channel.', 'Bea remains joined'].sort());
       const methods = createBridgeMethods({
         registry: core.registry,
         states: core.states,
@@ -119,6 +128,11 @@ describe('Bot Group self-leave', () => {
       expect(reopened.channels.readMessages(groupId).map((item) => item.body)).toContain(
         'Before departure',
       );
+      expect(
+        reopened.channels
+          .readMessages(groupId)
+          .filter((item) => item.memberDeparture !== undefined),
+      ).toHaveLength(1);
     } finally {
       await reopened.runtime.close();
       reopened.operationalDatabase.close();
@@ -166,6 +180,61 @@ describe('Bot Group self-leave', () => {
         members: ['ada'],
         ownerBotSlug: 'ada',
       });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('writes one system notice when Human removes a member, without Bot Inbox delivery', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-group-human-remove-notice-') });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({
+        name: 'Colleagues',
+        members: ['ada', 'bea'],
+      });
+      const methods = createBridgeMethods({ ...core });
+      expect(
+        methods.channelGroupMemberRemove({ channelId: group.id, botSlug: 'bea' }),
+      ).toMatchObject({
+        ok: true,
+        value: { channel: { members: ['ada'] } },
+      });
+      const notices = core.channels
+        .readMessages(group.id)
+        .filter((item) => item.memberDeparture !== undefined);
+      expect(notices).toHaveLength(1);
+      expect(notices[0]).toMatchObject({
+        author: { kind: 'system' },
+        body: 'Bea left the Channel.',
+        memberDeparture: { memberKind: 'bot', memberId: 'bea', displayName: 'Bea' },
+        channelRevision: 1,
+      });
+      const facts = attachOperationalModule(
+        core.operationalDatabase,
+        'member-departure-facts',
+      ).read((db) => ({
+        source: db
+          .prepare(
+            'SELECT source_kind, bot_slug, attempt_state FROM source_events WHERE channel_id = ? AND message_id = ?',
+          )
+          .get(group.id, notices[0]!.id),
+        admissions: db
+          .prepare(
+            'SELECT COUNT(*) AS count FROM inbox_admissions WHERE source_event_id = (SELECT source_event_id FROM source_events WHERE channel_id = ? AND message_id = ?)',
+          )
+          .get(group.id, notices[0]!.id),
+      }));
+      expect(facts).toEqual({
+        source: { source_kind: 'system-message', bot_slug: null, attempt_state: 'handled' },
+        admissions: { count: 0 },
+      });
+      expect(methods.channelGroupMemberRemove({ channelId: group.id, botSlug: 'bea' }).ok).toBe(
+        false,
+      );
+      expect(core.channels.readMessages(group.id)).toHaveLength(1);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

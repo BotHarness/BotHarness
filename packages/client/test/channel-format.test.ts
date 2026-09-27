@@ -26,6 +26,18 @@ describe('Channel message format over RPC', () => {
     ).toBeUndefined();
   });
 
+  it('preserves a Host-authored member departure and rejects a forged author', () => {
+    const departure = {
+      ...base,
+      author: { kind: 'system' },
+      body: 'Ada left the Channel.',
+      memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'Ada' },
+    };
+    expect(parseChannelMessage(departure)).toEqual(departure);
+    expect(parseChannelMessage({ ...departure, author: { kind: 'human' } })).toBeUndefined();
+    expect(parseChannelMessage({ ...departure, memberDeparture: undefined })).toBeUndefined();
+  });
+
   it('does not accept unknown remote content formats', () => {
     expect(parseChannelMessage({ ...base, format: 'html' })).toBeUndefined();
   });
