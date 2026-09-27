@@ -9,6 +9,9 @@ export const zh = {
   'entry.screen.title': '{name} 的屏幕',
   'entry.shared':
     '这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。',
+  'entry.access.title': 'Computer Access',
+  'entry.access.description': '开启后，该 Bot 的会话可以操作这台电脑',
+  'entry.access.failed': '切换 Computer Access 失败',
   'entry.start': '启动',
   'entry.starting': '启动中…',
   'entry.stop': '停止',
@@ -61,6 +64,8 @@ export const zh = {
   'rows.idle.title': '空闲停止',
   'rows.idle.description': '无观看者时 Computer 自动停止的等待时间',
   'rows.idle.minutes': '{minutes} 分钟',
+  'rows.autoAllow.title': '自动允许 Computer 操作',
+  'rows.autoAllow.description': '打开后，PersonaBot 在 Computer 上的操作不再逐会话询问；默认关闭。',
   'rows.exportSection.title': '导出',
   'rows.exportSection.description': '把 Computer 的持久存储打包成一个归档',
   'rows.importSection.title': '导入',
@@ -89,6 +94,9 @@ export const en: Record<keyof typeof zh, string> = {
   'entry.screen.title': "{name}'s screen",
   'entry.shared':
     'This Computer is shared by every PersonaBot in the profile: each keeps its own window and they share logins and files.',
+  'entry.access.title': 'Computer Access',
+  'entry.access.description': "This PersonaBot's sessions may act on the Computer",
+  'entry.access.failed': 'Could not change Computer Access',
   'entry.start': 'Start',
   'entry.starting': 'Starting…',
   'entry.stop': 'Stop',
@@ -145,6 +153,9 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.idle.title': 'Idle stop',
   'rows.idle.description': 'How long the Computer waits without viewers before stopping',
   'rows.idle.minutes': '{minutes} min',
+  'rows.autoAllow.title': 'Auto-allow Computer actions',
+  'rows.autoAllow.description':
+    'When on, PersonaBot actions on the Computer run without a per-session approval; off by default.',
   'rows.exportSection.title': 'Export',
   'rows.exportSection.description': "Pack the Computer's persistent store into one archive",
   'rows.importSection.title': 'Import',

@@ -131,6 +131,7 @@ describe('bridge typert service', () => {
       'hiddenSet',
       'rosterBatch',
       'developerModeSet',
+      'computerAccessSet',
     ]);
   });
 

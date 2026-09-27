@@ -539,6 +539,21 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },
+      computerAccess: {
+        // The Computer Tool Provider is a separate optional bundle; when it
+        // is not composed this hook is a no-op and nothing changes.
+        changed: (slug: string) => {
+          const provider = ctx.get('botharnessComputerTools') as unknown as
+            | { reconcileBot?: (slug: string) => Promise<void> }
+            | undefined;
+          const pending = provider?.reconcileBot?.(slug);
+          void pending?.catch((error: unknown) => {
+            ctx.logger.warn(
+              `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
+            );
+          });
+        },
+      },
     }),
   );
 

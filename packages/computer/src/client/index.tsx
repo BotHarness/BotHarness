@@ -40,6 +40,7 @@ import {
   IconFullscreenOutlineRegular,
   Pill,
   StateDot,
+  Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -1077,11 +1078,20 @@ export function createComputerEntry(
   };
 }
 
-/** Resolves the PersonaBot's display name through the BotHarness bridge. */
-function useBotDisplayName(botSlug: string | undefined): string | undefined {
-  const [name, setName] = useState<string | undefined>(undefined);
+interface BotInfo {
+  readonly displayName: string | undefined;
+  readonly computerAccess: boolean | undefined;
+}
+
+/** Resolves the PersonaBot's display name and Computer Access through the BotHarness bridge. */
+function useBotInfo(botSlug: string | undefined): BotInfo {
+  const [info, setInfo] = useState<BotInfo>({
+    displayName: undefined,
+    computerAccess: undefined,
+  });
 
   useEffect(() => {
+    setInfo({ displayName: undefined, computerAccess: undefined });
     const rpc = connectionRpc;
     if (rpc === undefined || botSlug === undefined) return () => {};
     let cancelled = false;
@@ -1090,12 +1100,18 @@ function useBotDisplayName(botSlug: string | undefined): string | undefined {
       .then((result) => {
         if (cancelled || !result.ok) return;
         const value = result.value as {
-          bots?: readonly { slug?: unknown; displayName?: unknown }[];
+          bots?: readonly { slug?: unknown; displayName?: unknown; computerAccess?: unknown }[];
         };
         const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
-        if (typeof match?.displayName === 'string' && match.displayName.length > 0) {
-          setName(match.displayName);
-        }
+        if (match === undefined) return;
+        setInfo({
+          displayName:
+            typeof match.displayName === 'string' && match.displayName.length > 0
+              ? match.displayName
+              : undefined,
+          computerAccess:
+            typeof match.computerAccess === 'boolean' ? match.computerAccess : undefined,
+        });
       })
       .catch(() => undefined);
     return () => {
@@ -1103,7 +1119,7 @@ function useBotDisplayName(botSlug: string | undefined): string | undefined {
     };
   }, [botSlug]);
 
-  return name ?? botSlug;
+  return { displayName: info.displayName ?? botSlug, computerAccess: info.computerAccess };
 }
 
 /** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
@@ -1111,7 +1127,7 @@ function ComputerEntry({
   botSlug,
   t,
 }: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
-  const displayName = useBotDisplayName(botSlug);
+  const { displayName, computerAccess } = useBotInfo(botSlug);
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -1122,6 +1138,38 @@ function ComputerEntry({
   const [busySince, setBusySince] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
+  const [accessBusy, setAccessBusy] = useState(false);
+  const [accessError, setAccessError] = useState<string | undefined>(undefined);
+  const accessOn = accessOverride ?? computerAccess === true;
+
+  const onToggleAccess = useCallback(
+    (next: boolean) => {
+      const rpc = connectionRpc;
+      if (rpc === undefined || botSlug === undefined || accessBusy) return;
+      const previous = accessOverride ?? computerAccess === true;
+      setAccessError(undefined);
+      setAccessOverride(next);
+      setAccessBusy(true);
+      void rpc
+        .call('/api', 'botharness/computerAccessSet', { args: { slug: botSlug, enabled: next } })
+        .then((result) => {
+          if (!result.ok) {
+            setAccessOverride(previous);
+            setAccessError(result.error.message ?? t('entry.access.failed'));
+            return;
+          }
+          const value = result.value as { bot?: { computerAccess?: unknown } };
+          setAccessOverride(value.bot?.computerAccess === true);
+        })
+        .catch((cause: unknown) => {
+          setAccessOverride(previous);
+          setAccessError(cause instanceof Error ? cause.message : String(cause));
+        })
+        .finally(() => setAccessBusy(false));
+    },
+    [accessBusy, accessOverride, botSlug, computerAccess, t],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -1208,33 +1256,50 @@ function ComputerEntry({
   }, []);
 
   return (
-    <ComputerEntryView
-      t={t}
-      state={payload?.status.state ?? 'absent'}
-      {...(phase === undefined ? {} : { phase })}
-      {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
-      {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
-      runtimeAvailable={payload?.probe.available ?? true}
-      confirming={confirming}
-      busy={busy}
-      elapsed={elapsed}
-      nowTs={nowTs}
-      {...(error === undefined ? {} : { error })}
-      {...(displayName === undefined ? {} : { botSlug: displayName })}
-      {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
-      onStart={onStart}
-      onConfirmStart={onConfirmStart}
-      onStop={() => void act(STOP_ENDPOINT)}
-      onApprove={onApprove}
-      onCancel={() => setConfirming(false)}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500 }}>{t('entry.access.title')}</div>
+          <div style={noteStyle}>{t('entry.access.description')}</div>
+        </div>
+        <Switch
+          checked={accessOn}
+          disabled={botSlug === undefined || accessBusy}
+          onChange={onToggleAccess}
+          label={t('entry.access.title')}
+        />
+      </div>
+      {accessError === undefined ? null : <div style={noteStyle}>{accessError}</div>}
+      <ComputerEntryView
+        t={t}
+        state={payload?.status.state ?? 'absent'}
+        {...(phase === undefined ? {} : { phase })}
+        {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
+        {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
+        runtimeAvailable={payload?.probe.available ?? true}
+        confirming={confirming}
+        busy={busy}
+        elapsed={elapsed}
+        nowTs={nowTs}
+        {...(error === undefined ? {} : { error })}
+        {...(displayName === undefined ? {} : { botSlug: displayName })}
+        {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
+        onStart={onStart}
+        onConfirmStart={onConfirmStart}
+        onStop={() => void act(STOP_ENDPOINT)}
+        onApprove={onApprove}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
   );
 }
 
 export function apply(ctx: ClientContext): void {
   const settingsPrefs = new ComputerSettingsPrefs();
   ctx.inject(['configForms'], (settingsCtx) => {
-    const scope = settingsCtx.configForms.get<ComputerSettings>(COMPUTER_SETTINGS_NAMESPACE) as unknown as ComputerSettingsScope;
+    const scope = settingsCtx.configForms.get<ComputerSettings>(
+      COMPUTER_SETTINGS_NAMESPACE,
+    ) as unknown as ComputerSettingsScope;
     const release = settingsPrefs.attach(scope);
     return () => {
       release();

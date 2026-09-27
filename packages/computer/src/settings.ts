@@ -13,10 +13,15 @@ export const COMPUTER_EXPORT_DIR_FIELD = 'exportDir';
 /** Field carrying the idle stop minutes. */
 export const COMPUTER_IDLE_STOP_FIELD = 'idleStopMinutes';
 
+/** Field carrying the profile-level Computer Authorization auto-allow switch. */
+export const COMPUTER_AUTO_ALLOW_FIELD = 'autoAllowActions';
+
 /** The subset of Computer configuration a Human may change without a restart. */
 export interface ComputerSettings {
   /** Directory that holds Computer exports; empty disables export/import. */
   exportDir: string;
   /** Minutes without viewers before the Computer stops itself. */
   idleStopMinutes: number;
+  /** When on, PersonaBot Computer actions run without a per-session Human approval. */
+  autoAllowActions: boolean;
 }

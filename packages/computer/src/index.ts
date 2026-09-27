@@ -31,6 +31,8 @@ import {
 import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers/docker.js';
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
 import { createComputerService, type ComputerService } from './service.js';
+import { createCuaDriver } from './tool/driver.js';
+import { createComputerToolProvider, formatAudit } from './tool/provider.js';
 import { ViewerProxy, proxyUpgrade } from './viewer.js';
 
 export const name = 'botharness-computer';
@@ -57,6 +59,8 @@ export interface ComputerConfig {
   language: string;
   /** Human-chosen directory that holds Computer exports; empty uses the built-in default. */
   exportDir: string;
+  /** When on, PersonaBot Computer actions run without a per-session Human approval. */
+  autoAllowActions: boolean;
   /**
    * Opt-in host directory bind-mounted at /config (Linux only); empty keeps
    * the named volume. Changing it recreates the container without migrating data.
@@ -64,9 +68,13 @@ export interface ComputerConfig {
   dataDir: string;
 }
 
-type ComputerRuntimeConfig = Omit<ComputerConfig, 'exportDir' | 'idleStopMinutes'> & {
+type ComputerRuntimeConfig = Omit<
+  ComputerConfig,
+  'exportDir' | 'idleStopMinutes' | 'autoAllowActions'
+> & {
   exportDir: string | Volatile<string>;
   idleStopMinutes: number | Volatile<number>;
+  autoAllowActions: boolean | Volatile<boolean>;
 };
 
 function readLive<T>(value: T | Volatile<T>): T {
@@ -93,6 +101,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   language: DEFAULT_DOCKER_CONFIG.language,
   exportDir: '',
+  autoAllowActions: false,
   dataDir: '',
 };
 
@@ -113,7 +122,12 @@ export const Config = Schema.object({
     .default(DEFAULT_CONFIG.exportDir)
     .description(
       '导出目录；为空时回退到默认目录（~/Desktop/BotHarness Exports，无 Desktop 时为 ~/BotHarness Exports）',
-    ).volatile(),
+    )
+    .volatile(),
+  autoAllowActions: Schema.boolean()
+    .default(DEFAULT_CONFIG.autoAllowActions)
+    .description('自动允许 PersonaBot 操作 Computer（跳过按会话的人工授权）')
+    .volatile(),
   dataDir: Schema.string()
     .default(DEFAULT_CONFIG.dataDir)
     .description('持久目录（仅 Linux 生效，bind mount 到 /config；为空时用命名卷）'),
@@ -276,8 +290,9 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   const transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
+  const runner = createProcessRunner();
   const provider = createDockerComputerProvider({
-    runner: createProcessRunner(),
+    runner,
     onEvent: (detail) => diagnostics.record('container', detail),
     getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
     config: {
@@ -300,6 +315,42 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   ctx.effect(() => release, 'botharness-computer: provider registration');
   ctx.provide('botharnessComputer', service);
 
+  // Computer Tool Provider (ADR-0079/0080): owns the official computer-use
+  // slot and injects the curated tools plus guidance into the session scopes
+  // of PersonaBots whose Computer Access is on. Registration is lazy: it
+  // requires the Computer to be running so the driver catalog can be read,
+  // and a stopped Computer degrades to a clear tool error.
+  const driver = createCuaDriver({
+    runner,
+    containerName: config.containerName,
+    onEvent: (detail) => diagnostics.record('lifecycle', `driver: ${detail}`),
+  });
+  const toolProvider = createComputerToolProvider({
+    ctx,
+    driver,
+    isComputerRunning: () => service.upstream() !== undefined,
+    isAutoAllowed: () => effective().autoAllowActions,
+    audit: (event) => diagnostics.record('computer-action', formatAudit(event)),
+    core: () => {
+      const core = ctx.get('botharness') as unknown as
+        | { registry?: unknown; ownership?: unknown }
+        | undefined;
+      return {
+        registry: core?.registry as never,
+        ownership: core?.ownership as never,
+      };
+    },
+  });
+  ctx.provide('botharnessComputerTools', {
+    reconcileBot: (slug: string) => toolProvider.reconcileBot(slug),
+  });
+  ctx.effect(
+    () => () => {
+      void toolProvider.dispose();
+    },
+    'botharness-computer: tool provider',
+  );
+
   const log = (message: string): void => {
     ctx.logger.info(`botharness-computer: ${message}`);
     diagnostics.record('lifecycle', message);
@@ -309,6 +360,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   const effective = (): ComputerSettings => ({
     exportDir: readLive(config.exportDir),
     idleStopMinutes: readLive(config.idleStopMinutes),
+    autoAllowActions: readLive(config.autoAllowActions),
   });
   // Export/import always resolve a concrete directory: the configured path,
   // or the built-in default when none is set — so pickerless deployments can
@@ -400,7 +452,10 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           `start requested (panel)${requestedLanguage === '' ? '' : ` locale=${requestedLanguage}`}`,
         );
         watcher.touch();
-        void service.start().catch(() => undefined);
+        void service
+          .start()
+          .then(() => toolProvider.reconcileAll())
+          .catch(() => undefined);
         return json({ ok: true, started: true });
       },
     };

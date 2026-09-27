@@ -9,6 +9,8 @@
 
 ### Added
 
+- Human 开启某个 PersonaBot 的 Computer Access 后，该 Bot 即可操作共享 Computer：精选的观察/动作/验证工具集与其指引只注入这个 Bot 的会话；每个会话的首次动作向 Human 询问一次（profile 开关可自动允许）；每次观察与动作都以脱敏的 Computer Audit 记录（[#386](https://github.com/BotHarness/BotHarness/issues/386)、[ADR-0079](docs/adr/0079-adopt-official-computer-use-seam-with-own-provider.md)、[ADR-0080](docs/adr/0080-computer-access-is-per-personabot-authorization-is-session-scoped.md)）。
+
 - Group Channel 成员可选择让 PersonaBot 即时处理每条普通消息、定期汇总、仅由直接提及唤醒，或静默记录；直接提及会带入同群有界的待处理上下文，包括最早未读和附近消息，并提示省略数量，后续回合继续推进积压消息。主动读取的消息在回合中显示“处理中”，成功后显示“已处理”，失败则需修复；没有返回的消息保持待处理。新成员默认使用汇总；点击群成员或 Bot 消息头像可打开该 Bot 的私聊（[#364](https://github.com/BotHarness/BotHarness/issues/364)）。
 
 - 长事项报告现在只向 Bot 收件箱发送简短预览和 DSH Spill 定位信息，无需打断 Agent 或要求它先写文件；Orchestrator 可通过 DSH Session Query 分页读取已接收的完整报告，或按需查看最近的 Session 事件，并获得返回量与估算 token 成本（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。

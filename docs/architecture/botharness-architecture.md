@@ -210,6 +210,8 @@ Workspace Grant 是 application-defined 的持久授权记录：Human 通过 DSH
 
 右侧是 Channel sidebar（ADR-0053）：group Channel 显示成员与 Channel 管理 entries，Human–PersonaBot DM 显示该 PersonaBot 的 entries（会话、Memory、Bot Inbox、Computer 等）；entries 由统一注册 seam 提供、可折叠、按声明顺序排列，未注册或不可用时直接不显示而不是占位。Chat 始终是中间的 Channel body。「会话」默认平铺当前 Orchestrator 与活跃、待关注的 Assignment，「全部」保留已停止的历史 Session；Human 可切换平铺或按工作区折叠分组，每个 Bot 的范围、布局与折叠选择仅保存在本浏览器。点击行使用 DSH 原生 `UiWorkspace.openSession` 打开对应 Session，而不是维护一份只读事项详情。归属该 Bot 的根 Session 可通过原生标题栏及 Session 菜单返回 Bot 私聊；空闲时左侧标题前显示 Bot 头像，运行状态及日程标记仍优先显示。Assignment Directory 继续持有 Grant、续接、报告、停止、并发及审计事实。
 
+Computer 是 profile 级共享资源（ADR-0051）：运行时由 Computer Provider 管理（容器、观看、导出），工具面由注册在官方 `ctx.computerUse` seam 上的 Computer Tool Provider 提供（ADR-0079）。只有 Human 为某个 PersonaBot 打开 **Computer Access** 时，精选的观察/动作/验证工具与指引才注入它的 Orchestrator 与 Assignment 会话作用域；每个会话的首次动作经 DSH 原生审批询问 Human 一次（profile 开关可自动允许），每次观察与动作都以脱敏的 **Computer Audit** 记入 `logs.db`（ADR-0080）。容器内的 pinned Cua Driver 经 `docker exec` 的 stdio MCP 连接；Computer 未运行时工具返回可读错误，不威胁 Host 启动。
+
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]

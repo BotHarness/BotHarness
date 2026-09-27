@@ -191,6 +191,7 @@ export interface BridgeMethods {
   hiddenSet(payload: unknown): Promise<BridgeResult<{ hidden: string[] }>>;
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
+  computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -210,6 +211,8 @@ export interface BridgeMethodsDeps {
   toolRules?: ToolApprovalRuleStore;
   assignmentAccess?: AssignmentAccessStore;
   developerMode?: { set(enabled: boolean): void };
+  /** Optional Computer Tool Provider hook: reconcile one PersonaBot after its access changed. */
+  computerAccess?: { changed(slug: string): void };
   createBotId?: () => string;
 }
 
@@ -408,6 +411,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     ...(record.description === undefined ? {} : { description: record.description }),
     ...(record.avatar === undefined ? {} : { avatar: record.avatar }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
+    ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
   };
 }
 
@@ -620,6 +624,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     },
     resume(payload) {
       return setPaused(payload, false);
+    },
+    computerAccessSet(payload) {
+      const slug = asSlug(payload);
+      const enabled = asObject(payload)['enabled'];
+      if (slug === undefined || typeof enabled !== 'boolean') {
+        return invalidInput('slug and enabled are required');
+      }
+      const result = deps.registry.setComputerAccess(slug, enabled);
+      if (!result.ok) return unknownBot(slug);
+      deps.computerAccess?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
     },
     channels() {
       // A PersonaBot's DM is a first-class Channel, not a UI-only contact.

@@ -14,10 +14,12 @@ import {
   IconChevronDownOutlineRegular,
   IconFolderOpenOutlineRegular,
   Menu,
+  Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 
 import {
+  COMPUTER_AUTO_ALLOW_FIELD,
   COMPUTER_EXPORT_DIR_FIELD,
   COMPUTER_IDLE_STOP_FIELD,
   type ComputerSettings,
@@ -28,6 +30,7 @@ import { PHASE_LABEL, type ComputerTranslate } from './locale.js';
 export interface ComputerSettingsSnapshot {
   exportDir: string;
   idleStopMinutes: number;
+  autoAllowActions: boolean;
   status: 'loading' | 'ready' | 'unavailable';
   writable: boolean;
 }
@@ -66,6 +69,7 @@ export class ComputerSettingsPrefs {
   private snapshot: ComputerSettingsSnapshot = {
     exportDir: '',
     idleStopMinutes: 30,
+    autoAllowActions: false,
     status: 'loading',
     writable: false,
   };
@@ -113,6 +117,14 @@ export class ComputerSettingsPrefs {
     void this.scope?.set(COMPUTER_IDLE_STOP_FIELD, idleStopMinutes).catch(() => undefined);
   }
 
+  setAutoAllowActions(autoAllowActions: boolean): void {
+    const previous = this.snapshot.autoAllowActions;
+    this.publish({ autoAllowActions });
+    void this.scope?.set(COMPUTER_AUTO_ALLOW_FIELD, autoAllowActions).catch(() => {
+      this.publish({ autoAllowActions: previous });
+    });
+  }
+
   private publish(patch: Partial<ComputerSettingsSnapshot>): void {
     this.snapshot = { ...this.snapshot, ...patch };
     for (const listener of this.listeners) listener();
@@ -126,6 +138,7 @@ export class ComputerSettingsPrefs {
     this.snapshot = {
       exportDir: value?.exportDir ?? '',
       idleStopMinutes: value?.idleStopMinutes ?? 30,
+      autoAllowActions: value?.autoAllowActions ?? false,
       status: next.status,
       writable: next.writable,
     };
@@ -662,6 +675,17 @@ export function ComputerSettingsRows({
               }}
             />
           }
+        />
+      </Row>
+
+      <Row title={t('rows.autoAllow.title')} description={t('rows.autoAllow.description')}>
+        <Switch
+          checked={snapshot.autoAllowActions}
+          disabled={!writable}
+          onChange={(next) => {
+            prefs.setAutoAllowActions(next);
+          }}
+          label={t('rows.autoAllow.title')}
         />
       </Row>
 
