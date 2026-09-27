@@ -308,7 +308,10 @@ function truncateUtf8(text: string, maxBytes: number): string {
 
 function finishAnnotation(details: string[]): string | undefined {
   if (details.length === 0) return undefined;
-  return truncateUtf8(`Memory changed since your last turn:\n${details.join('\n')}`, MAX_ANNOTATION_BYTES);
+  return truncateUtf8(
+    `Memory changed since your last turn:\n${details.join('\n')}`,
+    MAX_ANNOTATION_BYTES,
+  );
 }
 
 function personaDiffersAcrossHeads(root: string, oldHead: string, newHead: string): boolean {
@@ -342,9 +345,13 @@ function buildTurnAnnotation(
   const details: string[] = [];
   const committedNames: string[] = [];
   if (current.head !== previous.head) {
-    for (const name of safeGit(root, ['diff', '--name-only', '-z', previous.head, current.head]).split(
-      '\0',
-    )) {
+    for (const name of safeGit(root, [
+      'diff',
+      '--name-only',
+      '-z',
+      previous.head,
+      current.head,
+    ]).split('\0')) {
       if (name.length > 0) committedNames.push(name);
     }
     const shown = committedNames.slice(0, MAX_ANNOTATION_PATHS);
@@ -666,7 +673,9 @@ export function createMemoryAcceptance(options: {
             .prepare('SELECT 1 FROM inbox_admissions WHERE source_event_id = ? AND bot_slug = ?')
             .get(input.sourceEventId, input.botSlug),
         )) ||
-      (!['human-message', 'assignment-report'].includes(source?.source_kind ?? '') &&
+      (!['human-message', 'assignment-report', 'assignment-lifecycle'].includes(
+        source?.source_kind ?? '',
+      ) &&
         !(
           (source?.source_kind === 'bot-message' || source?.source_kind === 'system-message') &&
           database.read((db) =>
