@@ -157,8 +157,12 @@ _避免使用_：machine、VM、sandbox、desktop、host
 _避免使用_：display、virtual screen、workspace、desktop
 
 **Computer Provider**：
-运行一台 Computer 并提供 PersonaBot 在其上使用的观察与操作能力的 Provider；同一时刻只注册一个。
-_避免使用_：driver、backend、sandbox
+运行一台 Computer 并回答其生命周期、观看与传输操作的 Provider；同一时刻只注册一个。
+_避免使用_：driver、backend、sandbox、tool provider
+
+**Computer Tool Provider**：
+注册在 DSH computer-use seam 上、提供 PersonaBot 在一台 Computer 上所用观察与动作工具的 Provider；同一时刻只注册一个。
+_避免使用_：driver、backend、computer provider
 
 **Takeover**：
 Human 在一台 Computer 上的接管会话：暂停所有在该 Computer 上行动的 PersonaBot，并在其持续期间关闭面向模型的截图。它由某个 Bot Screen 发起，但始终作用于整台 Computer。
@@ -167,6 +171,18 @@ _避免使用_：handoff、screen sharing、per-bot takeover
 **Computer Export**：
 一台 Computer 持久卷的可携带归档，由显式导出操作产生，可在另一台 Host 上恢复。它是 profile 级 facet，绝不是 PersonaBot export 的一部分。
 _避免使用_：PersonaBot export、backup file、disk image
+
+**Computer Access**：
+PersonaBot 级的开启项（默认关闭）：开启后，该 PersonaBot 的 Orchestrator 与 Assignment 会话才能获得 Computer 工具及其指引；它绝不为其他 PersonaBot 或 Human 会话开权限。
+_避免使用_：permission、grant、feature flag、developer mode
+
+**Computer Authorization**：
+PersonaBot 在 Computer 上首次行动前、由 Human 按会话给予的一次授权；profile 级「自动允许」可跳过询问。Access 决定工具是否存在，Authorization 决定它们能否运行。
+_避免使用_：takeover、consent dialog、per-action approval
+
+**Computer Audit**：
+按 PersonaBot 与会话归因的、脱敏的 Computer 观察与动作持久记录；绝不包含输入的原文或截图。
+_避免使用_：logs、history、screenshot trail
 
 ### Memory（记忆）
 
