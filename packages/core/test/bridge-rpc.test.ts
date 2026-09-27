@@ -130,6 +130,7 @@ describe('bridge typert service', () => {
       'pinsSet',
       'hiddenSet',
       'rosterBatch',
+      'developerModeSet',
     ]);
   });
 

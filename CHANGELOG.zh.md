@@ -9,6 +9,7 @@
 
 ### Added
 
+- operational-logs 技能（`logs.db` 阅读指南）现在仅在 Bot 设置的开发者模式开关打开时出现在技能与 `/` 目录中：开启后人类可调用 `reading-operational-logs`，模型可按需加载指南；关闭（默认）时任何客户端都看不到它（[#248](https://github.com/BotHarness/BotHarness/issues/248)）。
 - 停止事项后，Host 会在所属 PersonaBot 的 Bot 收件箱记录生命周期通知，使 Orchestrator 即使没有事项报告也能告知已确认的停止结果；未读通知在 Host 重启后继续送达，若 DSH 的 Agent Loop 尚未就绪则短暂重试（[#194](https://github.com/BotHarness/BotHarness/issues/194)）。
 - 已有的完整文件访问 Assignment 在关闭 Bot 默认开关或重启 Host 后，仍会在 Bot 的会话列表显示权限提示；提示依据该会话创建时的权限快照（[#116](https://github.com/BotHarness/BotHarness/issues/116)）。
 - Group Channel 成员可为 Bot 选择静默收件：普通消息保留为持久待处理 Admission，重启后也不会自动唤醒；直接 @ 仍即时唤醒（[#47](https://github.com/BotHarness/BotHarness/issues/47)）。
