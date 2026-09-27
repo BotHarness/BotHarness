@@ -920,30 +920,31 @@ class BotRuntimeImplementation implements BotRuntime {
       bot.paused === true
     )
       return;
-    const first = this.#database.read((database) =>
+    const groups = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.wake_count, a.wake_interval_ms, a.wake_policy_revision, e.created_at
+        SELECT a.wake_policy_revision, MIN(e.created_at) AS first_at,
+               MIN(a.wake_count) AS wake_count, MIN(a.wake_interval_ms) AS wake_interval_ms,
+               COUNT(*) AS pending_count
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-         ORDER BY e.created_at, e.rowid LIMIT 1
+         GROUP BY a.wake_policy_revision
       `)
-        .get(botSlug, channelId),
-    ) as
-      | {
-          wake_count: number;
-          wake_interval_ms: number;
-          wake_policy_revision: number;
-          created_at: string;
-        }
-      | undefined;
+        .all(botSlug, channelId),
+    ) as Array<{
+      wake_policy_revision: number;
+      first_at: string;
+      wake_count: number;
+      wake_interval_ms: number;
+      pending_count: number;
+    }>;
     const prior = this.#digestTimers.get(key);
     if (prior !== undefined) clearTimeout(prior);
     this.#digestTimers.delete(key);
-    if (first === undefined) return;
+    if (groups.length === 0) return;
     const retryAt = this.#digestRetryAt.get(key);
     if (retryAt !== undefined && retryAt > this.#now().getTime()) {
       const timer = setTimeout(
@@ -957,33 +958,26 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#digestTimers.set(key, timer);
       return;
     }
-    const count = this.#database.read((database) =>
-      database
-        .prepare(`
-        SELECT count(*) AS count FROM inbox_admissions a
-        JOIN source_events e ON e.source_event_id = a.source_event_id
-        WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-          AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
-          AND a.attempt_state IN ('pending', 'retryable')
-          AND e.channel_id = ? AND a.wake_policy_revision = ?
-      `)
-        .get(botSlug, channelId, first.wake_policy_revision),
-    ) as { count: number };
-    const deadline = Date.parse(first.created_at) + first.wake_interval_ms;
-    if (
-      count.count >= first.wake_count ||
-      !Number.isFinite(deadline) ||
-      deadline <= this.#now().getTime()
-    ) {
-      this.#scheduleHarvest(botSlug);
-      return;
+    const now = this.#now().getTime();
+    let nextDeadline = Number.POSITIVE_INFINITY;
+    for (const group of groups) {
+      const deadline = Date.parse(group.first_at) + group.wake_interval_ms;
+      if (
+        group.pending_count >= group.wake_count ||
+        !Number.isFinite(deadline) ||
+        deadline <= now
+      ) {
+        this.#scheduleHarvest(botSlug);
+        return;
+      }
+      nextDeadline = Math.min(nextDeadline, deadline);
     }
     const timer = setTimeout(
       () => {
         this.#digestTimers.delete(key);
         this.#scheduleDigest(botSlug, channelId);
       },
-      Math.max(1, deadline - this.#now().getTime()),
+      Math.max(1, nextDeadline - now),
     );
     timer.unref();
     this.#digestTimers.set(key, timer);

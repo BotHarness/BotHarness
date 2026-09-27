@@ -130,6 +130,42 @@ describe('Group ordinary-message digest', () => {
     }
   });
 
+  it('wakes a new all-mode message without waiting for an older digest revision', async () => {
+    const home = createTempRoot('botharness-attention-switch-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      await ordinary(core, group.id, 'before-switch');
+      await core.runtime.whenIdle();
+      expect(runs).toEqual([]);
+
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'all',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      await ordinary(core, group.id, 'after-switch');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain('ordinary after-switch');
+      expect(runs[0]).not.toContain('ordinary before-switch');
+      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { sourceMessageId: 'after-switch', state: 'handled' },
+        { sourceMessageId: 'before-switch', state: 'deferred' },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('wakes on the count threshold, observes two messages in one turn, and requires no reply', async () => {
     const home = createTempRoot('botharness-digest-count-');
     const runs: OrchestratorAgentRun[] = [];

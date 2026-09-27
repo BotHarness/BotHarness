@@ -195,7 +195,7 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
             </div>
             {group === undefined ? null : (
               <MemberWakeControls
-                key={group.wakePolicies?.[slug]?.revision ?? 0}
+                key={`${group.id}:${group.wakePolicies?.[slug]?.revision ?? 0}`}
                 channel={group}
                 slug={slug}
                 actions={actions}
