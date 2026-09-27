@@ -27,6 +27,7 @@ import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
+import { MessageCopyAction } from './message-copy-action.js';
 import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { HumanInboxView } from './human-inbox-view.js';
@@ -307,18 +308,7 @@ function MessageGroupView({
                       </button>
                     </Tooltip>
                   ) : null}
-                  <Tooltip label={t('message.copy')} side="top" portal delayMs={400}>
-                    <button
-                      type="button"
-                      className="bh-bubble-action"
-                      aria-label={t('message.copy')}
-                      onClick={() => {
-                        void navigator.clipboard?.writeText(message.body);
-                      }}
-                    >
-                      <IconCopyOutlineRegular size={16} />
-                    </button>
-                  </Tooltip>
+                  <MessageCopyAction body={message.body} t={t} />
                 </div>
               </div>
             </div>
