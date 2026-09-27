@@ -46,6 +46,18 @@ async function waitForReply(channelId, marker) {
   throw new Error(`No real Bot reply containing ${marker}`);
 }
 
+async function waitForAttention(slug, marker, state) {
+  const deadline = Date.now() + 30_000;
+  while (Date.now() < deadline) {
+    const item = (await rpc('botAttention', { slug })).items.find((row) =>
+      row.summary?.includes(marker),
+    );
+    if (item?.state === state) return item;
+    await sleep(500);
+  }
+  throw new Error(`Admission ${marker} did not reach ${state}`);
+}
+
 const stamp = Date.now();
 const displayName = `AttentionQA-${stamp}`;
 const created = await rpc('create', { displayName });
@@ -91,14 +103,20 @@ await rpc('channelSend', { channelId: group.id, body: `普通消息 ${mentionsMa
 const mentionsAdmission = (await rpc('botAttention', { slug: botSlug })).items.find((item) =>
   item.summary?.includes(mentionsMarker),
 );
-if (mentionsAdmission !== undefined) throw new Error('Mentions mode admitted ordinary Group text');
+if (mentionsAdmission?.state !== 'pending')
+  throw new Error(
+    `Mentions mode ordinary message should remain pending: ${mentionsAdmission?.state}`,
+  );
 const directMarker = `DIRECT-${stamp}`;
 await rpc('channelSend', {
   channelId: group.id,
-  body: `@${displayName} 请回复一句包含 ${directMarker} 的确认。`,
+  body: `@${displayName} 请回复一句同时包含 ${directMarker} 和刚才普通消息代号的确认。`,
   mentions: [{ botSlug, label: displayName, start: 0, end: displayName.length + 1 }],
 });
 const directReply = await waitForReply(group.id, directMarker);
+if (!directReply.body.includes(mentionsMarker))
+  throw new Error('Direct mention did not carry pending same-Channel context');
+const mentionsHandled = await waitForAttention(botSlug, mentionsMarker, 'handled');
 
 const silentPolicy = await rpc('channelGroupWakeSet', {
   channelId: group.id,
@@ -114,6 +132,19 @@ const silentAdmission = (await rpc('botAttention', { slug: botSlug })).items.fin
 );
 if (silentAdmission?.state !== 'pending')
   throw new Error(`Silent Group message was not retained: ${silentAdmission?.state}`);
+const silentDirectMarker = `SILENT-DIRECT-${stamp}`;
+await rpc('channelSend', {
+  channelId: group.id,
+  body: `@${displayName} 请回复一句包含 ${silentDirectMarker} 的确认。`,
+  mentions: [{ botSlug, label: displayName, start: 0, end: displayName.length + 1 }],
+});
+await waitForReply(group.id, silentDirectMarker);
+await waitForAttention(botSlug, silentDirectMarker, 'handled');
+const silentAfterMention = (await rpc('botAttention', { slug: botSlug })).items.find((item) =>
+  item.summary?.includes(silentMarker),
+);
+if (silentAfterMention?.state !== 'pending')
+  throw new Error(`Silent ordinary message rode the direct mention: ${silentAfterMention?.state}`);
 
 const freshDefault = (
   await rpc('channelCreate', { name: `Attention Default QA ${stamp}`, members: [botSlug] })
@@ -129,6 +160,13 @@ const freshAdmission = (await rpc('botAttention', { slug: botSlug })).items.find
 );
 if (freshAdmission?.state !== 'deferred')
   throw new Error(`Fresh Group did not start in digest mode: ${freshAdmission?.state}`);
+await rpc('channelSend', {
+  channelId: freshDefault.id,
+  body: `@${displayName} 请回复刚才普通消息中的代号。`,
+  mentions: [{ botSlug, label: displayName, start: 0, end: displayName.length + 1 }],
+});
+const freshReply = await waitForReply(freshDefault.id, freshMarker);
+const freshHandled = await waitForAttention(botSlug, freshMarker, 'handled');
 
 console.log(
   JSON.stringify(
@@ -142,10 +180,13 @@ console.log(
       allRevision: allPolicy.channel.wakePolicies[botSlug].revision,
       allReply: allReply.body,
       directReply: directReply.body,
+      mentionsContextState: mentionsHandled.state,
       silentRevision: silentPolicy.channel.wakePolicies[botSlug].revision,
-      silentState: silentAdmission.state,
+      silentState: silentAfterMention.state,
       freshDefaultGroup: freshDefault.name,
       freshDefaultState: freshAdmission.state,
+      freshDefaultReply: freshReply.body,
+      freshDefaultHandled: freshHandled.state,
     },
     null,
     2,
