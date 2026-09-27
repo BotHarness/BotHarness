@@ -122,7 +122,9 @@ describe('Bot-scoped attention projection', () => {
       });
       expect(methods.botAttention({ slug: 'bea' })).toMatchObject({
         ok: true,
-        value: { items: [] },
+        value: {
+          items: [{ reason: 'group-ordinary', state: 'pending', sourceMessageId: 'mention-1' }],
+        },
       });
       core.runtime.admitGroupMessage(group.id, 'mention-1');
       await core.runtime.whenIdle();
@@ -161,12 +163,7 @@ describe('Bot-scoped attention projection', () => {
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
-      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
-      core.channels.setGroupWakePolicy(group.id, 'bea', {
-        mode: 'mentions',
-        count: 5,
-        intervalSeconds: 30,
-      });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
       for (let index = 0; index < 3; index += 1) {
         await core.channels.appendMessage(group.id, {
           id: 'mention-' + index,
