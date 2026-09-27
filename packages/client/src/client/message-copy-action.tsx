@@ -17,31 +17,32 @@ export function MessageCopyAction({
   body: string;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const [copied, setCopied] = useState(false);
+  const [copiedBody, setCopiedBody] = useState<string | undefined>(undefined);
   const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const attempt = useRef(0);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    setCopiedBody(undefined);
+    return () => {
       attempt.current += 1;
       if (resetTimer.current !== undefined) clearTimeout(resetTimer.current);
-    },
-    [],
-  );
+      resetTimer.current = undefined;
+    };
+  }, [body]);
 
   const copy = async () => {
     const currentAttempt = ++attempt.current;
     if (resetTimer.current !== undefined) clearTimeout(resetTimer.current);
     resetTimer.current = undefined;
-    setCopied(false);
+    setCopiedBody(undefined);
     if (navigator.clipboard?.writeText === undefined) return;
 
     try {
       await navigator.clipboard.writeText(body);
       if (currentAttempt !== attempt.current) return;
-      setCopied(true);
+      setCopiedBody(body);
       resetTimer.current = setTimeout(() => {
-        setCopied(false);
+        setCopiedBody(undefined);
         resetTimer.current = undefined;
       }, COPY_SUCCESS_MS);
     } catch {
@@ -49,6 +50,7 @@ export function MessageCopyAction({
     }
   };
 
+  const copied = copiedBody === body;
   const label = t(copied ? 'message.copied' : 'message.copy');
   return (
     <Tooltip label={label} side="top" portal delayMs={400}>

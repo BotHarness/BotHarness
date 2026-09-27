@@ -101,4 +101,34 @@ describe('message Copy action', () => {
     await act(async () => buttons()[0]?.click());
     expect(buttons()[0]?.querySelector('[data-icon]')?.getAttribute('data-icon')).toBe('copy');
   });
+
+  it('invalidates pending and visible confirmation when the message body changes', async () => {
+    let resolveFirstWrite: () => void = () => {};
+    const writeText = vi
+      .fn<(text: string) => Promise<void>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstWrite = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    setClipboard(writeText);
+    const render = async (body: string) =>
+      act(async () => root.render(createElement(MessageCopyAction, { body, t: zhTranslate })));
+
+    await render('before');
+    await act(async () => buttons()[0]?.click());
+    await render('after');
+    await act(async () => resolveFirstWrite());
+    expect(buttons()[0]?.getAttribute('aria-label')).toBe('复制消息');
+
+    await act(async () => buttons()[0]?.click());
+    expect(writeText).toHaveBeenNthCalledWith(2, 'after');
+    expect(buttons()[0]?.getAttribute('aria-label')).toBe('已复制');
+    await render('later');
+    expect(buttons()[0]?.getAttribute('aria-label')).toBe('复制消息');
+    await render('after');
+    expect(buttons()[0]?.getAttribute('aria-label')).toBe('复制消息');
+  });
 });
