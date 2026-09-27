@@ -38,7 +38,7 @@ async function ask(core: ReturnType<typeof createCore>, botSlug: string, id: str
   await core.runtime.whenIdle();
 }
 
-describe('explicit Channel read observes Bot Inbox admissions', () => {
+describe('explicit Channel read handles returned Bot Inbox admissions on success', () => {
   it('marks only returned messages from read and leaves other silent messages pending', async () => {
     const home = createTempRoot('botharness-explicit-read-');
     let groupId = '';
@@ -68,7 +68,7 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
       await ask(core, 'ada', 'ask-read');
       expect(changed).toHaveBeenCalledWith(group.id, returnedId);
       expect(core.channels.message(group.id, returnedId)?.deliveries).toEqual([
-        { botSlug: 'ada', state: 'observed' },
+        { botSlug: 'ada', state: 'handled' },
       ]);
       expect(
         core.channels.message(group.id, returnedId === 'one' ? 'two' : 'one')?.deliveries,
@@ -86,7 +86,11 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
         expect.any(String),
       );
       expect(facts.find((row) => row.message_id !== returnedId)?.observed_at).toBeNull();
-      expect(core.attention.list({ botSlug: 'ada', state: 'observed' }).items).toHaveLength(1);
+      expect(
+        core.attention
+          .list({ botSlug: 'ada', state: 'handled' })
+          .items.filter((item) => item.reason === 'group-ordinary'),
+      ).toHaveLength(1);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
@@ -121,7 +125,7 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
         before.attention
           .list({ botSlug: 'ada' })
           .items.find((item) => item.reason === 'group-ordinary')?.state,
-      ).toBe('observed');
+      ).toBe('handled');
       expect(
         before.attention
           .list({ botSlug: 'bea' })
@@ -151,7 +155,7 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
           .list({ botSlug: 'ada' })
           .items.filter((item) => item.reason === 'group-ordinary')
           .map((item) => item.state),
-      ).toEqual(['deferred', 'observed']);
+      ).toEqual(['deferred', 'handled']);
     } finally {
       await resumed.runtime.close();
       resumed.operationalDatabase.close();

@@ -71,6 +71,11 @@ describe('Bot-scoped attention projection', () => {
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
       const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
       groupId = group.id;
+      core.channels.setGroupWakePolicy(group.id, 'bea', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
       await core.channels.appendMessage(group.id, {
         id: 'mention-1',
         at: '2026-09-26T00:00:00.000Z',
@@ -103,13 +108,22 @@ describe('Bot-scoped attention projection', () => {
           "UPDATE inbox_admissions SET attempt_state = 'running' WHERE bot_slug = 'ada'",
         ).run();
       });
-      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('deferred');
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('processing');
       testDatabase.transaction((db) => {
         db.prepare(
           "UPDATE inbox_admissions SET observed_at = '2026-09-26T00:00:01.000Z' WHERE bot_slug = 'ada'",
         ).run();
       });
-      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('observed');
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]?.state).toBe('processing');
+      testDatabase.transaction((db) => {
+        db.prepare(
+          "UPDATE inbox_admissions SET attempt_state = 'pending' WHERE bot_slug = 'ada'",
+        ).run();
+      });
+      expect(core.attention.list({ botSlug: 'ada' }).items[0]).toMatchObject({
+        state: 'pending',
+        observedAt: '2026-09-26T00:00:01.000Z',
+      });
       testDatabase.transaction((db) => {
         db.prepare(
           "UPDATE inbox_admissions SET attempt_state = 'pending', observed_at = NULL WHERE bot_slug = 'ada'",
@@ -117,7 +131,9 @@ describe('Bot-scoped attention projection', () => {
       });
       expect(methods.botAttention({ slug: 'bea' })).toMatchObject({
         ok: true,
-        value: { items: [] },
+        value: {
+          items: [{ reason: 'group-ordinary', state: 'pending', sourceMessageId: 'mention-1' }],
+        },
       });
       core.runtime.admitGroupMessage(group.id, 'mention-1');
       await core.runtime.whenIdle();
@@ -156,7 +172,7 @@ describe('Bot-scoped attention projection', () => {
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
       core.registry.create({ slug: 'bea', displayName: 'Bea' });
-      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
       for (let index = 0; index < 3; index += 1) {
         await core.channels.appendMessage(group.id, {
           id: 'mention-' + index,

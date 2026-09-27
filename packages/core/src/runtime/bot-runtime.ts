@@ -1,5 +1,6 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import { isValidSlug } from '../bots/slug.js';
@@ -387,6 +388,23 @@ interface DigestRow {
   author_slug: string | null;
 }
 
+interface GroupContext {
+  channelId: string;
+  rows: DigestRow[];
+  omittedCount: number;
+}
+
+interface GroupPromptBudget {
+  remainingCharacters: number;
+  includedByChannel: Map<string, number>;
+}
+
+const GROUP_PROMPT_CHARACTER_BUDGET = 24_000;
+const GROUP_PROMPT_CHANNEL_LIMIT = 100;
+const GROUP_CONTEXT_OLDEST_LIMIT = 10;
+const GROUP_CONTEXT_RECENT_LIMIT = 10;
+const GROUP_CONTEXT_BODY_LIMIT = 1_000;
+
 interface InboxUnit {
   sourceEventId: string;
   sourceKind: InboxReportRow['source_kind'];
@@ -753,93 +771,128 @@ class BotRuntimeImplementation implements BotRuntime {
     ) as { body: string } | undefined;
     if (source === undefined) return false;
     const claimed = this.#database.transaction(
-      (database) =>
-        database
-          .prepare(`
+      (database) => {
+        const mention =
+          database
+            .prepare(`
         UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
          WHERE source_event_id = ? AND bot_slug = ?
            AND attempt_state IN ('pending', 'retryable')
       `)
-          .run(sourceEventId, botSlug).changes > 0,
+            .run(sourceEventId, botSlug).changes > 0;
+        return mention
+          ? this.#claimGroupContext(database, botSlug, channelId, {
+              remainingCharacters: Math.max(
+                0,
+                GROUP_PROMPT_CHARACTER_BUDGET -
+                  this.#groupMentionPrompt(channelId, messageId, source.body).length,
+              ),
+              includedByChannel: new Map(),
+            })
+          : false;
+      },
       ['bot-inbox'],
     );
-    if (!claimed) return false;
+    if (claimed === false) return false;
+    const admissions = [
+      { sourceEventId, messageId },
+      ...(claimed?.rows ?? []).map((row) => ({
+        sourceEventId: row.source_event_id,
+        messageId: row.message_id,
+      })),
+    ];
     this.#channels.admissionChanged?.(channelId, messageId);
+    for (const row of claimed?.rows ?? [])
+      this.#channels.admissionChanged?.(channelId, row.message_id);
     // Record the DSH boundary before invoking it. A crash after delivery must
     // require repair rather than silently replaying the same mention.
-    this.#markAdmissionSideEffect(sourceEventId, botSlug);
+    this.#markAdmissionsSideEffect(
+      botSlug,
+      admissions.map((item) => item.sourceEventId),
+    );
     let delivered: boolean;
     try {
       delivered = this.#agents.steerOrchestrator(
         botSlug,
-        this.#groupMentionPrompt(channelId, messageId, source.body),
+        [
+          this.#groupMentionPrompt(channelId, messageId, source.body),
+          ...(claimed === undefined ? [] : [this.#groupContextSection(claimed)]),
+        ].join('\n\n'),
       );
     } catch (error) {
       this.#database.transaction(
-        (database) =>
-          database
-            .prepare(`
+        (database) => {
+          for (const admission of admissions)
+            database
+              .prepare(`
           UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = ?
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
-            .run(String(error).slice(0, 500), sourceEventId, botSlug),
+              .run(String(error).slice(0, 500), admission.sourceEventId, botSlug);
+        },
         ['bot-inbox'],
       );
-      this.#channels.admissionChanged?.(channelId, messageId);
+      for (const admission of admissions)
+        this.#channels.admissionChanged?.(channelId, admission.messageId);
       return true;
     }
     if (!delivered) {
       this.#database.transaction(
-        (database) =>
-          database
-            .prepare(`
+        (database) => {
+          for (const admission of admissions)
+            database
+              .prepare(`
           UPDATE inbox_admissions
              SET attempt_state = 'pending', side_effect_started_at = NULL
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
-            .run(sourceEventId, botSlug),
+              .run(admission.sourceEventId, botSlug);
+        },
         ['bot-inbox'],
       );
-      this.#channels.admissionChanged?.(channelId, messageId);
+      for (const admission of admissions)
+        this.#channels.admissionChanged?.(channelId, admission.messageId);
       return false;
     }
-    this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
+    for (const admission of admissions)
+      this.#observeAdmission(admission.sourceEventId, botSlug, channelId, admission.messageId);
     void active.then(
-      () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, true),
-      () => this.#settleSteeredAdmission(sourceEventId, botSlug, channelId, messageId, false),
+      () => this.#settleSteeredAdmission(admissions, botSlug, channelId, true),
+      () => this.#settleSteeredAdmission(admissions, botSlug, channelId, false),
     );
     return true;
   }
 
   #settleSteeredAdmission(
-    sourceEventId: string,
+    admissions: Array<{ sourceEventId: string; messageId: string }>,
     botSlug: string,
     channelId: string,
-    messageId: string,
     succeeded: boolean,
   ): void {
     this.#database.transaction(
       (database) => {
-        database
-          .prepare(`
+        for (const admission of admissions)
+          database
+            .prepare(`
         UPDATE inbox_admissions
            SET attempt_state = ?,
                handled_at = CASE WHEN ? THEN ? ELSE handled_at END,
                last_error = CASE WHEN ? THEN NULL ELSE 'Steered Orchestrator turn failed' END
          WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
       `)
-          .run(
-            succeeded ? 'handled' : 'needs-repair',
-            succeeded ? 1 : 0,
-            this.#now().toISOString(),
-            succeeded ? 1 : 0,
-            sourceEventId,
-            botSlug,
-          );
+            .run(
+              succeeded ? 'handled' : 'needs-repair',
+              succeeded ? 1 : 0,
+              this.#now().toISOString(),
+              succeeded ? 1 : 0,
+              admission.sourceEventId,
+              botSlug,
+            );
       },
       ['bot-inbox'],
     );
-    this.#channels.admissionChanged?.(channelId, messageId);
+    for (const admission of admissions)
+      this.#channels.admissionChanged?.(channelId, admission.messageId);
   }
 
   #recoverPendingAssignmentReports(): void {
@@ -921,30 +974,31 @@ class BotRuntimeImplementation implements BotRuntime {
       bot.paused === true
     )
       return;
-    const first = this.#database.read((database) =>
+    const groups = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.wake_count, a.wake_interval_ms, a.wake_policy_revision, e.created_at
+        SELECT a.wake_policy_revision, MIN(e.created_at) AS first_at,
+               MIN(a.wake_count) AS wake_count, MIN(a.wake_interval_ms) AS wake_interval_ms,
+               COUNT(*) AS pending_count
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-         ORDER BY e.created_at, e.rowid LIMIT 1
+         GROUP BY a.wake_policy_revision
       `)
-        .get(botSlug, channelId),
-    ) as
-      | {
-          wake_count: number;
-          wake_interval_ms: number;
-          wake_policy_revision: number;
-          created_at: string;
-        }
-      | undefined;
+        .all(botSlug, channelId),
+    ) as Array<{
+      wake_policy_revision: number;
+      first_at: string;
+      wake_count: number;
+      wake_interval_ms: number;
+      pending_count: number;
+    }>;
     const prior = this.#digestTimers.get(key);
     if (prior !== undefined) clearTimeout(prior);
     this.#digestTimers.delete(key);
-    if (first === undefined) return;
+    if (groups.length === 0) return;
     const retryAt = this.#digestRetryAt.get(key);
     if (retryAt !== undefined && retryAt > this.#now().getTime()) {
       const timer = setTimeout(
@@ -958,33 +1012,26 @@ class BotRuntimeImplementation implements BotRuntime {
       this.#digestTimers.set(key, timer);
       return;
     }
-    const count = this.#database.read((database) =>
-      database
-        .prepare(`
-        SELECT count(*) AS count FROM inbox_admissions a
-        JOIN source_events e ON e.source_event_id = a.source_event_id
-        WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
-          AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
-          AND a.attempt_state IN ('pending', 'retryable')
-          AND e.channel_id = ? AND a.wake_policy_revision = ?
-      `)
-        .get(botSlug, channelId, first.wake_policy_revision),
-    ) as { count: number };
-    const deadline = Date.parse(first.created_at) + first.wake_interval_ms;
-    if (
-      count.count >= first.wake_count ||
-      !Number.isFinite(deadline) ||
-      deadline <= this.#now().getTime()
-    ) {
-      this.#scheduleHarvest(botSlug);
-      return;
+    const now = this.#now().getTime();
+    let nextDeadline = Number.POSITIVE_INFINITY;
+    for (const group of groups) {
+      const deadline = Date.parse(group.first_at) + group.wake_interval_ms;
+      if (
+        group.pending_count >= group.wake_count ||
+        !Number.isFinite(deadline) ||
+        deadline <= now
+      ) {
+        this.#scheduleHarvest(botSlug);
+        return;
+      }
+      nextDeadline = Math.min(nextDeadline, deadline);
     }
     const timer = setTimeout(
       () => {
         this.#digestTimers.delete(key);
         this.#scheduleDigest(botSlug, channelId);
       },
-      Math.max(1, deadline - this.#now().getTime()),
+      Math.max(1, nextDeadline - now),
     );
     timer.unref();
     this.#digestTimers.set(key, timer);
@@ -1083,16 +1130,23 @@ class BotRuntimeImplementation implements BotRuntime {
     const digestIds = claimed.digests.flatMap((digest) =>
       digest.rows.map((row) => row.source_event_id),
     );
-    const includedIds = [...claimed.items.map((item) => item.sourceEventId), ...digestIds];
+    const contextIds = claimed.contexts.flatMap((context) =>
+      context.rows.map((row) => row.source_event_id),
+    );
+    const includedIds = [
+      ...claimed.items.map((item) => item.sourceEventId),
+      ...digestIds,
+      ...contextIds,
+    ];
     const sourceEventId = claimed.items[0]?.sourceEventId ?? digestIds[0] ?? collected.eventIds[0];
     if (sourceEventId === undefined) return;
     const timestamp = this.#now().toISOString();
     for (const item of claimed.items)
       this.#observeAdmission(item.sourceEventId, botSlug, item.channelId, item.messageId);
-    if (digestIds.length > 0)
+    if (digestIds.length + contextIds.length > 0)
       this.#database.transaction(
         (database) => {
-          for (const id of digestIds)
+          for (const id of [...digestIds, ...contextIds])
             database
               .prepare(`
         UPDATE inbox_admissions SET observed_at = ?
@@ -1110,7 +1164,10 @@ class BotRuntimeImplementation implements BotRuntime {
         ...claimed.items.map((item) =>
           this.#inboundChannelMessage(item.channelId, item.messageId, item.body),
         ),
-        ...claimed.digests.map((digest) => this.#digestSection(digest.channelId, digest.rows)),
+        ...claimed.digests.map((digest) =>
+          this.#digestSection(digest.channelId, digest.rows, digest.omittedCount),
+        ),
+        ...claimed.contexts.map((context) => this.#groupContextSection(context)),
       ];
       const attentionCount = sections.length + (collected.eventIds.length > 0 ? 1 : 0);
       const preamble =
@@ -1196,12 +1253,16 @@ class BotRuntimeImplementation implements BotRuntime {
       for (const digest of claimed.digests)
         for (const row of digest.rows)
           this.#channels.admissionChanged?.(digest.channelId, row.message_id);
+      for (const context of claimed.contexts)
+        for (const row of context.rows)
+          this.#channels.admissionChanged?.(context.channelId, row.message_id);
     }
   }
 
   #claimHarvest(botSlug: string): {
     items: Array<{ sourceEventId: string; channelId: string; messageId: string; body: string }>;
-    digests: Array<{ channelId: string; rows: DigestRow[] }>;
+    digests: Array<{ channelId: string; rows: DigestRow[]; omittedCount: number }>;
+    contexts: GroupContext[];
   } {
     return this.#database.transaction(
       (database) => {
@@ -1236,6 +1297,19 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')
         `)
             .run(row.source_event_id, botSlug);
+        const budget: GroupPromptBudget = {
+          remainingCharacters: Math.max(
+            0,
+            GROUP_PROMPT_CHARACTER_BUDGET -
+              itemRows.reduce(
+                (size, row) =>
+                  size +
+                  this.#inboundChannelMessage(row.channel_id, row.message_id, row.body).length,
+                200,
+              ),
+          ),
+          includedByChannel: new Map(),
+        };
         const groups = database
           .prepare(`
         SELECT e.channel_id AS channel_id, a.wake_policy_revision AS revision,
@@ -1257,14 +1331,14 @@ class BotRuntimeImplementation implements BotRuntime {
           count: number;
         }>;
         const now = this.#now().getTime();
-        const digests: Array<{ channelId: string; rows: DigestRow[] }> = [];
+        const digests: Array<{ channelId: string; rows: DigestRow[]; omittedCount: number }> = [];
         for (const group of groups) {
           if (
             group.count < group.wake_count &&
             Date.parse(group.first_at) + group.interval_ms > now
           )
             continue;
-          const rows = database
+          const candidates = database
             .prepare(`
           SELECT a.source_event_id, e.message_id, e.body, e.created_at,
                  json_extract(e.payload_json, '$.author.kind') AS author_kind,
@@ -1275,9 +1349,33 @@ class BotRuntimeImplementation implements BotRuntime {
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.channel_id = ? AND a.wake_policy_revision = ?
-           ORDER BY e.created_at, e.rowid LIMIT 20
+           ORDER BY e.created_at, e.rowid LIMIT 100
         `)
             .all(botSlug, group.channel_id, group.revision) as unknown as DigestRow[];
+          const rows: DigestRow[] = [];
+          const alreadyIncluded = budget.includedByChannel.get(group.channel_id) ?? 0;
+          // A direct mention keeps room for its nearby pending context after due digests.
+          const contextReserve = itemRows.some((row) => row.channel_id === group.channel_id)
+            ? 4_000
+            : 0;
+          for (const row of candidates) {
+            if (alreadyIncluded + rows.length >= GROUP_PROMPT_CHANNEL_LIMIT) break;
+            const nextLength = this.#digestSection(
+              group.channel_id,
+              [...rows, row],
+              group.count - rows.length - 1,
+            ).length;
+            if (nextLength > budget.remainingCharacters - contextReserve) break;
+            rows.push(row);
+          }
+          if (rows.length > 0) {
+            budget.remainingCharacters -= this.#digestSection(
+              group.channel_id,
+              rows,
+              group.count - rows.length,
+            ).length;
+            budget.includedByChannel.set(group.channel_id, alreadyIncluded + rows.length);
+          }
           for (const row of rows)
             database
               .prepare(`
@@ -1285,8 +1383,20 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')
         `)
               .run(row.source_event_id, botSlug);
-          if (rows.length > 0) digests.push({ channelId: group.channel_id, rows });
+          if (rows.length > 0)
+            digests.push({
+              channelId: group.channel_id,
+              rows,
+              omittedCount: group.count - rows.length,
+            });
         }
+        const contextChannels = new Set([
+          ...itemRows.map((row) => row.channel_id),
+          ...digests.map((digest) => digest.channelId),
+        ]);
+        const contexts = [...contextChannels]
+          .map((channelId) => this.#claimGroupContext(database, botSlug, channelId, budget))
+          .filter((context): context is GroupContext => context !== undefined);
         return {
           items: itemRows.map((row) => ({
             sourceEventId: row.source_event_id,
@@ -1295,13 +1405,91 @@ class BotRuntimeImplementation implements BotRuntime {
             body: row.body,
           })),
           digests,
+          contexts,
         };
       },
       ['bot-inbox'],
     );
   }
 
-  #digestSection(channelId: string, rows: DigestRow[]): string {
+  #claimGroupContext(
+    database: DatabaseSync,
+    botSlug: string,
+    channelId: string,
+    budget: GroupPromptBudget,
+  ): GroupContext | undefined {
+    const alreadyIncluded = budget.includedByChannel.get(channelId) ?? 0;
+    if (alreadyIncluded >= GROUP_PROMPT_CHANNEL_LIMIT) return undefined;
+    const base = `
+      FROM inbox_admissions a JOIN source_events e ON e.source_event_id = a.source_event_id
+     WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
+       AND a.wake_mode IN ('all', 'digest', 'mentions')
+       AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?`;
+    const total = database.prepare(`SELECT COUNT(*) AS count ${base}`).get(botSlug, channelId) as {
+      count: number;
+    };
+    if (total.count === 0) return undefined;
+    const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
+      json_extract(e.payload_json, '$.author.kind') AS author_kind,
+      json_extract(e.payload_json, '$.author.slug') AS author_slug`;
+    const oldest = database
+      .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
+      .all(botSlug, channelId, GROUP_CONTEXT_OLDEST_LIMIT) as unknown as DigestRow[];
+    const newest = database
+      .prepare(`${columns} ${base} ORDER BY e.created_at DESC, e.rowid DESC LIMIT ?`)
+      .all(botSlug, channelId, GROUP_CONTEXT_RECENT_LIMIT) as unknown as DigestRow[];
+    const candidates = new Map<string, DigestRow>();
+    // Reserve the first two slots for the oldest unread and the closest context
+    // to the trigger, then advance the old slice before filling recent slots.
+    for (const row of [
+      ...oldest.slice(0, 1),
+      ...newest.slice(0, 1),
+      ...oldest.slice(1),
+      ...newest.slice(1),
+    ])
+      candidates.set(row.source_event_id, row);
+    const rows: DigestRow[] = [];
+    for (const row of candidates.values()) {
+      if (alreadyIncluded + rows.length >= GROUP_PROMPT_CHANNEL_LIMIT) break;
+      const candidateContext = {
+        channelId,
+        rows: [...rows, row],
+        omittedCount: total.count - rows.length - 1,
+      };
+      if (this.#groupContextSection(candidateContext).length > budget.remainingCharacters) break;
+      rows.push(row);
+    }
+    if (rows.length === 0) return undefined;
+    rows.sort((a, b) => a.created_at.localeCompare(b.created_at));
+    const context = { channelId, rows, omittedCount: total.count - rows.length };
+    budget.remainingCharacters -= this.#groupContextSection(context).length;
+    budget.includedByChannel.set(channelId, alreadyIncluded + rows.length);
+    for (const row of rows)
+      database
+        .prepare(`UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+        WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')`)
+        .run(row.source_event_id, botSlug);
+    return context;
+  }
+
+  #groupContextSection(context: GroupContext): string {
+    const channel = this.#channels.get(context.channelId);
+    return [
+      '[Bot Inbox: pending Group context]',
+      `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
+      ...context.rows.map(
+        (row) =>
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+      ),
+      context.omittedCount > 0
+        ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
+        : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+  }
+
+  #digestSection(channelId: string, rows: DigestRow[], omittedCount = 0): string {
     const channel = this.#channels.get(channelId);
     return [
       '[Bot Inbox: Group digest]',
@@ -1311,6 +1499,11 @@ class BotRuntimeImplementation implements BotRuntime {
         (row) =>
           `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
       ),
+      ...(omittedCount > 0
+        ? [
+            `${omittedCount} further messages are not in this digest section. Check the pending context below or use channel_read.`,
+          ]
+        : []),
     ].join('\n');
   }
 
@@ -1356,7 +1549,9 @@ class BotRuntimeImplementation implements BotRuntime {
             .prepare(`
           UPDATE inbox_admissions
              SET attempt_state = CASE WHEN side_effect_started_at IS NULL THEN 'retryable' ELSE 'needs-repair' END,
-                 observed_at = CASE WHEN reason = 'group-ordinary' THEN NULL ELSE observed_at END,
+                 observed_at = CASE
+                   WHEN reason = 'group-ordinary' AND side_effect_started_at IS NULL THEN NULL
+                   ELSE observed_at END,
                  last_error = ?
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
@@ -1454,21 +1649,6 @@ class BotRuntimeImplementation implements BotRuntime {
       ['bot-inbox'],
     );
     if (changed) this.#channels.admissionChanged?.(channelId, messageId);
-  }
-
-  #markAdmissionSideEffect(sourceEventId: string, botSlug: string): void {
-    this.#database.transaction(
-      (database) => {
-        database
-          .prepare(`
-        UPDATE inbox_admissions
-           SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
-         WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
-      `)
-          .run(this.#now().toISOString(), sourceEventId, botSlug);
-      },
-      ['bot-inbox'],
-    );
   }
 
   #enqueue(turnKey: string, task: () => Promise<void>): Promise<void> {
@@ -1642,6 +1822,7 @@ class BotRuntimeImplementation implements BotRuntime {
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
   ): Promise<void> {
+    const readAdmissions = new Set<string>();
     const markSideEffect = (): void => {
       // Mark every report in the context before crossing the external boundary.
       // A crash between markers must conservatively leave reports for repair.
@@ -1672,6 +1853,7 @@ class BotRuntimeImplementation implements BotRuntime {
           sourceEventId,
           orchestrator.sessionId,
           markSideEffect,
+          readAdmissions,
         ),
         memory: {
           continueFromCommit: (sha, branch) => {
@@ -1703,7 +1885,11 @@ class BotRuntimeImplementation implements BotRuntime {
         sessionId: orchestrator.sessionId,
         sourceEventId,
       });
+      this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
+      this.#notifyReadAdmissions(readAdmissions);
     } catch (error) {
+      this.#settleHarvestFailure(bot.slug, [...readAdmissions], String(error));
+      this.#notifyReadAdmissions(readAdmissions);
       this.#memory?.abortTurn(bot.slug, orchestrator.sessionId);
       throw error;
     }
@@ -1988,7 +2174,8 @@ class BotRuntimeImplementation implements BotRuntime {
     defaultChannelId: string,
     sourceEventId: string,
     sessionId: string,
-    beforeSend: () => void = () => undefined,
+    beforeSend: () => void,
+    readAdmissions: Set<string>,
   ): OrchestratorChannelAccess {
     const resolve = (requested?: string): ChannelRecord =>
       this.#requireMembership(botSlug, requested ?? defaultChannelId);
@@ -2354,7 +2541,7 @@ class BotRuntimeImplementation implements BotRuntime {
             channelName: channel.name,
             message,
           }));
-        this.#observeReadMessages(botSlug, messages);
+        this.#observeReadMessages(botSlug, messages, readAdmissions);
         return messages;
       },
       query: (input = {}) => {
@@ -2369,7 +2556,7 @@ class BotRuntimeImplementation implements BotRuntime {
             channelName: channel.name,
             message,
           }));
-          this.#observeReadMessages(botSlug, messages);
+          this.#observeReadMessages(botSlug, messages, readAdmissions);
           return {
             messages,
             ...(page.nextCursor === undefined ? {} : { nextCursor: page.nextCursor }),
@@ -2485,7 +2672,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const page = found;
         const messages = page.slice(0, limit);
         const last = messages.at(-1);
-        this.#observeReadMessages(botSlug, messages);
+        this.#observeReadMessages(botSlug, messages, readAdmissions);
         return {
           messages,
           ...(page.length <= limit || last === undefined
@@ -3309,26 +3496,41 @@ class BotRuntimeImplementation implements BotRuntime {
       .find((channel) => channel.type === 'dm' && channel.botSlug === botSlug);
   }
 
-  #observeReadMessages(botSlug: string, messages: ChannelMessageView[]): void {
+  #observeReadMessages(
+    botSlug: string,
+    messages: ChannelMessageView[],
+    readAdmissions: Set<string>,
+  ): void {
     if (messages.length === 0) return;
     const observedAt = this.#now().toISOString();
     const { changedChannels, changedMessages } = this.#database.transaction(
       (database) => {
         const update = database.prepare(`
-          UPDATE inbox_admissions SET observed_at = ?
+          UPDATE inbox_admissions
+             SET observed_at = COALESCE(observed_at, ?),
+                 side_effect_started_at = COALESCE(side_effect_started_at, ?),
+                 attempt_state = 'running', last_error = NULL
            WHERE bot_slug = ?
              AND reason NOT IN ('assignment-report', 'assignment-lifecycle')
-             AND attempt_state IN ('pending', 'retryable') AND observed_at IS NULL
+             AND attempt_state IN ('pending', 'retryable')
              AND source_event_id IN (
                SELECT source_event_id FROM channel_placements
                 WHERE channel_id = ? AND message_id = ?
              )
+           RETURNING source_event_id
         `);
         const changedChannels = new Set<string>();
         const changedMessages: Array<{ channelId: string; messageId: string }> = [];
         for (const item of messages) {
-          if (update.run(observedAt, botSlug, item.channelId, item.message.id).changes === 0)
-            continue;
+          const claimed = update.get(
+            observedAt,
+            observedAt,
+            botSlug,
+            item.channelId,
+            item.message.id,
+          ) as { source_event_id: string } | undefined;
+          if (claimed === undefined) continue;
+          readAdmissions.add(claimed.source_event_id);
           changedChannels.add(item.channelId);
           changedMessages.push({ channelId: item.channelId, messageId: item.message.id });
         }
@@ -3339,6 +3541,22 @@ class BotRuntimeImplementation implements BotRuntime {
     for (const { channelId, messageId } of changedMessages)
       this.#channels.admissionChanged?.(channelId, messageId);
     for (const channelId of changedChannels) this.#scheduleDigest(botSlug, channelId);
+  }
+
+  #notifyReadAdmissions(sourceEventIds: Set<string>): void {
+    if (sourceEventIds.size === 0) return;
+    const ids = [...sourceEventIds];
+    const placeholders = ids.map(() => '?').join(', ');
+    const rows = this.#database.read((database) =>
+      database
+        .prepare(`SELECT channel_id, message_id FROM source_events
+          WHERE source_event_id IN (${placeholders})`)
+        .all(...ids),
+    ) as Array<{ channel_id: string | null; message_id: string | null }>;
+    for (const source of rows) {
+      if (source.channel_id !== null && source.message_id !== null)
+        this.#channels.admissionChanged?.(source.channel_id, source.message_id);
+    }
   }
 
   #markReportSideEffects(sourceEventIds: readonly string[], botSlug: string): void {

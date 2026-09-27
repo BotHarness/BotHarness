@@ -557,9 +557,9 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.close();
   });
 
-  it('caches allowed and denied draft Channels only for the current Orchestrator run', async () => {
+  it('checks draft Channel access without reading messages and caches only for the current run', async () => {
     const host = new FakeAgentHost();
-    const reads: string[] = [];
+    const probes: string[] = [];
     const drafts: string[] = [];
     const adapter = createDshBotAgentAdapter({
       agents: host,
@@ -580,6 +580,24 @@ describe('DSH Bot Agent adapter', () => {
         message: '请核对发布状态',
         channels: {
           ...groupTools,
+          list: ({ channelId }: { channelId?: string } = {}) => {
+            const id = channelId ?? 'dm-test';
+            probes.push(id);
+            return {
+              channels:
+                id === 'outside'
+                  ? []
+                  : [
+                      {
+                        id,
+                        name: 'test',
+                        type: 'dm' as const,
+                        kind: 'human-dm' as const,
+                        members: [],
+                      },
+                    ],
+            };
+          },
           contacts: () => [],
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
@@ -589,11 +607,8 @@ describe('DSH Bot Agent adapter', () => {
             ignoredAt: BOT.createdAt,
             alreadyIgnored: false,
           }),
-          read: ({ channelId } = {}) => {
-            const id = channelId ?? 'dm-test';
-            reads.push(id);
-            if (id === 'outside') throw new Error('not a member');
-            return [];
+          read: () => {
+            throw new Error('draft access must not read Channel messages');
           },
           requestGrant: async (reason) => ({
             id: 'grant-request-1',
@@ -651,7 +666,7 @@ describe('DSH Bot Agent adapter', () => {
     stream('denied-1', '{"body":"private","channel_id":"outside"}');
     stream('denied-2', '{"body":"private","channel_id":"outside"}');
     await first;
-    expect(reads).toEqual(['dm-test', 'outside']);
+    expect(probes).toEqual(['dm-test', 'outside']);
     expect(drafts).toEqual(['a', 'ab', 'abc']);
 
     const second = run(true);
@@ -659,7 +674,7 @@ describe('DSH Bot Agent adapter', () => {
     callIndexes.clear();
     stream('next', '{"body":"next"}');
     await second;
-    expect(reads).toEqual(['dm-test', 'outside', 'dm-test']);
+    expect(probes).toEqual(['dm-test', 'outside', 'dm-test']);
     expect(drafts.at(-1)).toBe('next');
     await adapter.close();
   });

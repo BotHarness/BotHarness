@@ -11,7 +11,9 @@ describe('local Human Group receipts', () => {
     const home = createTempRoot('botharness-human-receipt-upgrade-');
     const prior = mountOperationalDatabase({
       dshHome: home,
-      schemaPlan: defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1)),
+      schemaPlan: defineSchemaPlan(
+        BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 25),
+      ),
     });
     try {
       attachOperationalModule(prior, 'receipt-upgrade-seed').transaction((db) => {

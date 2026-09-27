@@ -34,6 +34,153 @@ async function ordinary(
 }
 
 describe('Group ordinary-message digest', () => {
+  it('defaults an unset Group preference to a durable digest without changing saved preferences', async () => {
+    const home = createTempRoot('botharness-digest-default-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada', 'bea'] });
+      core.channels.setGroupWakePolicy(group.id, 'bea', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      await ordinary(core, group.id, 'first');
+      await core.runtime.whenIdle();
+      expect(runs).toEqual([]);
+      expect(core.channels.get(group.id)?.wakePolicies).toMatchObject({
+        bea: { mode: 'mentions', revision: 1 },
+      });
+      expect(core.channels.get(group.id)?.wakePolicies?.['ada']).toBeUndefined();
+      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { state: 'deferred', sourceMessageId: 'first' },
+      ]);
+      expect(core.attention.list({ botSlug: 'bea' }).items).toMatchObject([
+        { state: 'pending', sourceMessageId: 'first' },
+      ]);
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'default-digest').read((db) =>
+          db
+            .prepare(
+              "SELECT bot_slug, wake_count, wake_interval_ms, wake_policy_revision, wake_mode FROM inbox_admissions WHERE reason = 'group-ordinary' ORDER BY bot_slug",
+            )
+            .all(),
+        ),
+      ).toEqual([
+        {
+          bot_slug: 'ada',
+          wake_count: 5,
+          wake_interval_ms: 30000,
+          wake_policy_revision: 0,
+          wake_mode: 'digest',
+        },
+        {
+          bot_slug: 'bea',
+          wake_count: null,
+          wake_interval_ms: null,
+          wake_policy_revision: 1,
+          wake_mode: 'mentions',
+        },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('wakes on every ordinary message in all mode and persists the selected revision', async () => {
+    const home = createTempRoot('botharness-attention-all-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      const methods = createBridgeMethods({ ...core });
+      expect(
+        methods.channelGroupWakeSet({
+          channelId: group.id,
+          botSlug: 'ada',
+          mode: 'all',
+          count: 5,
+          intervalSeconds: 30,
+        }),
+      ).toMatchObject({
+        ok: true,
+        value: { channel: { wakePolicies: { ada: { mode: 'all', revision: 1 } } } },
+      });
+      await ordinary(core, group.id, 'one');
+      await core.runtime.whenIdle();
+      await ordinary(core, group.id, 'two');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(2);
+      expect(runs[0]).toContain('ordinary one');
+      expect(runs[1]).toContain('ordinary two');
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'attention-all').read((db) =>
+          db
+            .prepare(
+              "SELECT wake_count, wake_interval_ms, wake_policy_revision FROM inbox_admissions WHERE reason = 'group-ordinary' ORDER BY source_event_id",
+            )
+            .all(),
+        ),
+      ).toEqual([
+        { wake_count: 1, wake_interval_ms: 0, wake_policy_revision: 1 },
+        { wake_count: 1, wake_interval_ms: 0, wake_policy_revision: 1 },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('wakes a new all-mode message without waiting for an older digest revision', async () => {
+    const home = createTempRoot('botharness-attention-switch-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      await ordinary(core, group.id, 'before-switch');
+      await core.runtime.whenIdle();
+      expect(runs).toEqual([]);
+
+      core.channels.setGroupWakePolicy(group.id, 'ada', {
+        mode: 'all',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      await ordinary(core, group.id, 'after-switch');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain('ordinary after-switch');
+      expect(runs[0]).toContain('ordinary before-switch');
+      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { sourceMessageId: 'after-switch', state: 'handled' },
+        { sourceMessageId: 'before-switch', state: 'handled' },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('wakes on the count threshold, observes two messages in one turn, and requires no reply', async () => {
     const home = createTempRoot('botharness-digest-count-');
     const runs: OrchestratorAgentRun[] = [];
@@ -415,6 +562,11 @@ describe('Group ordinary-message digest', () => {
       await after.runtime.whenIdle();
       expect(afterRuns).toHaveLength(1);
       expect(afterRuns[0]).toContain('direct Group mention');
+      expect(afterRuns[0]).not.toContain('ordinary quiet');
+      expect(after.attention.list({ botSlug: 'ada' }).items).toMatchObject([
+        { sourceMessageId: 'mention-after-silent', state: 'handled' },
+        { sourceMessageId: 'quiet', state: 'pending' },
+      ]);
     } finally {
       await after.runtime.close();
       after.operationalDatabase.close();

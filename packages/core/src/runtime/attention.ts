@@ -3,6 +3,7 @@ import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
 export type BotAttentionState =
   | 'pending'
+  | 'processing'
   | 'observed'
   | 'deferred'
   | 'needs-repair'
@@ -115,7 +116,7 @@ export function createBotAttentionQuery(
                    WHEN a.attempt_state = 'needs-repair' THEN 'needs-repair'
                    WHEN a.ignored_at IS NOT NULL AND a.attempt_state = 'handled' THEN 'ignored'
                    WHEN a.attempt_state = 'handled' THEN 'handled'
-                   WHEN a.observed_at IS NOT NULL THEN 'observed'
+                   WHEN a.attempt_state = 'running' THEN 'processing'
                    WHEN a.attempt_state IN ('running', 'retryable') OR
                         (a.reason = 'group-ordinary' AND a.wake_count IS NOT NULL AND a.attempt_state = 'pending')
                      THEN 'deferred'

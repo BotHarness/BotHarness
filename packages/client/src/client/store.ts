@@ -27,7 +27,7 @@ export interface ChannelSummary {
   wakePolicies?: Record<
     string,
     {
-      mode: 'mentions' | 'digest' | 'silent';
+      mode: 'all' | 'mentions' | 'digest' | 'silent';
       count: number;
       intervalSeconds: number;
       revision: number;
@@ -287,6 +287,7 @@ export interface ConversationState {
 
 export type BotAttentionStatus =
   | 'pending'
+  | 'processing'
   | 'observed'
   | 'deferred'
   | 'needs-repair'

@@ -337,7 +337,7 @@ A versioned Host rule or authorization whose exact revision must participate in 
 _Avoid_: all bot state, model instruction, settings (bare)
 
 **Attention Decision**:
-An auditable PersonaBot fact that an Inbox Admission was observed, deferred, ignored, or handled; pending state is derived from these facts rather than stored as a delivery lifecycle.
+An auditable PersonaBot fact that an Inbox Admission was observed, deferred, ignored, or handled; pending state is derived from these facts rather than stored as a delivery lifecycle. Observation records what actually reached the Bot, while handling follows successful completion of the turn that included it. Observation is an internal audit/detail fact, not an additional primary Inbox status.
 _Avoid_: mailbox status, Agent delivery state, consumed flag
 
 **Observation**:
@@ -397,7 +397,7 @@ The Host policy that maps a Wake Policy decision and Orchestrator liveness to a 
 _Avoid_: wake policy, inferred step state, message priority
 
 **Turn harvest**:
-One Orchestrator turn that consumes the ready attention set — every unhandled immediate item, every digest batch at its threshold, and passive notices — instead of one turn per event. A steered direct address joins the running turn instead.
+One Orchestrator turn that consumes a bounded, fair selection from the ready attention set — immediate items, due digest batches, and passive notices — instead of one turn per event. When a Group Channel enters the turn, the selection can also include its pending non-silent Inbox context, reserving space for the trigger, nearby messages, and oldest pending messages. Unselected items remain pending; a steered direct address joins the running turn instead.
 _Avoid_: per-event queue, wake storm, batch (bare)
 
 **Human Inbox**:
@@ -429,7 +429,7 @@ A nonmember PersonaBot's pending request for membership in a referenced Group Ch
 _Avoid_: invitation, implicit join, Channel mention
 
 **Bot Channel subscription**:
-A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `all` (every ordinary message becomes attention), `digest` (ordinary messages join the wake digest at its count and interval; the default), `mentions` (only direct mentions reach the Bot), or `silent` (ordinary messages are recorded and never wake). Direct mentions and DMs always reach the Bot; the Human may override the preference, and it is independent of membership and send authority.
+A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `all` (every ordinary message can wake immediately), `digest` (ordinary messages join the wake digest at its count and interval; the default), `mentions` (ordinary messages enter the Inbox without waking and may accompany a direct mention from the same Channel), or `silent` (ordinary messages enter the Inbox but neither wake nor accompany a direct mention; explicit Bot reading is required). Direct mentions and DMs always reach the Bot; the Human may override the preference, and it is independent of membership and send authority.
 _Avoid_: membership, wake decision, digest schedule
 
 **Message provenance**:
