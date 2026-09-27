@@ -1802,7 +1802,7 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 .bh-bubble-meta {
   display: flex;
   align-items: center;
-  gap: 3px;
+  gap: 8px;
   width: fit-content;
   min-height: 22px;
   margin: 2px 2px 0;
@@ -1823,7 +1823,6 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   display: inline-flex;
   align-items: center;
   height: 22px;
-  margin-right: 3px;
   font-size: 10.5px;
   line-height: 1;
   white-space: nowrap;

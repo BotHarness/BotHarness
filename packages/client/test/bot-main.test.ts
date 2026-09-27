@@ -28,7 +28,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     SegmentedControl: stub,
     StateDot: stub,
     Tag,
-    Tooltip: stub,
+    Tooltip: ({ children }: PropsWithChildren) => children,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
 });

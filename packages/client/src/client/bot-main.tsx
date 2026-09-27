@@ -6,6 +6,7 @@ import {
   IconPanelLeftOutlineRegular,
   Menu,
   Tag,
+  Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -295,27 +296,29 @@ function MessageGroupView({
                   message.pending !== true &&
                   message.streaming !== true &&
                   message.failed === undefined ? (
+                    <Tooltip label={t('message.reply')} side="top" portal delayMs={400}>
+                      <button
+                        type="button"
+                        className="bh-bubble-action"
+                        aria-label={t('message.reply')}
+                        onClick={() => onReply(message)}
+                      >
+                        <ReplyIcon />
+                      </button>
+                    </Tooltip>
+                  ) : null}
+                  <Tooltip label={t('message.copy')} side="top" portal delayMs={400}>
                     <button
                       type="button"
                       className="bh-bubble-action"
-                      aria-label={t('message.reply')}
-                      title={t('message.reply')}
-                      onClick={() => onReply(message)}
+                      aria-label={t('message.copy')}
+                      onClick={() => {
+                        void navigator.clipboard?.writeText(message.body);
+                      }}
                     >
-                      <ReplyIcon />
+                      <IconCopyOutlineRegular size={16} />
                     </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    className="bh-bubble-action"
-                    aria-label={t('message.copy')}
-                    title={t('message.copy')}
-                    onClick={() => {
-                      void navigator.clipboard?.writeText(message.body);
-                    }}
-                  >
-                    <IconCopyOutlineRegular size={16} />
-                  </button>
+                  </Tooltip>
                 </div>
               </div>
             </div>
