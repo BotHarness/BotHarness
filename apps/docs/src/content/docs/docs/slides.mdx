@@ -1,0 +1,22 @@
+---
+title: Slides
+description: Watch the BotHarness intro deck, presented as slides.
+sidebar:
+  order: 12
+---
+
+The BotHarness intro deck ships with the docs site and is rebuilt from the repo:
+
+- [Open the intro deck](https://botharness.ai/slides/s/botharness-intro) — start from the cover, press `F` for fullscreen present mode
+- [All decks](https://botharness.ai/slides/) — every deck under `apps/presentations/slides/`
+
+## Iterate on the deck
+
+Decks are React components on a fixed 1920×1080 canvas (open-slide). The authoring rules live in `apps/presentations/AGENTS.md`.
+
+```bash
+pnpm slides:dev # iterate at http://localhost:5173/s/<id>
+pnpm slides:build # rebuild the botharness.ai/slides/ embed
+```
+
+`pnpm docs:build` rebuilds the embed automatically. The generated output under `apps/docs/public/slides/` is never committed — the deck sources are the authority.
