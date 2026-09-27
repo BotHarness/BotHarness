@@ -10,6 +10,7 @@ export interface NativeSessionSummary {
 export interface PersonaBotSessionRow {
   sessionId: string;
   role: OwnedSessionSummary['role'];
+  assignmentAccessMode?: OwnedSessionSummary['assignmentAccessMode'];
   title: string;
   cwd: string | undefined;
   updatedAt: number;
@@ -50,6 +51,9 @@ export function personaBotSessionRows(
       {
         sessionId: item.sessionId,
         role: item.role,
+        ...(item.role === 'assignment' && item.assignmentAccessMode !== undefined
+          ? { assignmentAccessMode: item.assignmentAccessMode }
+          : {}),
         title: native?.displayTitle || item.sessionId,
         cwd: native?.cwd ?? item.cwdReference,
         updatedAt: native?.updatedAt ?? Date.parse(item.createdAt),

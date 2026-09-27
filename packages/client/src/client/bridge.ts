@@ -697,6 +697,7 @@ export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[
     const role = record['role'];
     const createdAt = record['createdAt'];
     const activity = record['assignmentActivity'];
+    const accessMode = record['assignmentAccessMode'];
     if (typeof sessionId !== 'string' || sessionId.length === 0) return [];
     if (role !== 'orchestrator' && role !== 'assignment') return [];
     if (typeof createdAt !== 'string' || !Number.isFinite(Date.parse(createdAt))) return [];
@@ -717,6 +718,10 @@ export function parseOwnedSessionSummaries(value: unknown): OwnedSessionSummary[
         createdAt,
         ...(typeof cwdReference === 'string' ? { cwdReference } : {}),
         ...(activity === undefined ? {} : { assignmentActivity: activity }),
+        ...(role === 'assignment' &&
+        (accessMode === 'workspace-write' || accessMode === 'danger-full-access')
+          ? { assignmentAccessMode: accessMode }
+          : {}),
       },
     ];
   });
