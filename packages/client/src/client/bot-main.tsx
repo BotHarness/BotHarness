@@ -27,7 +27,7 @@ import type { SelectedMention } from './mentions.js';
 import type { SelectedChannelRef } from './channel-refs.js';
 import { ChannelMessageBody, type NativeChatFailureText } from './channel-message-body.js';
 import { ChannelDeliveryReceipt } from './channel-delivery-receipt.js';
-import { isBotDmChannel } from './channel-kind.js';
+import { isBotDmChannel, isHumanReadOnlyDmChannel } from './channel-kind.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import { HumanInboxView } from './human-inbox-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
@@ -489,6 +489,7 @@ function ConversationView({
       ? state.bots.find((candidate) => candidate.slug === selection.slug)
       : undefined;
   const botDm = isBotDmChannel(channel);
+  const readOnlyDm = isHumanReadOnlyDmChannel(channel);
   const title =
     channel?.type === 'dm'
       ? botDm
@@ -983,7 +984,7 @@ function ConversationView({
                       onContextMenu={(message, x, y) => {
                         setMessageMenu({ message, x, y });
                       }}
-                      onReply={botDm ? undefined : (message) => setReplyTarget(message)}
+                      onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
                       onJumpReply={(messageId) => {
                         if (channelId !== undefined) void actions.openAround(channelId, messageId);
                       }}
@@ -1068,8 +1069,8 @@ function ConversationView({
               {t('message.restoreBlocked')}
             </div>
           ) : null}
-          {botDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
-          {botDm ? null : (
+          {readOnlyDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
+          {readOnlyDm ? null : (
             <div
               className="bh-memory-chat-composer"
               style={{
@@ -1132,7 +1133,9 @@ function ConversationView({
               />
             </div>
           )}
-          {selectedMemoryCommitSha !== undefined || messageMenu === undefined || botDm ? null : (
+          {selectedMemoryCommitSha !== undefined ||
+          messageMenu === undefined ||
+          readOnlyDm ? null : (
             <MessageActionMenu
               request={messageMenu}
               t={t}
