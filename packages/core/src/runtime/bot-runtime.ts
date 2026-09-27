@@ -1111,12 +1111,17 @@ class BotRuntimeImplementation implements BotRuntime {
         ),
         ...claimed.digests.map((digest) => this.#digestSection(digest.channelId, digest.rows)),
       ];
+      const attentionCount = sections.length + (collected.eventIds.length > 0 ? 1 : 0);
+      const preamble =
+        attentionCount > 1
+          ? `[Bot Inbox harvest] ${attentionCount} attention items are ready. Handle them together where useful and in parallel where independent; long-running work belongs in Assignment Sessions.`
+          : undefined;
       await this.#runOrchestratorTurn(
         bot,
         orchestrator,
         sourceEventId,
         primaryChannelId,
-        sections.join('\n\n'),
+        [preamble, ...sections].filter((part): part is string => part !== undefined).join('\n\n'),
         collected.units,
         collected.eventIds.length > 0,
         () => this.#markAdmissionsSideEffect(botSlug, includedIds),
@@ -1195,7 +1200,14 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.attempt_state IN ('pending', 'retryable')
            AND a.reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
            AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
-         ORDER BY e.created_at, e.rowid
+         ORDER BY CASE a.reason
+                    WHEN 'group-mention' THEN 0
+                    WHEN 'bot-dm' THEN 1
+                    WHEN 'group-invite' THEN 2
+                    WHEN 'group-join-request' THEN 3
+                    ELSE 4
+                  END,
+                  e.created_at, e.rowid
          LIMIT 20
       `)
           .all(botSlug) as unknown as Array<{

@@ -205,7 +205,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     try {
       const handle = await this.#orchestratorHandle(run);
       const fromSeq = handle.agent.session.seq;
-      const text = [run.inbox, run.message].filter((part) => part.trim().length > 0).join('\n\n');
+      const text = [run.message, run.inbox].filter((part) => part.trim().length > 0).join('\n\n');
       handle.agent.followup(
         createUserMessage({
           content: [{ type: 'text', text }],
