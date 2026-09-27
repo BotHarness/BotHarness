@@ -691,7 +691,9 @@ class BotRuntimeImplementation implements BotRuntime {
       )
         continue;
       const settled = this.#enqueue(row.bot_slug, () =>
-        this.#runChannelEventTurn(row.source_event_id, row.bot_slug, channelId, messageId),
+        reason === 'group-mention' || reason === 'bot-dm'
+          ? this.#runChannelMessageTurn(row.source_event_id, row.bot_slug, channelId, messageId)
+          : this.#runMembershipTurn(row.source_event_id, row.bot_slug, channelId, messageId),
       );
       void settled.finally(() => this.#scheduledAdmissions.delete(key)).catch(() => undefined);
     }
@@ -1129,7 +1131,25 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
-  async #runChannelEventTurn(
+  #runChannelMessageTurn(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): Promise<void> {
+    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
+  }
+
+  #runMembershipTurn(
+    sourceEventId: string,
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+  ): Promise<void> {
+    return this.#runAdmittedChannelTurn(sourceEventId, botSlug, channelId, messageId);
+  }
+
+  async #runAdmittedChannelTurn(
     sourceEventId: string,
     botSlug: string,
     channelId: string,
