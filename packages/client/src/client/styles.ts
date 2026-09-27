@@ -1820,8 +1820,12 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   pointer-events: auto;
 }
 .bh-bubble-time {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
   margin-right: 3px;
   font-size: 10.5px;
+  line-height: 1;
   white-space: nowrap;
 }
 .bh-bubble-actions {
