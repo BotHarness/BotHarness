@@ -3050,6 +3050,11 @@ class BotRuntimeImplementation implements BotRuntime {
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
       if (this.#retryInboxAfterAgentFactoryStarts(botSlug, collected.eventIds, error)) return;
+      const retry = this.#inboxFactoryRetries.get(botSlug);
+      if (retry !== undefined) {
+        if (retry.timer !== undefined) clearTimeout(retry.timer);
+        this.#inboxFactoryRetries.delete(botSlug);
+      }
       await this.#publishSessionFailure({
         channelId: channel.id,
         botSlug,
