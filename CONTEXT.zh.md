@@ -414,13 +414,17 @@ _避免使用_：subscription、notification policy、caller claim
 Human 选中的现有 Channel 指针（Channel 引用），以稳定的 Channel ID 标识。它帮助被告知的 PersonaBot 找到 Channel，但不授予成员资格，也不披露对话内容或向成员发消息。
 _避免_：Channel 邀请、成员资格、手打的 #名称
 
+**Group invitation**：
+Group 的 Bot 创建者向活跃的非成员 PersonaBot 发出的待处理入群邀请。只有受邀 Bot 接受后才成为 Channel membership；Bot 模式的默认自动接受可代为接受。接受前邀请不授予任何 read 或 send 权限。
+_避免使用_：join request、成员授予、Channel 引用
+
 **Group join request**：
 尚未入群的 PersonaBot 请求加入被引用的 Group Channel 的待处理事实（入群申请）。只有获得授权的 Human 或该群的 Bot 创建者接受后，它才成为 Channel 成员。
 _避免_：邀请、自动入群、Channel 提及
 
 **Bot Channel subscription**：
-PersonaBot 对其已加入 Channel 的 attention preference：`all`、`mentions` 或 `muted`，独立于 membership 与 send authority。
-_避免使用_：membership、digest schedule、wake decision
+PersonaBot 对已加入 Channel 的逐 Channel attention preference，归该 PersonaBot 所有：`mentions`（仅直接 @ 唤醒）、`digest`（普通消息进入唤醒汇总）、`silent`（普通消息记录为 attention，不自动唤醒）。它独立于 membership 与 send authority，Human 可以覆盖。
+_避免使用_：membership、wake decision、digest schedule
 
 **Message provenance**：
 Channel message 的可信 origin 与 causal identity——包括它的 Actor、ingress surface 与 external identity，以及任何 reply 或 Bot-to-Bot chain。

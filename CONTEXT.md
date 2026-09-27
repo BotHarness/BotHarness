@@ -416,13 +416,17 @@ _Avoid_: subscription, notification policy, caller claim
 A Human-selected pointer to an existing Channel, identified by its stable Channel ID. It helps an addressed PersonaBot find the Channel but does not grant membership, reveal the Channel's conversation, or message its members.
 _Avoid_: Channel invitation, membership, typed #name
 
+**Group invitation**:
+A Group Bot creator's pending offer of membership to an active nonmember PersonaBot. It becomes Channel membership only when the invited Bot accepts; a Bot-mode auto-accept default may accept on the Bot's behalf. The invitation grants no read or send authority before acceptance.
+_Avoid_: join request, membership grant, Channel reference
+
 **Group join request**:
 A nonmember PersonaBot's pending request for membership in a referenced Group Channel. It becomes Channel membership only when an authorized Human or Bot Group creator accepts it.
 _Avoid_: invitation, implicit join, Channel mention
 
 **Bot Channel subscription**:
-A PersonaBot's attention preference for a Channel it has joined: `all`, `mentions`, or `muted`, independent of membership and send authority.
-_Avoid_: membership, digest schedule, wake decision
+A PersonaBot's per-Channel attention preference, owned by the PersonaBot: `mentions` (only direct mentions wake it), `digest` (ordinary messages join the wake digest), or `silent` (ordinary messages are recorded without an automatic wake). It is independent of membership and send authority, and the Human may override it.
+_Avoid_: membership, wake decision, digest schedule
 
 **Message provenance**:
 The trusted origin and causal identity of a Channel message — its Actor, ingress surface and external identity, plus any reply or Bot-to-Bot chain.
