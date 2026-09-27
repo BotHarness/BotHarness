@@ -1826,6 +1826,8 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 10.5px;
   line-height: 1;
   white-space: nowrap;
+  /* The font's visible glyphs sit above the center of its line box beside the icons. */
+  transform: translateY(1px);
 }
 .bh-bubble-actions {
   display: flex;
