@@ -157,11 +157,26 @@ function ReplyQuote({
   );
 }
 
+function ReplyIcon(): ReactElement {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M9 7 4 12l5 5M4 12h9a7 7 0 0 1 7 7"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 function MessageGroupView({
   group,
   bots,
   focusMessageId,
   onContextMenu,
+  onReply,
   onJumpReply,
   onRestoreFailed,
   actions,
@@ -175,6 +190,7 @@ function MessageGroupView({
   focusMessageId?: string | undefined;
   bots: readonly BotSummary[];
   onContextMenu(message: ChannelMessage, x: number, y: number): void;
+  onReply?: ((message: ChannelMessage) => void) | undefined;
   onRestoreFailed(message: ChannelMessage): void;
   onJumpReply(messageId: string): void;
   actions: BridgeActions;
@@ -188,7 +204,6 @@ function MessageGroupView({
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
   const first = group.messages[0]!;
-  const last = group.messages.at(-1)!;
   const author = first.author;
   const human = author.kind === 'human';
   const authorBot =
@@ -231,57 +246,81 @@ function MessageGroupView({
                 onContextMenu(message, event.clientX, event.clientY);
               }}
             >
-              {message.failed === undefined ? null : (
-                <button
-                  type="button"
-                  className="bh-bubble-failed-action"
-                  aria-label={t('message.failedRestore')}
-                  title={message.failed}
-                  onClick={() => onRestoreFailed(message)}
-                >
-                  {t('message.failed')}
-                </button>
-              )}
               <div
-                className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
-                data-group-position={position}
+                className={`bh-bubble-surface${message.failed === undefined ? '' : ' bh-bubble-surface-failed'}`}
               >
-                <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
-                <ChannelMessageBody
-                  message={message}
-                  t={t}
-                  nativeChatT={nativeChatT}
-                  actions={actions}
-                  bots={bots}
-                  grantRequestResolved={resolvedGrantRequests.has(message.id)}
-                  toolApprovalDecision={toolApprovalDecisions.get(message.id)}
-                  userQuestionResolution={userQuestionResolutions.get(message.id)}
-                />
+                {message.failed === undefined ? null : (
+                  <button
+                    type="button"
+                    className="bh-bubble-failed-action"
+                    aria-label={t('message.failedRestore')}
+                    title={message.failed}
+                    onClick={() => onRestoreFailed(message)}
+                  >
+                    {t('message.failed')}
+                  </button>
+                )}
+                <div
+                  className={`bh-bubble${human ? ' bh-bubble-me' : ''}${message.pending === true || message.streaming === true ? ' bh-bubble-pending' : ''}${message.failed === undefined ? '' : ' bh-bubble-failed'}`}
+                  data-group-position={position}
+                >
+                  <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
+                  <ChannelMessageBody
+                    message={message}
+                    t={t}
+                    nativeChatT={nativeChatT}
+                    actions={actions}
+                    bots={bots}
+                    grantRequestResolved={resolvedGrantRequests.has(message.id)}
+                    toolApprovalDecision={toolApprovalDecisions.get(message.id)}
+                    userQuestionResolution={userQuestionResolutions.get(message.id)}
+                  />
+                </div>
+                <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
               </div>
-              <ChannelDeliveryReceipt message={message} bots={bots} t={t} />
-              <button
-                type="button"
-                className="bh-bubble-quick-action"
-                aria-label={t('message.copy')}
-                title={t('message.copy')}
-                onClick={() => {
-                  void navigator.clipboard?.writeText(message.body);
-                }}
+              <div
+                className={`bh-bubble-meta${message.pending === true || message.streaming === true || message.failed !== undefined ? ' bh-bubble-meta-persistent' : ''}`}
               >
-                <IconCopyOutlineRegular size={16} />
-              </button>
+                <span className="bh-bubble-time">
+                  {message.streaming === true
+                    ? t('message.generating')
+                    : message.failed !== undefined
+                      ? t('message.failed')
+                      : message.pending === true
+                        ? t('message.sending')
+                        : clockTime(message.at)}
+                </span>
+                <div className="bh-bubble-actions">
+                  {onReply !== undefined &&
+                  message.pending !== true &&
+                  message.streaming !== true &&
+                  message.failed === undefined ? (
+                    <button
+                      type="button"
+                      className="bh-bubble-action"
+                      aria-label={t('message.reply')}
+                      title={t('message.reply')}
+                      onClick={() => onReply(message)}
+                    >
+                      <ReplyIcon />
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    className="bh-bubble-action"
+                    aria-label={t('message.copy')}
+                    title={t('message.copy')}
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(message.body);
+                    }}
+                  >
+                    <IconCopyOutlineRegular size={16} />
+                  </button>
+                </div>
+              </div>
             </div>
           );
         })}
-        <div className="bh-bubble-time">
-          {last.streaming === true
-            ? t('message.generating')
-            : last.failed !== undefined
-              ? t('message.failed')
-              : last.pending === true
-                ? t('message.sending')
-                : clockTime(last.at)}
-        </div>
       </div>
     </div>
   );
@@ -941,6 +980,7 @@ function ConversationView({
                       onContextMenu={(message, x, y) => {
                         setMessageMenu({ message, x, y });
                       }}
+                      onReply={botDm ? undefined : (message) => setReplyTarget(message)}
                       onJumpReply={(messageId) => {
                         if (channelId !== undefined) void actions.openAround(channelId, messageId);
                       }}
