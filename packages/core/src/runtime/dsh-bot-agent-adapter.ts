@@ -1363,8 +1363,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               summary: {
                 type: 'string',
                 required: true,
-                description:
-                  'Concise outcome, blocker, or question; point at files instead of pasting long content.',
+                description: 'Outcome, blocker, or question to report to the Orchestrator.',
               },
               expects_reply: {
                 type: 'boolean',
