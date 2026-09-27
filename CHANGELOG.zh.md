@@ -74,6 +74,7 @@
 
 ### Changed
 
+- 新的隔离开发 Profile 默认组合可选 Bundle `@botharness/computer`，无需手工改 Profile 即可看到 Computer 的侧栏入口与观看面板（[#383](https://github.com/BotHarness/BotHarness/issues/383)）。
 - Group Channel 的每条消息气泡旁现显示紧凑的实心收件状态饼图；打开后可按名字和头像查看实际收件 Bot 的已投递、已读、处理中、已处理、已忽略或失败状态。主动读取频道历史不等于已处理；消息进入 Orchestrator 回合时才算处理中，Bot 发送者不计入自己的收件人数（[#345](https://github.com/BotHarness/BotHarness/issues/345)）。
 - DM 与 Group 的消息气泡在悬停或键盘聚焦时，于气泡下方显示该条消息的时间、回复和复制；触屏设备保持操作可见（[#345](https://github.com/BotHarness/BotHarness/issues/345)）。
 - 复制私聊或群聊消息成功后，该消息的复制图标会短暂变为对勾；剪贴板写入失败时仍显示复制图标（[#376](https://github.com/BotHarness/BotHarness/issues/376)）。

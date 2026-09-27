@@ -74,6 +74,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- New isolated development Profiles compose the optional `@botharness/computer` bundle by default, so the Computer sidebar entry and viewer are available without hand-editing the Profile ([#383](https://github.com/BotHarness/BotHarness/issues/383)).
 - Group Channel messages now show a compact filled recipient pie beside each bubble. Open it to see each admitted PersonaBot by name and avatar as delivered, read, processing, handled, ignored, or failed; reading Channel history alone does not imply handling, and processing begins only when the message enters an Orchestrator turn, and a Bot sender is never counted as its own recipient ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
 - DM and Group message bubbles reveal the message time, Reply, and Copy beneath the bubble on hover or keyboard focus; touch devices keep the actions visible ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
 - Copying a DM or Group message now briefly changes that message's Copy icon to a checkmark after the clipboard write succeeds; failed writes keep the Copy icon ([#376](https://github.com/BotHarness/BotHarness/issues/376)).
