@@ -16,6 +16,7 @@ import {
   LEGACY_FORWARD_MIGRATION_PLAN,
   type SchemaPlan,
 } from '../src/database/schema.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 
 function planWithRecords(): SchemaPlan {
@@ -60,6 +61,60 @@ function faultAt(
 }
 
 describe('operational database owner', () => {
+  it('preserves existing Assignment reports when upgrading for lifecycle notices', () => {
+    const dshHome = createTempRoot('botharness-lifecycle-migration-');
+    const priorPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
+    const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
+    attachOperationalModule(prior, 'lifecycle-migration-seed').transaction((database) => {
+      database
+        .prepare(`INSERT INTO source_events (
+          source_event_id, source_kind, bot_slug, assignment_session_id, body,
+          created_at, handled_at, attempt_state, payload_json
+        ) VALUES (?, 'assignment-report', ?, ?, ?, ?, ?, 'handled', ?)`)
+        .run(
+          'prior-report',
+          'ada',
+          'assignment-1',
+          'A completed result',
+          FIXED_NOW().toISOString(),
+          FIXED_NOW().toISOString(),
+          JSON.stringify({ assignmentReport: { state: 'completed' } }),
+        );
+      database
+        .prepare(`INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+                  VALUES ('prior-report', 'ada', 'assignment-report')`)
+        .run();
+    });
+    prior.close();
+
+    const upgraded = mountOperationalDatabase({ dshHome, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    expect(upgraded.mode).toBe('ready');
+    expect(upgraded.generation).toBe(BOT_HARNESS_SCHEMA_PLAN.targetGeneration);
+    const facts = attachOperationalModule(upgraded, 'lifecycle-migration-check').read(
+      (database) => ({
+        source: database
+          .prepare(
+            'SELECT source_kind, body, payload_json FROM source_events WHERE source_event_id = ?',
+          )
+          .get('prior-report'),
+        admission: database
+          .prepare('SELECT reason, attempt_state FROM inbox_admissions WHERE source_event_id = ?')
+          .get('prior-report'),
+        foreignKeys: database.prepare('PRAGMA foreign_key_check').all(),
+      }),
+    );
+    expect(facts).toMatchObject({
+      source: {
+        source_kind: 'assignment-report',
+        body: 'A completed result',
+        payload_json: '{"assignmentReport":{"state":"completed"}}',
+      },
+      admission: { reason: 'assignment-report', attempt_state: 'pending' },
+      foreignKeys: [],
+    });
+    upgraded.close();
+  });
+
   it('mounts one profile database with foundation generation and lifecycle diagnostics', () => {
     const dshHome = createTempRoot('botharness-db-');
     const owner = mountOperationalDatabase({ dshHome, now: FIXED_NOW, instanceId: 'owner-1' });

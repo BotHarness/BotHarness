@@ -303,6 +303,8 @@ export interface BotRuntimeOptions {
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   /** Profile-wide Assignment Concurrency Limit; defaults to 3. */
   assignmentConcurrencyLimit?: number;
+  /** Machine-readable Host diagnostics for recoverable runtime transitions. */
+  warn?: (message: string) => void;
   now?: () => Date;
   createSessionId?: () => string;
   createEventId?: () => string;
@@ -334,6 +336,7 @@ interface AssignmentRow {
 
 interface InboxReportRow {
   source_event_id: string;
+  source_kind: 'assignment-report' | 'assignment-lifecycle';
   assignment_session_id: string | null;
   body: string;
   created_at: string;
@@ -344,6 +347,7 @@ interface InboxReportRow {
 
 interface InboxUnit {
   sourceEventId: string;
+  sourceKind: InboxReportRow['source_kind'];
   assignmentSessionId: string | null;
   summary: string;
   createdAt: string;
@@ -437,6 +441,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
     if (existing === undefined) {
       units.set(key, {
         sourceEventId: row.source_event_id,
+        sourceKind: row.source_kind,
         assignmentSessionId: row.assignment_session_id,
         summary: row.body,
         createdAt: row.created_at,
@@ -448,6 +453,7 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
       continue;
     }
     existing.sourceEventId = row.source_event_id;
+    existing.sourceKind = row.source_kind;
     existing.summary = row.body;
     existing.createdAt = row.created_at;
     existing.expectsReply = row.expects_reply === 1;
@@ -468,10 +474,14 @@ function renderInbox(units: InboxUnit[]): string {
     if (unit.expectsReply) {
       return `- ${target} (${facts}) WAITING for your answer (answer_to: ${unit.sourceEventId}): ${unit.summary}`;
     }
+    if (unit.sourceKind === 'assignment-lifecycle') {
+      return `- ${target} (${facts}) Host lifecycle notice: ${unit.summary}`;
+    }
     return `- ${target} (${facts}) reported: ${unit.summary}`;
   });
   return [
-    '[Bot Inbox] New Assignment reports since your last turn. Answer an item that waits for',
+    '[Bot Inbox] New Assignment reports and Host lifecycle notices since your last turn.',
+    'Answer an item that waits for',
     'your answer with send_assignment_request using its answer_to value; otherwise use them as',
     'context. Do not repeat these summaries back verbatim.',
     ...lines,
@@ -524,6 +534,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #createEventId: () => string;
   readonly #createMessageId: () => string;
   readonly #assignmentConcurrencyLimit: number;
+  readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
   readonly #scheduledAdmissions = new Set<string>();
@@ -531,6 +542,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
   readonly #digestRetryAt = new Map<string, number>();
   readonly #digestFailureCount = new Map<string, number>();
+  readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
   readonly #assignmentRuns = new Map<string, Promise<void>>();
   #closed = false;
 
@@ -556,6 +568,7 @@ class BotRuntimeImplementation implements BotRuntime {
       Math.max(options.assignmentConcurrencyLimit ?? 3, 1),
       32,
     );
+    this.#warn = options.warn;
     // Recovery mode still mounts the plugin for files and diagnostics; every
     // Messaging operation there already fails closed, so skip the sweep.
     if (options.database.mode === 'ready') {
@@ -798,10 +811,11 @@ class BotRuntimeImplementation implements BotRuntime {
           SELECT DISTINCT a.bot_slug
             FROM inbox_admissions a
             JOIN source_events e ON e.source_event_id = a.source_event_id
-           WHERE a.reason = 'assignment-report'
+           WHERE a.reason IN ('assignment-report', 'assignment-lifecycle')
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.observed_at IS NULL
-             AND (e.expects_reply = 1 OR e.payload_json IS NULL OR
+             AND (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR
+                  e.payload_json IS NULL OR
                   json_extract(e.payload_json, '$.assignmentReport.state')
                     IN ('completed', 'blocked', 'waiting-human', 'failed'))
         `)
@@ -1365,6 +1379,9 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#digestTimers.clear();
     this.#digestRetryAt.clear();
     this.#digestFailureCount.clear();
+    for (const retry of this.#inboxFactoryRetries.values())
+      if (retry.timer !== undefined) clearTimeout(retry.timer);
+    this.#inboxFactoryRetries.clear();
     await Promise.allSettled([...this.#tails.values(), ...this.#assignmentRuns.values()]);
     this.#tails.clear();
     this.#assignmentRuns.clear();
@@ -1768,7 +1785,8 @@ class BotRuntimeImplementation implements BotRuntime {
             UPDATE inbox_admissions
                SET attempt_state = 'needs-repair',
                    last_error = 'Assignment report observation interrupted'
-             WHERE reason = 'assignment-report' AND observed_at IS NOT NULL
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle')
+               AND observed_at IS NOT NULL
                AND attempt_state = 'retryable'
           `)
           .run();
@@ -2802,17 +2820,41 @@ class BotRuntimeImplementation implements BotRuntime {
     await this.#agents.stopAssignment(sessionId);
     await this.#assignmentRuns.get(sessionId);
     const at = this.#now().toISOString();
-    this.#database.transaction(
+    const sourceEventId = this.#createEventId();
+    const stopped = this.#database.transaction(
       (database) => {
-        database
+        const changed = database
           .prepare(`UPDATE assignments
            SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL,
                open_ask_source_event_id = NULL, open_ask_at = NULL, updated_at = ?
          WHERE bot_slug = ? AND session_id = ? AND stop_state = 'requested'`)
           .run(at, bot.slug, sessionId);
+        if (changed.changes !== 1) return false;
+        database
+          .prepare(`INSERT INTO source_events (
+            source_event_id, source_kind, bot_slug, assignment_session_id,
+            body, created_at, handled_at, attempt_state, payload_json
+          ) VALUES (?, 'assignment-lifecycle', ?, ?, ?, ?, ?, 'handled', ?) `)
+          .run(
+            sourceEventId,
+            bot.slug,
+            sessionId,
+            'Stopped by the Orchestrator. This Session will not accept further requests or reports.',
+            at,
+            at,
+            JSON.stringify({
+              assignmentLifecycle: { state: 'stopped', cause: 'orchestrator-stop' },
+            }),
+          );
+        database
+          .prepare(`INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+                    VALUES (?, ?, 'assignment-lifecycle')`)
+          .run(sourceEventId, bot.slug);
+        return true;
       },
-      ['assignments'],
+      ['assignments', 'source-event', 'bot-inbox'],
     );
+    if (stopped) this.#scheduleInboxTurn(bot.slug);
     return this.#requireAssignmentSummary(bot.slug, sessionId);
   }
 
@@ -2992,8 +3034,27 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds,
       );
       this.#markReportsHandled(collected.eventIds);
+      const retry = this.#inboxFactoryRetries.get(botSlug);
+      if (retry !== undefined) {
+        if (retry.timer !== undefined) clearTimeout(retry.timer);
+        this.#inboxFactoryRetries.delete(botSlug);
+        this.#warn?.(
+          JSON.stringify({
+            component: 'bot-runtime',
+            event: 'inbox-factory-recovered',
+            botSlug,
+            attempts: retry.attempts,
+          }),
+        );
+      }
     } catch (error) {
       this.#setObserved(collected.eventIds, null);
+      if (this.#retryInboxAfterAgentFactoryStarts(botSlug, collected.eventIds, error)) return;
+      const retry = this.#inboxFactoryRetries.get(botSlug);
+      if (retry !== undefined) {
+        if (retry.timer !== undefined) clearTimeout(retry.timer);
+        this.#inboxFactoryRetries.delete(botSlug);
+      }
       await this.#publishSessionFailure({
         channelId: channel.id,
         botSlug,
@@ -3005,16 +3066,72 @@ class BotRuntimeImplementation implements BotRuntime {
     }
   }
 
+  #retryInboxAfterAgentFactoryStarts(
+    botSlug: string,
+    sourceEventIds: string[],
+    error: unknown,
+  ): boolean {
+    if (!(error instanceof Error) || !error.message.includes('no agent factory registered'))
+      return false;
+    const retryable = this.#database.read((database) => {
+      const placeholders = sourceEventIds.map(() => '?').join(', ');
+      const row = database
+        .prepare(`SELECT COUNT(*) AS count FROM inbox_admissions
+                  WHERE bot_slug = ? AND source_event_id IN (${placeholders})
+                    AND attempt_state = 'retryable'`)
+        .get(botSlug, ...sourceEventIds) as { count: number };
+      return row.count === sourceEventIds.length;
+    });
+    const prior = this.#inboxFactoryRetries.get(botSlug);
+    const attempts = prior?.attempts ?? 0;
+    if (!retryable || attempts >= 5 || this.#closed) {
+      this.#warn?.(
+        JSON.stringify({
+          component: 'bot-runtime',
+          event: 'inbox-factory-retry-declined',
+          botSlug,
+          attempts,
+          reason: !retryable ? 'non-retryable-admission' : this.#closed ? 'closed' : 'exhausted',
+        }),
+      );
+      return false;
+    }
+    if (prior?.timer !== undefined) clearTimeout(prior.timer);
+    // BotHarness may mount before DSH's Agent Loop registers its factory.
+    // Keep the durable admission pending until that startup gap closes.
+    const delayMs = Math.min(250 * 2 ** attempts, 2_000);
+    this.#warn?.(
+      JSON.stringify({
+        component: 'bot-runtime',
+        event: 'inbox-factory-retry-scheduled',
+        botSlug,
+        attempt: attempts + 1,
+        delayMs,
+      }),
+    );
+    const timer = setTimeout(() => {
+      this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1 });
+      if (!this.#closed) this.#scheduleInboxTurn(botSlug);
+    }, delayMs);
+    timer.unref();
+    this.#inboxFactoryRetries.set(botSlug, { attempts: attempts + 1, timer });
+    return true;
+  }
+
   #collectInbox(botSlug: string): { inbox: string; eventIds: string[] } {
     const rows = this.#database.read(
       (database) =>
         database
           .prepare(
-            `SELECT e.source_event_id, e.assignment_session_id, e.body, e.created_at,
-                    e.expects_reply, a.continuity_key, a.activity
+            `SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
+                    e.body, e.created_at, e.expects_reply, a.continuity_key,
+                    CASE WHEN a.stop_state = 'stopped' THEN 'stopped'
+                         WHEN a.stop_state = 'requested' THEN 'stopping'
+                         ELSE a.activity END AS activity
                FROM source_events e
                LEFT JOIN assignments a ON a.session_id = e.assignment_session_id
-              WHERE e.bot_slug = ? AND e.source_kind = 'assignment-report'
+              WHERE e.bot_slug = ?
+                AND e.source_kind IN ('assignment-report', 'assignment-lifecycle')
                 AND e.observed_at IS NULL
               ORDER BY e.rowid DESC
               LIMIT 20`,
@@ -3045,7 +3162,8 @@ class BotRuntimeImplementation implements BotRuntime {
       (database) => {
         const update = database.prepare(`
           UPDATE inbox_admissions SET observed_at = ?
-           WHERE bot_slug = ? AND reason <> 'assignment-report'
+           WHERE bot_slug = ?
+             AND reason NOT IN ('assignment-report', 'assignment-lifecycle')
              AND attempt_state IN ('pending', 'retryable') AND observed_at IS NULL
              AND source_event_id IN (
                SELECT source_event_id FROM channel_placements
@@ -3078,7 +3196,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(`
             UPDATE inbox_admissions
                SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
-             WHERE bot_slug = ? AND reason = 'assignment-report'
+             WHERE bot_slug = ? AND reason IN ('assignment-report', 'assignment-lifecycle')
                AND attempt_state = 'running'
                AND source_event_id IN (${placeholders})
           `)
@@ -3107,7 +3225,7 @@ class BotRuntimeImplementation implements BotRuntime {
                      WHEN side_effect_started_at IS NULL THEN 'retryable'
                      ELSE 'needs-repair'
                    END
-             WHERE reason = 'assignment-report'
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle')
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND source_event_id IN (${placeholders})
           `)
@@ -3125,7 +3243,8 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-             WHERE reason = 'assignment-report' AND attempt_state = 'running'
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle')
+               AND attempt_state = 'running'
                AND source_event_id IN (${placeholders})
           `)
           .run(this.#now().toISOString(), ...sourceEventIds),

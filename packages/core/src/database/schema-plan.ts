@@ -600,6 +600,88 @@ const BOT_ATTENTION_IGNORE_MIGRATION: SchemaMigration = {
   },
 };
 
+const ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION: SchemaMigration = {
+  generation: 24,
+  module: 'assignments',
+  description: 'Admit Host-origin Assignment lifecycle notices to the Bot Inbox',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report',
+           'assignment-lifecycle')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next (
+        source_event_id, source_kind, bot_slug, channel_id, message_id,
+        assignment_session_id, body, created_at, handled_at, attempt_state,
+        side_effect_started_at, expects_reply, observed_at, payload_json
+      )
+      SELECT source_event_id, source_kind, bot_slug, channel_id, message_id,
+             assignment_session_id, body, created_at, handled_at, attempt_state,
+             side_effect_started_at, expects_reply, observed_at, payload_json
+        FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision', 'assignment-report',
+           'assignment-lifecycle')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        ignored_at TEXT,
+        ignored_by_session_id TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next (
+        source_event_id, bot_slug, reason, attempt_state, side_effect_started_at,
+        handled_at, last_error, wake_count, wake_interval_ms, wake_policy_revision,
+        observed_at, ignored_at, ignored_by_session_id
+      )
+      SELECT source_event_id, bot_slug, reason, attempt_state, side_effect_started_at,
+             handled_at, last_error, wake_count, wake_interval_ms, wake_policy_revision,
+             observed_at, ignored_at, ignored_by_session_id
+        FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -623,4 +705,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_REPORT_ADMISSION_MIGRATION,
   HUMAN_ATTENTION_DECISION_MIGRATION,
   BOT_ATTENTION_IGNORE_MIGRATION,
+  ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION,
 ]);

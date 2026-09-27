@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore } from '../src/channels/store.js';
@@ -33,11 +33,16 @@ class ManualAgents implements BotAgentAdapter {
   access: OrchestratorAssignmentAccess | undefined;
   failNextStop = false;
   failInbox: 'before-side-effect' | 'after-side-effect' | undefined;
+  factoryUnavailableCount = 0;
   readonly #finish = new Map<string, () => void>();
 
   async runOrchestrator(run: OrchestratorAgentRun): Promise<void> {
     this.access = run.assignments;
     if (run.message.trim().length > 0) return;
+    if (this.factoryUnavailableCount > 0) {
+      this.factoryUnavailableCount -= 1;
+      throw new Error('no agent factory registered (load an agent-loop plugin)');
+    }
     if (this.failInbox === 'after-side-effect') {
       const created = run.assignments.create({ grantId: TEST_GRANT_ID, purpose: 'Follow-up work' });
       if (created.outcome === 'created') this.finish(created.assignment.sessionId);
@@ -356,8 +361,144 @@ describe('Assignment collaboration', () => {
     await reopened.close();
   });
 
+  it('delivers one Host-origin stop notice through the Bot Inbox', async () => {
+    const { runtime, agents, owner, admit, close } = await setup();
+    await admit('开始调研', 'human-stop-notice');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({
+      grantId: TEST_GRANT_ID,
+      purpose: '调查一个可以取消的方向',
+      key: 'cancel-me',
+    });
+    if (created.outcome !== 'created') throw new Error('create failed');
+
+    await access.stop(created.assignment.sessionId);
+    await runtime.whenIdle();
+
+    const notices = sourceEvents(owner).filter(
+      (event) => event.source_kind === 'assignment-lifecycle',
+    );
+    expect(notices).toHaveLength(1);
+    expect(notices[0]?.observed_at).not.toBeNull();
+    expect(agents.inboxTurns).toHaveLength(1);
+    expect(agents.inboxTurns[0]).toContain('Host lifecycle notice');
+    expect(agents.inboxTurns[0]).toContain(created.assignment.sessionId);
+    expect(agents.inboxTurns[0]).toContain('stopped');
+
+    await access.stop(created.assignment.sessionId);
+    await runtime.whenIdle();
+    expect(
+      sourceEvents(owner).filter((event) => event.source_kind === 'assignment-lifecycle'),
+    ).toHaveLength(1);
+    expect(agents.inboxTurns).toHaveLength(1);
+    await close();
+  });
+
+  it('replays an unobserved stop notice after Host restart', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup();
+    await admit('开始调研', 'human-stop-notice-restart');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({ grantId: TEST_GRANT_ID, purpose: '等待停止的方向' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+
+    agents.failInbox = 'before-side-effect';
+    await access.stop(created.assignment.sessionId);
+    await runtime.whenIdle();
+    expect(
+      sourceEvents(owner).filter((event) => event.source_kind === 'assignment-lifecycle'),
+    ).toMatchObject([{ observed_at: null }]);
+    await close();
+
+    const replayAgents = new ManualAgents();
+    replayAgents.factoryUnavailableCount = 1;
+    const diagnostics: string[] = [];
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels: createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW }),
+      agents: replayAgents,
+      warn: (message) => diagnostics.push(message),
+      now: FIXED_NOW,
+    });
+    await vi.waitFor(async () => {
+      await reopened.whenIdle();
+      expect(replayAgents.inboxTurns).toHaveLength(1);
+    });
+    expect(replayAgents.inboxTurns).toHaveLength(1);
+    expect(diagnostics.map((entry) => JSON.parse(entry).event)).toEqual([
+      'inbox-factory-retry-scheduled',
+      'inbox-factory-recovered',
+    ]);
+    expect(replayAgents.inboxTurns[0]).toContain('Host lifecycle notice');
+    expect(replayAgents.inboxTurns[0]).toContain(created.assignment.sessionId);
+    expect(
+      sourceEvents(owner).filter((event) => event.source_kind === 'assignment-lifecycle'),
+    ).toMatchObject([{ observed_at: FIXED_NOW().toISOString() }]);
+    expect(
+      attachOperationalModule(owner, 'startup-inbox-test').read(
+        (database) =>
+          database
+            .prepare(
+              "SELECT COUNT(*) AS count FROM source_events WHERE body LIKE 'Session failed:%'",
+            )
+            .get() as { count: number },
+      ).count,
+    ).toBe(0);
+    await reopened.close();
+  });
+
+  it('keeps an interrupted stop notice visible for repair instead of replaying uncertain work', async () => {
+    const { runtime, agents, owner, home, admit, close } = await setup();
+    await admit('开始调研', 'human-stop-notice-interrupted');
+    const access = agents.access;
+    if (access === undefined) throw new Error('Orchestrator never ran');
+    const created = access.create({ grantId: TEST_GRANT_ID, purpose: '等待停止的方向' });
+    if (created.outcome !== 'created') throw new Error('create failed');
+
+    agents.failInbox = 'before-side-effect';
+    await access.stop(created.assignment.sessionId);
+    await runtime.whenIdle();
+    const noticeId = sourceEvents(owner).find(
+      (event) => event.source_kind === 'assignment-lifecycle',
+    )?.source_event_id;
+    if (noticeId === undefined) throw new Error('Stop notice missing');
+    attachOperationalModule(owner, 'interrupted-stop-test').transaction((database) => {
+      database
+        .prepare('UPDATE source_events SET observed_at = ? WHERE source_event_id = ?')
+        .run(FIXED_NOW().toISOString(), noticeId);
+      database
+        .prepare(`UPDATE inbox_admissions SET observed_at = ?, attempt_state = 'running'
+                  WHERE source_event_id = ?`)
+        .run(FIXED_NOW().toISOString(), noticeId);
+    });
+    await close();
+
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const replayAgents = new ManualAgents();
+    const reopened = createBotRuntime({
+      database: owner,
+      registry: createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW }),
+      channels,
+      agents: replayAgents,
+      now: FIXED_NOW,
+    });
+    try {
+      await reopened.whenIdle();
+      expect(replayAgents.inboxTurns).toHaveLength(0);
+      expect(
+        createBotAttentionQuery(attachOperationalModule(owner, 'interrupted-stop-query'), channels)
+          .list({ botSlug: 'ada' })
+          .items.find((item) => item.id === noticeId),
+      ).toMatchObject({ state: 'needs-repair', sourceKind: 'assignment-lifecycle' });
+    } finally {
+      await reopened.close();
+    }
+  });
+
   it('keeps a stopping Assignment reserved when DSH stop rejects, then releases it on retry', async () => {
-    const { runtime, agents, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
+    const { runtime, agents, owner, admit, close } = await setup({ assignmentConcurrencyLimit: 1 });
     await admit('开始调研', 'human-stop-failure');
     const access = agents.access;
     if (access === undefined) throw new Error('Orchestrator never ran');
@@ -375,6 +516,9 @@ describe('Assignment collaboration', () => {
     agents.failNextStop = true;
     await expect(access.stop(sessionId)).rejects.toThrow('DSH stop failed');
     expect(runtime.getAssignment('ada', sessionId)?.activity).toBe('stopping');
+    expect(
+      sourceEvents(owner).filter((event) => event.source_kind === 'assignment-lifecycle'),
+    ).toHaveLength(0);
     expect(
       access.create({
         grantId: TEST_GRANT_ID,

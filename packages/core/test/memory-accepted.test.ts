@@ -283,6 +283,34 @@ describe('current Git working tree is Memory', () => {
       database.close();
     }
   });
+
+  it('allows an owned Host lifecycle notice to reconcile the Orchestrator Memory turn', () => {
+    const { database, memory } = fixture();
+    try {
+      attachOperationalModule(database, 'memory-test').transaction((db) => {
+        db.prepare(`INSERT INTO source_events (
+          source_event_id, source_kind, bot_slug, body, created_at, handled_at, attempt_state
+        ) VALUES (?, 'assignment-lifecycle', 'atlas', ?, ?, ?, 'handled')`).run(
+          'stop-notice',
+          'Assignment stopped',
+          FIXED_NOW().toISOString(),
+          FIXED_NOW().toISOString(),
+        );
+        db.prepare(`INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+                    VALUES (?, 'atlas', 'assignment-lifecycle')`).run('stop-notice');
+      });
+      memory.prepareTurn('atlas', 'session-atlas');
+      expect(
+        memory.reconcileTurn({
+          botSlug: 'atlas',
+          sessionId: 'session-atlas',
+          sourceEventId: 'stop-notice',
+        }),
+      ).toEqual([]);
+    } finally {
+      database.close();
+    }
+  });
 });
 
 describe('turn-annotation for out-of-band worktree changes', () => {
@@ -298,7 +326,11 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       memory.takeTurnAnnotation({ botSlug: 'atlas', sessionId: 'session-atlas' }),
     ).toBeUndefined();
     edit?.();
-    return memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: id });
+    return memory.reconcileTurn({
+      botSlug: 'atlas',
+      sessionId: 'session-atlas',
+      sourceEventId: id,
+    });
   }
 
   function gitIdentity(root: string) {
@@ -465,13 +497,25 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       addSource('adopt-side');
       memory.prepareTurn('atlas', 'session-atlas');
       expect(takeNote(memory)).toContain("Memory branch is now 'side'");
-      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'adopt-side' });
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'adopt-side',
+      });
       addSource('switch-back');
       memory.prepareTurn('atlas', 'session-atlas');
       expect(takeNote(memory)).toBeUndefined();
-      const switched = memory.switchBranch({ botSlug: 'atlas', sessionId: 'session-atlas', branch: 'main' });
+      const switched = memory.switchBranch({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        branch: 'main',
+      });
       expect(switched.to).toBe('main');
-      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'switch-back' });
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'switch-back',
+      });
       addSource('after');
       memory.prepareTurn('atlas', 'session-atlas');
       expect(takeNote(memory)).toBeUndefined();
@@ -491,7 +535,11 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       addSource('recovered');
       memory.prepareTurn('atlas', 'session-atlas');
       expect(takeNote(memory)).toBeUndefined();
-      memory.reconcileTurn({ botSlug: 'atlas', sessionId: 'session-atlas', sourceEventId: 'recovered' });
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'recovered',
+      });
     } finally {
       database.close();
     }
@@ -528,9 +576,9 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       expect(note?.endsWith('…(truncated)')).toBe(true);
       const kept = note?.split('\n…(truncated)')[0] ?? '';
       expect(Buffer.byteLength(kept, 'utf8')).toBeLessThanOrEqual(4096);
-      expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(note ?? '')).toBe(
-        false,
-      );
+      expect(
+        /[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/u.test(note ?? ''),
+      ).toBe(false);
     } finally {
       database.close();
     }

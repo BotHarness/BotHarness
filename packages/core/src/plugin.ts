@@ -282,6 +282,7 @@ export function createCore(
       assignmentAccess,
       workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
       orchestratorCwd,
+      ...(options.warn === undefined ? {} : { warn: options.warn }),
     }),
   };
 }
