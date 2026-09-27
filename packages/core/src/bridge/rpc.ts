@@ -479,6 +479,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   ): Promise<RosterSnapshot> {
     return unwrapAsync(this.methods.rosterBatch({ action, channelIds, sectionId }));
   }
+
+  developerModeSet(enabled: boolean): { accepted: boolean } {
+    return unwrap(this.methods.developerModeSet({ enabled }));
+  }
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
@@ -540,6 +544,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'pinsSet',
   'hiddenSet',
   'rosterBatch',
+  'developerModeSet',
 ]);
 
 /**

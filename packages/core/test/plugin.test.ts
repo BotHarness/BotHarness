@@ -297,6 +297,7 @@ describe('plugin entry', () => {
       'pinsSet',
       'hiddenSet',
       'rosterBatch',
+      'developerModeSet',
     ]);
   });
 
