@@ -107,7 +107,7 @@ export interface ChannelDelivery {
   state: 'pending' | 'observed' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
 }
 
-/** One committed send shown in the sender's Human DM without copying its body. */
+/** The member identity captured when a Group departure is committed. */
 export interface ChannelMemberDeparture {
   memberKind: 'bot' | 'human';
   memberId: string;
