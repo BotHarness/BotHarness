@@ -19,15 +19,7 @@ import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
-import {
-  LOGS_SKILL_CONTENT,
-  LOGS_SKILL_DESCRIPTION,
-  LOGS_SKILL_INVOCATION,
-  LOGS_SKILL_NAME,
-  LOGS_SKILL_PROVIDER,
-  LOGS_SKILL_SOURCE,
-  LOGS_SKILL_WHEN_TO_USE,
-} from './logs/skill.js';
+import { DeveloperModeSkillGate } from './logs/skill.js';
 import type { ChannelStore } from './channels/store.js';
 import { createSqliteChannelStore } from './channels/sqlite-store.js';
 import {
@@ -462,6 +454,9 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
 
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
+  // Holder filled by the skills inject below; the bridge method degrades to
+  // accepted:false until the skills service resolves it.
+  const developerModeTarget: { gate?: DeveloperModeSkillGate } = {};
   registerBridge(
     ctx,
     createBridgeMethods({
@@ -480,13 +475,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       userQuestions,
       toolRules: core.toolRules,
       assignmentAccess: core.assignmentAccess,
+      developerMode: {
+        set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
+      },
     }),
   );
 
-  // Operational-log reader skill (issue #248, Q6): model-only runtime
-  // registration in the global layer, so every agent scope sees one
-  // directory line and loads the guide body on demand. Runs only when the
-  // skills service is composed; the unregister disposer rides the effect.
+  // DeveloperModeSkillGate owns the global-layer registration, so every
+  // agent scope sees one directory line only while the Human-owned
+  // developerMode preference is on. Clients report the flag over the bridge
+  // (`developerModeSet`); default off registers nothing until the first
+  // report. Runs only when the skills service is composed.
   ctx.inject(['skills'], (skillsCtx) => {
     const skills = (
       skillsCtx as unknown as {
@@ -506,19 +505,16 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         };
       }
     ).skills;
-    skillsCtx.effect(
-      () =>
-        skills.register({
-          name: LOGS_SKILL_NAME,
-          description: LOGS_SKILL_DESCRIPTION,
-          whenToUse: LOGS_SKILL_WHEN_TO_USE,
-          content: LOGS_SKILL_CONTENT,
-          invocation: LOGS_SKILL_INVOCATION,
-          source: LOGS_SKILL_SOURCE,
-          provider: LOGS_SKILL_PROVIDER,
-        }),
-      'botharness: operational logs skill',
-    );
+    developerModeTarget.gate = new DeveloperModeSkillGate({
+      register: (definition) => {
+        let dispose: (() => void) | undefined;
+        skillsCtx.effect(() => {
+          dispose = skills.register(definition);
+          return () => dispose?.();
+        }, 'botharness: operational logs skill');
+        return () => dispose?.();
+      },
+    });
   });
 
   // The shared /api carrier authenticates this exact Fetch route.

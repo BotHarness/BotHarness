@@ -192,6 +192,25 @@ export function apply(ctx: ClientContext): void {
       controller.abort();
     };
   }, 'botharness: roster load');
+  ctx.effect(() => {
+    // Report the Human-owned developerMode to the Host on every client
+    // connect and on every toggle; the Host gates the operational-logs skill
+    // catalog on it (#248). Fire-and-forget: an unreachable Host just misses
+    // one report and gets the next toggle or reconnect.
+    let stopped = false;
+    const report = (): void => {
+      if (stopped) return;
+      void call('developerModeSet', {
+        enabled: prefs.source.getSnapshot().developerMode,
+      }).catch(() => undefined);
+    };
+    report();
+    const unsubscribe = prefs.source.subscribe(report);
+    return () => {
+      stopped = true;
+      unsubscribe();
+    };
+  }, 'botharness: developer mode report');
 
   ctx.inject(['configForms'], (settingsCtx) => {
     const scope = settingsCtx.configForms.get<BotModeSettings>(BOT_MODE_NAMESPACE);

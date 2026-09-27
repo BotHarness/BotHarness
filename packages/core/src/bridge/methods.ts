@@ -190,6 +190,7 @@ export interface BridgeMethods {
   pinsSet(payload: unknown): Promise<BridgeResult<{ pins: string[] }>>;
   hiddenSet(payload: unknown): Promise<BridgeResult<{ hidden: string[] }>>;
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
+  developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -208,6 +209,7 @@ export interface BridgeMethodsDeps {
   userQuestions?: ChannelUserQuestions;
   toolRules?: ToolApprovalRuleStore;
   assignmentAccess?: AssignmentAccessStore;
+  developerMode?: { set(enabled: boolean): void };
   createBotId?: () => string;
 }
 
@@ -1648,6 +1650,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           ? { action, channelIds, ...(sectionId == null ? {} : { sectionId }) }
           : { action, channelIds };
       return rosterWrite(() => deps.roster.applyBatch(change, (pin) => aliases.get(pin) ?? pin));
+    },
+    developerModeSet(payload) {
+      const enabled = asObject(payload)['enabled'];
+      if (typeof enabled !== 'boolean') return invalidInput('enabled is required');
+      deps.developerMode?.set(enabled);
+      return { ok: true, value: { accepted: deps.developerMode !== undefined } };
     },
   };
 }

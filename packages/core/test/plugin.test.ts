@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { Context } from '@deepseek-ai/cordis';
@@ -95,30 +95,16 @@ describe('plugin entry', () => {
     expect(stubs.tools.register).not.toHaveBeenCalled();
   });
 
-  it('registers the operational-logs skill for model-only reading', async () => {
+  it('leaves the operational-logs skill unregistered until developer mode', async () => {
     const { ctx, stubs } = createStubContext();
 
     apply(ctx, { enabled: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(stubs.skills.register).toHaveBeenCalledTimes(1);
-    const registration = stubs.skills.register.mock.calls[0]?.[0] as Record<string, unknown>;
-    expect(registration).toMatchObject({
-      name: 'reading-operational-logs',
-      invocation: { modelInvocable: true, userInvocable: false },
-      // The loader validates source/provider as strings on get(): an omitted
-      // source lists fine but fails every model load (#248 live diagnosis).
-      source: 'runtime',
-      provider: 'botharness-core',
-    });
-    expect(typeof registration['description']).toBe('string');
-    expect(typeof registration['content']).toBe('string');
-    expect(registration['content']).toBe(
-      readFileSync(
-        new URL('../../../docs/dev/guides/reading-operational-logs.md', import.meta.url),
-        'utf8',
-      ).replace(/\r\n/g, '\n'),
-    );
+    // Default off: the DeveloperModeSkillGate registers only on a bridge
+    // `developerModeSet` report (gate transitions unit-tested in
+    // log-skill.test.ts; the method-to-gate drive in bridge-methods.test.ts).
+    expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 
   it('rebuilds the activity projection from owned Session logs and follows live events', () => {
