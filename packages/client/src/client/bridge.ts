@@ -607,6 +607,29 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       }))
   )
     return undefined;
+  const channelRevision = record['channelRevision'];
+  if (
+    channelRevision !== undefined &&
+    (typeof channelRevision !== 'number' ||
+      !Number.isSafeInteger(channelRevision) ||
+      channelRevision < 1)
+  )
+    return undefined;
+  const humanReceipts = record['humanReceipts'];
+  if (
+    humanReceipts !== undefined &&
+    (!Array.isArray(humanReceipts) ||
+      humanReceipts.some((entry) => {
+        const item = asRecord(entry);
+        return (
+          item === undefined ||
+          typeof item['humanId'] !== 'string' ||
+          typeof item['displayName'] !== 'string' ||
+          (item['state'] !== 'unread' && item['state'] !== 'read')
+        );
+      }))
+  )
+    return undefined;
   const deliveries = record['deliveries'];
   if (
     deliveries !== undefined &&
@@ -644,6 +667,10 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(deliveries === undefined
       ? {}
       : { deliveries: deliveries as NonNullable<ChannelMessage['deliveries']> }),
+    ...(humanReceipts === undefined
+      ? {}
+      : { humanReceipts: humanReceipts as NonNullable<ChannelMessage['humanReceipts']> }),
+    ...(channelRevision === undefined ? {} : { channelRevision }),
     ...(grantRequest === true ? { grantRequest: true as const } : {}),
     ...(grantRequestResolution === undefined ? {} : { grantRequestResolution }),
     ...(botDmAction === undefined ? {} : { botDmAction }),

@@ -134,6 +134,12 @@ export interface ChannelMessage {
   memorySwitchTarget?: string;
   mentions?: { botSlug: string; label: string; start: number; end: number }[];
   channelRefs?: { channelId: string; label: string; start: number; end: number }[];
+  humanReceipts?: {
+    humanId: string;
+    displayName: string;
+    state: 'unread' | 'read';
+  }[];
+  channelRevision?: number;
   deliveries?: {
     botSlug: string;
     state:

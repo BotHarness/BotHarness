@@ -682,6 +682,47 @@ const ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION: SchemaMigration = {
   },
 };
 
+const LOCAL_HUMAN_RECEIPTS_MIGRATION: SchemaMigration = {
+  generation: 25,
+  module: 'messaging',
+  description: 'Give the local Human explicit Group membership and identity-keyed read positions',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE channel_human_members (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        human_id TEXT NOT NULL,
+        display_name TEXT NOT NULL,
+        visible_from_revision INTEGER NOT NULL,
+        joined_at TEXT NOT NULL,
+        left_at TEXT,
+        PRIMARY KEY (channel_id, human_id)
+      );
+      INSERT INTO channel_human_members
+        (channel_id, human_id, display_name, visible_from_revision, joined_at)
+      SELECT channel_id, 'local-human', 'Human', 1,
+             json_extract(record_json, '$.createdAt')
+        FROM channel_records
+       WHERE json_extract(record_json, '$.type') = 'group'
+         AND json_extract(record_json, '$.deletedAt') IS NULL;
+      CREATE TABLE channel_read_positions_next (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        human_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        revision INTEGER NOT NULL,
+        read_at TEXT NOT NULL,
+        PRIMARY KEY (channel_id, human_id)
+      );
+      INSERT INTO channel_read_positions_next
+        (channel_id, human_id, message_id, revision, read_at)
+      SELECT channel_id, 'local-human', message_id, revision, read_at
+        FROM channel_read_positions;
+      DROP TABLE channel_read_positions;
+      ALTER TABLE channel_read_positions_next RENAME TO channel_read_positions;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -706,4 +747,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   HUMAN_ATTENTION_DECISION_MIGRATION,
   BOT_ATTENTION_IGNORE_MIGRATION,
   ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION,
+  LOCAL_HUMAN_RECEIPTS_MIGRATION,
 ]);

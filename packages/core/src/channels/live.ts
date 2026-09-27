@@ -5,6 +5,7 @@ import type { ChannelMessageCommit, ChannelStore } from './store.js';
 export const CHANNEL_STREAM_PATH = '/api/botharness/stream';
 export const CHANNEL_COMMIT_EVENT = 'channel/message';
 export const CHANNEL_ADMISSION_EVENT = 'channel/admission';
+export const CHANNEL_HUMAN_READ_EVENT = 'channel/human-read';
 export const CHANNEL_DRAFT_EVENT = 'channel/draft';
 export const CHANNEL_DRAFT_BASELINE_EVENT = 'channel/draft-baseline';
 export const CHANNEL_DRAFT_SETTLED_EVENT = 'channel/draft-settled';
@@ -30,6 +31,7 @@ interface Subscriber {
   push(commit: ChannelMessageCommit): void;
   pushDraft(event: PublishedDraftEvent): void;
   pushAdmission(messageId: string, message: ChannelMessage): void;
+  pushHumanRead(humanId: string, revision: number): void;
   close(): void;
 }
 
@@ -37,6 +39,7 @@ export interface ChannelLiveHub {
   open(request: Request): Response;
   publishCommitted(commit: ChannelMessageCommit): void;
   publishAdmission(channelId: string, messageId: string, message: ChannelMessage): void;
+  publishHumanRead(channelId: string, humanId: string, revision: number): void;
   publishDraft(event: ChannelDraftEvent): void;
   publishRosterCommitted(): void;
   close(): void;
@@ -173,6 +176,23 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
                       channelId,
                       messageId,
                       deliveries: message.deliveries ?? [],
+                      humanReceipts: message.humanReceipts ?? [],
+                    })}\n\n`,
+                  ),
+                );
+              } catch {
+                this.close();
+              }
+            },
+            pushHumanRead(humanId, revision) {
+              if (ended) return;
+              try {
+                controller.enqueue(
+                  encoder.encode(
+                    `event: ${CHANNEL_HUMAN_READ_EVENT}\ndata: ${JSON.stringify({
+                      channelId,
+                      humanId,
+                      revision,
                     })}\n\n`,
                   ),
                 );
@@ -209,6 +229,10 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           controller.enqueue(encoder.encode('retry: 1500\n\n'));
           // Subscribe before replay so there is no query/subscribe gap.
           for (const commit of channels.messagesAfter(channelId, after) ?? []) push(commit);
+          if (channels.get(channelId)?.type === 'group') {
+            const position = channels.readPosition(channelId);
+            if (position !== undefined) subscriber.pushHumanRead('local-human', position.revision);
+          }
           controller.enqueue(
             encoder.encode(
               `event: ${CHANNEL_DRAFT_BASELINE_EVENT}\ndata: ${JSON.stringify({
@@ -260,6 +284,10 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
     publishAdmission(channelId, messageId, message) {
       for (const subscriber of subscribers.get(channelId) ?? [])
         subscriber.pushAdmission(messageId, message);
+    },
+    publishHumanRead(channelId, humanId, revision) {
+      for (const subscriber of subscribers.get(channelId) ?? [])
+        subscriber.pushHumanRead(humanId, revision);
     },
     publishDraft(event) {
       const channelId = event.type === 'update' ? event.draft.channelId : event.channelId;
