@@ -72,6 +72,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group Channel messages now show a compact filled recipient pie beside each bubble. Open it to see each admitted PersonaBot by name and avatar as delivered, read, processing, handled, ignored, or failed; reading Channel history alone does not imply handling, and processing begins only when the message enters an Orchestrator turn, and a Bot sender is never counted as its own recipient ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
+- DM and Group message bubbles reveal the message time, Reply, and Copy beneath the bubble on hover or keyboard focus; touch devices keep the actions visible ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
 - A PersonaBot DM sidebar now shows its owned Orchestrator and Assignment Sessions using native DSH titles, workspace and running state; a heading menu switches Current/All and Flat/By workspace views, each Bot remembers those choices and collapsed groups in this browser, and a row opens the native Session. An owned root Session shows its Bot avatar before the idle native sidebar title and offers header and Session menu actions back to its DM ([#312](https://github.com/BotHarness/BotHarness/issues/312), [ADR-0072](docs/adr/0072-personabot-sidebar-projects-owned-dsh-sessions.md)).
 - The browser now remembers whether the last visible view was Bot mode or native DSH. Reloading a Bot view reopens its selected Channel, while returning to DSH keeps that choice on the next visit ([#340](https://github.com/BotHarness/BotHarness/issues/340)).
 
