@@ -32,6 +32,9 @@ const groupTools = {
   removeGroupMember: (): never => {
     throw new Error('unexpected Group removal');
   },
+  leaveGroup: (): never => {
+    throw new Error('unexpected Group leave');
+  },
 };
 
 describe('DSH Bot Agent adapter', () => {
@@ -423,6 +426,7 @@ describe('DSH Bot Agent adapter', () => {
       'group_join_decide',
       'group_rename',
       'group_remove_member',
+      'group_leave',
       'bot_dm_send',
       'channel_send',
     ]);

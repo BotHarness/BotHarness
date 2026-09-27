@@ -154,6 +154,9 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   };
   return (
     <>
+      {group?.ownerBotSlug === undefined && group !== undefined ? (
+        <div className="bh-note">{t('members.humanManaged')}</div>
+      ) : null}
       {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
       {members.map((slug) => {
         const member = state.bots.find((candidate) => candidate.slug === slug);

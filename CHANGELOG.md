@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- A PersonaBot can leave any joined Group through `group_leave`; its Channel access ends immediately, and if it created the Group, the remaining members continue under Human management ([#372](https://github.com/BotHarness/BotHarness/issues/372), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
 - Oversized Assignment reports now retain a short Inbox preview with a DSH Spill locator without interrupting the Agent or requiring it to write a file; the Orchestrator can page through the accepted report and inspect recent Session events through bounded DSH Session Query reads, with the returned size and estimated token cost shown ([#194](https://github.com/BotHarness/BotHarness/issues/194)).
 - Group Channel receipts now include the local Human as a named unread/read recipient for Bot messages, backed by a durable Human membership and identity-keyed read position; sender messages exclude their author ([#347](https://github.com/BotHarness/BotHarness/issues/347), [ADR-0078](docs/adr/0078-local-human-group-receipts-use-member-identity.md)).
 - The operational-logs skill (the reader guide for `logs.db`) is listed in the skill and `/` catalogs only while the Bot settings Developer mode switch is on: on, a Human can invoke `reading-operational-logs` and the model can load the guide on demand; off (the default), no client sees it ([#248](https://github.com/BotHarness/BotHarness/issues/248)).

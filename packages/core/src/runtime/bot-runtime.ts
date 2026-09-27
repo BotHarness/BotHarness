@@ -221,6 +221,7 @@ export interface OrchestratorChannelAccess {
   };
   renameGroup(input: { channelId: string; name: string }): ChannelRecord;
   removeGroupMember(input: { channelId: string; botSlug: string }): ChannelRecord;
+  leaveGroup(input: { channelId: string }): { channelId: string; left: boolean };
   sendToBot(input: {
     botSlug: string;
     body: string;
@@ -2227,6 +2228,14 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error('Only the Bot Group owner may remove another member');
         beforeSend();
         return this.#channels.removeGroupMember(channel.id, input.botSlug);
+      },
+      leaveGroup: (input) => {
+        const channel = this.#channels.get(input.channelId);
+        if (channel?.type !== 'group') throw new Error('Group Channel not found');
+        if (!channel.members.includes(botSlug)) return { channelId: channel.id, left: false };
+        beforeSend();
+        this.#channels.removeGroupMember(channel.id, botSlug);
+        return { channelId: channel.id, left: true };
       },
       sendToBot: async (input) => {
         const sender = this.#registry.get(botSlug);
