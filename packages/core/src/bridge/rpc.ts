@@ -132,7 +132,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     model?: string,
     preset?: string,
     workspaces?: string[],
-    avatarSeed?: string,
+    avatar?: string,
   ): { bot: PersonaBotDetail } {
     return unwrap(
       this.methods.create({
@@ -143,7 +143,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         model,
         preset,
         workspaces,
-        avatarSeed,
+        avatar,
       }),
     );
   }
@@ -170,6 +170,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   computerAccessSet(slug: string, enabled: boolean): { bot: PersonaBotDetail } {
     return unwrap(this.methods.computerAccessSet({ slug, enabled }));
+  }
+
+  botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
   channels(): { channels: ChannelListItem[] } {
@@ -565,6 +569,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'rosterBatch',
   'developerModeSet',
   'computerAccessSet',
+  'botAvatarSet',
 ]);
 
 /**

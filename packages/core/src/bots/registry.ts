@@ -14,6 +14,7 @@ import { isAbsolute, join } from 'node:path';
 
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
+  isPersonaBotAvatar,
   isPersonaBotRecord,
   type CreatePersonaBotInput,
   type CreatePersonaBotResult,
@@ -137,14 +138,16 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
     record: PersonaBotRecord,
     key: 'tag' | 'description' | 'avatar' | 'model' | 'preset',
     value: string | undefined,
-  ): void => {
-    if (value === undefined) return;
+  ): boolean => {
+    if (value === undefined) return true;
     const trimmed = value.trim();
     if (trimmed.length === 0) {
       delete record[key];
-      return;
+      return true;
     }
+    if (key === 'avatar' && !isPersonaBotAvatar(trimmed)) return false;
     record[key] = trimmed;
+    return true;
   };
 
   const normalizeRoles = (roles: readonly string[] | undefined): string[] => {
@@ -167,6 +170,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const roles = normalizeRoles(input.roles);
       const description = input.description?.trim();
       const avatar = input.avatar?.trim();
+      if (avatar !== undefined && avatar.length > 0 && !isPersonaBotAvatar(avatar)) {
+        return { ok: false, reason: 'invalid-input' };
+      }
       const model = input.model?.trim();
       const preset = input.preset?.trim();
       const record: PersonaBotRecord = {
@@ -280,7 +286,9 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         delete record.tag;
       }
       applyOptionalText(record, 'description', patch.description);
-      applyOptionalText(record, 'avatar', patch.avatar);
+      if (!applyOptionalText(record, 'avatar', patch.avatar)) {
+        return { ok: false, reason: 'invalid-input' };
+      }
       applyOptionalText(record, 'model', patch.model);
       applyOptionalText(record, 'preset', patch.preset);
       if (patch.workspaces !== undefined) {

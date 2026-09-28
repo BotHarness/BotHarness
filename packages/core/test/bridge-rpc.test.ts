@@ -135,6 +135,7 @@ describe('bridge typert service', () => {
       'rosterBatch',
       'developerModeSet',
       'computerAccessSet',
+      'botAvatarSet',
     ]);
   });
 
@@ -157,7 +158,7 @@ describe('bridge typert service', () => {
       'model',
       'preset',
       'workspaces',
-      'avatarSeed',
+      'avatar',
     ]);
     expect(parameterNames(service.update)).toEqual(['slug', 'patch']);
     expect(parameterNames(service.pause)).toEqual(['slug']);
