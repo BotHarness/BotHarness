@@ -29,12 +29,18 @@ export interface Config {
 /** Profile-owned live preferences projected through the official Config form. */
 export const Config: Schema<Partial<BotModeSettings>, Config> = Schema.object({
   developerMode: Schema.boolean().default(DEFAULT_BOT_MODE_DEVELOPER).volatile(),
-  botIcon: Schema.union([...BOT_MODE_ICONS]).default(DEFAULT_BOT_MODE_ICON).volatile(),
+  botIcon: Schema.union([...BOT_MODE_ICONS])
+    .default(DEFAULT_BOT_MODE_ICON)
+    .volatile(),
   motionPreference: Schema.union([...BOT_MODE_MOTION_PREFERENCES])
     .default(DEFAULT_BOT_MODE_MOTION)
     .volatile(),
-  sortMode: Schema.union([...BOT_MODE_SORT_MODES]).default(DEFAULT_BOT_MODE_SORT).volatile(),
-  sortModes: Schema.dict(Schema.union([...BOT_MODE_SORT_MODES])).default({}).volatile(),
+  sortMode: Schema.union([...BOT_MODE_SORT_MODES])
+    .default(DEFAULT_BOT_MODE_SORT)
+    .volatile(),
+  sortModes: Schema.dict(Schema.union([...BOT_MODE_SORT_MODES]))
+    .default({})
+    .volatile(),
 });
 
 /**

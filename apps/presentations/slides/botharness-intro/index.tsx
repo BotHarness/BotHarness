@@ -25,7 +25,10 @@ export const transition: SlideTransition = {
   enter: {
     duration: 260,
     easing: EASE_OUT,
-    keyframes: [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'translateY(0)' }],
+    keyframes: [
+      { opacity: 0, transform: 'translateY(6px)' },
+      { opacity: 1, transform: 'translateY(0)' },
+    ],
   },
 };
 
@@ -151,7 +154,15 @@ function Bullet({ dot, head, tail }: { dot?: string; head: string; tail?: string
   );
 }
 
-function Shell({ eyebrow, title, children }: { eyebrow: string; title: ReactNode; children: ReactNode }) {
+function Shell({
+  eyebrow,
+  title,
+  children,
+}: {
+  eyebrow: string;
+  title: ReactNode;
+  children: ReactNode;
+}) {
   return (
     <div style={fill} data-still={undefined}>
       <Styles />
@@ -159,7 +170,9 @@ function Shell({ eyebrow, title, children }: { eyebrow: string; title: ReactNode
         <Eyebrow>{eyebrow}</Eyebrow>
         <Title>{title}</Title>
       </div>
-      <div style={{ position: 'absolute', left: 120, right: 120, top: 400, bottom: 160 }}>{children}</div>
+      <div style={{ position: 'absolute', left: 120, right: 120, top: 400, bottom: 160 }}>
+        {children}
+      </div>
       <Footer />
     </div>
   );
@@ -178,7 +191,14 @@ function Card({ no, title, body }: { no: string; title: string; body: string }) 
         animationDelay: '0.14s',
       }}
     >
-      <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          fontFamily: mono,
+          fontSize: 22,
+          letterSpacing: '0.12em',
+          color: 'var(--osd-accent)',
+        }}
+      >
         {no}
       </div>
       <div
@@ -212,7 +232,12 @@ const Cover: Page = () => (
     <div style={{ position: 'absolute', left: 120, right: 120, top: 120 }}>
       <div
         className="bh bh-fade"
-        style={{ fontFamily: mono, fontSize: 24, letterSpacing: '0.2em', color: 'var(--osd-accent)' }}
+        style={{
+          fontFamily: mono,
+          fontSize: 24,
+          letterSpacing: '0.2em',
+          color: 'var(--osd-accent)',
+        }}
       >
         DSH PLUGIN · DEEPSEEK HARNESS
       </div>
@@ -245,7 +270,13 @@ const Cover: Page = () => (
       </p>
       <p
         className="bh bh-fade"
-        style={{ margin: '20px 0 0 0', fontSize: 30, lineHeight: 1.6, color: muted, animationDelay: '0.18s' }}
+        style={{
+          margin: '20px 0 0 0',
+          fontSize: 30,
+          lineHeight: 1.6,
+          color: muted,
+          animationDelay: '0.18s',
+        }}
       >
         PersonaBot —— 带人格、跨会话记忆、可并发工作的 Bot。不 fork DSH 的插件层。
       </p>
@@ -324,9 +355,21 @@ const Problem: Page = () => (
 const Persona: Page = () => (
   <Shell eyebrow="02 — 核心概念 PersonaBot" title="一个 Bot，就是一个人">
     <div style={{ display: 'flex', gap: 28, height: '100%' }}>
-      <Card no="IDENTITY" title="持久身份" body="Host 生成的稳定 ID。显示名可重复，ID 永不混淆，归档后历史仍可审计。" />
-      <Card no="MEMORY" title="Git 记忆" body="每 Bot 一个 Git 仓库。检出即记忆，Persona 只是其中一份内容。" />
-      <Card no="EXECUTION" title="执行归属" body="一个 Orchestrator + 多个 Assignment Sessions，同一个人同时推进多件事。" />
+      <Card
+        no="IDENTITY"
+        title="持久身份"
+        body="Host 生成的稳定 ID。显示名可重复，ID 永不混淆，归档后历史仍可审计。"
+      />
+      <Card
+        no="MEMORY"
+        title="Git 记忆"
+        body="每 Bot 一个 Git 仓库。检出即记忆，Persona 只是其中一份内容。"
+      />
+      <Card
+        no="EXECUTION"
+        title="执行归属"
+        body="一个 Orchestrator + 多个 Assignment Sessions，同一个人同时推进多件事。"
+      />
     </div>
   </Shell>
 );
@@ -346,7 +389,14 @@ const Arch: Page = () => (
           animationDelay: '0.14s',
         }}
       >
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: 'var(--osd-accent)' }}>
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 22,
+            letterSpacing: '0.12em',
+            color: 'var(--osd-accent)',
+          }}
+        >
           BOTHARNESS · HOST
         </div>
         <div style={{ marginTop: 12, fontSize: 33, fontWeight: 700, lineHeight: 1.5 }}>
@@ -354,7 +404,9 @@ const Arch: Page = () => (
           <br />
           事项 · 移植
         </div>
-        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: muted }}>one botharness.db · 权威事务</div>
+        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: muted }}>
+          one botharness.db · 权威事务
+        </div>
       </div>
       <div
         className="bh bh-rise"
@@ -367,13 +419,25 @@ const Arch: Page = () => (
           animationDelay: '0.2s',
         }}
       >
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: muted }}>DSH OWNS</div>
-        <div style={{ marginTop: 12, fontSize: 31, fontWeight: 650, lineHeight: 1.5, color: '#d7e1ea' }}>
+        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: muted }}>
+          DSH OWNS
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 31,
+            fontWeight: 650,
+            lineHeight: 1.5,
+            color: '#d7e1ea',
+          }}
+        >
           Agent 执行
           <br />
           Session 历史 · 凭证
         </div>
-        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: dim }}>不复制第二套权威</div>
+        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: dim }}>
+          不复制第二套权威
+        </div>
       </div>
       <div
         className="bh bh-rise"
@@ -386,13 +450,25 @@ const Arch: Page = () => (
           animationDelay: '0.26s',
         }}
       >
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: muted }}>CLIENT</div>
-        <div style={{ marginTop: 12, fontSize: 31, fontWeight: 650, lineHeight: 1.5, color: '#d7e1ea' }}>
+        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: muted }}>
+          CLIENT
+        </div>
+        <div
+          style={{
+            marginTop: 12,
+            fontSize: 31,
+            fontWeight: 650,
+            lineHeight: 1.5,
+            color: '#d7e1ea',
+          }}
+        >
           只经 RPC
           <br />
           读投影 · 交命令
         </div>
-        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: dim }}>不直读库不推导状态</div>
+        <div style={{ marginTop: 10, fontFamily: mono, fontSize: 24, color: dim }}>
+          不直读库不推导状态
+        </div>
       </div>
     </div>
   </Shell>
@@ -429,7 +505,15 @@ const Exec: Page = () => (
         <div style={{ fontFamily: mono, fontSize: 22, color: muted }}>INBOX</div>
         <div style={{ fontSize: 32, fontWeight: 750, marginTop: 6 }}>Bot Inbox</div>
       </div>
-      <div style={{ flex: 1, textAlign: 'center', fontFamily: mono, fontSize: 30, color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          flex: 1,
+          textAlign: 'center',
+          fontFamily: mono,
+          fontSize: 30,
+          color: 'var(--osd-accent)',
+        }}
+      >
         ──▶
       </div>
       <div
@@ -441,22 +525,39 @@ const Exec: Page = () => (
           padding: '18px 34px',
         }}
       >
-        <div style={{ fontFamily: mono, fontSize: 22, color: 'var(--osd-accent)' }}>ORCHESTRATOR</div>
+        <div style={{ fontFamily: mono, fontSize: 22, color: 'var(--osd-accent)' }}>
+          ORCHESTRATOR
+        </div>
         <div style={{ fontSize: 32, fontWeight: 800, marginTop: 4 }}>编排者</div>
       </div>
-      <div style={{ flex: 1, textAlign: 'center', fontFamily: mono, fontSize: 30, color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          flex: 1,
+          textAlign: 'center',
+          fontFamily: mono,
+          fontSize: 30,
+          color: 'var(--osd-accent)',
+        }}
+      >
         ──▶
       </div>
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontFamily: mono, fontSize: 22, color: muted }}>ASSIGNMENTS</div>
         <div style={{ fontSize: 32, fontWeight: 750, marginTop: 6 }}>
-          事项 A <span style={{ color: dim }}>·</span> 事项 B <span style={{ color: dim }}>·</span> …
+          事项 A <span style={{ color: dim }}>·</span> 事项 B <span style={{ color: dim }}>·</span>{' '}
+          …
         </div>
       </div>
     </div>
     <p
       className="bh bh-fade"
-      style={{ margin: '30px 0 0 0', fontSize: 28, lineHeight: 1.6, color: muted, animationDelay: '0.22s' }}
+      style={{
+        margin: '30px 0 0 0',
+        fontSize: 28,
+        lineHeight: 1.6,
+        color: muted,
+        animationDelay: '0.22s',
+      }}
     >
       Wake Policy 决定何时唤醒 · 事项经 report 回到编排者 · 默认全局并发上限 3，无排队。
     </p>
@@ -467,9 +568,17 @@ const Exec: Page = () => (
 const App: Page = () => (
   <Shell eyebrow="06 — 首个应用 DeepSeekBot" title="把 Bot 带进侧边栏">
     <div style={{ display: 'flex', gap: 28 }}>
-      <Card no="ROSTER" title="Roster" body="Bot 与 Channel 一眼可见：状态、未读、事项，一处进入。" />
+      <Card
+        no="ROSTER"
+        title="Roster"
+        body="Bot 与 Channel 一眼可见：状态、未读、事项，一处进入。"
+      />
       <Card no="@ MENTION" title="@ 委派" body="从私聊或群里 @ 它。直复，或开一个独立事项去做。" />
-      <Card no="FEISHU / LARK" title="IM 接入" body="飞书双向消息。App Secret 只进凭证服务，永不进仓库。" />
+      <Card
+        no="FEISHU / LARK"
+        title="IM 接入"
+        body="飞书双向消息。App Secret 只进凭证服务，永不进仓库。"
+      />
     </div>
   </Shell>
 );
@@ -502,8 +611,23 @@ const Closing: Page = () => (
         animationDelay: '0.14s',
       }}
     >
-      <div style={{ flex: 1, border: `1px solid ${line}`, background: panel, borderRadius: 14, padding: '28px 32px' }}>
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          flex: 1,
+          border: `1px solid ${line}`,
+          background: panel,
+          borderRadius: 14,
+          padding: '28px 32px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 22,
+            letterSpacing: '0.12em',
+            color: 'var(--osd-accent)',
+          }}
+        >
           DONE
         </div>
         <div style={{ marginTop: 10, fontSize: 30, lineHeight: 1.55, color: '#d7e1ea' }}>
@@ -512,8 +636,23 @@ const Closing: Page = () => (
           下一步 M3 Roster 与委派
         </div>
       </div>
-      <div style={{ flex: 1, border: `1px solid ${line}`, background: panel, borderRadius: 14, padding: '28px 32px' }}>
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          flex: 1,
+          border: `1px solid ${line}`,
+          background: panel,
+          borderRadius: 14,
+          padding: '28px 32px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 22,
+            letterSpacing: '0.12em',
+            color: 'var(--osd-accent)',
+          }}
+        >
           HOW
         </div>
         <div style={{ marginTop: 10, fontSize: 30, lineHeight: 1.55, color: '#d7e1ea' }}>
@@ -522,8 +661,23 @@ const Closing: Page = () => (
           Human 可上手验证再扩展
         </div>
       </div>
-      <div style={{ flex: 1, border: `1px solid ${line}`, background: panel, borderRadius: 14, padding: '28px 32px' }}>
-        <div style={{ fontFamily: mono, fontSize: 22, letterSpacing: '0.12em', color: 'var(--osd-accent)' }}>
+      <div
+        style={{
+          flex: 1,
+          border: `1px solid ${line}`,
+          background: panel,
+          borderRadius: 14,
+          padding: '28px 32px',
+        }}
+      >
+        <div
+          style={{
+            fontFamily: mono,
+            fontSize: 22,
+            letterSpacing: '0.12em',
+            color: 'var(--osd-accent)',
+          }}
+        >
           DOCS
         </div>
         <div style={{ marginTop: 10, fontSize: 30, lineHeight: 1.55, color: '#d7e1ea' }}>

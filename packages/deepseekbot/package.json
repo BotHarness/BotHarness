@@ -8,8 +8,8 @@
   ],
   "type": "module",
   "dependencies": {
-    "@botharness/ui": "link:../client",
-    "@botharness/core": "link:../core"
+    "@botharness/core": "link:../core",
+    "@botharness/ui": "link:../client"
   },
   "engines": {
     "dsh": "0.1.7-rc.2",
