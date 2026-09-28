@@ -280,6 +280,73 @@ describe('Memory Git graph sidebar', () => {
     expect(container.textContent).not.toContain('修复记忆');
   });
 
+  it('keeps the saved file head when an older file read finishes', async () => {
+    const savedHead = 'b'.repeat(40);
+    let resolveStale!: (value: { path: string; body: string; head: string }) => void;
+    const stale = new Promise<{ path: string; body: string; head: string }>((resolve) => {
+      resolveStale = resolve;
+    });
+    const pending = new Promise<never>(() => undefined);
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({
+        head: SHA,
+        files: ['notes.md'],
+        provisional: false,
+      }),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryFile: vi
+        .fn()
+        .mockResolvedValueOnce({ path: 'notes.md', body: 'Original', head: SHA })
+        .mockReturnValueOnce(stale)
+        .mockReturnValue(pending),
+      memorySave: vi
+        .fn()
+        .mockResolvedValueOnce({ sha: savedHead })
+        .mockResolvedValue({ sha: 'c'.repeat(40) }),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-save',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    const edit = async (value: string): Promise<void> => {
+      const editor = container.querySelector<HTMLTextAreaElement>('#bh-memory-editor-body');
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+        setter?.call(editor, value);
+        editor?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+    const save = async (): Promise<void> => {
+      await act(async () => {
+        Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+          .find((button) => button.textContent?.trim() === '保存')
+          ?.click();
+      });
+    };
+    await edit('First edit');
+    await save();
+    await act(async () => resolveStale({ path: 'notes.md', body: 'Original', head: SHA }));
+    await edit('Second edit');
+    await save();
+    expect(actions.memorySave).toHaveBeenCalledTimes(2);
+    expect(actions.memorySave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ expectedHead: savedHead }),
+    );
+  });
+
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
       memoryGitCommitDiff: vi

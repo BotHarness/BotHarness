@@ -240,6 +240,7 @@ export function MemoryEntry({
         expectedHead: file.head,
         editId: crypto.randomUUID(),
       });
+      memoryRequestGeneration.current += 1;
       const savedFile = { ...file, body: draft, head: commit.sha };
       cache.files.set(file.path, savedFile);
       setFile(savedFile);
