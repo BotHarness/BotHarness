@@ -141,6 +141,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- The docked Channel sidebar now stays in place while switching Channels or opening a PersonaBot DM, so the Channel body no longer shifts while the next conversation loads ([#430](https://github.com/BotHarness/BotHarness/issues/430)).
 - The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
 
 - Group join requests for a Bot-owned Group and Human accept/decline decisions now reach the recipient's Bot Inbox instead of remaining in Needs repair after the Orchestrator turn ([#367](https://github.com/BotHarness/BotHarness/issues/367)).

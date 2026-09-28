@@ -76,16 +76,13 @@ export function useChannelSidebar(
   const narrow = useNarrowChannelSidebar();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const selection = state.selection;
-  const channel = state.conversation.channel;
-  const scope: ChannelSidebarScope = selection?.kind === 'bot' ? 'personabot' : 'channel';
+  // Conversation data resets during navigation, but the panel follows the selected destination.
   const scopeKey =
-    channel === undefined
-      ? undefined
-      : channelSidebarScopeKey(
-          scope,
-          channel.id,
-          selection?.kind === 'bot' ? selection.slug : undefined,
-        );
+    selection?.kind === 'bot'
+      ? channelSidebarScopeKey('personabot', selection.slug, selection.slug)
+      : selection?.kind === 'channel'
+        ? channelSidebarScopeKey('channel', selection.channelId, undefined)
+        : undefined;
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
   const docked = scopeKey !== undefined && !snapshot.collapsedSidebars.includes(scopeKey);
 
@@ -192,7 +189,16 @@ export function ChannelSidebar({
   selectedMemoryCommitSha?: string | undefined;
 }): ReactElement | null {
   const selection = state.selection;
-  const channel = state.conversation.channel;
+  // Keep using roster metadata until the selected conversation finishes opening.
+  const channel =
+    state.conversation.channel ??
+    (selection?.kind === 'channel'
+      ? state.channels.find((candidate) => candidate.id === selection.channelId)
+      : selection?.kind === 'bot'
+        ? state.channels.find(
+            (candidate) => candidate.type === 'dm' && candidate.botSlug === selection.slug,
+          )
+        : undefined);
   const scope: ChannelSidebarScope = selection?.kind === 'bot' ? 'personabot' : 'channel';
   const entries = useSyncExternalStore(
     registry.subscribe,
@@ -219,20 +225,24 @@ export function ChannelSidebar({
     };
   }, [controller.mode]);
 
-  if (channel === undefined || controller.scopeKey === undefined || controller.mode === 'hidden') {
+  if (controller.scopeKey === undefined || controller.mode === 'hidden') {
     return null;
   }
-  const entryProps: ChannelSidebarEntryProps = {
-    scope,
-    channelId: channel.id,
-    conversationRevision: state.conversation.revision,
-    botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
-    actions,
-    t,
-    onMemoryCommitSelect,
-    selectedMemoryCommitSha,
-  };
-  const visibleEntries = entries.filter((entry) => entry.visible?.(state) ?? true);
+  const entryProps: ChannelSidebarEntryProps | undefined =
+    channel === undefined
+      ? undefined
+      : {
+          scope,
+          channelId: channel.id,
+          conversationRevision: state.conversation.revision,
+          botSlug: selection?.kind === 'bot' ? selection.slug : undefined,
+          actions,
+          t,
+          onMemoryCommitSelect,
+          selectedMemoryCommitSha,
+        };
+  const visibleEntries =
+    entryProps === undefined ? [] : entries.filter((entry) => entry.visible?.(state) ?? true);
   const dockedWidth = clampChannelSidebarWidth(controller.width);
   const panel = (
     <div
@@ -291,7 +301,7 @@ export function ChannelSidebar({
       )}
       <div className="bh-channel-sidebar-head" aria-hidden="true" />
       <div className="bh-channel-sidebar-entries">
-        {visibleEntries.length === 0 ? (
+        {entryProps === undefined ? null : visibleEntries.length === 0 ? (
           <div className="bh-note">{t('sidebar.empty')}</div>
         ) : (
           visibleEntries.map((entry) => (
