@@ -55,6 +55,14 @@ Rules:
 - **Icons** use the Nimbus `Icon` component (`@cloudflare/nimbus-docs/components/Icon.astro`): HugeIcons for section/nav glyphs — `<Icon name="hugeicons:book-02" class="w-4 h-4" />` — and Phosphor (`ph:<glyph>`) where a HugeIcon doesn't fit (e.g. `ph:rss`, `ph:github-logo`). Glyph sets: [hugeicons.com](https://hugeicons.com) · [phosphoricons.com](https://phosphoricons.com).
 - **Don't remove `<AgentDirective />` from `BaseLayout.astro`.** It points agents at `/llms.txt`.
 
+## Landing page (coss)
+
+`src/pages/index.astro` is the brand surface: it imports root `design/tokens.css` and renders `src/components/landing/Landing.tsx` over **coss ui**, not the Nimbus registry. COSS stays on the landing; docs pages are Nimbus UI and in-harness UI is DSH tokens/primitives (ADR-0028, root `AGENTS.md`).
+
+- Add or update a component through the `@coss` registry in `components.json`: `pnpm dlx shadcn@latest add @coss/<name>` — preview with `--dry-run` / `--diff` first. Components land in `src/components/coss/`.
+- Use the installed `coss` and `coss-particles` skills for composition and usage rules; coss.com/ui is the source of truth for a component's API.
+- Icons: coss components bring their own `lucide-react` glyphs; the landing's own iconography uses HugeIcons through `@iconify/react` (`Landing.tsx` is the precedent).
+
 ## Sections
 
 One build serves both domains (`botharness.ai` and `botharness.dev`):
