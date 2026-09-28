@@ -229,6 +229,57 @@ describe('Memory Git graph sidebar', () => {
     expect(container.querySelector('.bh-memory-graph-meta')).not.toBeNull();
   });
 
+  it('ignores a pre-repair Memory response after clearing the cache', async () => {
+    const provisional = { head: SHA, files: [], provisional: true };
+    let resolveStale!: (value: typeof provisional) => void;
+    const stale = new Promise<typeof provisional>((resolve) => {
+      resolveStale = resolve;
+    });
+    const pending = new Promise<never>(() => undefined);
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce(provisional)
+        .mockReturnValueOnce(stale)
+        .mockReturnValue(pending),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryRepair: vi.fn().mockResolvedValue({ backupPath: 'backup' }),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-repair',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '修复记忆')
+        ?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '备份并恢复')
+        ?.click();
+    });
+    expect(actions.memoryRepair).toHaveBeenCalledOnce();
+    await act(async () => resolveStale(provisional));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    expect(container.querySelector('.bh-skeleton')).not.toBeNull();
+    expect(container.textContent).not.toContain('修复记忆');
+  });
+
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
       memoryGitCommitDiff: vi

@@ -56,6 +56,7 @@ export function MemoryEntry({
   const [branchRequest, setBranchRequest] = useState<string>();
   const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
   const [graph, setGraph] = useState<MemoryGitGraph | undefined>(cache.graph);
+  const memoryRequestGeneration = useRef(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [path, setPath] = useState<string | undefined>(initialPath);
   const [file, setFile] = useState<
@@ -102,13 +103,14 @@ export function MemoryEntry({
 
   useEffect(() => {
     let active = true;
+    const requestGeneration = memoryRequestGeneration.current;
     setError(undefined);
     setSnapshotError(undefined);
     setGraphError(undefined);
     void actions
       .memorySnapshot(channelId)
       .then((next) => {
-        if (!active) return;
+        if (!active || requestGeneration !== memoryRequestGeneration.current) return;
         cache.snapshot = next;
         setSnapshot(next);
         setPath((current) =>
@@ -116,15 +118,16 @@ export function MemoryEntry({
         );
       })
       .catch((failure: unknown) => {
-        if (active) setSnapshotError(failure instanceof Error ? failure.message : String(failure));
+        if (active && requestGeneration === memoryRequestGeneration.current)
+          setSnapshotError(failure instanceof Error ? failure.message : String(failure));
       })
       .finally(() => {
         // The graph reads current Git refs after the working-tree snapshot.
-        if (!active) return;
+        if (!active || requestGeneration !== memoryRequestGeneration.current) return;
         void actions
           .memoryGitGraph(channelId, 0)
           .then((next) => {
-            if (active) {
+            if (active && requestGeneration === memoryRequestGeneration.current) {
               cache.graph = next;
               setGraph(next);
               setBranchChoice((current) =>
@@ -135,7 +138,8 @@ export function MemoryEntry({
             }
           })
           .catch((failure: unknown) => {
-            if (active) setGraphError(failure instanceof Error ? failure.message : String(failure));
+            if (active && requestGeneration === memoryRequestGeneration.current)
+              setGraphError(failure instanceof Error ? failure.message : String(failure));
           });
       });
     return () => {
@@ -145,6 +149,7 @@ export function MemoryEntry({
 
   useEffect(() => {
     let active = true;
+    const requestGeneration = memoryRequestGeneration.current;
     const cachedFile = path === undefined ? undefined : cache.files.get(path);
     if (draftState.current.path !== path) {
       const body = cachedFile?.body ?? '';
@@ -157,7 +162,7 @@ export function MemoryEntry({
       void actions
         .memoryFile(channelId, path)
         .then((next) => {
-          if (!active) return;
+          if (!active || requestGeneration !== memoryRequestGeneration.current) return;
           if (next !== undefined) {
             cache.files.delete(path);
             cache.files.set(path, next);
@@ -174,7 +179,8 @@ export function MemoryEntry({
           }
         })
         .catch((failure: unknown) => {
-          if (active) setError(failure instanceof Error ? failure.message : String(failure));
+          if (active && requestGeneration === memoryRequestGeneration.current)
+            setError(failure instanceof Error ? failure.message : String(failure));
         });
     }
     return () => {
@@ -184,14 +190,17 @@ export function MemoryEntry({
 
   const loadMore = async (): Promise<void> => {
     if (graph === undefined || !graph.hasMore || loadingMore) return;
+    const requestGeneration = memoryRequestGeneration.current;
     setLoadingMore(true);
     try {
       const next = await actions.memoryGitGraph(channelId, graph.commits.length);
+      if (requestGeneration !== memoryRequestGeneration.current) return;
       const merged = { ...next, commits: [...graph.commits, ...next.commits] };
       cache.graph = merged;
       setGraph(merged);
     } catch (failure) {
-      setError(failure instanceof Error ? failure.message : String(failure));
+      if (requestGeneration === memoryRequestGeneration.current)
+        setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
       setLoadingMore(false);
     }
@@ -259,6 +268,7 @@ export function MemoryEntry({
         expectedHead: snapshot.head,
         repairId: crypto.randomUUID(),
       });
+      memoryRequestGeneration.current += 1;
       cache.snapshot = undefined;
       cache.graph = undefined;
       cache.files.clear();
