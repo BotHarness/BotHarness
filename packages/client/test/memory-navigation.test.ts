@@ -35,4 +35,17 @@ describe('Memory navigation', () => {
     ]);
     expect(memoryChangeBadge(git[2]!.changes[0]!, 'git')).toBe('U');
   });
+
+  it('omits an indexed new file removed from disk from the current-file view', () => {
+    const changes = [
+      { path: 'draft.md', kind: 'staged' as const, status: 'A' },
+      { path: 'draft.md', kind: 'unstaged' as const, status: 'D' },
+    ];
+    expect(
+      groupedMemoryChanges(changes, 'memory').every((group) => group.changes.length === 0),
+    ).toBe(true);
+    expect(groupedMemoryChanges(changes, 'git').map((group) => group.changes.length)).toEqual([
+      1, 1, 0,
+    ]);
+  });
 });

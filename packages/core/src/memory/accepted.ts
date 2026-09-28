@@ -1048,9 +1048,13 @@ export function createMemoryAcceptance(options: {
       const root = graphRepository(botSlug);
       const relative = toMemoryRelativePath(path);
       const phases = currentWorkingChanges(root).filter((entry) => entry.path === relative);
+      // A file added to the index and then removed from disk has no HEAD-to-worktree change.
+      const addedThenRemoved =
+        phases.some((entry) => entry.kind === 'staged' && entry.status === 'A') &&
+        phases.some((entry) => entry.kind === 'unstaged' && entry.status === 'D');
       const change =
         kind === 'current'
-          ? phases.length === 0
+          ? phases.length === 0 || addedThenRemoved
             ? undefined
             : {
                 path: relative,
@@ -1075,7 +1079,7 @@ export function createMemoryAcceptance(options: {
           '--',
           relative,
         ]);
-        return { ...change, diff, binary: diff.includes('Binary files') };
+        return { ...change, diff, binary: /^Binary files .+ differ$/mu.test(diff) };
       }
       const target = resolveMemoryPath(root, relative);
       const stat = lstatSync(target);

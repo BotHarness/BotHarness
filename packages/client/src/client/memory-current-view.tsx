@@ -162,10 +162,7 @@ export function MemoryWorkingView({
         <Button variant="outline" size="sm" onClick={onClose}>
           {t('memory.backToChat')}
         </Button>
-        <div>
-          <strong>{t('memory.workingDiff')}</strong>
-          <span>{change.path}</span>
-        </div>
+        <strong>{t('memory.workingDiff')}</strong>
         <Button variant="outline" size="sm" onClick={() => setRevision((value) => value + 1)}>
           {t('memory.refresh')}
         </Button>

@@ -3919,21 +3919,22 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-tree-chevron-space { flex: none; width: 14px; }
 .bh-memory-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-memory-file-tree button:focus-visible, .bh-memory-working-list button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
-.bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 20px 28px; color: var(--dsw-alias-label-primary); }
-.bh-memory-commit-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 12px; color: var(--dsw-alias-label-primary); }
+.bh-memory-commit-header { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 0; margin-bottom: 10px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
 .bh-memory-continue-open { margin-left: auto; }
-.bh-memory-continue-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.bh-memory-continue-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .bh-memory-continue-form label { color: var(--dsw-alias-label-secondary); }
 .bh-memory-continue-form input { min-width: 180px; max-width: 320px; }
-.bh-memory-commit-header div { display: flex; flex-direction: column; gap: 2px; }
+.bh-memory-commit-header div { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
+.bh-memory-commit-header strong { overflow-wrap: anywhere; }
 .bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
-.bh-memory-commit-files { display: flex; flex-direction: column; gap: 5px; margin-bottom: 18px; }
+.bh-memory-commit-files { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
 .bh-memory-commit-files strong { font-size: 12px; color: var(--dsw-alias-label-secondary); margin-bottom: 3px; }
-.bh-memory-commit-file { display: flex; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.bh-memory-commit-file { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; overflow-wrap: anywhere; }
 .bh-memory-file-status { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); }
-.bh-memory-commit-code { overflow: auto; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-card); padding: 10px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.6; white-space: pre; }
-pre.bh-memory-commit-code { padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.bh-memory-commit-code > div { padding: 0 14px; min-height: 1.55em; }
+.bh-memory-commit-code { overflow: auto; margin: 0 -12px; border-top: 1px solid var(--dsw-alias-border-l2); border-bottom: 1px solid var(--dsw-alias-border-l2); padding: 4px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.5; white-space: pre; }
+pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bh-memory-commit-code > div { padding: 0 18px; min-height: 1.5em; }
 .bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
 .bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
 .bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }

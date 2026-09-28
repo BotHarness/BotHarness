@@ -12,6 +12,13 @@ export function currentMemoryChanges(
     byPath.set(change.path, [...(byPath.get(change.path) ?? []), change]);
   }
   return [...byPath.entries()]
+    .filter(
+      ([, phases]) =>
+        !(
+          phases.some((phase) => phase.kind === 'staged' && phase.status === 'A') &&
+          phases.some((phase) => phase.kind === 'unstaged' && phase.status === 'D')
+        ),
+    )
     .map(([path, phases]) => ({
       path,
       kind: 'current' as const,
