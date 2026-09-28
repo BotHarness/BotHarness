@@ -405,7 +405,11 @@ function EmptyConversation({
     return (
       <div className="bh-placeholder bh-chat-empty">
         <span className="bh-channel-mark" aria-hidden="true">
-          #
+          {channel.avatar ? (
+            <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+          ) : (
+            '#'
+          )}
         </span>
         <div className="bh-big">{channel.name}</div>
         <div>{t('main.group.note')}</div>
@@ -860,6 +864,12 @@ function ConversationView({
                   src={bot.avatar}
                   state={botActivity}
                   size={22}
+                />
+              ) : channel?.type === 'group' && channel.avatar ? (
+                <img
+                  className="bh-group-avatar-image bh-group-avatar-topbar"
+                  src={channel.avatar}
+                  alt=""
                 />
               ) : channelFacepile.length > 0 ? (
                 <PersonaBotFacepile items={channelFacepile} size={22} t={t} />

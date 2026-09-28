@@ -26,6 +26,8 @@ export interface ChannelRecord {
   id: string;
   type: ChannelType;
   name: string;
+  /** Small raster data URL for a Human-selected Group avatar. */
+  avatar?: string;
   members: string[];
   botSlug?: string;
   /** A Bot creator may manage this Group; Human authority remains separate. */
@@ -44,10 +46,26 @@ export interface GroupInvitation {
   targetBotSlug: string;
   /** The invited Bot incarnation; a recreated Bot cannot inherit a stale invite. */
   targetBotCreatedAt: string;
-  inviterBotSlug: string;
+  /** Older and Bot-created invitations carry the Bot owner. */
+  inviterBotSlug?: string;
+  /** Human invitations keep Human authority distinct from Bot ownership. */
+  inviterHuman?: true;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
   respondedAt?: string;
+}
+
+export function isGroupAvatar(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > 131_072) return false;
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
+  if (match === null) return false;
+  const bytes = Buffer.from(match[2]!, 'base64');
+  if (bytes.length === 0 || bytes.length > 98_304) return false;
+  return match[1] === 'png'
+    ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : match[1] === 'jpeg'
+      ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+      : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
 }
 
 /** A nonmember Bot asks to join after a Human-selected #Group reference. */
@@ -239,6 +257,11 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
   if (record['id'] !== id) return false;
   if (record['type'] !== 'dm' && record['type'] !== 'group') return false;
   if (typeof record['name'] !== 'string') return false;
+  if (
+    record['avatar'] !== undefined &&
+    (record['type'] !== 'group' || !isGroupAvatar(record['avatar']))
+  )
+    return false;
   if (typeof record['createdAt'] !== 'string') return false;
   if (typeof record['updatedAt'] !== 'string') return false;
   const members = record['members'];
@@ -291,7 +314,8 @@ export function isChannelRecord(value: unknown, id: string): value is ChannelRec
           typeof invite['id'] === 'string' &&
           typeof invite['targetBotSlug'] === 'string' &&
           typeof invite['targetBotCreatedAt'] === 'string' &&
-          typeof invite['inviterBotSlug'] === 'string' &&
+          ((typeof invite['inviterBotSlug'] === 'string' && invite['inviterHuman'] === undefined) ||
+            (invite['inviterBotSlug'] === undefined && invite['inviterHuman'] === true)) &&
           ['pending', 'accepted', 'declined', 'cancelled'].includes(String(invite['status'])) &&
           typeof invite['createdAt'] === 'string' &&
           (invite['respondedAt'] === undefined || typeof invite['respondedAt'] === 'string')

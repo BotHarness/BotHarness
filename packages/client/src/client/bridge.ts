@@ -174,7 +174,10 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
           item === undefined ||
           typeof item['id'] !== 'string' ||
           typeof item['targetBotSlug'] !== 'string' ||
-          typeof item['inviterBotSlug'] !== 'string' ||
+          !(
+            (typeof item['inviterBotSlug'] === 'string' && item['inviterHuman'] === undefined) ||
+            (item['inviterBotSlug'] === undefined && item['inviterHuman'] === true)
+          ) ||
           !['pending', 'accepted', 'declined', 'cancelled'].includes(String(item['status'])) ||
           typeof item['createdAt'] !== 'string'
         )
@@ -183,7 +186,9 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
           {
             id: item['id'],
             targetBotSlug: item['targetBotSlug'],
-            inviterBotSlug: item['inviterBotSlug'],
+            ...(typeof item['inviterBotSlug'] === 'string'
+              ? { inviterBotSlug: item['inviterBotSlug'] }
+              : { inviterHuman: true as const }),
             status: item['status'] as 'pending' | 'accepted' | 'declined' | 'cancelled',
             createdAt: item['createdAt'],
             ...(typeof item['respondedAt'] === 'string'
@@ -251,6 +256,9 @@ export function parseChannelRecord(value: unknown): ChannelSummary | undefined {
     id,
     type,
     name,
+    ...(type === 'group' && typeof record['avatar'] === 'string'
+      ? { avatar: record['avatar'] }
+      : {}),
     members: stringArray(record['members']),
     createdAt: typeof createdAt === 'string' ? createdAt : '',
     updatedAt: typeof updatedAt === 'string' ? updatedAt : '',
@@ -856,6 +864,28 @@ export async function renameChannel(
   if (channel === undefined) throw new Error('invalid channelRename response');
   const bot = parseBotSummary(value?.['bot']);
   return { channel, ...(bot === undefined ? {} : { bot }) };
+}
+
+export async function setGroupAvatar(
+  call: BridgeCall,
+  channelId: string,
+  avatar: string | null,
+): Promise<ChannelSummary> {
+  const value = asRecord(await unwrap(call, 'channelGroupAvatarSet', { channelId, avatar }));
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupAvatarSet response');
+  return channel;
+}
+
+export async function inviteGroupBot(
+  call: BridgeCall,
+  channelId: string,
+  botSlug: string,
+): Promise<ChannelSummary> {
+  const value = asRecord(await unwrap(call, 'channelGroupInvite', { channelId, botSlug }));
+  const channel = parseChannelRecord(value?.['channel']);
+  if (channel === undefined) throw new Error('invalid channelGroupInvite response');
+  return channel;
 }
 
 export async function cancelGroupInvitation(

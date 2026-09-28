@@ -250,6 +250,8 @@ describe('plugin entry', () => {
       'channelDm',
       'channelCreate',
       'channelRename',
+      'channelGroupAvatarSet',
+      'channelGroupInvite',
       'channelGroupInviteCancel',
       'channelGroupMemberRemove',
       'channelGroupJoinDecide',

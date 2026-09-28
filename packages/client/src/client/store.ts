@@ -21,6 +21,7 @@ export interface ChannelSummary {
   id: string;
   type: 'dm' | 'group';
   name: string;
+  avatar?: string;
   members: string[];
   botSlug?: string;
   ownerBotSlug?: string;
@@ -44,7 +45,8 @@ export interface ChannelSummary {
   invitations?: Array<{
     id: string;
     targetBotSlug: string;
-    inviterBotSlug: string;
+    inviterBotSlug?: string;
+    inviterHuman?: true;
     status: 'pending' | 'accepted' | 'declined' | 'cancelled';
     createdAt: string;
     respondedAt?: string;
