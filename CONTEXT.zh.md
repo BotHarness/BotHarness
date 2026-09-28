@@ -153,7 +153,7 @@ _避免使用_：debug flag、admin mode、agent permission、read boundary
 _避免使用_：machine、VM、sandbox、desktop、host
 
 **Bot Screen**：
-某个 PersonaBot 在 Computer 上使用的私有工作界面——它打开的窗口与标签。观察与操作都限定在它拥有的窗口内；它是可见性作用域，不是安全边界。
+某个 PersonaBot 在 Computer 上使用的私有工作界面——它打开的窗口与标签，在 Human 观看时放在自己的工作区里；每 Bot 一条虚拟显示是实验性开启项。观察与操作都限定在它拥有的窗口内；它是可见性作用域，不是安全边界。
 _避免使用_：display、virtual screen、workspace、desktop
 
 **Computer Provider**：
@@ -171,6 +171,18 @@ _避免使用_：handoff、screen sharing、per-bot takeover
 **Computer Export**：
 一台 Computer 持久卷的可携带归档，由显式导出操作产生，可在另一台 Host 上恢复。它是 profile 级 facet，绝不是 PersonaBot export 的一部分。
 _避免使用_：PersonaBot export、backup file、disk image
+
+**Computer Target**：
+Computer 位于何处的 profile 级选择：Local Computer（默认）或 Container Computer。它对所有 PersonaBot 一次设定；Computer Access 只决定某个 PersonaBot 是否可以使用这台 Computer。
+_避免使用_：device、driver、provider、backend
+
+**Local Computer**：
+由运行 DSH 的机器本身提供的 Computer——Human 自己的桌面，或带交互桌面的部署宿主。所有 PersonaBot 共享 Human 的真实桌面与登录态；除了这台机器本身，没有额外隔离。
+_避免使用_：host machine、personal computer、native target
+
+**Container Computer**：
+由 profile 的 Docker 桌面提供的 Computer；宿主没有交互桌面（headless VPS）时推荐使用。它是可选项：没有 Docker 的 profile 使用 Local Computer。
+_避免使用_：sandbox、VM、docker computer
 
 **Computer Access**：
 PersonaBot 级的开启项（默认关闭）：开启后，该 PersonaBot 的 Orchestrator 与 Assignment 会话才能获得 Computer 工具及其指引；它绝不为其他 PersonaBot 或 Human 会话开权限。
