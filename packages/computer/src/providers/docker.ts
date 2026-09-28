@@ -35,6 +35,8 @@ export interface DockerComputerConfig {
   readonly dataDir: string;
   readonly cpus: number;
   readonly memory: string;
+  /** Desktop geometry (Xvfb `MAX_RES`), e.g. 1280x800; lower costs less memory. */
+  readonly resolution: string;
   readonly shmSize: string;
   /** Caps the container's process count so a runaway app cannot fork-bomb the host. */
   readonly pidsLimit: number;
@@ -61,7 +63,8 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   hostPort: 39_001,
   containerPort: 3000,
   cpus: 2,
-  memory: '2g',
+  memory: '4g',
+  resolution: '1280x800',
   shmSize: '512m',
   pidsLimit: 4096,
   idleStopMinutes: 30,
@@ -441,6 +444,30 @@ export function createDockerComputerProvider(
   };
 
   /**
+   * Chromium in this container has no working GPU and a small /dev/shm; both
+   * are ordinary causes of renderer crashes ("Aw, Snap! Error code 9") on
+   * heavy pages. The image's launcher script has no environment hook for
+   * extra flags, so seed `/usr/local/bin` shims (earlier in PATH than
+   * /usr/bin) that add the two stabilising flags. Best effort; re-seeded
+   * every start because /usr/local/bin lives in the container layer.
+   */
+  const ensureChromiumFlags = async (): Promise<void> => {
+    const shim = (name: string): string =>
+      `#!/bin/sh\nexec /usr/bin/${name} --disable-dev-shm-usage --disable-gpu "$@"\n`;
+    const result = await runner.run([
+      'docker',
+      'exec',
+      config.containerName,
+      'sh',
+      '-c',
+      `mkdir -p /usr/local/bin && printf '%s' '${shim('chromium')}' > /usr/local/bin/chromium && printf '%s' '${shim('chromium-browser')}' > /usr/local/bin/chromium-browser && chmod +x /usr/local/bin/chromium /usr/local/bin/chromium-browser`,
+    ]);
+    if (result.code !== 0) {
+      onEvent?.('chromium flag shims could not be prepared');
+    }
+  };
+
+  /**
    * A clean desktop stop makes Chromium forget open tabs: its default session
    * policy opens a new-tab page, and only a crashed session is restored. A
    * managed policy tells it to restore the previous session instead, so tabs
@@ -595,6 +622,7 @@ export function createDockerComputerProvider(
       await confirmRunning();
       await ensureDesktopShortcut();
       await ensureSessionRestore();
+      await ensureChromiumFlags();
       await ensureWorkspaceDir();
       return;
     }
@@ -610,6 +638,7 @@ export function createDockerComputerProvider(
       await confirmRunning();
       await ensureDesktopShortcut();
       await ensureSessionRestore();
+      await ensureChromiumFlags();
       await ensureWorkspaceDir();
       return;
     }
@@ -671,6 +700,8 @@ export function createDockerComputerProvider(
       '-e',
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
       '-e',
+      `MAX_RES=${config.resolution}`,
+      '-e',
       `LANG=${getLanguage?.() ?? config.language}`,
       '-e',
       `LC_ALL=${getLanguage?.() ?? config.language}`,
@@ -694,6 +725,7 @@ export function createDockerComputerProvider(
     await confirmRunning();
     await ensureDesktopShortcut();
     await ensureSessionRestore();
+    await ensureChromiumFlags();
     await ensureWorkspaceDir();
   };
 

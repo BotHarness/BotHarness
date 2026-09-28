@@ -50,8 +50,10 @@ export interface ComputerConfig {
   hostPort: number;
   /** CPU cores the container may use. */
   cpus: number;
-  /** Hard memory ceiling, e.g. 2g; swap is pinned to the same value. */
+  /** Hard memory ceiling, e.g. 4g; swap is pinned to the same value. */
   memory: string;
+  /** Desktop geometry (Xvfb `MAX_RES`), e.g. 1280x800; lower costs less memory. */
+  resolution: string;
   /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
   /** Process-count ceiling so a runaway app cannot fork-bomb the host. */
@@ -100,6 +102,7 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   hostPort: DEFAULT_DOCKER_CONFIG.hostPort,
   cpus: DEFAULT_DOCKER_CONFIG.cpus,
   memory: DEFAULT_DOCKER_CONFIG.memory,
+  resolution: DEFAULT_DOCKER_CONFIG.resolution,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
   pidsLimit: DEFAULT_DOCKER_CONFIG.pidsLimit,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
@@ -118,6 +121,9 @@ export const Config = Schema.object({
   hostPort: Schema.number().default(DEFAULT_CONFIG.hostPort),
   cpus: Schema.number().default(DEFAULT_CONFIG.cpus),
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
+  resolution: Schema.string()
+    .default(DEFAULT_CONFIG.resolution)
+    .description('桌面分辨率（Xvfb MAX_RES）；越低越省内存与编码开销，默认 1280x800'),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),
@@ -312,6 +318,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       hostPort: config.hostPort,
       cpus: config.cpus,
       memory: config.memory,
+      resolution: config.resolution,
       shmSize: config.shmSize,
       pidsLimit: config.pidsLimit,
       idleStopMinutes: readLive(config.idleStopMinutes),

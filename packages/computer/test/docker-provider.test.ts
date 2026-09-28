@@ -51,12 +51,12 @@ function specLine(
   } = {},
 ): ComputerRuntimeResult {
   const image = patch.image ?? 'lscr.io/linuxserver/webtop:ubuntu-xfce';
-  const memory = patch.memory ?? String(2 * 1024 ** 3);
+  const memory = patch.memory ?? String(4 * 1024 ** 3);
   const swap = patch.swap ?? memory;
   const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
   const shm = patch.shm ?? String(512 * 1024 ** 2);
   const pids = patch.pids ?? '4096';
-  const env = patch.env ?? ['HARDEN_DESKTOP=false', 'PIXELFLUX_WAYLAND=false'];
+  const env = patch.env ?? ['HARDEN_DESKTOP=false', 'MAX_RES=1280x800', 'PIXELFLUX_WAYLAND=false'];
   return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
 }
 
@@ -339,7 +339,7 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
           if (format.includes('HostConfig.Memory'))
-            return specLine({ memory: String(4 * 1024 ** 3) });
+            return specLine({ memory: String(2 * 1024 ** 3) });
           return ok('exited\n');
         }
         return ok('ok');
@@ -415,16 +415,18 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
     const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
-    expect(run).toContain('--memory 2g');
-    expect(run).toContain('--memory-swap 2g');
+    expect(run).toContain('--memory 4g');
+    expect(run).toContain('--memory-swap 4g');
+    expect(run).toContain('MAX_RES=1280x800');
     expect(run).toContain('--pids-limit 4096');
     expect(run).toContain('--shm-size 512m');
   });
 
-  it('ships 2C2G defaults that stay overridable per Host', async () => {
+  it('ships 2C4G defaults that stay overridable per Host', async () => {
     expect(DEFAULT_DOCKER_CONFIG).toMatchObject({
       cpus: 2,
-      memory: '2g',
+      memory: '4g',
+      resolution: '1280x800',
       shmSize: '512m',
       pidsLimit: 4096,
       idleStopMinutes: 30,
