@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createMemoryStore } from '../src/index.js';
+import { createMemoryGit } from '../src/memory/git.js';
 import { FIXED_NOW, createTempRoot } from './helpers.js';
 
 function createRoot(): string {
@@ -97,5 +98,20 @@ describe('memory git repository', () => {
     expect(reopened.read('a.md')?.summary).toBe('First');
     expect(reopened.history(1)[0]?.sha).toBe(head?.sha);
     expect(reopened.history(1)[0]?.date).toBe(head?.date);
+  });
+
+  it('reports author dates since an instant for Profile memory activity', async () => {
+    const root = createRoot();
+    const store = createMemoryStore({ memoryDir: root, now: FIXED_NOW });
+    await store.write({ path: 'a.md', body: 'x', summary: 'First' });
+    await store.write({ path: 'b.md', body: 'y', summary: 'Second' });
+    const gitClient = createMemoryGit(root);
+
+    const sinceEpoch = gitClient.activitySince('2000-01-01T00:00:00.000Z');
+    expect(sinceEpoch).toHaveLength(commitCount(root));
+    for (const entry of sinceEpoch) {
+      expect(Number.isNaN(new Date(entry.at).getTime())).toBe(false);
+    }
+    expect(gitClient.activitySince('2099-01-01T00:00:00.000Z')).toEqual([]);
   });
 });

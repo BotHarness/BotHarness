@@ -187,10 +187,10 @@ describe('Bot main Sessions pane', () => {
     expect(markup).toContain('会话');
     expect(markup).toContain('收起 Channel sidebar');
     expect(markup).toContain('class="bh-channel-island"');
-    expect(markup).toContain('aria-label="Ada — 收起 Channel sidebar"');
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('aria-label="打开 Ada 的 PersonaBot Profile"');
     expect(markup).toContain('<span class="bh-title">Ada</span>');
     expect(markup).not.toContain('bh-channel-sidebar-title');
-    expect(markup).toContain('aria-controls="bh-channel-sidebar"');
     expect(markup).toContain('class="bh-chat-top-fade"');
     expect(markup).not.toContain('研究发布状态');
     expect(markup).not.toContain('Ada 空闲');

@@ -596,6 +596,22 @@ _Avoid_: main pane, conversation view, chat panel
 One registered, collapsible item of a Channel sidebar: a stable id, label, order, scope, and a renderer that may display information, offer controls, or both. An unavailable entry is absent rather than a placeholder.
 _Avoid_: widget, card, tab, destination, Channel section
 
+**PersonaBot Profile**:
+The per-PersonaBot surface for identity and activity: the Display name and Avatar, token usage and activity charts derived from its owned Sessions, and its Memory commit activity. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
+_Avoid_: account, dashboard, bot page, profile (bare)
+
+**Profile popover**:
+The compact form of a PersonaBot Profile, anchored to the PersonaBot avatar in the Channel body header. It shows only the Profile Cards the Human pinned and offers entry into the Profile view.
+_Avoid_: menu, dropdown, tooltip, card stack
+
+**Profile view**:
+The expanded form of a PersonaBot Profile. It occupies the Channel body and temporarily replaces the Chat's history and composer; leaving it returns the Channel body to the Chat, and it changes nothing in the Channel sidebar.
+_Avoid_: panel, page, tab, inspector, settings
+
+**Profile Card**:
+One registered component of a PersonaBot Profile: a stable id, label, order, scope, visibility rule, and compact and full renderers that may display information, offer controls, or both. A Human may pin a Profile Card to the Profile popover.
+_Avoid_: widget, tile, gadget, Channel sidebar entry
+
 **Client bridge**:
 The RPC surface through which the Web Client reads PersonaBots and invokes separate mutation commands without sharing Host services.
 _Avoid_: remote, IPC, gateway

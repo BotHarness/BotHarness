@@ -1706,6 +1706,22 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const message = this.message(channelId, messageId);
       if (message !== undefined) options.onAdmissionChanged?.(channelId, messageId, message);
     },
+    admissionActivity(botSlug, sinceIso) {
+      if (!isValidSlug(botSlug)) return [];
+      const rows = database.read((db) =>
+        db
+          .prepare(
+            `SELECT reason, COALESCE(observed_at, handled_at) AS at FROM inbox_admissions
+              WHERE bot_slug = ? AND ignored_at IS NULL
+                AND COALESCE(observed_at, handled_at) IS NOT NULL
+                AND COALESCE(observed_at, handled_at) >= ?
+              ORDER BY at
+              LIMIT 20000`,
+          )
+          .all(botSlug, sinceIso),
+      ) as unknown as Array<{ reason: string; at: string }>;
+      return rows.map((row) => ({ at: row.at, reason: row.reason }));
+    },
     messagesAfter(id, revision) {
       if (!isValidChannelId(id) || !Number.isSafeInteger(revision) || revision < 0)
         return undefined;

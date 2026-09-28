@@ -16,6 +16,8 @@ export interface MemoryGit {
   head(): string;
   commit(message: string): string;
   log(limit?: number): MemoryCommit[];
+  /** Author dates of commits reachable from any local branch since an instant. */
+  activitySince(sinceIso: string): Array<{ at: string }>;
 }
 
 const INIT_COMMIT_MESSAGE = 'Initialize memory repository';
@@ -117,6 +119,17 @@ export function createMemoryGit(root: string): MemoryGit {
         commits.push({ sha, date, message: rest.join(FIELD_SEPARATOR).trim() });
       }
       return commits;
+    },
+    activitySince(sinceIso) {
+      try {
+        return run(root, ['log', '--all', '--since', sinceIso, '--pretty=format:%aI'])
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0)
+          .map((at) => ({ at }));
+      } catch {
+        return [];
+      }
     },
   };
 }

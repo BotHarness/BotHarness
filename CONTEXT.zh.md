@@ -594,6 +594,22 @@ _避免使用_：main pane、conversation view、chat panel
 Channel sidebar 中一个已注册、可折叠的 item，具有稳定 id、label、order、scope 与 renderer，可用于展示信息、提供 control，或同时承担两者。不可用的 entry 直接缺席，不显示 placeholder。
 _避免使用_：widget、card、tab、destination、Channel section
 
+**PersonaBot Profile**：
+单个 PersonaBot 的身份与活动 surface：Display name 与 Avatar、由其 owned Session 派生出的 token 用量与活动图表，以及 Memory commit 活跃度。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
+_避免使用_：account、dashboard、bot page、裸用 profile
+
+**Profile popover**：
+PersonaBot Profile 的紧凑形态，锚定在 Channel body header 的 PersonaBot 头像旁。它只显示 Human 已 pin 的 Profile Card，并提供进入 Profile view 的入口。
+_避免使用_：menu、dropdown、tooltip、card stack
+
+**Profile view**：
+PersonaBot Profile 的展开形态。它占据 Channel body，暂时替换 Chat 的历史与 composer；离开后 Channel body 回到 Chat，且不改变 Channel sidebar 中的任何内容。
+_避免使用_：panel、page、tab、inspector、settings
+
+**Profile Card**：
+PersonaBot Profile 中一个已注册的 component，具有稳定 id、label、order、scope、visibility rule，以及 compact 与 full 两种 renderer，可用于展示信息、提供 control，或同时承担两者。Human 可以把 Profile Card pin 到 Profile popover。
+_避免使用_：widget、tile、gadget、Channel sidebar entry
+
 **Client bridge**：
 Web Client 用于读取 PersonaBot 并调用各自独立 mutation command 的 RPC surface，不与 Client 共享 Host service。
 _避免使用_：remote、IPC、gateway
