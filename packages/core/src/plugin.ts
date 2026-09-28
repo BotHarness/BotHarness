@@ -251,9 +251,21 @@ export function createCore(
     botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
     onCommitted: (commit) => {
-      live?.publishCommitted(commit);
-      if (commit.message.memberDeparture !== undefined)
-        runtime?.admitGroupMessage(commit.channelId, commit.message.id);
+      let publicationFailed = false;
+      try {
+        live?.publishCommitted(commit);
+      } catch {
+        publicationFailed = true;
+      }
+      if (commit.message.memberDeparture !== undefined) {
+        try {
+          runtime?.admitGroupMessage(commit.channelId, commit.message.id);
+        } catch {
+          runtime?.retryGroupMessageAdmission?.(commit.channelId, commit.message.id);
+          options.warn?.('group-admission-wake-failed-retrying');
+        }
+      }
+      if (publicationFailed) options.warn?.('channel-live-publication-failed');
     },
     onRecordChanged: () => live?.publishRosterCommitted(),
     onAdmissionChanged: (channelId, messageId, message) =>

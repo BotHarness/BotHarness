@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
@@ -525,6 +525,96 @@ describe('Bot Group self-leave', () => {
           .readMessages(group.id)
           .some((message) => message.sessionFailure !== undefined),
       ).toBe(false);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+  it('retries a committed departure wake after a transient notification failure while Host stays live', async () => {
+    const turns: string[] = [];
+    const core = createCore({
+      dshHome: createTempRoot('botharness-group-leave-wake-retry-'),
+      agents: adapter(async (run) => {
+        turns.push(run.bot.slug);
+      }),
+    });
+    try {
+      for (const slug of ['lee', 'eve'])
+        core.registry.create({ slug, displayName: slug.toUpperCase() });
+      const group = core.channels.createGroup({
+        name: 'Wake retry',
+        members: ['lee', 'eve'],
+      });
+      core.channels.setGroupWakePolicy(group.id, 'eve', {
+        mode: 'all',
+        count: 1,
+        intervalSeconds: 1,
+      });
+      const admit = core.runtime.admitGroupMessage.bind(core.runtime);
+      let attempts = 0;
+      const spy = vi
+        .spyOn(core.runtime, 'admitGroupMessage')
+        .mockImplementation((channelId, messageId) => {
+          attempts++;
+          if (attempts <= 2) throw new Error('transient notification failure');
+          admit(channelId, messageId);
+        });
+
+      core.channels.removeGroupMember(group.id, 'lee');
+      const departure = core.channels
+        .readMessages(group.id)
+        .find((message) => message.memberDeparture !== undefined);
+      expect(departure).toBeDefined();
+      expect(core.channels.message(group.id, departure!.id)?.deliveries).toEqual([
+        { botSlug: 'eve', state: 'pending' },
+      ]);
+      await vi.waitFor(() => expect(turns).toEqual(['eve']), { timeout: 2000 });
+      await core.runtime.whenIdle();
+      expect(spy).toHaveBeenCalledTimes(3);
+      expect(core.channels.message(group.id, departure!.id)?.deliveries).toEqual([
+        { botSlug: 'eve', state: 'handled' },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('wakes remaining Bot when live Channel publication fails after commit', async () => {
+    const turns: string[] = [];
+    const core = createCore({
+      dshHome: createTempRoot('botharness-group-leave-live-failure-'),
+      agents: adapter(async (run) => {
+        turns.push(run.bot.slug);
+      }),
+    });
+    try {
+      for (const slug of ['lee', 'eve'])
+        core.registry.create({ slug, displayName: slug.toUpperCase() });
+      const group = core.channels.createGroup({
+        name: 'Live failure',
+        members: ['lee', 'eve'],
+      });
+      core.channels.setGroupWakePolicy(group.id, 'eve', {
+        mode: 'all',
+        count: 1,
+        intervalSeconds: 1,
+      });
+      vi.spyOn(core.live, 'publishCommitted').mockImplementationOnce(() => {
+        throw new Error('transient stream failure');
+      });
+
+      core.channels.removeGroupMember(group.id, 'lee');
+      await core.runtime.whenIdle();
+
+      expect(turns).toEqual(['eve']);
+      const departure = core.channels
+        .readMessages(group.id)
+        .find((message) => message.memberDeparture !== undefined);
+      expect(departure).toBeDefined();
+      expect(core.channels.message(group.id, departure!.id)?.deliveries).toEqual([
+        { botSlug: 'eve', state: 'handled' },
+      ]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

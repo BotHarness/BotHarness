@@ -279,6 +279,8 @@ export interface BotRuntime {
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
   /** Schedule each committed Group mention independently; content and Admissions already exist. */
   admitGroupMessage(channelId: string, messageId: string): void;
+  /** Retry a committed Group admission wake after transient post-commit notification failure. */
+  retryGroupMessageAdmission?(channelId: string, messageId: string): void;
   /** Schedule the one recipient of a committed Bot-to-Bot DM message. */
   admitBotDmMessage(channelId: string, messageId: string): void;
   /** Wake an invitee on a durable invitation without granting Group membership. */
@@ -609,6 +611,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #steerSettlements = new Set<Promise<void>>();
   readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
+  readonly #groupAdmissionRetries = new Map<string, NodeJS.Timeout>();
   readonly #digestRetryAt = new Map<string, number>();
   readonly #digestFailureCount = new Map<string, number>();
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
@@ -686,6 +689,34 @@ class BotRuntimeImplementation implements BotRuntime {
   admitGroupMessage(channelId: string, messageId: string): void {
     this.#admitChannelMessage(channelId, messageId, 'group-mention');
     this.#admitChannelMessage(channelId, messageId, 'group-ordinary');
+  }
+
+  retryGroupMessageAdmission(channelId: string, messageId: string): void {
+    if (this.#closed) return;
+    const key = JSON.stringify([channelId, messageId]);
+    if (this.#groupAdmissionRetries.has(key)) return;
+    const schedule = (attempt: number): void => {
+      const timer = setTimeout(
+        () => {
+          this.#groupAdmissionRetries.delete(key);
+          if (this.#closed) return;
+          try {
+            this.admitGroupMessage(channelId, messageId);
+          } catch {
+            schedule(attempt + 1);
+            try {
+              this.#warn?.('group-admission-notification-retry-failed');
+            } catch {
+              // A diagnostic sink failure must not stop the next recovery attempt.
+            }
+          }
+        },
+        Math.min(100 * 2 ** attempt, 30_000),
+      );
+      timer.unref();
+      this.#groupAdmissionRetries.set(key, timer);
+    };
+    schedule(0);
   }
 
   admitBotDmMessage(channelId: string, messageId: string): void {
@@ -1746,6 +1777,8 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#closed = true;
     for (const timer of this.#digestTimers.values()) clearTimeout(timer);
     this.#digestTimers.clear();
+    for (const timer of this.#groupAdmissionRetries.values()) clearTimeout(timer);
+    this.#groupAdmissionRetries.clear();
     this.#digestRetryAt.clear();
     this.#digestFailureCount.clear();
     for (const retry of this.#inboxFactoryRetries.values())
