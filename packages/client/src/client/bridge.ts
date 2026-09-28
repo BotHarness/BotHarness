@@ -59,9 +59,20 @@ export interface CreatePersonaBotInput {
 }
 
 export interface BotSourcePolicyView {
-  sourceClass: 'human-dm';
+  sourceClass:
+    | 'human-dm'
+    | 'bot-dm'
+    | 'group-mention'
+    | 'group-ordinary'
+    | 'group-invite'
+    | 'group-join-request'
+    | 'group-join-decision'
+    | 'assignment-report'
+    | 'assignment-lifecycle';
   admission: 'admit';
-  wake: 'immediate';
+  wake: 'immediate' | 'digest' | 'conditional';
+  digestCount?: number;
+  digestIntervalSeconds?: number;
   revision: number;
   lastActor: { kind: 'built-in' };
   changedAt: string;
@@ -78,13 +89,27 @@ export async function loadBotSourcePolicies(
     const policy = asRecord(entry);
     const actor = asRecord(policy?.['lastActor']);
     if (
-      policy?.['sourceClass'] !== 'human-dm' ||
+      policy === undefined ||
+      ![
+        'human-dm',
+        'bot-dm',
+        'group-mention',
+        'group-ordinary',
+        'group-invite',
+        'group-join-request',
+        'group-join-decision',
+        'assignment-report',
+        'assignment-lifecycle',
+      ].includes(String(policy?.['sourceClass'])) ||
       policy['admission'] !== 'admit' ||
-      policy['wake'] !== 'immediate' ||
+      !['immediate', 'digest', 'conditional'].includes(String(policy['wake'])) ||
       typeof policy['revision'] !== 'number' ||
       !Number.isSafeInteger(policy['revision']) ||
       actor?.['kind'] !== 'built-in' ||
-      typeof policy['changedAt'] !== 'string'
+      typeof policy['changedAt'] !== 'string' ||
+      (policy['wake'] === 'digest' &&
+        (!Number.isSafeInteger(policy['digestCount']) ||
+          !Number.isSafeInteger(policy['digestIntervalSeconds'])))
     )
       throw new Error('invalid Bot source policy');
     return policy as unknown as BotSourcePolicyView;

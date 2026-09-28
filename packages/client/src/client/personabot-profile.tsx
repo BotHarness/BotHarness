@@ -274,8 +274,34 @@ export function ProfileView({
           ) : (
             sourcePolicies.map((policy) => (
               <div key={policy.sourceClass} className="bh-source-policy-row">
-                <strong>{t('sourcePolicy.humanDm')}</strong>
-                <span>{t('sourcePolicy.admitImmediate')}</span>
+                <strong>
+                  {
+                    {
+                      'human-dm': t('sourcePolicy.humanDm'),
+                      'bot-dm': t('sourcePolicy.botDm'),
+                      'group-mention': t('sourcePolicy.groupMention'),
+                      'group-ordinary': t('sourcePolicy.groupOrdinary'),
+                      'group-invite': t('sourcePolicy.groupInvite'),
+                      'group-join-request': t('sourcePolicy.groupJoinRequest'),
+                      'group-join-decision': t('sourcePolicy.groupJoinDecision'),
+                      'assignment-report': t('sourcePolicy.assignmentReport'),
+                      'assignment-lifecycle': t('sourcePolicy.assignmentLifecycle'),
+                    }[policy.sourceClass]
+                  }
+                </strong>
+                <span>
+                  {policy.wake === 'digest'
+                    ? t('sourcePolicy.admitDigest', {
+                        count: policy.digestCount ?? 0,
+                        seconds: policy.digestIntervalSeconds ?? 0,
+                      })
+                    : policy.wake === 'conditional'
+                      ? t('sourcePolicy.admitConditional')
+                      : t('sourcePolicy.admitImmediate')}
+                </span>
+                {policy.sourceClass === 'group-ordinary' && (
+                  <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
+                )}
                 <span className="bh-note">
                   {t('sourcePolicy.revision', { revision: policy.revision })}
                   {' · '}

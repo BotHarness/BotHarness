@@ -786,7 +786,7 @@ const BOT_SOURCE_POLICY_MIGRATION: SchemaMigration = {
         actor_bot_slug TEXT,
         changed_at TEXT NOT NULL,
         admission_mode TEXT NOT NULL CHECK (admission_mode IN ('admit', 'drop')),
-        wake_mode TEXT NOT NULL CHECK (wake_mode IN ('immediate', 'digest', 'manual')),
+        wake_mode TEXT NOT NULL CHECK (wake_mode IN ('immediate', 'digest', 'conditional')),
         digest_count INTEGER CHECK (digest_count BETWEEN 1 AND 100),
         digest_interval_seconds INTEGER CHECK (digest_interval_seconds BETWEEN 1 AND 3600),
         PRIMARY KEY (bot_slug, source_class, revision),
