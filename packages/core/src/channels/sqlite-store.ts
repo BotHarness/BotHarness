@@ -1306,13 +1306,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           }
           db.prepare(`
             UPDATE inbox_admissions
-               SET attempt_state = 'needs-repair', last_error = 'Group membership revoked'
+               SET attempt_state = 'handled', handled_at = ?,
+                   last_error = 'Group membership revoked'
              WHERE bot_slug = ? AND reason IN ('group-ordinary', 'group-mention')
                AND attempt_state IN ('pending', 'retryable')
                AND source_event_id IN (
                  SELECT source_event_id FROM source_events WHERE channel_id = ?
                )
-          `).run(botSlug, channelId);
+          `).run(timestamp, botSlug, channelId);
         },
         ['channel', 'bot-inbox'],
       );

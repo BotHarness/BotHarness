@@ -362,18 +362,26 @@ describe('Bot Group self-leave', () => {
         body: '@Bea check this',
         mentions: [{ botSlug: 'bea', label: 'Bea', start: 0, end: 4 }],
       });
-      const admissionState = (): string | undefined =>
+      const admissionState = (): { attempt_state: string; last_error: string | null } | undefined =>
         attachOperationalModule(core.operationalDatabase, 'group-leave-test').read((db) => {
           const row = db
             .prepare(
-              "SELECT attempt_state FROM inbox_admissions WHERE bot_slug = 'bea' AND reason = 'group-mention'",
+              "SELECT attempt_state, last_error FROM inbox_admissions WHERE bot_slug = 'bea' AND reason = 'group-mention'",
             )
-            .get() as { attempt_state: string } | undefined;
-          return row?.attempt_state;
+            .get() as { attempt_state: string; last_error: string | null } | undefined;
+          return row;
         });
-      expect(admissionState()).toBe('pending');
+      expect(admissionState()?.attempt_state).toBe('pending');
       core.channels.removeGroupMember(group.id, 'bea');
-      expect(admissionState()).toBe('needs-repair');
+      expect(admissionState()).toEqual({
+        attempt_state: 'handled',
+        last_error: 'Group membership revoked',
+      });
+      expect(
+        core.humanAttention
+          .list({ category: 'action' })
+          .items.filter((item) => item.kind === 'bot-message-needs-repair'),
+      ).toEqual([]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
