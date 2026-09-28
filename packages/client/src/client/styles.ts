@@ -3933,18 +3933,26 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-memory-file-tree button:focus-visible, .bh-memory-working-list button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
 .bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 0 12px 12px; color: var(--dsw-alias-label-primary); }
-.bh-memory-commit-header { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 0; margin-bottom: 10px; border-bottom: 1px solid var(--dsw-alias-border-l2); }
-.bh-memory-continue-open { margin-left: auto; }
+.bh-memory-commit-header { display: flex; align-items: center; gap: 10px; min-height: 52px; margin: 0 -12px 10px; padding: 8px 12px; border-bottom: 1px solid var(--dsw-alias-border-l2); background: var(--dsw-specific-sidebar-fill); }
+.bh-memory-view-icon-button { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: var(--dsw-alias-label-tertiary); cursor: pointer; }
+.bh-memory-view-icon-button:hover { background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); }
+.bh-memory-view-icon-button:focus-visible, .bh-memory-diff-file-header:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
+.bh-memory-commit-header > .bh-memory-view-icon-button:last-child { margin-left: auto; }
+.bh-memory-continue-open { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; }
 .bh-memory-continue-form { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
 .bh-memory-continue-form label { color: var(--dsw-alias-label-secondary); }
 .bh-memory-continue-form input { min-width: 180px; max-width: 320px; }
 .bh-memory-commit-header div { display: flex; flex-direction: column; min-width: 0; gap: 2px; }
-.bh-memory-commit-header strong { overflow-wrap: anywhere; }
+.bh-memory-commit-header strong { min-width: 0; overflow-wrap: anywhere; }
 .bh-memory-commit-header span { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); font-size: 12px; }
-.bh-memory-commit-files { display: flex; flex-direction: column; gap: 2px; margin-bottom: 10px; }
-.bh-memory-commit-files strong { font-size: 12px; color: var(--dsw-alias-label-secondary); margin-bottom: 3px; }
-.bh-memory-commit-file { display: flex; gap: 8px; padding: 3px 0; font-size: 12px; overflow-wrap: anywhere; }
-.bh-memory-file-status { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); }
+.bh-memory-commit-files-count { margin: 0 0 8px; color: var(--dsw-alias-label-secondary); font-size: 12px; font-weight: 600; }
+.bh-memory-diff-file { margin: 0 -12px 4px; border-top: 1px solid var(--dsw-alias-border-l2); border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.bh-memory-diff-file-header { display: flex; align-items: center; gap: 8px; min-height: 36px; padding: 6px 14px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-primary); cursor: pointer; list-style: none; }
+.bh-memory-diff-file-header::-webkit-details-marker { display: none; }
+.bh-memory-diff-file-header > svg { flex: none; transition: transform 150ms; }
+.bh-memory-diff-file:not([open]) .bh-memory-diff-file-header > svg { transform: rotate(-90deg); }
+.bh-memory-diff-file-header strong { min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 600; }
+.bh-memory-diff-file .bh-memory-commit-code { margin: 0; border: 0; background: var(--dsw-alias-bg-base); }
 .bh-memory-commit-code { overflow: auto; margin: 0 -12px; border-top: 1px solid var(--dsw-alias-border-l2); border-bottom: 1px solid var(--dsw-alias-border-l2); padding: 4px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.5; white-space: pre; }
 pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-memory-commit-code > div { padding: 0 18px; min-height: 1.5em; }

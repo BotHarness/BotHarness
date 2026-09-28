@@ -24,6 +24,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconAgentPresetOutline16: stub,
     IconAgentPresetOutlineRegular: stub,
     IconCheckOutlineRegular: stub,
+    IconBranchOutlineRegular: stub,
+    IconChevronLeftOutlineRegular: stub,
     IconChevronDownOutline14: stub,
     IconChevronDownOutlineRegular: stub,
     IconCloseFill14: stub,
@@ -82,7 +84,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Modal: stub,
     StateDot: stub,
     Tag: stub,
-    Tooltip: stub,
+    Tooltip: ({ children }: { children: ReactNode }) => children,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
 });
@@ -136,7 +138,7 @@ describe('Memory Git graph sidebar', () => {
     });
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '从此处继续')
+        .find((button) => button.textContent?.trim() === '从该记忆节点新建并切换分支')
         ?.click();
     });
     const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
@@ -150,6 +152,57 @@ describe('Memory Git graph sidebar', () => {
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history.md'));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('groups commit changes into independently collapsible files with graph badges', async () => {
+    const actions = {
+      memoryGitCommitDiff: vi.fn().mockResolvedValue({
+        sha: SHA,
+        files: [
+          { path: 'profile.md', status: 'M' },
+          { path: 'notes/new.md', status: 'A' },
+        ],
+        diff: [
+          'diff --git a/profile.md b/profile.md',
+          '@@ -1 +1 @@',
+          '-old',
+          '+new',
+          'diff --git a/notes/new.md b/notes/new.md',
+          '@@ -0,0 +1 @@',
+          '+added',
+        ].join('\n'),
+      }),
+    } as unknown as BridgeActions;
+    await act(async () => {
+      root.render(
+        createElement(MemoryCommitView, {
+          actions,
+          channelId: 'dm-qa',
+          sha: SHA,
+          onClose: vi.fn(),
+          t: zhTranslate,
+        }),
+      );
+    });
+    const files = container.querySelectorAll<HTMLDetailsElement>('.bh-memory-diff-file');
+    expect(files).toHaveLength(2);
+    expect(files[0]?.querySelector('summary')?.textContent).toContain('profile.md');
+    expect(files[0]?.querySelector('.bh-memory-change-badge')?.getAttribute('data-status')).toBe(
+      'M',
+    );
+    expect(files[1]?.querySelector('.bh-memory-change-badge')?.getAttribute('data-status')).toBe(
+      'A',
+    );
+    expect(files[0]?.textContent).toContain('-old');
+    expect(files[0]?.textContent).not.toContain('+added');
+    expect(files[1]?.textContent).toContain('+added');
+    expect(files[0]?.open).toBe(true);
+    await act(async () =>
+      files[0]?.querySelector('summary')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+    );
+    expect(files[0]?.open).toBe(false);
+    expect(files[1]?.open).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="返回对话"]')).not.toBeNull();
   });
 
   it('shows a checked-out side branch and opens a commit even when accepted snapshot rejects it', async () => {
@@ -486,7 +539,7 @@ describe('Memory Git graph sidebar', () => {
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain('Memory at b');
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '返回对话')
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
         ?.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
@@ -504,7 +557,7 @@ describe('Memory Git graph sidebar', () => {
     expect(chat?.style.display).toBe('none');
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '返回对话')
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
         ?.click();
     });
     await act(async () => {
@@ -515,7 +568,7 @@ describe('Memory Git graph sidebar', () => {
     );
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '返回对话')
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
         ?.click();
     });
     expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Unsent QA draft');
