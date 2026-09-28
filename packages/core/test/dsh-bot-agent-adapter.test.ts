@@ -39,6 +39,9 @@ const groupTools = {
   setGroupWakePolicy: (): never => {
     throw new Error('unexpected Group wake policy write');
   },
+  leaveGroup: (): never => {
+    throw new Error('unexpected Group leave');
+  },
 };
 
 describe('DSH Bot Agent adapter', () => {
@@ -534,6 +537,7 @@ describe('DSH Bot Agent adapter', () => {
       'group_remove_member',
       'group_attention_get',
       'group_attention_set',
+      'group_leave',
       'bot_dm_send',
       'channel_send',
     ]);

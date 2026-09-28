@@ -87,6 +87,8 @@ function authorLabel(
   switch (message.author.kind) {
     case 'human':
       return t('main.author.human');
+    case 'system':
+      return t('main.author.system');
     case 'bot':
       return memberName(bots, message.author.slug);
     case 'bridged':
@@ -966,7 +968,19 @@ function ConversationView({
                       })}
                     </div>
                   ) : null}
-                  {first.botDmAction === undefined ? (
+                  {first.memberDeparture !== undefined ? (
+                    <div className="bh-member-departure" data-message-id={first.id}>
+                      <span>
+                        {t(
+                          first.memberDeparture.departureType === 'removed'
+                            ? 'member.removed'
+                            : 'member.left',
+                          { name: first.memberDeparture.displayName },
+                        )}
+                      </span>
+                      <ChannelDeliveryReceipt message={first} bots={state.bots} t={t} />
+                    </div>
+                  ) : first.botDmAction === undefined ? (
                     <MessageGroupView
                       group={group}
                       actions={actions}

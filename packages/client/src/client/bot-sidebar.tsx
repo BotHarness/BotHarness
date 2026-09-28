@@ -281,6 +281,11 @@ function channelPreview(
 ): string {
   const message = channel.latestMessage;
   if (message === undefined) return t('rail.noMessages');
+  if (message.memberDeparture !== undefined)
+    return t(
+      message.memberDeparture.departureType === 'removed' ? 'member.removed' : 'member.left',
+      { name: message.memberDeparture.displayName },
+    );
   const body =
     message.body.replace(/\s+/gu, ' ').trim() ||
     message.attachments?.[0]?.name ||
@@ -290,8 +295,10 @@ function channelPreview(
       ? t('rail.you')
       : message.author.kind === 'bot'
         ? (bots.get(message.author.slug)?.displayName ?? message.author.slug)
-        : message.author.source;
-  return `${author}：${body}`;
+        : message.author.kind === 'bridged'
+          ? message.author.source
+          : undefined;
+  return author === undefined ? body : `${author}：${body}`;
 }
 
 function BotRow({

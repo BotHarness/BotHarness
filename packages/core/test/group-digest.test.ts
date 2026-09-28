@@ -651,7 +651,7 @@ describe('Group ordinary-message digest', () => {
           .prepare("SELECT attempt_state FROM inbox_admissions WHERE reason = 'group-ordinary'")
           .get(),
       );
-      expect(fact).toEqual({ attempt_state: 'needs-repair' });
+      expect(fact).toEqual({ attempt_state: 'handled' });
       const second = core.channels.createGroup({ name: 'Another', members: ['ada'] });
       core.channels.setGroupWakePolicy(second.id, 'ada', {
         mode: 'digest',

@@ -232,6 +232,7 @@ export function createCore(
   });
   const states = createBotStateTracker();
   let live: ChannelLiveHub | undefined;
+  let runtime: BotRuntime | undefined;
   const attachments = createAttachmentStore({
     rootDir: join(dshHome, 'botharness', 'attachments'),
   });
@@ -247,8 +248,25 @@ export function createCore(
       return bot !== undefined && bot.paused !== true;
     },
     attachments,
+    botDisplayName: (botSlug) => registry.get(botSlug)?.displayName,
     rootDir: join(dshHome, 'botharness', 'channels'),
-    onCommitted: (commit) => live?.publishCommitted(commit),
+    onCommitted: (commit) => {
+      let publicationFailed = false;
+      try {
+        live?.publishCommitted(commit);
+      } catch {
+        publicationFailed = true;
+      }
+      if (commit.message.memberDeparture !== undefined) {
+        try {
+          runtime?.admitGroupMessage(commit.channelId, commit.message.id);
+        } catch {
+          runtime?.retryGroupMessageAdmission?.(commit.channelId, commit.message.id);
+          options.warn?.('group-admission-wake-failed-retrying');
+        }
+      }
+      if (publicationFailed) options.warn?.('channel-live-publication-failed');
+    },
     onRecordChanged: () => live?.publishRosterCommitted(),
     onAdmissionChanged: (channelId, messageId, message) =>
       live?.publishAdmission(channelId, messageId, message),
@@ -303,6 +321,27 @@ export function createCore(
     for (const contribute of [...botAgentSetups]) contribute(agentCtx, agent, info);
   };
 
+  runtime = createBotRuntime({
+    database: operationalDatabase,
+    registry,
+    channels,
+    attachments,
+    agents: options.agents ?? unavailableAgentAdapter(),
+    ...(options.saveReportSpill === undefined ? {} : { saveReportSpill: options.saveReportSpill }),
+    ...(options.readAssignmentTail === undefined
+      ? {}
+      : { readAssignmentTail: options.readAssignmentTail }),
+    ...(options.readAssignmentReportPage === undefined
+      ? {}
+      : { readAssignmentReportPage: options.readAssignmentReportPage }),
+    memory,
+    ownership,
+    grants,
+    assignmentAccess,
+    workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
+    orchestratorCwd,
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   return {
     rootDir,
     operationalDatabase,
@@ -326,29 +365,7 @@ export function createCore(
       warn: options.warn,
       onCommitted: () => live?.publishRosterCommitted(),
     }),
-    runtime: createBotRuntime({
-      database: operationalDatabase,
-      registry,
-      channels,
-      attachments,
-      agents: options.agents ?? unavailableAgentAdapter(),
-      ...(options.saveReportSpill === undefined
-        ? {}
-        : { saveReportSpill: options.saveReportSpill }),
-      ...(options.readAssignmentTail === undefined
-        ? {}
-        : { readAssignmentTail: options.readAssignmentTail }),
-      ...(options.readAssignmentReportPage === undefined
-        ? {}
-        : { readAssignmentReportPage: options.readAssignmentReportPage }),
-      memory,
-      ownership,
-      grants,
-      assignmentAccess,
-      workspaceRoot: join(dshHome, 'botharness', 'runtime-workspaces'),
-      orchestratorCwd,
-      ...(options.warn === undefined ? {} : { warn: options.warn }),
-    }),
+    runtime,
   };
 }
 

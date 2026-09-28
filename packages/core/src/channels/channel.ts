@@ -91,7 +91,8 @@ export interface GroupJoinRequest {
 export type ChannelMessageAuthor =
   | { kind: 'human' }
   | { kind: 'bot'; slug: string }
-  | { kind: 'bridged'; source: string };
+  | { kind: 'bridged'; source: string }
+  | { kind: 'system' };
 
 export interface ChannelMessageExternal {
   id: string;
@@ -141,6 +142,15 @@ export interface ChannelDelivery {
   state: 'pending' | 'observed' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
 }
 
+/** The member identity captured when a Group departure is committed. */
+export interface ChannelMemberDeparture {
+  memberKind: 'bot' | 'human';
+  memberId: string;
+  displayName: string;
+  /** Older notices have no type and retain their original "left" presentation. */
+  departureType?: 'left' | 'removed';
+}
+
 /** One committed send shown in the sender's Human DM without copying its body. */
 export interface BotDmAction {
   channelId: string;
@@ -172,6 +182,7 @@ export interface ChannelMessage {
   /** Group Human recipients, projected from membership and identity-keyed read positions. */
   humanReceipts?: ChannelHumanReceipt[];
   botDmAction?: BotDmAction;
+  memberDeparture?: ChannelMemberDeparture;
   botCausation?: BotMessageCausation;
   /** Durable Host-authored request to authorize a folder for this PersonaBot. */
   grantRequest?: true;
@@ -238,6 +249,7 @@ function isChannelMessageAuthor(value: unknown): value is ChannelMessageAuthor {
   const author = value as Record<string, unknown>;
   switch (author['kind']) {
     case 'human':
+    case 'system':
       return true;
     case 'bot':
       return typeof author['slug'] === 'string' && author['slug'].length > 0;
@@ -537,6 +549,25 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
         (message['author'] as ChannelMessageAuthor)?.kind !== 'bot')
     )
       return false;
+  }
+  const memberDeparture = message['memberDeparture'];
+  if (memberDeparture !== undefined) {
+    if (typeof memberDeparture !== 'object' || memberDeparture === null) return false;
+    const departure = memberDeparture as Record<string, unknown>;
+    if (
+      (message['author'] as ChannelMessageAuthor)?.kind !== 'system' ||
+      (departure['memberKind'] !== 'bot' && departure['memberKind'] !== 'human') ||
+      typeof departure['memberId'] !== 'string' ||
+      departure['memberId'].length === 0 ||
+      typeof departure['displayName'] !== 'string' ||
+      departure['displayName'].length === 0 ||
+      (departure['departureType'] !== undefined &&
+        departure['departureType'] !== 'left' &&
+        departure['departureType'] !== 'removed')
+    )
+      return false;
+  } else if ((message['author'] as ChannelMessageAuthor)?.kind === 'system') {
+    return false;
   }
   const botDmAction = message['botDmAction'];
   if (botDmAction !== undefined) {

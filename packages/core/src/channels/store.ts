@@ -42,6 +42,7 @@ export interface ChannelStoreOptions {
   onAdmissionChanged?: (channelId: string, messageId: string, message: ChannelMessage) => void;
   onHumanReadChanged?: (channelId: string, humanId: string, revision: number) => void;
   warn?: (message: string) => void;
+  botDisplayName?: (botSlug: string) => string | undefined;
 }
 
 /** A message accepted by the Channel writer, with its durable per-Channel position. */
@@ -71,7 +72,7 @@ export interface ChannelReadOptions {
 export interface ChannelMessageQueryOptions {
   text?: string;
   authorBotId?: string;
-  authorKind?: 'human' | 'bot' | 'bridged';
+  authorKind?: 'human' | 'bot' | 'bridged' | 'system';
   from?: string;
   to?: string;
   cursor?: string;
@@ -88,7 +89,7 @@ export interface ChannelMessageQueryPage {
 export interface PreparedChannelMessageQuery {
   text?: string;
   authorBotId?: string;
-  authorKind?: 'human' | 'bot' | 'bridged';
+  authorKind?: 'human' | 'bot' | 'bridged' | 'system';
   from?: number;
   to?: number;
   beforeId?: string;
@@ -111,7 +112,7 @@ export function prepareChannelMessageQuery(
   }
   if (
     options.authorKind !== undefined &&
-    !['human', 'bot', 'bridged'].includes(options.authorKind)
+    !['human', 'bot', 'bridged', 'system'].includes(options.authorKind)
   ) {
     throw new Error('channel_read: invalid author_kind');
   }
@@ -307,7 +308,11 @@ export interface ChannelStore {
     },
     actor?: GroupWakePolicyActor,
   ): ChannelRecord;
-  removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
+  removeGroupMember(
+    channelId: string,
+    botSlug: string,
+    departureType?: 'left' | 'removed',
+  ): ChannelRecord;
   /** Human-only logical deletion; past operational events remain for recovery/audit. */
   deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;

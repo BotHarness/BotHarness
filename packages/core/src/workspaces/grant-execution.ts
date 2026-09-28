@@ -92,6 +92,7 @@ const BOT_TOOL_NAMES = new Set([
   'group_remove_member',
   'group_attention_get',
   'group_attention_set',
+  'group_leave',
   'bot_dm_send',
   'channel_send',
   // Native DSH question transport does not access the filesystem.

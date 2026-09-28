@@ -455,6 +455,9 @@ export function MembersEntry({ actions, t, channelId }: ChannelSidebarEntryProps
   const selectedMember = menu?.slug;
   return (
     <>
+      {group?.ownerBotSlug === undefined && group !== undefined ? (
+        <div className="bh-note">{t('members.humanManaged')}</div>
+      ) : null}
       {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
       {members.map((slug) => {
         const member = state.bots.find((candidate) => candidate.slug === slug);

@@ -397,6 +397,50 @@ describe('bot sidebar rows', () => {
     expect(markup).toContain('暂无消息');
   });
 
+  it('localizes system departure previews in the roster and collapsed rail', () => {
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...SECTION_CHANNEL,
+          latestMessage: {
+            id: 'left',
+            at: AT,
+            author: { kind: 'system' },
+            body: 'Atlas left the Channel.',
+            memberDeparture: {
+              memberKind: 'bot',
+              memberId: 'atlas',
+              displayName: 'Atlas',
+              departureType: 'left',
+            },
+          },
+        },
+        {
+          ...FLAT_CHANNEL,
+          latestMessage: {
+            id: 'removed',
+            at: AT,
+            author: { kind: 'system' },
+            body: 'Bea was removed from the Channel.',
+            memberDeparture: {
+              memberKind: 'bot',
+              memberId: 'bea',
+              displayName: 'Bea',
+              departureType: 'removed',
+            },
+          },
+        },
+      ],
+    );
+
+    for (const wide of [true, false]) {
+      const markup = renderSidebar(wide);
+      expect(markup).toContain('Atlas 退出了频道');
+      expect(markup).toContain('Bea 被移出了频道');
+      expect(markup).not.toContain('undefined：');
+    }
+  });
   it('shows the latest DM message below the Bot name', () => {
     store.setRoster(
       [BOT],

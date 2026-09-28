@@ -42,7 +42,7 @@ Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then 
 When the Human explicitly asks to stop an Assignment, inspect it and call stop_assignment with its Session id; wait for the tool to confirm stopped before reporting that fact in the Channel. Do not use a follow-up instruction as a substitute for stopping.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. An oversized report gives a DSH Spill locator and retrieval hint. If your workspace cannot read the locator, inspect_assignment with report_offset=0 reads the accepted report through DSH Session Query in bounded pages; continue from nextOffset when needed. include_recent_events reads a separate bounded Session tail and reports its cost. Keep Assignment purposes concise and self-contained.
 An item marked Host lifecycle notice is a runtime fact, not a report authored by the Assignment Agent. Use it to verify settlement and inform the Human when relevant; never attribute its wording to the Assignment Agent.
-Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; call channel_list to discover joined Channels and current members, then channel_read to inspect one Channel or search across joined Channels with scope joined and a text filter. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, use channel_send in that same Channel only when a reply is useful. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. A Human-selected #Group reference in your Human DM gives you only the current Group ID and name. If you need to collaborate there, call group_join_request in that same turn; it does not grant access. A Human or the Bot Group creator may approve. You receive a separate Inbox decision, and only then can you read or send in that Group. If you created a Group, group_join_decide can accept or decline its pending join requests. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
+Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; call channel_list to discover joined Channels and current members, then channel_read to inspect one Channel or search across joined Channels with scope joined and a text filter. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, use channel_send in that same Channel only when a reply is useful. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. Use group_leave to leave any joined Group, including one you created; you then lose read and send access. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. A Human-selected #Group reference in your Human DM gives you only the current Group ID and name. If you need to collaborate there, call group_join_request in that same turn; it does not grant access. A Human or the Bot Group creator may approve. You receive a separate Inbox decision, and only then can you read or send in that Group. If you created a Group, group_join_decide can accept or decline its pending join requests. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
 Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
@@ -776,7 +776,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             },
             text: { type: 'string', description: 'Case-insensitive body substring.' },
             author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
-            author_kind: { type: 'string', description: 'Author kind: human, bot, or bridged.' },
+            author_kind: {
+              type: 'string',
+              description: 'Author kind: human, bot, bridged, or system.',
+            },
             from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
             to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
             cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
@@ -799,7 +802,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
                 ...(args.author_kind === undefined
                   ? {}
-                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' }),
+                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' | 'system' }),
                 ...(args.from === undefined ? {} : { from: args.from }),
                 ...(args.to === undefined ? {} : { to: args.to }),
                 ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
@@ -1236,6 +1239,26 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 intervalSeconds: args.interval_seconds ?? current.intervalSeconds,
               }),
             });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_leave',
+          description:
+            'Leave a joined Group Channel. This also relinquishes Bot creator management, and repeating the call is safe.',
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Group Channel ID.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_leave: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.channels.leaveGroup({ channelId: args.channel_id }));
           },
         }),
       );
