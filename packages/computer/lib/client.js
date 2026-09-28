@@ -1228,9 +1228,21 @@ window.__ModuleLoader__.load({
 			spinnerArc: "#ffffff",
 			onVideo: "#ffffff"
 		};
-		/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+		/** Fallback logical viewport when the Host has not reported one yet. */
 		const DESIGN_WIDTH = 1280;
 		const DESIGN_HEIGHT = 800;
+		/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
+		function designOf(resolution) {
+			const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? "");
+			if (match === null) return {
+				width: DESIGN_WIDTH,
+				height: DESIGN_HEIGHT
+			};
+			return {
+				width: Number(match[1]),
+				height: Number(match[2])
+			};
+		}
 		const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
@@ -1398,7 +1410,9 @@ window.__ModuleLoader__.load({
 			});
 		}
 		/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
-		function ScaledFrame({ title, interactive, fit = "width", iframeRef }) {
+		function ScaledFrame({ title, design, interactive, fit = "width", iframeRef }) {
+			const DESIGN_WIDTH = design.width;
+			const DESIGN_HEIGHT = design.height;
 			const ref = (0, react.useRef)(null);
 			const [box, setBox] = (0, react.useState)({
 				width: DESIGN_WIDTH,
@@ -1605,7 +1619,7 @@ window.__ModuleLoader__.load({
 		* to the card, page scroll locked). Sustained silence becomes an explicit
 		* empty state with a retry.
 		*/
-		function RunningCard({ t, botSlug, busy, stopping, onStop }) {
+		function RunningCard({ t, botSlug, busy, stopping, resolution, onStop }) {
 			const frameRef = (0, react.useRef)(null);
 			const dialogRef = (0, react.useRef)(null);
 			const [hovered, setHovered] = (0, react.useState)(false);
@@ -1618,6 +1632,7 @@ window.__ModuleLoader__.load({
 			const prevPhase = (0, react.useRef)(void 0);
 			const prevExpanded = (0, react.useRef)(false);
 			const title = t("entry.screen.title", { name: botSlug ?? "PersonaBot" });
+			const design = designOf(resolution);
 			const rawPhase = useStreamPhase(frameRef, reloadKey);
 			const rawLive = rawPhase === "live";
 			const [smooth, setSmooth] = (0, react.useState)({
@@ -1796,6 +1811,7 @@ window.__ModuleLoader__.load({
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 							title,
+							design,
 							interactive: expanded,
 							fit: expanded ? "contain" : "width",
 							iframeRef: frameRef
@@ -1838,7 +1854,8 @@ window.__ModuleLoader__.load({
 		}
 		/** Pure three-state view; the container component supplies data and handlers. */
 		function ComputerEntryView(props) {
-			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
+			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, resolution, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
+			designOf(resolution);
 			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: t(SETUP_GUIDANCE_KEY)
@@ -1913,6 +1930,7 @@ window.__ModuleLoader__.load({
 				botSlug,
 				busy,
 				stopping: phase === "stopping",
+				...resolution === void 0 ? {} : { resolution },
 				onStop
 			});
 			if (inProgress) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -2178,6 +2196,7 @@ window.__ModuleLoader__.load({
 						...error === void 0 ? {} : { error },
 						...displayName === void 0 ? {} : { botSlug: displayName },
 						...payload?.status.storage === void 0 ? {} : { storage: payload.status.storage },
+						...payload?.resolution === void 0 ? {} : { resolution: payload.resolution },
 						onStart,
 						onConfirmStart,
 						onStop: () => void act(STOP_ENDPOINT),

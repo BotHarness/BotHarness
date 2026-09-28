@@ -64,7 +64,7 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   containerPort: 3000,
   cpus: 2,
   memory: '4g',
-  resolution: '2560x1600',
+  resolution: '1280x800',
   shmSize: '512m',
   pidsLimit: 4096,
   idleStopMinutes: 30,
@@ -199,6 +199,15 @@ export const DESKTOP_READY_TIMEOUT_MS = 90_000;
 
 /** Per-attempt ceiling so a hung connection cannot block stop. */
 const DESKTOP_PROBE_TIMEOUT_MS = 3_000;
+
+/** Parses a `WxH` desktop geometry, e.g. `1280x800`. */
+export function parseResolution(value: string): { width: number; height: number } | undefined {
+  const match = /^(\d{2,5})x(\d{2,5})$/u.exec(value.trim());
+  if (match === null) return undefined;
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  return width > 0 && height > 0 ? { width, height } : undefined;
+}
 
 /** Parses a docker size string (`2g`, `2gb`, `512m`, `1048576`) into bytes. */
 export function parseDockerSize(value: string): number | undefined {
@@ -367,9 +376,17 @@ export function createDockerComputerProvider(
     const expectedMemory = parseDockerSize(config.memory);
     const expectedShm = parseDockerSize(config.shmSize);
     const envText = env.join('|');
+    const resolution = parseResolution(config.resolution);
     const managedEnv = [
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
       `MAX_RES=${config.resolution}`,
+      ...(resolution === undefined
+        ? []
+        : [
+            `SELKIES_MANUAL_WIDTH=${String(resolution.width)}`,
+            `SELKIES_MANUAL_HEIGHT=${String(resolution.height)}`,
+            'SELKIES_ENABLE_RESIZE=false',
+          ]),
       'PIXELFLUX_WAYLAND=false',
     ];
     // An unparseable configured size cannot be verified, so it never forces a
@@ -702,6 +719,16 @@ export function createDockerComputerProvider(
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
       '-e',
       `MAX_RES=${config.resolution}`,
+      ...(parseResolution(config.resolution) === undefined
+        ? []
+        : [
+            '-e',
+            `SELKIES_MANUAL_WIDTH=${String(parseResolution(config.resolution)?.width)}`,
+            '-e',
+            `SELKIES_MANUAL_HEIGHT=${String(parseResolution(config.resolution)?.height)}`,
+            '-e',
+            'SELKIES_ENABLE_RESIZE=false',
+          ]),
       '-e',
       `LANG=${getLanguage?.() ?? config.language}`,
       '-e',

@@ -89,6 +89,8 @@ interface ComputerProgress {
 }
 
 interface ComputerStatusPayload {
+  /** Configured remote desktop geometry, e.g. `1280x800`. */
+  resolution?: string;
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
   readonly exportDir?: string;
@@ -206,9 +208,16 @@ const VIDEO_SURFACE = {
 } as const;
 /* @bh-video-surface:end */
 
-/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+/** Fallback logical viewport when the Host has not reported one yet. */
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
+
+/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
+function designOf(resolution: string | undefined): { width: number; height: number } {
+  const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? '');
+  if (match === null) return { width: DESIGN_WIDTH, height: DESIGN_HEIGHT };
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
 
 const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
@@ -386,6 +395,8 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
 
 interface ScaledFrameProps {
   readonly title: string;
+  /** Remote desktop geometry the iframe is laid out at, then scaled to fit. */
+  readonly design: { width: number; height: number };
   /** Interactive frames forward input; the inline card keeps a hover mask. */
   readonly interactive: boolean;
   /** `width` keeps a fixed aspect card; `contain` fits the whole box (fullscreen). */
@@ -396,10 +407,13 @@ interface ScaledFrameProps {
 /** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
 function ScaledFrame({
   title,
+  design,
   interactive,
   fit = 'width',
   iframeRef,
 }: ScaledFrameProps): ReactElement {
+  const DESIGN_WIDTH = design.width;
+  const DESIGN_HEIGHT = design.height;
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: DESIGN_WIDTH, height: DESIGN_HEIGHT });
 
@@ -632,12 +646,14 @@ function RunningCard({
   botSlug,
   busy,
   stopping,
+  resolution,
   onStop,
 }: {
   readonly t: ComputerTranslate;
   readonly botSlug: string | undefined;
   readonly busy: boolean;
   readonly stopping: boolean;
+  readonly resolution?: string;
   readonly onStop: () => void;
 }): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
@@ -652,6 +668,7 @@ function RunningCard({
   const prevPhase = useRef<FramePhase | undefined>(undefined);
   const prevExpanded = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
+  const design = designOf(resolution);
 
   const rawPhase = useStreamPhase(frameRef, reloadKey);
   const rawLive = rawPhase === 'live';
@@ -864,6 +881,7 @@ function RunningCard({
         <ScaledFrame
           key={reloadKey}
           title={title}
+          design={design}
           interactive={expanded}
           fit={expanded ? 'contain' : 'width'}
           iframeRef={frameRef}
@@ -922,6 +940,8 @@ export interface ComputerEntryViewProps {
   readonly error?: string;
   readonly botSlug?: string;
   readonly storage?: ComputerStorage;
+  /** Remote desktop geometry reported by the Host; the viewer scales it to fit. */
+  readonly resolution?: string;
   readonly onStart: () => void;
   readonly onConfirmStart: () => void;
   readonly onStop: () => void;
@@ -945,12 +965,14 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     error,
     botSlug,
     storage,
+    resolution,
     onStart,
     onConfirmStart,
     onStop,
     onApprove,
     onCancel,
   } = props;
+  const design = designOf(resolution);
 
   if (!runtimeAvailable) {
     return <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>;
@@ -1007,6 +1029,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
         botSlug={botSlug}
         busy={busy}
         stopping={phase === 'stopping'}
+        {...(resolution === undefined ? {} : { resolution })}
         onStop={onStop}
       />
     );
@@ -1284,6 +1307,7 @@ function ComputerEntry({
         {...(error === undefined ? {} : { error })}
         {...(displayName === undefined ? {} : { botSlug: displayName })}
         {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
+        {...(payload?.resolution === undefined ? {} : { resolution: payload.resolution })}
         onStart={onStart}
         onConfirmStart={onConfirmStart}
         onStop={() => void act(STOP_ENDPOINT)}

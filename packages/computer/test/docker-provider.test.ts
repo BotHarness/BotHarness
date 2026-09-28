@@ -56,7 +56,14 @@ function specLine(
   const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
   const shm = patch.shm ?? String(512 * 1024 ** 2);
   const pids = patch.pids ?? '4096';
-  const env = patch.env ?? ['HARDEN_DESKTOP=false', 'MAX_RES=2560x1600', 'PIXELFLUX_WAYLAND=false'];
+  const env = patch.env ?? [
+    'HARDEN_DESKTOP=false',
+    'MAX_RES=1280x800',
+    'SELKIES_MANUAL_WIDTH=1280',
+    'SELKIES_MANUAL_HEIGHT=800',
+    'SELKIES_ENABLE_RESIZE=false',
+    'PIXELFLUX_WAYLAND=false',
+  ];
   return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
 }
 
@@ -339,7 +346,16 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
           if (format.includes('HostConfig.Memory'))
-            return specLine({ env: ['HARDEN_DESKTOP=false', 'MAX_RES=1280x800', 'PIXELFLUX_WAYLAND=false'] });
+            return specLine({
+              env: [
+                'HARDEN_DESKTOP=false',
+                'MAX_RES=2560x1600',
+                'SELKIES_MANUAL_WIDTH=2560',
+                'SELKIES_MANUAL_HEIGHT=1600',
+                'SELKIES_ENABLE_RESIZE=false',
+                'PIXELFLUX_WAYLAND=false',
+              ],
+            });
           return ok('exited\n');
         }
         return ok('ok');
@@ -348,7 +364,9 @@ describe('Docker computer provider', () => {
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
     const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
-    expect(run).toContain('MAX_RES=2560x1600');
+    expect(run).toContain('MAX_RES=1280x800');
+    expect(run).toContain('SELKIES_MANUAL_WIDTH=1280');
+    expect(run).toContain('SELKIES_ENABLE_RESIZE=false');
   });
 
   it('recreates when a managed resource setting changed', async () => {
@@ -437,7 +455,9 @@ describe('Docker computer provider', () => {
     const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('--memory 4g');
     expect(run).toContain('--memory-swap 4g');
-    expect(run).toContain('MAX_RES=2560x1600');
+    expect(run).toContain('MAX_RES=1280x800');
+    expect(run).toContain('SELKIES_MANUAL_WIDTH=1280');
+    expect(run).toContain('SELKIES_ENABLE_RESIZE=false');
     expect(run).toContain('--pids-limit 4096');
     expect(run).toContain('--shm-size 512m');
   });
@@ -446,7 +466,7 @@ describe('Docker computer provider', () => {
     expect(DEFAULT_DOCKER_CONFIG).toMatchObject({
       cpus: 2,
       memory: '4g',
-      resolution: '2560x1600',
+      resolution: '1280x800',
       shmSize: '512m',
       pidsLimit: 4096,
       idleStopMinutes: 30,

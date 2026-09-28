@@ -123,7 +123,9 @@ export const Config = Schema.object({
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   resolution: Schema.string()
     .default(DEFAULT_CONFIG.resolution)
-    .description('桌面分辨率上限（Xvfb MAX_RES）；viewer 不缩放画面，需覆盖最大观看画布，默认 2560x1600'),
+    .description(
+      '桌面分辨率上限（Xvfb MAX_RES）；viewer 不缩放画面，需覆盖最大观看画布，默认 2560x1600',
+    ),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),
@@ -475,6 +477,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           probe,
           status,
           exportDir: resolveExportDir(),
+          resolution: config.resolution,
         });
       },
     };
