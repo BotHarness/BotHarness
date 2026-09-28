@@ -668,4 +668,52 @@ describe('Group ordinary-message digest', () => {
       core.operationalDatabase.close();
     }
   });
+
+  it('orders digest sections by first pending message across Channels', async () => {
+    const home = createTempRoot('botharness-digest-order-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      // Names are chosen so Channel id order and chronology disagree: the
+      // chronologically earlier digest belongs to the alphabetically later
+      // Channel, and it is also admitted second.
+      const earlier = core.channels.createGroup({ name: 'Zebra', members: ['ada'] });
+      const later = core.channels.createGroup({ name: 'Alpha', members: ['ada'] });
+      for (const group of [earlier, later])
+        core.channels.setGroupWakePolicy(group.id, 'ada', {
+          mode: 'digest',
+          count: 1,
+          intervalSeconds: 3600,
+        });
+      await core.channels.appendMessage(later.id, {
+        id: 'later-1',
+        at: '2026-09-26T00:00:10.000Z',
+        author: { kind: 'human' },
+        body: 'ordinary later',
+      });
+      await core.channels.appendMessage(earlier.id, {
+        id: 'earlier-1',
+        at: '2026-09-26T00:00:09.000Z',
+        author: { kind: 'human' },
+        body: 'ordinary earlier',
+      });
+      core.runtime.admitGroupMessage(later.id, 'later-1');
+      core.runtime.admitGroupMessage(earlier.id, 'earlier-1');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      const prompt = runs[0] ?? '';
+      expect(prompt).toContain(earlier.id);
+      expect(prompt).toContain(later.id);
+      expect(prompt.indexOf(earlier.id)).toBeLessThan(prompt.indexOf(later.id));
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
 });
