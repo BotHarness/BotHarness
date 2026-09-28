@@ -101,6 +101,39 @@ export interface ComposerTextareaFit {
   height: number;
 }
 
+/**
+ * An expanded composer gives the editor more horizontal room. Measure the
+ * compact width before collapsing, or a borderline line will wrap and unwrap
+ * forever as the layout changes.
+ */
+function compactComposerScrollHeight(element: HTMLElement, currentHeight: number): number {
+  const composer = element.closest<HTMLElement>('.bh-composer');
+  if (!composer?.classList.contains('bh-composer-with-footer')) return currentHeight;
+  const style = getComputedStyle(composer);
+  const left = Number.parseFloat(style.getPropertyValue('--bh-composer-compact-padding-left'));
+  const right = Number.parseFloat(style.getPropertyValue('--bh-composer-compact-padding-right'));
+  const compactWidth = composer.clientWidth - left - right;
+  if (!Number.isFinite(compactWidth) || compactWidth <= 0) return currentHeight;
+
+  const mirror = element.cloneNode(true) as HTMLElement;
+  if (element instanceof HTMLTextAreaElement && mirror instanceof HTMLTextAreaElement)
+    mirror.value = element.value;
+  mirror.setAttribute('aria-hidden', 'true');
+  mirror.style.position = 'absolute';
+  mirror.style.visibility = 'hidden';
+  mirror.style.pointerEvents = 'none';
+  mirror.style.width = compactWidth + 'px';
+  mirror.style.height = '0px';
+  mirror.style.minHeight = '0px';
+  mirror.style.maxHeight = 'none';
+  mirror.style.overflow = 'hidden';
+  mirror.style.transition = 'none';
+  composer.append(mirror);
+  const compactHeight = mirror.scrollHeight;
+  mirror.remove();
+  return compactHeight;
+}
+
 /** Keep the draft compact until content needs the bounded scrolling region. */
 export function fitComposerTextarea(
   element: Pick<HTMLElement, 'scrollHeight' | 'style'>,
@@ -112,7 +145,13 @@ export function fitComposerTextarea(
   const height = Math.min(scrollHeight, maxHeight);
   element.style.height = `${height}px`;
   element.style.overflowY = scrollHeight > maxHeight ? 'auto' : 'hidden';
-  return { expanded: scrollHeight > singleLineHeight, height };
+  const compactHeight =
+    scrollHeight <= singleLineHeight &&
+    typeof HTMLElement !== 'undefined' &&
+    element instanceof HTMLElement
+      ? compactComposerScrollHeight(element, scrollHeight)
+      : scrollHeight;
+  return { expanded: compactHeight > singleLineHeight, height };
 }
 
 function PersonaBotActivityStatus({

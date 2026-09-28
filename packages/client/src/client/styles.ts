@@ -1940,6 +1940,9 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   white-space: pre-wrap;
   cursor: text;
 }
+.bh-composer-rich-input::after {
+  content: '\\200b';
+}
 .bh-composer-rich-input:empty::before {
   content: attr(data-placeholder);
   color: var(--dsw-alias-label-dimmed);
@@ -2156,11 +2159,13 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
 }
 .bh-composer {
   --bh-composer-body-height: 34px;
+  --bh-composer-compact-padding-left: 44px;
+  --bh-composer-compact-padding-right: 54px;
   position: relative;
   min-height: 50px;
   box-sizing: border-box;
   overflow: hidden;
-  padding: 7px 54px 7px 44px;
+  padding: 7px var(--bh-composer-compact-padding-right) 7px var(--bh-composer-compact-padding-left);
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 25px;
   background: var(--dsw-alias-bg-module-platform);
