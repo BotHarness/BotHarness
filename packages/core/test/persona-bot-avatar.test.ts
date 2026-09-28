@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
-import { createBotAvatarHttp, BOT_AVATAR_PATH } from '../src/bots/avatar-http.js';
+import {
+  createBotAvatarHttp,
+  matchesIfNoneMatch,
+  BOT_AVATAR_PATH,
+} from '../src/bots/avatar-http.js';
 import { isPersonaBotAvatar, MAX_PERSONA_BOT_AVATAR_BYTES } from '../src/bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../src/bots/registry.js';
 
@@ -56,5 +60,22 @@ describe('PersonaBot avatar route', () => {
     expect((await http(new Request(`http://host${BOT_AVATAR_PATH}`))).status).toBe(400);
     const missing = createBotAvatarHttp(registryWith(undefined));
     expect((await missing(new Request(`http://host${BOT_AVATAR_PATH}?slug=ada`))).status).toBe(404);
+  });
+
+  it('matches wildcard, list, and weak If-None-Match validators', async () => {
+    const http = createBotAvatarHttp(registryWith(PNG));
+    const base = await http(new Request(`http://host${BOT_AVATAR_PATH}?slug=ada`));
+    const etag = base.headers.get('etag')!;
+
+    for (const header of ['*', `"other", ${etag}`, `W/${etag}`]) {
+      const response = await http(
+        new Request(`http://host${BOT_AVATAR_PATH}?slug=ada`, {
+          headers: { 'if-none-match': header },
+        }),
+      );
+      expect(response.status, header).toBe(304);
+    }
+    expect(matchesIfNoneMatch('"other"', etag)).toBe(false);
+    expect(matchesIfNoneMatch(null, etag)).toBe(false);
   });
 });

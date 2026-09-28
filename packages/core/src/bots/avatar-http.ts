@@ -31,7 +31,7 @@ export function createBotAvatarHttp(
     const mime = avatar.slice('data:'.length, separator).split(';', 1)[0] ?? 'image/webp';
     const bytes = Buffer.from(avatar.slice(separator + 1), 'base64');
     const etag = `"${createHash('sha256').update(bytes).digest('hex').slice(0, 32)}"`;
-    if (request.headers.get('if-none-match') === etag) {
+    if (matchesIfNoneMatch(request.headers.get('if-none-match'), etag)) {
       return new Response(null, { status: 304, headers: { etag, 'cache-control': CACHE_CONTROL } });
     }
     return new Response(bytes, {
@@ -44,4 +44,14 @@ export function createBotAvatarHttp(
       },
     });
   };
+}
+
+/** RFC 9110 conditional matching: wildcard, comma lists, and weak validators. */
+export function matchesIfNoneMatch(header: string | null, etag: string): boolean {
+  if (header === null) return false;
+  if (header.trim() === '*') return true;
+  return header.split(',').some((candidate) => {
+    const value = candidate.trim();
+    return value === etag || value === `W/${etag}`;
+  });
 }
