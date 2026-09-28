@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 
 import { z } from 'zod';
 
@@ -10,6 +10,7 @@ import {
   type ChannelRecord,
   type ChannelReference,
 } from '../channels/channel.js';
+import { BOT_AVATAR_PATH } from '../bots/avatar-http.js';
 import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/store.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
@@ -20,6 +21,7 @@ import type {
   PersonaBotPatch,
   PersonaBotRecord,
 } from '../bots/persona-bot.js';
+import { isPersonaBotAvatar } from '../bots/persona-bot.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
 import { isValidSlug } from '../bots/slug.js';
 import {
@@ -38,6 +40,9 @@ import {
   type MemoryAcceptedSnapshot,
   type MemoryGitGraph,
   type MemoryGitCommitDiff,
+  type MemoryWorkingChange,
+  type MemoryWorkingDiff,
+  type MemoryWorkingKind,
   type MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
@@ -201,6 +206,8 @@ export interface BridgeMethods {
   memoryDiff(payload: unknown): BridgeResult<{ sha: string; diff: string }>;
   memoryGitGraph(payload: unknown): BridgeResult<MemoryGitGraph>;
   memoryGitCommitDiff(payload: unknown): BridgeResult<MemoryGitCommitDiff>;
+  memoryWorkingChanges(payload: unknown): BridgeResult<{ changes: MemoryWorkingChange[] }>;
+  memoryWorkingDiff(payload: unknown): BridgeResult<MemoryWorkingDiff>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
@@ -216,6 +223,8 @@ export interface BridgeMethods {
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  /** Sets or clears one PersonaBot's custom avatar inside its DM scope (ADR-0086). */
+  botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
 export interface BridgeMethodsDeps {
@@ -379,6 +388,8 @@ function createFailure(
       };
     case 'invalid-slug':
       return { ok: false, error: { code: 'invalid-slug', message: `invalid slug: ${slug}` } };
+    case 'invalid-input':
+      return invalidInput('invalid PersonaBot input');
     case 'invalid-memory-dir':
       return invalidInput('memoryDir must be an absolute path');
     case 'git-not-found':
@@ -424,6 +435,20 @@ function createFailure(
   }
 }
 
+const avatarUrlCache = new Map<string, string>();
+
+/** Versioned read URL for a stored custom avatar; never inline the bytes (ADR-0086). */
+function botAvatarUrl(slug: string, avatar: string): string {
+  const key = `${slug}\u0000${avatar}`;
+  const cached = avatarUrlCache.get(key);
+  if (cached !== undefined) return cached;
+  const version = createHash('sha256').update(avatar).digest('hex').slice(0, 16);
+  const url = `${BOT_AVATAR_PATH}?slug=${encodeURIComponent(slug)}&v=${version}`;
+  if (avatarUrlCache.size > 256) avatarUrlCache.clear();
+  avatarUrlCache.set(key, url);
+  return url;
+}
+
 function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBotSummary {
   return {
     slug: record.slug,
@@ -433,7 +458,13 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     createdAt: record.createdAt,
     roles: record.roles ?? (record.tag === undefined ? [] : [record.tag]),
     ...(record.description === undefined ? {} : { description: record.description }),
-    ...(record.avatar === undefined ? {} : { avatar: record.avatar }),
+    ...(record.avatar === undefined
+      ? {}
+      : {
+          avatar: record.avatar.startsWith('data:image/')
+            ? botAvatarUrl(record.slug, record.avatar)
+            : record.avatar,
+        }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
   };
@@ -549,7 +580,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const model = parseOptional(source, 'model');
       const preset = parseOptional(source, 'preset');
       const workspaces = parseWorkspaces(source);
-      const avatarSeed = parseOptional(source, 'avatarSeed');
+      const avatar = parseOptional(source, 'avatar');
       if (
         !persona.ok ||
         !roles.ok ||
@@ -557,7 +588,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         !model.ok ||
         !preset.ok ||
         !workspaces.ok ||
-        !avatarSeed.ok
+        !avatar.ok
       ) {
         return invalidInput('invalid create payload');
       }
@@ -571,7 +602,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(model.value === undefined ? {} : { model: model.value }),
         ...(preset.value === undefined ? {} : { preset: preset.value }),
         ...(workspaces.value === undefined ? {} : { workspaces: workspaces.value }),
-        ...(avatarSeed.value === undefined ? {} : { avatar: avatarSeed.value }),
+        ...(avatar.value === undefined ? {} : { avatar: avatar.value }),
       });
       if (!result.ok) return createFailure(slug, result);
       return { ok: true, value: detailOf(result.record) };
@@ -614,7 +645,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const model = parseOptional(source, 'model');
       const preset = parseOptional(source, 'preset');
       const workspaces = parseWorkspaces(source);
-      const avatarSeed = parseOptional(source, 'avatarSeed');
+      const avatar = parseOptional(source, 'avatar');
       if (
         !displayName.ok ||
         !roles.ok ||
@@ -622,7 +653,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         !model.ok ||
         !preset.ok ||
         !workspaces.ok ||
-        !avatarSeed.ok
+        !avatar.ok
       ) {
         return invalidInput('invalid update payload');
       }
@@ -633,7 +664,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         ...(model.value === undefined ? {} : { model: model.value }),
         ...(preset.value === undefined ? {} : { preset: preset.value }),
         ...(workspaces.value === undefined ? {} : { workspaces: workspaces.value }),
-        ...(avatarSeed.value === undefined ? {} : { avatar: avatarSeed.value }),
+        ...(avatar.value === undefined ? {} : { avatar: avatar.value }),
       };
       const result = deps.registry.update(slug, patch);
       if (!result.ok) {
@@ -658,6 +689,21 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setComputerAccess(slug, enabled);
       if (!result.ok) return unknownBot(slug);
       deps.computerAccess?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    botAvatarSet(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const avatar = asObject(payload)['avatar'];
+      if (avatar !== null && !isPersonaBotAvatar(avatar)) {
+        return invalidInput('avatar must be a bounded PNG, JPEG, or WebP data URL');
+      }
+      const result = deps.registry.update(scope.botSlug, { avatar: avatar ?? '' });
+      if (!result.ok) {
+        return result.reason === 'not-found'
+          ? unknownBot(scope.botSlug)
+          : invalidInput('invalid avatar');
+      }
       return { ok: true, value: detailOf(result.record) };
     },
     channels() {
@@ -1546,7 +1592,13 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           owner: {
             botSlug: bot.slug,
             displayName: bot.displayName,
-            ...(bot.avatar === undefined ? {} : { avatar: bot.avatar }),
+            ...(bot.avatar === undefined
+              ? {}
+              : {
+                  avatar: bot.avatar.startsWith('data:image/')
+                    ? botAvatarUrl(bot.slug, bot.avatar)
+                    : bot.avatar,
+                }),
             role: owned.rootRole,
           },
         },
@@ -1598,6 +1650,27 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (sha === undefined || !/^[0-9a-f]{40}$/u.test(sha))
         return invalidInput('valid sha is required');
       return memoryCall(() => deps.memory!.gitCommitDiff(scope.botSlug, sha));
+    },
+    memoryWorkingChanges(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      return memoryCall(() => ({ changes: deps.memory!.workingChanges(scope.botSlug) }));
+    },
+    memoryWorkingDiff(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const path = asNonBlank(source, 'path');
+      const kind = source['kind'];
+      if (
+        path === undefined ||
+        !['staged', 'unstaged', 'untracked', 'current'].includes(String(kind))
+      ) {
+        return invalidInput('valid path and kind are required');
+      }
+      return memoryCall(() =>
+        deps.memory!.workingDiff(scope.botSlug, path, kind as MemoryWorkingKind),
+      );
     },
     memorySave(payload) {
       const scope = dmMemory(payload);

@@ -25,6 +25,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconPinFillRegular: stub,
     IconPinOutlineRegular: stub,
     IconPlusOutlineRegular: stub,
+    IconRefreshOutlineRegular: stub,
     IconSearchOutlineRegular: stub,
     IconSendOutlineRegular: stub,
     IconSettingsOutlineRegular: stub,
@@ -84,6 +85,7 @@ describe('PersonaBot Profile surface', () => {
       displayName: 'Ada',
       roles: ['研究员'],
       description: '与你一起发布研究。',
+      avatar: '/api/botharness/bot-avatar?slug=ada&v=abcd',
       aggregateState: 'idle',
       workspaces: [],
       createdAt: '2026-09-21T00:00:00.000Z',
@@ -108,6 +110,7 @@ describe('PersonaBot Profile surface', () => {
     store.setSessions({ status: 'ready', items: [], error: undefined });
 
     const renameChannel = vi.fn(async () => true);
+    const setBotAvatar = vi.fn(async () => true);
     const profileActivity = vi.fn(async () => ({
       slug: 'ada',
       weeks: 26,
@@ -117,6 +120,7 @@ describe('PersonaBot Profile surface', () => {
     }));
     const actions = {
       renameChannel,
+      setBotAvatar,
       profileActivity,
       refreshBotInbox: vi.fn(async () => undefined),
     } as unknown as BridgeActions;
@@ -181,6 +185,10 @@ describe('PersonaBot Profile surface', () => {
       });
       expect(renameChannel).toHaveBeenCalledWith('dm-ada', 'Bea');
       expect(container.querySelector('.bh-name-input')).toBeNull();
+
+      await act(async () => click(container, '.bh-profile-avatar-actions button:last-child'));
+      expect(setBotAvatar).toHaveBeenCalledWith('dm-ada', null);
+      expect(container.querySelector('.bh-profile-avatar-input')).not.toBeNull();
 
       await act(async () => {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));

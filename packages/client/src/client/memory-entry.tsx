@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ReactElement } from 'react';
 import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import type { MemoryGitGraph, MemorySnapshot } from './bridge.js';
+import type { MemoryGitGraph, MemorySnapshot, MemoryWorkingChange } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import {
@@ -12,10 +12,12 @@ import {
   MEMORY_GRAPH_NODE_Y,
   MEMORY_GRAPH_ROW_HEIGHT,
 } from './memory-git-lanes.js';
+import { MemoryWorkingGroups } from './memory-working-groups.js';
 
 type MemoryCache = {
   snapshot: MemorySnapshot | undefined;
   graph: MemoryGitGraph | undefined;
+  working: MemoryWorkingChange[] | undefined;
   files: Map<string, { path: string; body: string; head: string; binary?: boolean }>;
 };
 const memoryCaches = new WeakMap<ChannelSidebarEntryProps['actions'], Map<string, MemoryCache>>();
@@ -31,7 +33,7 @@ function cachedMemory(
   }
   let cache = channels.get(channelId);
   if (cache === undefined) {
-    cache = { snapshot: undefined, graph: undefined, files: new Map() };
+    cache = { snapshot: undefined, graph: undefined, working: undefined, files: new Map() };
     channels.set(channelId, cache);
     if (channels.size > 30) channels.delete(channels.keys().next().value!);
   }
@@ -44,8 +46,12 @@ export function MemoryEntry({
   conversationRevision,
   onMemoryCommitSelect,
   selectedMemoryCommitSha,
+  onMemoryWorkingSelect,
+  selectedMemoryWorking,
   t,
-}: ChannelSidebarEntryProps): ReactElement {
+  refreshRevision,
+  showFiles = true,
+}: ChannelSidebarEntryProps & { showFiles?: boolean }): ReactElement {
   const cache = cachedMemory(actions, channelId);
   const initialPath = cache.snapshot?.files[0];
   const [refresh, setRefresh] = useState(0);
@@ -56,6 +62,9 @@ export function MemoryEntry({
   const [branchRequest, setBranchRequest] = useState<string>();
   const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
   const [graph, setGraph] = useState<MemoryGitGraph | undefined>(cache.graph);
+  const [working, setWorking] = useState<MemoryWorkingChange[]>(cache.working ?? []);
+  const [workingLoaded, setWorkingLoaded] = useState(cache.working !== undefined);
+  const [workingError, setWorkingError] = useState<string>();
   const memoryRequestGeneration = useRef(0);
   const [loadingMore, setLoadingMore] = useState(false);
   const [path, setPath] = useState<string | undefined>(initialPath);
@@ -104,9 +113,65 @@ export function MemoryEntry({
   useEffect(() => {
     let active = true;
     const requestGeneration = memoryRequestGeneration.current;
+    let graphTimer: ReturnType<typeof setTimeout> | undefined;
+    let graphInFlight = false;
     setError(undefined);
     setSnapshotError(undefined);
     setGraphError(undefined);
+    const loadGraph = (): void => {
+      if (!active || requestGeneration !== memoryRequestGeneration.current || graphInFlight) return;
+      if (document.visibilityState === 'hidden') {
+        graphTimer = setTimeout(loadGraph, 20_000);
+        return;
+      }
+      graphInFlight = true;
+      void actions
+        .memoryGitGraph(channelId, 0)
+        .then(
+          (next) => {
+            if (!active || requestGeneration !== memoryRequestGeneration.current) return;
+            const current = cache.graph;
+            const merged =
+              current?.head === next.head &&
+              current.currentBranch === next.currentBranch &&
+              current.commits.length > next.commits.length
+                ? { ...next, commits: current.commits, hasMore: current.hasMore }
+                : next;
+            cache.graph = merged;
+            setGraph(merged);
+            setGraphError(undefined);
+            setBranchChoice((current) =>
+              next.branches.includes(current)
+                ? current
+                : (next.currentBranch ?? next.branches[0] ?? ''),
+            );
+          },
+          (failure: unknown) => {
+            if (active && requestGeneration === memoryRequestGeneration.current)
+              setGraphError(failure instanceof Error ? failure.message : String(failure));
+          },
+        )
+        .finally(() => {
+          graphInFlight = false;
+          if (active && !showFiles) graphTimer = setTimeout(loadGraph, 20_000);
+        });
+    };
+    if (!showFiles) {
+      loadGraph();
+      const onVisible = (): void => {
+        if (document.visibilityState !== 'visible') return;
+        clearTimeout(graphTimer);
+        loadGraph();
+      };
+      window.addEventListener('focus', onVisible);
+      document.addEventListener('visibilitychange', onVisible);
+      return () => {
+        active = false;
+        clearTimeout(graphTimer);
+        window.removeEventListener('focus', onVisible);
+        document.removeEventListener('visibilitychange', onVisible);
+      };
+    }
     void actions
       .memorySnapshot(channelId)
       .then((next) => {
@@ -121,31 +186,64 @@ export function MemoryEntry({
         if (active && requestGeneration === memoryRequestGeneration.current)
           setSnapshotError(failure instanceof Error ? failure.message : String(failure));
       })
-      .finally(() => {
-        // The graph reads current Git refs after the working-tree snapshot.
-        if (!active || requestGeneration !== memoryRequestGeneration.current) return;
-        void actions
-          .memoryGitGraph(channelId, 0)
-          .then((next) => {
-            if (active && requestGeneration === memoryRequestGeneration.current) {
-              cache.graph = next;
-              setGraph(next);
-              setBranchChoice((current) =>
-                next.branches.includes(current)
-                  ? current
-                  : (next.currentBranch ?? next.branches[0] ?? ''),
-              );
-            }
-          })
-          .catch((failure: unknown) => {
-            if (active && requestGeneration === memoryRequestGeneration.current)
-              setGraphError(failure instanceof Error ? failure.message : String(failure));
-          });
-      });
+      .finally(loadGraph);
     return () => {
       active = false;
+      clearTimeout(graphTimer);
     };
-  }, [actions, channelId, refresh, conversationRevision]);
+  }, [actions, channelId, refresh, refreshRevision, conversationRevision, showFiles]);
+
+  useEffect(() => {
+    if (showFiles) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    setWorkingError(undefined);
+    const load = (): void => {
+      if (!active || inFlight) return;
+      if (document.visibilityState === 'hidden') {
+        timer = setTimeout(load, 15_000);
+        return;
+      }
+      inFlight = true;
+      void actions
+        .memoryWorkingChanges(channelId)
+        .then(
+          (next) => {
+            if (active) {
+              cache.working = next;
+              setWorking(next);
+              setWorkingLoaded(true);
+              setWorkingError(undefined);
+            }
+          },
+          (failure: unknown) => {
+            if (active) {
+              setWorkingLoaded(true);
+              setWorkingError(failure instanceof Error ? failure.message : String(failure));
+            }
+          },
+        )
+        .finally(() => {
+          inFlight = false;
+          if (active) timer = setTimeout(load, 15_000);
+        });
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      load();
+    };
+    load();
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [actions, channelId, refresh, refreshRevision, conversationRevision, showFiles]);
 
   useEffect(() => {
     let active = true;
@@ -158,7 +256,7 @@ export function MemoryEntry({
       setDraft(body);
     }
     const requestVersion = draftState.current.version;
-    if (path !== undefined) {
+    if (showFiles && path !== undefined) {
       void actions
         .memoryFile(channelId, path)
         .then((next) => {
@@ -186,7 +284,7 @@ export function MemoryEntry({
     return () => {
       active = false;
     };
-  }, [actions, channelId, path, refresh]);
+  }, [actions, channelId, path, refresh, showFiles]);
 
   const loadMore = async (): Promise<void> => {
     if (graph === undefined || !graph.hasMore || loadingMore) return;
@@ -272,9 +370,12 @@ export function MemoryEntry({
       memoryRequestGeneration.current += 1;
       cache.snapshot = undefined;
       cache.graph = undefined;
+      cache.working = undefined;
       cache.files.clear();
       setSnapshot(undefined);
       setGraph(undefined);
+      setWorking([]);
+      setWorkingLoaded(false);
       setFile(undefined);
       setPath(undefined);
       setRepairArchive(result.backupPath);
@@ -289,18 +390,20 @@ export function MemoryEntry({
 
   return (
     <div className="bh-memory-entry">
-      <div className="bh-memory-toolbar">
-        <span>{t('memory.accepted')}</span>
-        <button type="button" onClick={() => setRefresh((value) => value + 1)}>
-          {t('memory.refresh')}
-        </button>
-      </div>
+      {showFiles ? (
+        <div className="bh-memory-toolbar">
+          <span>{t('memory.accepted')}</span>
+          <button type="button" onClick={() => setRefresh((value) => value + 1)}>
+            {t('memory.refresh')}
+          </button>
+        </div>
+      ) : null}
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}
         </div>
       )}
-      {snapshot === undefined ? (
+      {!showFiles ? null : snapshot === undefined ? (
         snapshotError === undefined ? (
           <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
         ) : (
@@ -340,51 +443,53 @@ export function MemoryEntry({
               {t('memory.repairDone')} {repairArchive}
             </div>
           )}
-          {snapshot.files.length === 0 ? (
-            <div className="bh-note">{t('memory.empty')}</div>
-          ) : (
-            <div className="bh-memory-files">
-              {snapshot.files.map((item) => (
+          {showFiles &&
+            (snapshot.files.length === 0 ? (
+              <div className="bh-note">{t('memory.empty')}</div>
+            ) : (
+              <div className="bh-memory-files">
+                {snapshot.files.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className={
+                      item === path ? 'bh-memory-row bh-memory-row-selected' : 'bh-memory-row'
+                    }
+                    aria-pressed={item === path}
+                    onClick={() => setPath(item)}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            ))}
+          {showFiles &&
+            (file === undefined ? null : (
+              <div className="bh-memory-editor">
+                <label htmlFor="bh-memory-editor-body">{file.path}</label>
+                {file.binary ? (
+                  <div className="bh-note">{t('memory.binaryPreview')}</div>
+                ) : (
+                  <textarea
+                    id="bh-memory-editor-body"
+                    value={draft}
+                    onChange={(event) => {
+                      draftState.current.value = event.target.value;
+                      draftState.current.version += 1;
+                      setDraft(event.target.value);
+                    }}
+                    spellCheck={false}
+                  />
+                )}
                 <button
-                  key={item}
                   type="button"
-                  className={
-                    item === path ? 'bh-memory-row bh-memory-row-selected' : 'bh-memory-row'
-                  }
-                  aria-pressed={item === path}
-                  onClick={() => setPath(item)}
+                  disabled={busy || file.binary || draft === file.body || snapshot.provisional}
+                  onClick={() => void save()}
                 >
-                  {item}
+                  {busy ? t('memory.saving') : t('memory.save')}
                 </button>
-              ))}
-            </div>
-          )}
-          {file === undefined ? null : (
-            <div className="bh-memory-editor">
-              <label htmlFor="bh-memory-editor-body">{file.path}</label>
-              {file.binary ? (
-                <div className="bh-note">{t('memory.binaryPreview')}</div>
-              ) : (
-                <textarea
-                  id="bh-memory-editor-body"
-                  value={draft}
-                  onChange={(event) => {
-                    draftState.current.value = event.target.value;
-                    draftState.current.version += 1;
-                    setDraft(event.target.value);
-                  }}
-                  spellCheck={false}
-                />
-              )}
-              <button
-                type="button"
-                disabled={busy || file.binary || draft === file.body || snapshot.provisional}
-                onClick={() => void save()}
-              >
-                {busy ? t('memory.saving') : t('memory.save')}
-              </button>
-            </div>
-          )}
+              </div>
+            ))}
         </>
       )}
       <div className="bh-memory-history">
@@ -420,6 +525,25 @@ export function MemoryEntry({
                 <span className="bh-memory-graph-dirty"> · {t('memory.dirty')}</span>
               ) : null}
             </div>
+            {!showFiles ? (
+              <>
+                {workingError === undefined ? null : (
+                  <div className="bh-error" role="alert">
+                    {workingError}
+                  </div>
+                )}
+                {workingLoaded ? (
+                  <MemoryWorkingGroups
+                    changes={working}
+                    selected={selectedMemoryWorking}
+                    onSelect={onMemoryWorkingSelect}
+                    t={t}
+                  />
+                ) : (
+                  <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
+                )}
+              </>
+            ) : null}
             <div className="bh-memory-branch-control">
               <label htmlFor="bh-memory-branch-choice">{t('memory.branch')}</label>
               <Menu

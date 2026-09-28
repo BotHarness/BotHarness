@@ -3,6 +3,7 @@ import type { ComponentType } from 'react';
 import type { BridgeActions } from './actions.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
+import type { MemoryWorkingChange } from './bridge.js';
 
 /** Which selection a Channel sidebar entry belongs to. */
 export type ChannelSidebarScope = 'channel' | 'personabot';
@@ -12,10 +13,17 @@ export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;
   channelId: string;
   conversationRevision?: number;
+  /** Section-local refresh signal shared by its header action and body. */
+  refreshRevision?: number;
+  requestRefresh?: () => void;
   botSlug: string | undefined;
   actions: BridgeActions;
   onMemoryCommitSelect?: ((sha: string) => void) | undefined;
   selectedMemoryCommitSha?: string | undefined;
+  onMemoryFileSelect?: ((path: string) => void) | undefined;
+  selectedMemoryFilePath?: string | undefined;
+  onMemoryWorkingSelect?: ((change: MemoryWorkingChange) => void) | undefined;
+  selectedMemoryWorking?: MemoryWorkingChange | undefined;
   /** Locale-bound translate of the BotHarness namespace. */
   t: BotHarnessTranslate;
 }

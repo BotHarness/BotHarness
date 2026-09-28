@@ -424,7 +424,7 @@ describe('bridge methods', () => {
     });
   });
 
-  it('creates a bot with persona, profile fields and avatar seed', () => {
+  it('creates a bot with persona, profile fields and a custom avatar', () => {
     const { root, methods } = setup();
 
     const result = methods.create({
@@ -436,7 +436,8 @@ describe('bridge methods', () => {
       model: 'deepseek-chat',
       preset: 'standard',
       workspaces: ['/srv/ada'],
-      avatarSeed: 'blue',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
     });
 
     expect(result).toEqual({
@@ -447,7 +448,7 @@ describe('bridge methods', () => {
           displayName: 'Ada',
           roles: ['研究'],
           description: '数学与计算',
-          avatar: 'blue',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
@@ -461,7 +462,7 @@ describe('bridge methods', () => {
       JSON.parse(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')) as Record<string, unknown>,
     ).toMatchObject({
       slug: 'ada',
-      avatar: 'blue',
+      avatar: expect.stringMatching(/^data:image\/png;base64,/u),
       roles: ['研究'],
       description: '数学与计算',
     });
@@ -545,7 +546,8 @@ describe('bridge methods', () => {
         model: 'deepseek-chat',
         preset: 'standard',
         workspaces: ['/srv/ada'],
-        avatarSeed: 'green',
+        avatar:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
         persona: '# Evil\n',
       },
     });
@@ -558,7 +560,7 @@ describe('bridge methods', () => {
           displayName: 'Ada Lovelace',
           roles: [],
           description: '数学与计算',
-          avatar: 'green',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
@@ -1112,7 +1114,12 @@ describe('bridge methods', () => {
       at: '2026-09-19T00:00:01.000Z',
     });
     const { methods } = setup([], ['ada'], undefined, ownership);
-    methods.create({ slug: 'ada', displayName: 'Ada', avatarSeed: 'https://example.com/ada.png' });
+    methods.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
+    });
 
     expect(methods.sessionOwner({ sessionId: 'session-orchestrator' })).toEqual({
       ok: true,
@@ -1120,7 +1127,7 @@ describe('bridge methods', () => {
         owner: {
           botSlug: 'ada',
           displayName: 'Ada',
-          avatar: 'https://example.com/ada.png',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           role: 'orchestrator',
         },
       },
@@ -1131,7 +1138,7 @@ describe('bridge methods', () => {
         owner: {
           botSlug: 'ada',
           displayName: 'Ada',
-          avatar: 'https://example.com/ada.png',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           role: 'assignment',
         },
       },
@@ -1267,5 +1274,36 @@ describe('bridge methods', () => {
       ok: false,
       error: { code: 'not-found', message: 'unknown Channel: missing' },
     });
+  });
+
+  it('sets, maps, and clears one PersonaBot custom avatar inside its DM', () => {
+    const avatar =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=';
+    const { registry, channels, methods } = setup();
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const group = channels.createGroup({ name: 'Team', members: [] });
+    const avatarUrl = expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u);
+
+    const set = methods.botAvatarSet({ channelId: dm.id, avatar });
+    expect(set).toMatchObject({ ok: true, value: { bot: { avatar: avatarUrl } } });
+    expect(registry.get('ada')?.avatar).toBe(avatar);
+    expect(methods.list({})).toMatchObject({ ok: true, value: { bots: [{ avatar: avatarUrl }] } });
+
+    expect(
+      methods.botAvatarSet({ channelId: dm.id, avatar: 'https://example.com/ada.png' }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      methods.botAvatarSet({ channelId: dm.id, avatar: 'data:image/svg+xml;base64,AAAA' }),
+    ).toMatchObject({ ok: false });
+    expect(methods.botAvatarSet({ channelId: group.id, avatar: null })).toMatchObject({
+      ok: false,
+    });
+
+    const cleared = methods.botAvatarSet({ channelId: dm.id, avatar: null });
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.value.bot.avatar).toBeUndefined();
+    expect(registry.get('ada')?.avatar).toBeUndefined();
   });
 });

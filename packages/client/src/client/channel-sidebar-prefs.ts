@@ -6,6 +6,7 @@ const STORAGE_KEY = 'botharness.channel-sidebar';
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 320;
 export const MIN_CHANNEL_SIDEBAR_WIDTH = 260;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 560;
+export type MemoryTerminology = 'memory' | 'git';
 
 export function clampChannelSidebarWidth(width: number): number {
   if (!Number.isFinite(width)) return DEFAULT_CHANNEL_SIDEBAR_WIDTH;
@@ -27,6 +28,8 @@ export interface ChannelSidebarPrefsSnapshot {
   expandedEntries: readonly string[];
   /** Docked panel width in CSS pixels. */
   width: number;
+  /** Human-facing labels by default; Git labels are an explicit preference. */
+  memoryTerminology: MemoryTerminology;
 }
 
 export interface ChannelSidebarPrefs {
@@ -38,12 +41,14 @@ export interface ChannelSidebarPrefs {
   setEntryExpanded(scopeKey: string, entryId: string, expanded: boolean): void;
   /** Sets the docked width, clamped to the supported range. */
   setWidth(width: number): void;
+  setMemoryTerminology(terminology: MemoryTerminology): void;
 }
 
 const EMPTY: ChannelSidebarPrefsSnapshot = Object.freeze({
   collapsedSidebars: Object.freeze([]),
   expandedEntries: Object.freeze([]),
   width: DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+  memoryTerminology: 'memory',
 });
 
 function stringList(value: unknown): readonly string[] {
@@ -76,6 +81,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       if (raw === null) return EMPTY;
       const parsed = JSON.parse(raw) as Record<string, unknown>;
       const width = parsed['width'];
+      const memoryTerminology = parsed['memoryTerminology'];
       return {
         collapsedSidebars: Object.freeze(stringList(parsed['collapsedSidebars'])),
         expandedEntries: Object.freeze(stringList(parsed['expandedEntries'])),
@@ -83,6 +89,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
           typeof width === 'number'
             ? clampChannelSidebarWidth(width)
             : DEFAULT_CHANNEL_SIDEBAR_WIDTH,
+        memoryTerminology: memoryTerminology === 'git' ? 'git' : 'memory',
       };
     } catch {
       return EMPTY;
@@ -99,6 +106,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             collapsedSidebars: next.collapsedSidebars,
             expandedEntries: next.expandedEntries,
             width: next.width,
+            memoryTerminology: next.memoryTerminology,
           }),
         );
       } catch {
@@ -148,6 +156,10 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
       const next = clampChannelSidebarWidth(width);
       if (next === snapshot.width) return;
       publish({ ...snapshot, width: next });
+    },
+    setMemoryTerminology(terminology) {
+      if (snapshot.memoryTerminology === terminology) return;
+      publish({ ...snapshot, memoryTerminology: terminology });
     },
   };
 }
