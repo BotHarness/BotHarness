@@ -25,6 +25,12 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const name = `FirstDmE2E-${Date.now()}`;
 const nonce = String(Date.now());
 const prompt = `请只回复一句：你好，我已收到这条测试消息。验证码 ${nonce}`;
+const composerSelector = [
+  'textarea[placeholder^="发消息给"]',
+  'textarea[placeholder^="Message "]',
+  '[role="textbox"][aria-label^="发消息给"]',
+  '[role="textbox"][aria-label^="Message "]',
+].join(', ');
 const calls = [];
 const browser = await puppeteer.launch({
   headless: true,
@@ -119,34 +125,45 @@ try {
   });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Continue')
-      ?.click();
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => ['BOT 模式', 'Bot mode'].includes(button.textContent?.trim() ?? ''))
+      .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click();
   });
-  await sleep(900);
+  const botMode = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
+  await page.waitForSelector(botMode);
+  if (!(await page.$('.bh-root'))) await page.click(botMode);
+  await page.waitForSelector('.bh-root', { timeout: 15000 });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.trim() === 'Configure later')
       ?.click();
-    document.querySelector('button[aria-label="新建"], button[aria-label="New"]')?.click();
   });
+  await page.click('button[aria-label="新建"], button[aria-label="New"]');
+  await page.waitForFunction(
+    () =>
+      Array.from(document.querySelectorAll('[role="menuitem"]')).some((item) =>
+        item.textContent?.includes('PersonaBot'),
+      ),
+    { timeout: 10000 },
+  );
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('[role="menuitem"]'))
       .find((item) => item.textContent?.includes('PersonaBot'))
       ?.click();
   });
+  await page.waitForSelector(
+    'input[placeholder="例如：小研"], input[placeholder="e.g. Xiao Yan"]',
+    {
+      timeout: 10000,
+    },
+  );
   await page.type('input[placeholder="例如：小研"], input[placeholder="e.g. Xiao Yan"]', name);
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
       .find((button) => ['创建', 'Create'].includes(button.textContent?.trim() ?? ''))
       ?.click();
   });
-  await page.waitForSelector(
-    'textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]',
-    { timeout: 10000 },
-  );
+  await page.waitForSelector(composerSelector, { timeout: 10000 });
+  await sleep(600);
   if (reselect) {
     await page.evaluate((botName) => {
       Array.from(document.querySelectorAll('button'))
@@ -156,7 +173,7 @@ try {
     await sleep(500);
   }
   if (waitMs > 0) await sleep(waitMs);
-  await page.type('textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]', prompt);
+  await page.type(composerSelector, prompt);
   await page.evaluate(() =>
     document.querySelector('button[aria-label="发送"], button[aria-label="Send"]')?.click(),
   );
@@ -174,12 +191,15 @@ try {
   } catch {
     // Return a safe failure verdict rather than a token-bearing URL.
   }
-  const draftRetained = await page.evaluate(() =>
-    Boolean(
-      document.querySelector('textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]')
-        ?.value,
-    ),
-  );
+  const draftRetained = await page.evaluate(() => {
+    const textarea = document.querySelector(
+      'textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]',
+    );
+    const rich = document.querySelector(
+      '[role="textbox"][aria-label^="发消息给"], [role="textbox"][aria-label^="Message "]',
+    );
+    return Boolean(textarea?.value || rich?.textContent);
+  });
   const readCommitted = () =>
     page.evaluate(
       async (botName, body, replyNonce) => {

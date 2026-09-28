@@ -61,15 +61,15 @@ try {
   await page
     .waitForFunction(
       () =>
-        Array.from(document.querySelectorAll('button')).some(
-          (button) => button.textContent?.trim() === 'Continue',
+        Array.from(document.querySelectorAll('button')).some((button) =>
+          ['Continue', '继续'].includes(button.textContent?.trim() ?? ''),
         ),
       { timeout: 10000 },
     )
     .catch(() => undefined);
   const hadNotice = await page.evaluate(() => {
-    const button = Array.from(document.querySelectorAll('button')).find(
-      (candidate) => candidate.textContent?.trim() === 'Continue',
+    const button = Array.from(document.querySelectorAll('button')).find((candidate) =>
+      ['Continue', '继续'].includes(candidate.textContent?.trim() ?? ''),
     );
     button?.click();
     return button !== undefined;
@@ -77,8 +77,8 @@ try {
   if (hadNotice)
     await page.waitForFunction(
       () =>
-        !Array.from(document.querySelectorAll('button')).some(
-          (button) => button.textContent?.trim() === 'Continue',
+        !Array.from(document.querySelectorAll('button')).some((button) =>
+          ['Continue', '继续'].includes(button.textContent?.trim() ?? ''),
         ),
     );
   if (!(await page.$('.bh-root'))) await page.click(botButton);

@@ -28,7 +28,7 @@ try {
   });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
-      .find((b) => b.textContent?.trim() === 'Continue')
+      .find((b) => ['Continue', '继续'].includes(b.textContent?.trim() ?? ''))
       ?.click();
     Array.from(document.querySelectorAll('button'))
       .find((b) => ['BOT 模式', 'Bot mode'].includes(b.textContent?.trim() ?? ''))

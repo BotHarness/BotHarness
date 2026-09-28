@@ -26,7 +26,7 @@ async function enterBotMode(page) {
   });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Continue')
+      .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click();
     document.querySelector('button[aria-label="Open sidebar"]')?.click();
     document.querySelector('button[aria-label="Bot mode"], button[aria-label="BOT 模式"]')?.click();
