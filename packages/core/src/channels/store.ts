@@ -322,6 +322,8 @@ export interface ChannelStore {
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
   admissionChanged?(channelId: string, messageId: string): void;
+  /** Observed Inbox Admissions of one PersonaBot since an instant, for activity views. */
+  admissionActivity?(botSlug: string, sinceIso: string): Array<{ at: string; reason: string }>;
 }
 
 function isMissing(error: unknown): boolean {

@@ -2,6 +2,7 @@ import type { PersonaBotRegistry } from '../bots/registry.js';
 import { attachOperationalModule, type OperationalDatabaseOwner } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
 import { createMemoryAcceptance, type MemoryAcceptance } from './accepted.js';
+import { createMemoryGit } from './git.js';
 import { inspectMemoryRepository, type MemoryRepositoryInspection } from './repository.js';
 import { createMemoryStore, type MemoryStore } from './store.js';
 
@@ -43,6 +44,8 @@ export interface MemoryService extends MemoryAcceptance {
   memoryDirFor(sessionId: string | undefined): string | undefined;
   /** Repository health for the Memory surface; never mutates. */
   repositoryFor(sessionId: string | undefined): MemoryRepositoryInspection | undefined;
+  /** Author-dated Memory Commits since an instant, for Profile memory activity. */
+  activity?(botSlug: string, sinceIso: string): Array<{ at: string }>;
 }
 
 export function createMemoryService(options: MemoryServiceOptions): MemoryService {
@@ -140,6 +143,10 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,
     repositoryFor,
+    activity: (botSlug, sinceIso) => {
+      const memoryDir = registry.memoryDirFor(botSlug);
+      return memoryDir === undefined ? [] : createMemoryGit(memoryDir).activitySince(sinceIso);
+    },
     personaForSession,
     refreshPersonaAfterCompaction,
     storeForSession,

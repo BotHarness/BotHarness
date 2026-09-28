@@ -100,6 +100,26 @@ export interface PersonaBotDetail extends PersonaBotSummary {
   sessions: Record<string, SessionState>;
 }
 
+/** One local day of Profile activity; `day` is a Host-local `YYYY-MM-DD`. */
+export interface ProfileActivityDay {
+  day: string;
+  count: number;
+}
+
+/** Event activity keeps its Inbox Admission reason so the Profile can categorize it. */
+export interface ProfileActivityReasonDay extends ProfileActivityDay {
+  reason: string;
+}
+
+/** Bounded read model behind the PersonaBot Profile activity cards. */
+export interface ProfileActivity {
+  slug: string;
+  weeks: number;
+  since: string;
+  events: ProfileActivityReasonDay[];
+  memoryCommits: ProfileActivityDay[];
+}
+
 /** Channel list projection; latestMessage is derived from the durable message log. */
 export interface ChannelListItem extends ChannelRecord {
   latestMessage?: ChannelMessage;
@@ -183,6 +203,7 @@ export interface BridgeMethods {
   memoryGitCommitDiff(payload: unknown): BridgeResult<MemoryGitCommitDiff>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
+  profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
   sectionRename(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -1618,6 +1639,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         repair: deps.memory!.repairHuman({ botSlug: scope.botSlug, expectedHead, repairId }),
       }));
     },
+    profileActivity(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const slug = scope.botSlug;
+      const weeks = 26;
+      const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
+      const events = deps.channels.admissionActivity?.(slug, since) ?? [];
+      const commits = deps.memory?.activity?.(slug, since) ?? [];
+      return {
+        ok: true,
+        value: {
+          slug,
+          weeks,
+          since,
+          events: bucketByReason(events),
+          memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
+        },
+      };
+    },
     rosterGet() {
       try {
         return { ok: true, value: deps.roster.snapshot() };
@@ -1717,4 +1757,41 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: { accepted: deps.developerMode !== undefined } };
     },
   };
+}
+
+/** Host-local calendar day of one instant, matching the confirmed Profile day boundary. */
+function localDay(at: string): string | undefined {
+  const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return undefined;
+  const month = `${date.getMonth() + 1}`.padStart(2, '0');
+  const day = `${date.getDate()}`.padStart(2, '0');
+  return `${date.getFullYear()}-${month}-${day}`;
+}
+
+function bucketByDay(instants: readonly string[]): ProfileActivityDay[] {
+  const counts = new Map<string, number>();
+  for (const at of instants) {
+    const day = localDay(at);
+    if (day === undefined) continue;
+    counts.set(day, (counts.get(day) ?? 0) + 1);
+  }
+  return [...counts]
+    .map(([day, count]) => ({ day, count }))
+    .sort((left, right) => left.day.localeCompare(right.day));
+}
+
+function bucketByReason(
+  entries: ReadonlyArray<{ at: string; reason: string }>,
+): ProfileActivityReasonDay[] {
+  const counts = new Map<string, Map<string, number>>();
+  for (const entry of entries) {
+    const day = localDay(entry.at);
+    if (day === undefined) continue;
+    const reasons = counts.get(day) ?? new Map<string, number>();
+    reasons.set(entry.reason, (reasons.get(entry.reason) ?? 0) + 1);
+    counts.set(day, reasons);
+  }
+  return [...counts]
+    .flatMap(([day, reasons]) => [...reasons].map(([reason, count]) => ({ day, reason, count })))
+    .sort((left, right) => left.day.localeCompare(right.day));
 }
