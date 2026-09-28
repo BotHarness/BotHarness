@@ -1060,6 +1060,7 @@ function ConversationView({
               {activeMemoryView === undefined ||
               channelId === undefined ? null : activeMemoryView.kind === 'commit' ? (
                 <MemoryCommitView
+                  key={`${channelId}:${activeMemoryView.sha}`}
                   actions={actions}
                   channelId={channelId}
                   sha={activeMemoryView.sha}
@@ -1068,6 +1069,7 @@ function ConversationView({
                 />
               ) : activeMemoryView.kind === 'file' ? (
                 <MemoryFileView
+                  key={`${channelId}:${activeMemoryView.path}`}
                   actions={actions}
                   channelId={channelId}
                   path={activeMemoryView.path}
@@ -1076,6 +1078,7 @@ function ConversationView({
                 />
               ) : (
                 <MemoryWorkingView
+                  key={`${channelId}:${activeMemoryView.change.kind}:${activeMemoryView.change.path}`}
                   actions={actions}
                   channelId={channelId}
                   change={activeMemoryView.change}
