@@ -18,8 +18,52 @@ import type {
 } from './bridge.js';
 import { errorMessage } from './bridge.js';
 import { Modal } from './modal.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 
 export const WORKSPACE_GRANTS_CHANGED = 'botharness/workspace-grants-changed';
+
+type WorkspaceCache = {
+  grants: WorkspaceGrantView[];
+  workspaces: WorkspaceOption[];
+  rules: ToolApprovalRuleView[];
+  access: AssignmentAccessPresetView | undefined;
+  memoryDir: string | undefined;
+};
+const workspaceCaches = new WeakMap<
+  ChannelSidebarEntryProps['actions'],
+  Map<string, WorkspaceCache>
+>();
+
+function cachedWorkspace(
+  actions: ChannelSidebarEntryProps['actions'],
+  botSlug: string | undefined,
+): WorkspaceCache | undefined {
+  return botSlug === undefined ? undefined : workspaceCaches.get(actions)?.get(botSlug);
+}
+
+function rememberWorkspace(
+  actions: ChannelSidebarEntryProps['actions'],
+  botSlug: string,
+  patch: Partial<WorkspaceCache>,
+): void {
+  let cache = workspaceCaches.get(actions);
+  if (cache === undefined) {
+    cache = new Map();
+    workspaceCaches.set(actions, cache);
+  }
+  const previous = cache.get(botSlug);
+  cache.delete(botSlug);
+  cache.set(botSlug, {
+    grants: [],
+    workspaces: [],
+    rules: [],
+    access: undefined,
+    memoryDir: undefined,
+    ...previous,
+    ...patch,
+  });
+  if (cache.size > 30) cache.delete(cache.keys().next().value!);
+}
 
 const WORKSPACE_ACTION_TIMEOUT_MS = 15_000;
 
@@ -230,7 +274,7 @@ export function FolderBrowser({
         ) : null}
       </div>
       {listing.truncated ? <div className="bh-note">{t('grant.browseTruncated')}</div> : null}
-      {loading ? <div className="bh-note">{t('grant.loading')}</div> : null}
+      {loading ? <LoadingSkeleton kind="sidebar" label={t('grant.loading')} /> : null}
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}
@@ -255,18 +299,26 @@ export function WorkspaceGrantsEntry({
   t,
   developerMode = false,
 }: ChannelSidebarEntryProps & { developerMode?: boolean }): ReactElement {
-  const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>([]);
-  const [grants, setGrants] = useState<WorkspaceGrantView[]>([]);
-  const [rules, setRules] = useState<ToolApprovalRuleView[]>([]);
-  const [access, setAccess] = useState<AssignmentAccessPresetView>();
+  const cached = cachedWorkspace(actions, botSlug);
+  const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>(cached?.workspaces ?? []);
+  const [grants, setGrants] = useState<WorkspaceGrantView[]>(cached?.grants ?? []);
+  const [rules, setRules] = useState<ToolApprovalRuleView[]>(cached?.rules ?? []);
+  const [access, setAccess] = useState<AssignmentAccessPresetView | undefined>(cached?.access);
   const [confirmDanger, setConfirmDanger] = useState(false);
-  const [memoryDir, setMemoryDir] = useState<string | undefined>();
+  const [memoryDir, setMemoryDir] = useState<string | undefined>(cached?.memoryDir);
   const [manualOpen, setManualOpen] = useState(false);
   const [manualPath, setManualPath] = useState('');
   const [browserListing, setBrowserListing] = useState<HostDirectoryListing | undefined>();
   const [busy, setBusy] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(cached === undefined);
+  const showGrant = (grant: WorkspaceGrantView): void => {
+    if (botSlug === undefined) return;
+    const current = cachedWorkspace(actions, botSlug)?.grants ?? grants;
+    const next = [...current.filter((row) => row.id !== grant.id), grant];
+    rememberWorkspace(actions, botSlug, { grants: next });
+    setGrants(next);
+  };
 
   const refresh = async (slug: string, isCurrent: () => boolean = () => true): Promise<void> => {
     const owned = await withWorkspaceActionDeadline(
@@ -274,6 +326,7 @@ export function WorkspaceGrantsEntry({
       t('grant.loadTimeout'),
     );
     if (!isCurrent()) return;
+    rememberWorkspace(actions, slug, { grants: owned });
     setGrants(owned);
     setLoading(false);
     const [available, memory, ruleRows, preset] = await Promise.all([
@@ -283,6 +336,12 @@ export function WorkspaceGrantsEntry({
       actions.assignmentAccess(slug),
     ]);
     if (!isCurrent()) return;
+    rememberWorkspace(actions, slug, {
+      workspaces: available,
+      memoryDir: memory,
+      rules: ruleRows,
+      access: preset,
+    });
     setWorkspaces(available);
     setMemoryDir(memory);
     setRules(ruleRows);
@@ -301,7 +360,7 @@ export function WorkspaceGrantsEntry({
   useEffect(() => {
     if (botSlug === undefined) return;
     let cancelled = false;
-    setLoading(true);
+    setLoading(cachedWorkspace(actions, botSlug) === undefined);
     setError(undefined);
     void refresh(botSlug, () => !cancelled).catch((cause: unknown) => {
       if (cancelled) return;
@@ -343,7 +402,8 @@ export function WorkspaceGrantsEntry({
       } catch (cause) {
         if (pickerUnavailable(cause)) {
           try {
-            await actions.addWorkspaceFolder(botSlug);
+            const grant = await actions.addWorkspaceFolder(botSlug);
+            if (grant !== undefined) showGrant(grant);
             await refresh(botSlug);
           } catch (nativeCause) {
             setError(errorMessage(nativeCause));
@@ -366,7 +426,9 @@ export function WorkspaceGrantsEntry({
   return (
     <div className="bh-workspace-grants">
       {developerMode ? <div className="bh-note">{t('grant.safeDefault')}</div> : null}
-      {loading ? <div className="bh-note">{t('grant.loading')}</div> : null}
+      {loading && grants.length === 0 ? (
+        <LoadingSkeleton kind="sidebar" label={t('grant.loading')} />
+      ) : null}
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}
@@ -384,9 +446,12 @@ export function WorkspaceGrantsEntry({
             remove={() =>
               mutate(grant.id, async () => {
                 const revokedGrant = await actions.revokeWorkspaceGrant(botSlug, grant.id);
-                setGrants((current) =>
-                  current.map((row) => (row.id === revokedGrant.id ? revokedGrant : row)),
+                const current = cachedWorkspace(actions, botSlug)?.grants ?? grants;
+                const next = current.map((row) =>
+                  row.id === revokedGrant.id ? revokedGrant : row,
                 );
+                rememberWorkspace(actions, botSlug, { grants: next });
+                setGrants(next);
               })
             }
           />
@@ -420,7 +485,7 @@ export function WorkspaceGrantsEntry({
               disabled={busy !== undefined || manualPath.trim().length === 0}
               onClick={() =>
                 mutate('manual-folder', async () => {
-                  await actions.authorizeWorkspacePath(botSlug, manualPath.trim());
+                  showGrant(await actions.authorizeWorkspacePath(botSlug, manualPath.trim()));
                   setManualPath('');
                   setManualOpen(false);
                 })
@@ -445,8 +510,8 @@ export function WorkspaceGrantsEntry({
                     variant="outline"
                     disabled={busy !== undefined}
                     onClick={() =>
-                      mutate(workspace.id, () =>
-                        actions.createWorkspaceGrant(botSlug, workspace.id),
+                      mutate(workspace.id, async () =>
+                        showGrant(await actions.createWorkspaceGrant(botSlug, workspace.id)),
                       )
                     }
                   >
@@ -574,7 +639,7 @@ export function WorkspaceGrantsEntry({
           onCancel={() => setBrowserListing(undefined)}
           onChoose={(path) =>
             mutate('browse-folder', async () => {
-              await actions.authorizeWorkspacePath(botSlug, path);
+              showGrant(await actions.authorizeWorkspacePath(botSlug, path));
               setBrowserListing(undefined);
             })
           }
