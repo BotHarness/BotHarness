@@ -139,6 +139,76 @@ describe('current Git working tree is Memory', () => {
     }
   });
 
+  it('reads staged, unstaged, and untracked diffs without changing the repository', () => {
+    const { database, memory, root } = fixture();
+    try {
+      const originalHead = git(root, 'rev-parse', 'HEAD');
+      writeFileSync(join(root, 'note.md'), 'staged text\n');
+      git(root, 'add', 'note.md');
+      writeFileSync(join(root, 'note.md'), 'unstaged text\n');
+      writeFileSync(join(root, 'new.ts'), 'export const memory = true;\n');
+      writeFileSync(join(root, 'image.bin'), Buffer.from([0, 255]));
+      const before = git(root, 'status', '--porcelain');
+
+      expect(memory.workingChanges('atlas')).toEqual(
+        expect.arrayContaining([
+          { path: 'note.md', kind: 'staged', status: 'A' },
+          { path: 'note.md', kind: 'unstaged', status: 'M' },
+          { path: 'new.ts', kind: 'untracked', status: '?' },
+        ]),
+      );
+      expect(memory.workingDiff('atlas', 'note.md', 'staged').diff).toContain('+staged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'unstaged').diff).toContain('+unstaged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'current').diff).toContain('+unstaged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'current').diff).not.toContain('+staged text');
+      expect(memory.workingDiff('atlas', 'new.ts', 'untracked').diff).toContain(
+        '+export const memory = true;',
+      );
+      expect(memory.workingDiff('atlas', 'new.ts', 'current').diff).toContain(
+        '+export const memory = true;',
+      );
+      expect(memory.workingDiff('atlas', 'image.bin', 'untracked').binary).toBe(true);
+      expect(() => memory.workingDiff('atlas', '../outside', 'untracked')).toThrow();
+      expect(git(root, 'status', '--porcelain')).toBe(before);
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(originalHead);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('keeps phase diffs for an indexed file removed from disk, without a current diff', () => {
+    const { database, memory, root } = fixture();
+    try {
+      writeFileSync(join(root, 'draft.md'), 'draft\n');
+      git(root, 'add', 'draft.md');
+      rmSync(join(root, 'draft.md'));
+      expect(memory.workingChanges('atlas')).toEqual(
+        expect.arrayContaining([
+          { path: 'draft.md', kind: 'staged', status: 'A' },
+          { path: 'draft.md', kind: 'unstaged', status: 'D' },
+        ]),
+      );
+      expect(memory.workingDiff('atlas', 'draft.md', 'staged').diff).toContain('+draft');
+      expect(memory.workingDiff('atlas', 'draft.md', 'unstaged').diff).toContain('-draft');
+      expect(() => memory.workingDiff('atlas', 'draft.md', 'current')).toThrow();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('detects Git binary markers without treating matching text content as binary', () => {
+    const { database, memory, root } = fixture();
+    try {
+      writeFileSync(join(root, 'words.md'), 'Binary files a/x and b/x differ\n');
+      writeFileSync(join(root, 'image.bin'), Buffer.from([0, 255]));
+      git(root, 'add', 'words.md', 'image.bin');
+      expect(memory.workingDiff('atlas', 'words.md', 'staged').binary).toBe(false);
+      expect(memory.workingDiff('atlas', 'image.bin', 'staged').binary).toBe(true);
+    } finally {
+      database.close();
+    }
+  });
+
   it('follows a native fetch and reset to an unrelated merged history without admission', () => {
     const { home, database, registry, ownership, memory, root, addSource } = fixture();
     try {

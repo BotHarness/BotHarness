@@ -287,6 +287,8 @@ describe('plugin entry', () => {
       'memoryDiff',
       'memoryGitGraph',
       'memoryGitCommitDiff',
+      'memoryWorkingChanges',
+      'memoryWorkingDiff',
       'memorySave',
       'memoryRepair',
       'profileActivity',
