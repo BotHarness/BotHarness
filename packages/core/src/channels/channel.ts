@@ -6,12 +6,21 @@ import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-q
 
 export type ChannelType = 'dm' | 'group';
 
-/** Human-owned per-member notification choice for ordinary Group messages. */
+/** Per-member notification choice for ordinary Group messages. */
 export interface GroupWakePolicy {
   mode: 'all' | 'mentions' | 'digest' | 'silent';
   count: number;
   intervalSeconds: number;
   revision: number;
+}
+
+export type GroupWakePolicyActor = { kind: 'human' } | { kind: 'bot'; botSlug: string };
+
+/** Current canonical policy plus attribution from the immutable revision audit. */
+export interface GroupWakePolicyView extends GroupWakePolicy {
+  /** Null for the unsaved default or a policy that predates the audit migration. */
+  lastActor: GroupWakePolicyActor | null;
+  changedAt: string | null;
 }
 
 /** Applied to Groups with no saved member preference; revision 0 is never persisted. */

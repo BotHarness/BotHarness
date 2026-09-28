@@ -117,7 +117,9 @@ describe('operational database owner', () => {
 
   it('backfills Group wake modes when upgrading existing Inbox Admissions', () => {
     const dshHome = createTempRoot('botharness-group-wake-migration-');
-    const priorPlan = defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1));
+    const priorPlan = defineSchemaPlan(
+      BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 26),
+    );
     const prior = mountOperationalDatabase({ dshHome, schemaPlan: priorPlan });
     attachOperationalModule(prior, 'group-wake-migration-seed').transaction((database) => {
       for (const [id, reason, wakeCount, wakeIntervalMs] of [

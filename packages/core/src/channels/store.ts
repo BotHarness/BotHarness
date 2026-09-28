@@ -19,6 +19,8 @@ import {
   type ChannelRecord,
   type GroupInvitation,
   type GroupJoinRequest,
+  type GroupWakePolicyActor,
+  type GroupWakePolicyView,
   type BotMessageCausation,
 } from './channel.js';
 import {
@@ -295,6 +297,7 @@ export interface ChannelStore {
   /** The Human may cancel a pending invite or remove a joined Bot. */
   cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
   cancelInvitationsForBot(botSlug: string): void;
+  getGroupWakePolicy(channelId: string, botSlug: string): GroupWakePolicyView;
   setGroupWakePolicy(
     channelId: string,
     botSlug: string,
@@ -303,6 +306,7 @@ export interface ChannelStore {
       count: number;
       intervalSeconds: number;
     },
+    actor?: GroupWakePolicyActor,
   ): ChannelRecord;
   removeGroupMember(
     channelId: string,
@@ -668,6 +672,9 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     },
     cancelInvitationsForBot() {
       // Legacy file Channels cannot contain Inbox-backed invitations.
+    },
+    getGroupWakePolicy() {
+      throw new Error('Group wake policy requires the operational Channel store');
     },
     setGroupWakePolicy() {
       throw new Error('Group wake policy requires the operational Channel store');

@@ -12,6 +12,7 @@ import {
   MAX_BOT_HOPS,
   type GroupInvitation,
   type GroupJoinRequest,
+  type GroupWakePolicyView,
   type BotMessageCausation,
   type ChannelMention,
   type ChannelMessage,
@@ -222,6 +223,13 @@ export interface OrchestratorChannelAccess {
   };
   renameGroup(input: { channelId: string; name: string }): ChannelRecord;
   removeGroupMember(input: { channelId: string; botSlug: string }): ChannelRecord;
+  readGroupWakePolicy(channelId: string): GroupWakePolicyView;
+  setGroupWakePolicy(input: {
+    channelId: string;
+    mode: 'all' | 'digest' | 'mentions' | 'silent';
+    count: number;
+    intervalSeconds: number;
+  }): GroupWakePolicyView;
   leaveGroup(input: { channelId: string }): { channelId: string; left: boolean };
   sendToBot(input: {
     botSlug: string;
@@ -2482,6 +2490,29 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error('Only the Bot Group owner may remove another member');
         beforeSend();
         return this.#channels.removeGroupMember(channel.id, input.botSlug);
+      },
+      readGroupWakePolicy: (channelId) => {
+        const channel = resolve(channelId);
+        if (channel.type !== 'group') throw new Error('Group Channel is required');
+        return this.#channels.getGroupWakePolicy(channel.id, botSlug);
+      },
+      setGroupWakePolicy: (input) => {
+        const bot = this.#registry.get(botSlug);
+        if (bot === undefined || bot.paused === true)
+          throw new Error('PersonaBot is no longer active');
+        const channel = resolve(input.channelId);
+        if (channel.type !== 'group') throw new Error('Group Channel is required');
+        this.#channels.setGroupWakePolicy(
+          channel.id,
+          botSlug,
+          {
+            mode: input.mode,
+            count: input.count,
+            intervalSeconds: input.intervalSeconds,
+          },
+          { kind: 'bot', botSlug },
+        );
+        return this.#channels.getGroupWakePolicy(channel.id, botSlug);
       },
       leaveGroup: (input) => {
         const channel = this.#channels.get(input.channelId);

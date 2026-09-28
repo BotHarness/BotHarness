@@ -825,11 +825,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return {
           ok: true,
           value: {
-            channel: deps.channels.setGroupWakePolicy(channelId, botSlug, {
-              mode,
-              count,
-              intervalSeconds,
-            }),
+            channel: deps.channels.setGroupWakePolicy(
+              channelId,
+              botSlug,
+              {
+                mode,
+                count,
+                intervalSeconds,
+              },
+              { kind: 'human' },
+            ),
           },
         };
       } catch (error) {
