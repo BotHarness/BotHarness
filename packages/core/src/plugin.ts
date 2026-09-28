@@ -80,9 +80,10 @@ import {
   type AssignmentSessionQuery,
   type AssignmentReportPage,
 } from './runtime/assignment-tail.js';
-import type { DshSessionStore } from './sessions/source.js';
+import type { DshSessionEvent, DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
+import { createUsageProjection, type UsageProjection } from './usage/usage.js';
 
 export const name = 'botharness-core';
 
@@ -161,6 +162,8 @@ export interface BotHarnessCore {
   states: BotStateTracker;
   ownership: SessionOwnership;
   memory: MemoryService;
+  /** Derived daily token buckets; absent when the operational database is unavailable. */
+  usage?: UsageProjection;
   channels: ChannelStore;
   attachments: AttachmentStore;
   live: ChannelLiveHub;
@@ -293,6 +296,10 @@ export function createCore(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
   const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
+  const usage =
+    operationalDatabase.mode === 'ready'
+      ? createUsageProjection({ ownership, database: operationalDatabase })
+      : undefined;
   const grants = createWorkspaceGrantStore({
     database: attachOperationalModule(operationalDatabase, 'workspace-grants'),
     workspaces: options.workspaces ?? (() => undefined),
@@ -352,6 +359,7 @@ export function createCore(
     states,
     ownership,
     memory,
+    ...(usage === undefined ? {} : { usage }),
     grants,
     toolRules,
     assignmentAccess,
@@ -624,6 +632,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       channels: core.channels,
       ownership: core.ownership,
       memory: core.memory,
+      ...(core.usage === undefined ? {} : { usage: core.usage }),
       roster: core.roster,
       runtime: core.runtime,
       attention: core.attention,
@@ -750,6 +759,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'session/event',
     (session, event) => {
       activity.handleSessionEvent(session.id, event);
+      core.usage?.handleSessionEvent(session.id, event);
       handleCompactionEvent(
         {
           ownership: core.ownership,
@@ -777,6 +787,45 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     { global: true },
   );
   activity.rebuild(dshSessions.list());
+  if (core.usage !== undefined) {
+    const usage = core.usage;
+    // Ownership is the durable candidate list; Session Query supplies the logs,
+    // because a restored Session's in-memory snapshot may omit old turns.
+    ctx.inject(['sessionQuery'], (sessionCtx) => {
+      const query = sessionCtx.get('sessionQuery') as unknown as
+        | {
+            readSession(id: string): Promise<{
+              events: readonly DshSessionEvent[];
+              inheritedEventCount?: number;
+            }>;
+          }
+        | undefined;
+      if (query === undefined) return;
+      const readUsageLog = async (sessionId: string) => {
+        try {
+          const snapshot = await query.readSession(sessionId);
+          return {
+            events: snapshot.events,
+            inheritedEventCount: snapshot.inheritedEventCount ?? 0,
+          };
+        } catch (error) {
+          ctx.logger.warn(`botharness: usage log read failed for ${sessionId}: ${String(error)}`);
+          return undefined;
+        }
+      };
+      const tracked = core.ownership.list().map((record) => record.sessionId);
+      void usage.rebuild(tracked, readUsageLog).then(
+        (report) => {
+          ctx.logger.info(
+            `botharness: usage projection rebuilt (${report.folded} turns, ${report.failed} failed sessions)`,
+          );
+        },
+        (error: unknown) => {
+          ctx.logger.warn(`botharness: usage projection rebuild failed: ${String(error)}`);
+        },
+      );
+    });
+  }
 
   // Storage is an optional capability: without it the plugin still loads and
   // the bridge reports `storage-unavailable` for arrangement writes.

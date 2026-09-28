@@ -41,6 +41,7 @@ import {
   type MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
+import type { UsageProjection } from '../usage/usage.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
   WorkspaceGrantError,
@@ -111,6 +112,18 @@ export interface ProfileActivityReasonDay extends ProfileActivityDay {
   reason: string;
 }
 
+/** Exact provider token buckets, summed across purposes/routes. */
+export interface ProfileTokenBuckets {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
+  day: string;
+}
+
 /** Bounded read model behind the PersonaBot Profile activity cards. */
 export interface ProfileActivity {
   slug: string;
@@ -118,6 +131,8 @@ export interface ProfileActivity {
   since: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
+  tokens: ProfileActivityTokensDay[];
+  tokenTotals: ProfileTokenBuckets;
 }
 
 /** Channel list projection; latestMessage is derived from the durable message log. */
@@ -224,6 +239,7 @@ export interface BridgeMethodsDeps {
   channels: ChannelStore;
   ownership: SessionOwnership;
   memory?: MemoryService;
+  usage?: UsageProjection;
   roster: RosterStore;
   runtime?: BotRuntime;
   attention?: BotAttentionQuery;
@@ -1652,6 +1668,32 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const since = new Date(Date.now() - weeks * 7 * 24 * 60 * 60 * 1000).toISOString();
       const events = deps.channels.admissionActivity?.(slug, since) ?? [];
       const commits = deps.memory?.activity?.(slug, since) ?? [];
+      const usageRows = deps.usage?.activity(slug, since) ?? [];
+      const tokensByDay = new Map<string, ProfileActivityTokensDay>();
+      const tokenTotals: ProfileTokenBuckets = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+      };
+      for (const row of usageRows) {
+        const day = tokensByDay.get(row.day) ?? {
+          day: row.day,
+          inputTokens: 0,
+          outputTokens: 0,
+          cacheReadTokens: 0,
+          cacheWriteTokens: 0,
+        };
+        day.inputTokens += row.inputTokens;
+        day.outputTokens += row.outputTokens;
+        day.cacheReadTokens += row.cacheReadTokens;
+        day.cacheWriteTokens += row.cacheWriteTokens;
+        tokensByDay.set(row.day, day);
+        tokenTotals.inputTokens += row.inputTokens;
+        tokenTotals.outputTokens += row.outputTokens;
+        tokenTotals.cacheReadTokens += row.cacheReadTokens;
+        tokenTotals.cacheWriteTokens += row.cacheWriteTokens;
+      }
       return {
         ok: true,
         value: {
@@ -1660,6 +1702,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           since,
           events: bucketByReason(events),
           memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
+          tokens: [...tokensByDay.values()].sort((left, right) =>
+            left.day.localeCompare(right.day),
+          ),
+          tokenTotals,
         },
       };
     },
