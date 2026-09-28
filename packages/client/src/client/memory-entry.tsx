@@ -70,6 +70,12 @@ export function MemoryEntry({
   const [draft, setDraft] = useState(
     initialPath === undefined ? '' : (cache.files.get(initialPath)?.body ?? ''),
   );
+  const draftState = useRef({
+    path: initialPath,
+    body: initialPath === undefined ? '' : (cache.files.get(initialPath)?.body ?? ''),
+    value: initialPath === undefined ? '' : (cache.files.get(initialPath)?.body ?? ''),
+    version: 0,
+  });
   const [busy, setBusy] = useState(false);
   const [confirmRepair, setConfirmRepair] = useState(false);
   const [repairArchive, setRepairArchive] = useState<string>();
@@ -140,8 +146,13 @@ export function MemoryEntry({
   useEffect(() => {
     let active = true;
     const cachedFile = path === undefined ? undefined : cache.files.get(path);
-    setFile(cachedFile);
-    setDraft(cachedFile?.body ?? '');
+    if (draftState.current.path !== path) {
+      const body = cachedFile?.body ?? '';
+      draftState.current = { path, body, value: body, version: draftState.current.version + 1 };
+      setFile(cachedFile);
+      setDraft(body);
+    }
+    const requestVersion = draftState.current.version;
     if (path !== undefined) {
       void actions
         .memoryFile(channelId, path)
@@ -153,7 +164,14 @@ export function MemoryEntry({
             if (cache.files.size > 20) cache.files.delete(cache.files.keys().next().value!);
           }
           setFile(next);
-          setDraft(next?.body ?? '');
+          const preserveDraft =
+            draftState.current.version !== requestVersion ||
+            draftState.current.value !== draftState.current.body;
+          draftState.current.body = next?.body ?? '';
+          if (!preserveDraft) {
+            draftState.current.value = next?.body ?? '';
+            setDraft(next?.body ?? '');
+          }
         })
         .catch((failure: unknown) => {
           if (active) setError(failure instanceof Error ? failure.message : String(failure));
@@ -216,6 +234,7 @@ export function MemoryEntry({
       const savedFile = { ...file, body: draft, head: commit.sha };
       cache.files.set(file.path, savedFile);
       setFile(savedFile);
+      draftState.current.body = draft;
       if (snapshot !== undefined) {
         const savedSnapshot = { ...snapshot, head: commit.sha };
         cache.snapshot = savedSnapshot;
@@ -280,6 +299,11 @@ export function MemoryEntry({
         )
       ) : (
         <>
+          {snapshotError === undefined ? null : (
+            <div className="bh-error" role="alert">
+              {snapshotError}
+            </div>
+          )}
           {snapshot.provisional ? (
             <div className="bh-note" role="status">
               {t('memory.provisional')}
@@ -333,7 +357,11 @@ export function MemoryEntry({
                 <textarea
                   id="bh-memory-editor-body"
                   value={draft}
-                  onChange={(event) => setDraft(event.target.value)}
+                  onChange={(event) => {
+                    draftState.current.value = event.target.value;
+                    draftState.current.version += 1;
+                    setDraft(event.target.value);
+                  }}
                   spellCheck={false}
                 />
               )}
@@ -368,6 +396,11 @@ export function MemoryEntry({
           )
         ) : (
           <>
+            {graphError === undefined ? null : (
+              <div className="bh-error" role="alert">
+                {graphError}
+              </div>
+            )}
             <div className="bh-memory-graph-meta">
               <span className="bh-memory-graph-branch">
                 {graph.currentBranch === null ? t('memory.detached') : graph.currentBranch}

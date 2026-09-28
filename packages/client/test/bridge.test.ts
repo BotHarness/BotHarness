@@ -550,6 +550,53 @@ describe('bridge actions', () => {
     await reopening;
   });
 
+  it('keeps a committed send when an older background timeline refresh finishes', async () => {
+    let resolveRefresh: ((value: unknown) => void) | undefined;
+    let groupReads = 0;
+    const original = {
+      id: 'm1',
+      at: BOT.createdAt,
+      author: { kind: 'human' },
+      body: 'original',
+    };
+    const page = {
+      entries: [original],
+      olderCursor: null,
+      newerCursor: null,
+      hasOlder: false,
+      hasNewer: false,
+    };
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['channelId'] === 'group-team' && ++groupReads === 2)
+          return new Promise((resolve) => {
+            resolveRefresh = resolve;
+          });
+        return { revision: 2, page };
+      },
+      channelSend: () => ({
+        message: {
+          id: 'committed-after-refresh-started',
+          at: BOT.createdAt,
+          author: { kind: 'human' },
+          body: 'new message',
+        },
+      }),
+    });
+    await actions.load();
+    await actions.openChannel('group-team');
+    await actions.openChannel('dm-ada');
+    const reopened = actions.openChannel('group-team');
+    await vi.waitFor(() => expect(resolveRefresh).toBeDefined());
+    expect(await actions.send('new message')).toBe(true);
+    resolveRefresh!({ revision: 2, page });
+    await reopened;
+    expect(clientStore.getSnapshot().conversation.messages.map((message) => message.body)).toEqual([
+      'original',
+      'new message',
+    ]);
+  });
+
   it('reopens DM and group Channels around the profile read anchor', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const entry = (id: string) => ({ id, at: BOT.createdAt, author: { kind: 'human' }, body: id });

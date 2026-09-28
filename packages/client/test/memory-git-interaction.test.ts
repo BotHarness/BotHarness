@@ -151,6 +151,84 @@ describe('Memory Git graph sidebar', () => {
     expect(container.querySelector('.bh-skeleton')).toBeNull();
   });
 
+  it('preserves a Memory draft typed while a cached file refreshes', async () => {
+    let resolveFile!: (value: { path: string; body: string; head: string }) => void;
+    const pendingFile = new Promise<{ path: string; body: string; head: string }>((resolve) => {
+      resolveFile = resolve;
+    });
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({
+        head: SHA,
+        files: ['notes.md'],
+        provisional: false,
+      }),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryFile: vi
+        .fn()
+        .mockResolvedValueOnce({ path: 'notes.md', body: 'Original', head: SHA })
+        .mockReturnValueOnce(pendingFile),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-draft',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    const editor = container.querySelector<HTMLTextAreaElement>('#bh-memory-editor-body');
+    expect(editor?.value).toBe('Original');
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(editor, 'Unsent edit');
+      editor?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => resolveFile({ path: 'notes.md', body: 'Refreshed', head: SHA }));
+    expect(editor?.value).toBe('Unsent edit');
+  });
+
+  it('shows refresh errors alongside cached Memory and graph data', async () => {
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce({ head: SHA, files: [], provisional: false })
+        .mockRejectedValueOnce(new Error('Snapshot refresh failed')),
+      memoryGitGraph: vi
+        .fn()
+        .mockResolvedValueOnce({
+          head: SHA,
+          currentBranch: 'main',
+          branches: ['main'],
+          dirty: false,
+          commits: [],
+          hasMore: false,
+        })
+        .mockRejectedValueOnce(new Error('Graph refresh failed')),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-errors',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Snapshot refresh failed');
+    expect(container.textContent).toContain('Graph refresh failed');
+    expect(container.querySelector('.bh-memory-graph-meta')).not.toBeNull();
+  });
+
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
       memoryGitCommitDiff: vi
