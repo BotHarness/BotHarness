@@ -90,7 +90,7 @@ if (process.argv[2] === '--remove-member') {
     await page.goto(origin, { waitUntil: 'networkidle2' });
     await page.evaluate(() =>
       Array.from(document.querySelectorAll('button'))
-        .find((button) => button.textContent?.trim() === 'Continue')
+        .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
         ?.click(),
     );
     const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
@@ -237,7 +237,7 @@ if (process.argv[2] === '--join-requests' || process.argv[2] === '--seed-join-re
     await page.goto(origin, { waitUntil: 'networkidle2' });
     await page.evaluate(() =>
       Array.from(document.querySelectorAll('button'))
-        .find((button) => button.textContent?.trim() === 'Continue')
+        .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
         ?.click(),
     );
     const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
@@ -336,7 +336,7 @@ try {
   await page.goto(origin, { waitUntil: 'networkidle2' });
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Continue')
+      .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click(),
   );
   const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';

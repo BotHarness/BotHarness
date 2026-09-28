@@ -27,7 +27,7 @@ try {
   });
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Continue')
+      .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click(),
   );
   await page.click('button[aria-label="Bot mode"]');

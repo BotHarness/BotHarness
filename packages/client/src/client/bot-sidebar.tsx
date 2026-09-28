@@ -21,7 +21,6 @@ import {
   IconSettingsOutlineRegular,
   HoverCard,
   Menu,
-  StateDot,
   Tag,
   Tooltip,
   type MenuEntry,
@@ -63,7 +62,7 @@ import {
   type ScopeId,
   type SectionDropTarget,
 } from './channel-drag.js';
-import { botStateLabel, needsYou, toBotState, toStateDot } from './labels.js';
+import { needsYou, toBotState } from './labels.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { personaBotActivity } from './persona-activity.js';
 import { CreatePersonaBotModal } from './persona-bot-create.js';
@@ -275,9 +274,37 @@ function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | nul
   );
 }
 
+function channelPreview(
+  channel: ChannelSummary,
+  bots: ReadonlyMap<string, BotSummary>,
+  t: BotHarnessTranslate,
+): string {
+  const message = channel.latestMessage;
+  if (message === undefined) return t('rail.noMessages');
+  if (message.memberDeparture !== undefined)
+    return t(
+      message.memberDeparture.departureType === 'removed' ? 'member.removed' : 'member.left',
+      { name: message.memberDeparture.displayName },
+    );
+  const body =
+    message.body.replace(/\s+/gu, ' ').trim() ||
+    message.attachments?.[0]?.name ||
+    t('roster.latestActivity');
+  const author =
+    message.author.kind === 'human'
+      ? t('rail.you')
+      : message.author.kind === 'bot'
+        ? (bots.get(message.author.slug)?.displayName ?? message.author.slug)
+        : message.author.kind === 'bridged'
+          ? message.author.source
+          : undefined;
+  return author === undefined ? body : `${author}：${body}`;
+}
+
 function BotRow({
   bot,
   channel,
+  preview,
   activity,
   selected,
   multiSelected,
@@ -292,6 +319,7 @@ function BotRow({
 }: {
   bot: BotSummary;
   channel: ChannelSummary;
+  preview: string;
   activity: PersonaBotActivityState;
   selected: boolean;
   multiSelected: boolean;
@@ -363,12 +391,10 @@ function BotRow({
       <span className="bh-body">
         <span className="bh-top">
           <span className="bh-name">{bot.displayName}</span>
-          <RoleBadges roles={bot.roles} />
           {needsYou(botState) ? <span className="bh-unread" title={t('roster.needsYou')} /> : null}
         </span>
-        <span className="bh-msg">{bot.description ?? botStateLabel(botState, t)}</span>
+        <span className="bh-msg">{preview}</span>
       </span>
-      <StateDot state={toStateDot(botState)} size={8} className="bh-state" />
       {showShortcutHints && shortcut !== undefined ? (
         <kbd className="bh-shortcut-badge" aria-hidden="true">
           {shortcut.slice(4)}
@@ -379,6 +405,7 @@ function BotRow({
 }
 function ChannelRow({
   channel,
+  preview,
   selected,
   multiSelected,
   onActivate,
@@ -391,6 +418,7 @@ function ChannelRow({
   t,
 }: {
   channel: ChannelSummary;
+  preview: string;
   selected: boolean;
   multiSelected: boolean;
   onActivate: (event: ReactMouseEvent<HTMLButtonElement>) => void;
@@ -473,14 +501,14 @@ function ChannelRow({
         {channel.avatar ? (
           <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
         ) : (
-          <HashIcon size={16} />
+          <HashIcon size={18} />
         )}
       </span>
-      <span className="bh-channel-title">{channel.name}</span>
-      <span className="bh-channel-meta">
-        {channel.members.length > 0
-          ? t('roster.members.count', { count: channel.members.length })
-          : t('roster.members.empty')}
+      <span className="bh-body">
+        <span className="bh-top">
+          <span className="bh-name">{channel.name}</span>
+        </span>
+        <span className="bh-msg">{preview}</span>
       </span>
       {showShortcutHints && shortcut !== undefined ? (
         <kbd className="bh-shortcut-badge" aria-hidden="true">
@@ -1344,6 +1372,7 @@ export function BotSidebar({
   const renderChannelRow = (channel: ChannelSummary, scopeId: ScopeId): ReactElement => {
     const drag = channelDragProps(scopeId, channel.id);
     const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
+    const preview = channelPreview(channel, botBySlug, t);
     if (channel.type === 'dm' && bot !== undefined) {
       return (
         <BotRow
@@ -1351,6 +1380,7 @@ export function BotSidebar({
           key={channel.id}
           bot={bot}
           channel={channel}
+          preview={preview}
           activity={personaBotActivity(state, bot)}
           selected={selectedBot === bot.slug || selectedChannel === channel.id}
           multiSelected={selectedChannelSet.has(channel.id)}
@@ -1369,6 +1399,7 @@ export function BotSidebar({
         t={t}
         key={channel.id}
         channel={channel}
+        preview={preview}
         selected={selectedChannel === channel.id}
         multiSelected={selectedChannelSet.has(channel.id)}
         onActivate={(event) => activateChannel(channel, event)}
@@ -1385,26 +1416,6 @@ export function BotSidebar({
   if (!wide) {
     const renderRailChannel = (channel: ChannelSummary): ReactElement => {
       const bot = channel.botSlug === undefined ? undefined : botBySlug.get(channel.botSlug);
-      const message = channel.latestMessage;
-      const author =
-        message?.author.kind === 'human'
-          ? t('rail.you')
-          : message?.author.kind === 'bot'
-            ? (botBySlug.get(message.author.slug)?.displayName ?? message.author.slug)
-            : message?.author.kind === 'bridged'
-              ? message.author.source
-              : undefined;
-      const summary =
-        message === undefined
-          ? t('rail.noMessages')
-          : message.memberDeparture !== undefined
-            ? t(
-                message.memberDeparture.departureType === 'removed'
-                  ? 'member.removed'
-                  : 'member.left',
-                { name: message.memberDeparture.displayName },
-              )
-            : `${author === undefined ? '' : `${author}：`}${message.body}`;
       return (
         <RailChannel
           key={channel.id}
@@ -1414,7 +1425,7 @@ export function BotSidebar({
           selected={
             selectedChannel === channel.id || (bot !== undefined && selectedBot === bot.slug)
           }
-          summary={summary}
+          summary={channelPreview(channel, botBySlug, t)}
           shortcut={shortcutFor(channel.id)}
           showShortcutHints={showShortcutHints}
           actions={actions}

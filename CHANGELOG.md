@@ -80,6 +80,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- BotHarness now targets DSH 0.2.0 RC1: workspace pins and `engines.dsh` moved from 0.1.7 RC2, and isolated development Profiles must be recreated for the new RC ([#419](https://github.com/BotHarness/BotHarness/issues/419)).
+
+- Unpinned Group and PersonaBot DM Channels now share a conversation-row layout with an avatar, name, and latest-message preview; empty Channels show a short placeholder. The unpin drop hint has more breathing room, and an active Bot avatar keeps its status dot without an outer ring ([#404](https://github.com/BotHarness/BotHarness/issues/404)).
+
 - New isolated development Profiles compose the optional `@botharness/computer` bundle by default, so the Computer sidebar entry and viewer are available without hand-editing the Profile ([#383](https://github.com/BotHarness/BotHarness/issues/383)).
 - Group Channel messages now show a compact filled recipient pie beside each bubble. Open it to see each admitted PersonaBot by name and avatar as delivered, read, processing, handled, ignored, or failed; reading Channel history alone does not imply handling, and processing begins only when the message enters an Orchestrator turn, and a Bot sender is never counted as its own recipient ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
 - DM and Group message bubbles reveal the message time, Reply, and Copy beneath the bubble on hover or keyboard focus; touch devices keep the actions visible ([#345](https://github.com/BotHarness/BotHarness/issues/345)).
