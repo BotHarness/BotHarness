@@ -108,30 +108,30 @@ core 把 PersonaBot 的读模型显式定义为一组 RPC 方法；浏览器只�
 - **纯净门禁**：跨插件只允许 `import type`，不得值导入；跨包协作走 Cordis 服务或 slot。
 - **构建**：共享 preset（`clientBundle()`）未发布，等价构建已在根 `tsdown.config.ts`（`clientBundleOptions`）实现：banner/footer 生成 closure factory，`pnpm build` 产出 `lib/client.js` + `lib/client.js.map`。契约由 `packages/client/test/client-bundle.test.ts` 覆盖（自注册、只外置 shell 基线、插件注册）。剩余风险转移到 M3.5：把该 Loader entry 装进真实 profile 并加载。
 
-## 7. 本地开发环路（DSH 0.1.7 RC2）
+## 7. 本地开发环路（DSH 0.2.0 RC1）
 
-日常 UI 迭代可使用隔离 Web Profile，或在原生 Windows checkout 的官方 Desktop 上使用本地链接 Client；官方 Desktop 的安装、文件夹选择和重启行为仍需原生验收。每个工作树使用独立的 DSH_HOME 与端口，启动器固定调用该工作树安装的 DSH CLI，并在版本不符时失败，避免误用系统级 0.1.5。
+日常 UI 迭代可使用隔离 Web Profile，或在原生 Windows checkout 的官方 Desktop 上使用本地链接 Client；官方 Desktop 的安装、文件夹选择和重启行为仍需原生验收。每个工作树使用独立的 DSH_HOME 与端口，启动器固定调用该工作树安装的 DSH CLI，并在版本不符时失败，避免误用系统级旧版 CLI。
 
 ```bash
 corepack pnpm install --frozen-lockfile
 corepack pnpm build
-node scripts/dev-instance.mjs --home /tmp/bh-rc2-web --port 31967 --json
+node scripts/dev-instance.mjs --home /tmp/bh-020-web --port 31967 --json
 corepack pnpm dev:client
 ```
 
 - 启动器从 Web 模板创建 Profile，将 Core、Client、Computer 和 DeepSeekBot 本地链接；`dsh.profile.bundles` 包含 umbrella Bundle `deepseekbot` 与独立的 `@botharness/computer`（开发实例默认开启，产品侧仍按 ADR-0050 作为可选包）。它检查认证 API Gateway，JSON 摘要包含进程 PID、健康状态和本地登录 URL。登录 URL 仅用于本机浏览器，不写入 Issue 或日志。
 - 在本机打开登录 URL，运行 `pnpm dev:client` 后，Client bundle 改动会自动构建。Web Profile 使用本机开发监听器在 `rebuilt` 事件后整页刷新，需重新进入 Bot mode；官方 Desktop 则由 DSH Client HMR 替换 `@botharness/ui` Fiber，BotHarness 仅暂存当前 Bot/Channel 选择并在新 Fiber 就绪后恢复同一 DM。此视图状态不持久化；一般 UI 改动无需重启 Host。
-- Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。RC2 的 Host 热替换当前关闭；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
+- Host 改动先 `corepack pnpm build`，对启动摘要中的 PID 执行 `kill <pid>`，再用相同 `--home` 与 `--port` 重启启动器。Host 热替换当前关闭（0.1.7 RC2 实测；0.2.0 RC1 未复验，仍按重启处理）；重启会中断运行中的任务。此机样本：Client 保存到改动可见约 1.2 秒（构建约 0.1 秒），Host 停止后到健康探测约 1.9 秒；这些不是跨机器性能保证。
 - 机器级测试密钥由启动器按进程环境、`~/.config/botharness/dev.env`、Keychain 顺序读取；现有 Profile 凭据也可被 DSH 使用。运行 `node scripts/dev-secret.mjs check` 只显示来源。若要让后续隔离 Profile 共用已有密钥，可运行 `node scripts/dev-secret.mjs adopt-profile --home <已有 DSH_HOME>`；此操作只写受保护的本机密钥文件。模型可用性仍以真实 DM 回复为准。
-- 自动回归：`node scripts/e2e-rc2-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。
+- 自动回归：`node scripts/e2e-personabot-create.mjs` 创建自己的隔离 Profile，经认证 API 建立原生 Workspace、PersonaBot、DM 与 Git Memory，重启后核对同一身份和 Git HEAD，不发模型请求。
 
 ### Windows Desktop 检查点
 
 在原生 Windows checkout 执行 `corepack pnpm install --frozen-lockfile` 和 `corepack pnpm build`，再从官方 Desktop 的插件页选择本地 `packages/deepseekbot`，启用插件并重启应用及 Host。`pnpm-workspace.yaml` 只放行 Desktop 安装实际需要执行的 native postinstall。用独立 `DSH_HOME` 保持 profile 与日常使用隔离；本机 AX 密钥只通过启动进程的 `DEEPSEEK_API_KEY` 环境变量注入，不写入仓库或 issue。
 
-官方 RC2 的开发构建提供「重新加载页面」和「重启应用及 Host」；安装版可能没有前一项。两者都不构建源码；Host 修改须先构建，再重启应用及 Host。[官方 Desktop 开发说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.7-rc.2/apps/desktop/README.md#develop)。
+官方 0.1.7 RC2 的开发构建提供「重新加载页面」和「重启应用及 Host」（0.2.0 RC1 的 Desktop 行为待原生 Windows 复验）；安装版可能没有前一项。两者都不构建源码；Host 修改须先构建，再重启应用及 Host。[官方 Desktop 开发说明](https://github.com/deepseek-ai/deepseek-harness/blob/dsh-v0.1.7-rc.2/apps/desktop/README.md#develop)。
 
-RC2 的 Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0066](adr/0066-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。
+0.1.7 RC2 实测：Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0066](adr/0066-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。以上 Desktop 结论均为 0.1.7 RC2 实测，0.2.0 RC1 未复验。
 
 ## 8. 未决
 

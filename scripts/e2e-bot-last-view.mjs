@@ -21,7 +21,7 @@ try {
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, { waitUntil: 'networkidle2' });
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.trim() === 'Continue')
+      .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click(),
   );
   const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';

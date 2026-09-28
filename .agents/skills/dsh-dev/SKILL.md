@@ -17,15 +17,15 @@ The web client calls `/api/<endpoint>` over plain HTTP (`fetch` + auth cookie). 
 
 ## Dev loop (WSL, fnm node)
 
-Use the worktree's local `@deepseek-ai/dsh@0.1.7-rc.2`, not a global `dsh` binary. The launcher checks the installed version, creates an isolated Web Profile, links all Bundle members as dependencies, enables only the `deepseekbot` umbrella, and probes the authenticated API.
+Use the worktree's local `@deepseek-ai/dsh@0.2.0-rc.1`, not a global `dsh` binary. The launcher checks the installed version, creates an isolated Web Profile, links all Bundle members as dependencies, enables only the `deepseekbot` umbrella, and probes the authenticated API.
 
 ```bash
 corepack pnpm build
-node scripts/dev-instance.mjs --home /tmp/bh-rc2-web --port 31967 --json
+node scripts/dev-instance.mjs --home /tmp/bh-020-web --port 31967 --json
 corepack pnpm dev:client
 ```
 
-The launch summary includes the Host PID and local login URL. For Client edits, open the local Web tab: tsdown rebuilds the linked Client bundle, and the local development listener refreshes the page when RC2 publishes a rebuilt frame. The RC2 Desktop Client HMR stream replaces the linked `@botharness/ui` Fiber; BotHarness hands off the active Bot/Channel selection during replacement. The Web development listener retains a full-page refresh fallback. For Host edits, build, stop that exact PID, then start the helper again with the same home and port; RC2 Host hot replacement is disabled. Follow `docs/client-bridge.md` §7 for the complete steps and measured timings.
+The launch summary includes the Host PID and local login URL. For Client edits, open the local Web tab: tsdown rebuilds the linked Client bundle, and the local development listener refreshes the page when the RC publishes a rebuilt frame. The Desktop Client HMR stream replaces the linked `@botharness/ui` Fiber; BotHarness hands off the active Bot/Channel selection during replacement. The Web development listener retains a full-page refresh fallback. For Host edits, build, stop that exact PID, then start the helper again with the same home and port; Host hot replacement is disabled in the pinned RC. Follow `docs/client-bridge.md` §7 for the complete steps and measured timings.
 
 The helper injects a shared machine-local DeepSeek key when available; `node scripts/dev-secret.mjs check` reports its source without a value. Existing Profile credentials are another DSH source. Confirm model access with a real DM reply. `node scripts/dev-secret.mjs adopt-profile --home <existing-DSH_HOME>` copies only the DeepSeek reference into a private local file for later isolated Profiles.
 
@@ -73,10 +73,11 @@ When a DSH-side bug or trap is diagnosed, **record it here (or in the playbook) 
 | 23 | New BotHarness Orchestrator tool omitted from the internal Messaging allowlist | The model calls `list_bot_contacts`, but the turn parks on a Human tool-approval card before the Bot DM workflow starts | Add Host-checked internal Messaging tools to `BOT_TOOL_NAMES` in `packages/core/src/workspaces/grant-execution.ts`; keep their sender and Channel membership checks in the owning Host command. Verify with a real model turn, not only an adapter fixture (#279). |
 | 24 | Fresh WSL Web Profile cannot create DSH's default Workspace | Native DSH shows “Unable to create default workspace” even when the Bot Client is healthy | `xdg-user-dir DOCUMENTS` can return `$HOME`; DSH rejects Home as its Documents directory. For an isolated QA Profile, set `workspace-controller` `config.documentsDirectory` to an existing Documents directory in `cordis.patch.yml`, restart that Host, and verify a native Workspace appears. This is DSH first-use setup, not a Bot Channel failure. |
 | 25 | Durable Bot Inbox recovery races DSH Agent Loop factory registration on cold start | An unobserved Assignment notice is replayed at BotHarness construction, then the Channel shows `no agent factory registered (load an agent-loop plugin)` even though a later DM works | `ctx.agents` may exist before `dsh-agent-loop` calls `setFactory()`. Treat that specific pre-execution failure as transient: leave the Inbox Admission retryable, retry with a bounded delay, and avoid publishing a premature Session failure card. Verify a pending notice across a real Host restart. |
+| 26 | DSH 0.2.0 UI timing and localization break English-only e2e selectors | Browser e2e times out at `.bh-root`, the create-dialog name input, or the send button although the same flow passed on 0.1.7 RC2 | The first-run notice button is localized (`继续`), menu items render a frame after their trigger, and the BotHarness composer swaps its `textarea` for the rich `[role="textbox"]` once mention candidates load. In e2e scripts: dismiss with `['Continue', '继续']`, wait for `[role="menuitem"]`/dialog selectors before clicking, and target the rich textbox after the composer settles. Diagnosed in #419/#420. |
 
 ## Reference
 
-- **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.1.7-rc.2`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.
+- **DSH source checkout**: `reference/deepseek-harness` (gitignored, in this worktree) pinned to the installed tag — currently `dsh-v0.2.0-rc.1`. Read the TypeScript source (`packages/typert`, `packages/*connection*`, `packages/*gateway*`, `apps/cli/reference/README.md`) when the how/why matters; the installed `lib/*.js` is bundled output. Re-pin when DSH is bumped: `git fetch --depth 1 origin tag <tag> && git checkout <tag>`.
 - `references/debugging-playbook.md` — boot verification, status-code semantics, WS mux probe, bisect recipes, headless puppeteer probe.
 - `references/probe-web.mjs` — headless browser probe (console errors, failed requests, WS, internal fetch); run from the repo.
 - `dsh-ui` skill — in-harness UI rules; `docs/client-bridge.md` §7 — dev loop; ADR-0023 / #50 — bridge transport contract.

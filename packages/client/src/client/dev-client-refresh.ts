@@ -1,7 +1,7 @@
 /**
- * Opt-in Web development fallback for RC2 linked Client bundles.
+ * Opt-in Web development fallback for linked Client bundles.
  *
- * The RC2 Host publishes rebuilt frames, but replacing an active BotHarness
+ * The Host publishes rebuilt frames, but replacing an active BotHarness
  * shadow slot can leave the old React tree on screen. A full document refresh
  * is predictable during local UI development and leaves remote installations alone.
  */

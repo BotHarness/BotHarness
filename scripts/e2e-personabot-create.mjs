@@ -1,5 +1,5 @@
 /**
- * Live DSH 0.1.7 Web Profile regression for the first BotHarness tracer bullet.
+ * Live DSH Web Profile regression for the first BotHarness tracer bullet.
  *
  * Builds and links this checkout, creates a native Workspace and a PersonaBot
  * through the authenticated API Gateway, restarts its own isolated Host, then
@@ -7,7 +7,7 @@
  * it also checks a real API Gateway DM after restart.
  *
  * Run with a working Node/pnpm toolchain:
- *   node scripts/e2e-rc2-personabot-create.mjs [--with-dm]
+ *   node scripts/e2e-personabot-create.mjs [--with-dm]
  */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const helper = join(root, 'scripts', 'dev-instance.mjs');
 const withDm = process.argv.includes('--with-dm');
-const home = mkdtempSync(join(tmpdir(), 'bh-rc2-web-'));
+const home = mkdtempSync(join(tmpdir(), 'bh-e2e-web-'));
 const workspacePath = join(home, 'workspace');
 const expectedVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'))
   .devDependencies['@deepseek-ai/dsh'];
@@ -88,7 +88,7 @@ async function rpc(port, namespace, method, args = {}) {
     headers: { 'content-type': 'application/json', cookie: cookie() },
     body: JSON.stringify({
       type: 'client-request',
-      rpcId: `rc2-create-${namespace}-${method}`,
+      rpcId: `e2e-create-${namespace}-${method}`,
       method: `${namespace}/${method}`,
       payload: { args },
     }),
@@ -139,7 +139,7 @@ try {
     throw new Error('Native Workspace is absent from BotHarness Workspace options');
   }
 
-  const displayName = `RC2 Web QA ${Date.now()}`;
+  const displayName = `Web QA ${Date.now()}`;
   const created = await rpc(port, 'botharness', 'create', {
     displayName,
     roles: ['research'],
@@ -156,7 +156,7 @@ try {
     throw new Error('Git Memory Repository has no accepted HEAD');
   }
 
-  const dmBody = `RC2 Web DM restart check ${Date.now()}`;
+  const dmBody = `Web DM restart check ${Date.now()}`;
   let sentMessageId;
   if (withDm) {
     const sent = await rpc(port, 'botharness', 'channelSend', { channelId, body: dmBody });
