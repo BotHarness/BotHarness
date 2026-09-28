@@ -38,7 +38,7 @@ async function ask(core: ReturnType<typeof createCore>, botSlug: string, id: str
   await core.runtime.whenIdle();
 }
 
-describe('explicit Channel read observes Bot Inbox admissions', () => {
+describe('explicit Channel read handles returned Bot Inbox admissions on success', () => {
   it('marks only returned messages from read and leaves other silent messages pending', async () => {
     const home = createTempRoot('botharness-explicit-read-');
     let groupId = '';
@@ -90,9 +90,9 @@ describe('explicit Channel read observes Bot Inbox admissions', () => {
       expect(facts.find((row) => row.message_id !== returnedId)?.observed_at).toBeNull();
       expect(
         core.attention
-          .list({ botSlug: 'ada' })
-          .items.find((item) => item.reason === 'group-ordinary')?.state,
-      ).toBe('handled');
+          .list({ botSlug: 'ada', state: 'handled' })
+          .items.filter((item) => item.reason === 'group-ordinary'),
+      ).toHaveLength(1);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

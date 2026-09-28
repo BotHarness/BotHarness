@@ -148,6 +148,48 @@ describe('Channel delivery receipt', () => {
     }
   });
 
+  it('shows independent Bot statuses for a system-authored departure notice', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const host = document.createElement('div');
+    document.body.append(host);
+    const root = createRoot(host);
+    try {
+      await act(async () =>
+        root.render(
+          createElement(ChannelDeliveryReceipt, {
+            message: {
+              ...message,
+              author: { kind: 'system' },
+              body: 'ADA left the Channel.',
+              memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'ADA' },
+              deliveries: [
+                { botSlug: 'bea', state: 'pending' },
+                { botSlug: 'cee', state: 'handled' },
+              ],
+            },
+            bots,
+            t: zhTranslate,
+          }),
+        ),
+      );
+      const trigger = host.querySelector<HTMLButtonElement>('.bh-delivery-trigger');
+      expect(trigger?.getAttribute('aria-label')).toContain(
+        '1 ' + zhTranslate('message.delivery.pending'),
+      );
+      expect(trigger?.getAttribute('aria-label')).toContain(
+        '1 ' + zhTranslate('message.delivery.handled'),
+      );
+      await act(async () => trigger?.click());
+      const panel = document.body.querySelector('.bh-delivery-panel');
+      expect(panel?.textContent).toContain('BEA');
+      expect(panel?.textContent).toContain('CEE');
+      expect(panel?.textContent).not.toContain('ADA');
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+    }
+  });
+
   it('shows no pie without an admitted recipient or for an optimistic echo', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const host = document.createElement('div');

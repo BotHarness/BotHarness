@@ -231,6 +231,14 @@ describe('Bot Group invitation tracer', () => {
         name: 'Owner renamed',
         members: ['ada'],
       });
+      expect(
+        core.channels.readMessages(groupId).filter((message) => message.memberDeparture),
+      ).toMatchObject([
+        {
+          body: 'Bea was removed from the Channel.',
+          memberDeparture: { memberId: 'bea', departureType: 'removed' },
+        },
+      ]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

@@ -64,6 +64,18 @@ describe('Channel message visual groups', () => {
     ).toEqual([['before'], ['action'], ['after']]);
   });
 
+  it('keeps a member departure as its own centered timeline item', () => {
+    const departure: ChannelMessage = {
+      ...message('left', 1, { kind: 'system' }),
+      memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'Ada' },
+    };
+    expect(
+      groupChannelMessages([message('before', 0), departure, message('after', 2)]).map((group) =>
+        group.messages.map((item) => item.id),
+      ),
+    ).toEqual([['before'], ['left'], ['after']]);
+  });
+
   it('never merges bridged messages from different sources', () => {
     const groups = groupChannelMessages([
       message('feishu', 0, { kind: 'bridged', source: 'Feishu' }),

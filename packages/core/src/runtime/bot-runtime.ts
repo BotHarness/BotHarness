@@ -222,6 +222,7 @@ export interface OrchestratorChannelAccess {
   };
   renameGroup(input: { channelId: string; name: string }): ChannelRecord;
   removeGroupMember(input: { channelId: string; botSlug: string }): ChannelRecord;
+  leaveGroup(input: { channelId: string }): { channelId: string; left: boolean };
   sendToBot(input: {
     botSlug: string;
     body: string;
@@ -278,6 +279,8 @@ export interface BotRuntime {
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
   /** Schedule each committed Group mention independently; content and Admissions already exist. */
   admitGroupMessage(channelId: string, messageId: string): void;
+  /** Retry a committed Group admission wake after transient post-commit notification failure. */
+  retryGroupMessageAdmission?(channelId: string, messageId: string): void;
   /** Schedule the one recipient of a committed Bot-to-Bot DM message. */
   admitBotDmMessage(channelId: string, messageId: string): void;
   /** Wake an invitee on a durable invitation without granting Group membership. */
@@ -385,6 +388,12 @@ interface DigestRow {
   created_at: string;
   author_kind: string;
   author_slug: string | null;
+}
+
+function groupMessageAuthor(row: DigestRow): string {
+  if (row.author_kind === 'bot') return `PersonaBot ${row.author_slug ?? 'unknown'}`;
+  if (row.author_kind === 'system') return 'Channel system';
+  return 'Human';
 }
 
 interface GroupContext {
@@ -602,6 +611,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #steerSettlements = new Set<Promise<void>>();
   readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
+  readonly #groupAdmissionRetries = new Map<string, NodeJS.Timeout>();
   readonly #digestRetryAt = new Map<string, number>();
   readonly #digestFailureCount = new Map<string, number>();
   readonly #inboxFactoryRetries = new Map<string, { attempts: number; timer?: NodeJS.Timeout }>();
@@ -679,6 +689,34 @@ class BotRuntimeImplementation implements BotRuntime {
   admitGroupMessage(channelId: string, messageId: string): void {
     this.#admitChannelMessage(channelId, messageId, 'group-mention');
     this.#admitChannelMessage(channelId, messageId, 'group-ordinary');
+  }
+
+  retryGroupMessageAdmission(channelId: string, messageId: string): void {
+    if (this.#closed) return;
+    const key = JSON.stringify([channelId, messageId]);
+    if (this.#groupAdmissionRetries.has(key)) return;
+    const schedule = (attempt: number): void => {
+      const timer = setTimeout(
+        () => {
+          this.#groupAdmissionRetries.delete(key);
+          if (this.#closed) return;
+          try {
+            this.admitGroupMessage(channelId, messageId);
+          } catch {
+            schedule(attempt + 1);
+            try {
+              this.#warn?.('group-admission-notification-retry-failed');
+            } catch {
+              // A diagnostic sink failure must not stop the next recovery attempt.
+            }
+          }
+        },
+        Math.min(100 * 2 ** attempt, 30_000),
+      );
+      timer.unref();
+      this.#groupAdmissionRetries.set(key, timer);
+    };
+    schedule(0);
   }
 
   admitBotDmMessage(channelId: string, messageId: string): void {
@@ -1234,14 +1272,26 @@ class BotRuntimeImplementation implements BotRuntime {
         if (retry.timer !== undefined) clearTimeout(retry.timer);
         this.#inboxFactoryRetries.delete(botSlug);
       }
-      if (orchestrator !== undefined)
-        await this.#publishSessionFailure({
-          channelId: primaryChannelId,
-          botSlug,
-          sessionId: orchestrator.sessionId,
-          role: 'orchestrator',
-          error,
-        });
+      if (orchestrator !== undefined) {
+        try {
+          await this.#publishSessionFailure({
+            channelId: primaryChannelId,
+            botSlug,
+            sessionId: orchestrator.sessionId,
+            role: 'orchestrator',
+            error,
+          });
+        } catch (reportError) {
+          this.#warn?.(
+            JSON.stringify({
+              component: 'bot-runtime',
+              event: 'session-failure-report-failed',
+              botSlug,
+              error: String(reportError),
+            }),
+          );
+        }
+      }
       throw error;
     } finally {
       for (const item of claimed.items)
@@ -1476,7 +1526,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
       ...context.rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
       ),
       context.omittedCount > 0
         ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
@@ -1494,7 +1544,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
       ...rows.map(
         (row) =>
-          `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+          `- Message ${row.message_id} from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
       ),
       ...(omittedCount > 0
         ? [
@@ -1727,6 +1777,8 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#closed = true;
     for (const timer of this.#digestTimers.values()) clearTimeout(timer);
     this.#digestTimers.clear();
+    for (const timer of this.#groupAdmissionRetries.values()) clearTimeout(timer);
+    this.#groupAdmissionRetries.clear();
     this.#digestRetryAt.clear();
     this.#digestFailureCount.clear();
     for (const retry of this.#inboxFactoryRetries.values())
@@ -1913,7 +1965,9 @@ class BotRuntimeImplementation implements BotRuntime {
     };
     const original = this.#channels.get(input.channelId);
     const target =
-      original !== undefined && isBotDmChannel(original)
+      original !== undefined &&
+      (isBotDmChannel(original) ||
+        (original.type === 'group' && !original.members.includes(input.botSlug)))
         ? this.#channels.getOrCreateDm(
             input.botSlug,
             this.#registry.get(input.botSlug)?.displayName ?? input.botSlug,
@@ -2428,6 +2482,14 @@ class BotRuntimeImplementation implements BotRuntime {
           throw new Error('Only the Bot Group owner may remove another member');
         beforeSend();
         return this.#channels.removeGroupMember(channel.id, input.botSlug);
+      },
+      leaveGroup: (input) => {
+        const channel = this.#channels.get(input.channelId);
+        if (channel?.type !== 'group' || !channel.members.includes(botSlug))
+          return { channelId: input.channelId, left: false };
+        beforeSend();
+        this.#channels.removeGroupMember(channel.id, botSlug, 'left');
+        return { channelId: channel.id, left: true };
       },
       sendToBot: async (input) => {
         const sender = this.#registry.get(botSlug);
