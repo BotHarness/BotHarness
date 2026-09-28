@@ -208,6 +208,14 @@ describe('PersonaBot Profile surface', () => {
         heatCell?.dispatchEvent(new MouseEvent('mouseout', { bubbles: true }));
       });
       expect(container.querySelector('.bh-profile-heat-tip')).toBeNull();
+      await act(async () => {
+        heatCell?.focus();
+      });
+      expect(container.querySelector('.bh-profile-heat-tip')?.textContent).toContain('次');
+      await act(async () => {
+        heatCell?.blur();
+      });
+      expect(container.querySelector('.bh-profile-heat-tip')).toBeNull();
 
       await act(async () => click(container, '.bh-profile-avatar-actions button:last-child'));
       expect(setBotAvatar).toHaveBeenCalledWith('dm-ada', null);

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
 import { barY, defineChart, stack } from '@tanstack/charts';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
@@ -106,21 +106,34 @@ function ProfileHeatmap({
     <div className="bh-profile-heat">
       <div
         className="bh-profile-heat-grid"
-        role="img"
+        role="group"
         aria-label={t('profile.heat.aria', { label })}
       >
         {days.map((day, index) => {
           const future = day > todayKey;
           const count = counts.get(day) ?? 0;
+          const column = Math.floor(index / 7);
+          if (future) {
+            return (
+              <span
+                key={day}
+                className="bh-profile-heat-cell"
+                data-level="future"
+                aria-hidden="true"
+              />
+            );
+          }
           return (
-            <span
+            <button
               key={day}
+              type="button"
               className="bh-profile-heat-cell"
-              data-level={future ? 'future' : heatLevel(count)}
-              onMouseEnter={
-                future ? undefined : () => setHovered({ day, count, column: Math.floor(index / 7) })
-              }
-              onMouseLeave={future ? undefined : () => setHovered(undefined)}
+              data-level={heatLevel(count)}
+              aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
+              onMouseEnter={() => setHovered({ day, count, column })}
+              onMouseLeave={() => setHovered(undefined)}
+              onFocus={() => setHovered({ day, count, column })}
+              onBlur={() => setHovered(undefined)}
             />
           );
         })}
@@ -393,7 +406,15 @@ function TokenUsageCard({
       }),
     [dayTotals, days],
   );
-  const [colors] = useState(resolveChartTokens);
+  const [colors, setColors] = useState(resolveChartTokens);
+  useEffect(() => {
+    if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
+    const refresh = (): void => setColors(resolveChartTokens());
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.body, { attributes: true });
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
   const definition = useMemo(
     () =>
       defineChart({

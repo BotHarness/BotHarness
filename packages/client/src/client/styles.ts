@@ -1744,6 +1744,15 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   border-radius: 2px;
   background: var(--dsw-alias-interactive-bg-hover);
 }
+button.bh-profile-heat-cell {
+  padding: 0;
+  border: 0;
+  appearance: none;
+}
+button.bh-profile-heat-cell:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 1px;
+}
 .bh-profile-heat-cell[data-level='1'] {
   background: color-mix(in srgb, var(--bh-accent) 28%, var(--dsw-alias-interactive-bg-hover));
 }
