@@ -15,7 +15,10 @@ import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import { MemoryEntry } from './memory-entry.js';
+import { MemoryFilesEntry } from './memory-files-entry.js';
+import { MemoryRefreshHeaderAction } from './memory-header-action.js';
 import { Modal } from './modal.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
@@ -329,7 +332,9 @@ function BotInboxEntry({ actions, t, botSlug }: ChannelSidebarEntryProps): React
   }
   return (
     <>
-      {inbox.status === 'loading' ? <div className="bh-note">{t('inbox.loading')}</div> : null}
+      {inbox.status === 'loading' && inbox.items.length === 0 ? (
+        <LoadingSkeleton kind="sidebar" label={t('inbox.loading')} />
+      ) : null}
       {inbox.status === 'error' ? (
         <div className="bh-error" role="alert">
           {t('inbox.error', { error: inbox.error ?? '' })}
@@ -380,13 +385,25 @@ export function createChannelSidebarBuiltins(
     );
     return <WorkspaceGrantsEntry {...props} developerMode={developerMode} />;
   }
+  function MemoryEvolutionEntry(props: ChannelSidebarEntryProps): ReactElement {
+    return <MemoryEntry {...props} showFiles={false} />;
+  }
   return [
     {
-      id: 'memory',
-      label: t('entry.memory'),
+      id: 'memory-files',
+      label: t('entry.memoryFiles'),
       order: 5,
       scope: 'personabot',
-      component: MemoryEntry,
+      component: MemoryFilesEntry,
+      headerAction: MemoryRefreshHeaderAction,
+    },
+    {
+      id: 'memory-evolution',
+      label: t('entry.memoryEvolution'),
+      order: 6,
+      scope: 'personabot',
+      component: MemoryEvolutionEntry,
+      headerAction: MemoryRefreshHeaderAction,
     },
     {
       id: 'sessions',

@@ -14,6 +14,7 @@ import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
 import type { BotHarnessTranslate } from './locale.js';
+import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 
@@ -124,10 +125,13 @@ export function ProfileView({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(bot.displayName);
   const [busy, setBusy] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | undefined>(undefined);
+  const [avatarBusy, setAvatarBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
   const [sourcePolicyError, setSourcePolicyError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
   const unchanged = trimmed === bot.displayName.trim();
@@ -186,6 +190,13 @@ export function ProfileView({
   const onSubmit = (event: FormEvent<HTMLFormElement>): void => {
     event.preventDefault();
     void save();
+  };
+
+  const removeAvatar = async (): Promise<void> => {
+    setAvatarBusy(true);
+    const updated = await actions.setBotAvatar(channel.id, null);
+    setAvatarBusy(false);
+    if (!updated) setError(t('profile.avatar.failed'));
   };
 
   return (
@@ -252,6 +263,37 @@ export function ProfileView({
           )}
           <RoleBadges roles={bot.roles} />
           <Description text={bot.description} />
+          <div className="bh-profile-avatar-actions">
+            <button
+              type="button"
+              className="bh-profile-action"
+              disabled={avatarBusy}
+              onClick={() => avatarInputRef.current?.click()}
+            >
+              {t('profile.avatar.change')}
+            </button>
+            {bot.avatar === undefined ? null : (
+              <button
+                type="button"
+                className="bh-profile-action"
+                disabled={avatarBusy}
+                onClick={() => void removeAvatar()}
+              >
+                {t('profile.avatar.remove')}
+              </button>
+            )}
+          </div>
+          <input
+            ref={avatarInputRef}
+            className="bh-profile-avatar-input"
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            onChange={(event) => {
+              const file = event.currentTarget.files?.[0];
+              event.currentTarget.value = '';
+              if (file !== undefined) setAvatarFile(file);
+            }}
+          />
           {error === undefined ? null : (
             <div className="bh-profile-error" role="alert">
               {error}
@@ -340,6 +382,18 @@ export function ProfileView({
               );
             })}
         </div>
+      )}
+      {avatarFile === undefined ? null : (
+        <PersonaBotAvatarCropModal
+          file={avatarFile}
+          t={t}
+          onClose={() => setAvatarFile(undefined)}
+          onSave={async (avatar) => {
+            const updated = await actions.setBotAvatar(channel.id, avatar);
+            if (!updated) setError(t('profile.avatar.failed'));
+            return updated;
+          }}
+        />
       )}
     </div>
   );

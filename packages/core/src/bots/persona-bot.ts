@@ -36,6 +36,7 @@ export type CreatePersonaBotResult =
       reason:
         | 'invalid-slug'
         | 'duplicate'
+        | 'invalid-input'
         | 'invalid-memory-dir'
         | 'git-not-found'
         | 'invalid-git-url'
@@ -59,6 +60,27 @@ export interface PersonaBotPatch {
 export type UpdatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
   | { ok: false; reason: 'not-found' | 'invalid-input' };
+
+/** Decoded custom-avatar budget: 512×512 WebP with room for detailed images (ADR-0086). */
+export const MAX_PERSONA_BOT_AVATAR_BYTES = 131_072;
+const MAX_PERSONA_BOT_AVATAR_CHARS = 175_000;
+
+/**
+ * A stored custom avatar is a bounded image data URL; remote URLs and seed-like
+ * strings are rejected on write. Blobatar media needs no stored value at all.
+ */
+export function isPersonaBotAvatar(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length > MAX_PERSONA_BOT_AVATAR_CHARS) return false;
+  const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/u.exec(value);
+  if (match === null) return false;
+  const bytes = Buffer.from(match[2]!, 'base64');
+  if (bytes.length === 0 || bytes.length > MAX_PERSONA_BOT_AVATAR_BYTES) return false;
+  return match[1] === 'png'
+    ? bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]))
+    : match[1] === 'jpeg'
+      ? bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff
+      : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
+}
 
 export interface RemovePersonaBotOptions {
   purge?: boolean;

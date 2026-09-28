@@ -121,6 +121,8 @@ describe('bridge typert service', () => {
       'memoryDiff',
       'memoryGitGraph',
       'memoryGitCommitDiff',
+      'memoryWorkingChanges',
+      'memoryWorkingDiff',
       'memorySave',
       'memoryRepair',
       'profileActivity',
@@ -136,6 +138,7 @@ describe('bridge typert service', () => {
       'rosterBatch',
       'developerModeSet',
       'computerAccessSet',
+      'botAvatarSet',
     ]);
   });
 
@@ -158,7 +161,7 @@ describe('bridge typert service', () => {
       'model',
       'preset',
       'workspaces',
-      'avatarSeed',
+      'avatar',
     ]);
     expect(parameterNames(service.update)).toEqual(['slug', 'patch']);
     expect(parameterNames(service.pause)).toEqual(['slug']);

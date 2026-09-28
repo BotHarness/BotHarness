@@ -238,7 +238,8 @@ describe('createPersonaBotRegistry', () => {
       displayName: '研究助手',
       roles: ['研究'],
       description: '检索与写作',
-      avatar: 'blue',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
       model: 'deepseek-chat',
       preset: 'standard',
       workspaces: ['/srv/materials'],
@@ -247,7 +248,8 @@ describe('createPersonaBotRegistry', () => {
     expect(result.ok && result.record).toMatchObject({
       roles: ['研究'],
       description: '检索与写作',
-      avatar: 'blue',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
       model: 'deepseek-chat',
       preset: 'standard',
       workspaces: ['/srv/materials'],
@@ -282,7 +284,8 @@ describe('createPersonaBotRegistry', () => {
       displayName: 'Ada',
       roles: ['旧'],
       description: '旧简介',
-      avatar: 'red',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
       model: 'old-model',
       preset: 'old-preset',
       workspaces: ['/old'],
@@ -292,7 +295,8 @@ describe('createPersonaBotRegistry', () => {
       displayName: '  Ada Lovelace  ',
       roles: ['研究'],
       description: '',
-      avatar: 'blue',
+      avatar:
+        'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJQBOgCHwAP7+4AAAAA==',
       workspaces: ['/srv/a', '/srv/b'],
     });
 
@@ -300,14 +304,16 @@ describe('createPersonaBotRegistry', () => {
       slug: 'ada',
       displayName: 'Ada Lovelace',
       roles: ['研究'],
-      avatar: 'blue',
+      avatar:
+        'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJQBOgCHwAP7+4AAAAA==',
       workspaces: ['/srv/a', '/srv/b'],
     });
     expect(result.ok && 'description' in result.record).toBe(false);
     expect(result.ok && result.record.model).toBe('old-model');
     expect(createPersonaBotRegistry({ rootDir: root }).get('ada')).toMatchObject({
       displayName: 'Ada Lovelace',
-      avatar: 'blue',
+      avatar:
+        'data:image/webp;base64,UklGRiIAAABXRUJQVlA4IBYAAAAwAQCdASoBAAEAAUAmJQBOgCHwAP7+4AAAAA==',
       workspaces: ['/srv/a', '/srv/b'],
     });
   });
@@ -332,7 +338,27 @@ describe('createPersonaBotRegistry', () => {
       ok: false,
       reason: 'invalid-input',
     });
+    expect(registry.update('ada', { avatar: 'blue' })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
+    expect(registry.update('ada', { avatar: 'https://example.com/ada.png' })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
+    expect(registry.update('ada', { avatar: 'data:image/svg+xml;base64,AAAA' })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
     expect(registry.update('ada', { roles: ['研究'] }).ok).toBe(true);
+  });
+
+  it('rejects a non-data avatar at creation', () => {
+    const registry = createPersonaBotRegistry({ rootDir: createRoot() });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada', avatar: 'blue' })).toEqual({
+      ok: false,
+      reason: 'invalid-input',
+    });
   });
 
   it('pauses and resumes through setPaused', () => {

@@ -772,8 +772,31 @@ const GROUP_WAKE_POLICY_AUDIT_MIGRATION: SchemaMigration = {
   },
 };
 
-const BOT_SOURCE_POLICY_MIGRATION: SchemaMigration = {
+const USAGE_DAILY_MIGRATION: SchemaMigration = {
   generation: 28,
+  module: 'usage',
+  description: 'Derive per-PersonaBot daily token buckets from DSH Session usage events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE usage_daily (
+        bot_slug TEXT NOT NULL,
+        day TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (bot_slug, day, provider, model, purpose)
+      );
+      CREATE INDEX usage_daily_bot_day ON usage_daily (bot_slug, day);
+    `);
+  },
+};
+
+const BOT_SOURCE_POLICY_MIGRATION: SchemaMigration = {
+  generation: 29,
   module: 'bot-inbox',
   description: 'Record per-PersonaBot source policy revisions and Admission snapshots',
   migrate(database) {
@@ -836,5 +859,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   LOCAL_HUMAN_RECEIPTS_MIGRATION,
   GROUP_WAKE_MODE_MIGRATION,
   GROUP_WAKE_POLICY_AUDIT_MIGRATION,
+  USAGE_DAILY_MIGRATION,
   BOT_SOURCE_POLICY_MIGRATION,
 ]);

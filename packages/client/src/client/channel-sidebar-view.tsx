@@ -137,6 +137,12 @@ export function ChannelSidebarEntrySection({
   const bodyId = useId();
   const Badge = entry.badge;
   const HeaderAction = entry.headerAction;
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  const props = {
+    ...entryProps,
+    refreshRevision,
+    requestRefresh: () => setRefreshRevision((value) => value + 1),
+  };
   return (
     <section className="bh-channel-sidebar-entry">
       <div className="bh-channel-sidebar-entry-header">
@@ -156,15 +162,15 @@ export function ChannelSidebarEntrySection({
           <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
           {Badge === undefined ? null : (
             <span className="bh-channel-sidebar-entry-badge">
-              <Badge {...entryProps} />
+              <Badge {...props} />
             </span>
           )}
         </button>
-        {HeaderAction === undefined ? null : <HeaderAction {...entryProps} />}
+        {HeaderAction === undefined ? null : <HeaderAction {...props} />}
       </div>
       {expanded ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
-          <entry.component {...entryProps} />
+          <entry.component {...props} />
         </div>
       ) : null}
     </section>
@@ -179,6 +185,10 @@ export function ChannelSidebar({
   t,
   onMemoryCommitSelect,
   selectedMemoryCommitSha,
+  onMemoryFileSelect,
+  selectedMemoryFilePath,
+  onMemoryWorkingSelect,
+  selectedMemoryWorking,
 }: {
   registry: ChannelSidebarRegistry;
   state: ClientState;
@@ -187,6 +197,10 @@ export function ChannelSidebar({
   t: BotHarnessTranslate;
   onMemoryCommitSelect?: ((sha: string) => void) | undefined;
   selectedMemoryCommitSha?: string | undefined;
+  onMemoryFileSelect?: ((path: string) => void) | undefined;
+  selectedMemoryFilePath?: string | undefined;
+  onMemoryWorkingSelect?: ((change: import('./bridge.js').MemoryWorkingChange) => void) | undefined;
+  selectedMemoryWorking?: import('./bridge.js').MemoryWorkingChange | undefined;
 }): ReactElement | null {
   const selection = state.selection;
   // Keep using roster metadata until the selected conversation finishes opening.
@@ -240,6 +254,10 @@ export function ChannelSidebar({
           t,
           onMemoryCommitSelect,
           selectedMemoryCommitSha,
+          onMemoryFileSelect,
+          selectedMemoryFilePath,
+          onMemoryWorkingSelect,
+          selectedMemoryWorking,
         };
   const visibleEntries =
     entryProps === undefined ? [] : entries.filter((entry) => entry.visible?.(state) ?? true);
@@ -306,7 +324,7 @@ export function ChannelSidebar({
         ) : (
           visibleEntries.map((entry) => (
             <ChannelSidebarEntrySection
-              key={entry.id}
+              key={`${entry.id}:${entryProps.channelId}`}
               entry={entry}
               expanded={controller.isEntryExpanded(entry.id)}
               onToggle={() => controller.toggleEntry(entry.id)}

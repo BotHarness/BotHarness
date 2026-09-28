@@ -28,6 +28,9 @@ import type {
   MemoryAcceptedSnapshot,
   MemoryGitGraph,
   MemoryGitCommitDiff,
+  MemoryWorkingChange,
+  MemoryWorkingDiff,
+  MemoryWorkingKind,
   MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
@@ -133,7 +136,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
     model?: string,
     preset?: string,
     workspaces?: string[],
-    avatarSeed?: string,
+    avatar?: string,
   ): { bot: PersonaBotDetail } {
     return unwrap(
       this.methods.create({
@@ -144,7 +147,7 @@ export class BotharnessBridgeService extends TypertRemoteService {
         model,
         preset,
         workspaces,
-        avatarSeed,
+        avatar,
       }),
     );
   }
@@ -171,6 +174,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
   }
   computerAccessSet(slug: string, enabled: boolean): { bot: PersonaBotDetail } {
     return unwrap(this.methods.computerAccessSet({ slug, enabled }));
+  }
+
+  botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
 
   channels(): { channels: ChannelListItem[] } {
@@ -431,6 +438,14 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryGitCommitDiff({ channelId, sha }));
   }
 
+  memoryWorkingChanges(channelId: string): { changes: MemoryWorkingChange[] } {
+    return unwrap(this.methods.memoryWorkingChanges({ channelId }));
+  }
+
+  memoryWorkingDiff(channelId: string, path: string, kind: MemoryWorkingKind): MemoryWorkingDiff {
+    return unwrap(this.methods.memoryWorkingDiff({ channelId, path, kind }));
+  }
+
   memorySave(
     channelId: string,
     path: string,
@@ -556,6 +571,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memoryDiff',
   'memoryGitGraph',
   'memoryGitCommitDiff',
+  'memoryWorkingChanges',
+  'memoryWorkingDiff',
   'memorySave',
   'memoryRepair',
   'profileActivity',
@@ -571,6 +588,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'rosterBatch',
   'developerModeSet',
   'computerAccessSet',
+  'botAvatarSet',
 ]);
 
 /**

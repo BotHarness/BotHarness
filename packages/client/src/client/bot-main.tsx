@@ -10,7 +10,11 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import { uploadChannelAttachment, type ProfileActivity } from './bridge.js';
+import {
+  uploadChannelAttachment,
+  type MemoryWorkingChange,
+  type ProfileActivity,
+} from './bridge.js';
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
@@ -34,6 +38,8 @@ import { HumanInboxView } from './human-inbox-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { MemoryCommitView } from './memory-commit-view.js';
+import { MemoryFileView, MemoryWorkingView } from './memory-current-view.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -466,10 +472,13 @@ function ConversationView({
   const [draft, setDraft] = useState('');
   const [mentionTokens, setMentionTokens] = useState<SelectedMention[]>([]);
   const [channelRefTokens, setChannelRefTokens] = useState<SelectedChannelRef[]>([]);
-  const [selectedMemoryCommit, setSelectedMemoryCommit] = useState<{
-    channelId: string;
-    sha: string;
-  }>();
+  const [selectedMemoryView, setSelectedMemoryView] = useState<
+    { channelId: string } & (
+      | { kind: 'commit'; sha: string }
+      | { kind: 'file'; path: string }
+      | { kind: 'working'; change: MemoryWorkingChange }
+    )
+  >();
   const chatScrollBeforeDiff = useRef(0);
   const [uploadItems, setUploadItems] = useState<ChannelComposerUpload[]>([]);
   const [restoreBlocked, setRestoreBlocked] = useState(false);
@@ -569,10 +578,27 @@ function ConversationView({
               : t('main.activity.bots', { count: composerFacepile.length }),
         };
   const channelId = channel?.id;
+  const activeMemoryView =
+    selectedMemoryView?.channelId === channelId ? selectedMemoryView : undefined;
   const selectedMemoryCommitSha =
-    selectedMemoryCommit !== undefined && selectedMemoryCommit.channelId === channelId
-      ? selectedMemoryCommit.sha
-      : undefined;
+    activeMemoryView?.kind === 'commit' ? activeMemoryView.sha : undefined;
+  const openMemoryView = (
+    view:
+      | { kind: 'commit'; sha: string }
+      | { kind: 'file'; path: string }
+      | { kind: 'working'; change: MemoryWorkingChange },
+  ): void => {
+    if (activeMemoryView === undefined)
+      chatScrollBeforeDiff.current = scrollRef.current?.scrollTop ?? 0;
+    setProfileViewOpen(false);
+    if (channelId !== undefined) setSelectedMemoryView({ channelId, ...view });
+  };
+  const closeMemoryView = (): void => {
+    setSelectedMemoryView(undefined);
+    window.requestAnimationFrame(() => {
+      if (scrollRef.current !== null) scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
+    });
+  };
   const scheduleReadMark = (): void => {
     const element = scrollRef.current;
     if (channelId === undefined || element === null || conversation.status !== 'ready') return;
@@ -613,7 +639,7 @@ function ConversationView({
     setDraft('');
     setMentionTokens([]);
     setChannelRefTokens([]);
-    setSelectedMemoryCommit(undefined);
+    setSelectedMemoryView(undefined);
     setReplyTarget(undefined);
     for (const controller of uploadControllers.current.values()) controller.abort();
     uploadControllers.current.clear();
@@ -1005,6 +1031,7 @@ function ConversationView({
                     t={t}
                     onExpand={() => {
                       setProfilePopoverOpen(false);
+                      setSelectedMemoryView(undefined);
                       setProfileViewOpen(true);
                     }}
                   />
@@ -1015,7 +1042,7 @@ function ConversationView({
           <div
             className="bh-chat-top-fade"
             aria-hidden="true"
-            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+            style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
           />
           {profileViewOpen && profileBot !== undefined && channel !== undefined ? (
             <ProfileView
@@ -1031,26 +1058,40 @@ function ConversationView({
             />
           ) : (
             <>
-              {selectedMemoryCommitSha === undefined || channelId === undefined ? null : (
+              {activeMemoryView === undefined ||
+              channelId === undefined ? null : activeMemoryView.kind === 'commit' ? (
                 <MemoryCommitView
+                  key={`${channelId}:${activeMemoryView.sha}`}
                   actions={actions}
                   channelId={channelId}
-                  sha={selectedMemoryCommitSha}
+                  sha={activeMemoryView.sha}
                   t={t}
-                  onClose={() => {
-                    setSelectedMemoryCommit(undefined);
-                    window.requestAnimationFrame(() => {
-                      if (scrollRef.current !== null)
-                        scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
-                    });
-                  }}
+                  onClose={closeMemoryView}
+                />
+              ) : activeMemoryView.kind === 'file' ? (
+                <MemoryFileView
+                  key={`${channelId}:${activeMemoryView.path}`}
+                  actions={actions}
+                  channelId={channelId}
+                  path={activeMemoryView.path}
+                  t={t}
+                  onClose={closeMemoryView}
+                />
+              ) : (
+                <MemoryWorkingView
+                  key={`${channelId}:${activeMemoryView.change.kind}:${activeMemoryView.change.path}`}
+                  actions={actions}
+                  channelId={channelId}
+                  change={activeMemoryView.change}
+                  t={t}
+                  onClose={closeMemoryView}
                 />
               )}
               <div
                 className="bh-chat-body"
                 ref={scrollRef}
                 onScroll={onTimelineScroll}
-                style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+                style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
               >
                 {conversation.timeline.hasOlder ? (
                   <div className="bh-timeline-top-sentinel">
@@ -1068,7 +1109,7 @@ function ConversationView({
                   </div>
                 ) : null}
                 {conversation.status === 'loading' && messages.length === 0 ? (
-                  <div className="bh-note">{t('messages.loading')}</div>
+                  <LoadingSkeleton kind="messages" label={t('messages.loading')} />
                 ) : null}
                 {conversation.status === 'error' && conversation.error !== undefined ? (
                   <div className="bh-error">
@@ -1229,15 +1270,14 @@ function ConversationView({
                   </div>
                 ) : null}
               </div>
-              {selectedMemoryCommitSha === undefined &&
-              (unseen > 0 || conversation.timeline.hasNewer) ? (
+              {activeMemoryView === undefined && (unseen > 0 || conversation.timeline.hasNewer) ? (
                 <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
                   {conversation.timeline.hasNewer
                     ? t('messages.latest')
                     : t('messages.unseen', { count: unseen })}
                 </button>
               ) : null}
-              {selectedMemoryCommitSha === undefined && restoreBlocked ? (
+              {activeMemoryView === undefined && restoreBlocked ? (
                 <div className="bh-note" role="alert">
                   {t('message.restoreBlocked')}
                 </div>
@@ -1247,7 +1287,7 @@ function ConversationView({
                 <div
                   className="bh-memory-chat-composer"
                   style={{
-                    display: selectedMemoryCommitSha === undefined ? 'contents' : 'none',
+                    display: activeMemoryView === undefined ? 'contents' : 'none',
                   }}
                 >
                   <ChannelComposer
@@ -1306,9 +1346,7 @@ function ConversationView({
                   />
                 </div>
               )}
-              {selectedMemoryCommitSha !== undefined ||
-              messageMenu === undefined ||
-              readOnlyDm ? null : (
+              {activeMemoryView !== undefined || messageMenu === undefined || readOnlyDm ? null : (
                 <MessageActionMenu
                   request={messageMenu}
                   t={t}
@@ -1331,11 +1369,15 @@ function ConversationView({
           controller={sidebar}
           t={t}
           selectedMemoryCommitSha={selectedMemoryCommitSha}
-          onMemoryCommitSelect={(sha) => {
-            if (selectedMemoryCommitSha === undefined)
-              chatScrollBeforeDiff.current = scrollRef.current?.scrollTop ?? 0;
-            if (channelId !== undefined) setSelectedMemoryCommit({ channelId, sha });
-          }}
+          selectedMemoryFilePath={
+            activeMemoryView?.kind === 'file' ? activeMemoryView.path : undefined
+          }
+          selectedMemoryWorking={
+            activeMemoryView?.kind === 'working' ? activeMemoryView.change : undefined
+          }
+          onMemoryCommitSelect={(sha) => openMemoryView({ kind: 'commit', sha })}
+          onMemoryFileSelect={(path) => openMemoryView({ kind: 'file', path })}
+          onMemoryWorkingSelect={(change) => openMemoryView({ kind: 'working', change })}
         />
         <button
           type="button"

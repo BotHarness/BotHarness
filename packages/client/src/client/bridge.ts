@@ -935,6 +935,17 @@ export async function setGroupAvatar(
   return channel;
 }
 
+export async function setBotAvatar(
+  call: BridgeCall,
+  channelId: string,
+  avatar: string | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
 export async function inviteGroupBot(
   call: BridgeCall,
   channelId: string,
@@ -1641,6 +1652,17 @@ export interface MemoryGitCommitDiff {
   diff: string;
 }
 
+export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked' | 'current';
+export interface MemoryWorkingChange {
+  path: string;
+  kind: MemoryWorkingKind;
+  status: string;
+}
+export interface MemoryWorkingDiff extends MemoryWorkingChange {
+  diff: string;
+  binary: boolean;
+}
+
 export interface MemoryRepairEvent {
   id: string;
   acceptedHeadSha: string;
@@ -1659,12 +1681,27 @@ export interface ProfileActivityReasonDay extends ProfileActivityDay {
   reason: string;
 }
 
+export interface ProfileTokenBuckets {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
+  day: string;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  /** Host-local current day; anchors activity windows across time zones. */
+  today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
+  tokens: ProfileActivityTokensDay[];
+  tokenTotals: ProfileTokenBuckets;
 }
 
 export interface MemorySnapshot {
@@ -1811,6 +1848,17 @@ function isActivityDays(value: unknown): value is ProfileActivityDay[] {
   );
 }
 
+function isTokenBuckets(value: unknown): value is ProfileTokenBuckets {
+  const record = asRecord(value);
+  return (
+    record !== undefined &&
+    typeof record['inputTokens'] === 'number' &&
+    typeof record['outputTokens'] === 'number' &&
+    typeof record['cacheReadTokens'] === 'number' &&
+    typeof record['cacheWriteTokens'] === 'number'
+  );
+}
+
 export async function loadProfileActivity(
   call: BridgeCall,
   channelId: string,
@@ -1821,6 +1869,7 @@ export async function loadProfileActivity(
     typeof response['slug'] !== 'string' ||
     typeof response['weeks'] !== 'number' ||
     typeof response['since'] !== 'string' ||
+    typeof response['today'] !== 'string' ||
     !isActivityDays(response['memoryCommits']) ||
     !Array.isArray(response['events']) ||
     !response['events'].every((value) => {
@@ -1830,10 +1879,56 @@ export async function loadProfileActivity(
         typeof entry['count'] === 'number' &&
         typeof entry['reason'] === 'string'
       );
-    })
+    }) ||
+    !Array.isArray(response['tokens']) ||
+    !response['tokens'].every((value) => {
+      const entry = asRecord(value);
+      return typeof entry?.['day'] === 'string' && isTokenBuckets(entry);
+    }) ||
+    !isTokenBuckets(response['tokenTotals'])
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
+}
+
+function parseWorkingChange(value: unknown, allowCurrent = false): MemoryWorkingChange {
+  const change = asRecord(value);
+  if (
+    typeof change?.['path'] !== 'string' ||
+    !['staged', 'unstaged', 'untracked', ...(allowCurrent ? ['current'] : [])].includes(
+      String(change['kind']),
+    ) ||
+    typeof change['status'] !== 'string'
+  )
+    throw new Error('invalid Memory working change');
+  return change as unknown as MemoryWorkingChange;
+}
+
+export async function loadMemoryWorkingChanges(
+  call: BridgeCall,
+  channelId: string,
+): Promise<MemoryWorkingChange[]> {
+  const response = asRecord(await unwrap(call, 'memoryWorkingChanges', { channelId }));
+  if (!Array.isArray(response?.['changes'])) throw new Error('invalid Memory working changes');
+  return response['changes'].map((change: unknown) => parseWorkingChange(change));
+}
+
+export async function loadMemoryWorkingDiff(
+  call: BridgeCall,
+  channelId: string,
+  path: string,
+  kind: MemoryWorkingKind,
+): Promise<MemoryWorkingDiff> {
+  const response = asRecord(await unwrap(call, 'memoryWorkingDiff', { channelId, path, kind }));
+  parseWorkingChange(response, true);
+  if (
+    response?.['path'] !== path ||
+    response['kind'] !== kind ||
+    typeof response['diff'] !== 'string' ||
+    typeof response['binary'] !== 'boolean'
+  )
+    throw new Error('invalid Memory working diff');
+  return response as unknown as MemoryWorkingDiff;
 }
 
 export async function saveMemoryFile(

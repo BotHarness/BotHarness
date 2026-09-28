@@ -38,6 +38,7 @@ import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { BotIcon, botBackdropUri } from './bot-icon.js';
 import { sectionSortMode, type BotModePrefsSnapshot } from './bot-mode-prefs.js';
 import { HashIcon } from './hash-icon.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import {
   webChannelShortcutIndex,
   webChannelShortcutLabel,
@@ -1650,7 +1651,7 @@ export function BotSidebar({
         </div>
       </div>
       {state.status === 'loading' && state.bots.length === 0 ? (
-        <div className="bh-note">{t('roster.loading')}</div>
+        <LoadingSkeleton kind="roster" label={t('roster.loading')} />
       ) : null}
       {state.status === 'error' && state.error !== undefined ? (
         <div className="bh-error">{t('roster.error', { error: state.error })}</div>
