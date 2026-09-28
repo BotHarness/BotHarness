@@ -19,8 +19,18 @@ function localDayKey(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-/** Monday-aligned columns; days after today render as blank future cells. */
-function heatWindow(today: Date): { days: string[]; todayKey: string } {
+/** Host-local day anchors activity windows; a missing key falls back to the browser. */
+function anchorDate(todayKey: string | undefined): Date {
+  if (todayKey !== undefined && /^\d{4}-\d{2}-\d{2}$/u.test(todayKey)) {
+    const [year, month, day] = todayKey.split('-').map(Number);
+    return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  }
+  return new Date();
+}
+
+/** Monday-aligned columns; days after the anchor render as blank future cells. */
+function heatWindow(todayKey: string | undefined): { days: string[]; todayKey: string } {
+  const today = anchorDate(todayKey);
   const start = new Date(today);
   const mondayOffset = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - mondayOffset - (PROFILE_ACTIVITY_WEEKS - 1) * 7);
@@ -56,13 +66,15 @@ function sumCounts(days: readonly ProfileActivityDay[]): number {
 function ProfileHeatmap({
   counts,
   label,
+  today,
   t,
 }: {
   counts: ReadonlyMap<string, number>;
   label: string;
+  today: string | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const { days, todayKey } = heatWindow(new Date());
+  const { days, todayKey } = heatWindow(today);
   const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
   return (
     <div className="bh-profile-heat">
@@ -133,7 +145,12 @@ function EventActivityCard({
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">{totalText(sumCounts(events), weeks, t)}</div>
-      <ProfileHeatmap counts={countByDay(events)} label={t('profile.card.events')} t={t} />
+      <ProfileHeatmap
+        counts={countByDay(events)}
+        label={t('profile.card.events')}
+        today={activity?.today}
+        t={t}
+      />
       {reasons.length === 0 ? null : (
         <ul className="bh-profile-reasons">
           {reasons.map((entry) => (
@@ -157,7 +174,12 @@ function MemoryActivityCard({
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">{totalText(sumCounts(commits), weeks, t)}</div>
-      <ProfileHeatmap counts={countByDay(commits)} label={t('profile.card.memory')} t={t} />
+      <ProfileHeatmap
+        counts={countByDay(commits)}
+        label={t('profile.card.memory')}
+        today={activity?.today}
+        t={t}
+      />
     </div>
   );
 }
@@ -201,9 +223,9 @@ function dayBucketTotal(entry: ProfileActivityTokensDay): number {
   return entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens;
 }
 
-/** Last 14 local days, oldest first, ending today. */
-function trailingDays(count: number): string[] {
-  const today = new Date();
+/** Last `count` Host-local days, oldest first, ending on the activity anchor. */
+export function trailingProfileDays(todayKey: string | undefined, count: number): string[] {
+  const today = anchorDate(todayKey);
   const days: string[] = [];
   for (let index = count - 1; index >= 0; index -= 1) {
     const date = new Date(today);
@@ -224,7 +246,7 @@ function TokenUsageCard({
   for (const entry of tokens) {
     counts.set(entry.day, (counts.get(entry.day) ?? 0) + dayBucketTotal(entry));
   }
-  const windowDays = trailingDays(14);
+  const windowDays = trailingProfileDays(activity?.today, 14);
   const values = windowDays.map((day) => counts.get(day) ?? 0);
   const max = Math.max(1, ...values);
   const points = values

@@ -1616,6 +1616,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  /** Host-local current day; anchors activity windows across time zones. */
+  today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
@@ -1787,6 +1789,7 @@ export async function loadProfileActivity(
     typeof response['slug'] !== 'string' ||
     typeof response['weeks'] !== 'number' ||
     typeof response['since'] !== 'string' ||
+    typeof response['today'] !== 'string' ||
     !isActivityDays(response['memoryCommits']) ||
     !Array.isArray(response['events']) ||
     !response['events'].every((value) => {

@@ -151,6 +151,7 @@ function stubActions(): BridgeActions {
       slug: '',
       weeks: 26,
       since: '',
+      today: '2026-09-29',
       events: [],
       memoryCommits: [],
       tokens: [],

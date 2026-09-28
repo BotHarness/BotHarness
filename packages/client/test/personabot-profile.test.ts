@@ -256,3 +256,21 @@ describe('PersonaBot Profile surface', () => {
     }
   });
 });
+
+describe('Profile activity windows', () => {
+  it('anchors the token sparkline and heatmaps to the Host calendar day', async () => {
+    const { trailingProfileDays } = await import('../src/client/profile-cards-builtins.js');
+    expect(trailingProfileDays('2026-09-29', 3)).toEqual([
+      '2026-09-27',
+      '2026-09-28',
+      '2026-09-29',
+    ]);
+    expect(trailingProfileDays('2026-01-02', 3)).toEqual([
+      '2025-12-31',
+      '2026-01-01',
+      '2026-01-02',
+    ]);
+    // A missing anchor falls back to the browser calendar without throwing.
+    expect(trailingProfileDays(undefined, 3)).toHaveLength(3);
+  });
+});

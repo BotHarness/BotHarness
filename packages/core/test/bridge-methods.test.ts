@@ -1264,6 +1264,7 @@ describe('bridge methods', () => {
     if (!result.ok) return;
     expect(result.value.slug).toBe('ada');
     expect(result.value.weeks).toBe(26);
+    expect(result.value.today).toBe(today);
     expect(result.value.events).toEqual([
       { day: yesterday, reason: 'human-dm', count: 1 },
       { day: today, reason: 'group-mention', count: 1 },

@@ -100,6 +100,9 @@ export function createUsageProjection(options: {
   const { ownership } = options;
   /** Turn-local buffers, keyed by Session; only complete turns are folded. */
   const buffers = new Map<string, DshSessionEvent[]>();
+  /** Turns that completed while a rebuild was reading logs; folded after it. */
+  let rebuilding = false;
+  const queuedTurns: Array<{ sessionId: string; events: DshSessionEvent[] }> = [];
 
   const upsert = (
     connection: DatabaseSync,
@@ -216,10 +219,12 @@ export function createUsageProjection(options: {
       buffer.push(event);
       if (event.type !== 'turn/end') return;
       buffers.delete(sessionId);
-      foldTurn(sessionId, buffer);
+      if (rebuilding) queuedTurns.push({ sessionId, events: buffer });
+      else foldTurn(sessionId, buffer);
     },
     async rebuild(sessionIds, readLog) {
-      buffers.clear();
+      rebuilding = true;
+      queuedTurns.length = 0;
       let folded = 0;
       let failed = 0;
       const logs = new Map<string, DshUsageSessionLog>();
@@ -236,19 +241,40 @@ export function createUsageProjection(options: {
           failed += 1;
         }
       }
-      database.transaction(
-        (connection) => {
-          connection.prepare('DELETE FROM usage_daily').run();
-          for (const [sessionId, log] of logs) {
-            folded += foldLog(
-              sessionId,
-              log.inheritedEventCount > 0 ? log.events.slice(log.inheritedEventCount) : log.events,
-              connection,
-            );
-          }
-        },
-        ['usage'],
-      );
+      const snapshotHasTurn = (
+        log: DshUsageSessionLog | undefined,
+        events: readonly DshSessionEvent[],
+      ): boolean => {
+        if (log === undefined) return false;
+        const endTime = events.at(-1)?.time;
+        return log.events.some((event) => event.type === 'turn/end' && event.time === endTime);
+      };
+      try {
+        database.transaction(
+          (connection) => {
+            connection.prepare('DELETE FROM usage_daily').run();
+            for (const [sessionId, log] of logs) {
+              folded += foldLog(
+                sessionId,
+                log.inheritedEventCount > 0
+                  ? log.events.slice(log.inheritedEventCount)
+                  : log.events,
+                connection,
+              );
+            }
+            // Turns that completed while the logs were read are not in the
+            // snapshots; fold them after the replacement so none are lost.
+            for (const turn of queuedTurns) {
+              if (snapshotHasTurn(logs.get(turn.sessionId), turn.events)) continue;
+              if (foldTurn(turn.sessionId, turn.events, connection)) folded += 1;
+            }
+          },
+          ['usage'],
+        );
+      } finally {
+        queuedTurns.length = 0;
+        rebuilding = false;
+      }
       return { folded, failed };
     },
     activity(botSlug, sinceIso) {

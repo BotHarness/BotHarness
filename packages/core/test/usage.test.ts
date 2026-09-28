@@ -174,3 +174,78 @@ describe('Usage projection', () => {
     }
   });
 });
+
+describe('Usage rebuild races', () => {
+  function feedTurn(
+    usage: ReturnType<typeof createUsageProjection>,
+    sessionId: string,
+    base: number,
+  ): void {
+    usage.handleSessionEvent(sessionId, event('turn/start', base));
+    usage.handleSessionEvent(sessionId, event('assistant/message', base + 1));
+    usage.handleSessionEvent(sessionId, event('turn/end', base + 2));
+  }
+
+  it('keeps live turns that complete or stay buffered while a rebuild reads logs', async () => {
+    const { usage } = usageProjection({
+      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+      'session-2': { botSlug: 'ada', rootRole: 'orchestrator' },
+    });
+    const snapshotTurn = [
+      event('turn/start', TURN_END - 3000),
+      event('assistant/message', TURN_END - 2000),
+      event('turn/end', TURN_END - 1000),
+    ];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const readLog = async () => {
+      await gate;
+      return { events: snapshotTurn, inheritedEventCount: 0 };
+    };
+
+    // A turn on another Session is already in progress when the rebuild starts.
+    usage.handleSessionEvent('session-2', event('turn/start', TURN_END + 1000));
+    const rebuilding = usage.rebuild(['session-1'], readLog);
+    await Promise.resolve();
+    // A second turn completes entirely while the snapshot is still being read.
+    feedTurn(usage, 'session-1', TURN_END + 2000);
+    release();
+    expect(await rebuilding).toEqual({ folded: 2, failed: 0 });
+    // The in-progress buffer survived and still folds after the rebuild.
+    usage.handleSessionEvent('session-2', event('assistant/message', TURN_END + 3000));
+    usage.handleSessionEvent('session-2', event('turn/end', TURN_END + 3001));
+
+    const buckets = usage.activity('ada', SINCE);
+    expect(buckets).toHaveLength(1);
+    expect(buckets[0]).toMatchObject({ inputTokens: 300, outputTokens: 120 });
+  });
+
+  it('does not double count a queued turn already present in the snapshot', async () => {
+    const { usage } = usageProjection({
+      'session-1': { botSlug: 'ada', rootRole: 'orchestrator' },
+    });
+    const liveTurn = [
+      event('turn/start', TURN_END - 1000),
+      event('assistant/message', TURN_END - 500),
+      event('turn/end', TURN_END),
+    ];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const readLog = async () => {
+      await gate;
+      return { events: liveTurn, inheritedEventCount: 0 };
+    };
+
+    const rebuilding = usage.rebuild(['session-1'], readLog);
+    await Promise.resolve();
+    for (const queued of liveTurn) usage.handleSessionEvent('session-1', queued);
+    release();
+    expect(await rebuilding).toEqual({ folded: 1, failed: 0 });
+    expect(usage.activity('ada', SINCE)).toHaveLength(1);
+    expect(usage.activity('ada', SINCE)[0]).toMatchObject({ inputTokens: 100, outputTokens: 40 });
+  });
+});

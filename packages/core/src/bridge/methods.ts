@@ -129,6 +129,8 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  /** Host-local current day; clients anchor activity windows to it. */
+  today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
@@ -1700,6 +1702,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           slug,
           weeks,
           since,
+          today: localDay(new Date().toISOString()) ?? '',
           events: bucketByReason(events),
           memoryCommits: bucketByDay(commits.map((entry) => entry.at)),
           tokens: [...tokensByDay.values()].sort((left, right) =>
