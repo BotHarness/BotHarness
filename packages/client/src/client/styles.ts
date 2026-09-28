@@ -867,8 +867,7 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   font: 11px/1 var(--dsw-font-family);
   pointer-events: none;
 }
-.bh-shortcut-active .bh-state,
-.bh-shortcut-active .bh-channel-meta {
+.bh-shortcut-active .bh-state {
   visibility: hidden;
 }
 .bh-pinned .bh-shortcut-badge {
@@ -906,17 +905,20 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
 .bh-contact.bh-selected {
   background: var(--bh-hover);
 }
-.bh-contact .bh-body {
+.bh-contact .bh-body,
+.bh-channel-row .bh-body {
   min-width: 0;
   flex: 1;
 }
-.bh-contact .bh-top {
+.bh-contact .bh-top,
+.bh-channel-row .bh-top {
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
 }
-.bh-contact .bh-name {
+.bh-contact .bh-name,
+.bh-channel-row .bh-name {
   min-width: 0;
   font-weight: 600;
   overflow: hidden;
@@ -941,9 +943,12 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   flex-wrap: wrap;
   overflow: visible;
 }
-.bh-contact .bh-msg {
+.bh-contact .bh-msg,
+.bh-channel-row .bh-msg {
+  display: block;
   color: var(--dsw-alias-label-tertiary);
   font-size: 11.5px;
+  line-height: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -980,11 +985,11 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   font-size: 12px;
 }
 
-/* 原生 .sessionRow：32px、gap 0（标题自带 margin）、无额外缩进；标题 14/20。 */
+/* Conversation rows share the DM geometry so Groups also show a message preview. */
 .bh-channel-row {
-  height: 32px;
-  gap: 0;
-  padding: 0 8px;
+  min-height: 48px;
+  gap: 9px;
+  padding: 7px 8px;
   transition: opacity 120ms var(--ds-ease-in-out);
 }
 /* 拖拽源行原位淡出：标示来处，不占位、不推动任何布局（native 无此态，
@@ -1000,31 +1005,12 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 20px;
-  color: var(--dsw-alias-label-tertiary);
-}
-.bh-channel-slot.bh-group-channel-slot {
-  width: 20px;
-  height: 20px;
-  border-radius: 6px;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
   overflow: hidden;
-}
-.bh-channel-title {
-  flex: 1;
-  min-width: 0;
-  margin: 0 6px 0 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: 14px;
-  line-height: 20px;
-}
-.bh-channel-meta {
-  flex: none;
+  background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-tertiary);
-  font-size: 12px;
-  line-height: 20px;
 }
 
 /* 原生 ui-workspace sessionRow 的拖拽插入线（ADR-0031）：伪元素绝对定位，
