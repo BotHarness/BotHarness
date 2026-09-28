@@ -122,6 +122,17 @@ describe('Group wake policy authority and audit', () => {
         revision: 1,
         lastActor: { kind: 'bot', botSlug: 'ada' },
       });
+      for (const invalid of [
+        { ...mentions, count: 0 },
+        { ...mentions, intervalSeconds: 3601 },
+      ])
+        expect(() =>
+          core.channels.setGroupWakePolicy(group.id, 'ada', invalid, {
+            kind: 'bot',
+            botSlug: 'ada',
+          }),
+        ).toThrow('Invalid Group wake policy');
+      expect(core.channels.getGroupWakePolicy(group.id, 'ada').revision).toBe(1);
       expect(() =>
         core.channels.setGroupWakePolicy(group.id, 'ada', defaultValue, {
           kind: 'bot',
