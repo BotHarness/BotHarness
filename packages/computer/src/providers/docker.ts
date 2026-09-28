@@ -39,7 +39,13 @@ export interface DockerComputerConfig {
   /** Caps the container's process count so a runaway app cannot fork-bomb the host. */
   readonly pidsLimit: number;
   readonly idleStopMinutes: number;
-  /** HARDEN_DESKTOP removes terminals/sudo; a full desktop usually wants it off. */
+  /**
+   * HARDEN_DESKTOP disables sudo, terminals, and the xfce launchers
+   * (`exo-open`) inside the container. Computer use needs those launchers to
+   * open applications, so hardening is opt-in for view-only deployments; the
+   * container itself is the isolation boundary (found live 2026-09-28:
+   * every `launch_app` failed with EACCES under the old `true` default).
+   */
   readonly hardenDesktop: boolean;
   /** Locale the desktop runs in, e.g. zh_CN.UTF-8. */
   readonly language: string;
@@ -59,7 +65,7 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   shmSize: '512m',
   pidsLimit: 4096,
   idleStopMinutes: 30,
-  hardenDesktop: true,
+  hardenDesktop: false,
   language: 'en_US.UTF-8',
 };
 
@@ -462,13 +468,15 @@ export function createDockerComputerProvider(
    * The stock desktop chrome is drawn for a large monitor: a 26px top bar and
    * a 48px dock look tiny inside the viewer. Panels are fixed pixels (they do
    * not follow the already-2x Xft DPI), so seed bigger defaults: top bar 52
-   * with 32px icons, dock 96. Chromium gets an autostart entry so a reboot
-   * reopens the browser and the session-restore policy brings its tabs back.
-   * Both edits run in a helper container while the desktop is down — xfconfd
-   * would overwrite a live edit — and only touch stock or previously-seeded
-   * values, so a Human's own customization (or a deleted autostart entry) is
-   * never overwritten and reruns are no-ops. Best effort: a fresh volume has
-   * no config yet and migrates on the next start.
+   * with 32px icons, dock 96. Chromium must NOT autostart: the shared desktop
+   * belongs to the PersonaBots and the Human, and a browser launched at boot
+   * would hold the profile lock and surprise whoever opens the Computer
+   * first; an older volume's autostart entry is removed. Stale Chromium
+   * profile locks from a previous container are cleared here too, while the
+   * desktop is down. All edits run in a helper container (xfconfd would
+   * overwrite a live edit) and only touch stock or previously-seeded values,
+   * so a Human's own customization is never overwritten. Best effort: a
+   * fresh volume has no config yet and migrates on the next start.
    */
   const ensureDesktopDefaults = async (): Promise<void> => {
     const result = await runner.run([
@@ -481,7 +489,7 @@ export function createDockerComputerProvider(
       `${config.volumeName}:/data`,
       config.image,
       '-c',
-      `f=/data/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml; test -f "$f" && sed -i 's/name="icon-size" type="uint" value="16"/name="icon-size" type="uint" value="32"/; s/name="icon-size" type="uint" value="24"/name="icon-size" type="uint" value="32"/; s/name="size" type="uint" value="26"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="40"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="48"/name="size" type="uint" value="96"/; s/name="size" type="uint" value="64"/name="size" type="uint" value="96"/' "$f"; a=/data/.config/autostart/chromium.desktop; test -f "$a" || { mkdir -p /data/.config/autostart && printf '%s\\n' '[Desktop Entry]' 'Type=Application' 'Name=Chromium' 'Exec=chromium --no-first-run' 'OnlyShowIn=XFCE;' 'X-GNOME-Autostart-enabled=true' > "$a"; }; exit 0`,
+      `f=/data/.config/xfce4/xfconf/xfce-perchannel-xml/xfce4-panel.xml; test -f "$f" && sed -i 's/name="icon-size" type="uint" value="16"/name="icon-size" type="uint" value="32"/; s/name="icon-size" type="uint" value="24"/name="icon-size" type="uint" value="32"/; s/name="size" type="uint" value="26"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="40"/name="size" type="uint" value="52"/; s/name="size" type="uint" value="48"/name="size" type="uint" value="96"/; s/name="size" type="uint" value="64"/name="size" type="uint" value="96"/' "$f"; rm -f /data/.config/autostart/chromium.desktop /data/.config/chromium/Singleton*; exit 0`,
     ]);
     if (result.code !== 0) {
       onEvent?.('desktop defaults could not be prepared');
@@ -639,6 +647,7 @@ export function createDockerComputerProvider(
       }
     }
     throwIfCancelled();
+    await ensureDesktopDefaults();
     const start = await runner.run([
       'docker',
       'run',

@@ -56,7 +56,7 @@ function specLine(
   const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
   const shm = patch.shm ?? String(512 * 1024 ** 2);
   const pids = patch.pids ?? '4096';
-  const env = patch.env ?? ['HARDEN_DESKTOP=true', 'PIXELFLUX_WAYLAND=false'];
+  const env = patch.env ?? ['HARDEN_DESKTOP=false', 'PIXELFLUX_WAYLAND=false'];
   return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
 }
 
@@ -114,11 +114,11 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
 
-    const run = calls.find((argv) => argv[1] === 'run');
+    const run = calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm'));
     expect(run).toBeDefined();
     const flattened = (run ?? []).join(' ');
     expect(flattened).toContain('127.0.0.1:39001:3000');
-    expect(flattened).toContain('HARDEN_DESKTOP=true');
+    expect(flattened).toContain('HARDEN_DESKTOP=false');
     expect(flattened).toContain('PIXELFLUX_WAYLAND=false');
     expect(flattened).toContain('botharness-computer-config:/config');
     expect(calls.some((argv) => argv[1] === 'volume' && argv[2] === 'create')).toBe(true);
@@ -414,7 +414,7 @@ describe('Docker computer provider', () => {
       }, calls),
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('--memory 2g');
     expect(run).toContain('--memory-swap 2g');
     expect(run).toContain('--pids-limit 4096');
@@ -441,7 +441,7 @@ describe('Docker computer provider', () => {
       config: { cpus: 4, memory: '4g', shmSize: '1g', pidsLimit: 8192 },
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('--cpus 4');
     expect(run).toContain('--memory 4g');
     expect(run).toContain('--memory-swap 4g');
@@ -529,7 +529,9 @@ describe('Docker computer provider', () => {
     );
     expect(seed?.join(' ')).toContain('value="52"');
     expect(seed?.join(' ')).toContain('value="96"');
-    expect(seed?.join(' ')).toContain('autostart/chromium.desktop');
+    expect(seed?.join(' ')).toContain('rm -f /data/.config/autostart/chromium.desktop');
+    expect(seed?.join(' ')).toContain('rm -f ');
+    expect(seed?.join(' ')).toContain('chromium/Singleton*');
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
   });
 
@@ -560,7 +562,7 @@ describe('Docker computer provider', () => {
       getLanguage: () => 'zh_CN.UTF-8',
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('LANG=zh_CN.UTF-8');
     expect(run).toContain('LC_ALL=zh_CN.UTF-8');
   });
@@ -576,7 +578,7 @@ describe('Docker computer provider', () => {
       config: { hardenDesktop: false },
     });
     await provider.start();
-    const run = calls.find((argv) => argv[1] === 'run');
+    const run = calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm'));
     expect((run ?? []).join(' ')).toContain('HARDEN_DESKTOP=false');
   });
 

@@ -121,7 +121,11 @@ export const Config = Schema.object({
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),
-  hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
+  hardenDesktop: Schema.boolean()
+    .default(DEFAULT_CONFIG.hardenDesktop)
+    .description(
+      '硬化桌面（禁用 sudo/终端/xfce 启动器）；查看专用部署可选开，computer use 需要保持关闭',
+    ),
   language: Schema.string().default(DEFAULT_CONFIG.language),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
