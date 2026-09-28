@@ -165,7 +165,8 @@ try {
     const history = await rpc(port, 'botharness', 'channelTimeline', { channelId });
     if (
       history.page.entries.filter(
-        (entry) => entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
+        (entry) =>
+          entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
       ).length !== 1
     ) {
       throw new Error('DM send did not commit exactly one Human message');
@@ -191,7 +192,8 @@ try {
     const history = await rpc(port, 'botharness', 'channelTimeline', { channelId });
     if (
       history.page.entries.filter(
-        (entry) => entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
+        (entry) =>
+          entry.id === sentMessageId && entry.body === dmBody && entry.author.kind === 'human',
       ).length !== 1
     ) {
       throw new Error('Committed DM Human message missing or duplicated after restart');
