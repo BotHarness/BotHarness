@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -140,7 +140,7 @@ describe('Workspace Grant execution boundary', () => {
 
   it('lets an Orchestrator list its own Memory directory without a Human approval', () => {
     const state = fixture();
-    const memory = mkdtempSync(join(tmpdir(), 'botharness-memory-listing-'));
+    const memory = realpathSync(mkdtempSync(join(tmpdir(), 'botharness-memory-listing-')));
     state.memoryDirFor.mockReturnValue(memory);
     const orchestrator = { id: 'botharness-orchestrator', header: { cwd: memory } } as never;
     const allowed = { command: 'ls -la', description: 'List memory repository contents' };
