@@ -95,6 +95,7 @@ export const CSS =
   border-radius: 50%;
   background: var(--dsw-alias-button-elevated-fill);
 }
+.bh-rail-channel-icon.bh-group-channel-icon { border-radius: 9px; overflow: hidden; }
 .bh-rail-divider {
   width: 28px;
   flex: none;
@@ -127,6 +128,7 @@ export const CSS =
   border: 0.5px solid var(--dsw-alias-border-l3);
   border-radius: 50%;
 }
+.bh-rail-preview-icon.bh-group-channel-icon { border-radius: 7px; overflow: hidden; }
 .bh-rail-preview-title {
   min-width: 0;
   overflow: hidden;
@@ -595,6 +597,10 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
   background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-secondary);
 }
+.bh-pinned-channel-icon.bh-group-pinned-channel-icon {
+  border-radius: 15px;
+  overflow: hidden;
+}
 /* The native row-leading seat is shared with DSH's active Schedule mark. */
 span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   display: none;
@@ -962,6 +968,7 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   justify-content: center;
   border: 1px solid var(--dsw-alias-border-l2);
   border-radius: 10px;
+  overflow: hidden;
   background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-secondary);
   font-weight: 600;
@@ -996,6 +1003,12 @@ html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   width: 16px;
   height: 20px;
   color: var(--dsw-alias-label-tertiary);
+}
+.bh-channel-slot.bh-group-channel-slot {
+  width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  overflow: hidden;
 }
 .bh-channel-title {
   flex: 1;
@@ -2872,16 +2885,174 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
   outline-offset: 2px;
 }
 
-.bh-member-wake {
-  margin: 0 8px 4px 42px;
-  font-size: 11px;
+.bh-member-menu-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--dsw-alias-label-tertiary);
+  cursor: pointer;
 }
-.bh-member-wake summary { cursor: pointer; }
-.bh-member-wake-form { padding: 6px 0; }
-.bh-member-wake-choices { display: flex; gap: 4px; flex-wrap: wrap; }
-.bh-member-wake-choices [aria-pressed="true"] { background: var(--bh-hover); }
-.bh-member-wake-values { display: grid; grid-template-columns: 1fr 64px; gap: 4px 8px; align-items: center; }
-.bh-member-wake-values input { width: 64px; }
+.bh-member-menu-button:hover,
+.bh-member-menu-button[aria-expanded='true'] {
+  background: var(--dsw-alias-interactive-bg-hover);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-group-attention-trigger { position: relative; }
+.bh-group-attention-badge {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  display: inline-flex;
+  min-width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2px;
+  border-radius: 999px;
+  background: var(--dsw-alias-state-error-primary);
+  color: var(--dsw-alias-bg-base);
+  font-size: 9px;
+  line-height: 14px;
+}
+/* These controls are in native Modal portals, outside .bh-root. */
+.bh-group-invite-modal,
+.bh-group-attention-modal,
+.bh-member-policy-modal,
+.bh-group-avatar-crop { display: grid; gap: 12px; color: var(--dsw-alias-label-primary); }
+.bh-group-invite-modal > label,
+.bh-group-avatar-crop > label { font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-group-invite-results,
+.bh-group-attention-modal { max-height: min(50vh, 360px); overflow-y: auto; }
+.bh-group-invite-results { display: grid; gap: 4px; }
+.bh-group-invite-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.bh-group-invite-option:hover,
+.bh-group-invite-option[aria-pressed='true'] { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-group-attention-modal h3 {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-group-attention-item { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; padding: 6px 0; }
+.bh-group-attention-item .bh-name { flex: 1; min-width: 100px; overflow-wrap: anywhere; }
+.bh-group-attention-actions { display: flex; justify-content: flex-end; gap: 6px; width: 100%; }
+.bh-member-policy-modal .bh-member-wake-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.bh-member-policy-modal .bh-member-wake-choices button {
+  min-height: 48px;
+  padding: 8px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+  line-height: 1.3;
+  text-align: left;
+}
+.bh-member-policy-modal .bh-member-wake-choices button:hover { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-member-policy-modal .bh-member-wake-choices [aria-pressed='true'] {
+  border-color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-member-policy-modal .bh-member-wake-values {
+  display: grid;
+  grid-template-columns: 1fr 80px;
+  gap: 8px;
+  align-items: center;
+}
+.bh-member-policy-modal .bh-member-wake-values input { width: 80px; }
+.bh-group-avatar-crop-viewport {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  max-width: 100%;
+  overflow: hidden;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 10px;
+  background: var(--dsw-alias-button-elevated-fill);
+  cursor: grab;
+  touch-action: none;
+}
+.bh-group-avatar-crop-viewport:active { cursor: grabbing; }
+.bh-group-avatar-crop-viewport:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); }
+.bh-group-avatar-crop-viewport img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  max-width: none;
+  user-select: none;
+  pointer-events: none;
+}
+.bh-group-avatar-crop input[type='range'] { width: 100%; }
+.bh-group-management { display: grid; gap: 8px; }
+.bh-group-setting { display: grid; gap: 6px; padding: 4px 8px; }
+.bh-group-setting > label { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-group-setting-row { display: flex; align-items: center; gap: 6px; padding: 2px 8px; }
+.bh-group-setting .bh-group-setting-row { padding: 0; }
+.bh-group-setting-row input, .bh-group-setting-row select {
+  min-width: 0;
+  flex: 1;
+}
+.bh-group-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
+.bh-group-setting-row select {
+  width: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  padding: 5px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-group-avatar-setting { display: flex; align-items: center; gap: 8px; }
+.bh-group-avatar-setting > img, .bh-group-avatar-setting > span {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.bh-group-avatar-setting > span {
+  display: grid;
+  place-items: center;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-group-avatar-setting label { position: relative; }
+.bh-group-avatar-setting input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.bh-group-avatar-setting label:focus-within { outline: 2px solid var(--dsw-alias-label-primary); }
+.bh-group-request .bh-name { overflow-wrap: anywhere; }
+.bh-group-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 8px 6px 40px;
+}
 .bh-group-invitations {
   margin-top: 12px;
 }
@@ -2907,6 +3078,7 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 }
 .bh-group-delete-button {
   margin: 12px 8px 4px;
+  color: var(--dsw-alias-state-error-primary);
 }
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline

@@ -466,8 +466,15 @@ function ChannelRow({
         onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
       }}
     >
-      <span className="bh-channel-slot" aria-hidden="true">
-        <HashIcon size={16} />
+      <span
+        className={`bh-channel-slot${channel.avatar ? ' bh-group-channel-slot' : ''}`}
+        aria-hidden="true"
+      >
+        {channel.avatar ? (
+          <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+        ) : (
+          <HashIcon size={16} />
+        )}
       </span>
       <span className="bh-channel-title">{channel.name}</span>
       <span className="bh-channel-meta">
@@ -524,8 +531,15 @@ function RailChannel({
           onClick={open}
         >
           {bot === undefined ? (
-            <span className="bh-rail-channel-icon" aria-hidden="true">
-              <HashIcon size={18} />
+            <span
+              className={`bh-rail-channel-icon${channel.avatar ? ' bh-group-channel-icon' : ''}`}
+              aria-hidden="true"
+            >
+              {channel.avatar ? (
+                <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+              ) : (
+                <HashIcon size={18} />
+              )}
             </span>
           ) : (
             <PersonaBotAvatar
@@ -548,8 +562,15 @@ function RailChannel({
         <div className="bh-rail-preview">
           <div className="bh-rail-preview-head">
             {bot === undefined ? (
-              <span className="bh-rail-preview-icon" aria-hidden="true">
-                <HashIcon size={16} />
+              <span
+                className={`bh-rail-preview-icon${channel.avatar ? ' bh-group-channel-icon' : ''}`}
+                aria-hidden="true"
+              >
+                {channel.avatar ? (
+                  <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+                ) : (
+                  <HashIcon size={16} />
+                )}
               </span>
             ) : (
               <PersonaBotAvatar
@@ -1792,8 +1813,15 @@ export function BotSidebar({
                     }}
                   >
                     {bot === undefined ? (
-                      <span className="bh-pinned-channel-icon" aria-hidden="true">
-                        <HashIcon size={24} />
+                      <span
+                        className={`bh-pinned-channel-icon${channel.avatar ? ' bh-group-pinned-channel-icon' : ''}`}
+                        aria-hidden="true"
+                      >
+                        {channel.avatar ? (
+                          <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+                        ) : (
+                          <HashIcon size={24} />
+                        )}
                       </span>
                     ) : (
                       <PersonaBotAvatar

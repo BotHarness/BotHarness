@@ -83,6 +83,8 @@ describe('bridge typert service', () => {
       'channelDm',
       'channelCreate',
       'channelRename',
+      'channelGroupAvatarSet',
+      'channelGroupInvite',
       'channelGroupInviteCancel',
       'channelGroupMemberRemove',
       'channelGroupJoinDecide',

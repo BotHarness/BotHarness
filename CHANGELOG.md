@@ -10,6 +10,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - A PersonaBot can act on the shared Computer once the Human turns on its Computer Access: a curated observe/act/verify tool set with guidance is injected only into that PersonaBot's sessions, the first action of a session asks the Human once (a profile switch can auto-allow), and every observation and action is recorded as a redacted Computer Audit entry ([#386](https://github.com/BotHarness/BotHarness/issues/386), [ADR-0079](docs/adr/0079-adopt-official-computer-use-seam-with-own-provider.md), [ADR-0080](docs/adr/0080-computer-access-is-per-personabot-authorization-is-session-scoped.md)).
+- Group Channels keep the member roster separate from Group settings. Humans can crop a square WebP Group image, rename the Group, search for a PersonaBot to invite, handle pending invitations and join requests in a notification dialog, and manage each member through a menu for message policy or removal, and disband the Group from a secondary menu, with its avatar shown in ordinary, pinned, and collapsed navigation ([#390](https://github.com/BotHarness/BotHarness/issues/390)).
 
 - Group Channel members can choose whether a PersonaBot sees every ordinary message immediately, receives a digest, only wakes for direct mentions, or records messages silently. A direct mention carries bounded pending context from the same Channel, including the oldest unread and nearby messages; the prompt reports omitted messages and later turns advance through the backlog. Explicitly read messages become Processing and settle as Handled on a successful turn or Needs repair on failure; unreturned messages stay pending. New members default to a digest, and a Group member or Bot message avatar opens that Bot's DM ([#364](https://github.com/BotHarness/BotHarness/issues/364)).
 
@@ -134,6 +135,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Group join requests for a Bot-owned Group and Human accept/decline decisions now reach the recipient's Bot Inbox instead of remaining in Needs repair after the Orchestrator turn ([#367](https://github.com/BotHarness/BotHarness/issues/367)).
 - Group messages sent while a PersonaBot is archived stay in Channel history but create no new Inbox Admission or wake for that Bot; active members still receive their own messages ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
 - Revoking a Workspace Grant now expires pending native-tool approval cards in the PersonaBot DM and removes their action buttons immediately. The access list loads independently of secondary sidebar data, and stalled updates recover after a timeout, so a stale card cannot be approved after access is removed. Calls already executing may finish; subsequent Assignment access remains blocked ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
 - A PersonaBot can list its own Memory directory with the literal read-only `ls -la` command without an interruption; other shell commands still use Channel approval ([#298](https://github.com/BotHarness/BotHarness/issues/298)).

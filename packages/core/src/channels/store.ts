@@ -13,6 +13,7 @@ import {
   groupChannelIdBase,
   isChannelMessage,
   isChannelRecord,
+  isGroupAvatar,
   isValidChannelId,
   type ChannelMessage,
   type ChannelRecord,
@@ -254,12 +255,14 @@ export interface ChannelStore {
   /** One pending invitation and its Inbox Admission are committed together. */
   inviteGroupBot(input: {
     channelId: string;
-    inviterBotSlug: string;
+    inviterBotSlug?: string;
+    inviterHuman?: true;
     targetBotSlug: string;
     targetBotCreatedAt: string;
     targetDmChannelId: string;
     botCausation?: BotMessageCausation;
   }): GroupInvitation;
+  setGroupAvatar(channelId: string, avatar: string | null): ChannelRecord;
   /** Only the named invitee may decide; acceptance adds membership atomically. */
   respondToGroupInvite(input: {
     invitationId: string;
@@ -635,6 +638,16 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     },
     inviteGroupBot() {
       throw new Error('Group invitations require the operational Channel store');
+    },
+    setGroupAvatar(channelId, avatar) {
+      const channel = read(channelId);
+      if (channel?.type !== 'group') throw new Error('Group Channel not found');
+      if (avatar !== null && !isGroupAvatar(avatar)) throw new Error('Invalid Group avatar');
+      const updated = { ...channel, updatedAt: now().toISOString() };
+      if (avatar === null) delete updated.avatar;
+      else updated.avatar = avatar;
+      write(updated);
+      return updated;
     },
     respondToGroupInvite() {
       throw new Error('Group invitations require the operational Channel store');
