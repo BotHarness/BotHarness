@@ -1606,7 +1606,7 @@ window.__ModuleLoader__.load({
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
-						variant: "ghost",
+						variant: interactive ? "ghost" : "primary",
 						size: "sm",
 						"aria-pressed": interactive,
 						onClick: onToggleInteractive,

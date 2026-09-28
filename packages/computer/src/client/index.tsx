@@ -635,7 +635,7 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
       )}
       <span style={{ flex: 1 }} />
       <Button
-        variant="ghost"
+        variant={interactive ? 'ghost' : 'primary'}
         size="sm"
         aria-pressed={interactive}
         onClick={onToggleInteractive}
