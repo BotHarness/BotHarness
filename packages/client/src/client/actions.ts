@@ -5,6 +5,7 @@ import {
   createGroupChannel,
   inviteGroupBot,
   setGroupAvatar as setGroupAvatarViaBridge,
+  setBotAvatar as setBotAvatarViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -183,6 +184,7 @@ export interface BridgeActions {
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -1149,6 +1151,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: channel rename failed', error);
+        return false;
+      }
+    },
+    async setBotAvatar(channelId, avatar) {
+      try {
+        const bot = await setBotAvatarViaBridge(call, channelId, avatar);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: PersonaBot avatar update failed', error);
         return false;
       }
     },

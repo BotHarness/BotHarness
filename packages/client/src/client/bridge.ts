@@ -877,6 +877,17 @@ export async function setGroupAvatar(
   return channel;
 }
 
+export async function setBotAvatar(
+  call: BridgeCall,
+  channelId: string,
+  avatar: string | null,
+): Promise<BotSummary> {
+  const value = asRecord(await unwrap(call, 'botAvatarSet', { channelId, avatar }));
+  const bot = parseBotSummary(value?.['bot']);
+  if (bot === undefined) throw new Error('invalid botAvatarSet response');
+  return bot;
+}
+
 export async function inviteGroupBot(
   call: BridgeCall,
   channelId: string,
