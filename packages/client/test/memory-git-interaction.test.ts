@@ -32,15 +32,19 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconCloseOutline16: stub,
     IconEllipsisOutline16: stub,
     IconEllipsisOutlineRegular: stub,
+    IconFolderCloseRegular: stub,
+    IconFolderOpenRegular: stub,
     IconFolderOpenOutline16: stub,
     IconNewChatOutline16: stub,
     IconPanelLeftOutline16: stub,
     IconPanelLeftOutlineRegular: stub,
     IconPlusOutline16: stub,
+    IconRefreshOutlineRegular: stub,
     IconSearchOutline16: stub,
     IconSendOutline16: stub,
     IconSendOutlineRegular: stub,
     IconTrashOutline16: stub,
+    FileTypeIcon: stub,
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
     Menu: ({
       anchor,
@@ -400,7 +404,7 @@ describe('Memory Git graph sidebar', () => {
           .mockResolvedValue([{ path: 'note.md', kind: 'unstaged', status: 'M' }]),
         memoryWorkingDiff: vi.fn().mockResolvedValue({
           path: 'note.md',
-          kind: 'unstaged',
+          kind: 'current',
           status: 'M',
           diff: '-Before\n+Current memory',
           binary: false,
@@ -491,8 +495,9 @@ describe('Memory Git graph sidebar', () => {
     expect(chat?.scrollTop).toBe(73);
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.bh-memory-working-list button')?.click();
+      container.querySelector<HTMLButtonElement>('.bh-memory-change-rows .bh-memory-row')?.click();
     });
+    expect(actions.memoryWorkingDiff).toHaveBeenCalledWith(channel.id, 'note.md', 'current');
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain(
       '+Current memory',
     );
@@ -503,7 +508,7 @@ describe('Memory Git graph sidebar', () => {
         ?.click();
     });
     await act(async () => {
-      container.querySelector<HTMLButtonElement>('.bh-memory-files button')?.click();
+      container.querySelector<HTMLButtonElement>('.bh-memory-file-tree [role="treeitem"]')?.click();
     });
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain(
       'Current memory',
