@@ -154,7 +154,12 @@ export interface ChannelMessage {
   }[];
   /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
   botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
-  memberDeparture?: { memberKind: 'bot' | 'human'; memberId: string; displayName: string };
+  memberDeparture?: {
+    memberKind: 'bot' | 'human';
+    memberId: string;
+    displayName: string;
+    departureType?: 'left' | 'removed';
+  };
   grantRequest?: true;
   grantRequestResolution?: { requestMessageId: string; grantId: string };
   toolApprovalRequest?: ToolApprovalRequestCard;

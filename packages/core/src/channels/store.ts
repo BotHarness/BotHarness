@@ -301,7 +301,11 @@ export interface ChannelStore {
       intervalSeconds: number;
     },
   ): ChannelRecord;
-  removeGroupMember(channelId: string, botSlug: string): ChannelRecord;
+  removeGroupMember(
+    channelId: string,
+    botSlug: string,
+    departureType?: 'left' | 'removed',
+  ): ChannelRecord;
   /** Human-only logical deletion; past operational events remain for recovery/audit. */
   deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;

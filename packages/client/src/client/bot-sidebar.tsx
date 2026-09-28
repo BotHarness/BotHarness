@@ -1377,7 +1377,12 @@ export function BotSidebar({
         message === undefined
           ? t('rail.noMessages')
           : message.memberDeparture !== undefined
-            ? t('member.left', { name: message.memberDeparture.displayName })
+            ? t(
+                message.memberDeparture.departureType === 'removed'
+                  ? 'member.removed'
+                  : 'member.left',
+                { name: message.memberDeparture.displayName },
+              )
             : `${author === undefined ? '' : `${author}：`}${message.body}`;
       return (
         <RailChannel

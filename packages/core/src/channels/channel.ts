@@ -120,6 +120,8 @@ export interface ChannelMemberDeparture {
   memberKind: 'bot' | 'human';
   memberId: string;
   displayName: string;
+  /** Older notices have no type and retain their original "left" presentation. */
+  departureType?: 'left' | 'removed';
 }
 
 /** One committed send shown in the sender's Human DM without copying its body. */
@@ -525,7 +527,10 @@ export function isChannelMessage(value: unknown): value is ChannelMessage {
       typeof departure['memberId'] !== 'string' ||
       departure['memberId'].length === 0 ||
       typeof departure['displayName'] !== 'string' ||
-      departure['displayName'].length === 0
+      departure['displayName'].length === 0 ||
+      (departure['departureType'] !== undefined &&
+        departure['departureType'] !== 'left' &&
+        departure['departureType'] !== 'removed')
     )
       return false;
   } else if ((message['author'] as ChannelMessageAuthor)?.kind === 'system') {

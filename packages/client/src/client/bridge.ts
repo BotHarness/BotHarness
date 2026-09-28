@@ -486,13 +486,17 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
       typeof departure['memberId'] !== 'string' ||
       departure['memberId'].length === 0 ||
       typeof departure['displayName'] !== 'string' ||
-      departure['displayName'].length === 0
+      departure['displayName'].length === 0 ||
+      (departure['departureType'] !== undefined &&
+        departure['departureType'] !== 'left' &&
+        departure['departureType'] !== 'removed')
     )
       return undefined;
     memberDeparture = {
       memberKind: departure['memberKind'],
       memberId: departure['memberId'],
       displayName: departure['displayName'],
+      departureType: departure['departureType'] === 'removed' ? 'removed' : 'left',
     };
   } else if (author.kind === 'system') {
     return undefined;

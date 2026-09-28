@@ -2441,7 +2441,7 @@ class BotRuntimeImplementation implements BotRuntime {
         if (channel?.type !== 'group' || !channel.members.includes(botSlug))
           return { channelId: input.channelId, left: false };
         beforeSend();
-        this.#channels.removeGroupMember(channel.id, botSlug);
+        this.#channels.removeGroupMember(channel.id, botSlug, 'left');
         return { channelId: channel.id, left: true };
       },
       sendToBot: async (input) => {

@@ -98,7 +98,12 @@ describe('Bot Group self-leave', () => {
       expect(departures[0]).toMatchObject({
         author: { kind: 'system' },
         body: 'ADA left the Channel.',
-        memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'ADA' },
+        memberDeparture: {
+          memberKind: 'bot',
+          memberId: 'ada',
+          displayName: 'ADA',
+          departureType: 'left',
+        },
       });
       expect(
         core.channels
@@ -213,8 +218,13 @@ describe('Bot Group self-leave', () => {
       expect(notices).toHaveLength(1);
       expect(notices[0]).toMatchObject({
         author: { kind: 'system' },
-        body: 'Bea left the Channel.',
-        memberDeparture: { memberKind: 'bot', memberId: 'bea', displayName: 'Bea' },
+        body: 'Bea was removed from the Channel.',
+        memberDeparture: {
+          memberKind: 'bot',
+          memberId: 'bea',
+          displayName: 'Bea',
+          departureType: 'removed',
+        },
         channelRevision: 1,
       });
       const facts = attachOperationalModule(
@@ -286,7 +296,7 @@ describe('Bot Group self-leave', () => {
         true,
       );
       const notice = core.channels.readMessages(group.id)[0]!;
-      expect(notice.memberDeparture?.memberId).toBe('lee');
+      expect(notice.memberDeparture).toMatchObject({ memberId: 'lee', departureType: 'removed' });
       const rows = attachOperationalModule(core.operationalDatabase, 'departure-policy-facts').read(
         (db) =>
           db
@@ -308,7 +318,7 @@ describe('Bot Group self-leave', () => {
       await core.runtime.whenIdle();
       expect(turns.map((turn) => turn.botSlug)).toEqual(['eve']);
       expect(turns[0]?.message).toContain('Channel system');
-      expect(turns[0]?.message).toContain('LEE left the Channel.');
+      expect(turns[0]?.message).toContain('LEE was removed from the Channel.');
       await core.channels.appendMessageOnce(group.id, {
         id: 'ordinary-after-leave',
         at: new Date().toISOString(),
@@ -319,7 +329,7 @@ describe('Bot Group self-leave', () => {
       await core.runtime.whenIdle();
       expect(turns.filter((turn) => turn.botSlug === 'dia')).toHaveLength(1);
       expect(turns.find((turn) => turn.botSlug === 'dia')?.message).toContain(
-        'LEE left the Channel.',
+        'LEE was removed from the Channel.',
       );
       expect(turns.filter((turn) => turn.botSlug === 'men' || turn.botSlug === 'sil')).toEqual([]);
 

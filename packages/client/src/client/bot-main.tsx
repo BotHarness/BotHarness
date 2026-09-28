@@ -960,7 +960,14 @@ function ConversationView({
                   ) : null}
                   {first.memberDeparture !== undefined ? (
                     <div className="bh-member-departure" data-message-id={first.id}>
-                      <span>{t('member.left', { name: first.memberDeparture.displayName })}</span>
+                      <span>
+                        {t(
+                          first.memberDeparture.departureType === 'removed'
+                            ? 'member.removed'
+                            : 'member.left',
+                          { name: first.memberDeparture.displayName },
+                        )}
+                      </span>
                       <ChannelDeliveryReceipt message={first} bots={state.bots} t={t} />
                     </div>
                   ) : first.botDmAction === undefined ? (

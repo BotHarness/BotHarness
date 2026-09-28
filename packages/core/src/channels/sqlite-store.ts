@@ -1197,7 +1197,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       writeRecord(updated);
       return updated;
     },
-    removeGroupMember(channelId, botSlug) {
+    removeGroupMember(channelId, botSlug, departureType: 'left' | 'removed' = 'removed') {
       const channel = readRecord(channelId);
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
         throw new Error('Group member not found');
@@ -1225,11 +1225,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         id: 'member-left-' + randomUUID(),
         at: timestamp,
         author: { kind: 'system' },
-        body: displayName + ' left the Channel.',
+        body:
+          displayName +
+          (departureType === 'left' ? ' left the Channel.' : ' was removed from the Channel.'),
         memberDeparture: {
           memberKind: 'bot',
           memberId: botSlug,
           displayName,
+          departureType,
         },
         format: 'text',
       };

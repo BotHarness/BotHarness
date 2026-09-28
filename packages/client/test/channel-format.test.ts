@@ -33,7 +33,22 @@ describe('Channel message format over RPC', () => {
       body: 'Ada left the Channel.',
       memberDeparture: { memberKind: 'bot', memberId: 'ada', displayName: 'Ada' },
     };
-    expect(parseChannelMessage(departure)).toEqual(departure);
+    expect(parseChannelMessage(departure)).toEqual({
+      ...departure,
+      memberDeparture: { ...departure.memberDeparture, departureType: 'left' },
+    });
+    const removed = {
+      ...departure,
+      body: 'Ada was removed from the Channel.',
+      memberDeparture: { ...departure.memberDeparture, departureType: 'removed' },
+    };
+    expect(parseChannelMessage(removed)).toEqual(removed);
+    expect(
+      parseChannelMessage({
+        ...departure,
+        memberDeparture: { ...departure.memberDeparture, departureType: 'unknown' },
+      }),
+    ).toBeUndefined();
     expect(parseChannelMessage({ ...departure, author: { kind: 'human' } })).toBeUndefined();
     expect(parseChannelMessage({ ...departure, memberDeparture: undefined })).toBeUndefined();
   });
