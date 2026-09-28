@@ -80,7 +80,7 @@
 
 ### Changed
 
-- 未置顶的 Group 与 PersonaBot 私聊 Channel 现在统一以头像、名称和最新消息预览组成会话列表行；空 Channel 显示简短占位文案（[#404](https://github.com/BotHarness/BotHarness/issues/404)）。
+- 未置顶的 Group 与 PersonaBot 私聊 Channel 现在统一以头像、名称和最新消息预览组成会话列表行；空 Channel 显示简短占位文案。取消置顶的拖放提示增加了留白，活动中的 Bot 头像保留状态圆点且不再显示外框（[#404](https://github.com/BotHarness/BotHarness/issues/404)）。
 
 - 新的隔离开发 Profile 默认组合可选 Bundle `@botharness/computer`，无需手工改 Profile 即可看到 Computer 的侧栏入口与观看面板（[#383](https://github.com/BotHarness/BotHarness/issues/383)）。
 - Group Channel 的每条消息气泡旁现显示紧凑的实心收件状态饼图；打开后可按名字和头像查看实际收件 Bot 的已投递、已读、处理中、已处理、已忽略或失败状态。主动读取频道历史不等于已处理；消息进入 Orchestrator 回合时才算处理中，Bot 发送者不计入自己的收件人数（[#345](https://github.com/BotHarness/BotHarness/issues/345)）。

@@ -151,6 +151,53 @@ try {
       path: process.env.BH_E2E_SCREENSHOT,
       clip: { x: 0, y: 0, width: 400, height: 800 },
     });
+  if (process.env.BH_E2E_UNPIN_SCREENSHOT) {
+    const originalPins = (await rpc('rosterGet', {})).pins;
+    try {
+      await rpc('pinsSet', { pins: [...new Set([...originalPins, fixture.dmId])] });
+      await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+      await page.waitForSelector(botButton);
+      if (!(await page.$('.bh-root'))) await page.click(botButton);
+      await waitForBotRoot(page);
+      const pinnedSelector = '.bh-pinned[data-channel-id="' + fixture.dmId + '"]';
+      await page.waitForSelector(pinnedSelector);
+      await page.evaluate((selector) => {
+        const pinned = document.querySelector(selector);
+        if (!pinned) throw new Error('Pinned DM row disappeared before drag');
+        pinned.dispatchEvent(
+          new DragEvent('dragstart', { bubbles: true, dataTransfer: new DataTransfer() }),
+        );
+      }, pinnedSelector);
+      await page.waitForFunction(
+        () => !document.querySelector('.bh-unpin-zone')?.classList.contains('bh-unpin-zone-hidden'),
+      );
+      await page.waitForFunction(
+        () => document.querySelector('.bh-unpin-zone')?.getBoundingClientRect().height >= 72,
+      );
+      const dragStyles = await page.evaluate(() => {
+        const zone = document.querySelector('.bh-unpin-zone');
+        const hint = document.querySelector('.bh-unpin-zone-hint');
+        const avatar = document.querySelector('.bh-pinned .bh-persona-avatar');
+        return {
+          paddingLeft: getComputedStyle(zone).paddingLeft,
+          paddingRight: getComputedStyle(zone).paddingRight,
+          textAlign: getComputedStyle(hint).textAlign,
+          avatarOutline: getComputedStyle(avatar, '::before').content,
+        };
+      });
+      assert.equal(dragStyles.paddingLeft, '20px');
+      assert.equal(dragStyles.paddingRight, '20px');
+      assert.equal(dragStyles.textAlign, 'center');
+      assert.equal(dragStyles.avatarOutline, 'none');
+      await page.screenshot({
+        path: process.env.BH_E2E_UNPIN_SCREENSHOT,
+        clip: { x: 0, y: 0, width: 400, height: 600 },
+      });
+      console.log(JSON.stringify({ dragStyles }));
+    } finally {
+      await rpc('pinsSet', { pins: originalPins });
+    }
+  }
   console.log(JSON.stringify({ rows }));
 } finally {
   await browser.close();

@@ -483,6 +483,7 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
   height: 72px;
   min-height: 72px;
   margin: 0 4px 12px;
+  padding-inline: 20px;
   border: 1px dashed var(--dsw-alias-border-l3);
   border-radius: 12px;
   background: var(--dsw-alias-button-elevated-fill);
@@ -513,6 +514,7 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
   color: var(--dsw-alias-label-secondary);
   font-size: 13px;
   font-weight: 500;
+  text-align: center;
   pointer-events: none;
 }
 .bh-pinned-grid {
@@ -633,16 +635,6 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
 .bh-avatar-media-image img {
   object-fit: cover;
 }
-.bh-persona-avatar[data-active='true']::before {
-  content: '';
-  position: absolute;
-  z-index: -1;
-  inset: -2px;
-  border: 1px solid var(--dsw-alias-state-business-primary);
-  border-radius: 50%;
-  opacity: 0.52;
-  animation: bh-avatar-halo 1600ms var(--ds-ease-in-out) infinite;
-}
 .bh-persona-avatar[data-media='blob'][data-effect='thinking-dots'] .bh-avatar-media {
   animation: bh-avatar-breathe 1300ms var(--ds-ease-in-out) infinite;
 }
@@ -723,17 +715,6 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   font-size: 9px;
   font-weight: 600;
 }
-@keyframes bh-avatar-halo {
-  0%,
-  100% {
-    opacity: 0.3;
-    transform: scale(0.96);
-  }
-  50% {
-    opacity: 0.72;
-    transform: scale(1.06);
-  }
-}
 @keyframes bh-avatar-breathe {
   0%,
   100% {
@@ -794,7 +775,6 @@ span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
     transform: translateY(-1.5px);
   }
 }
-html[data-botharness-motion='reduce'] .bh-persona-avatar::before,
 html[data-botharness-motion='reduce'] .bh-avatar-media,
 html[data-botharness-motion='reduce'] .bh-avatar-thinking i {
   animation: none !important;
