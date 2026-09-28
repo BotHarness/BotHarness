@@ -365,33 +365,79 @@ describe('bot sidebar rows', () => {
     expect(createMenu?.items.map((item) => item['label'])).toEqual(['创建 PersonaBot', '创建频道']);
   });
 
-  it('renders channels as one-line native session rows without extra indentation', () => {
+  it('renders Group conversations with the same two-line anatomy as DMs', () => {
     setRoster({ sections: [section('s1', '工作流', ['c-section'])] });
-    store.setRoster([BOT], [SECTION_CHANNEL, FLAT_CHANNEL]);
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...SECTION_CHANNEL,
+          latestMessage: {
+            id: 'group-latest',
+            at: AT,
+            author: { kind: 'bot', slug: 'atlas' },
+            body: '完成第一版\n请查看',
+          },
+        },
+        FLAT_CHANNEL,
+      ],
+    );
     const markup = renderSidebar();
 
-    expect(markup).not.toContain('bh-channel-mark');
     expect(markup.match(/bh-channel-row/g)).toHaveLength(2);
     expect(markup).toContain('bh-channel-slot');
     expect(markup).toContain('viewBox="0 0 24 24"');
-    expect(markup).not.toContain('>#</span>');
-    expect(markup).toContain('bh-channel-title');
+    expect(markup).toContain('bh-body');
+    expect(markup).toContain('bh-top');
+    expect(markup).toContain('bh-name');
+    expect(markup).toContain('bh-msg');
     expect(markup).toContain('一级渠道');
-    expect(markup).toContain('1 位成员');
+    expect(markup).toContain('Atlas：完成第一版 请查看');
     expect(markup).toContain('散装渠道');
-    expect(markup).toContain('还没有成员');
+    expect(markup).toContain('暂无消息');
   });
 
-  it('keeps the two-line bot contact rows', () => {
-    store.setRoster([BOT], [DM_CHANNEL]);
+  it('shows the latest DM message below the Bot name', () => {
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...DM_CHANNEL,
+          latestMessage: { id: 'dm-latest', at: AT, author: { kind: 'human' }, body: '请继续' },
+        },
+      ],
+    );
     const markup = renderSidebar();
 
     expect(markup).toContain('bh-contact');
     expect(markup).toContain('bh-body');
     expect(markup).toContain('Atlas');
-    expect(markup).toContain('研究');
-    expect(markup).toContain('写作');
-    expect(markup).toContain('文件研究助手');
+    expect(markup).toContain('你：请继续');
+    expect(markup).not.toContain('文件研究助手');
+  });
+
+  it('shows recent activity for a bodyless latest DM message', () => {
+    store.setRoster(
+      [BOT],
+      [
+        {
+          ...DM_CHANNEL,
+          latestMessage: {
+            id: 'dm-action',
+            at: AT,
+            author: { kind: 'human' },
+            body: '',
+            botDmAction: {
+              channelId: 'dm-other',
+              messageId: 'other-message',
+              recipientBotSlug: 'other',
+            },
+          },
+        },
+      ],
+    );
+
+    expect(renderSidebar()).toContain('你：最新动态');
   });
 
   it('keeps an empty pin target collapsed before a drag begins', () => {
