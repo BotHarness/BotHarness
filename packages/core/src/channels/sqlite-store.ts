@@ -22,6 +22,8 @@ import {
   type ChannelRecord,
   type GroupInvitation,
   type GroupJoinRequest,
+  type GroupWakePolicyActor,
+  type GroupWakePolicyView,
 } from './channel.js';
 import {
   ChannelMentionTargetError,
@@ -1167,10 +1169,36 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ['bot-inbox'],
       );
     },
-    setGroupWakePolicy(channelId, botSlug, policy) {
+    getGroupWakePolicy(channelId, botSlug): GroupWakePolicyView {
       const channel = readRecord(channelId);
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
         throw new Error('Group member not found');
+      const policy = channel.wakePolicies?.[botSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
+      const audit = database.read((db) =>
+        db
+          .prepare(`
+            SELECT actor_kind, actor_bot_slug, changed_at
+              FROM group_wake_policy_audit
+             WHERE channel_id = ? AND bot_slug = ? AND revision = ?
+          `)
+          .get(channelId, botSlug, policy.revision),
+      ) as
+        | { actor_kind: 'human' | 'bot'; actor_bot_slug: string | null; changed_at: string }
+        | undefined;
+      const lastActor: GroupWakePolicyActor | null =
+        audit === undefined
+          ? null
+          : audit.actor_kind === 'human'
+            ? { kind: 'human' }
+            : { kind: 'bot', botSlug: audit.actor_bot_slug! };
+      return { ...policy, lastActor, changedAt: audit?.changed_at ?? null };
+    },
+    setGroupWakePolicy(channelId, botSlug, policy, actor = { kind: 'human' }) {
+      const channel = readRecord(channelId);
+      if (channel?.type !== 'group' || !channel.members.includes(botSlug))
+        throw new Error('Group member not found');
+      if (actor.kind === 'bot' && actor.botSlug !== botSlug)
+        throw new Error('Bot can only change its own Group wake policy');
       if (
         (policy.mode !== 'all' &&
           policy.mode !== 'mentions' &&
@@ -1185,21 +1213,49 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       )
         throw new Error('Invalid Group wake policy');
       const previous = channel.wakePolicies?.[botSlug];
+      const effective = previous ?? DEFAULT_GROUP_WAKE_POLICY;
       if (
-        previous?.mode === policy.mode &&
-        previous.count === policy.count &&
-        previous.intervalSeconds === policy.intervalSeconds
+        effective.mode === policy.mode &&
+        effective.count === policy.count &&
+        effective.intervalSeconds === policy.intervalSeconds
       )
         return channel;
+      const changedAt = now().toISOString();
+      const revision = effective.revision + 1;
       const updated: ChannelRecord = {
         ...channel,
         wakePolicies: {
           ...channel.wakePolicies,
-          [botSlug]: { ...policy, revision: (previous?.revision ?? 0) + 1 },
+          [botSlug]: { ...policy, revision },
         },
-        updatedAt: now().toISOString(),
+        updatedAt: changedAt,
       };
-      writeRecord(updated);
+      database.transaction(
+        (db) => {
+          db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
+            JSON.stringify(updated),
+            channelId,
+          );
+          db.prepare(`
+            INSERT INTO group_wake_policy_audit
+              (channel_id, bot_slug, revision, actor_kind, actor_bot_slug, changed_at,
+               mode, count, interval_seconds)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `).run(
+            channelId,
+            botSlug,
+            revision,
+            actor.kind,
+            actor.kind === 'bot' ? actor.botSlug : null,
+            changedAt,
+            policy.mode,
+            policy.count,
+            policy.intervalSeconds,
+          );
+        },
+        ['channel'],
+      );
+      publishRecordChanged();
       return updated;
     },
     removeGroupMember(channelId, botSlug, departureType: 'left' | 'removed' = 'removed') {
@@ -1649,6 +1705,22 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     admissionChanged(channelId, messageId) {
       const message = this.message(channelId, messageId);
       if (message !== undefined) options.onAdmissionChanged?.(channelId, messageId, message);
+    },
+    admissionActivity(botSlug, sinceIso) {
+      if (!isValidSlug(botSlug)) return [];
+      const rows = database.read((db) =>
+        db
+          .prepare(
+            `SELECT reason, COALESCE(observed_at, handled_at) AS at FROM inbox_admissions
+              WHERE bot_slug = ? AND ignored_at IS NULL
+                AND COALESCE(observed_at, handled_at) IS NOT NULL
+                AND COALESCE(observed_at, handled_at) >= ?
+              ORDER BY at
+              LIMIT 20000`,
+          )
+          .all(botSlug, sinceIso),
+      ) as unknown as Array<{ reason: string; at: string }>;
+      return rows.map((row) => ({ at: row.at, reason: row.reason }));
     },
     messagesAfter(id, revision) {
       if (!isValidChannelId(id) || !Number.isSafeInteger(revision) || revision < 0)

@@ -1,5 +1,6 @@
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
 import { SessionId } from '@deepseek-ai/dsh-session';
+import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 
 import { describe, expect, it } from 'vitest';
 
@@ -32,12 +33,120 @@ const groupTools = {
   removeGroupMember: (): never => {
     throw new Error('unexpected Group removal');
   },
+  readGroupWakePolicy: (): never => {
+    throw new Error('unexpected Group wake policy read');
+  },
+  setGroupWakePolicy: (): never => {
+    throw new Error('unexpected Group wake policy write');
+  },
   leaveGroup: (): never => {
     throw new Error('unexpected Group leave');
   },
 };
 
 describe('DSH Bot Agent adapter', () => {
+  it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
+    const calls: Array<Promise<unknown>> = [];
+    const writes: unknown[] = [];
+    const current = {
+      mode: 'digest' as const,
+      count: 5,
+      intervalSeconds: 30,
+      revision: 0,
+      lastActor: null,
+      changedAt: null,
+    };
+    const host = new FakeAgentHost(
+      { kind: 'completed' },
+      {
+        onAgentCreated: () => {
+          const tools = host.scopes.get('orchestrator-ada')?.tools ?? [];
+          const read = tools.find((tool) => tool.name === 'group_attention_get');
+          const write = tools.find((tool) => tool.name === 'group_attention_set');
+          if (read === undefined || write === undefined)
+            throw new Error('Group Tools not registered');
+          calls.push(read.execute({ channel_id: 'group-team' }, {} as ToolRunContext));
+          calls.push(
+            write.execute({ channel_id: 'group-team', mode: 'mentions' }, {} as ToolRunContext),
+          );
+        },
+      },
+    );
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    await adapter.runOrchestrator({
+      sessionId: 'orchestrator-ada',
+      resume: false,
+      bot: BOT,
+      message: 'Change my Group attention to mentions',
+      inboundChannelId: 'dm-test',
+      inbox: '',
+      channels: {
+        ...groupTools,
+        readGroupWakePolicy: () => current,
+        setGroupWakePolicy: (input) => {
+          writes.push(input);
+          return {
+            ...current,
+            mode: input.mode,
+            revision: 1,
+            lastActor: { kind: 'bot', botSlug: 'ada' },
+          };
+        },
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
+        read: () => [],
+        requestGrant: async () => {
+          throw new Error('unexpected Grant request');
+        },
+        send: async (input) => ({
+          id: 'bot-1',
+          at: BOT.createdAt,
+          author: { kind: 'bot', slug: BOT.slug },
+          body: input.body,
+        }),
+      },
+      assignments: {
+        create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
+        list: () => [],
+        inspect: () => undefined,
+        stop: async () => ASSIGNMENT,
+        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+      },
+    });
+    expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
+      { channelId: 'group-team', mode: 'digest', revision: 0 },
+      { channelId: 'group-team', mode: 'mentions', revision: 1 },
+    ]);
+    expect(writes).toEqual([
+      {
+        channelId: 'group-team',
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      },
+    ]);
+    const write = host.scopes
+      .get('orchestrator-ada')
+      ?.tools.find((tool) => tool.name === 'group_attention_set');
+    await expect(
+      write?.execute({ channel_id: 'group-team', mode: 'all' }, {} as ToolRunContext),
+    ).rejects.toThrow('Orchestrator run is unavailable');
+    await adapter.close();
+  });
+
   it('borrows a native resumed BotHarness Agent and releases only its role registrations', async () => {
     const host = new FakeAgentHost();
     await host.create({
@@ -426,6 +535,8 @@ describe('DSH Bot Agent adapter', () => {
       'group_join_decide',
       'group_rename',
       'group_remove_member',
+      'group_attention_get',
+      'group_attention_set',
       'group_leave',
       'bot_dm_send',
       'channel_send',
@@ -466,6 +577,11 @@ describe('DSH Bot Agent adapter', () => {
       ),
     ).toMatchObject([{ type: 'text' }, { type: 'image' }]);
     expect(JSON.stringify(channelSend?.parameters)).not.toMatch(/bot_slug|persona_bot|author/);
+    const groupAttentionSet = host.scopes
+      .get('orchestrator-ada')
+      ?.tools.find((tool) => tool.name === 'group_attention_set');
+    expect(groupAttentionSet?.parameters).toMatchObject({ required: ['channel_id', 'mode'] });
+    expect(JSON.stringify(groupAttentionSet?.parameters)).not.toMatch(/bot_slug|persona_bot|actor/);
     expect(host.scopes.get('assignment-1')?.tools.map((tool) => tool.name)).toEqual([
       'report_to_orchestrator',
     ]);

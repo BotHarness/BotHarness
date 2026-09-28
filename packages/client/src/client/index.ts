@@ -26,6 +26,8 @@ import { BotSidebar, createBotPanelEntry } from './bot-sidebar.js';
 import { createChannelSidebarBuiltins } from './channel-sidebar-builtins.js';
 import { webBotModeShortcut, webShortcutBlocked } from './channel-shortcuts.js';
 import { createChannelSidebarRegistry } from './channel-sidebar.js';
+import { createProfileCardBuiltins } from './profile-cards-builtins.js';
+import { createProfileCardRegistry } from './profile-cards.js';
 import { createBridgeCall, loadSessionBotOwner } from './bridge.js';
 import {
   SessionOwnerLeading,
@@ -121,6 +123,8 @@ export function apply(ctx: ClientContext): void {
   };
   const channelSidebar = createChannelSidebarRegistry();
   ctx.provide('channelSidebar', channelSidebar);
+  const profileCards = createProfileCardRegistry();
+  ctx.provide('profileCards', profileCards);
   ctx.effect(() => {
     // Labels resolve at build time, so re-register the entries when the locale
     // changes; the registry notifies the sidebar and it re-renders.
@@ -138,6 +142,21 @@ export function apply(ctx: ClientContext): void {
       for (const dispose of disposers) dispose();
     };
   }, 'botharness: Channel sidebar entries');
+
+  ctx.effect(() => {
+    // Profile Card labels resolve at build time too, so re-register on locale change.
+    let disposers: (() => void)[] = [];
+    const reconcile = (): void => {
+      for (const dispose of disposers) dispose();
+      disposers = createProfileCardBuiltins(t).map((card) => profileCards.register(card));
+    };
+    reconcile();
+    const unsubscribe = ctx.locale.subscribe(reconcile);
+    return () => {
+      unsubscribe();
+      for (const dispose of disposers) dispose();
+    };
+  }, 'botharness: Profile Cards');
 
   ctx.effect(installStyles, 'botharness: client styles');
   ctx.effect(mountDevClientRefresh, 'botharness: local development refresh');
@@ -286,7 +305,7 @@ export function apply(ctx: ClientContext): void {
         name: 'main',
         key: PANEL_ID,
         locale: LOCALE_NS,
-        inject: () => ({ actions, channelSidebar, nativeChatT }),
+        inject: () => ({ actions, channelSidebar, profileCards, nativeChatT }),
       },
       BotPanel,
     );
@@ -377,7 +396,7 @@ export function apply(ctx: ClientContext): void {
           name: 'main',
           key: 'conversation' as MainPanelId,
           priority: -100,
-          inject: () => ({ actions, channelSidebar, nativeChatT }),
+          inject: () => ({ actions, channelSidebar, profileCards, nativeChatT }),
         },
         BotMain,
       ),

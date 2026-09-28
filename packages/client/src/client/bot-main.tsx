@@ -10,7 +10,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import { uploadChannelAttachment } from './bridge.js';
+import { uploadChannelAttachment, type ProfileActivity } from './bridge.js';
 import {
   PersonaBotAvatar,
   PersonaBotFacepile,
@@ -36,7 +36,15 @@ import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { MemoryCommitView } from './memory-commit-view.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
+import { ProfilePopover, ProfileView } from './personabot-profile.js';
 import { personaBotActivity } from './persona-activity.js';
+import {
+  EMPTY_PROFILE_CARDS,
+  loadPinnedProfileCards,
+  savePinnedProfileCards,
+  togglePinnedProfileCard,
+  type ProfileCardRegistry,
+} from './profile-cards.js';
 import {
   store,
   type BotSummary,
@@ -443,12 +451,14 @@ function ConversationView({
   state,
   actions,
   channelSidebar,
+  profileCards = EMPTY_PROFILE_CARDS,
   nativeChatT,
   t,
 }: {
   state: ClientState;
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
@@ -480,6 +490,13 @@ function ConversationView({
   const readMarkTimer = useRef<number | undefined>(undefined);
   const [unseen, setUnseen] = useState(0);
   const [messageMenu, setMessageMenu] = useState<MessageMenuRequest | undefined>();
+  const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+  const [profileViewOpen, setProfileViewOpen] = useState(false);
+  const [profileActivity, setProfileActivity] = useState<ProfileActivity | undefined>(undefined);
+  const [pinnedProfileCards, setPinnedProfileCards] = useState<readonly string[]>(() =>
+    loadPinnedProfileCards(),
+  );
+  const profileTriggerRef = useRef<HTMLSpanElement | null>(null);
   const conversation = state.conversation;
   const channel = conversation.channel;
   const messages = conversation.messages;
@@ -500,6 +517,12 @@ function ConversationView({
       : undefined;
   const botDm = isBotDmChannel(channel);
   const readOnlyDm = isHumanReadOnlyDmChannel(channel);
+  const profileBot =
+    channel?.type === 'dm' && channel.botSlug !== undefined
+      ? state.bots.find((candidate) => candidate.slug === channel.botSlug)
+      : undefined;
+  const profileBotActivity =
+    profileBot === undefined ? undefined : personaBotActivity(state, profileBot);
   const title =
     channel?.type === 'dm'
       ? botDm
@@ -597,7 +620,61 @@ function ConversationView({
     uploadControllers.current.clear();
     setUploadItems([]);
     setRestoreBlocked(false);
+    setProfilePopoverOpen(false);
+    setProfileViewOpen(false);
+    setProfileActivity(undefined);
   }, [channelId]);
+
+  useEffect(() => {
+    if ((!profilePopoverOpen && !profileViewOpen) || channelId === undefined) return;
+    let cancelled = false;
+    void actions.profileActivity(channelId).then(
+      (activity) => {
+        if (!cancelled) setProfileActivity(activity);
+      },
+      (error: unknown) => {
+        console.warn('botharness: Profile activity failed', error);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [actions, channelId, profilePopoverOpen, profileViewOpen]);
+
+  const togglePinnedCard = (id: string): void => {
+    setPinnedProfileCards((current) => {
+      const next = togglePinnedProfileCard(current, id);
+      savePinnedProfileCards(next);
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    if (!profilePopoverOpen && !profileViewOpen) return;
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      if (profilePopoverOpen) setProfilePopoverOpen(false);
+      else setProfileViewOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [profilePopoverOpen, profileViewOpen]);
+
+  useEffect(() => {
+    if (!profilePopoverOpen) return;
+    const onPointerDown = (event: Event): void => {
+      const target = event.target;
+      if (target instanceof Node && profileTriggerRef.current?.contains(target) === true) return;
+      setProfilePopoverOpen(false);
+    };
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [profilePopoverOpen]);
 
   const loadOlderAtTop = (retry = false): void => {
     const element = scrollRef.current;
@@ -849,335 +926,403 @@ function ConversationView({
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
           <div className="bh-topbar">
-            <button
-              type="button"
-              className="bh-channel-island"
-              aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
-              aria-controls="bh-channel-sidebar"
-              aria-expanded={sidebar.mode !== 'hidden'}
-              onClick={sidebar.toggle}
-            >
-              {bot !== undefined ? (
-                <PersonaBotAvatar
-                  t={t}
-                  personaBotId={bot.slug}
-                  name={bot.displayName}
-                  src={bot.avatar}
-                  state={botActivity}
-                  size={22}
-                />
-              ) : channel?.type === 'group' && channel.avatar ? (
-                <img
-                  className="bh-group-avatar-image bh-group-avatar-topbar"
-                  src={channel.avatar}
-                  alt=""
-                />
-              ) : channelFacepile.length > 0 ? (
-                <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
-              ) : (
-                <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
-                  #
-                </span>
-              )}
-              <span className="bh-title">{title}</span>
-              {bot === undefined || bot.roles.length === 0 ? null : (
-                <span className="bh-role-badges">
-                  {bot.roles.map((role) => (
-                    <Tag key={role} tone="neutral">
-                      {role}
-                    </Tag>
-                  ))}
-                </span>
-              )}
-            </button>
+            {profileBot === undefined ? (
+              <button
+                type="button"
+                className="bh-channel-island"
+                aria-label={`${title} — ${t(sidebar.mode === 'hidden' ? 'sidebar.expand' : 'sidebar.collapse')}`}
+                aria-controls="bh-channel-sidebar"
+                aria-expanded={sidebar.mode !== 'hidden'}
+                onClick={sidebar.toggle}
+              >
+                {bot !== undefined ? (
+                  <PersonaBotAvatar
+                    t={t}
+                    personaBotId={bot.slug}
+                    name={bot.displayName}
+                    src={bot.avatar}
+                    state={botActivity}
+                    size={22}
+                  />
+                ) : channel?.type === 'group' && channel.avatar ? (
+                  <img
+                    className="bh-group-avatar-image bh-group-avatar-topbar"
+                    src={channel.avatar}
+                    alt=""
+                  />
+                ) : channelFacepile.length > 0 ? (
+                  <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
+                ) : (
+                  <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
+                    #
+                  </span>
+                )}
+                <span className="bh-title">{title}</span>
+                {bot === undefined || bot.roles.length === 0 ? null : (
+                  <span className="bh-role-badges">
+                    {bot.roles.map((role) => (
+                      <Tag key={role} tone="neutral">
+                        {role}
+                      </Tag>
+                    ))}
+                  </span>
+                )}
+              </button>
+            ) : (
+              <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
+                <button
+                  type="button"
+                  className="bh-channel-island"
+                  aria-haspopup="dialog"
+                  aria-expanded={profilePopoverOpen}
+                  aria-label={t('profile.openAvatar', { name: profileBot.displayName })}
+                  onClick={() => setProfilePopoverOpen((open) => !open)}
+                >
+                  <PersonaBotAvatar
+                    t={t}
+                    personaBotId={profileBot.slug}
+                    name={profileBot.displayName}
+                    src={profileBot.avatar}
+                    state={profileBotActivity}
+                    size={22}
+                  />
+                  <span className="bh-title">{title}</span>
+                  {profileBot.roles.length === 0 ? null : (
+                    <span className="bh-role-badges">
+                      {profileBot.roles.map((role) => (
+                        <Tag key={role} tone="neutral">
+                          {role}
+                        </Tag>
+                      ))}
+                    </span>
+                  )}
+                </button>
+                {profilePopoverOpen ? (
+                  <ProfilePopover
+                    bot={profileBot}
+                    activity={profileActivity}
+                    cards={profileCards}
+                    pinned={pinnedProfileCards}
+                    t={t}
+                    onExpand={() => {
+                      setProfilePopoverOpen(false);
+                      setProfileViewOpen(true);
+                    }}
+                  />
+                ) : null}
+              </span>
+            )}
           </div>
           <div
             className="bh-chat-top-fade"
             aria-hidden="true"
             style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
           />
-          {selectedMemoryCommitSha === undefined || channelId === undefined ? null : (
-            <MemoryCommitView
+          {profileViewOpen && profileBot !== undefined && channel !== undefined ? (
+            <ProfileView
+              bot={profileBot}
+              channel={channel}
+              activity={profileActivity}
+              cards={profileCards}
+              pinned={pinnedProfileCards}
               actions={actions}
-              channelId={channelId}
-              sha={selectedMemoryCommitSha}
               t={t}
-              onClose={() => {
-                setSelectedMemoryCommit(undefined);
-                window.requestAnimationFrame(() => {
-                  if (scrollRef.current !== null)
-                    scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
-                });
-              }}
+              onTogglePin={togglePinnedCard}
+              onClose={() => setProfileViewOpen(false)}
             />
-          )}
-          <div
-            className="bh-chat-body"
-            ref={scrollRef}
-            onScroll={onTimelineScroll}
-            style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
-          >
-            {conversation.timeline.hasOlder ? (
-              <div className="bh-timeline-top-sentinel">
-                {conversation.timeline.loadingOlder ? (
-                  <span>{t('messages.older.loading')}</span>
-                ) : conversation.timeline.olderError !== undefined ? (
-                  <button type="button" onClick={() => loadOlderAtTop(true)}>
-                    {t('messages.retry')}
-                  </button>
-                ) : (
-                  <button type="button" onClick={() => loadOlderAtTop()}>
-                    {t('messages.older.view')}
-                  </button>
-                )}
-              </div>
-            ) : null}
-            {conversation.status === 'loading' && messages.length === 0 ? (
-              <LoadingSkeleton kind="messages" label={t('messages.loading')} />
-            ) : null}
-            {conversation.status === 'error' && conversation.error !== undefined ? (
-              <div className="bh-error">{t('messages.error', { error: conversation.error })}</div>
-            ) : null}
-            {conversation.draftNotice !== undefined ? (
-              <div className="bh-note" role="status">
-                {conversation.draftNotice === 'interrupted'
-                  ? t('message.draftInterrupted')
-                  : t('message.draftExpired')}
-              </div>
-            ) : null}
-            {displayMessages.length === 0 && conversation.status !== 'loading' ? (
-              <EmptyConversation channel={channel} bot={bot} t={t} />
-            ) : null}
-            {groupChannelMessages(displayMessages).map((group, index, groups) => {
-              const first = group.messages[0]!;
-              const previous = groups[index - 1]?.messages.at(-1);
-              const firstDay = Number.isFinite(Date.parse(first.at))
-                ? new Date(first.at).toDateString()
-                : undefined;
-              const previousDay =
-                previous !== undefined && Number.isFinite(Date.parse(previous.at))
-                  ? new Date(previous.at).toDateString()
-                  : undefined;
-              return (
-                <div key={group.key} className="bh-message-block">
-                  {firstDay !== undefined && firstDay !== previousDay ? (
-                    <div className="bh-message-day">
-                      {new Date(first.at).toLocaleDateString(t('main.date.locale'), {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric',
-                      })}
+          ) : (
+            <>
+              {selectedMemoryCommitSha === undefined || channelId === undefined ? null : (
+                <MemoryCommitView
+                  actions={actions}
+                  channelId={channelId}
+                  sha={selectedMemoryCommitSha}
+                  t={t}
+                  onClose={() => {
+                    setSelectedMemoryCommit(undefined);
+                    window.requestAnimationFrame(() => {
+                      if (scrollRef.current !== null)
+                        scrollRef.current.scrollTop = chatScrollBeforeDiff.current;
+                    });
+                  }}
+                />
+              )}
+              <div
+                className="bh-chat-body"
+                ref={scrollRef}
+                onScroll={onTimelineScroll}
+                style={{ display: selectedMemoryCommitSha === undefined ? undefined : 'none' }}
+              >
+                {conversation.timeline.hasOlder ? (
+                  <div className="bh-timeline-top-sentinel">
+                    {conversation.timeline.loadingOlder ? (
+                      <span>{t('messages.older.loading')}</span>
+                    ) : conversation.timeline.olderError !== undefined ? (
+                      <button type="button" onClick={() => loadOlderAtTop(true)}>
+                        {t('messages.retry')}
+                      </button>
+                    ) : (
+                      <button type="button" onClick={() => loadOlderAtTop()}>
+                        {t('messages.older.view')}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+                {conversation.status === 'loading' && messages.length === 0 ? (
+                  <LoadingSkeleton kind="messages" label={t('messages.loading')} />
+                ) : null}
+                {conversation.status === 'error' && conversation.error !== undefined ? (
+                  <div className="bh-error">
+                    {t('messages.error', { error: conversation.error })}
+                  </div>
+                ) : null}
+                {conversation.draftNotice !== undefined ? (
+                  <div className="bh-note" role="status">
+                    {conversation.draftNotice === 'interrupted'
+                      ? t('message.draftInterrupted')
+                      : t('message.draftExpired')}
+                  </div>
+                ) : null}
+                {displayMessages.length === 0 && conversation.status !== 'loading' ? (
+                  <EmptyConversation channel={channel} bot={bot} t={t} />
+                ) : null}
+                {groupChannelMessages(displayMessages).map((group, index, groups) => {
+                  const first = group.messages[0]!;
+                  const previous = groups[index - 1]?.messages.at(-1);
+                  const firstDay = Number.isFinite(Date.parse(first.at))
+                    ? new Date(first.at).toDateString()
+                    : undefined;
+                  const previousDay =
+                    previous !== undefined && Number.isFinite(Date.parse(previous.at))
+                      ? new Date(previous.at).toDateString()
+                      : undefined;
+                  return (
+                    <div key={group.key} className="bh-message-block">
+                      {firstDay !== undefined && firstDay !== previousDay ? (
+                        <div className="bh-message-day">
+                          {new Date(first.at).toLocaleDateString(t('main.date.locale'), {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </div>
+                      ) : null}
+                      {first.memberDeparture !== undefined ? (
+                        <div className="bh-member-departure" data-message-id={first.id}>
+                          <span>
+                            {t(
+                              first.memberDeparture.departureType === 'removed'
+                                ? 'member.removed'
+                                : 'member.left',
+                              { name: first.memberDeparture.displayName },
+                            )}
+                          </span>
+                          <ChannelDeliveryReceipt message={first} bots={state.bots} t={t} />
+                        </div>
+                      ) : first.botDmAction === undefined ? (
+                        <MessageGroupView
+                          group={group}
+                          actions={actions}
+                          nativeChatT={nativeChatT}
+                          resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
+                          toolApprovalDecisions={
+                            new Map(
+                              displayMessages
+                                .filter((item) => item.toolApprovalDecision !== undefined)
+                                .map((item) => [
+                                  item.toolApprovalDecision!.requestMessageId,
+                                  item.toolApprovalDecision!.outcome,
+                                ]),
+                            )
+                          }
+                          userQuestionResolutions={
+                            new Map(
+                              displayMessages
+                                .filter((item) => item.userQuestionResolution !== undefined)
+                                .map((item) => [
+                                  item.userQuestionResolution!.requestMessageId,
+                                  item.userQuestionResolution!.state,
+                                ]),
+                            )
+                          }
+                          focusMessageId={conversation.focusMessageId}
+                          currentDmBotSlug={
+                            channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
+                          }
+                          bots={state.bots}
+                          onContextMenu={(message, x, y) => {
+                            setMessageMenu({ message, x, y });
+                          }}
+                          onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
+                          onJumpReply={(messageId) => {
+                            if (channelId !== undefined)
+                              void actions.openAround(channelId, messageId);
+                          }}
+                          onRestoreFailed={(message) => {
+                            if (channelId === undefined) return;
+                            if (
+                              draft.length > 0 ||
+                              uploadItems.length > 0 ||
+                              conversation.sending
+                            ) {
+                              setRestoreBlocked(true);
+                              return;
+                            }
+                            if (!actions.dismissFailedMessage(channelId, message.id)) return;
+                            setDraft(message.body);
+                            setMentionTokens(message.mentions ?? []);
+                            setChannelRefTokens(message.channelRefs ?? []);
+                            setUploadItems(
+                              (message.attachments ?? []).map((ref) => ({
+                                id: crypto.randomUUID(),
+                                file: new File([], ref.name, { type: ref.mime }),
+                                ref,
+                                status: 'ready' as const,
+                              })),
+                            );
+                            setReplyTarget(
+                              message.replyTo === undefined
+                                ? undefined
+                                : messages.find((candidate) => candidate.id === message.replyTo),
+                            );
+                            setRestoreBlocked(false);
+                            setRestoreFocusSignal((value) => value + 1);
+                          }}
+                          t={t}
+                        />
+                      ) : (
+                        <button
+                          type="button"
+                          className="bh-bot-dm-action"
+                          data-message-id={first.id}
+                          onClick={() => {
+                            const action = first.botDmAction!;
+                            void actions
+                              .openChannel(action.channelId)
+                              .then(() => actions.openAround(action.channelId, action.messageId));
+                          }}
+                        >
+                          {t('botDm.action', {
+                            sender: authorLabel(first, state.bots, t),
+                            recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
+                          })}
+                        </button>
+                      )}
                     </div>
-                  ) : null}
-                  {first.memberDeparture !== undefined ? (
-                    <div className="bh-member-departure" data-message-id={first.id}>
-                      <span>
-                        {t(
-                          first.memberDeparture.departureType === 'removed'
-                            ? 'member.removed'
-                            : 'member.left',
-                          { name: first.memberDeparture.displayName },
-                        )}
-                      </span>
-                      <ChannelDeliveryReceipt message={first} bots={state.bots} t={t} />
-                    </div>
-                  ) : first.botDmAction === undefined ? (
-                    <MessageGroupView
-                      group={group}
-                      actions={actions}
-                      nativeChatT={nativeChatT}
-                      resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
-                      toolApprovalDecisions={
-                        new Map(
-                          displayMessages
-                            .filter((item) => item.toolApprovalDecision !== undefined)
-                            .map((item) => [
-                              item.toolApprovalDecision!.requestMessageId,
-                              item.toolApprovalDecision!.outcome,
-                            ]),
-                        )
-                      }
-                      userQuestionResolutions={
-                        new Map(
-                          displayMessages
-                            .filter((item) => item.userQuestionResolution !== undefined)
-                            .map((item) => [
-                              item.userQuestionResolution!.requestMessageId,
-                              item.userQuestionResolution!.state,
-                            ]),
-                        )
-                      }
-                      focusMessageId={conversation.focusMessageId}
-                      currentDmBotSlug={
-                        channel?.type === 'dm' && !botDm ? channel.botSlug : undefined
-                      }
-                      bots={state.bots}
-                      onContextMenu={(message, x, y) => {
-                        setMessageMenu({ message, x, y });
-                      }}
-                      onReply={readOnlyDm ? undefined : (message) => setReplyTarget(message)}
-                      onJumpReply={(messageId) => {
-                        if (channelId !== undefined) void actions.openAround(channelId, messageId);
-                      }}
-                      onRestoreFailed={(message) => {
-                        if (channelId === undefined) return;
-                        if (draft.length > 0 || uploadItems.length > 0 || conversation.sending) {
-                          setRestoreBlocked(true);
-                          return;
-                        }
-                        if (!actions.dismissFailedMessage(channelId, message.id)) return;
-                        setDraft(message.body);
-                        setMentionTokens(message.mentions ?? []);
-                        setChannelRefTokens(message.channelRefs ?? []);
-                        setUploadItems(
-                          (message.attachments ?? []).map((ref) => ({
-                            id: crypto.randomUUID(),
-                            file: new File([], ref.name, { type: ref.mime }),
-                            ref,
-                            status: 'ready' as const,
-                          })),
-                        );
-                        setReplyTarget(
-                          message.replyTo === undefined
-                            ? undefined
-                            : messages.find((candidate) => candidate.id === message.replyTo),
-                        );
-                        setRestoreBlocked(false);
-                        setRestoreFocusSignal((value) => value + 1);
-                      }}
-                      t={t}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      className="bh-bot-dm-action"
-                      data-message-id={first.id}
-                      onClick={() => {
-                        const action = first.botDmAction!;
-                        void actions
-                          .openChannel(action.channelId)
-                          .then(() => actions.openAround(action.channelId, action.messageId));
-                      }}
-                    >
-                      {t('botDm.action', {
-                        sender: authorLabel(first, state.bots, t),
-                        recipient: memberName(state.bots, first.botDmAction.recipientBotSlug),
-                      })}
-                    </button>
-                  )}
+                  );
+                })}
+                {conversation.timeline.hasNewer ? (
+                  <div className="bh-timeline-newer-sentinel">
+                    {conversation.timeline.loadingNewer ? (
+                      <span>{t('messages.newer.loading')}</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (channelId !== undefined) void actions.loadNewer(channelId);
+                        }}
+                      >
+                        {conversation.timeline.newerError === undefined
+                          ? t('messages.newer.view')
+                          : t('messages.retry')}
+                      </button>
+                    )}
+                  </div>
+                ) : null}
+              </div>
+              {selectedMemoryCommitSha === undefined &&
+              (unseen > 0 || conversation.timeline.hasNewer) ? (
+                <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
+                  {conversation.timeline.hasNewer
+                    ? t('messages.latest')
+                    : t('messages.unseen', { count: unseen })}
+                </button>
+              ) : null}
+              {selectedMemoryCommitSha === undefined && restoreBlocked ? (
+                <div className="bh-note" role="alert">
+                  {t('message.restoreBlocked')}
                 </div>
-              );
-            })}
-            {conversation.timeline.hasNewer ? (
-              <div className="bh-timeline-newer-sentinel">
-                {conversation.timeline.loadingNewer ? (
-                  <span>{t('messages.newer.loading')}</span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (channelId !== undefined) void actions.loadNewer(channelId);
+              ) : null}
+              {readOnlyDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
+              {readOnlyDm ? null : (
+                <div
+                  className="bh-memory-chat-composer"
+                  style={{
+                    display: selectedMemoryCommitSha === undefined ? 'contents' : 'none',
+                  }}
+                >
+                  <ChannelComposer
+                    key={channelId}
+                    value={draft}
+                    mentions={mentionTokens}
+                    channelRefs={channelRefTokens}
+                    channelCandidates={
+                      channel?.type === 'dm' && channel.botSlug !== undefined
+                        ? state.channels.filter((candidate) => candidate.type === 'group')
+                        : []
+                    }
+                    mentionCandidates={
+                      channel?.type === 'group'
+                        ? channelBots
+                        : channel?.type === 'dm' && channel.botSlug !== undefined
+                          ? state.bots.filter(
+                              (candidate) =>
+                                candidate.slug !== channel.botSlug && candidate.paused !== true,
+                            )
+                          : []
+                    }
+                    placeholder={t('composer.placeholder', { name: title })}
+                    sending={conversation.sending}
+                    focusSignal={restoreFocusSignal}
+                    attachments={uploadItems}
+                    onAddFiles={addFiles}
+                    onRetryAttachment={(id) => {
+                      const item = uploadItems.find((candidate) => candidate.id === id);
+                      if (item !== undefined) startUpload(item);
                     }}
-                  >
-                    {conversation.timeline.newerError === undefined
-                      ? t('messages.newer.view')
-                      : t('messages.retry')}
-                  </button>
-                )}
-              </div>
-            ) : null}
-          </div>
-          {selectedMemoryCommitSha === undefined &&
-          (unseen > 0 || conversation.timeline.hasNewer) ? (
-            <button type="button" className="bh-timeline-new" onClick={jumpToLatest}>
-              {conversation.timeline.hasNewer
-                ? t('messages.latest')
-                : t('messages.unseen', { count: unseen })}
-            </button>
-          ) : null}
-          {selectedMemoryCommitSha === undefined && restoreBlocked ? (
-            <div className="bh-note" role="alert">
-              {t('message.restoreBlocked')}
-            </div>
-          ) : null}
-          {readOnlyDm ? <div className="bh-bot-dm-readonly">{t('botDm.readOnly')}</div> : null}
-          {readOnlyDm ? null : (
-            <div
-              className="bh-memory-chat-composer"
-              style={{
-                display: selectedMemoryCommitSha === undefined ? 'contents' : 'none',
-              }}
-            >
-              <ChannelComposer
-                key={channelId}
-                value={draft}
-                mentions={mentionTokens}
-                channelRefs={channelRefTokens}
-                channelCandidates={
-                  channel?.type === 'dm' && channel.botSlug !== undefined
-                    ? state.channels.filter((candidate) => candidate.type === 'group')
-                    : []
-                }
-                mentionCandidates={
-                  channel?.type === 'group'
-                    ? channelBots
-                    : channel?.type === 'dm' && channel.botSlug !== undefined
-                      ? state.bots.filter(
-                          (candidate) =>
-                            candidate.slug !== channel.botSlug && candidate.paused !== true,
-                        )
-                      : []
-                }
-                placeholder={t('composer.placeholder', { name: title })}
-                sending={conversation.sending}
-                focusSignal={restoreFocusSignal}
-                attachments={uploadItems}
-                onAddFiles={addFiles}
-                onRetryAttachment={(id) => {
-                  const item = uploadItems.find((candidate) => candidate.id === id);
-                  if (item !== undefined) startUpload(item);
-                }}
-                onRemoveAttachment={(id) => {
-                  uploadControllers.current.get(id)?.abort();
-                  uploadControllers.current.delete(id);
-                  setUploadItems((current) => current.filter((item) => item.id !== id));
-                }}
-                activity={composerActivity}
-                reply={
-                  replyTarget === undefined
-                    ? undefined
-                    : {
-                        id: replyTarget.id,
-                        author: authorLabel(replyTarget, state.bots, t),
-                        body: replyTarget.body,
-                      }
-                }
-                t={t}
-                onChange={(value, mentions, channelRefs) => {
-                  setDraft(value);
-                  setMentionTokens(mentions ?? []);
-                  setChannelRefTokens(channelRefs ?? []);
-                  setRestoreBlocked(false);
-                }}
-                onCancelReply={() => setReplyTarget(undefined)}
-                onSubmit={submit}
-              />
-            </div>
-          )}
-          {selectedMemoryCommitSha !== undefined ||
-          messageMenu === undefined ||
-          readOnlyDm ? null : (
-            <MessageActionMenu
-              request={messageMenu}
-              t={t}
-              onLocate={(messageId) => {
-                if (channelId !== undefined) void actions.openAround(channelId, messageId);
-              }}
-              onReply={(message) => setReplyTarget(message)}
-              onClose={() => {
-                setMessageMenu(undefined);
-              }}
-            />
+                    onRemoveAttachment={(id) => {
+                      uploadControllers.current.get(id)?.abort();
+                      uploadControllers.current.delete(id);
+                      setUploadItems((current) => current.filter((item) => item.id !== id));
+                    }}
+                    activity={composerActivity}
+                    reply={
+                      replyTarget === undefined
+                        ? undefined
+                        : {
+                            id: replyTarget.id,
+                            author: authorLabel(replyTarget, state.bots, t),
+                            body: replyTarget.body,
+                          }
+                    }
+                    t={t}
+                    onChange={(value, mentions, channelRefs) => {
+                      setDraft(value);
+                      setMentionTokens(mentions ?? []);
+                      setChannelRefTokens(channelRefs ?? []);
+                      setRestoreBlocked(false);
+                    }}
+                    onCancelReply={() => setReplyTarget(undefined)}
+                    onSubmit={submit}
+                  />
+                </div>
+              )}
+              {selectedMemoryCommitSha !== undefined ||
+              messageMenu === undefined ||
+              readOnlyDm ? null : (
+                <MessageActionMenu
+                  request={messageMenu}
+                  t={t}
+                  onLocate={(messageId) => {
+                    if (channelId !== undefined) void actions.openAround(channelId, messageId);
+                  }}
+                  onReply={(message) => setReplyTarget(message)}
+                  onClose={() => {
+                    setMessageMenu(undefined);
+                  }}
+                />
+              )}
+            </>
           )}
         </section>
         <ChannelSidebar
@@ -1211,11 +1356,13 @@ function ConversationView({
 export function BotMain({
   actions,
   channelSidebar,
+  profileCards,
   nativeChatT,
   t = zhTranslate,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t?: BotHarnessTranslate | undefined;
 }): ReactElement {
@@ -1227,6 +1374,7 @@ export function BotMain({
       state={state}
       actions={actions}
       channelSidebar={channelSidebar}
+      profileCards={profileCards}
       nativeChatT={nativeChatT}
       t={t}
     />
@@ -1236,11 +1384,13 @@ export function BotMain({
 export function BotPanel({
   actions,
   channelSidebar,
+  profileCards,
   nativeChatT,
   t,
 }: {
   actions: BridgeActions;
   channelSidebar: ChannelSidebarRegistry;
+  profileCards?: ProfileCardRegistry | undefined;
   nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
@@ -1251,6 +1401,12 @@ export function BotPanel({
     };
   }, []);
   return (
-    <BotMain actions={actions} channelSidebar={channelSidebar} nativeChatT={nativeChatT} t={t} />
+    <BotMain
+      actions={actions}
+      channelSidebar={channelSidebar}
+      profileCards={profileCards}
+      nativeChatT={nativeChatT}
+      t={t}
+    />
   );
 }

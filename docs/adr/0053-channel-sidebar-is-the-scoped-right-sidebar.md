@@ -29,6 +29,6 @@ This region is BotHarness's own, rendered inside the Bot mode panel. It is not D
 - ADR-0029's "a group Channel has no PersonaBot navigation" stays true for PersonaBot entries but no longer describes the whole right region: a group Channel has a Channel sidebar with scope-appropriate entries.
 - The registration seam is a client-side Cordis service, not a new DSH slot kind; cross-bundle contributions rely on `provide`/`inject` because value imports across client bundles are a build error.
 - Entry order is declared by the registrar in v1; Human reordering and drag remain a separate future decision.
-- Whether any entry may take over the Channel body is deferred; until then every entry renders inside the Channel sidebar, which supersedes ADR-0029's "Memory replaces the center body" wording.
+- Whether any entry may take over the Channel body is deferred; until then every entry renders inside the Channel sidebar, which supersedes ADR-0029's "Memory replaces the center body" wording. (Answered by ADR-0085: no Channel sidebar entry takes over the Channel body; a PersonaBot Profile view may occupy it as a mode rather than an entry.)
 - Expanded/collapsed state lives in client-local presentation storage per Channel/PersonaBot and never enters Host authority or a Soul.
 - The first tracer delivers the shell with two real entries (group members; DM Assignments) and stops for Human verification. Computer migrates from its overlay into an entry later; Bot Inbox and Memory follow their own authorities.

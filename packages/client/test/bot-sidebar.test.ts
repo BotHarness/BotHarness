@@ -147,6 +147,13 @@ function stubActions(): BridgeActions {
       hasMore: false,
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
+    profileActivity: vi.fn(async () => ({
+      slug: '',
+      weeks: 26,
+      since: '',
+      events: [],
+      memoryCommits: [],
+    })),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');
     }),

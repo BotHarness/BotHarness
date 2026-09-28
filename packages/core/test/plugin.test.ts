@@ -289,6 +289,7 @@ describe('plugin entry', () => {
       'memoryGitCommitDiff',
       'memorySave',
       'memoryRepair',
+      'profileActivity',
       'rosterGet',
       'sectionCreate',
       'sectionRename',

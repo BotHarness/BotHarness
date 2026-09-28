@@ -8,6 +8,7 @@ import { createAttachmentStore } from '../src/attachments/store.js';
 import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
+import type { MemoryService } from '../src/memory/service.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
@@ -31,6 +32,7 @@ function setup(
   ownership = createTestOwnership(),
   grants?: WorkspaceGrantStore,
   developerMode?: { set(enabled: boolean): void },
+  memory?: MemoryService,
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -56,6 +58,7 @@ function setup(
       ownership,
       roster: createRosterStore(),
       ...(grants === undefined ? {} : { grants }),
+      ...(memory === undefined ? {} : { memory }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       ...(developerMode === undefined ? {} : { developerMode }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
@@ -1197,6 +1200,72 @@ describe('bridge methods', () => {
     expect(methods.developerModeSet({ enabled: true })).toEqual({
       ok: true,
       value: { accepted: false },
+    });
+  });
+
+  it('buckets Profile activity by Host-local day with reasons and Memory commits', () => {
+    const localDayOf = (at: string): string => {
+      const date = new Date(at);
+      const month = `${date.getMonth() + 1}`.padStart(2, '0');
+      const day = `${date.getDate()}`.padStart(2, '0');
+      return `${date.getFullYear()}-${month}-${day}`;
+    };
+    const atHour = (offsetDays: number, hour: number): string => {
+      const date = new Date();
+      date.setDate(date.getDate() + offsetDays);
+      date.setHours(hour, 0, 0, 0);
+      return date.toISOString();
+    };
+    const today = localDayOf(atHour(0, 10));
+    const yesterday = localDayOf(atHour(-1, 10));
+    const observed = [
+      { at: atHour(-1, 9), reason: 'human-dm' },
+      { at: atHour(0, 8), reason: 'group-mention' },
+      { at: atHour(0, 12), reason: 'human-dm' },
+    ];
+    const memory = {
+      activity: () => [{ at: atHour(-1, 9) }, { at: atHour(-1, 15) }, { at: atHour(0, 9) }],
+    } as unknown as MemoryService;
+    const { registry, channels, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      memory,
+    );
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    channels.admissionActivity = (slug, sinceIso) =>
+      slug === 'ada' ? observed.filter((entry) => entry.at >= sinceIso) : [];
+    const group = channels.createGroup({ name: 'Team', members: [] });
+
+    const result = methods.profileActivity({ channelId: dm.id });
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.value.slug).toBe('ada');
+    expect(result.value.weeks).toBe(26);
+    expect(result.value.events).toEqual([
+      { day: yesterday, reason: 'human-dm', count: 1 },
+      { day: today, reason: 'group-mention', count: 1 },
+      { day: today, reason: 'human-dm', count: 1 },
+    ]);
+    expect(result.value.memoryCommits).toEqual([
+      { day: yesterday, count: 2 },
+      { day: today, count: 1 },
+    ]);
+
+    expect(methods.profileActivity({ channelId: group.id })).toEqual({
+      ok: false,
+      error: {
+        code: 'invalid-input',
+        message: 'Memory is available only in a PersonaBot DM',
+      },
+    });
+    expect(methods.profileActivity({ channelId: 'missing' })).toEqual({
+      ok: false,
+      error: { code: 'not-found', message: 'unknown Channel: missing' },
     });
   });
 });
