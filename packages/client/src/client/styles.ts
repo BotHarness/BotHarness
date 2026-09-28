@@ -1786,6 +1786,11 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 18px;
   font-weight: 600;
 }
+.bh-profile-spark {
+  width: 100%;
+  height: 32px;
+  color: var(--bh-accent);
+}
 .bh-chat-top-fade {
   position: absolute;
   inset: 0 0 auto;

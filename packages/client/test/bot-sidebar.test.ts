@@ -153,6 +153,8 @@ function stubActions(): BridgeActions {
       since: '',
       events: [],
       memoryCommits: [],
+      tokens: [],
+      tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     })),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');

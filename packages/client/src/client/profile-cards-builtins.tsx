@@ -1,6 +1,10 @@
 import type { ReactElement } from 'react';
 
-import type { ProfileActivityDay, ProfileActivityReasonDay } from './bridge.js';
+import type {
+  ProfileActivityDay,
+  ProfileActivityReasonDay,
+  ProfileActivityTokensDay,
+} from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
 
@@ -161,6 +165,7 @@ function MemoryActivityCard({
 function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const events = sumCounts(activity?.events ?? []);
   const commits = sumCounts(activity?.memoryCommits ?? []);
+  const tokens = (activity?.tokens ?? []).reduce((sum, entry) => sum + dayBucketTotal(entry), 0);
   return (
     <div className="bh-profile-card-body">
       <dl className="bh-profile-stats">
@@ -172,6 +177,10 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
           <dt>{t('profile.stat.memoryCommits')}</dt>
           <dd>{commits}</dd>
         </div>
+        <div>
+          <dt>{t('profile.stat.tokens')}</dt>
+          <dd>{formatTokenCount(tokens)}</dd>
+        </div>
       </dl>
     </div>
   );
@@ -181,11 +190,80 @@ function totalText(count: number, weeks: number, t: BotHarnessTranslate): string
   return t('profile.window.total', { weeks, count });
 }
 
+/** Deterministic compact token count; no locale surprises in cards or tests. */
+export function formatTokenCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return `${value}`;
+}
+
+function dayBucketTotal(entry: ProfileActivityTokensDay): number {
+  return entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens;
+}
+
+/** Last 14 local days, oldest first, ending today. */
+function trailingDays(count: number): string[] {
+  const today = new Date();
+  const days: string[] = [];
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - index);
+    days.push(localDayKey(date));
+  }
+  return days;
+}
+
+function TokenUsageCard({
+  activity,
+  t,
+}: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
+  const tokens = activity?.tokens ?? [];
+  const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
+  const total = tokens.reduce((sum, entry) => sum + dayBucketTotal(entry), 0);
+  const counts = new Map<string, number>();
+  for (const entry of tokens) {
+    counts.set(entry.day, (counts.get(entry.day) ?? 0) + dayBucketTotal(entry));
+  }
+  const windowDays = trailingDays(14);
+  const values = windowDays.map((day) => counts.get(day) ?? 0);
+  const max = Math.max(1, ...values);
+  const points = values
+    .map((value, index) => {
+      const x = (index / Math.max(1, values.length - 1)) * 140;
+      const y = 30 - (value / max) * 26;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(' ');
+  return (
+    <div className="bh-profile-card-body">
+      <div className="bh-profile-card-total">
+        {t('profile.tokens.window', { weeks, count: formatTokenCount(total) })}
+      </div>
+      <svg
+        className="bh-profile-spark"
+        viewBox="0 0 140 32"
+        role="img"
+        aria-label={t('profile.tokens.sparkline')}
+        preserveAspectRatio="none"
+      >
+        <polyline points={points} fill="none" stroke="currentColor" strokeWidth="1.5" />
+      </svg>
+      {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
+    </div>
+  );
+}
+
 /** Built-ins register through the shared registry; labels re-resolve on locale change. */
 export function createProfileCardBuiltins(
   t: BotHarnessTranslate,
 ): readonly ProfileCardDescriptor[] {
   return [
+    {
+      id: 'token-usage',
+      label: t('profile.card.tokens'),
+      order: 5,
+      render: (props) => <TokenUsageCard {...props} />,
+    },
     {
       id: 'event-activity',
       label: t('profile.card.events'),
