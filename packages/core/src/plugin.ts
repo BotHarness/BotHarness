@@ -41,6 +41,7 @@ import {
   type BotRuntime,
 } from './runtime/bot-runtime.js';
 import { createBotAttentionQuery, type BotAttentionQuery } from './runtime/attention.js';
+import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './runtime/source-policy.js';
 import {
   createHumanAttentionQuery,
   createHumanAttentionDecisions,
@@ -167,6 +168,7 @@ export interface BotHarnessCore {
   roster: RosterStore;
   runtime: BotRuntime;
   attention: BotAttentionQuery;
+  sourcePolicy: BotSourcePolicyStore;
   humanAttention: HumanAttentionQuery;
   humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
@@ -240,8 +242,12 @@ export function createCore(
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const sourcePolicy = createBotSourcePolicyStore(
+    attachOperationalModule(operationalDatabase, 'bot-inbox'),
+  );
   const channels = createSqliteChannelStore({
     database: attachOperationalModule(operationalDatabase, 'messaging'),
+    sourcePolicy,
     databaseOwnerReady: operationalDatabase.mode === 'ready',
     isBotActive: (botSlug) => {
       const bot = registry.get(botSlug);
@@ -323,6 +329,7 @@ export function createCore(
 
   runtime = createBotRuntime({
     database: operationalDatabase,
+    sourcePolicy,
     registry,
     channels,
     attachments,
@@ -357,6 +364,7 @@ export function createCore(
     assignmentAccess,
     channels,
     attention,
+    sourcePolicy,
     humanAttention,
     humanAttentionDecisions,
     attachments,
@@ -627,6 +635,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       roster: core.roster,
       runtime: core.runtime,
       attention: core.attention,
+      sourcePolicy: core.sourcePolicy,
       humanAttention: core.humanAttention,
       humanAttentionDecisions: core.humanAttentionDecisions,
       grants: core.grants,

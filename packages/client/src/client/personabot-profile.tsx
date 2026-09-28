@@ -10,7 +10,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import type { ProfileActivity } from './bridge.js';
+import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -125,10 +125,29 @@ export function ProfileView({
   const [draft, setDraft] = useState(bot.displayName);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
+  const [sourcePolicyError, setSourcePolicyError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
   const unchanged = trimmed === bot.displayName.trim();
+
+  useEffect(() => {
+    let active = true;
+    setSourcePolicies(undefined);
+    setSourcePolicyError(false);
+    void actions.botSourcePolicies(bot.slug).then(
+      (policies) => {
+        if (active) setSourcePolicies(policies);
+      },
+      () => {
+        if (active) setSourcePolicyError(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, bot.slug]);
 
   useEffect(() => {
     if (!editing) return;
@@ -239,6 +258,35 @@ export function ProfileView({
             </div>
           )}
         </div>
+      </div>
+      <div className="bh-profile-cards">
+        <section className="bh-profile-card" aria-label={t('sourcePolicy.title')}>
+          <header className="bh-profile-card-head">
+            <span className="bh-profile-card-label">{t('sourcePolicy.title')}</span>
+            <Tag tone="neutral">{t('sourcePolicy.readOnly')}</Tag>
+          </header>
+          {sourcePolicyError ? (
+            <div className="bh-error" role="alert">
+              {t('sourcePolicy.error')}
+            </div>
+          ) : sourcePolicies === undefined ? (
+            <div className="bh-note">{t('sourcePolicy.loading')}</div>
+          ) : (
+            sourcePolicies.map((policy) => (
+              <div key={policy.sourceClass} className="bh-source-policy-row">
+                <strong>{t('sourcePolicy.humanDm')}</strong>
+                <span>{t('sourcePolicy.admitImmediate')}</span>
+                <span className="bh-note">
+                  {t('sourcePolicy.revision', { revision: policy.revision })}
+                  {' · '}
+                  {t('sourcePolicy.builtIn')}
+                  {' · '}
+                  {new Date(policy.changedAt).toLocaleString()}
+                </span>
+              </div>
+            ))
+          )}
+        </section>
       </div>
       {cards.list().filter((card) => card.visible?.(bot) ?? true).length === 0 ? null : (
         <div className="bh-profile-cards">

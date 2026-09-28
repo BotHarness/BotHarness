@@ -58,6 +58,39 @@ export interface CreatePersonaBotInput {
   gitUrl?: string;
 }
 
+export interface BotSourcePolicyView {
+  sourceClass: 'human-dm';
+  admission: 'admit';
+  wake: 'immediate';
+  revision: number;
+  lastActor: { kind: 'built-in' };
+  changedAt: string;
+}
+
+export async function loadBotSourcePolicies(
+  call: BridgeCall,
+  slug: string,
+): Promise<BotSourcePolicyView[]> {
+  const result = asRecord(await unwrap(call, 'botSourcePolicies', { slug }));
+  const raw = result?.['policies'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot source policies');
+  return raw.map((entry): BotSourcePolicyView => {
+    const policy = asRecord(entry);
+    const actor = asRecord(policy?.['lastActor']);
+    if (
+      policy?.['sourceClass'] !== 'human-dm' ||
+      policy['admission'] !== 'admit' ||
+      policy['wake'] !== 'immediate' ||
+      typeof policy['revision'] !== 'number' ||
+      !Number.isSafeInteger(policy['revision']) ||
+      actor?.['kind'] !== 'built-in' ||
+      typeof policy['changedAt'] !== 'string'
+    )
+      throw new Error('invalid Bot source policy');
+    return policy as unknown as BotSourcePolicyView;
+  });
+}
+
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
   const candidate = (ctx as unknown as { connection?: { rpc?: BridgeRpc } }).connection;
   return candidate?.rpc;

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
+import { createBotSourcePolicyStore, type BotSourcePolicyStore } from '../runtime/source-policy.js';
 import { isValidSlug } from '../bots/slug.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
@@ -37,6 +38,7 @@ import { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE, pageChannelTimeline } from './t
 interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   database: OperationalDatabaseModulePort;
   databaseOwnerReady?: boolean;
+  sourcePolicy?: BotSourcePolicyStore;
   /** Eligibility at the canonical Admission commit boundary. */
   isBotActive?: (botSlug: string) => boolean;
 }
@@ -151,6 +153,7 @@ function eventPayload(message: ChannelMessage): string {
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
+  const sourcePolicy = options.sourcePolicy ?? createBotSourcePolicyStore(database, now);
   const isBotActive = options.isBotActive ?? (() => true);
   let lowerRegistered = false;
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
@@ -482,11 +485,23 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                 return [{ botSlug, policy }];
               })
             : [];
-        for (const recipient of recipients)
+        for (const recipient of recipients) {
+          const sourceRule =
+            recipient.reason === 'human-dm'
+              ? sourcePolicy.resolveIn(db, recipient.botSlug, 'human-dm')
+              : undefined;
           db.prepare(`
-        INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-        VALUES (?, ?, ?)
-      `).run(sourceEventId, recipient.botSlug, recipient.reason);
+        INSERT INTO inbox_admissions
+          (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
+        VALUES (?, ?, ?, ?, ?)
+      `).run(
+            sourceEventId,
+            recipient.botSlug,
+            recipient.reason,
+            sourceRule?.revision ?? null,
+            sourceRule?.wake ?? null,
+          );
+        }
         for (const recipient of ordinary)
           db.prepare(`
         INSERT INTO inbox_admissions (

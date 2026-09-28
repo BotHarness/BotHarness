@@ -29,6 +29,7 @@ import {
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 import { sessionMentionText } from './session-mentions.js';
+import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
   AssignmentPermissionSnapshot,
@@ -306,6 +307,7 @@ export interface BotRuntime {
 
 export interface BotRuntimeOptions {
   database: OperationalDatabaseOwner;
+  sourcePolicy?: BotSourcePolicyStore;
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
@@ -602,6 +604,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
+  readonly #sourcePolicy: BotSourcePolicyStore;
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
@@ -637,6 +640,8 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
     this.#channels = options.channels;
+    this.#sourcePolicy =
+      options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
     this.#agents = options.agents;
     this.#memory = options.memory;
     this.#attachments = options.attachments;
@@ -2047,6 +2052,7 @@ class BotRuntimeImplementation implements BotRuntime {
   ): SourceEventClaim {
     return this.#database.transaction(
       (database) => {
+        const sourcePolicy = this.#sourcePolicy.resolveIn(database, botSlug, 'human-dm');
         const existing = database
           .prepare(
             `SELECT source_event_id, bot_slug, body, handled_at, attempt_state
@@ -2061,10 +2067,18 @@ class BotRuntimeImplementation implements BotRuntime {
           database
             .prepare(`
             INSERT OR IGNORE INTO inbox_admissions (
-              source_event_id, bot_slug, reason, attempt_state, handled_at
-            ) VALUES (?, ?, 'human-dm', ?, ?)
+              source_event_id, bot_slug, reason, attempt_state, handled_at,
+              source_policy_revision, source_policy_wake_mode
+            ) VALUES (?, ?, 'human-dm', ?, ?, ?, ?)
           `)
-            .run(existing.source_event_id, botSlug, existing.attempt_state, existing.handled_at);
+            .run(
+              existing.source_event_id,
+              botSlug,
+              existing.attempt_state,
+              existing.handled_at,
+              sourcePolicy.revision,
+              sourcePolicy.wake,
+            );
           if (existing.handled_at !== null || existing.attempt_state === 'handled') {
             return { sourceEventId: existing.source_event_id, shouldRun: false };
           }
@@ -2101,10 +2115,12 @@ class BotRuntimeImplementation implements BotRuntime {
           .run(sourceEventId, botSlug, channelId, messageId, body, createdAt);
         database
           .prepare(`
-          INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, attempt_state)
-          VALUES (?, ?, 'human-dm', 'running')
+          INSERT INTO inbox_admissions
+            (source_event_id, bot_slug, reason, attempt_state,
+             source_policy_revision, source_policy_wake_mode)
+          VALUES (?, ?, 'human-dm', 'running', ?, ?)
         `)
-          .run(sourceEventId, botSlug);
+          .run(sourceEventId, botSlug, sourcePolicy.revision, sourcePolicy.wake);
         return { sourceEventId, shouldRun: true };
       },
       ['source-event', 'bot-inbox'],

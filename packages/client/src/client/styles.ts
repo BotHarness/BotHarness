@@ -1682,6 +1682,12 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   flex-direction: column;
   gap: 8px;
 }
+.bh-source-policy-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+}
 .bh-profile-card-total {
   font-size: 15px;
   font-weight: 600;

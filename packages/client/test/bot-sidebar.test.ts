@@ -154,6 +154,7 @@ function stubActions(): BridgeActions {
       events: [],
       memoryCommits: [],
     })),
+    botSourcePolicies: vi.fn(async () => []),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');
     }),
