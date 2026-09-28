@@ -18,6 +18,12 @@ export const CSS =
   --bh-memory-font-code: var(--dsw-font-markdown-code-block-font-family);
   --bh-memory-label-muted: var(--dsw-alias-label-secondary);
   /* @bh-memory-graph-aliases:end */
+  /* @bh-profile-chart-aliases:start — the pinned DSH theme has no categorical
+     chart palette; read shades derive from the brand accent and output uses a
+     state token so both series stay distinguishable in either theme. */
+  --bh-chart-output: var(--dsw-alias-state-warn-primary);
+  --bh-chart-read-dim: color-mix(in srgb, var(--bh-accent) 38%, transparent);
+  /* @bh-profile-chart-aliases:end */
   font: 13px/1.5 var(--dsw-font-family);
   color: var(--dsw-alias-label-primary);
 }
@@ -1528,7 +1534,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-profile-popover {
   position: absolute;
   top: calc(100% + 8px);
-  left: 0;
+  left: 50%;
+  transform: translateX(-50%);
   z-index: 8;
   display: flex;
   flex-direction: column;
@@ -1789,6 +1796,15 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   border-radius: 2px;
   background: var(--dsw-alias-interactive-bg-hover);
 }
+button.bh-profile-heat-cell {
+  padding: 0;
+  border: 0;
+  appearance: none;
+}
+button.bh-profile-heat-cell:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 1px;
+}
 .bh-profile-heat-cell[data-level='1'] {
   background: color-mix(in srgb, var(--bh-accent) 28%, var(--dsw-alias-interactive-bg-hover));
 }
@@ -1846,10 +1862,80 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   font-size: 18px;
   font-weight: 600;
 }
-.bh-profile-spark {
+.bh-profile-bar-chart {
   width: 100%;
-  height: 32px;
-  color: var(--bh-accent);
+}
+.bh-profile-bar-chart svg {
+  display: block;
+}
+.bh-profile-token-shares {
+  font-size: 12px;
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-profile-heat-grid {
+  position: relative;
+}
+.bh-profile-heat-tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 4px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.bh-profile-chart-tip {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 8px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-module-platform);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--dsw-alias-label-primary) 14%, transparent);
+  color: var(--dsw-alias-label-primary);
+  font: 12px/1.4 var(--dsw-font-family);
+}
+.bh-profile-tip-day {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-profile-tip-value {
+  color: var(--dsw-alias-label-primary);
+}
+.bh-profile-tip-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.bh-profile-tip-rows li {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+.bh-profile-tip-shares {
+  color: var(--dsw-alias-label-secondary);
+}
+.bh-profile-avatar-button {
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  cursor: pointer;
+}
+.bh-profile-avatar-button:focus-visible {
+  outline: 2px solid var(--dsw-alias-label-primary);
+  outline-offset: 2px;
 }
 .bh-chat-top-fade {
   position: absolute;
