@@ -4,6 +4,7 @@ import { z } from 'zod';
 
 import {
   isValidChannelId,
+  isGroupAvatar,
   type ChannelMention,
   type ChannelMessage,
   type ChannelRecord,
@@ -139,6 +140,8 @@ export interface BridgeMethods {
   channelDm(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelCreate(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelRename(payload: unknown): BridgeResult<{ channel: ChannelRecord; bot?: PersonaBotDetail }>;
+  channelGroupAvatarSet(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
+  channelGroupInvite(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupInviteCancel(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupJoinDecide(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
   channelGroupMemberRemove(payload: unknown): BridgeResult<{ channel: ChannelRecord }>;
@@ -680,6 +683,45 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channel = deps.channels.rename(channelId, name);
       if (channel === undefined) return unknownChannel(channelId);
       return { ok: true, value: { channel, ...(bot === undefined ? {} : { bot }) } };
+    },
+    channelGroupAvatarSet(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const avatar = source['avatar'];
+      if (channelId === undefined || (avatar !== null && !isGroupAvatar(avatar)))
+        return invalidInput('valid channelId and Group avatar are required');
+      try {
+        return { ok: true, value: { channel: deps.channels.setGroupAvatar(channelId, avatar) } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    channelGroupInvite(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const botSlug = asNonBlank(source, 'botSlug');
+      if (channelId === undefined || botSlug === undefined || !isValidSlug(botSlug))
+        return invalidInput('valid channelId and botSlug are required');
+      const bot = deps.registry.get(botSlug);
+      const channel = deps.channels.get(channelId);
+      if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
+      if (channel?.type !== 'group') return unknownChannel(channelId);
+      if (channel.members.includes(botSlug)) return invalidInput('PersonaBot is already a member');
+      const dm = deps.channels.getOrCreateDm(bot.slug, bot.displayName);
+      if (dm === undefined) return invalidInput('Invitee DM is unavailable');
+      try {
+        const invitation = deps.channels.inviteGroupBot({
+          channelId,
+          inviterHuman: true,
+          targetBotSlug: bot.slug,
+          targetBotCreatedAt: bot.createdAt,
+          targetDmChannelId: dm.id,
+        });
+        deps.runtime?.admitGroupInvitation(dm.id, invitation.id);
+        return { ok: true, value: { channel: deps.channels.get(channelId)! } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
     },
     channelGroupInviteCancel(payload) {
       const source = asObject(payload);

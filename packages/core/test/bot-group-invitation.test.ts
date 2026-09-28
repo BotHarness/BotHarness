@@ -18,6 +18,75 @@ function adapter(onRun: (run: OrchestratorAgentRun) => Promise<void>): BotAgentA
 }
 
 describe('Bot Group invitation tracer', () => {
+  it('lets Human set a bounded avatar and invite a Bot without granting early Group access', async () => {
+    const home = createTempRoot('botharness-group-human-invite-');
+    const core = createCore({ dshHome: home });
+    try {
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      core.registry.create({ slug: 'cee', displayName: 'Cee' });
+      const group = core.channels.createGroup({ name: 'Human team', members: [] });
+      const methods = createBridgeMethods({
+        registry: core.registry,
+        states: core.states,
+        channels: core.channels,
+        ownership: core.ownership,
+        roster: core.roster,
+      });
+      const avatar =
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=';
+      expect(methods.channelGroupAvatarSet({ channelId: group.id, avatar })).toMatchObject({
+        ok: true,
+        value: { channel: { avatar } },
+      });
+      expect(
+        methods.channelGroupAvatarSet({
+          channelId: group.id,
+          avatar: 'data:image/svg+xml;base64,AAAA',
+        }),
+      ).toMatchObject({ ok: false });
+      expect(methods.channelGroupInvite({ channelId: group.id, botSlug: 'bea' })).toMatchObject({
+        ok: true,
+        value: { channel: { invitations: [{ inviterHuman: true, status: 'pending' }] } },
+      });
+      expect(methods.channelGroupInvite({ channelId: group.id, botSlug: 'bea' })).toMatchObject({
+        ok: true,
+      });
+      expect(core.channels.get(group.id)?.invitations).toHaveLength(1);
+      expect(core.channels.get(group.id)?.members).toEqual([]);
+      const invitation = core.channels.get(group.id)!.invitations![0]!;
+      const admission = attachOperationalModule(
+        core.operationalDatabase,
+        'human-group-invite-test',
+      ).read((db) =>
+        db
+          .prepare(
+            "SELECT reason, attempt_state FROM inbox_admissions WHERE reason = 'group-invite'",
+          )
+          .get(),
+      );
+      expect(admission).toEqual({ reason: 'group-invite', attempt_state: 'pending' });
+      expect(methods.channelGroupInvite({ channelId: group.id, botSlug: 'missing' })).toMatchObject(
+        { ok: false },
+      );
+      expect(
+        core.channels.respondToGroupInvite({
+          invitationId: invitation.id,
+          targetBotSlug: 'bea',
+          targetBotCreatedAt: core.registry.get('bea')!.createdAt,
+          accept: true,
+        }).channel.members,
+      ).toEqual(['bea']);
+      expect(methods.channelGroupAvatarSet({ channelId: group.id, avatar: null })).toMatchObject({
+        ok: true,
+        value: { channel: { id: group.id } },
+      });
+      expect(core.channels.get(group.id)?.avatar).toBeUndefined();
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('creates a Group, admits each invitation through Inbox, accepts or declines, then exchanges in the Group', async () => {
     const home = createTempRoot('botharness-group-invite-');
     const runs: string[] = [];
