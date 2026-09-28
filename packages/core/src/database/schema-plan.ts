@@ -682,7 +682,7 @@ const ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION: SchemaMigration = {
   },
 };
 
-const LOCAL_HUMAN_RECEIPTS_MIGRATION: SchemaMigration = {
+export const LOCAL_HUMAN_RECEIPTS_MIGRATION: SchemaMigration = {
   generation: 25,
   module: 'messaging',
   description: 'Give the local Human explicit Group membership and identity-keyed read positions',
