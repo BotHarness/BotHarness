@@ -1623,12 +1623,27 @@ export interface ProfileActivityReasonDay extends ProfileActivityDay {
   reason: string;
 }
 
+export interface ProfileTokenBuckets {
+  inputTokens: number;
+  outputTokens: number;
+  cacheReadTokens: number;
+  cacheWriteTokens: number;
+}
+
+export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
+  day: string;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
+  /** Host-local current day; anchors activity windows across time zones. */
+  today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
+  tokens: ProfileActivityTokensDay[];
+  tokenTotals: ProfileTokenBuckets;
 }
 
 export interface MemorySnapshot {
@@ -1775,6 +1790,17 @@ function isActivityDays(value: unknown): value is ProfileActivityDay[] {
   );
 }
 
+function isTokenBuckets(value: unknown): value is ProfileTokenBuckets {
+  const record = asRecord(value);
+  return (
+    record !== undefined &&
+    typeof record['inputTokens'] === 'number' &&
+    typeof record['outputTokens'] === 'number' &&
+    typeof record['cacheReadTokens'] === 'number' &&
+    typeof record['cacheWriteTokens'] === 'number'
+  );
+}
+
 export async function loadProfileActivity(
   call: BridgeCall,
   channelId: string,
@@ -1785,6 +1811,7 @@ export async function loadProfileActivity(
     typeof response['slug'] !== 'string' ||
     typeof response['weeks'] !== 'number' ||
     typeof response['since'] !== 'string' ||
+    typeof response['today'] !== 'string' ||
     !isActivityDays(response['memoryCommits']) ||
     !Array.isArray(response['events']) ||
     !response['events'].every((value) => {
@@ -1794,7 +1821,13 @@ export async function loadProfileActivity(
         typeof entry['count'] === 'number' &&
         typeof entry['reason'] === 'string'
       );
-    })
+    }) ||
+    !Array.isArray(response['tokens']) ||
+    !response['tokens'].every((value) => {
+      const entry = asRecord(value);
+      return typeof entry?.['day'] === 'string' && isTokenBuckets(entry);
+    }) ||
+    !isTokenBuckets(response['tokenTotals'])
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;

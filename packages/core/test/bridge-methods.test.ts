@@ -9,6 +9,7 @@ import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import type { MemoryService } from '../src/memory/service.js';
+import type { UsageProjection } from '../src/usage/usage.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
@@ -33,6 +34,7 @@ function setup(
   grants?: WorkspaceGrantStore,
   developerMode?: { set(enabled: boolean): void },
   memory?: MemoryService,
+  usage?: UsageProjection,
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -59,6 +61,7 @@ function setup(
       roster: createRosterStore(),
       ...(grants === undefined ? {} : { grants }),
       ...(memory === undefined ? {} : { memory }),
+      ...(usage === undefined ? {} : { usage }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       ...(developerMode === undefined ? {} : { developerMode }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
@@ -1233,6 +1236,20 @@ describe('bridge methods', () => {
     const memory = {
       activity: () => [{ at: atHour(-1, 9) }, { at: atHour(-1, 15) }, { at: atHour(0, 9) }],
     } as unknown as MemoryService;
+    const usage = {
+      activity: () => [
+        {
+          day: today,
+          purpose: 'orchestrator',
+          provider: 'deepseek',
+          model: 'deepseek-chat',
+          inputTokens: 100,
+          outputTokens: 40,
+          cacheReadTokens: 10,
+          cacheWriteTokens: 5,
+        },
+      ],
+    } as unknown as UsageProjection;
     const { registry, channels, methods } = setup(
       [],
       ['ada'],
@@ -1241,6 +1258,7 @@ describe('bridge methods', () => {
       undefined,
       undefined,
       memory,
+      usage,
     );
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const dm = channels.getOrCreateDm('ada', 'Ada')!;
@@ -1253,6 +1271,7 @@ describe('bridge methods', () => {
     if (!result.ok) return;
     expect(result.value.slug).toBe('ada');
     expect(result.value.weeks).toBe(26);
+    expect(result.value.today).toBe(today);
     expect(result.value.events).toEqual([
       { day: yesterday, reason: 'human-dm', count: 1 },
       { day: today, reason: 'group-mention', count: 1 },
@@ -1262,6 +1281,21 @@ describe('bridge methods', () => {
       { day: yesterday, count: 2 },
       { day: today, count: 1 },
     ]);
+    expect(result.value.tokens).toEqual([
+      {
+        day: today,
+        inputTokens: 100,
+        outputTokens: 40,
+        cacheReadTokens: 10,
+        cacheWriteTokens: 5,
+      },
+    ]);
+    expect(result.value.tokenTotals).toEqual({
+      inputTokens: 100,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+    });
 
     expect(methods.profileActivity({ channelId: group.id })).toEqual({
       ok: false,

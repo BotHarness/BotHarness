@@ -117,6 +117,14 @@ describe('PersonaBot Profile surface', () => {
       since: '2026-04-01T00:00:00.000Z',
       events: [] as { day: string; reason: string; count: number }[],
       memoryCommits: [] as { day: string; count: number }[],
+      tokens: [] as {
+        day: string;
+        inputTokens: number;
+        outputTokens: number;
+        cacheReadTokens: number;
+        cacheWriteTokens: number;
+      }[],
+      tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     }));
     const actions = {
       renameChannel,
@@ -149,8 +157,9 @@ describe('PersonaBot Profile surface', () => {
       expect(popover?.textContent).toContain('研究员');
       expect(popover?.textContent).toContain('与你一起发布研究。');
       expect(popover?.textContent).toContain('查看详细');
+      expect(popover?.textContent).toContain('Token 用量');
       expect(popover?.textContent).toContain('事件活跃');
-      expect(popover?.textContent).toContain('Memory 提交');
+      expect(popover?.textContent).not.toContain('Memory 提交');
       expect(popover?.textContent).toContain('该时间段暂无记录');
       expect(container.querySelector('.bh-channel-sidebar')).not.toBeNull();
 
@@ -161,7 +170,8 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-memory-chat-composer')).toBeNull();
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(3);
+      expect(container.querySelectorAll('.bh-profile-spark').length).toBe(1);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(4);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));
@@ -252,5 +262,23 @@ describe('PersonaBot Profile surface', () => {
       store.setConversation(previous.conversation);
       store.setSessions(previous.sessions);
     }
+  });
+});
+
+describe('Profile activity windows', () => {
+  it('anchors the token sparkline and heatmaps to the Host calendar day', async () => {
+    const { trailingProfileDays } = await import('../src/client/profile-cards-builtins.js');
+    expect(trailingProfileDays('2026-09-29', 3)).toEqual([
+      '2026-09-27',
+      '2026-09-28',
+      '2026-09-29',
+    ]);
+    expect(trailingProfileDays('2026-01-02', 3)).toEqual([
+      '2025-12-31',
+      '2026-01-01',
+      '2026-01-02',
+    ]);
+    // A missing anchor falls back to the browser calendar without throwing.
+    expect(trailingProfileDays(undefined, 3)).toHaveLength(3);
   });
 });

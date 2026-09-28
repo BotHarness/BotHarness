@@ -502,6 +502,9 @@ importers:
       '@deepseek-ai/dsh-system-prompt':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4))(@deepseek-ai/dsh-llm@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4))(@deepseek-ai/dsh-scope@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)(@deepseek-ai/dsh-invariants@0.2.0-rc.1(@deepseek-ai/cordis@4.0.4)))
+      '@deepseek-ai/dsh-token-meter':
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(39c7013d37c5d63b126f8d1326aa7efb)
       '@deepseek-ai/dsh-tools':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(44958e8f826516598aa7d335d84aa068)
