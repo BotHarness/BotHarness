@@ -8,7 +8,6 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis';
-import type { Scoped } from '@deepseek-ai/dsh-scope';
 import type {} from '@deepseek-ai/dsh-computer-use';
 import { ComputerUseProviderName } from '@deepseek-ai/dsh-computer-use/brand';
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client';
@@ -18,7 +17,7 @@ import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-user-approval';
 
-import { COMPUTER_GUIDANCE, COMPUTER_TOOLS, computerToolName } from './catalog.js';
+import { COMPUTER_GUIDANCE, COMPUTER_TOOLS, FALLBACK_TOOLS, computerToolName } from './catalog.js';
 import type { CuaDriver, DriverToolDescriptor } from './driver.js';
 
 /** Provider name occupying the exclusive computer-use registration. */
@@ -51,6 +50,15 @@ export interface ComputerCoreLookup {
   readonly ownership:
     | { resolve(sessionId: string): { botSlug: string; rootRole: string } | undefined }
     | undefined;
+  readonly contributeBotAgentSetup?:
+    | ((
+        contribute: (
+          agentCtx: Context,
+          agent: Agent,
+          info: { botSlug: string; rootRole: string },
+        ) => void,
+      ) => () => void)
+    | undefined;
 }
 
 export interface ComputerToolProviderOptions {
@@ -62,11 +70,34 @@ export interface ComputerToolProviderOptions {
   readonly isAutoAllowed: () => boolean;
   /** Durable redacted audit sink. */
   readonly audit: (event: ComputerAuditEvent) => void;
+  /** Developer-visible lifecycle notes for the Computer diagnostics ring. */
+  readonly note?: (detail: string) => void;
+  /** Called on every tool call so Computer activity resets the idle timer. */
+  readonly onActivity?: () => void;
   /** Core lookups; undefined members degrade to "no access, no attribution". */
   readonly core: () => ComputerCoreLookup;
 }
 
+/** Every model-facing name in the curated catalog (the fallback mirrors it). */
+export function computerToolNames(): readonly string[] {
+  return COMPUTER_TOOLS.map((spec) => computerToolName(spec.raw));
+}
+
+/** Whether this provider owns one model-facing tool name. */
+export function ownsComputerTool(name: string): boolean {
+  return COMPUTER_TOOLS.some((spec) => computerToolName(spec.raw) === name);
+}
+
 export interface ComputerToolProvider {
+  /**
+   * Attach one Bot-owned agent as core sets it up (before its first prompt):
+   * track its scope and register Computer tools when its access is on.
+   */
+  attachAgent(scope: Context, sessionId: string, info: { botSlug: string; rootRole: string }): void;
+  /** True while this session still needs a Human Computer Authorization ask. */
+  needsAuthorization(sessionId: string): boolean;
+  /** Record that core asked and the Human allowed one Computer action for this session. */
+  markAuthorized(sessionId: string): void;
   /** Reconcile the live registrations of one PersonaBot after its access changed. */
   reconcileBot(slug: string): Promise<void>;
   /** Reconcile every tracked session (e.g. after the Computer started). */
@@ -79,6 +110,8 @@ interface SessionRegistration {
   readonly slug: string;
   readonly scope: Context;
   readonly disposers: readonly (() => void)[];
+  /** Where the tool descriptors came from; a fallback registration upgrades in place. */
+  readonly source: 'driver' | 'fallback';
 }
 
 /** Curated tools actually present in one driver catalog. */
@@ -113,6 +146,8 @@ export function createComputerToolProvider(
   options: ComputerToolProviderOptions,
 ): ComputerToolProvider {
   const { ctx, driver, isComputerRunning, isAutoAllowed, audit, core } = options;
+  const note = options.note ?? ((): void => undefined);
+  const onActivity = options.onActivity ?? ((): void => undefined);
 
   /** sessionId -> live agent scope plus its current tool disposers. */
   const sessions = new Map<string, { scope: Context; disposed: boolean }>();
@@ -126,15 +161,62 @@ export function createComputerToolProvider(
   const botSlugOf = (sessionId: string): { botSlug: string; rootRole: string } | undefined =>
     core().ownership?.resolve(sessionId);
 
-  const registerSession = async (
-    sessionId: string,
-    scope: Context,
-    slug: string,
-  ): Promise<void> => {
-    if (registrations.has(sessionId) || disposed) return;
-    if (!isComputerRunning()) return; // reconcileAll() after start picks it up
-    await driver.ensure();
-    const curated = selectCuratedTools(await driver.tools());
+  /**
+   * Driver catalog cached after the first successful fetch. Registration is
+   * synchronous so it always lands before the agent's first prompt assembly —
+   * an awaited connect here lost that race and the model saw no Computer
+   * tools at all (found by the 2026-09-28 acceptance session). Until the
+   * cache warms, the fallback catalog keeps the tools callable; the cache
+   * upgrade re-registers fallback sessions in place.
+   */
+  let cachedTools: readonly DriverToolDescriptor[] | undefined;
+  let warming: Promise<void> | undefined;
+
+  const warmCatalog = (): void => {
+    if (warming !== undefined || disposed || !isComputerRunning()) return;
+    warming = (async () => {
+      try {
+        await driver.ensure();
+        cachedTools = await driver.tools();
+        // Upgrade any session still on the fallback catalog.
+        for (const [sessionId, registration] of [...registrations]) {
+          if (registration.source !== 'fallback') continue;
+          if (core().registry?.get(registration.slug)?.computerAccess !== true) continue;
+          registerSession(sessionId, registration.scope, registration.slug);
+        }
+      } catch (error) {
+        note(
+          `driver warm failed: ${error instanceof Error ? error.message : String(error)}`.slice(
+            0,
+            160,
+          ),
+        );
+        ctx.logger.warn(
+          `botharness-computer: driver unavailable, keeping fallback tools: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      } finally {
+        warming = undefined;
+      }
+    })();
+  };
+
+  const registerSession = (sessionId: string, scope: Context, slug: string): void => {
+    if (disposed) return;
+    const existing = registrations.get(sessionId);
+    if (existing !== undefined) {
+      // A fallback registration upgrades in place once the catalog is warm;
+      // any other duplicate is already current.
+      if (existing.source !== 'fallback' || cachedTools === undefined) return;
+      unregisterSession(sessionId);
+    }
+    // The tools must exist even while the Computer is stopped: register the
+    // fallback catalog and let each call return the readable not-running
+    // error (ADR-0079). The real catalog replaces it once the driver answers.
+    const descriptors = cachedTools ?? FALLBACK_TOOLS;
+    const source: SessionRegistration['source'] = cachedTools === undefined ? 'fallback' : 'driver';
+    const curated = selectCuratedTools(descriptors);
     const disposers: (() => void)[] = [];
     try {
       for (const { raw, descriptor } of curated) {
@@ -148,6 +230,7 @@ export function createComputerToolProvider(
             : { outputSchema: descriptor.outputSchema }),
           call: async (args, execution) => {
             await authorize(execution, sessionId, slug);
+            onActivity();
             if (core().registry?.get(slug)?.computerAccess !== true) {
               throw new Error('Computer Access is off for this PersonaBot');
             }
@@ -195,8 +278,12 @@ export function createComputerToolProvider(
       for (const dispose of disposers.reverse()) dispose();
       throw error;
     }
-    registrations.set(sessionId, { slug, scope, disposers });
-    ctx.logger.info(`botharness-computer: Computer tools on for ${slug} (${sessionId})`);
+    registrations.set(sessionId, { slug, scope, disposers, source });
+    note(
+      `tools on slug=${slug} session=${sessionId} source=${source} count=${disposers.length - 1}`,
+    );
+    ctx.logger.info(`botharness-computer: Computer tools on for ${slug} (${sessionId}, ${source})`);
+    if (source === 'fallback' && isComputerRunning()) warmCatalog();
   };
 
   const unregisterSession = (sessionId: string): void => {
@@ -242,37 +329,11 @@ export function createComputerToolProvider(
     const agent = execution.agent;
     if (agent === undefined) throw new Error('Computer tools require a PersonaBot session');
     if (grants.has(sessionId) || isAutoAllowed()) return;
-    if (ctx.approval === undefined)
-      throw new Error('Computer actions are not authorized (no approval service)');
-    const outcome = await ctx.approval.request({
-      agent,
-      toolName: execution.name,
-      callId: execution.callId,
-      reason: `PersonaBot ${slug} wants to act on the shared Computer`,
-      signal: execution.signal,
-    });
-    if (outcome !== 'allowed-once') {
-      throw new Error(`Computer action not authorized (${outcome})`);
-    }
-    grants.add(sessionId);
-  };
-
-  const onCreated = function (this: Scoped<Agent>, payload: { agent: Agent }): undefined {
-    if (disposed) return undefined;
-    const scope = this as unknown as Context;
-    const sessionId = String(payload.agent.id);
-    sessions.set(sessionId, { scope, disposed: false });
-    const owner = botSlugOf(sessionId);
-    if (owner === undefined) return undefined;
-    if (core().registry?.get(owner.botSlug)?.computerAccess !== true) return undefined;
-    void registerSession(sessionId, scope, owner.botSlug).catch((error: unknown) => {
-      ctx.logger.warn(
-        `botharness-computer: failed to register Computer tools for ${owner.botSlug}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    });
-    return undefined;
+    // Core's `tools/pre-execute` hook owns the Human ask for Computer tools
+    // (so it rides the existing Bot DM approval cards and their one-time /
+    // always rules); reaching here without a grant means the gate did not run
+    // and the call fails closed.
+    throw new Error('Computer action is not authorized for this session');
   };
 
   const onDisposed = function (payload: { agent: Agent }): undefined {
@@ -283,7 +344,6 @@ export function createComputerToolProvider(
     return undefined;
   };
 
-  ctx.on('agent/created', onCreated);
   ctx.on('agent/disposed', onDisposed);
 
   ctx.inject(['computerUse'], (scope) => {
@@ -295,6 +355,33 @@ export function createComputerToolProvider(
   });
 
   return {
+    attachAgent(scope, sessionId, info) {
+      if (disposed) return;
+      sessions.set(sessionId, { scope, disposed: false });
+      const access = core().registry?.get(info.botSlug)?.computerAccess === true;
+      note(
+        `agent setup session=${sessionId} bot=${info.botSlug} role=${info.rootRole} access=${String(access)}`,
+      );
+      if (access !== true) return;
+      try {
+        registerSession(sessionId, scope, info.botSlug);
+      } catch (error) {
+        ctx.logger.warn(
+          `botharness-computer: failed to register Computer tools for ${info.botSlug}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      }
+    },
+
+    needsAuthorization(sessionId) {
+      return !grants.has(sessionId) && !isAutoAllowed();
+    },
+
+    markAuthorized(sessionId) {
+      grants.add(sessionId);
+    },
+
     async reconcileBot(slug) {
       if (disposed) return;
       const access = core().registry?.get(slug)?.computerAccess === true;
@@ -303,7 +390,7 @@ export function createComputerToolProvider(
         const owner = botSlugOf(sessionId);
         if (owner?.botSlug !== slug) continue;
         if (access) {
-          await registerSession(sessionId, session.scope, slug);
+          registerSession(sessionId, session.scope, slug);
         } else {
           unregisterSession(sessionId);
         }
@@ -312,6 +399,7 @@ export function createComputerToolProvider(
 
     async reconcileAll() {
       if (disposed) return;
+      warmCatalog();
       for (const bot of core().registry?.list() ?? []) {
         if (bot.computerAccess === true) await this.reconcileBot(bot.slug);
       }

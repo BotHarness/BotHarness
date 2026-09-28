@@ -32,7 +32,12 @@ import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
 import { createComputerService, type ComputerService } from './service.js';
 import { createCuaDriver } from './tool/driver.js';
-import { createComputerToolProvider, formatAudit } from './tool/provider.js';
+import {
+  computerToolNames,
+  createComputerToolProvider,
+  formatAudit,
+  ownsComputerTool,
+} from './tool/provider.js';
 import { ViewerProxy, proxyUpgrade } from './viewer.js';
 
 export const name = 'botharness-computer';
@@ -320,6 +325,9 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   // of PersonaBots whose Computer Access is on. Registration is lazy: it
   // requires the Computer to be running so the driver catalog can be read,
   // and a stopped Computer degrades to a clear tool error.
+  // Assigned once the idle watcher exists; tool activity keeps the Computer
+  // alive while a PersonaBot is actually working.
+  const activity = { touch: (): void => undefined };
   const driver = createCuaDriver({
     runner,
     containerName: config.containerName,
@@ -331,6 +339,8 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     isComputerRunning: () => service.upstream() !== undefined,
     isAutoAllowed: () => effective().autoAllowActions,
     audit: (event) => diagnostics.record('computer-action', formatAudit(event)),
+    note: (detail) => diagnostics.record('lifecycle', detail),
+    onActivity: () => activity.touch(),
     core: () => {
       const core = ctx.get('botharness') as unknown as
         | { registry?: unknown; ownership?: unknown }
@@ -343,6 +353,39 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   });
   ctx.provide('botharnessComputerTools', {
     reconcileBot: (slug: string) => toolProvider.reconcileBot(slug),
+    ownsTool: (name: string) => ownsComputerTool(name),
+    needsAuthorization: (sessionId: string) => toolProvider.needsAuthorization(sessionId),
+    markAuthorized: (sessionId: string) => toolProvider.markAuthorized(sessionId),
+  });
+  // Core owns Bot agent construction (create, resume, borrow); contributing
+  // through its setup path guarantees the scoped tools exist before the
+  // agent's first prompt assembly — an agent/created listener raced it and
+  // produced turns without any Computer tools (2026-09-28 acceptance).
+  ctx.inject(['botharness'], (coreCtx) => {
+    const core = (
+      coreCtx as unknown as {
+        botharness?: {
+          contributeBotAgentSetup?: (
+            contribute: (
+              agentCtx: import('@deepseek-ai/cordis').Context,
+              agent: { id: unknown },
+              info: { botSlug: string; rootRole: string },
+            ) => void,
+          ) => () => void;
+        };
+      }
+    ).botharness;
+    const remove = core?.contributeBotAgentSetup?.((agentCtx, agent, info) => {
+      toolProvider.attachAgent(agentCtx, String(agent.id), info);
+    });
+    // Host-side tools that act outside Host files: core's file-grant guard and
+    // unconfined-native gate skip them; Computer Authorization governs instead.
+    const hostTools = (core as { hostTools?: Set<string> } | undefined)?.hostTools;
+    for (const name of computerToolNames()) hostTools?.add(name);
+    return () => {
+      remove?.();
+      for (const name of computerToolNames()) hostTools?.delete(name);
+    };
   });
   ctx.effect(
     () => () => {
@@ -387,6 +430,10 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       }
     },
   });
+  activity.touch = () => watcher.touch();
+  // Warm the container state once at boot so a Host restart with a running
+  // container is reflected immediately (viewer + Computer tools).
+  void service.status().catch(() => undefined);
   ctx.effect(() => {
     const timer = setInterval(() => watcher.tick(), 60_000);
     return () => clearInterval(timer);

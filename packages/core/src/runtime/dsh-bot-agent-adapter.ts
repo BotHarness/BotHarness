@@ -91,6 +91,19 @@ export interface DshBotAgentAdapterOptions {
   publishDraft?: (event: ChannelDraftEvent) => void;
   /** Validate a foreign live Agent before attaching BotHarness role behavior. */
   authorizeBorrow?: (agent: Agent, role: 'orchestrator' | 'assignment') => void;
+  /**
+   * Optional per-Bot-agent contribution hook, called synchronously from the
+   * agent's `setup` before its first prompt assembly (create, resume, and
+   * borrow all pass through here). The Computer Tool Provider uses it to
+   * register scoped tools without racing prompt assembly.
+   */
+  onAgentSetup?: (agentCtx: Context, agent: Agent, info: BotAgentSetupInfo) => void;
+}
+
+/** Identity of one Bot-owned agent as it is set up. */
+export interface BotAgentSetupInfo {
+  readonly botSlug: string;
+  readonly rootRole: 'orchestrator' | 'assignment';
 }
 
 export interface DshDefaultModelHost {
@@ -162,6 +175,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     | ((agent: Agent, role: 'orchestrator' | 'assignment') => void)
     | undefined;
   readonly #resolveAgentPresets: (() => DshAgentPresetHost | undefined) | undefined;
+  readonly #onAgentSetup:
+    | ((agentCtx: Context, agent: Agent, info: BotAgentSetupInfo) => void)
+    | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
   readonly #runs = new Map<string, ActiveRun>();
@@ -175,6 +191,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
     this.#authorizeBorrow = options.authorizeBorrow;
+    this.#onAgentSetup = options.onAgentSetup;
     this.#resolveAgentPresets = options.resolveAgentPresets;
     this.#ensureWorkspace =
       options.ensureWorkspace ?? ((path) => void mkdirSync(path, { recursive: true }));
@@ -317,6 +334,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const setup = async (agentCtx: Context, agent: Agent, borrowed = false): Promise<void> => {
       setSandboxMode(agent.session, 'workspace-write');
       setApprovalPolicy(agent.session, 'ask');
+      this.#onAgentSetup?.(agentCtx, agent, {
+        botSlug: run.bot.slug,
+        rootRole: 'orchestrator',
+      });
       if (!borrowed) {
         await this.#composePreset(agentCtx, run.bot);
         installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
@@ -1329,6 +1350,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         }
         setSandboxMode(agent.session, run.permission.mode);
         setApprovalPolicy(agent.session, run.permission.approval);
+        this.#onAgentSetup?.(agentCtx, agent, {
+          botSlug: run.bot.slug,
+          rootRole: 'assignment',
+        });
         if (!borrowed) {
           await this.#composePreset(agentCtx, run.bot);
           installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });

@@ -58,6 +58,14 @@ export interface CuaDriver {
   close(): Promise<void>;
 }
 
+/** Observation tools safe to retry once after a transport loss (no side effect). */
+const READ_ONLY_TOOLS = new Set([
+  'list_windows',
+  'get_desktop_state',
+  'get_window_state',
+  'verify_state',
+]);
+
 /** Maps `uname -m` output onto the release asset suffix. */
 export function driverAssetArch(machine: string): string {
   const value = machine.trim();
@@ -93,9 +101,13 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
   const { runner, containerName, onEvent } = options;
   const log = (detail: string): void => onEvent?.(detail);
 
-  const insideArgs = (argv: readonly string[], user: string): string[] => [
-    'docker',
+  /** `docker exec …` argv after the executable name; the MCP transport spawns
+   * `docker` itself, while the runtime runner takes the full argv. */
+  const execArgs = (argv: readonly string[], user: string): string[] => [
     'exec',
+    // `-i` keeps the child's stdin open: stdio MCP ends at stdin EOF, and
+    // without it the driver exits right after startup (found live 2026-09-28).
+    '-i',
     '-u',
     user,
     '-e',
@@ -105,6 +117,11 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
     ...DRIVER_ENV_ARGS,
     containerName,
     ...argv,
+  ];
+
+  const insideArgs = (argv: readonly string[], user: string): string[] => [
+    'docker',
+    ...execArgs(argv, user),
   ];
 
   const runInside = async (
@@ -136,7 +153,7 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
   const openClient = async (): Promise<Client> => {
     const transport = new StdioClientTransport({
       command: 'docker',
-      args: insideArgs([CUA_DRIVER_PATH, 'mcp'], DESKTOP_USER),
+      args: execArgs([CUA_DRIVER_PATH, 'mcp'], DESKTOP_USER),
       // The child is `docker`; the desktop env rides the exec argv. Only PATH
       // (and nothing else) is inherited so the transport stays deterministic.
       env: { PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin' },
@@ -146,8 +163,17 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
       for (const line of String(chunk).split('\n'))
         if (line.trim() !== '') log(`driver: ${line.trim()}`);
     });
-    const created = new Client({ name: 'botharness-computer', version: '0.0.0' });
+    // Match the DSH mcp-client client options: `auto` version negotiation is
+    // what the driver accepts; the SDK default closed the connection
+    // immediately (found live 2026-09-28).
+    const created = new Client(
+      { name: 'botharness-computer', version: '0.0.0' },
+      { capabilities: {}, versionNegotiation: { mode: 'auto' } },
+    );
     created.onerror = (error) => log(`driver connection error: ${String(error)}`);
+    created.onclose = () => log('driver connection closed');
+    transport.onclose = () => log(`driver child exited (pid ${String(transport.pid ?? '?')})`);
+    transport.onerror = (error) => log(`driver transport error: ${String(error)}`);
     await created.connect(transport);
     const listed = await created.listTools();
     catalog = listed.tools.map((tool) => ({
@@ -203,18 +229,22 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
     },
 
     async call(rawName, args, signal) {
-      if (signal?.aborted === true) throw new Error('computer driver operation aborted');
+      const alreadyAborted = signal?.aborted === true;
+      if (alreadyAborted) throw new Error('computer driver operation aborted');
+      const options = signal === undefined ? undefined : { signal };
       const active = await ensureClient();
       try {
-        return await active.callTool(
-          { name: rawName, arguments: args },
-          signal === undefined ? undefined : { signal },
-        );
+        return await active.callTool({ name: rawName, arguments: args }, options);
       } catch (error) {
-        // Protocol/transport failures drop the child so the next call reconnects;
-        // a stopped container therefore degrades to a clear retry, never a hang.
+        // Protocol/transport failures drop the child so the next call
+        // reconnects; a container restart therefore never wedges the bridge.
         await dropClient();
-        throw error;
+        if (alreadyAborted || !READ_ONLY_TOOLS.has(rawName)) throw error;
+        // Observation calls have no side effect, so one transparent retry is
+        // safe; action calls surface the error and let the model re-observe
+        // before deciding to act again (cancellation never rolls back).
+        const retry = await ensureClient();
+        return await retry.callTool({ name: rawName, arguments: args }, options);
       }
     },
 

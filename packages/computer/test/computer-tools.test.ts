@@ -91,7 +91,6 @@ interface Harness {
   readonly state: FakeScope;
   readonly driver: CuaDriver;
   readonly audits: ComputerAuditEvent[];
-  readonly approval: ReturnType<typeof vi.fn<(request: unknown) => Promise<string>>>;
   readonly created: (payload: { agent: Agent }) => void;
   setAccess(enabled: boolean): void;
   setRunning(running: boolean): void;
@@ -105,7 +104,6 @@ function harness(options: { access: boolean; running: boolean; auto?: boolean })
   let access = options.access;
   let running = options.running;
   let auto = options.auto ?? false;
-  const approval = vi.fn(async () => 'allowed-once' as const);
   const handlers = new Map<string, (this: unknown, payload: { agent: Agent }) => unknown>();
   const slots: string[] = [];
   const ctx = {
@@ -124,7 +122,6 @@ function harness(options: { access: boolean; running: boolean; auto?: boolean })
     },
     provide() {},
     logger: { info: () => undefined, warn: () => undefined },
-    approval: { request: approval },
     get: () => undefined,
   } as unknown as Context;
   const provider = createComputerToolProvider({
@@ -150,11 +147,8 @@ function harness(options: { access: boolean; running: boolean; auto?: boolean })
     state,
     driver,
     audits,
-    approval,
-    created: (payload) => {
-      const handler = handlers.get('agent/created');
-      handler?.call(scope, payload);
-    },
+    created: () =>
+      provider.attachAgent(scope, 'session-a', { botSlug: 'bot-a', rootRole: 'orchestrator' }),
     setAccess: (next) => {
       access = next;
     },
@@ -242,27 +236,53 @@ describe('per-PersonaBot registration and authorization', () => {
     expect(h.state.registered()).toEqual([]);
   });
 
-  it('registers curated tools plus guidance while access is on and the Computer runs', async () => {
+  it('registers curated tools plus guidance immediately, then upgrades to the driver catalog', async () => {
     const h = harness({ access: true, running: true });
     h.created({ agent });
-    await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
-    expect(h.driver.ensure).toHaveBeenCalled();
+    // Registration is synchronous so it always precedes prompt assembly: the
+    // first registration may still carry the fallback catalog.
+    expect(h.state.registered()).toHaveLength(10);
     expect(h.state.sections).toContain('botharness:computer');
     expect(h.state.registered()).toContain('computer_get_window_state');
     expect(h.state.registered()).not.toContain('computer_replay_trajectory');
+    await vi.waitFor(() =>
+      expect(h.state.definitions.get('computer_get_window_state')?.description).toBe(
+        'Walk a window tree',
+      ),
+    );
+    expect(h.driver.ensure).toHaveBeenCalled();
   });
 
-  it('defers registration while the Computer is stopped, then catches up', async () => {
+  it('registers fallback tools while stopped and upgrades when the Computer starts', async () => {
     const h = harness({ access: true, running: false });
     h.created({ agent });
-    await vi.waitFor(() => expect(h.driver.tools).not.toHaveBeenCalled());
-    expect(h.state.registered()).toEqual([]);
+    // The tools must exist even while the Computer is stopped (ADR-0079).
+    await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
+    expect(h.driver.tools).not.toHaveBeenCalled();
+    expect(h.state.definitions.get('computer_get_window_state')?.description).toContain(
+      'Observe one window',
+    );
     h.setRunning(true);
     await h.provider.reconcileAll();
-    expect(h.state.registered()).toHaveLength(10);
+    await vi.waitFor(() =>
+      expect(h.state.definitions.get('computer_get_window_state')?.description).toBe(
+        'Walk a window tree',
+      ),
+    );
+    expect(h.driver.tools).toHaveBeenCalled();
   });
 
-  it('authorizes once per session, then runs without asking again', async () => {
+  it('falls back to the minimal catalog when the driver cannot answer', async () => {
+    const h = harness({ access: true, running: true });
+    h.driver.tools = vi.fn(async () => {
+      throw new Error('docker exec failed');
+    });
+    h.created({ agent });
+    await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
+    expect(h.state.definitions.get('computer_click')?.description).toContain('element index');
+  });
+
+  it('fails closed until core records the Computer Authorization grant', async () => {
     const h = harness({ access: true, running: true });
     h.created({ agent });
     await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
@@ -270,28 +290,33 @@ describe('per-PersonaBot registration and authorization', () => {
     const type = h.state.definitions.get('computer_type_text');
     expect(click).toBeDefined();
     expect(type).toBeDefined();
+    // Core asks first (needsAuthorization); without its grant the call denies.
+    expect(h.provider.needsAuthorization('session-a')).toBe(true);
+    await expect(
+      click!.execute({ pid: 7, x: 1, y: 2 }, execution('computer_click')),
+    ).rejects.toThrow(/not authorized/);
+    h.provider.markAuthorized('session-a');
+    expect(h.provider.needsAuthorization('session-a')).toBe(false);
     await click!.execute({ pid: 7, x: 1, y: 2 }, execution('computer_click'));
     await type!.execute({ pid: 7, text: 'hello' }, execution('computer_type_text'));
-    expect(h.approval).toHaveBeenCalledTimes(1);
     expect(h.audits).toHaveLength(2);
     expect(h.audits[0]?.summary).toContain('pid=7');
     expect(h.audits[1]?.summary).toContain('chars=5');
     expect(JSON.stringify(h.audits)).not.toContain('hello');
   });
 
-  it('skips the approval ask when the profile auto-allows', async () => {
+  it('runs without a grant when the profile auto-allows', async () => {
     const h = harness({ access: true, running: true, auto: true });
     h.created({ agent });
     await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
+    expect(h.provider.needsAuthorization('session-a')).toBe(false);
     await h.state.definitions
       .get('computer_click')!
       .execute({ pid: 7 }, execution('computer_click'));
-    expect(h.approval).not.toHaveBeenCalled();
   });
 
-  it('fails closed when the Human rejects the authorization', async () => {
+  it('does not call the driver when the session is unauthorized', async () => {
     const h = harness({ access: true, running: true });
-    h.approval.mockResolvedValueOnce('rejected');
     h.created({ agent });
     await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
     await expect(

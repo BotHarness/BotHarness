@@ -7,6 +7,8 @@
  * @module @botharness/computer/tool/catalog
  */
 
+import type { DriverToolDescriptor } from './driver.js';
+
 /** Model-facing tool-name prefix; every Computer tool is `computer_<raw>`. */
 export const COMPUTER_TOOL_PREFIX = 'computer_';
 
@@ -68,6 +70,66 @@ export const COMPUTER_TOOLS: readonly ComputerToolSpec[] = [
   {
     raw: 'verify_state',
     audit: (args) => `${windowRef(args)} predicate=${chars(args, 'predicate')}`,
+  },
+];
+
+/**
+ * Minimal catalog used while the Computer is stopped or the driver is
+ * unreachable, so the tools (and their guidance) always exist while Computer
+ * Access is on; calls then fail with a readable "Computer is not running"
+ * error instead of the tools vanishing (ADR-0079).
+ */
+export const FALLBACK_TOOLS: readonly DriverToolDescriptor[] = [
+  {
+    name: 'list_windows',
+    description: 'List top-level windows on the shared Computer desktop.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'get_desktop_state',
+    description: 'Capture the shared Computer desktop (screenshot and/or accessibility tree).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'get_window_state',
+    description:
+      'Observe one window: accessibility tree with element indices plus an optional screenshot.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'launch_app',
+    description: 'Launch an application on the shared Computer desktop (for example a browser).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'click',
+    description: 'Click at coordinates or at an element index from the latest window observation.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'type_text',
+    description: 'Type text into a window. Never type credentials; ask the Human instead.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'press_key',
+    description: 'Press one key in a window.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'hotkey',
+    description: 'Press a key combination in a window (for example Ctrl+L).',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'scroll',
+    description: 'Scroll inside the focused region of a window.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
+  },
+  {
+    name: 'verify_state',
+    description: 'Verify bounded predicates against one window before reporting success.',
+    inputSchema: { type: 'object', properties: {}, additionalProperties: true },
   },
 ];
 

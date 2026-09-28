@@ -803,6 +803,10 @@ export function createDockerComputerProvider(
         return withStorage(withDetail({ state: 'failed', phase: 'failed' }));
       }
       const status = await inspect();
+      // Reconcile the cached `running` flag with reality: after a Host restart
+      // the container may already be up, and without this the viewer and the
+      // Computer tools would report "not running" until a fresh start.
+      running = status.state === 'running';
       if (phase === 'stopping' || phase === 'exporting' || phase === 'importing') {
         return withStorage(withDetail({ ...status, phase }));
       }
