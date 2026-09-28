@@ -134,6 +134,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
+
 - Group join requests for a Bot-owned Group and Human accept/decline decisions now reach the recipient's Bot Inbox instead of remaining in Needs repair after the Orchestrator turn ([#367](https://github.com/BotHarness/BotHarness/issues/367)).
 - Group messages sent while a PersonaBot is archived stay in Channel history but create no new Inbox Admission or wake for that Bot; active members still receive their own messages ([#47](https://github.com/BotHarness/BotHarness/issues/47)).
 - Revoking a Workspace Grant now expires pending native-tool approval cards in the PersonaBot DM and removes their action buttons immediately. The access list loads independently of secondary sidebar data, and stalled updates recover after a timeout, so a stale card cannot be approved after access is removed. Calls already executing may finish; subsequent Assignment access remains blocked ([#116](https://github.com/BotHarness/BotHarness/issues/116)).
