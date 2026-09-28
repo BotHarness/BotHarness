@@ -139,6 +139,38 @@ describe('current Git working tree is Memory', () => {
     }
   });
 
+  it('reads staged, unstaged, and untracked diffs without changing the repository', () => {
+    const { database, memory, root } = fixture();
+    try {
+      const originalHead = git(root, 'rev-parse', 'HEAD');
+      writeFileSync(join(root, 'note.md'), 'staged text\n');
+      git(root, 'add', 'note.md');
+      writeFileSync(join(root, 'note.md'), 'unstaged text\n');
+      writeFileSync(join(root, 'new.ts'), 'export const memory = true;\n');
+      writeFileSync(join(root, 'image.bin'), Buffer.from([0, 255]));
+      const before = git(root, 'status', '--porcelain');
+
+      expect(memory.workingChanges('atlas')).toEqual(
+        expect.arrayContaining([
+          { path: 'note.md', kind: 'staged', status: 'A' },
+          { path: 'note.md', kind: 'unstaged', status: 'M' },
+          { path: 'new.ts', kind: 'untracked', status: '?' },
+        ]),
+      );
+      expect(memory.workingDiff('atlas', 'note.md', 'staged').diff).toContain('+staged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'unstaged').diff).toContain('+unstaged text');
+      expect(memory.workingDiff('atlas', 'new.ts', 'untracked').diff).toContain(
+        '+export const memory = true;',
+      );
+      expect(memory.workingDiff('atlas', 'image.bin', 'untracked').binary).toBe(true);
+      expect(() => memory.workingDiff('atlas', '../outside', 'untracked')).toThrow();
+      expect(git(root, 'status', '--porcelain')).toBe(before);
+      expect(git(root, 'rev-parse', 'HEAD')).toBe(originalHead);
+    } finally {
+      database.close();
+    }
+  });
+
   it('follows a native fetch and reset to an unrelated merged history without admission', () => {
     const { home, database, registry, ownership, memory, root, addSource } = fixture();
     try {

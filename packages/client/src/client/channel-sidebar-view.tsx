@@ -179,6 +179,10 @@ export function ChannelSidebar({
   t,
   onMemoryCommitSelect,
   selectedMemoryCommitSha,
+  onMemoryFileSelect,
+  selectedMemoryFilePath,
+  onMemoryWorkingSelect,
+  selectedMemoryWorking,
 }: {
   registry: ChannelSidebarRegistry;
   state: ClientState;
@@ -187,6 +191,10 @@ export function ChannelSidebar({
   t: BotHarnessTranslate;
   onMemoryCommitSelect?: ((sha: string) => void) | undefined;
   selectedMemoryCommitSha?: string | undefined;
+  onMemoryFileSelect?: ((path: string) => void) | undefined;
+  selectedMemoryFilePath?: string | undefined;
+  onMemoryWorkingSelect?: ((change: import('./bridge.js').MemoryWorkingChange) => void) | undefined;
+  selectedMemoryWorking?: import('./bridge.js').MemoryWorkingChange | undefined;
 }): ReactElement | null {
   const selection = state.selection;
   // Keep using roster metadata until the selected conversation finishes opening.
@@ -240,6 +248,10 @@ export function ChannelSidebar({
           t,
           onMemoryCommitSelect,
           selectedMemoryCommitSha,
+          onMemoryFileSelect,
+          selectedMemoryFilePath,
+          onMemoryWorkingSelect,
+          selectedMemoryWorking,
         };
   const visibleEntries =
     entryProps === undefined ? [] : entries.filter((entry) => entry.visible?.(state) ?? true);

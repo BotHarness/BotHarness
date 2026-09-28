@@ -2991,6 +2991,7 @@ html[data-botharness-motion='reduce'] .bh-channel-sidebar-entry-chevron {
   color: var(--dsw-alias-label-primary);
   cursor: pointer;
 }
+.bh-memory-toolbar button { margin-left: auto; }
 .bh-memory-toolbar button:hover,
 .bh-memory-editor button:hover:not(:disabled) {
   background: var(--dsw-alias-interactive-bg-hover);
@@ -3895,6 +3896,8 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-graph-more:hover {
   color: var(--dsw-alias-label-primary);
 }
+.bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }
+.bh-memory-working-list strong { display: block; margin-bottom: 3px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
 .bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 20px 28px; color: var(--dsw-alias-label-primary); }
 .bh-memory-commit-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
 .bh-memory-continue-open { margin-left: auto; }
@@ -3908,6 +3911,7 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-commit-file { display: flex; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
 .bh-memory-file-status { font-family: var(--bh-memory-font-code); color: var(--dsw-alias-label-secondary); }
 .bh-memory-commit-code { overflow: auto; border: 1px solid var(--dsw-alias-border-l2); border-radius: var(--bh-memory-radius-card); padding: 10px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.6; white-space: pre; }
+pre.bh-memory-commit-code { padding: 10px 14px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .bh-memory-commit-code > div { padding: 0 14px; min-height: 1.55em; }
 .bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
 .bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }

@@ -1583,6 +1583,17 @@ export interface MemoryGitCommitDiff {
   diff: string;
 }
 
+export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked';
+export interface MemoryWorkingChange {
+  path: string;
+  kind: MemoryWorkingKind;
+  status: string;
+}
+export interface MemoryWorkingDiff extends MemoryWorkingChange {
+  diff: string;
+  binary: boolean;
+}
+
 export interface MemoryRepairEvent {
   id: string;
   acceptedHeadSha: string;
@@ -1776,6 +1787,44 @@ export async function loadProfileActivity(
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
+}
+
+function parseWorkingChange(value: unknown): MemoryWorkingChange {
+  const change = asRecord(value);
+  if (
+    typeof change?.['path'] !== 'string' ||
+    !['staged', 'unstaged', 'untracked'].includes(String(change['kind'])) ||
+    typeof change['status'] !== 'string'
+  )
+    throw new Error('invalid Memory working change');
+  return change as unknown as MemoryWorkingChange;
+}
+
+export async function loadMemoryWorkingChanges(
+  call: BridgeCall,
+  channelId: string,
+): Promise<MemoryWorkingChange[]> {
+  const response = asRecord(await unwrap(call, 'memoryWorkingChanges', { channelId }));
+  if (!Array.isArray(response?.['changes'])) throw new Error('invalid Memory working changes');
+  return response['changes'].map(parseWorkingChange);
+}
+
+export async function loadMemoryWorkingDiff(
+  call: BridgeCall,
+  channelId: string,
+  path: string,
+  kind: MemoryWorkingKind,
+): Promise<MemoryWorkingDiff> {
+  const response = asRecord(await unwrap(call, 'memoryWorkingDiff', { channelId, path, kind }));
+  parseWorkingChange(response);
+  if (
+    response?.['path'] !== path ||
+    response['kind'] !== kind ||
+    typeof response['diff'] !== 'string' ||
+    typeof response['binary'] !== 'boolean'
+  )
+    throw new Error('invalid Memory working diff');
+  return response as unknown as MemoryWorkingDiff;
 }
 
 export async function saveMemoryFile(

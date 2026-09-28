@@ -92,6 +92,19 @@ export interface MemoryGitCommitDiff {
   diff: string;
 }
 
+export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked';
+
+export interface MemoryWorkingChange {
+  path: string;
+  kind: MemoryWorkingKind;
+  status: string;
+}
+
+export interface MemoryWorkingDiff extends MemoryWorkingChange {
+  diff: string;
+  binary: boolean;
+}
+
 export interface MemoryAcceptance {
   continueFromCommit(input: { botSlug: string; sessionId: string; sha: string; branch: string }): {
     from: string;
@@ -124,6 +137,8 @@ export interface MemoryAcceptance {
   diff(botSlug: string, sha: string): { sha: string; diff: string };
   gitGraph(botSlug: string, offset?: number): MemoryGitGraph;
   gitCommitDiff(botSlug: string, sha: string): MemoryGitCommitDiff;
+  workingChanges(botSlug: string): MemoryWorkingChange[];
+  workingDiff(botSlug: string, path: string, kind: MemoryWorkingKind): MemoryWorkingDiff;
   repairHuman(input: {
     botSlug: string;
     expectedHead: string;
@@ -275,6 +290,32 @@ function porcelainPaths(root: string): string[] {
     if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') index += 1;
   }
   return paths;
+}
+
+function currentWorkingChanges(root: string): MemoryWorkingChange[] {
+  const raw = run(root, ['status', '--porcelain=v1', '-z', '--untracked-files=all']).toString(
+    'utf8',
+  );
+  const entries = raw.split('\0');
+  const changes: MemoryWorkingChange[] = [];
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index] ?? '';
+    if (entry.length < 4) continue;
+    const path = entry.slice(3);
+    if (entry.startsWith('??')) {
+      changes.push({ path, kind: 'untracked', status: '?' });
+    } else {
+      if (entry[0] !== ' ') changes.push({ path, kind: 'staged', status: entry[0]! });
+      if (entry[1] !== ' ') changes.push({ path, kind: 'unstaged', status: entry[1]! });
+      if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') {
+        index += 1; // porcelain -z includes a second path for renames and copies.
+      }
+    }
+    if (changes.length > 500) {
+      throw new MemoryAcceptError('memory-invalid', 'Too many Memory working changes');
+    }
+  }
+  return changes;
 }
 
 function observeWorktree(root: string): { branch: string; head: string; porcelain: string[] } {
@@ -996,6 +1037,59 @@ export function createMemoryAcceptance(options: {
             : ['diff', '--no-ext-diff', '--no-textconv', '--no-renames', ...range],
         ),
       };
+    },
+    workingChanges(botSlug) {
+      return currentWorkingChanges(graphRepository(botSlug));
+    },
+    workingDiff(botSlug, path, kind) {
+      if (!['staged', 'unstaged', 'untracked'].includes(kind)) {
+        throw new MemoryAcceptError('memory-invalid', 'Invalid Memory change kind');
+      }
+      const root = graphRepository(botSlug);
+      const relative = toMemoryRelativePath(path);
+      const change = currentWorkingChanges(root).find(
+        (entry) => entry.path === relative && entry.kind === kind,
+      );
+      if (change === undefined) {
+        throw new MemoryAcceptError('memory-invalid', 'Memory working change no longer exists');
+      }
+      if (kind !== 'untracked') {
+        const diff = output(root, [
+          'diff',
+          '--no-ext-diff',
+          '--no-textconv',
+          '--no-renames',
+          ...(kind === 'staged' ? ['--cached', 'HEAD'] : []),
+          '--',
+          relative,
+        ]);
+        return { ...change, diff, binary: diff.includes('Binary files') };
+      }
+      const target = resolveMemoryPath(root, relative);
+      const stat = lstatSync(target);
+      if (stat.isSymbolicLink() || !stat.isFile()) return { ...change, diff: '', binary: true };
+      if (stat.size > MAX_FILE_BYTES) {
+        throw new MemoryAcceptError('memory-invalid', 'Memory file is too large to preview');
+      }
+      const bytes = readFileSync(target);
+      if (bytes.includes(0)) return { ...change, diff: '', binary: true };
+      let body: string;
+      try {
+        body = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+      } catch {
+        return { ...change, diff: '', binary: true };
+      }
+      const lines = body === '' ? [] : body.replace(/\n$/u, '').split('\n');
+      const diff = [
+        `diff --git a/${relative} b/${relative}`,
+        'new file mode 100644',
+        '--- /dev/null',
+        `+++ b/${relative}`,
+        `@@ -0,0 +1,${lines.length} @@`,
+        ...lines.map((line) => `+${line}`),
+        ...(body !== '' && !body.endsWith('\n') ? ['\\ No newline at end of file'] : []),
+      ].join('\n');
+      return { ...change, diff, binary: false };
     },
     history(botSlug, limit = 20) {
       const { root } = readRepository(botSlug);

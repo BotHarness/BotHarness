@@ -120,6 +120,8 @@ describe('bridge typert service', () => {
       'memoryDiff',
       'memoryGitGraph',
       'memoryGitCommitDiff',
+      'memoryWorkingChanges',
+      'memoryWorkingDiff',
       'memorySave',
       'memoryRepair',
       'profileActivity',

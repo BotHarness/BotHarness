@@ -38,6 +38,9 @@ import {
   type MemoryAcceptedSnapshot,
   type MemoryGitGraph,
   type MemoryGitCommitDiff,
+  type MemoryWorkingChange,
+  type MemoryWorkingDiff,
+  type MemoryWorkingKind,
   type MemoryRepairEvent,
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
@@ -201,6 +204,8 @@ export interface BridgeMethods {
   memoryDiff(payload: unknown): BridgeResult<{ sha: string; diff: string }>;
   memoryGitGraph(payload: unknown): BridgeResult<MemoryGitGraph>;
   memoryGitCommitDiff(payload: unknown): BridgeResult<MemoryGitCommitDiff>;
+  memoryWorkingChanges(payload: unknown): BridgeResult<{ changes: MemoryWorkingChange[] }>;
+  memoryWorkingDiff(payload: unknown): BridgeResult<MemoryWorkingDiff>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
@@ -1598,6 +1603,24 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (sha === undefined || !/^[0-9a-f]{40}$/u.test(sha))
         return invalidInput('valid sha is required');
       return memoryCall(() => deps.memory!.gitCommitDiff(scope.botSlug, sha));
+    },
+    memoryWorkingChanges(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      return memoryCall(() => ({ changes: deps.memory!.workingChanges(scope.botSlug) }));
+    },
+    memoryWorkingDiff(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const path = asNonBlank(source, 'path');
+      const kind = source['kind'];
+      if (path === undefined || !['staged', 'unstaged', 'untracked'].includes(String(kind))) {
+        return invalidInput('valid path and kind are required');
+      }
+      return memoryCall(() =>
+        deps.memory!.workingDiff(scope.botSlug, path, kind as MemoryWorkingKind),
+      );
     },
     memorySave(payload) {
       const scope = dmMemory(payload);

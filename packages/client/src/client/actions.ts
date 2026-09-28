@@ -41,6 +41,8 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadMemoryWorkingChanges,
+  loadMemoryWorkingDiff,
   saveMemoryFile,
   repairMemory,
   loadTimelinePage,
@@ -62,6 +64,9 @@ import {
   type MemorySnapshot,
   type MemoryGitGraph,
   type MemoryGitCommitDiff,
+  type MemoryWorkingChange,
+  type MemoryWorkingDiff,
+  type MemoryWorkingKind,
   type MemoryRepairEvent,
   type ProfileActivity,
   type CreatePersonaBotInput,
@@ -128,12 +133,18 @@ export interface BridgeActions {
   memoryFile(
     channelId: string,
     path: string,
-  ): Promise<{ path: string; body: string; head: string } | undefined>;
+  ): Promise<{ path: string; body: string; head: string; binary?: boolean } | undefined>;
   memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
   memoryDiff(channelId: string, sha: string): Promise<string>;
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  memoryWorkingChanges(channelId: string): Promise<MemoryWorkingChange[]>;
+  memoryWorkingDiff(
+    channelId: string,
+    path: string,
+    kind: MemoryWorkingKind,
+  ): Promise<MemoryWorkingDiff>;
   memoryRepair(input: {
     channelId: string;
     expectedHead: string;
@@ -938,6 +949,9 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
+    memoryWorkingDiff: (channelId, path, kind) =>
+      loadMemoryWorkingDiff(call, channelId, path, kind),
     memorySave: (input) => saveMemoryFile(call, input),
     memoryRepair: (input) => repairMemory(call, input),
     openSession(sessionId) {
