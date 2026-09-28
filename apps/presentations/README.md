@@ -20,11 +20,11 @@ Then open the dev server and edit `slides/botharness-intro/index.tsx`, or create
 
 ## Scripts
 
-| Command | Description |
-| --- | --- |
-| `pnpm dev` | Start the dev server with hot reload. |
-| `pnpm build` | Build a static bundle you can deploy. |
-| `pnpm preview` | Preview the built bundle locally. |
+| Command        | Description                           |
+| -------------- | ------------------------------------- |
+| `pnpm dev`     | Start the dev server with hot reload. |
+| `pnpm build`   | Build a static bundle you can deploy. |
+| `pnpm preview` | Preview the built bundle locally.     |
 
 ## Authoring a slide
 
@@ -32,9 +32,7 @@ Then open the dev server and edit `slides/botharness-intro/index.tsx`, or create
 // slides/my-slide/index.tsx
 import type { Page, SlideMeta } from '@open-slide/core';
 
-const Cover: Page = () => (
-  <div style={{ width: '100%', height: '100%' }}>Hello</div>
-);
+const Cover: Page = () => <div style={{ width: '100%', height: '100%' }}>Hello</div>;
 
 export const meta: SlideMeta = { title: 'My slide' };
 export default [Cover] satisfies Page[];

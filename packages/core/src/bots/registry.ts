@@ -56,6 +56,7 @@ export interface PersonaBotRegistry {
   memoryDirFor(slug: string): string | undefined;
   update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
   setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
+  setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -299,6 +300,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (paused) record.paused = true;
       else delete record.paused;
+      write(record);
+      return { ok: true, record };
+    },
+    setComputerAccess(slug, enabled) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (enabled) record.computerAccess = true;
+      else delete record.computerAccess;
       write(record);
       return { ok: true, record };
     },

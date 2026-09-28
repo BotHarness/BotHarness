@@ -1,7 +1,8 @@
 /**
  * Bounded, in-memory diagnostics for the Computer plugin: lifecycle initiators,
- * container state transitions, and viewer stream events. Process evidence for
- * Humans and agents — never durable authority, never secrets.
+ * container state transitions, viewer stream events, and redacted Computer
+ * action audits. Process evidence for Humans and agents — never durable
+ * authority, never secrets and never raw typed text or screenshots.
  * @module @botharness/computer/diagnostics
  */
 
@@ -11,7 +12,7 @@ import type { LogOwnerScope } from '../../core/src/logs/log-db.js';
 
 export interface ComputerDiagnosticEvent {
   readonly at: string;
-  readonly kind: 'lifecycle' | 'container' | 'viewer';
+  readonly kind: 'lifecycle' | 'container' | 'viewer' | 'computer-action';
   readonly detail: string;
 }
 

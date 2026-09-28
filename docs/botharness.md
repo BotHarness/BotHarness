@@ -132,12 +132,12 @@
 - 交付形态：SDK 包 + bundle（`cordis.patch.yml`），不 fork DSH。
 - 包（monorepo，包边界先行；第二个消费方出现再拆仓）：
 
-| 包                   | 内容                                                                                                                                                      |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@botharness/core`   | Host composition root + deep modules：PersonaBot/ownership、Memory、Messaging、Assignments、Portability、read models；共享 DB owner 不等于共享 repository |
-| `@botharness/ui` | DSH-native React UI：roster、DM/Channel、Bot Inbox、Assignment Directory、Settings、recovery/readiness flows                                              |
-| `@botharness/im`     | Provider adapter 边界；首个为 Feishu/Lark。负责 verified normalization/capabilities/execution，不拥有 Inbox 或授权                                        |
-| `deepseekbot`        | bundle + app：声明 layer、组装 packages、暴露 Host RPC/Client slots                                                                                       |
+| 包                 | 内容                                                                                                                                                      |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@botharness/core` | Host composition root + deep modules：PersonaBot/ownership、Memory、Messaging、Assignments、Portability、read models；共享 DB owner 不等于共享 repository |
+| `@botharness/ui`   | DSH-native React UI：roster、DM/Channel、Bot Inbox、Assignment Directory、Settings、recovery/readiness flows                                              |
+| `@botharness/im`   | Provider adapter 边界；首个为 Feishu/Lark。负责 verified normalization/capabilities/execution，不拥有 Inbox 或授权                                        |
+| `deepseekbot`      | bundle + app：声明 layer、组装 packages、暴露 Host RPC/Client slots                                                                                       |
 
 - 扩展面：其他 Host 插件可读 registry、订阅状态事件、注册 renderer；不提供路由与回复位置的覆盖（沿用 ADR-0011，路由类需求走上游）。
 - 客户端事实：DSH 客户端组件是 React，且浏览器半侧是**独立 Cordis 应用**——不能 `inject` host 服务；客户端经**客户端桥（读模型 RPC）**读写 PersonaBot（ADR-0023，规格 `docs/client-bridge.md`）。shell 只共享 `react`/`react-dom` 等基线，第三方依赖必须打进 lazily-loaded bundle（blobatar 走这条）。

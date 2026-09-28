@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
-import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import {
+  BOT_HARNESS_SCHEMA_PLAN,
+  LOCAL_HUMAN_RECEIPTS_MIGRATION,
+} from '../src/database/schema-plan.js';
 import { defineSchemaPlan } from '../src/database/schema.js';
 import { createCore } from '../src/plugin.js';
 import { createTempRoot } from './helpers.js';
@@ -9,10 +12,15 @@ import { createTempRoot } from './helpers.js';
 describe('local Human Group receipts', () => {
   it('migrates an existing shared position to the local Human without changing its revision', () => {
     const home = createTempRoot('botharness-human-receipt-upgrade-');
+    // The plan gained migrations after the human-receipts one, so stop at it
+    // explicitly instead of assuming it is the last entry.
+    const beforeHumanReceipts = BOT_HARNESS_SCHEMA_PLAN.migrations.indexOf(
+      LOCAL_HUMAN_RECEIPTS_MIGRATION,
+    );
     const prior = mountOperationalDatabase({
       dshHome: home,
       schemaPlan: defineSchemaPlan(
-        BOT_HARNESS_SCHEMA_PLAN.migrations.filter((migration) => migration.generation < 25),
+        BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, beforeHumanReceipts),
       ),
     });
     try {

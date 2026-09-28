@@ -300,6 +300,7 @@ describe('plugin entry', () => {
       'hiddenSet',
       'rosterBatch',
       'developerModeSet',
+      'computerAccessSet',
     ]);
   });
 

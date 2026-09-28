@@ -155,7 +155,7 @@ A profile-scoped Linux desktop that every PersonaBot of one profile shares, with
 _Avoid_: machine, VM, sandbox, desktop, host
 
 **Bot Screen**:
-The private work surface one PersonaBot uses on a Computer — the windows and tabs it opened. Observation and action are scoped to its owned windows; it is a visibility scope, not a security boundary.
+The private work surface one PersonaBot uses on a Computer — the windows and tabs it opened, placed on their own desktop workspace while the Human watches; per-PersonaBot virtual displays are an experimental opt-in. Observation and action are scoped to its owned windows; it is a visibility scope, not a security boundary.
 _Avoid_: display, virtual screen, workspace, desktop
 
 **Computer Provider**:
@@ -173,6 +173,18 @@ _Avoid_: handoff, screen sharing, per-bot takeover
 **Computer Export**:
 A portable archive of one Computer's persistent volume, produced by an explicit export action and restorable on another Host. It is a profile-scoped facet, never part of a PersonaBot export.
 _Avoid_: PersonaBot export, backup file, disk image
+
+**Computer Target**:
+The profile-scoped choice of where a Computer lives: the Local Computer (default) or a Container Computer. It is set once for every PersonaBot, while Computer Access only decides whether one PersonaBot may use the Computer.
+_Avoid_: device, driver, provider, backend
+
+**Local Computer**:
+The Computer served by the machine running DSH itself — the Human's own desktop, or the host of a deployment with an interactive desktop. Every PersonaBot shares the Human's real desktop and logins; it offers no isolation beyond that machine.
+_Avoid_: host machine, personal computer, native target
+
+**Container Computer**:
+The Computer served by the profile's Docker desktop, recommended when the host has no interactive desktop (a headless VPS). It is optional: a profile without Docker uses the Local Computer.
+_Avoid_: sandbox, VM, docker computer
 
 **Computer Access**:
 The per-PersonaBot opt-in, off by default, that makes the Computer tools and their guidance available to that PersonaBot's Orchestrator and Assignment sessions. It never grants another PersonaBot or a Human session access.

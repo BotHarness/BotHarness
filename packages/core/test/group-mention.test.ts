@@ -292,6 +292,14 @@ describe('Group mention tracer', () => {
       expect(core.channels.message(group.id, 'group-steer')?.deliveries).toEqual([
         { botSlug: 'ada', state: 'handled' },
       ]);
+      // A steered admission settles as tracked work: whenIdle() must not return
+      // before its state write is visible.
+      expect(
+        core.attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.sourceMessageId === 'group-steer')
+          .map((item) => item.state),
+      ).toEqual(['handled']);
     } finally {
       releaseTurn();
       await core.runtime.close();

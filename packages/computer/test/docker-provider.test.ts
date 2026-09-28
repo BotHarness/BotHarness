@@ -51,12 +51,19 @@ function specLine(
   } = {},
 ): ComputerRuntimeResult {
   const image = patch.image ?? 'lscr.io/linuxserver/webtop:ubuntu-xfce';
-  const memory = patch.memory ?? String(2 * 1024 ** 3);
+  const memory = patch.memory ?? String(4 * 1024 ** 3);
   const swap = patch.swap ?? memory;
   const nanoCpus = patch.nanoCpus ?? String(2_000_000_000);
   const shm = patch.shm ?? String(512 * 1024 ** 2);
   const pids = patch.pids ?? '4096';
-  const env = patch.env ?? ['HARDEN_DESKTOP=true', 'PIXELFLUX_WAYLAND=false'];
+  const env = patch.env ?? [
+    'HARDEN_DESKTOP=false',
+    'MAX_RES=1280x800',
+    'SELKIES_MANUAL_WIDTH=1280',
+    'SELKIES_MANUAL_HEIGHT=800',
+    'SELKIES_ENABLE_RESIZE=false',
+    'PIXELFLUX_WAYLAND=false',
+  ];
   return ok(`${image}|${memory}|${swap}|${nanoCpus}|${shm}|${pids}|${env.join('\n')}\n`);
 }
 
@@ -114,11 +121,11 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
 
-    const run = calls.find((argv) => argv[1] === 'run');
+    const run = calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm'));
     expect(run).toBeDefined();
     const flattened = (run ?? []).join(' ');
     expect(flattened).toContain('127.0.0.1:39001:3000');
-    expect(flattened).toContain('HARDEN_DESKTOP=true');
+    expect(flattened).toContain('HARDEN_DESKTOP=false');
     expect(flattened).toContain('PIXELFLUX_WAYLAND=false');
     expect(flattened).toContain('botharness-computer-config:/config');
     expect(calls.some((argv) => argv[1] === 'volume' && argv[2] === 'create')).toBe(true);
@@ -331,6 +338,37 @@ describe('Docker computer provider', () => {
     expect((untar ?? []).join(' ')).toContain('tar xf /backup/');
   });
 
+  it('recreates when the desktop resolution changed', async () => {
+    const calls: string[][] = [];
+    const provider = createDockerComputerProvider({
+      runner: runnerWith((argv) => {
+        if (argv[1] === 'info') return ok('27.0.0');
+        if (argv[1] === 'inspect') {
+          const format = argv.join(' ');
+          if (format.includes('HostConfig.Memory'))
+            return specLine({
+              env: [
+                'HARDEN_DESKTOP=false',
+                'MAX_RES=2560x1600',
+                'SELKIES_MANUAL_WIDTH=2560',
+                'SELKIES_MANUAL_HEIGHT=1600',
+                'SELKIES_ENABLE_RESIZE=false',
+                'PIXELFLUX_WAYLAND=false',
+              ],
+            });
+          return ok('exited\n');
+        }
+        return ok('ok');
+      }, calls),
+    });
+    await provider.start();
+    expect(calls.some((argv) => argv[1] === 'rm')).toBe(true);
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
+    expect(run).toContain('MAX_RES=1280x800');
+    expect(run).toContain('SELKIES_MANUAL_WIDTH=1280');
+    expect(run).toContain('SELKIES_ENABLE_RESIZE=false');
+  });
+
   it('recreates when a managed resource setting changed', async () => {
     const calls: string[][] = [];
     const provider = createDockerComputerProvider({
@@ -339,7 +377,7 @@ describe('Docker computer provider', () => {
         if (argv[1] === 'inspect') {
           const format = argv.join(' ');
           if (format.includes('HostConfig.Memory'))
-            return specLine({ memory: String(4 * 1024 ** 3) });
+            return specLine({ memory: String(2 * 1024 ** 3) });
           return ok('exited\n');
         }
         return ok('ok');
@@ -414,17 +452,21 @@ describe('Docker computer provider', () => {
       }, calls),
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
-    expect(run).toContain('--memory 2g');
-    expect(run).toContain('--memory-swap 2g');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
+    expect(run).toContain('--memory 4g');
+    expect(run).toContain('--memory-swap 4g');
+    expect(run).toContain('MAX_RES=1280x800');
+    expect(run).toContain('SELKIES_MANUAL_WIDTH=1280');
+    expect(run).toContain('SELKIES_ENABLE_RESIZE=false');
     expect(run).toContain('--pids-limit 4096');
     expect(run).toContain('--shm-size 512m');
   });
 
-  it('ships 2C2G defaults that stay overridable per Host', async () => {
+  it('ships 2C4G defaults that stay overridable per Host', async () => {
     expect(DEFAULT_DOCKER_CONFIG).toMatchObject({
       cpus: 2,
-      memory: '2g',
+      memory: '4g',
+      resolution: '1280x800',
       shmSize: '512m',
       pidsLimit: 4096,
       idleStopMinutes: 30,
@@ -441,7 +483,7 @@ describe('Docker computer provider', () => {
       config: { cpus: 4, memory: '4g', shmSize: '1g', pidsLimit: 8192 },
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('--cpus 4');
     expect(run).toContain('--memory 4g');
     expect(run).toContain('--memory-swap 4g');
@@ -529,7 +571,9 @@ describe('Docker computer provider', () => {
     );
     expect(seed?.join(' ')).toContain('value="52"');
     expect(seed?.join(' ')).toContain('value="96"');
-    expect(seed?.join(' ')).toContain('autostart/chromium.desktop');
+    expect(seed?.join(' ')).toContain('rm -f /data/.config/autostart/chromium.desktop');
+    expect(seed?.join(' ')).toContain('rm -f ');
+    expect(seed?.join(' ')).toContain('chromium/Singleton*');
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
   });
 
@@ -560,7 +604,7 @@ describe('Docker computer provider', () => {
       getLanguage: () => 'zh_CN.UTF-8',
     });
     await provider.start();
-    const run = (calls.find((argv) => argv[1] === 'run') ?? []).join(' ');
+    const run = (calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm')) ?? []).join(' ');
     expect(run).toContain('LANG=zh_CN.UTF-8');
     expect(run).toContain('LC_ALL=zh_CN.UTF-8');
   });
@@ -576,7 +620,7 @@ describe('Docker computer provider', () => {
       config: { hardenDesktop: false },
     });
     await provider.start();
-    const run = calls.find((argv) => argv[1] === 'run');
+    const run = calls.find((argv) => argv[1] === 'run' && !argv.includes('--rm'));
     expect((run ?? []).join(' ')).toContain('HARDEN_DESKTOP=false');
   });
 

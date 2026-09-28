@@ -15,6 +15,7 @@ import {
   CHANNEL_ATTACHMENT_UPLOAD_PATH,
 } from './attachments/http.js';
 import { createBridgeMethods } from './bridge/methods.js';
+import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
@@ -143,6 +144,20 @@ export interface BotHarnessCore {
   rootDir: string;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
+  /** Register one optional bundle's Bot-agent contribution; returns its remover. */
+  contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
+  /**
+   * Native tool names owned by optional Host-side bundles (e.g. the Computer
+   * Tool Provider). They act outside Host files, so the file-grant guard and
+   * the unconfined-native gate skip them; their own authorization governs.
+   */
+  hostTools: Set<string>;
+  /** Run every registered Bot-agent contribution for one agent setup. */
+  runBotAgentSetups(
+    agentCtx: Context,
+    agent: import('@deepseek-ai/dsh-agent').Agent,
+    info: BotAgentSetupInfo,
+  ): void;
   states: BotStateTracker;
   ownership: SessionOwnership;
   memory: MemoryService;
@@ -171,6 +186,13 @@ function unavailableAgentAdapter(): BotAgentAdapter {
     close: async () => undefined,
   };
 }
+
+/** One optional bundle's Bot-agent contribution (see onAgentSetup). */
+type BotAgentSetup = (
+  agentCtx: import('@deepseek-ai/cordis').Context,
+  agent: import('@deepseek-ai/dsh-agent').Agent,
+  info: BotAgentSetupInfo,
+) => void;
 
 export function createCore(
   options: {
@@ -271,6 +293,22 @@ export function createCore(
   );
   const orchestratorCwd = (bot: { slug: string }): string | undefined =>
     registry.memoryDirFor(bot.slug);
+  const hostTools = new Set<string>();
+  const botAgentSetups = new Set<BotAgentSetup>();
+  const contributeBotAgentSetup = (contribute: BotAgentSetup): (() => void) => {
+    botAgentSetups.add(contribute);
+    return () => {
+      botAgentSetups.delete(contribute);
+    };
+  };
+  const runBotAgentSetups = (
+    agentCtx: import('@deepseek-ai/cordis').Context,
+    agent: import('@deepseek-ai/dsh-agent').Agent,
+    info: BotAgentSetupInfo,
+  ): void => {
+    for (const contribute of [...botAgentSetups]) contribute(agentCtx, agent, info);
+  };
+
   runtime = createBotRuntime({
     database: operationalDatabase,
     registry,
@@ -296,6 +334,9 @@ export function createCore(
     rootDir,
     operationalDatabase,
     registry,
+    contributeBotAgentSetup,
+    runBotAgentSetups,
+    hostTools,
     states,
     ownership,
     memory,
@@ -327,6 +368,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
     publishDraft: (event) => publishDraft(event),
+    onAgentSetup: (agentCtx, agent, info) => core.runBotAgentSetups(agentCtx, agent, info),
     authorizeBorrow: (agent, role) => {
       const owner = core.ownership.resolve(agent.session.id);
       if (owner?.rootRole !== role) throw new Error('BotHarness Agent role mismatch');
@@ -444,6 +486,45 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (!requiresHumanToolApproval(execution.name)) return next();
       if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
         return next();
+      // Computer tools act on the profile's shared Computer, not on Host
+      // files, so the file-grant approval never applies. Their own
+      // session-scoped Computer Authorization rides THIS hook instead: the
+      // ask becomes a Bot DM approval card (one-time / always rules included),
+      // and the grant lasts for the session (ADR-0080).
+      const computerTools = ctx.get('botharnessComputerTools') as
+        | {
+            ownsTool?(name: string): boolean;
+            needsAuthorization?(sessionId: string): boolean;
+            markAuthorized?(sessionId: string): void;
+          }
+        | undefined;
+      if (computerTools?.ownsTool?.(execution.name) === true) {
+        if (computerTools.needsAuthorization?.(agent.session.id) !== true) return next();
+        const computerApproval = ctx.get('approval') as ApprovalService | undefined;
+        const untrackComputer = toolApproval.track(execution);
+        if (computerApproval === undefined || untrackComputer === undefined) {
+          return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
+        }
+        try {
+          const outcome = await computerApproval.request({
+            agent,
+            toolName: execution.name,
+            callId: execution.callId,
+            reason: "This PersonaBot wants to act on the profile's shared Computer.",
+            signal: execution.signal,
+          });
+          if (outcome !== 'allowed-once') {
+            return { kind: 'deny', reason: 'Human approval was ' + outcome };
+          }
+          computerTools.markAuthorized?.(agent.session.id);
+          approvedCalls.add(execution.token);
+          return await next();
+        } catch {
+          return { kind: 'deny', reason: 'Human approval is unavailable' };
+        } finally {
+          untrackComputer();
+        }
+      }
       const denial = permissionDenial(agent.session);
       if (denial !== undefined) return { kind: 'deny', reason: denial };
       if (
@@ -543,6 +624,21 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       assignmentAccess: core.assignmentAccess,
       developerMode: {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
+      },
+      computerAccess: {
+        // The Computer Tool Provider is a separate optional bundle; when it
+        // is not composed this hook is a no-op and nothing changes.
+        changed: (slug: string) => {
+          const provider = ctx.get('botharnessComputerTools') as unknown as
+            | { reconcileBot?: (slug: string) => Promise<void> }
+            | undefined;
+          const pending = provider?.reconcileBot?.(slug);
+          void pending?.catch((error: unknown) => {
+            ctx.logger.warn(
+              `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
+            );
+          });
+        },
       },
     }),
   );

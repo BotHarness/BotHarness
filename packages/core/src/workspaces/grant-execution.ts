@@ -135,7 +135,7 @@ export function isSafeMemoryDirectoryListing(
 
 /** The final DSH tool gate denies every unconfined native capability for Bot-owned Sessions. */
 export function grantToolExecutionDenial(
-  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
+  core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry' | 'hostTools'>,
   session: Session,
   policy: SandboxPolicyService | undefined,
   approval: ApprovalService | undefined,
@@ -155,6 +155,9 @@ export function grantToolExecutionDenial(
   )
     return 'Assignment questions must go through the Orchestrator';
   if (BOT_TOOL_NAMES.has(name)) return undefined;
+  // Optional Host-side bundles own tools that act outside Host files; their
+  // own authorization governs (see BotHarnessCore.hostTools).
+  if (core.hostTools.has(name)) return undefined;
   const owner = core.ownership.resolve(session.id);
   if (
     owner?.rootRole === 'assignment' &&

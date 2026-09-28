@@ -6,6 +6,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconChevronDownOutline14: stub,
     IconFolderOpenOutline16: stub,
     Menu: stub,
+    Switch: stub,
   };
 });
 
@@ -18,14 +19,23 @@ import {
 } from '../src/client/settings-rows.js';
 import { PHASE_LABEL } from '../src/client/locale.js';
 
-function fakeScope(value: { exportDir: string; idleStopMinutes: number } | undefined): {
+type FakeSettings = { exportDir: string; idleStopMinutes: number; autoAllowActions: boolean };
+
+function fakeScope(value: Partial<FakeSettings> | undefined): {
   scope: ComputerSettingsScope;
   writes: { field: string; value: unknown }[];
-  push: (next: { exportDir: string; idleStopMinutes: number } | undefined) => void;
+  push: (next: Partial<FakeSettings> | undefined) => void;
 } {
   const writes: { field: string; value: unknown }[] = [];
   let listener: (() => void) | undefined;
-  let current = value;
+  let current: FakeSettings | undefined =
+    value === undefined
+      ? undefined
+      : {
+          exportDir: value.exportDir ?? '',
+          idleStopMinutes: value.idleStopMinutes ?? 30,
+          autoAllowActions: value.autoAllowActions ?? false,
+        };
   return {
     writes,
     scope: {
@@ -41,7 +51,16 @@ function fakeScope(value: { exportDir: string; idleStopMinutes: number } | undef
       },
     },
     push: (next) => {
-      current = next;
+      if (next === undefined) {
+        current = undefined;
+      } else {
+        const base = current ?? { exportDir: '', idleStopMinutes: 30, autoAllowActions: false };
+        current = {
+          exportDir: next.exportDir ?? base.exportDir,
+          idleStopMinutes: next.idleStopMinutes ?? base.idleStopMinutes,
+          autoAllowActions: next.autoAllowActions ?? base.autoAllowActions,
+        };
+      }
       listener?.();
     },
   };
@@ -98,6 +117,44 @@ describe('computer settings prefs', () => {
 
     await expect(prefs.setExportDir('/other')).rejects.toThrow(ExportDirRejectedError);
     expect(prefs.getSnapshot().exportDir).toBe('/exports');
+  });
+
+  it('adopts and optimistically writes the auto-allow switch', () => {
+    const fake = fakeScope({
+      exportDir: '/exports',
+      idleStopMinutes: 30,
+      autoAllowActions: true,
+    });
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+
+    expect(prefs.getSnapshot().autoAllowActions).toBe(true);
+
+    prefs.setAutoAllowActions(false);
+    expect(prefs.getSnapshot().autoAllowActions).toBe(false);
+    expect(fake.writes).toEqual([{ field: 'autoAllowActions', value: false }]);
+
+    fake.push({ autoAllowActions: true });
+    expect(prefs.getSnapshot().autoAllowActions).toBe(true);
+  });
+
+  it('rolls the auto-allow switch back when the scope rejects the write', async () => {
+    const fake = fakeScope({
+      exportDir: '/exports',
+      idleStopMinutes: 30,
+      autoAllowActions: false,
+    });
+    fake.scope.set = async () => {
+      throw new Error('scope refused');
+    };
+    const prefs = new ComputerSettingsPrefs();
+    prefs.attach(fake.scope);
+
+    prefs.setAutoAllowActions(true);
+    expect(prefs.getSnapshot().autoAllowActions).toBe(true);
+    await vi.waitFor(() => {
+      expect(prefs.getSnapshot().autoAllowActions).toBe(false);
+    });
   });
 });
 

@@ -67,6 +67,8 @@ describe('explicit Channel read handles returned Bot Inbox admissions on success
       changed.mockClear();
       await ask(core, 'ada', 'ask-read');
       expect(changed).toHaveBeenCalledWith(group.id, returnedId);
+      // A returned message joins the running turn and settles as handled when
+      // it succeeds (the Inbox guidance promises exactly this).
       expect(core.channels.message(group.id, returnedId)?.deliveries).toEqual([
         { botSlug: 'ada', state: 'handled' },
       ]);

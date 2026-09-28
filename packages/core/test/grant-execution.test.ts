@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -46,6 +46,7 @@ function fixture() {
     runtime: { getAssignment },
     grants: { requireActive },
     registry: { memoryDirFor },
+    hostTools: new Set<string>(),
   } as never;
   const resolvePolicy = vi.fn(() => ({ mode: 'workspace-write' }));
   const policy = { resolve: resolvePolicy } as never;
@@ -141,7 +142,7 @@ describe('Workspace Grant execution boundary', () => {
 
   it('lets an Orchestrator list its own Memory directory without a Human approval', () => {
     const state = fixture();
-    const memory = mkdtempSync(join(tmpdir(), 'botharness-memory-listing-'));
+    const memory = realpathSync(mkdtempSync(join(tmpdir(), 'botharness-memory-listing-')));
     state.memoryDirFor.mockReturnValue(memory);
     const orchestrator = { id: 'botharness-orchestrator', header: { cwd: memory } } as never;
     const allowed = { command: 'ls -la', description: 'List memory repository contents' };
@@ -214,6 +215,32 @@ describe('Workspace Grant execution boundary', () => {
         {},
       ),
     ).toMatch(/Orchestrator/);
+  });
+
+  it('lets a registered host-owned tool through the unconfined-native gate', () => {
+    const state = fixture();
+    const core = state.core as unknown as { hostTools: Set<string> };
+    core.hostTools.add('computer_click');
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        state.assignment,
+        state.policy,
+        state.approval,
+        'computer_click',
+        {},
+      ),
+    ).toBeUndefined();
+    expect(
+      grantToolExecutionDenial(
+        state.core,
+        state.assignment,
+        state.policy,
+        state.approval,
+        'computer_unregistered',
+        {},
+      ),
+    ).toContain('unconfined native tool');
   });
 
   it('denies per-tool sandbox escalation even when standing policy remains safe', () => {

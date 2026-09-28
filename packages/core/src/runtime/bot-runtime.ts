@@ -606,6 +606,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #warn: ((message: string) => void) | undefined;
   readonly #tails = new Map<string, Promise<unknown>>();
   readonly #activeTurns = new Map<string, Promise<void>>();
+  readonly #steerSettlements = new Set<Promise<void>>();
   readonly #pendingHarvests = new Set<string>();
   readonly #digestTimers = new Map<string, NodeJS.Timeout>();
   readonly #digestRetryAt = new Map<string, number>();
@@ -862,10 +863,14 @@ class BotRuntimeImplementation implements BotRuntime {
     }
     for (const admission of admissions)
       this.#observeAdmission(admission.sourceEventId, botSlug, channelId, admission.messageId);
-    void active.then(
+    // Settle the steered admissions as part of tracked work: whenIdle() must
+    // never return before a state write it could observe has happened.
+    const settlement = active.then(
       () => this.#settleSteeredAdmission(admissions, botSlug, channelId, true),
       () => this.#settleSteeredAdmission(admissions, botSlug, channelId, false),
     );
+    this.#steerSettlements.add(settlement);
+    void settlement.finally(() => this.#steerSettlements.delete(settlement)).catch(() => undefined);
     return true;
   }
 
@@ -916,6 +921,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   e.payload_json IS NULL OR
                   json_extract(e.payload_json, '$.assignmentReport.state')
                     IN ('completed', 'blocked', 'waiting-human', 'failed'))
+           ORDER BY a.bot_slug
         `)
           .all() as { bot_slug: string }[],
     );
@@ -932,6 +938,7 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.reason IN ('group-mention', 'bot-dm', 'group-invite', 'group-join-request', 'group-join-decision')
            AND a.attempt_state IN ('pending', 'retryable')
            AND e.channel_id IS NOT NULL AND e.message_id IS NOT NULL
+         ORDER BY e.channel_id, e.message_id, a.reason
       `)
         .all(),
     ) as unknown as Array<{
@@ -962,6 +969,7 @@ class BotRuntimeImplementation implements BotRuntime {
            AND a.attempt_state IN ('pending', 'retryable')
            AND e.channel_id IS NOT NULL
            AND (? IS NULL OR a.bot_slug = ?)
+         ORDER BY e.channel_id, a.bot_slug
       `)
         .all(botSlug ?? null, botSlug ?? null),
     ) as unknown as Array<{ channel_id: string; bot_slug: string }>;
@@ -1112,6 +1120,7 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id IS NOT NULL
+           ORDER BY e.channel_id
         `)
           .all(botSlug),
       )
@@ -1327,6 +1336,7 @@ class BotRuntimeImplementation implements BotRuntime {
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
          GROUP BY e.channel_id, a.wake_policy_revision
+         ORDER BY first_at, channel_id
       `)
           .all(botSlug) as unknown as Array<{
           channel_id: string;
@@ -1721,7 +1731,11 @@ class BotRuntimeImplementation implements BotRuntime {
 
   async whenIdle(): Promise<void> {
     for (;;) {
-      const pending = [...this.#tails.values(), ...this.#assignmentRuns.values()];
+      const pending = [
+        ...this.#tails.values(),
+        ...this.#assignmentRuns.values(),
+        ...this.#steerSettlements,
+      ];
       if (pending.length === 0) return;
       await Promise.allSettled(pending);
     }

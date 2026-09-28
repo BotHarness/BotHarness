@@ -171,10 +171,16 @@ describe('Group ordinary-message digest', () => {
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('ordinary after-switch');
       expect(runs[0]).toContain('ordinary before-switch');
-      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
-        { sourceMessageId: 'after-switch', state: 'handled' },
-        { sourceMessageId: 'before-switch', state: 'handled' },
-      ]);
+      // Same-millisecond events tie-break on the source_event_id cursor tuple,
+      // which is a random UUID, so assert membership instead of order.
+      const switched = core.attention.list({ botSlug: 'ada' }).items;
+      expect(switched).toHaveLength(2);
+      expect(switched).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sourceMessageId: 'after-switch', state: 'handled' }),
+          expect.objectContaining({ sourceMessageId: 'before-switch', state: 'handled' }),
+        ]),
+      );
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
@@ -563,10 +569,15 @@ describe('Group ordinary-message digest', () => {
       expect(afterRuns).toHaveLength(1);
       expect(afterRuns[0]).toContain('direct Group mention');
       expect(afterRuns[0]).not.toContain('ordinary quiet');
-      expect(after.attention.list({ botSlug: 'ada' }).items).toMatchObject([
-        { sourceMessageId: 'mention-after-silent', state: 'handled' },
-        { sourceMessageId: 'quiet', state: 'pending' },
-      ]);
+      // Order is not guaranteed for same-millisecond events; assert membership.
+      const resumedAttention = after.attention.list({ botSlug: 'ada' }).items;
+      expect(resumedAttention).toHaveLength(2);
+      expect(resumedAttention).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sourceMessageId: 'mention-after-silent', state: 'handled' }),
+          expect.objectContaining({ sourceMessageId: 'quiet', state: 'pending' }),
+        ]),
+      );
     } finally {
       await after.runtime.close();
       after.operationalDatabase.close();
@@ -652,6 +663,54 @@ describe('Group ordinary-message digest', () => {
         db.prepare('SELECT record_json FROM channel_records WHERE channel_id = ?').get(second.id),
       ) as { record_json: string };
       expect(isChannelRecord(JSON.parse(record.record_json), second.id)).toBe(true);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('orders digest sections by first pending message across Channels', async () => {
+    const home = createTempRoot('botharness-digest-order-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      // Names are chosen so Channel id order and chronology disagree: the
+      // chronologically earlier digest belongs to the alphabetically later
+      // Channel, and it is also admitted second.
+      const earlier = core.channels.createGroup({ name: 'Zebra', members: ['ada'] });
+      const later = core.channels.createGroup({ name: 'Alpha', members: ['ada'] });
+      for (const group of [earlier, later])
+        core.channels.setGroupWakePolicy(group.id, 'ada', {
+          mode: 'digest',
+          count: 1,
+          intervalSeconds: 3600,
+        });
+      await core.channels.appendMessage(later.id, {
+        id: 'later-1',
+        at: '2026-09-26T00:00:10.000Z',
+        author: { kind: 'human' },
+        body: 'ordinary later',
+      });
+      await core.channels.appendMessage(earlier.id, {
+        id: 'earlier-1',
+        at: '2026-09-26T00:00:09.000Z',
+        author: { kind: 'human' },
+        body: 'ordinary earlier',
+      });
+      core.runtime.admitGroupMessage(later.id, 'later-1');
+      core.runtime.admitGroupMessage(earlier.id, 'earlier-1');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      const prompt = runs[0] ?? '';
+      expect(prompt).toContain(earlier.id);
+      expect(prompt).toContain(later.id);
+      expect(prompt.indexOf(earlier.id)).toBeLessThan(prompt.indexOf(later.id));
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
