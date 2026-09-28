@@ -1592,6 +1592,23 @@ export interface MemoryRepairEvent {
   completedAt: string | null;
 }
 
+export interface ProfileActivityDay {
+  day: string;
+  count: number;
+}
+
+export interface ProfileActivityReasonDay extends ProfileActivityDay {
+  reason: string;
+}
+
+export interface ProfileActivity {
+  slug: string;
+  weeks: number;
+  since: string;
+  events: ProfileActivityReasonDay[];
+  memoryCommits: ProfileActivityDay[];
+}
+
 export interface MemorySnapshot {
   head: string | null;
   files: string[];
@@ -1724,6 +1741,41 @@ export async function loadMemoryGitCommitDiff(
   )
     throw new Error('invalid Memory Git commit diff');
   return response as unknown as MemoryGitCommitDiff;
+}
+
+function isActivityDays(value: unknown): value is ProfileActivityDay[] {
+  return (
+    Array.isArray(value) &&
+    value.every((entry) => {
+      const record = asRecord(entry);
+      return typeof record?.['day'] === 'string' && typeof record['count'] === 'number';
+    })
+  );
+}
+
+export async function loadProfileActivity(
+  call: BridgeCall,
+  channelId: string,
+): Promise<ProfileActivity> {
+  const response = asRecord(await unwrap(call, 'profileActivity', { channelId }));
+  if (
+    response === undefined ||
+    typeof response['slug'] !== 'string' ||
+    typeof response['weeks'] !== 'number' ||
+    typeof response['since'] !== 'string' ||
+    !isActivityDays(response['memoryCommits']) ||
+    !Array.isArray(response['events']) ||
+    !response['events'].every((value) => {
+      const entry = asRecord(value);
+      return (
+        typeof entry?.['day'] === 'string' &&
+        typeof entry['count'] === 'number' &&
+        typeof entry['reason'] === 'string'
+      );
+    })
+  )
+    throw new Error('invalid Profile activity');
+  return response as unknown as ProfileActivity;
 }
 
 export async function saveMemoryFile(
