@@ -1813,8 +1813,15 @@ export function BotSidebar({
                     }}
                   >
                     {bot === undefined ? (
-                      <span className="bh-pinned-channel-icon" aria-hidden="true">
-                        <HashIcon size={24} />
+                      <span
+                        className={`bh-pinned-channel-icon${channel.avatar ? ' bh-group-pinned-channel-icon' : ''}`}
+                        aria-hidden="true"
+                      >
+                        {channel.avatar ? (
+                          <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+                        ) : (
+                          <HashIcon size={24} />
+                        )}
                       </span>
                     ) : (
                       <PersonaBotAvatar

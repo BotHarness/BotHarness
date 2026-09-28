@@ -597,6 +597,10 @@ button:has(.bh-panel-glyph):hover .bh-panel-gear {
   background: var(--dsw-alias-button-elevated-fill);
   color: var(--dsw-alias-label-secondary);
 }
+.bh-pinned-channel-icon.bh-group-pinned-channel-icon {
+  border-radius: 15px;
+  overflow: hidden;
+}
 /* The native row-leading seat is shared with DSH's active Schedule mark. */
 span:has(> [data-session-schedule-mark]) > .bh-native-session-owner {
   display: none;

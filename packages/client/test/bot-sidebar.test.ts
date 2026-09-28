@@ -427,6 +427,28 @@ describe('bot sidebar rows', () => {
     expect(markup.match(/bh-channel-row/g) ?? []).toHaveLength(0);
   });
 
+  it('keeps a Group avatar in the roster, pinned grid, and both rail positions', () => {
+    const group = { ...FLAT_CHANNEL, avatar: 'data:image/webp;base64,avatar' };
+    store.setRoster([], [group]);
+
+    const roster = renderSidebar();
+    expect(roster).toContain('bh-channel-slot bh-group-channel-slot');
+    expect(roster).toContain('<img class="bh-group-avatar-image"');
+
+    const ordinaryRail = renderSidebar(false);
+    expect(ordinaryRail).toContain('bh-rail-channel-icon bh-group-channel-icon');
+    expect(ordinaryRail.match(/<img class="bh-group-avatar-image"/g)).toHaveLength(2);
+
+    setRoster({ pins: [group.id] });
+    const pinned = renderSidebar();
+    expect(pinned).toContain('bh-pinned-channel-icon bh-group-pinned-channel-icon');
+    expect(pinned).toContain('<img class="bh-group-avatar-image"');
+
+    const pinnedRail = renderSidebar(false);
+    expect(pinnedRail).toContain('bh-rail-channel-icon bh-group-channel-icon');
+    expect(pinnedRail.match(/<img class="bh-group-avatar-image"/g)).toHaveLength(2);
+  });
+
   it('projects every ordered Channel into the collapsed rail with a pin divider and previews', () => {
     setRoster({
       pins: [DM_CHANNEL.id],
