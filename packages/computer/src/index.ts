@@ -52,7 +52,7 @@ export interface ComputerConfig {
   cpus: number;
   /** Hard memory ceiling, e.g. 4g; swap is pinned to the same value. */
   memory: string;
-  /** Desktop geometry (Xvfb `MAX_RES`), e.g. 1280x800; lower costs less memory. */
+  /** Desktop geometry ceiling (Xvfb `MAX_RES`), e.g. 2560x1600. */
   resolution: string;
   /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
@@ -123,7 +123,7 @@ export const Config = Schema.object({
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
   resolution: Schema.string()
     .default(DEFAULT_CONFIG.resolution)
-    .description('桌面分辨率（Xvfb MAX_RES）；越低越省内存与编码开销，默认 1280x800'),
+    .description('桌面分辨率上限（Xvfb MAX_RES）；viewer 不缩放画面，需覆盖最大观看画布，默认 2560x1600'),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),

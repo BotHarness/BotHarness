@@ -64,7 +64,7 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
   containerPort: 3000,
   cpus: 2,
   memory: '4g',
-  resolution: '1280x800',
+  resolution: '2560x1600',
   shmSize: '512m',
   pidsLimit: 4096,
   idleStopMinutes: 30,
@@ -369,6 +369,7 @@ export function createDockerComputerProvider(
     const envText = env.join('|');
     const managedEnv = [
       `HARDEN_DESKTOP=${config.hardenDesktop ? 'true' : 'false'}`,
+      `MAX_RES=${config.resolution}`,
       'PIXELFLUX_WAYLAND=false',
     ];
     // An unparseable configured size cannot be verified, so it never forces a
