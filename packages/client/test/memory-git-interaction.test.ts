@@ -111,6 +111,46 @@ afterEach(async () => {
 });
 
 describe('Memory Git graph sidebar', () => {
+  it('shows cached Memory and graph immediately on a return visit', async () => {
+    const graph: MemoryGitGraph = {
+      head: SHA,
+      currentBranch: 'main',
+      branches: ['main'],
+      dirty: false,
+      commits: [
+        {
+          sha: SHA,
+          parents: [],
+          subject: 'Cached memory',
+          authoredAt: '2026-09-25T00:00:00Z',
+          branches: ['main'],
+          status: 'accepted',
+        },
+      ],
+      hasMore: false,
+    };
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce({ head: SHA, files: [], provisional: false })
+        .mockImplementation(() => new Promise<never>(() => undefined)),
+      memoryGitGraph: vi.fn().mockResolvedValue(graph),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-qa',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Cached memory');
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Cached memory');
+    expect(container.querySelector('.bh-skeleton')).toBeNull();
+  });
+
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
       memoryGitCommitDiff: vi

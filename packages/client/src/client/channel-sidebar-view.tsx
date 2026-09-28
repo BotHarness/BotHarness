@@ -306,7 +306,7 @@ export function ChannelSidebar({
         ) : (
           visibleEntries.map((entry) => (
             <ChannelSidebarEntrySection
-              key={entry.id}
+              key={`${entry.id}:${entryProps.channelId}`}
               entry={entry}
               expanded={controller.isEntryExpanded(entry.id)}
               onToggle={() => controller.toggleEntry(entry.id)}

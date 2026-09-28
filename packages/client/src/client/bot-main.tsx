@@ -34,6 +34,7 @@ import { HumanInboxView } from './human-inbox-view.js';
 import type { ChannelSidebarRegistry } from './channel-sidebar.js';
 import { ChannelSidebar, useChannelSidebar } from './channel-sidebar-view.js';
 import { MemoryCommitView } from './memory-commit-view.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
@@ -932,7 +933,7 @@ function ConversationView({
               </div>
             ) : null}
             {conversation.status === 'loading' && messages.length === 0 ? (
-              <div className="bh-note">{t('messages.loading')}</div>
+              <LoadingSkeleton kind="messages" label={t('messages.loading')} />
             ) : null}
             {conversation.status === 'error' && conversation.error !== undefined ? (
               <div className="bh-error">{t('messages.error', { error: conversation.error })}</div>

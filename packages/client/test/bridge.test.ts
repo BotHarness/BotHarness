@@ -442,6 +442,114 @@ describe('bridge actions', () => {
     expect(clientStore.getSnapshot().sessions.items).toEqual([]);
   });
 
+  it('shows a previously opened Channel immediately while its timeline refreshes', async () => {
+    let resolveRefresh: ((value: unknown) => void) | undefined;
+    let groupReads = 0;
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['channelId'] === 'group-team' && ++groupReads === 2)
+          return new Promise((resolve) => {
+            resolveRefresh = resolve;
+          });
+        return {
+          revision: 2,
+          page: {
+            entries: [
+              {
+                id: 'm1',
+                at: BOT.createdAt,
+                author: { kind: 'human' },
+                body: String(payload['channelId']),
+              },
+            ],
+            olderCursor: null,
+            newerCursor: null,
+            hasOlder: false,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openChannel('group-team');
+    await actions.openChannel('dm-ada');
+    const frames: Array<{ status: string; channelId: string | undefined; bodies: string[] }> = [];
+    const unsubscribe = clientStore.subscribe(() => {
+      const { conversation } = clientStore.getSnapshot();
+      frames.push({
+        status: conversation.status,
+        channelId: conversation.channel?.id,
+        bodies: conversation.messages.map((message) => message.body),
+      });
+    });
+    const reopened = actions.openChannel('group-team');
+    expect(
+      frames.every((frame) => frame.channelId === 'group-team' && frame.bodies[0] === 'group-team'),
+    ).toBe(true);
+    expect(clientStore.getSnapshot().conversation.status).toBe('ready');
+    await vi.waitFor(() => expect(resolveRefresh).toBeDefined());
+    resolveRefresh!({
+      revision: 3,
+      page: {
+        entries: [{ id: 'm2', at: BOT.createdAt, author: { kind: 'human' }, body: 'fresh' }],
+        olderCursor: null,
+        newerCursor: null,
+        hasOlder: false,
+        hasNewer: false,
+      },
+    });
+    await reopened;
+    unsubscribe();
+    expect(
+      clientStore.getSnapshot().conversation.messages.map((message) => message.body),
+    ).toContain('fresh');
+  });
+
+  it('starts a first Channel visit in loading state without an empty ready frame', async () => {
+    const { clientStore, actions } = setup();
+    await actions.load();
+    const statuses: string[] = [];
+    const unsubscribe = clientStore.subscribe(() => {
+      if (clientStore.getSnapshot().selection?.kind === 'channel')
+        statuses.push(clientStore.getSnapshot().conversation.status);
+    });
+    await actions.openChannel('group-team');
+    unsubscribe();
+    expect(statuses[0]).toBe('loading');
+    expect(statuses).not.toContain('idle');
+  });
+
+  it('reconciles an off-screen send in the cached Channel', async () => {
+    let resolveSend: ((value: unknown) => void) | undefined;
+    const { clientStore, actions } = setup({
+      channelSend: () =>
+        new Promise((resolve) => {
+          resolveSend = resolve;
+        }),
+    });
+    await actions.load();
+    await actions.openChannel('group-team');
+    const sending = actions.send('while away');
+    await actions.openChannel('dm-ada');
+    resolveSend!({
+      message: {
+        id: 'committed-offscreen',
+        at: BOT.createdAt,
+        author: { kind: 'human' },
+        body: 'while away',
+      },
+    });
+    await sending;
+    const reopening = actions.openChannel('group-team');
+    const committed = clientStore
+      .getSnapshot()
+      .conversation.messages.filter((message) => message.body === 'while away');
+    expect(committed).toHaveLength(1);
+    expect(committed[0]?.id).toBe('committed-offscreen');
+    expect(committed[0]?.pending).toBeUndefined();
+    await reopening;
+  });
+
   it('reopens DM and group Channels around the profile read anchor', async () => {
     const requests: Array<Record<string, unknown>> = [];
     const entry = (id: string) => ({ id, at: BOT.createdAt, author: { kind: 'human' }, body: id });

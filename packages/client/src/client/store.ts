@@ -386,6 +386,10 @@ export interface ClientStore {
   upsertChannel(channel: ChannelSummary): void;
   select(selection: ConversationSelection | undefined): void;
   setConversation(patch: Partial<ConversationState>): void;
+  updateCachedConversation(
+    channelId: string,
+    update: (cached: ConversationState) => ConversationState,
+  ): void;
   setSessions(patch: Partial<SessionsState>): void;
   setBotInbox(patch: Partial<BotInboxState>): void;
   setHumanInbox(patch: Partial<HumanInboxState>): void;
@@ -452,6 +456,51 @@ function sameSelection(
 }
 
 export function createStore(): ClientStore {
+  const conversations = new Map<string, ConversationState>();
+  const botChannels = new Map<string, string>();
+  const sessionsByBot = new Map<string, SessionsState>();
+  const inboxesByBot = new Map<string, BotInboxState>();
+  const rememberKeyed = <T>(cache: Map<string, T>, key: string, value: T): void => {
+    cache.delete(key);
+    cache.set(key, value);
+    if (cache.size > 30) cache.delete(cache.keys().next().value!);
+  };
+  const rememberConversation = (): void => {
+    const conversation = state.conversation;
+    const channelId = conversation.channel?.id;
+    if (channelId === undefined || conversation.status !== 'ready') return;
+    rememberKeyed(conversations, channelId, {
+      ...conversation,
+      drafts: [],
+      draftRevision: 0,
+      draftNotice: undefined,
+      error: undefined,
+      sending: false,
+      timeline: {
+        ...conversation.timeline,
+        loadingOlder: false,
+        olderError: undefined,
+        loadingNewer: false,
+        newerError: undefined,
+      },
+    });
+    if (state.selection?.kind === 'bot')
+      rememberKeyed(botChannels, state.selection.slug, channelId);
+  };
+  const botSlugForSelection = (selection: ConversationSelection | undefined): string | undefined =>
+    selection?.kind === 'bot'
+      ? selection.slug
+      : selection?.kind === 'channel'
+        ? state.channels.find((channel) => channel.id === selection.channelId)?.botSlug
+        : undefined;
+  const cachedChannelId = (selection: ConversationSelection | undefined): string | undefined =>
+    selection?.kind === 'channel'
+      ? selection.channelId
+      : selection?.kind === 'bot'
+        ? (state.channels.find(
+            (channel) => channel.type === 'dm' && channel.botSlug === selection.slug,
+          )?.id ?? botChannels.get(selection.slug))
+        : undefined;
   let state: ClientState = {
     mode: 'dsh',
     bots: [],
@@ -511,16 +560,39 @@ export function createStore(): ClientStore {
     },
     select(selection) {
       if (sameSelection(state.selection, selection)) return;
+      rememberConversation();
+      const previousBot = botSlugForSelection(state.selection);
+      if (previousBot !== undefined) {
+        if (state.sessions.status === 'ready')
+          rememberKeyed(sessionsByBot, previousBot, state.sessions);
+        if (state.botInbox.status === 'ready')
+          rememberKeyed(inboxesByBot, previousBot, state.botInbox);
+      }
+      const channelId = cachedChannelId(selection);
+      const botSlug = botSlugForSelection(selection);
+      const cached = channelId === undefined ? undefined : conversations.get(channelId);
+      const channel = state.channels.find((candidate) => candidate.id === channelId);
       update({
         selection,
-        conversation: initialConversation(),
-        sessions: initialSessions(),
-        botInbox: initialBotInbox(),
+        conversation:
+          cached === undefined
+            ? selection?.kind === 'channel' || selection?.kind === 'bot'
+              ? { ...initialConversation(), status: 'loading', channel }
+              : initialConversation()
+            : { ...cached, channel: channel ?? cached.channel },
+        sessions:
+          (botSlug === undefined ? undefined : sessionsByBot.get(botSlug)) ?? initialSessions(),
+        botInbox:
+          (botSlug === undefined ? undefined : inboxesByBot.get(botSlug)) ?? initialBotInbox(),
         humanInbox: initialHumanInbox(),
       });
     },
     setConversation(patch) {
       update({ conversation: { ...state.conversation, ...patch } });
+    },
+    updateCachedConversation(channelId, apply) {
+      const cached = conversations.get(channelId);
+      if (cached !== undefined) conversations.set(channelId, apply(cached));
     },
     setSessions(patch) {
       update({ sessions: { ...state.sessions, ...patch } });

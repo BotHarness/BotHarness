@@ -13,6 +13,7 @@ import {
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { useClientState } from './bot-sidebar.js';
 import { formatRelativeTime } from './labels.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import {
   groupSessionRowsByWorkspace,
   personaBotSessionRows,
@@ -189,7 +190,9 @@ function SessionsPanel({
 
   return (
     <div className="bh-sessions">
-      {owned.status === 'loading' ? <div className="bh-note">{t('sessions.loading')}</div> : null}
+      {owned.status === 'loading' && rows.length === 0 ? (
+        <LoadingSkeleton kind="sidebar" label={t('sessions.loading')} />
+      ) : null}
       {owned.status === 'error' && owned.error !== undefined ? (
         <div className="bh-error">{t('sessions.error', { error: owned.error })}</div>
       ) : null}

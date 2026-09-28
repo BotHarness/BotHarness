@@ -3,6 +3,7 @@ import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { LoadingSkeleton } from './loading-skeleton.js';
 import {
   layoutMemoryGitLanes,
   memoryGraphLaneX,
@@ -12,6 +13,31 @@ import {
   MEMORY_GRAPH_ROW_HEIGHT,
 } from './memory-git-lanes.js';
 
+type MemoryCache = {
+  snapshot: MemorySnapshot | undefined;
+  graph: MemoryGitGraph | undefined;
+  files: Map<string, { path: string; body: string; head: string; binary?: boolean }>;
+};
+const memoryCaches = new WeakMap<ChannelSidebarEntryProps['actions'], Map<string, MemoryCache>>();
+
+function cachedMemory(
+  actions: ChannelSidebarEntryProps['actions'],
+  channelId: string,
+): MemoryCache {
+  let channels = memoryCaches.get(actions);
+  if (channels === undefined) {
+    channels = new Map();
+    memoryCaches.set(actions, channels);
+  }
+  let cache = channels.get(channelId);
+  if (cache === undefined) {
+    cache = { snapshot: undefined, graph: undefined, files: new Map() };
+    channels.set(channelId, cache);
+    if (channels.size > 30) channels.delete(channels.keys().next().value!);
+  }
+  return cache;
+}
+
 export function MemoryEntry({
   actions,
   channelId,
@@ -20,23 +46,30 @@ export function MemoryEntry({
   selectedMemoryCommitSha,
   t,
 }: ChannelSidebarEntryProps): ReactElement {
+  const cache = cachedMemory(actions, channelId);
+  const initialPath = cache.snapshot?.files[0];
   const [refresh, setRefresh] = useState(0);
   const [branchChoice, setBranchChoice] = useState('');
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [branchFilter, setBranchFilter] = useState('');
   const skipBranchFocus = useRef(false);
   const [branchRequest, setBranchRequest] = useState<string>();
-  const [snapshot, setSnapshot] = useState<MemorySnapshot>();
-  const [graph, setGraph] = useState<MemoryGitGraph>();
+  const [snapshot, setSnapshot] = useState<MemorySnapshot | undefined>(cache.snapshot);
+  const [graph, setGraph] = useState<MemoryGitGraph | undefined>(cache.graph);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [path, setPath] = useState<string>();
-  const [file, setFile] = useState<{
-    path: string;
-    body: string;
-    head: string;
-    binary?: boolean;
-  }>();
-  const [draft, setDraft] = useState('');
+  const [path, setPath] = useState<string | undefined>(initialPath);
+  const [file, setFile] = useState<
+    | {
+        path: string;
+        body: string;
+        head: string;
+        binary?: boolean;
+      }
+    | undefined
+  >(initialPath === undefined ? undefined : cache.files.get(initialPath));
+  const [draft, setDraft] = useState(
+    initialPath === undefined ? '' : (cache.files.get(initialPath)?.body ?? ''),
+  );
   const [busy, setBusy] = useState(false);
   const [confirmRepair, setConfirmRepair] = useState(false);
   const [repairArchive, setRepairArchive] = useState<string>();
@@ -66,12 +99,11 @@ export function MemoryEntry({
     setError(undefined);
     setSnapshotError(undefined);
     setGraphError(undefined);
-    setSnapshot(undefined);
-    setGraph(undefined);
     void actions
       .memorySnapshot(channelId)
       .then((next) => {
         if (!active) return;
+        cache.snapshot = next;
         setSnapshot(next);
         setPath((current) =>
           current !== undefined && next.files.includes(current) ? current : next.files[0],
@@ -87,6 +119,7 @@ export function MemoryEntry({
           .memoryGitGraph(channelId, 0)
           .then((next) => {
             if (active) {
+              cache.graph = next;
               setGraph(next);
               setBranchChoice((current) =>
                 next.branches.includes(current)
@@ -106,13 +139,19 @@ export function MemoryEntry({
 
   useEffect(() => {
     let active = true;
-    setFile(undefined);
-    setDraft('');
+    const cachedFile = path === undefined ? undefined : cache.files.get(path);
+    setFile(cachedFile);
+    setDraft(cachedFile?.body ?? '');
     if (path !== undefined) {
       void actions
         .memoryFile(channelId, path)
         .then((next) => {
           if (!active) return;
+          if (next !== undefined) {
+            cache.files.delete(path);
+            cache.files.set(path, next);
+            if (cache.files.size > 20) cache.files.delete(cache.files.keys().next().value!);
+          }
           setFile(next);
           setDraft(next?.body ?? '');
         })
@@ -130,7 +169,9 @@ export function MemoryEntry({
     setLoadingMore(true);
     try {
       const next = await actions.memoryGitGraph(channelId, graph.commits.length);
-      setGraph({ ...next, commits: [...graph.commits, ...next.commits] });
+      const merged = { ...next, commits: [...graph.commits, ...next.commits] };
+      cache.graph = merged;
+      setGraph(merged);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : String(failure));
     } finally {
@@ -172,6 +213,14 @@ export function MemoryEntry({
         expectedHead: file.head,
         editId: crypto.randomUUID(),
       });
+      const savedFile = { ...file, body: draft, head: commit.sha };
+      cache.files.set(file.path, savedFile);
+      setFile(savedFile);
+      if (snapshot !== undefined) {
+        const savedSnapshot = { ...snapshot, head: commit.sha };
+        cache.snapshot = savedSnapshot;
+        setSnapshot(savedSnapshot);
+      }
       onMemoryCommitSelect?.(commit.sha);
       setRefresh((value) => value + 1);
     } catch (failure) {
@@ -191,6 +240,13 @@ export function MemoryEntry({
         expectedHead: snapshot.head,
         repairId: crypto.randomUUID(),
       });
+      cache.snapshot = undefined;
+      cache.graph = undefined;
+      cache.files.clear();
+      setSnapshot(undefined);
+      setGraph(undefined);
+      setFile(undefined);
+      setPath(undefined);
       setRepairArchive(result.backupPath);
       setConfirmRepair(false);
       setRefresh((value) => value + 1);
@@ -216,7 +272,7 @@ export function MemoryEntry({
       )}
       {snapshot === undefined ? (
         snapshotError === undefined ? (
-          <div className="bh-note">{t('memory.loading')}</div>
+          <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
         ) : (
           <div className="bh-error" role="alert">
             {snapshotError}
@@ -304,7 +360,7 @@ export function MemoryEntry({
         </div>
         {graph === undefined ? (
           graphError === undefined ? (
-            <div className="bh-note">{t('memory.loading')}</div>
+            <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
           ) : (
             <div className="bh-error" role="alert">
               {graphError}

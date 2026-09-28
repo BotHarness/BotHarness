@@ -1402,6 +1402,58 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   font-size: 12px;
   padding: 6px 4px;
 }
+.bh-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 8px;
+}
+.bh-skeleton-messages {
+  gap: 24px;
+  padding: 20px 24px;
+}
+.bh-skeleton-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+}
+.bh-skeleton-avatar,
+.bh-skeleton-line {
+  display: block;
+  flex: none;
+  border-radius: 6px;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+html[data-botharness-motion='full'] .bh-skeleton-avatar,
+html[data-botharness-motion='full'] .bh-skeleton-line {
+  animation: bh-skeleton-pulse 1.6s ease-in-out infinite;
+}
+.bh-skeleton-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+}
+.bh-skeleton-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 7px;
+  padding-top: 2px;
+}
+.bh-skeleton-line {
+  width: 84%;
+  height: 10px;
+}
+.bh-skeleton-line-short {
+  width: 48%;
+}
+.bh-skeleton-row:nth-child(even) .bh-skeleton-line:first-child {
+  width: 68%;
+}
+@keyframes bh-skeleton-pulse {
+  50% { opacity: 0.45; }
+}
 .bh-empty-create {
   display: flex;
   flex-direction: column;
