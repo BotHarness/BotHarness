@@ -2,6 +2,7 @@ import {
   useCallback,
   useRef,
   useState,
+  type ClipboardEvent,
   type CSSProperties,
   type KeyboardEvent,
   type ReactElement,
@@ -254,6 +255,21 @@ export function ChannelComposer({
         textareaRef.current?.setSelectionRange(selected.caret, selected.caret);
       }
     });
+  };
+  const handleFilePaste = (event: ClipboardEvent<HTMLElement>): boolean => {
+    const clipboard = event.clipboardData;
+    const files = Array.from(clipboard.files);
+    if (files.length === 0) {
+      for (const item of Array.from(clipboard.items)) {
+        if (item.kind !== 'file') continue;
+        const file = item.getAsFile();
+        if (file !== null) files.push(file);
+      }
+    }
+    if (files.length === 0 || onAddFiles === undefined) return false;
+    event.preventDefault();
+    onAddFiles(files);
+    return true;
   };
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [fit, setFit] = useState<ComposerTextareaFit & { animateFirstExpand: boolean }>({
@@ -590,6 +606,7 @@ export function ChannelComposer({
               suppressContentEditableWarning
               onInput={(event) => emitRichChange(event.currentTarget)}
               onPaste={(event) => {
+                if (handleFilePaste(event)) return;
                 event.preventDefault();
                 insertRichPlainText(
                   event.currentTarget,
@@ -628,6 +645,9 @@ export function ChannelComposer({
                   activeChannelRefQuery(next, event.currentTarget.selectionStart, nextRefs),
                 );
                 setActiveMentionIndex(0);
+              }}
+              onPaste={(event) => {
+                handleFilePaste(event);
               }}
               onKeyDown={handleKeyDown}
             />

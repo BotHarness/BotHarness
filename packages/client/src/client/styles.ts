@@ -2880,7 +2880,7 @@ button.bh-profile-heat-cell:focus-visible {
   white-space: nowrap;
 }
 .bh-composer-file-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-.bh-composer-add-file { position: absolute; left: 8px; bottom: 10px; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 50%; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 22px; line-height: 30px; cursor: pointer; }
+.bh-composer-add-file { position: absolute; left: 8px; bottom: 10px; width: 30px; height: 30px; padding: 0; border: 1px solid var(--dsw-alias-border-l2); border-radius: 50%; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); font-size: 22px; line-height: 30px; cursor: pointer; }
 .bh-composer-add-file:hover { background: var(--dsw-alias-interactive-bg-active); }
 .bh-composer-add-file:disabled { opacity: .5; cursor: default; }
 .bh-composer-attachments { display: flex; flex-wrap: wrap; gap: 5px; padding: 2px 6px 7px 0; }
@@ -2915,7 +2915,7 @@ button.bh-profile-heat-cell:focus-visible {
   overflow-wrap: anywhere;
 }
 .bh-composer-input::placeholder {
-  color: var(--dsw-alias-label-dimmed);
+  color: var(--dsw-alias-label-secondary);
 }
 .bh-composer-input:disabled {
   color: var(--dsw-alias-label-dimmed);
