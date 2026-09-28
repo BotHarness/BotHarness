@@ -467,7 +467,11 @@ function ChannelRow({
       }}
     >
       <span className="bh-channel-slot" aria-hidden="true">
-        <HashIcon size={16} />
+        {channel.avatar ? (
+          <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+        ) : (
+          <HashIcon size={16} />
+        )}
       </span>
       <span className="bh-channel-title">{channel.name}</span>
       <span className="bh-channel-meta">
@@ -525,7 +529,11 @@ function RailChannel({
         >
           {bot === undefined ? (
             <span className="bh-rail-channel-icon" aria-hidden="true">
-              <HashIcon size={18} />
+              {channel.avatar ? (
+                <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+              ) : (
+                <HashIcon size={18} />
+              )}
             </span>
           ) : (
             <PersonaBotAvatar
@@ -549,7 +557,11 @@ function RailChannel({
           <div className="bh-rail-preview-head">
             {bot === undefined ? (
               <span className="bh-rail-preview-icon" aria-hidden="true">
-                <HashIcon size={16} />
+                {channel.avatar ? (
+                  <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
+                ) : (
+                  <HashIcon size={16} />
+                )}
               </span>
             ) : (
               <PersonaBotAvatar

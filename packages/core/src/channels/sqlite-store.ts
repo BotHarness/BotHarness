@@ -16,6 +16,7 @@ import {
   groupChannelIdBase,
   isChannelMessage,
   isChannelRecord,
+  isGroupAvatar,
   isValidChannelId,
   type ChannelMessage,
   type ChannelRecord,
@@ -792,12 +793,14 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     inviteGroupBot(input) {
       const channel = readRecord(input.channelId);
       const targetDm = readRecord(input.targetDmChannelId);
-      if (
-        channel?.type !== 'group' ||
-        channel.ownerBotSlug !== input.inviterBotSlug ||
-        !channel.members.includes(input.inviterBotSlug)
-      )
-        throw new Error('Only the Bot Group owner may invite');
+      const invitedByHuman = input.inviterHuman === true && input.inviterBotSlug === undefined;
+      const invitedByOwner =
+        input.inviterHuman === undefined &&
+        input.inviterBotSlug !== undefined &&
+        channel?.ownerBotSlug === input.inviterBotSlug &&
+        channel.members.includes(input.inviterBotSlug);
+      if (channel?.type !== 'group' || (!invitedByHuman && !invitedByOwner))
+        throw new Error('Only the Human or Bot Group owner may invite');
       if (
         !isValidSlug(input.targetBotSlug) ||
         input.targetBotSlug === input.inviterBotSlug ||
@@ -815,7 +818,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         id: 'group-invite-' + randomUUID(),
         targetBotSlug: input.targetBotSlug,
         targetBotCreatedAt: input.targetBotCreatedAt,
-        inviterBotSlug: input.inviterBotSlug,
+        ...(invitedByHuman
+          ? { inviterHuman: true as const }
+          : { inviterBotSlug: input.inviterBotSlug! }),
         status: 'pending',
         createdAt: timestamp,
       };
@@ -825,8 +830,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         updatedAt: timestamp,
       };
       const body =
-        'PersonaBot ' +
-        input.inviterBotSlug +
+        (invitedByHuman ? 'Human' : 'PersonaBot ' + input.inviterBotSlug) +
         ' invites you to Group Channel ' +
         channel.name +
         ' (' +
@@ -890,8 +894,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }
       if (
         invitation.status !== 'pending' ||
-        channel.ownerBotSlug !== invitation.inviterBotSlug ||
-        !channel.members.includes(invitation.inviterBotSlug) ||
+        (invitation.inviterHuman !== true &&
+          (channel.ownerBotSlug !== invitation.inviterBotSlug ||
+            !channel.members.includes(invitation.inviterBotSlug!))) ||
         channel.members.includes(input.targetBotSlug)
       )
         throw new Error('Group invitation is no longer pending');
@@ -1306,6 +1311,17 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ['channel', 'bot-inbox'],
       );
       publishRecordChanged();
+    },
+    setGroupAvatar(channelId, avatar) {
+      const channel = readRecord(channelId);
+      if (channel?.type !== 'group') throw new Error('Group Channel not found');
+      if (avatar !== null && !isGroupAvatar(avatar)) throw new Error('Invalid Group avatar');
+      if (channel.avatar === (avatar ?? undefined)) return channel;
+      const updated: ChannelRecord = { ...channel, updatedAt: now().toISOString() };
+      if (avatar === null) delete updated.avatar;
+      else updated.avatar = avatar;
+      writeRecord(updated);
+      return updated;
     },
     rename(id, name) {
       const prior = readRecord(id);

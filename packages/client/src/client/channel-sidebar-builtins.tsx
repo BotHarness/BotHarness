@@ -154,7 +154,85 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   const channel = state.conversation.channel;
   const members = channel?.members ?? [];
   const group = channel?.type === 'group' ? channel : undefined;
+  return (
+    <>
+      {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
+      {members.map((slug) => {
+        const member = state.bots.find((candidate) => candidate.slug === slug);
+        return (
+          <div className="bh-member-row" key={slug}>
+            <button
+              type="button"
+              className="bh-member-open-dm"
+              aria-label={t('message.mention.openDm', { bot: memberName(state.bots, slug) })}
+              onClick={() => void actions.openBot(slug)}
+            >
+              <PersonaBotAvatar
+                t={t}
+                personaBotId={slug}
+                name={member?.displayName ?? slug}
+                src={member?.avatar}
+                state={member === undefined ? 'idle' : personaBotActivity(state, member)}
+                size={26}
+              />
+              <span className="bh-name">{memberName(state.bots, slug)}</span>
+            </button>
+            {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
+          </div>
+        );
+      })}
+    </>
+  );
+}
+
+async function avatarFromFile(file: File): Promise<string> {
+  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5_000_000)
+    throw new Error('invalid image');
+  const bitmap = await createImageBitmap(file);
+  try {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const context = canvas.getContext('2d');
+    if (context === null) throw new Error('canvas unavailable');
+    const side = Math.min(bitmap.width, bitmap.height);
+    context.drawImage(
+      bitmap,
+      (bitmap.width - side) / 2,
+      (bitmap.height - side) / 2,
+      side,
+      side,
+      0,
+      0,
+      128,
+      128,
+    );
+    const avatar = canvas.toDataURL('image/webp', 0.82);
+    if (!avatar.startsWith('data:image/webp;base64,') || avatar.length > 131_072)
+      throw new Error('avatar too large');
+    return avatar;
+  } finally {
+    bitmap.close();
+  }
+}
+
+function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
+  const state = useClientState();
+  const group = state.conversation.channel;
+  const [name, setName] = useState(group?.name ?? '');
+  const [invitee, setInvitee] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
+  useEffect(() => setName(group?.name ?? ''), [group?.id, group?.name]);
+  if (group?.type !== 'group') return <></>;
+  const availableBots = state.bots.filter(
+    (bot) =>
+      !bot.paused &&
+      !group.members.includes(bot.slug) &&
+      !group.invitations?.some(
+        (invitation) => invitation.targetBotSlug === bot.slug && invitation.status === 'pending',
+      ),
+  );
   const invitationLabels = {
     pending: t('members.pending'),
     accepted: t('members.accepted'),
@@ -162,107 +240,188 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
     cancelled: t('members.cancelled'),
   };
   const apply = async (result: Promise<boolean>): Promise<void> => {
-    setError(!(await result));
+    setBusy(true);
+    try {
+      setError(!(await result));
+    } finally {
+      setBusy(false);
+    }
+  };
+  const saveAvatar = async (file: File): Promise<void> => {
+    try {
+      await apply(actions.setGroupAvatar(group.id, await avatarFromFile(file)));
+    } catch {
+      setError(true);
+    }
   };
   return (
-    <>
-      {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
-      {members.map((slug) => {
-        const member = state.bots.find((candidate) => candidate.slug === slug);
-        return (
+    <div className="bh-group-management">
+      <div className="bh-group-setting">
+        <div className="bh-group-invitations-title">{t('group.avatar')}</div>
+        <div className="bh-group-avatar-setting">
+          {group.avatar ? <img src={group.avatar} alt="" /> : <span aria-hidden="true">#</span>}
+          <label className="bh-group-manage-button">
+            {t('group.avatarChoose')}
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              disabled={busy}
+              onChange={(event) => {
+                const file = event.currentTarget.files?.[0];
+                if (file !== undefined) void saveAvatar(file);
+                event.currentTarget.value = '';
+              }}
+            />
+          </label>
+          {group.avatar ? (
+            <button
+              type="button"
+              className="bh-group-manage-button"
+              disabled={busy}
+              onClick={() => void apply(actions.setGroupAvatar(group.id, null))}
+            >
+              {t('group.avatarRemove')}
+            </button>
+          ) : null}
+        </div>
+      </div>
+      <form
+        className="bh-group-setting"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (name.trim() !== group.name) void apply(actions.renameChannel(group.id, name.trim()));
+        }}
+      >
+        <label htmlFor="bh-group-name">{t('group.name')}</label>
+        <div className="bh-group-setting-row">
+          <Input
+            id="bh-group-name"
+            value={name}
+            maxLength={120}
+            onChange={(event) => setName(event.target.value)}
+          />
+          <button
+            type="submit"
+            className="bh-group-manage-button"
+            disabled={busy || !name.trim() || name.trim() === group.name}
+          >
+            {t('group.save')}
+          </button>
+        </div>
+      </form>
+      <div className="bh-group-invitations">
+        <div className="bh-group-invitations-title">{t('group.manageMembers')}</div>
+        {group.members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
+        {group.members.map((slug) => (
           <div className="bh-member-with-wake" key={slug}>
             <div className="bh-member-row">
+              <span className="bh-name">{memberName(state.bots, slug)}</span>
+              {group.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
               <button
                 type="button"
-                className="bh-member-open-dm"
-                aria-label={t('message.mention.openDm', { bot: memberName(state.bots, slug) })}
-                onClick={() => void actions.openBot(slug)}
+                className="bh-group-manage-button"
+                disabled={busy}
+                onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
               >
-                <PersonaBotAvatar
-                  t={t}
-                  personaBotId={slug}
-                  name={member?.displayName ?? slug}
-                  src={member?.avatar}
-                  state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-                  size={26}
-                />
-                <span className="bh-name">{memberName(state.bots, slug)}</span>
+                {t('members.remove')}
               </button>
-              {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
-              {group === undefined ? null : (
-                <button
-                  type="button"
-                  className="bh-group-manage-button"
-                  aria-label={t('members.remove') + ' ' + memberName(state.bots, slug)}
-                  onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
-                >
-                  {t('members.remove')}
-                </button>
-              )}
             </div>
-            {group === undefined ? null : (
-              <MemberWakeControls
-                key={`${group.id}:${group.wakePolicies?.[slug]?.revision ?? 0}`}
-                channel={group}
-                slug={slug}
-                actions={actions}
-                t={t}
-                apply={apply}
-              />
-            )}
+            <MemberWakeControls
+              key={`${group.id}:${group.wakePolicies?.[slug]?.revision ?? 0}`}
+              channel={group}
+              slug={slug}
+              actions={actions}
+              t={t}
+              apply={apply}
+            />
           </div>
-        );
-      })}
-      {group?.invitations?.length ? (
+        ))}
+        <div className="bh-group-setting-row">
+          <select
+            aria-label={t('group.invite')}
+            value={invitee}
+            onChange={(event) => setInvitee(event.target.value)}
+          >
+            <option value="">{t('group.inviteSelect')}</option>
+            {availableBots.map((bot) => (
+              <option key={bot.slug} value={bot.slug}>
+                {bot.displayName}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="bh-group-manage-button"
+            disabled={busy || !invitee}
+            onClick={() => {
+              void apply(actions.inviteGroupBot(group.id, invitee));
+              setInvitee('');
+            }}
+          >
+            {t('group.invite')}
+          </button>
+        </div>
+      </div>
+      {group.invitations?.length ? (
         <div className="bh-group-invitations">
           <div className="bh-group-invitations-title">{t('members.invites')}</div>
           {group.invitations.map((invitation) => (
-            <div className="bh-member-row" key={invitation.id}>
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={invitation.targetBotSlug}
-                name={memberName(state.bots, invitation.targetBotSlug)}
-                src={state.bots.find((bot) => bot.slug === invitation.targetBotSlug)?.avatar}
-                size={26}
-              />
-              <span className="bh-name">{memberName(state.bots, invitation.targetBotSlug)}</span>
-              <Tag tone="neutral">{invitationLabels[invitation.status]}</Tag>
+            <div className="bh-group-request" key={invitation.id}>
+              <div className="bh-member-row">
+                <PersonaBotAvatar
+                  t={t}
+                  personaBotId={invitation.targetBotSlug}
+                  name={memberName(state.bots, invitation.targetBotSlug)}
+                  src={state.bots.find((bot) => bot.slug === invitation.targetBotSlug)?.avatar}
+                  size={26}
+                />
+                <span className="bh-name">{memberName(state.bots, invitation.targetBotSlug)}</span>
+                <Tag tone="neutral">{invitationLabels[invitation.status]}</Tag>
+              </div>
               {invitation.status === 'pending' ? (
-                <button
-                  type="button"
-                  className="bh-group-manage-button"
-                  onClick={() => void apply(actions.cancelGroupInvitation(group.id, invitation.id))}
-                >
-                  {t('members.cancel')}
-                </button>
+                <div className="bh-group-request-actions">
+                  <button
+                    type="button"
+                    className="bh-group-manage-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void apply(actions.cancelGroupInvitation(group.id, invitation.id))
+                    }
+                  >
+                    {t('members.cancel')}
+                  </button>
+                </div>
               ) : null}
             </div>
           ))}
         </div>
       ) : null}
-      {group?.joinRequests?.length ? (
+      {group.joinRequests?.length ? (
         <div className="bh-group-invitations">
           <div className="bh-group-invitations-title">{t('members.joinRequests')}</div>
           {group.joinRequests.map((request) => (
-            <div className="bh-member-row" key={request.id}>
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={request.requesterBotSlug}
-                name={memberName(state.bots, request.requesterBotSlug)}
-                src={state.bots.find((bot) => bot.slug === request.requesterBotSlug)?.avatar}
-                size={26}
-              />
-              <span className="bh-name">{memberName(state.bots, request.requesterBotSlug)}</span>
-              <Tag tone="neutral">
-                {request.status === 'pending'
-                  ? t('members.joinPending')
-                  : invitationLabels[request.status]}
-              </Tag>
+            <div className="bh-group-request" key={request.id}>
+              <div className="bh-member-row">
+                <PersonaBotAvatar
+                  t={t}
+                  personaBotId={request.requesterBotSlug}
+                  name={memberName(state.bots, request.requesterBotSlug)}
+                  src={state.bots.find((bot) => bot.slug === request.requesterBotSlug)?.avatar}
+                  size={26}
+                />
+                <span className="bh-name">{memberName(state.bots, request.requesterBotSlug)}</span>
+                <Tag tone="neutral">
+                  {request.status === 'pending'
+                    ? t('members.joinPending')
+                    : invitationLabels[request.status]}
+                </Tag>
+              </div>
               {request.status === 'pending' ? (
-                <>
+                <div className="bh-group-request-actions">
                   <button
                     type="button"
                     className="bh-group-manage-button"
+                    disabled={busy}
                     onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, true))}
                   >
                     {t('members.approve')}
@@ -270,34 +429,34 @@ function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
                   <button
                     type="button"
                     className="bh-group-manage-button"
+                    disabled={busy}
                     onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, false))}
                   >
                     {t('members.reject')}
                   </button>
-                </>
+                </div>
               ) : null}
             </div>
           ))}
         </div>
       ) : null}
-      {group === undefined ? null : (
-        <button
-          type="button"
-          className="bh-group-delete-button"
-          onClick={() => {
-            if (!window.confirm(t('members.deleteConfirm', { name: group.name }))) return;
-            void apply(actions.deleteGroupChannel(group.id));
-          }}
-        >
-          {t('members.delete')}
-        </button>
-      )}
+      <button
+        type="button"
+        className="bh-group-delete-button"
+        disabled={busy}
+        onClick={() => {
+          if (!window.confirm(t('members.deleteConfirm', { name: group.name }))) return;
+          void apply(actions.deleteGroupChannel(group.id));
+        }}
+      >
+        {t('members.delete')}
+      </button>
       {error ? (
         <div className="bh-error" role="alert">
           {t('members.error')}
         </div>
       ) : null}
-    </>
+    </div>
   );
 }
 
@@ -518,6 +677,14 @@ export function createChannelSidebarBuiltins(
       scope: 'channel',
       component: MembersEntry,
       badge: MembersBadge,
+    },
+    {
+      id: 'group-management',
+      label: t('entry.groupManagement'),
+      order: 20,
+      scope: 'channel',
+      component: GroupManagementEntry,
+      visible: (state) => state.conversation.channel?.type === 'group',
     },
   ];
 }

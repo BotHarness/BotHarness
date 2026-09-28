@@ -77,7 +77,7 @@ describe('localization coverage', () => {
     expect(markup).toContain('Sessions');
   });
 
-  it('renders Human-openable Group invitation status and management controls', () => {
+  it('keeps the Members roster separate from Group management actions', () => {
     const group = {
       id: 'group-team',
       type: 'group' as const,
@@ -100,30 +100,46 @@ describe('localization coverage', () => {
           createdAt: '2026-09-25T00:00:00.000Z',
         },
       ],
+      joinRequests: [
+        {
+          id: 'join-cee',
+          requesterBotSlug: 'cee',
+          status: 'pending' as const,
+          createdAt: '2026-09-25T00:00:00.000Z',
+        },
+      ],
       createdAt: '2026-09-25T00:00:00.000Z',
       updatedAt: '2026-09-25T00:00:00.000Z',
     };
     store.setRoster([], [group]);
     store.select({ kind: 'channel', channelId: group.id });
     store.setConversation({ status: 'ready', channel: group });
-    const entry = createChannelSidebarBuiltins(tEn).find(
-      (candidate) => candidate.id === 'members',
-    )!;
-    const markup = renderToStaticMarkup(
-      createElement(entry.component, {
-        scope: 'channel',
-        channelId: group.id,
-        botSlug: undefined,
-        actions: {} as BridgeActions,
-        t: tEn,
-      }),
-    );
-    expect(markup).toContain('Creator');
-    expect(markup).toContain('Pending');
-    expect(markup).toContain('Accepted');
-    expect(markup).toContain('Cancel invitation');
-    expect(markup).toContain('Remove from Group');
-    expect(markup).toContain('Delete Group');
+    const entries = createChannelSidebarBuiltins(tEn);
+    const renderEntry = (id: string) =>
+      renderToStaticMarkup(
+        createElement(entries.find((entry) => entry.id === id)!.component, {
+          scope: 'channel',
+          channelId: group.id,
+          botSlug: undefined,
+          actions: {} as BridgeActions,
+          t: tEn,
+        }),
+      );
+    const members = renderEntry('members');
+    expect(members).toContain('Creator');
+    expect(members).not.toContain('Join requests');
+    expect(members).not.toContain('Remove from Group');
+    expect(members).not.toContain('Disband Group');
+    const management = renderEntry('group-management');
+    expect(management).toContain('Group avatar');
+    expect(management).toContain('Group name');
+    expect(management).toContain('Invite member');
+    expect(management).toContain('Join requests');
+    expect(management).toContain('Pending');
+    expect(management).toContain('Accepted');
+    expect(management).toContain('Cancel invitation');
+    expect(management).toContain('Remove from Group');
+    expect(management).toContain('Disband Group');
   });
 
   it('renders the empty conversation state in English', () => {

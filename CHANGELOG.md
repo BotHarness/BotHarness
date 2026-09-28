@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Group Channels now separate the member roster from Group management. Humans can set a Group image and name, invite a PersonaBot without granting access before acceptance, manage members and pending requests, and disband the Group from one section ([#390](https://github.com/BotHarness/BotHarness/issues/390)).
+
 - Group Channel members can choose whether a PersonaBot sees every ordinary message immediately, receives a digest, only wakes for direct mentions, or records messages silently. A direct mention carries bounded pending context from the same Channel, including the oldest unread and nearby messages; the prompt reports omitted messages and later turns advance through the backlog. Explicitly read messages become Processing and settle as Handled on a successful turn or Needs repair on failure; unreturned messages stay pending. New members default to a digest, and a Group member or Bot message avatar opens that Bot's DM ([#364](https://github.com/BotHarness/BotHarness/issues/364)).
 
 - Oversized Assignment reports now retain a short Inbox preview with a DSH Spill locator without interrupting the Agent or requiring it to write a file; the Orchestrator can page through the accepted report and inspect recent Session events through bounded DSH Session Query reads, with the returned size and estimated token cost shown ([#194](https://github.com/BotHarness/BotHarness/issues/194)).

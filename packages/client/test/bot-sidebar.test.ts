@@ -194,6 +194,8 @@ function stubActions(): BridgeActions {
     createBot: vi.fn(async () => BOT),
     createGroup: vi.fn(async () => undefined),
     renameChannel: vi.fn(async () => true),
+    setGroupAvatar: vi.fn(async () => true),
+    inviteGroupBot: vi.fn(async () => true),
     cancelGroupInvitation: vi.fn(async () => true),
     decideGroupJoin: vi.fn(async () => true),
     setGroupWakePolicy: vi.fn(async () => true),

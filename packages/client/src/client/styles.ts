@@ -2882,6 +2882,59 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 .bh-member-wake-choices [aria-pressed="true"] { background: var(--bh-hover); }
 .bh-member-wake-values { display: grid; grid-template-columns: 1fr 64px; gap: 4px 8px; align-items: center; }
 .bh-member-wake-values input { width: 64px; }
+.bh-group-management { display: grid; gap: 8px; }
+.bh-group-setting { display: grid; gap: 6px; padding: 4px 8px; }
+.bh-group-setting > label { color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-group-setting-row { display: flex; align-items: center; gap: 6px; padding: 2px 8px; }
+.bh-group-setting .bh-group-setting-row { padding: 0; }
+.bh-group-setting-row input, .bh-group-setting-row select {
+  min-width: 0;
+  flex: 1;
+}
+.bh-group-avatar-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  object-fit: cover;
+}
+.bh-group-avatar-topbar { width: 22px; height: 22px; border-radius: 7px; }
+.bh-group-setting-row select {
+  width: 0;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  padding: 5px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+}
+.bh-group-avatar-setting { display: flex; align-items: center; gap: 8px; }
+.bh-group-avatar-setting > img, .bh-group-avatar-setting > span {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 8px;
+  object-fit: cover;
+}
+.bh-group-avatar-setting > span {
+  display: grid;
+  place-items: center;
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-group-avatar-setting label { position: relative; }
+.bh-group-avatar-setting input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+}
+.bh-group-avatar-setting label:focus-within { outline: 2px solid var(--dsw-alias-label-primary); }
+.bh-group-request .bh-name { overflow-wrap: anywhere; }
+.bh-group-request-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 8px 6px 40px;
+}
 .bh-group-invitations {
   margin-top: 12px;
 }
@@ -2907,6 +2960,7 @@ html[data-botharness-motion='reduce'] .bh-session-workspace-heading svg {
 }
 .bh-group-delete-button {
   margin: 12px 8px 4px;
+  color: var(--dsw-alias-state-error-primary);
 }
 /* Native General-row cell rhythm (ui-theme FontSizeRow / ui-chat
    TranscriptViewRow): title + description left, selector pill right, hairline
