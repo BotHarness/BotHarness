@@ -7,7 +7,7 @@ DSH `0.2.0-rc.1` is the current `next` release, so BotHarness's pins, engines, d
 ## Special things to note
 
 - Merge risk: **two-way door** — revert this commit and reinstall at `0.1.7-rc.2`; **medium blast radius** — every workspace package, the lockfile, and the local dev loop move together, and an existing 0.1.7 dev Profile must be recreated. Review focus: the version surface and the e2e adaptations that carry the macOS verification.
-- macOS evidence on this branch: `lint`, `typecheck`, `test` (135 files / 1157 tests) and `build` green; a fresh isolated Profile reports a healthy authenticated API on 0.2.0-rc.1; `e2e-sidebar-preview` PASS; `e2e-personabot-first-dm --expect-reply --expect-stream` PASS with a real model reply; `e2e-personabot-create --with-dm` PASS across a Host restart; a dev-client rebuild triggers the full-page reload and Bot mode returns. Windows (WSL2) verification is tracked in #421.
+- macOS evidence on this branch: `lint`, `typecheck`, `test` (135 files / 1157 tests) and `build` green; a fresh isolated Profile reports a healthy authenticated API on 0.2.0-rc.1; `e2e-sidebar-preview` PASS; `e2e-personabot-first-dm --expect-reply --expect-stream` PASS with a real model reply; `e2e-personabot-create --with-dm` PASS across a Host restart; a dev-client rebuild triggers the full-page reload and Bot mode returns. Screenshots: `docs/assets/pr/422-dsh-020-macos/bot-mode.png`, `docs/assets/pr/422-dsh-020-macos/first-dm-reply.png`. Windows (WSL2) verification is tracked in #421.
 - Native Windows Desktop HMR was measured on 0.1.7 RC2 only; the docs label those claims as historical and keep the Desktop path out of scope.
 
 ## Change outline
