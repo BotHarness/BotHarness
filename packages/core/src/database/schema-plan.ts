@@ -742,6 +742,36 @@ const GROUP_WAKE_MODE_MIGRATION: SchemaMigration = {
   },
 };
 
+const GROUP_WAKE_POLICY_AUDIT_MIGRATION: SchemaMigration = {
+  generation: 27,
+  module: 'messaging',
+  description: 'Audit per-member Group wake policy revisions without duplicating current policy',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE group_wake_policy_audit (
+        channel_id TEXT NOT NULL REFERENCES channel_records(channel_id),
+        bot_slug TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        actor_kind TEXT NOT NULL CHECK (actor_kind IN ('human', 'bot')),
+        actor_bot_slug TEXT,
+        changed_at TEXT NOT NULL,
+        mode TEXT NOT NULL CHECK (mode IN ('all', 'digest', 'mentions', 'silent')),
+        count INTEGER NOT NULL CHECK (count BETWEEN 1 AND 100),
+        interval_seconds INTEGER NOT NULL CHECK (interval_seconds BETWEEN 1 AND 3600),
+        PRIMARY KEY (channel_id, bot_slug, revision),
+        CHECK ((actor_kind = 'human' AND actor_bot_slug IS NULL)
+            OR (actor_kind = 'bot' AND actor_bot_slug IS NOT NULL))
+      );
+      CREATE TRIGGER group_wake_policy_audit_no_update
+      BEFORE UPDATE ON group_wake_policy_audit
+      BEGIN SELECT RAISE(ABORT, 'Group wake policy audit is immutable'); END;
+      CREATE TRIGGER group_wake_policy_audit_no_delete
+      BEFORE DELETE ON group_wake_policy_audit
+      BEGIN SELECT RAISE(ABORT, 'Group wake policy audit is immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -768,4 +798,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   ASSIGNMENT_LIFECYCLE_NOTICE_MIGRATION,
   LOCAL_HUMAN_RECEIPTS_MIGRATION,
   GROUP_WAKE_MODE_MIGRATION,
+  GROUP_WAKE_POLICY_AUDIT_MIGRATION,
 ]);

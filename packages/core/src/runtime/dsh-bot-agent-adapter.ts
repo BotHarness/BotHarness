@@ -1178,6 +1178,69 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'group_attention_get',
+          description:
+            "Read this PersonaBot's current attention preference for a joined Group Channel, including revision and last editor. Use channel_list to find the Group ID.",
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_attention_get: Orchestrator run is unavailable');
+            return JSON.stringify({
+              channelId: args.channel_id,
+              ...active.run.channels.readGroupWakePolicy(args.channel_id),
+            });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'group_attention_set',
+          description:
+            "Change only this PersonaBot's attention preference in a joined Group Channel. Modes: all (every message), digest (batch), mentions (direct @), silent (no ordinary-message wake). Count and interval are optional; omitted values keep the current setting.",
+          parameters: {
+            channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
+            mode: {
+              type: 'string',
+              required: true,
+              enum: ['all', 'digest', 'mentions', 'silent'],
+              description: 'New attention mode.',
+            },
+            count: { type: 'integer', description: 'Digest message count, from 1 to 100.' },
+            interval_seconds: {
+              type: 'integer',
+              description: 'Digest interval in seconds, from 1 to 3600.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('group_attention_set: Orchestrator run is unavailable');
+            const current = active.run.channels.readGroupWakePolicy(args.channel_id);
+            return JSON.stringify({
+              channelId: args.channel_id,
+              ...active.run.channels.setGroupWakePolicy({
+                channelId: args.channel_id,
+                mode: args.mode,
+                count: args.count ?? current.count,
+                intervalSeconds: args.interval_seconds ?? current.intervalSeconds,
+              }),
+            });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'bot_dm_send',
           description:
             'Send one private message to another active PersonaBot. The recipient receives it in a two-Bot DM and may reply there.',
