@@ -299,6 +299,9 @@ window.__ModuleLoader__.load({
 			"entry.live": "已连接",
 			"entry.noScreen": "暂无画面",
 			"entry.openFullscreen": "打开大屏",
+			"entry.watchOnly": "观看模式 · 开启交互后可操作键盘鼠标",
+			"entry.interactive.enable": "开启交互",
+			"entry.interactive.disable": "停止交互",
 			"entry.collapseFullscreen": "收起全屏",
 			"entry.recentLogs": "近期动态",
 			"entry.recentLogs.empty": "暂无运行记录",
@@ -380,6 +383,9 @@ window.__ModuleLoader__.load({
 			"entry.live": "Connected",
 			"entry.noScreen": "No picture",
 			"entry.openFullscreen": "Open fullscreen",
+			"entry.watchOnly": "Watch-only — enable input to use keyboard and mouse",
+			"entry.interactive.enable": "Enable input",
+			"entry.interactive.disable": "Stop input",
 			"entry.collapseFullscreen": "Leave fullscreen",
 			"entry.recentLogs": "Recent activity",
 			"entry.recentLogs.empty": "No operational records yet",
@@ -1562,7 +1568,7 @@ window.__ModuleLoader__.load({
 		* the stop control and collapse on the right. Exported for component tests.
 		*/
 		function ViewerTitleBar(props) {
-			const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+			const { t, title, phase, reconnecting, busy, stopping, interactive, onToggleInteractive, onStop, onCollapse } = props;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -1591,7 +1597,22 @@ window.__ModuleLoader__.load({
 						},
 						children: t(statusKeyFor(phase, reconnecting))
 					}),
+					interactive ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t("entry.watchOnly")
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: "ghost",
+						size: "sm",
+						"aria-pressed": interactive,
+						onClick: onToggleInteractive,
+						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
+						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
 						t,
 						busy,
@@ -1624,6 +1645,7 @@ window.__ModuleLoader__.load({
 			const dialogRef = (0, react.useRef)(null);
 			const [hovered, setHovered] = (0, react.useState)(false);
 			const [expanded, setExpanded] = (0, react.useState)(false);
+			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
 			const [reloadKey, setReloadKey] = (0, react.useState)(0);
 			const [reconnecting, setReconnecting] = (0, react.useState)(false);
 			const wasReady = (0, react.useRef)(false);
@@ -1783,8 +1805,13 @@ window.__ModuleLoader__.load({
 						reconnecting,
 						busy,
 						stopping,
+						interactive: inputEnabled,
+						onToggleInteractive: () => setInputEnabled((current) => !current),
 						onStop,
-						onCollapse: () => setExpanded(nextExpanded("collapse"))
+						onCollapse: () => {
+							setInputEnabled(false);
+							setExpanded(nextExpanded("collapse"));
+						}
 					}, "viewer-titlebar") : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						role: openable ? "button" : void 0,
@@ -1812,7 +1839,7 @@ window.__ModuleLoader__.load({
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 							title,
 							design,
-							interactive: expanded,
+							interactive: expanded && inputEnabled,
 							fit: expanded ? "contain" : "width",
 							iframeRef: frameRef
 						}, reloadKey), overlay]

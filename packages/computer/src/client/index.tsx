@@ -570,6 +570,9 @@ export interface ViewerTitleBarProps {
   readonly reconnecting: boolean;
   readonly busy: boolean;
   readonly stopping: boolean;
+  /** Whether pointer and keyboard input currently reach the remote desktop. */
+  readonly interactive: boolean;
+  readonly onToggleInteractive: () => void;
   readonly onStop: () => void;
   readonly onCollapse: () => void;
 }
@@ -598,7 +601,18 @@ function StopButton({
  * the stop control and collapse on the right. Exported for component tests.
  */
 export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
-  const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+  const {
+    t,
+    title,
+    phase,
+    reconnecting,
+    busy,
+    stopping,
+    interactive,
+    onToggleInteractive,
+    onStop,
+    onCollapse,
+  } = props;
   return (
     <div
       style={{
@@ -616,7 +630,19 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
       <StateDot state={dotStateFor(phase)} />
       <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
       <span style={{ fontSize: 12, opacity: 0.65 }}>{t(statusKeyFor(phase, reconnecting))}</span>
+      {interactive ? null : (
+        <span style={{ fontSize: 12, opacity: 0.65 }}>{t('entry.watchOnly')}</span>
+      )}
       <span style={{ flex: 1 }} />
+      <Button
+        variant="ghost"
+        size="sm"
+        aria-pressed={interactive}
+        onClick={onToggleInteractive}
+        title={t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+      >
+        {t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+      </Button>
       <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
       <Button
         variant="ghost"
@@ -660,6 +686,9 @@ function RunningCard({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  // Watching is the default; pointer and keyboard input need an explicit
+  // opt-in per fullscreen session, so a stray click never drives the desktop.
+  const [inputEnabled, setInputEnabled] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
@@ -852,8 +881,13 @@ function RunningCard({
           reconnecting={reconnecting}
           busy={busy}
           stopping={stopping}
+          interactive={inputEnabled}
+          onToggleInteractive={() => setInputEnabled((current) => !current)}
           onStop={onStop}
-          onCollapse={() => setExpanded(nextExpanded('collapse'))}
+          onCollapse={() => {
+            setInputEnabled(false);
+            setExpanded(nextExpanded('collapse'));
+          }}
         />
       ) : null}
       <div
@@ -882,7 +916,7 @@ function RunningCard({
           key={reloadKey}
           title={title}
           design={design}
-          interactive={expanded}
+          interactive={expanded && inputEnabled}
           fit={expanded ? 'contain' : 'width'}
           iframeRef={frameRef}
         />

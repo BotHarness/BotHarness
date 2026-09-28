@@ -179,6 +179,8 @@ describe('Computer entry states', () => {
     expect(html).toContain('atlas 的屏幕');
     // The stream is not live yet in a static render, so the loading state shows.
     expect(html).toContain('连接中');
+    // The docked card never forwards input; fullscreen starts watch-only too.
+    expect(html).toContain('pointer-events:none');
   });
 
   it('shows pull progress with the runtime line and elapsed time', () => {
@@ -212,6 +214,8 @@ describe('Fullscreen viewer title bar', () => {
         reconnecting: false,
         busy: false,
         stopping: false,
+        interactive: false,
+        onToggleInteractive: () => undefined,
         onStop: () => undefined,
         onCollapse: () => undefined,
         ...overrides,
@@ -232,6 +236,20 @@ describe('Fullscreen viewer title bar', () => {
     const html = titleBar({ phase: 'connecting' });
     expect(html).toContain('连接中');
     expect(html).toContain('data-state="ongoing"');
+  });
+
+  it('defaults to watch-only and offers enabling input', () => {
+    const html = titleBar();
+    expect(html).toContain('观看模式');
+    expect(html).toContain('开启交互');
+    expect(html).not.toContain('停止交互');
+  });
+
+  it('reflects interactive mode once the Human enables input', () => {
+    const html = titleBar({ interactive: true });
+    expect(html).toContain('停止交互');
+    expect(html).not.toContain('观看模式');
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it('prefers the reconnecting label and reports the empty state as an error', () => {
