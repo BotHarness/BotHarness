@@ -171,10 +171,16 @@ describe('Group ordinary-message digest', () => {
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('ordinary after-switch');
       expect(runs[0]).toContain('ordinary before-switch');
-      expect(core.attention.list({ botSlug: 'ada' }).items).toMatchObject([
-        { sourceMessageId: 'after-switch', state: 'handled' },
-        { sourceMessageId: 'before-switch', state: 'handled' },
-      ]);
+      // Same-millisecond events tie-break on the source_event_id cursor tuple,
+      // which is a random UUID, so assert membership instead of order.
+      const switched = core.attention.list({ botSlug: 'ada' }).items;
+      expect(switched).toHaveLength(2);
+      expect(switched).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sourceMessageId: 'after-switch', state: 'handled' }),
+          expect.objectContaining({ sourceMessageId: 'before-switch', state: 'handled' }),
+        ]),
+      );
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
@@ -563,10 +569,15 @@ describe('Group ordinary-message digest', () => {
       expect(afterRuns).toHaveLength(1);
       expect(afterRuns[0]).toContain('direct Group mention');
       expect(afterRuns[0]).not.toContain('ordinary quiet');
-      expect(after.attention.list({ botSlug: 'ada' }).items).toMatchObject([
-        { sourceMessageId: 'mention-after-silent', state: 'handled' },
-        { sourceMessageId: 'quiet', state: 'pending' },
-      ]);
+      // Order is not guaranteed for same-millisecond events; assert membership.
+      const resumedAttention = after.attention.list({ botSlug: 'ada' }).items;
+      expect(resumedAttention).toHaveLength(2);
+      expect(resumedAttention).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ sourceMessageId: 'mention-after-silent', state: 'handled' }),
+          expect.objectContaining({ sourceMessageId: 'quiet', state: 'pending' }),
+        ]),
+      );
     } finally {
       await after.runtime.close();
       after.operationalDatabase.close();
