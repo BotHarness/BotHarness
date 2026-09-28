@@ -80,6 +80,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- BotHarness now declares its DSH compatibility as a SemVer range (`>=0.2.0-rc.1 <0.3.0-0`) whose floor is the verified host line, instead of an exact pin; runtime behavior is unchanged ([ADR-0087](docs/adr/0087-dsh-compatibility-is-a-semver-range-with-a-verified-floor.md), [#423](https://github.com/BotHarness/BotHarness/issues/423)).
+
 - BotHarness now targets DSH 0.2.0 RC1: workspace pins and `engines.dsh` moved from 0.1.7 RC2, and isolated development Profiles must be recreated for the new RC ([#419](https://github.com/BotHarness/BotHarness/issues/419)).
 
 - Unpinned Group and PersonaBot DM Channels now share a conversation-row layout with an avatar, name, and latest-message preview; empty Channels show a short placeholder. The unpin drop hint has more breathing room, and an active Bot avatar keeps its status dot without an outer ring ([#404](https://github.com/BotHarness/BotHarness/issues/404)).
