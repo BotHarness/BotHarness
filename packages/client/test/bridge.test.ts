@@ -589,10 +589,20 @@ describe('bridge actions', () => {
     const reopened = actions.openChannel('group-team');
     await vi.waitFor(() => expect(resolveRefresh).toBeDefined());
     expect(await actions.send('new message')).toBe(true);
-    resolveRefresh!({ revision: 2, page });
+    resolveRefresh!({
+      revision: 3,
+      page: {
+        ...page,
+        entries: [
+          original,
+          { id: 'm2', at: BOT.createdAt, author: { kind: 'human' }, body: 'another reply' },
+        ],
+      },
+    });
     await reopened;
     expect(clientStore.getSnapshot().conversation.messages.map((message) => message.body)).toEqual([
       'original',
+      'another reply',
       'new message',
     ]);
   });

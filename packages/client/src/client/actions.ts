@@ -299,7 +299,6 @@ export function createActions(
   },
 ): BridgeActions {
   const failedByChannel = new Map<string, ChannelMessage[]>();
-  const localCommitVersions = new Map<string, number>();
   const localFailedFor = (id: string): ChannelMessage[] => failedByChannel.get(id) ?? [];
   const remainingFailures = (
     channelId: string,
@@ -942,11 +941,11 @@ export function createActions(
       }
     },
     async refreshChannelMessages(channelId) {
-      const commitVersion = localCommitVersions.get(channelId) ?? 0;
+      const before = clientStore.getSnapshot().conversation.messages;
+      const beforeById = new Map(before.map((message) => [message.id, message]));
       const { page, revision } = await loadTimelinePage(call, channelId);
       const snapshot = clientStore.getSnapshot();
       if (snapshot.conversation.channel?.id !== channelId) return;
-      if ((localCommitVersions.get(channelId) ?? 0) !== commitVersion) return;
       if (revision < snapshot.conversation.revision) return;
       if (snapshot.conversation.timeline.hasNewer) {
         // This window is intentionally away from the tail; a reconnect must
@@ -955,8 +954,21 @@ export function createActions(
         return;
       }
       const merged = mergeLatestWindow(snapshot.conversation.messages, page.entries);
+      const concurrent = snapshot.conversation.messages.filter((message) => {
+        const previous = beforeById.get(message.id);
+        return (
+          previous === undefined ||
+          previous.pending !== message.pending ||
+          previous.failed !== message.failed
+        );
+      });
+      const concurrentById = new Map(concurrent.map((message) => [message.id, message]));
+      const mergedIds = new Set(merged.messages.map((message) => message.id));
       clientStore.setConversation({
-        messages: merged.messages,
+        messages: [
+          ...merged.messages.map((message) => concurrentById.get(message.id) ?? message),
+          ...concurrent.filter((message) => !mergedIds.has(message.id)),
+        ],
         revision,
         timeline: {
           ...snapshot.conversation.timeline,
@@ -1071,7 +1083,6 @@ export function createActions(
           grantRequestResolution,
         );
         remainingFailures(channel.id, [message]);
-        localCommitVersions.set(channel.id, (localCommitVersions.get(channel.id) ?? 0) + 1);
         const selection = currentSelection();
         const latest = clientStore.getSnapshot();
         if (latest.conversation.channel?.id === channel.id) {
