@@ -9,7 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- Group Channels now separate the member roster from Group management. Humans can set a Group image and name, invite a PersonaBot without granting access before acceptance, manage members and pending requests, and disband the Group from one section ([#390](https://github.com/BotHarness/BotHarness/issues/390)).
+- Group Channels keep the member roster separate from Group settings. Humans can crop a square WebP Group image, rename the Group, search for a PersonaBot to invite, handle pending invitations and join requests in a notification dialog, and manage each member through a menu for message policy or removal ([#390](https://github.com/BotHarness/BotHarness/issues/390)).
 
 - Group Channel members can choose whether a PersonaBot sees every ordinary message immediately, receives a digest, only wakes for direct mentions, or records messages silently. A direct mention carries bounded pending context from the same Channel, including the oldest unread and nearby messages; the prompt reports omitted messages and later turns advance through the backlog. Explicitly read messages become Processing and settle as Handled on a successful turn or Needs repair on failure; unreturned messages stay pending. New members default to a digest, and a Group member or Bot message avatar opens that Bot's DM ([#364](https://github.com/BotHarness/BotHarness/issues/364)).
 

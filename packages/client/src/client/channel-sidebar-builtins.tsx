@@ -1,257 +1,55 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
 
-import { Input, Tag } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  IconEllipsisOutlineRegular,
+  Input,
+  Menu,
+  Tag,
+  Tooltip,
+  type MenuEntry,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 
-import { PersonaBotAvatar } from './avatar.js';
 import type { BotModePrefs } from './bot-mode-prefs.js';
 import { WorkspaceGrantsEntry } from './workspace-grants-entry.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntry, ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { formatRelativeTime } from './labels.js';
 import { MemoryEntry } from './memory-entry.js';
-import { personaBotActivity } from './persona-activity.js';
+import { Modal } from './modal.js';
+import { GroupAvatarCropModal } from './group-avatar-crop.js';
+import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
 import {
   SessionsEntry,
   SessionsHeaderAction,
   type NativeSessionCatalog,
 } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { BotAttentionItem, BotSummary, ChannelSummary } from './store.js';
+import type { BotAttentionItem } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
-
-function memberName(bots: readonly BotSummary[], slug: string): string {
-  return bots.find((bot) => bot.slug === slug)?.displayName ?? slug;
-}
-
-function MemberWakeControls({
-  channel,
-  slug,
-  actions,
-  t,
-  apply,
-}: {
-  channel: ChannelSummary;
-  slug: string;
-  actions: ChannelSidebarEntryProps['actions'];
-  t: BotHarnessTranslate;
-  apply: (result: Promise<boolean>) => Promise<void>;
-}): ReactElement {
-  const saved = channel.wakePolicies?.[slug];
-  const [mode, setMode] = useState<'all' | 'mentions' | 'digest' | 'silent'>(
-    saved?.mode ?? 'digest',
-  );
-  const [count, setCount] = useState(saved?.count ?? 5);
-  const [seconds, setSeconds] = useState(saved?.intervalSeconds ?? 30);
-  const [busy, setBusy] = useState(false);
-  const prefix = `bh-wake-${channel.id}-${slug}`;
-  const save = async (): Promise<void> => {
-    setBusy(true);
-    try {
-      await apply(
-        actions.setGroupWakePolicy(channel.id, slug, {
-          mode,
-          count,
-          intervalSeconds: seconds,
-        }),
-      );
-    } finally {
-      setBusy(false);
-    }
-  };
-  return (
-    <details className="bh-member-wake">
-      <summary>
-        {t('members.wake')} ·{' '}
-        {(saved?.mode ?? 'digest') === 'all'
-          ? t('members.wake.all')
-          : (saved?.mode ?? 'digest') === 'digest'
-            ? t('members.wake.digest')
-            : saved?.mode === 'silent'
-              ? t('members.wake.silent')
-              : t('members.wake.mentions')}
-      </summary>
-      <div className="bh-member-wake-form">
-        <div className="bh-member-wake-choices" role="group" aria-label={t('members.wake')}>
-          <button
-            type="button"
-            className="bh-group-manage-button"
-            aria-pressed={mode === 'all'}
-            onClick={() => setMode('all')}
-          >
-            {t('members.wake.all')}
-          </button>
-          <button
-            type="button"
-            className="bh-group-manage-button"
-            aria-pressed={mode === 'mentions'}
-            onClick={() => setMode('mentions')}
-          >
-            {t('members.wake.mentions')}
-          </button>
-          <button
-            type="button"
-            className="bh-group-manage-button"
-            aria-pressed={mode === 'digest'}
-            onClick={() => setMode('digest')}
-          >
-            {t('members.wake.digest')}
-          </button>
-          <button
-            type="button"
-            className="bh-group-manage-button"
-            aria-pressed={mode === 'silent'}
-            onClick={() => setMode('silent')}
-          >
-            {t('members.wake.silent')}
-          </button>
-        </div>
-        {mode === 'digest' ? (
-          <div className="bh-member-wake-values">
-            <label htmlFor={prefix + '-count'}>{t('members.wake.count')}</label>
-            <Input
-              id={prefix + '-count'}
-              type="number"
-              min={1}
-              max={100}
-              value={count}
-              onChange={(event) => setCount(Number(event.target.value))}
-            />
-            <label htmlFor={prefix + '-seconds'}>{t('members.wake.seconds')}</label>
-            <Input
-              id={prefix + '-seconds'}
-              type="number"
-              min={1}
-              max={3600}
-              value={seconds}
-              onChange={(event) => setSeconds(Number(event.target.value))}
-            />
-          </div>
-        ) : null}
-        <button
-          type="button"
-          className="bh-group-manage-button"
-          disabled={
-            busy ||
-            !Number.isSafeInteger(count) ||
-            count < 1 ||
-            count > 100 ||
-            !Number.isSafeInteger(seconds) ||
-            seconds < 1 ||
-            seconds > 3600
-          }
-          onClick={() => void save()}
-        >
-          {t('members.wake.save')}
-        </button>
-      </div>
-    </details>
-  );
-}
-
-function MembersEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
-  const state = useClientState();
-  const channel = state.conversation.channel;
-  const members = channel?.members ?? [];
-  const group = channel?.type === 'group' ? channel : undefined;
-  return (
-    <>
-      {members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
-      {members.map((slug) => {
-        const member = state.bots.find((candidate) => candidate.slug === slug);
-        return (
-          <div className="bh-member-row" key={slug}>
-            <button
-              type="button"
-              className="bh-member-open-dm"
-              aria-label={t('message.mention.openDm', { bot: memberName(state.bots, slug) })}
-              onClick={() => void actions.openBot(slug)}
-            >
-              <PersonaBotAvatar
-                t={t}
-                personaBotId={slug}
-                name={member?.displayName ?? slug}
-                src={member?.avatar}
-                state={member === undefined ? 'idle' : personaBotActivity(state, member)}
-                size={26}
-              />
-              <span className="bh-name">{memberName(state.bots, slug)}</span>
-            </button>
-            {group?.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
-          </div>
-        );
-      })}
-    </>
-  );
-}
-
-async function avatarFromFile(file: File): Promise<string> {
-  if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5_000_000)
-    throw new Error('invalid image');
-  const bitmap = await createImageBitmap(file);
-  try {
-    const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const context = canvas.getContext('2d');
-    if (context === null) throw new Error('canvas unavailable');
-    const side = Math.min(bitmap.width, bitmap.height);
-    context.drawImage(
-      bitmap,
-      (bitmap.width - side) / 2,
-      (bitmap.height - side) / 2,
-      side,
-      side,
-      0,
-      0,
-      128,
-      128,
-    );
-    const avatar = canvas.toDataURL('image/webp', 0.82);
-    if (!avatar.startsWith('data:image/webp;base64,') || avatar.length > 131_072)
-      throw new Error('avatar too large');
-    return avatar;
-  } finally {
-    bitmap.close();
-  }
-}
 
 function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
   const state = useClientState();
   const group = state.conversation.channel;
   const [name, setName] = useState(group?.name ?? '');
-  const [invitee, setInvitee] = useState('');
+  const [cropFile, setCropFile] = useState<File>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   useEffect(() => setName(group?.name ?? ''), [group?.id, group?.name]);
+  useEffect(() => {
+    setCropFile(undefined);
+    setError(false);
+  }, [group?.id]);
   if (group?.type !== 'group') return <></>;
-  const availableBots = state.bots.filter(
-    (bot) =>
-      !bot.paused &&
-      !group.members.includes(bot.slug) &&
-      !group.invitations?.some(
-        (invitation) => invitation.targetBotSlug === bot.slug && invitation.status === 'pending',
-      ),
-  );
-  const invitationLabels = {
-    pending: t('members.pending'),
-    accepted: t('members.accepted'),
-    declined: t('members.declined'),
-    cancelled: t('members.cancelled'),
-  };
-  const apply = async (result: Promise<boolean>): Promise<void> => {
+  const apply = async (result: Promise<boolean>): Promise<boolean> => {
     setBusy(true);
     try {
-      setError(!(await result));
+      const ok = await result;
+      setError(!ok);
+      return ok;
     } finally {
       setBusy(false);
-    }
-  };
-  const saveAvatar = async (file: File): Promise<void> => {
-    try {
-      await apply(actions.setGroupAvatar(group.id, await avatarFromFile(file)));
-    } catch {
-      setError(true);
     }
   };
   return (
@@ -268,7 +66,7 @@ function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactEl
               disabled={busy}
               onChange={(event) => {
                 const file = event.currentTarget.files?.[0];
-                if (file !== undefined) void saveAvatar(file);
+                if (file) setCropFile(file);
                 event.currentTarget.value = '';
               }}
             />
@@ -309,154 +107,101 @@ function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactEl
           </button>
         </div>
       </form>
-      <div className="bh-group-invitations">
-        <div className="bh-group-invitations-title">{t('group.manageMembers')}</div>
-        {group.members.length === 0 ? <div className="bh-note">{t('members.empty')}</div> : null}
-        {group.members.map((slug) => (
-          <div className="bh-member-with-wake" key={slug}>
-            <div className="bh-member-row">
-              <span className="bh-name">{memberName(state.bots, slug)}</span>
-              {group.ownerBotSlug === slug ? <Tag tone="neutral">{t('members.owner')}</Tag> : null}
-              <button
-                type="button"
-                className="bh-group-manage-button"
-                disabled={busy}
-                onClick={() => void apply(actions.removeGroupMember(group.id, slug))}
-              >
-                {t('members.remove')}
-              </button>
-            </div>
-            <MemberWakeControls
-              key={`${group.id}:${group.wakePolicies?.[slug]?.revision ?? 0}`}
-              channel={group}
-              slug={slug}
-              actions={actions}
-              t={t}
-              apply={apply}
-            />
-          </div>
-        ))}
-        <div className="bh-group-setting-row">
-          <select
-            aria-label={t('group.invite')}
-            value={invitee}
-            onChange={(event) => setInvitee(event.target.value)}
-          >
-            <option value="">{t('group.inviteSelect')}</option>
-            {availableBots.map((bot) => (
-              <option key={bot.slug} value={bot.slug}>
-                {bot.displayName}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            className="bh-group-manage-button"
-            disabled={busy || !invitee}
-            onClick={() => {
-              void apply(actions.inviteGroupBot(group.id, invitee));
-              setInvitee('');
-            }}
-          >
-            {t('group.invite')}
-          </button>
-        </div>
-      </div>
-      {group.invitations?.length ? (
-        <div className="bh-group-invitations">
-          <div className="bh-group-invitations-title">{t('members.invites')}</div>
-          {group.invitations.map((invitation) => (
-            <div className="bh-group-request" key={invitation.id}>
-              <div className="bh-member-row">
-                <PersonaBotAvatar
-                  t={t}
-                  personaBotId={invitation.targetBotSlug}
-                  name={memberName(state.bots, invitation.targetBotSlug)}
-                  src={state.bots.find((bot) => bot.slug === invitation.targetBotSlug)?.avatar}
-                  size={26}
-                />
-                <span className="bh-name">{memberName(state.bots, invitation.targetBotSlug)}</span>
-                <Tag tone="neutral">{invitationLabels[invitation.status]}</Tag>
-              </div>
-              {invitation.status === 'pending' ? (
-                <div className="bh-group-request-actions">
-                  <button
-                    type="button"
-                    className="bh-group-manage-button"
-                    disabled={busy}
-                    onClick={() =>
-                      void apply(actions.cancelGroupInvitation(group.id, invitation.id))
-                    }
-                  >
-                    {t('members.cancel')}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
+      {cropFile ? (
+        <GroupAvatarCropModal
+          file={cropFile}
+          t={t}
+          onClose={() => setCropFile(undefined)}
+          onSave={(avatar) => apply(actions.setGroupAvatar(group.id, avatar))}
+        />
       ) : null}
-      {group.joinRequests?.length ? (
-        <div className="bh-group-invitations">
-          <div className="bh-group-invitations-title">{t('members.joinRequests')}</div>
-          {group.joinRequests.map((request) => (
-            <div className="bh-group-request" key={request.id}>
-              <div className="bh-member-row">
-                <PersonaBotAvatar
-                  t={t}
-                  personaBotId={request.requesterBotSlug}
-                  name={memberName(state.bots, request.requesterBotSlug)}
-                  src={state.bots.find((bot) => bot.slug === request.requesterBotSlug)?.avatar}
-                  size={26}
-                />
-                <span className="bh-name">{memberName(state.bots, request.requesterBotSlug)}</span>
-                <Tag tone="neutral">
-                  {request.status === 'pending'
-                    ? t('members.joinPending')
-                    : invitationLabels[request.status]}
-                </Tag>
-              </div>
-              {request.status === 'pending' ? (
-                <div className="bh-group-request-actions">
-                  <button
-                    type="button"
-                    className="bh-group-manage-button"
-                    disabled={busy}
-                    onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, true))}
-                  >
-                    {t('members.approve')}
-                  </button>
-                  <button
-                    type="button"
-                    className="bh-group-manage-button"
-                    disabled={busy}
-                    onClick={() => void apply(actions.decideGroupJoin(group.id, request.id, false))}
-                  >
-                    {t('members.reject')}
-                  </button>
-                </div>
-              ) : null}
-            </div>
-          ))}
-        </div>
-      ) : null}
-      <button
-        type="button"
-        className="bh-group-delete-button"
-        disabled={busy}
-        onClick={() => {
-          if (!window.confirm(t('members.deleteConfirm', { name: group.name }))) return;
-          void apply(actions.deleteGroupChannel(group.id));
-        }}
-      >
-        {t('members.delete')}
-      </button>
       {error ? (
         <div className="bh-error" role="alert">
           {t('members.error')}
         </div>
       ) : null}
     </div>
+  );
+}
+
+function GroupManagementHeaderAction({
+  actions,
+  t,
+  channelId,
+}: ChannelSidebarEntryProps): ReactElement {
+  const group = useClientState().conversation.channel;
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    setMenuOpen(false);
+    setConfirmOpen(false);
+  }, [channelId]);
+  if (group?.type !== 'group' || group.id !== channelId) return <></>;
+  const items: readonly MenuEntry[] = [{ id: 'disband', label: t('members.delete') }];
+  const disband = async (): Promise<void> => {
+    setBusy(true);
+    try {
+      if (await actions.deleteGroupChannel(group.id)) setConfirmOpen(false);
+      else setError(true);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <Menu
+        open={menuOpen}
+        portal
+        dense
+        align="end"
+        anchor={
+          <Tooltip label={t('group.more')} side="bottom" delayMs={500}>
+            <button
+              type="button"
+              className="bh-channel-sidebar-entry-action"
+              aria-label={t('group.more')}
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((value) => !value)}
+            >
+              <IconEllipsisOutlineRegular size={16} />
+            </button>
+          </Tooltip>
+        }
+        items={items}
+        onSelect={() => {
+          setMenuOpen(false);
+          setConfirmOpen(true);
+        }}
+        onClose={() => setMenuOpen(false)}
+      />
+      {confirmOpen ? (
+        <Modal
+          open
+          onClose={() => setConfirmOpen(false)}
+          closeLabel={t('common.close')}
+          title={t('members.delete')}
+          description={t('members.deleteConfirm', { name: group.name })}
+          footer={
+            <>
+              <Button variant="outline" onClick={() => setConfirmOpen(false)}>
+                {t('common.cancel')}
+              </Button>
+              <Button variant="primary" disabled={busy} onClick={() => void disband()}>
+                {t('members.delete')}
+              </Button>
+            </>
+          }
+        >
+          {error ? (
+            <div className="bh-error" role="alert">
+              {t('members.error')}
+            </div>
+          ) : null}
+        </Modal>
+      ) : null}
+    </>
   );
 }
 
@@ -676,6 +421,7 @@ export function createChannelSidebarBuiltins(
       order: 10,
       scope: 'channel',
       component: MembersEntry,
+      headerAction: MembersHeaderAction,
       badge: MembersBadge,
     },
     {
@@ -684,6 +430,7 @@ export function createChannelSidebarBuiltins(
       order: 20,
       scope: 'channel',
       component: GroupManagementEntry,
+      headerAction: GroupManagementHeaderAction,
       visible: (state) => state.conversation.channel?.type === 'group',
     },
   ];

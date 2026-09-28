@@ -466,7 +466,10 @@ function ChannelRow({
         onMenu({ channelId: channel.id, x: rect.left + 8, y: rect.bottom });
       }}
     >
-      <span className="bh-channel-slot" aria-hidden="true">
+      <span
+        className={`bh-channel-slot${channel.avatar ? ' bh-group-channel-slot' : ''}`}
+        aria-hidden="true"
+      >
         {channel.avatar ? (
           <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
         ) : (
@@ -528,7 +531,10 @@ function RailChannel({
           onClick={open}
         >
           {bot === undefined ? (
-            <span className="bh-rail-channel-icon" aria-hidden="true">
+            <span
+              className={`bh-rail-channel-icon${channel.avatar ? ' bh-group-channel-icon' : ''}`}
+              aria-hidden="true"
+            >
               {channel.avatar ? (
                 <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
               ) : (
@@ -556,7 +562,10 @@ function RailChannel({
         <div className="bh-rail-preview">
           <div className="bh-rail-preview-head">
             {bot === undefined ? (
-              <span className="bh-rail-preview-icon" aria-hidden="true">
+              <span
+                className={`bh-rail-preview-icon${channel.avatar ? ' bh-group-channel-icon' : ''}`}
+                aria-hidden="true"
+              >
                 {channel.avatar ? (
                   <img className="bh-group-avatar-image" src={channel.avatar} alt="" />
                 ) : (

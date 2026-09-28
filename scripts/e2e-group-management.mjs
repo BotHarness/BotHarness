@@ -81,6 +81,7 @@ if (process.argv[2] === '--remove-member') {
   if (!groupId || !targetSlug) throw new Error('Missing Group or member');
   if (!(await groupRecord(groupId))?.members.includes(targetSlug))
     throw new Error('Target is not a Group member');
+  const memberIndex = (await groupRecord(groupId)).members.indexOf(targetSlug);
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage();
@@ -103,20 +104,69 @@ if (process.argv[2] === '--remove-member') {
     await page.evaluate(() => {
       const section = Array.from(document.querySelectorAll('.bh-channel-sidebar-entry')).find(
         (entry) =>
-          ['群管理', 'Group management'].includes(
+          ['成员', 'Members'].includes(
             entry.querySelector('.bh-channel-sidebar-entry-label')?.textContent ?? '',
           ),
       );
       const button = section?.querySelector('.bh-channel-sidebar-entry-head');
       if (button?.getAttribute('aria-expanded') === 'false') button.click();
     });
-    await page.waitForSelector('.bh-group-management .bh-member-row button');
-    await page.screenshot({ path: '/tmp/bh390-member-before-removal.png' });
+    await page.waitForSelector('.bh-member-menu-button');
+    await (await page.$$('.bh-member-menu-button'))[memberIndex].click();
+    await page.waitForSelector('[role="menu"]');
     await page.evaluate(() => {
-      const button = Array.from(
-        document.querySelectorAll('.bh-group-management .bh-member-row button'),
-      ).find((item) => ['移出群聊', 'Remove from Group'].includes(item.textContent?.trim() ?? ''));
-      button?.click();
+      Array.from(document.querySelectorAll('[role="menu"] button'))
+        .find((button) =>
+          ['消息提醒设置', 'Message attention settings'].includes(button.textContent?.trim() ?? ''),
+        )
+        ?.click();
+    });
+    await page.waitForSelector('.bh-member-policy-modal');
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('.bh-member-policy-modal button'))
+        .find((button) => ['静默收件', 'Silent inbox'].includes(button.textContent?.trim() ?? ''))
+        ?.click();
+    });
+    await sleep(500);
+    await page.screenshot({ path: '/tmp/bh390-member-policy.png' });
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('button'))
+        .find((button) =>
+          ['保存提醒设置', 'Save attention setting'].includes(button.textContent?.trim() ?? ''),
+        )
+        ?.click();
+    });
+    await waitFor(
+      async () => (await groupRecord(groupId))?.wakePolicies?.[targetSlug]?.mode === 'silent',
+      'member wake policy',
+    );
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector('.bh-member-row');
+    await (await page.$$('.bh-member-row'))[memberIndex].click({ button: 'right' });
+    await page.waitForSelector('[role="menu"]');
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('[role="menu"] button'))
+        .find((button) => ['打开私聊', 'Open Bot DM'].includes(button.textContent?.trim() ?? ''))
+        ?.click();
+    });
+    await page.waitForFunction(
+      (slug) =>
+        document.querySelector(`[data-channel-id="dm-${slug}"]`)?.classList.contains('bh-selected'),
+      {},
+      targetSlug,
+    );
+    await page.click(`.bh-root [data-channel-id="${groupId}"]`);
+    await page.waitForSelector('.bh-member-menu-button');
+    await page.screenshot({ path: '/tmp/bh390-member-before-removal.png' });
+    await (await page.$$('.bh-member-menu-button'))[memberIndex].click();
+    await page.waitForSelector('[role="menu"]');
+    page.once('dialog', (dialog) => void dialog.accept());
+    await page.evaluate(() => {
+      Array.from(document.querySelectorAll('[role="menu"] button'))
+        .find((button) =>
+          ['移出群聊', 'Remove from Group'].includes(button.textContent?.trim() ?? ''),
+        )
+        ?.click();
     });
     await waitFor(
       async () => !(await groupRecord(groupId))?.members.includes(targetSlug),
@@ -178,6 +228,7 @@ if (process.argv[2] === '--join-requests' || process.argv[2] === '--seed-join-re
     );
     process.exit(0);
   }
+  const memberIndex = (await groupRecord(groupId)).members.indexOf(targetSlug);
   const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
   try {
     const page = await browser.newPage();
@@ -208,13 +259,17 @@ if (process.argv[2] === '--join-requests' || process.argv[2] === '--seed-join-re
       if (button?.getAttribute('aria-expanded') === 'false') button.click();
     });
     await page.waitForSelector('.bh-group-management');
+    await page.click(
+      'button[aria-label^="Invitations and join requests"], button[aria-label^="邀请与入群申请"]',
+    );
+    await page.waitForSelector('.bh-group-attention-modal');
     await page.screenshot({ path: '/tmp/bh390-join-requests-before.png' });
     for (const bot of bots) {
       const clicked = await page.evaluate(
         ({ name, decision }) => {
-          const row = Array.from(
-            document.querySelectorAll('.bh-group-management .bh-group-request'),
-          ).find((item) => item.textContent?.includes(name));
+          const row = Array.from(document.querySelectorAll('.bh-group-attention-item')).find(
+            (item) => item.textContent?.includes(name),
+          );
           const button = Array.from(row?.querySelectorAll('button') ?? []).find((item) =>
             decision === 'accept'
               ? ['Approve', '批准'].includes(item.textContent?.trim() ?? '')
@@ -318,11 +373,13 @@ try {
   await openGroup(group.id);
   const samplePng = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
-    canvas.width = 64;
-    canvas.height = 64;
+    canvas.width = 160;
+    canvas.height = 80;
     const context = canvas.getContext('2d');
     context.fillStyle = '#427fe9';
-    context.fillRect(0, 0, 64, 64);
+    context.fillRect(0, 0, 80, 80);
+    context.fillStyle = '#e97f42';
+    context.fillRect(80, 0, 80, 80);
     return canvas.toDataURL('image/png').split(',')[1];
   });
   writeFileSync(avatarPath, Buffer.from(samplePng, 'base64'));
@@ -344,14 +401,51 @@ try {
   await waitFor(async () => (await groupRecord(group.id))?.name === renamed, 'Group rename');
 
   await (await page.$('.bh-group-avatar-setting input[type="file"]')).uploadFile(avatarPath);
-  await waitFor(async () => Boolean((await groupRecord(group.id))?.avatar), 'Group avatar');
-
-  await page.select('.bh-group-management select', target.slug);
+  await page.waitForSelector('.bh-group-avatar-crop-viewport img');
+  await page.$eval('#bh-group-avatar-zoom', (input) => {
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value')?.set;
+    setter?.call(input, '1.5');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  const crop = await page.$('.bh-group-avatar-crop-viewport');
+  const cropRect = await crop.boundingBox();
+  await page.mouse.move(cropRect.x + 140, cropRect.y + 140);
+  await page.mouse.down();
+  await page.mouse.move(cropRect.x + 165, cropRect.y + 140, { steps: 5 });
+  await page.mouse.up();
   await page.evaluate(() => {
-    const button = Array.from(document.querySelectorAll('.bh-group-management button')).find(
-      (item) => ['邀请新群员', 'Invite member'].includes(item.textContent?.trim() ?? ''),
-    );
-    button?.click();
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => ['保存头像', 'Save avatar'].includes(button.textContent?.trim() ?? ''))
+      ?.click();
+  });
+  await waitFor(async () => Boolean((await groupRecord(group.id))?.avatar), 'Group avatar');
+  if (!(await groupRecord(group.id)).avatar.startsWith('data:image/webp;base64,'))
+    throw new Error('Group avatar was not saved as WebP');
+
+  await page.click('button[aria-label="Invite member"], button[aria-label="邀请新群员"]');
+  await page.waitForSelector('.bh-group-invite-modal');
+  await page.type('#bh-group-invite-search', target.displayName.slice(0, 8));
+  await sleep(350);
+  await page.evaluate((name) => {
+    Array.from(document.querySelectorAll('.bh-group-invite-option'))
+      .find((button) => button.textContent?.includes(name))
+      ?.click();
+  }, target.displayName);
+  await page.waitForFunction(() =>
+    Array.from(document.querySelectorAll('button')).some(
+      (button) =>
+        ['邀请新群员', 'Invite member'].includes(button.textContent?.trim() ?? '') &&
+        !button.disabled,
+    ),
+  );
+  await page.evaluate(() => {
+    Array.from(document.querySelectorAll('button'))
+      .find(
+        (button) =>
+          ['邀请新群员', 'Invite member'].includes(button.textContent?.trim() ?? '') &&
+          !button.disabled,
+      )
+      ?.click();
   });
   await waitFor(
     async () =>
@@ -385,10 +479,19 @@ try {
   await page.screenshot({ path: `/tmp/bh390-group-management-${stamp}.png` });
 
   await openGroup(disposable.id);
-  page.once('dialog', (dialog) => void dialog.accept());
+  await page.click(
+    'button[aria-label="More Group management actions"], button[aria-label="更多群管理操作"]',
+  );
+  await page.waitForSelector('[role="menu"]');
   await page.evaluate(() => {
-    const button = document.querySelector('.bh-group-management .bh-group-delete-button');
-    button?.click();
+    Array.from(document.querySelectorAll('[role="menu"] button'))
+      .find((button) => ['解散群聊', 'Disband Group'].includes(button.textContent?.trim() ?? ''))
+      ?.click();
+  });
+  await page.evaluate(() => {
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => ['解散群聊', 'Disband Group'].includes(button.textContent?.trim() ?? ''))
+      ?.click();
   });
   await waitFor(async () => (await groupRecord(disposable.id)) === undefined, 'Group disband');
   console.log(

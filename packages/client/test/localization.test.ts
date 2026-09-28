@@ -25,7 +25,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     SegmentedControl: stub,
     StateDot: stub,
     Tag,
-    Tooltip: stub,
+    Tooltip: Tag,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
 });
@@ -127,19 +127,27 @@ describe('localization coverage', () => {
       );
     const members = renderEntry('members');
     expect(members).toContain('Creator');
+    expect(members).toContain('Manage ada');
     expect(members).not.toContain('Join requests');
     expect(members).not.toContain('Remove from Group');
-    expect(members).not.toContain('Disband Group');
+    const header = renderToStaticMarkup(
+      createElement(entries.find((entry) => entry.id === 'members')!.headerAction!, {
+        scope: 'channel',
+        channelId: group.id,
+        botSlug: undefined,
+        actions: {} as BridgeActions,
+        t: tEn,
+      }),
+    );
+    expect(header).toContain('Invite member');
+    expect(header).toContain('Invitations and join requests, 2 pending');
     const management = renderEntry('group-management');
     expect(management).toContain('Group avatar');
     expect(management).toContain('Group name');
-    expect(management).toContain('Invite member');
-    expect(management).toContain('Join requests');
-    expect(management).toContain('Pending');
-    expect(management).toContain('Accepted');
-    expect(management).toContain('Cancel invitation');
-    expect(management).toContain('Remove from Group');
-    expect(management).toContain('Disband Group');
+    expect(management).not.toContain('Invite member');
+    expect(management).not.toContain('Join requests');
+    expect(management).not.toContain('Remove from Group');
+    expect(management).not.toContain('Disband Group');
   });
 
   it('renders the empty conversation state in English', () => {
