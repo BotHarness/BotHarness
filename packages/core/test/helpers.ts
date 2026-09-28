@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, realpathSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -29,7 +29,9 @@ export function trackTestOwner(owner: OperationalDatabaseOwner): OperationalData
 export const FIXED_NOW = (): Date => new Date('2026-09-17T00:00:00.000Z');
 
 export function createTempRoot(prefix = 'botharness-test-'): string {
-  const root = mkdtempSync(join(tmpdir(), prefix));
+  // realpath keeps the fixture canonical for tests that assert on it (macOS
+  // os.tmpdir() lives behind the /var -> /private/var symlink); no-op on Linux.
+  const root = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
   roots.push(root);
   return root;
 }
