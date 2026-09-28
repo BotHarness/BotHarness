@@ -147,6 +147,7 @@ function stubActions(): BridgeActions {
       hasMore: false,
     })),
     memoryGitCommitDiff: vi.fn(async () => ({ sha: '', files: [], diff: '' })),
+    setBotAvatar: vi.fn(async () => true),
     profileActivity: vi.fn(async () => ({
       slug: '',
       weeks: 26,
@@ -156,6 +157,14 @@ function stubActions(): BridgeActions {
       memoryCommits: [],
       tokens: [],
       tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    })),
+    memoryWorkingChanges: vi.fn(async () => []),
+    memoryWorkingDiff: vi.fn(async (_channelId, path, kind) => ({
+      path,
+      kind,
+      status: 'M',
+      diff: '',
+      binary: false,
     })),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');

@@ -18,6 +18,7 @@ import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { createBotAvatarHttp, BOT_AVATAR_PATH } from './bots/avatar-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
 import { DeveloperModeSkillGate } from './logs/skill.js';
@@ -746,6 +747,17 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           fetch: attachmentHttp,
         }),
       'botharness: Channel attachment download',
+    );
+    const botAvatarHttp = createBotAvatarHttp(core.registry);
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: BOT_AVATAR_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: botAvatarHttp,
+        }),
+      'botharness: PersonaBot avatar',
     );
   });
   const activity = createDshActivityProjection({

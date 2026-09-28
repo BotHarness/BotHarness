@@ -287,6 +287,8 @@ describe('plugin entry', () => {
       'memoryDiff',
       'memoryGitGraph',
       'memoryGitCommitDiff',
+      'memoryWorkingChanges',
+      'memoryWorkingDiff',
       'memorySave',
       'memoryRepair',
       'profileActivity',
@@ -302,6 +304,7 @@ describe('plugin entry', () => {
       'rosterBatch',
       'developerModeSet',
       'computerAccessSet',
+      'botAvatarSet',
     ]);
   });
 
