@@ -1,6 +1,8 @@
-import { createElement } from 'react';
+// @vitest-environment jsdom
+import { act, createElement, type ReactElement } from 'react';
+import { createRoot } from 'react-dom/client';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
   const { createElement } = await import('react');
@@ -10,6 +12,20 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
     return createElement('button', { type: 'button', ...rest }, children as never);
   };
   const dot = (props: { state?: string }) => createElement('span', { 'data-state': props.state });
+  const toggle = (props: {
+    checked?: boolean;
+    disabled?: boolean;
+    label?: string;
+    onChange?: (next: boolean) => void;
+  }) =>
+    createElement('button', {
+      type: 'button',
+      role: 'switch',
+      'aria-checked': props.checked === true ? 'true' : 'false',
+      'aria-label': props.label,
+      disabled: props.disabled === true,
+      onClick: () => props.onChange?.(props.checked !== true),
+    });
   return {
     IconChevronDownOutlineRegular: glyph,
     IconCloseFillRegular: glyph,
@@ -20,6 +36,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', async () => {
     Button: control,
     Pill: control,
     StateDot: dot,
+    Switch: toggle,
   };
 });
 
@@ -162,6 +179,8 @@ describe('Computer entry states', () => {
     expect(html).toContain('atlas 的屏幕');
     // The stream is not live yet in a static render, so the loading state shows.
     expect(html).toContain('连接中');
+    // The docked card never forwards input; fullscreen starts watch-only too.
+    expect(html).toContain('pointer-events:none');
   });
 
   it('shows pull progress with the runtime line and elapsed time', () => {
@@ -195,6 +214,8 @@ describe('Fullscreen viewer title bar', () => {
         reconnecting: false,
         busy: false,
         stopping: false,
+        interactive: false,
+        onToggleInteractive: () => undefined,
         onStop: () => undefined,
         onCollapse: () => undefined,
         ...overrides,
@@ -215,6 +236,20 @@ describe('Fullscreen viewer title bar', () => {
     const html = titleBar({ phase: 'connecting' });
     expect(html).toContain('连接中');
     expect(html).toContain('data-state="ongoing"');
+  });
+
+  it('defaults to watch-only and offers enabling input', () => {
+    const html = titleBar();
+    expect(html).toContain('观看模式');
+    expect(html).toContain('开启交互');
+    expect(html).not.toContain('停止交互');
+  });
+
+  it('reflects interactive mode once the Human enables input', () => {
+    const html = titleBar({ interactive: true });
+    expect(html).toContain('停止交互');
+    expect(html).not.toContain('观看模式');
+    expect(html).toContain('aria-pressed="true"');
   });
 
   it('prefers the reconnecting label and reports the empty state as an error', () => {
@@ -297,6 +332,264 @@ describe('Computer authorize migration notice', () => {
       },
     });
     expect(html).toContain('存储位置已变更');
+  });
+});
+
+interface EntryProps {
+  readonly scope: 'channel' | 'personabot';
+  readonly channelId: string;
+  readonly botSlug: string | undefined;
+  readonly actions: unknown;
+}
+
+interface EntryRegistration {
+  readonly component: (props: EntryProps) => ReactElement;
+}
+
+type RpcCall = (
+  channel: string,
+  endpoint: string,
+  payload: unknown,
+) => Promise<
+  | { readonly ok: true; readonly value: unknown }
+  | { readonly ok: false; readonly error: { readonly message?: string } }
+>;
+
+/** Mount the entry exactly as the sidebar registry does, through `apply`. */
+function mountEntry(
+  rpcCall: RpcCall,
+  botSlug: string | undefined,
+  status: { probeAvailable?: boolean; state?: string } = {},
+): {
+  container: HTMLElement;
+  render: () => Promise<void>;
+  dispose: () => Promise<void>;
+} {
+  Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn(async () => ({
+      ok: true,
+      json: async () => ({
+        provider: 'docker',
+        probe: { available: status.probeAvailable ?? true },
+        status: { state: status.state ?? 'stopped' },
+      }),
+    })),
+  );
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+  const entries: EntryRegistration[] = [];
+  const settings = {
+    get: () => ({
+      getSnapshot: () => ({ status: 'ready' as const, value: undefined, writable: true }),
+      subscribe: () => () => {},
+      set: async () => {},
+    }),
+  };
+  const ctx = {
+    locale: { bind: () => t, register: () => () => {} },
+    inject: (deps: string[], callback: (context: unknown) => void) => {
+      if (deps.includes('configForms')) {
+        callback({ configForms: settings });
+        return;
+      }
+      if (deps.includes('uiWorkspace')) {
+        callback({
+          uiWorkspace: { pickDirectory: async () => null },
+          slots: {
+            inject: (_name: string, register: () => void) => {
+              register();
+            },
+            register: () => () => {},
+          },
+        });
+        return;
+      }
+      callback({
+        channelSidebar: {
+          register: (entry: EntryRegistration) => {
+            entries.push(entry);
+            return () => {};
+          },
+        },
+        connection: { rpc: { call: rpcCall } },
+      });
+    },
+    effect: (callback: () => unknown) => {
+      callback();
+    },
+  };
+  apply(ctx as unknown as Parameters<typeof apply>[0]);
+  const registration = entries[0];
+  if (registration === undefined) throw new Error('computer entry was not registered');
+  const container = document.createElement('div');
+  document.body.append(container);
+  const root = createRoot(container);
+  return {
+    container,
+    async render() {
+      await act(async () => {
+        root.render(
+          createElement(registration.component, {
+            scope: 'personabot',
+            channelId: 'dm-ada',
+            botSlug,
+            actions: undefined,
+          }),
+        );
+      });
+    },
+    async dispose() {
+      await act(async () => root.unmount());
+      container.remove();
+    },
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
+
+describe('Computer entry access switch', () => {
+  it('shows the Bot Computer Access and toggles it through the bridge', async () => {
+    const calls: { endpoint: string; payload: unknown }[] = [];
+    const rpcCall: RpcCall = async (_channel, endpoint, payload) => {
+      calls.push({ endpoint, payload });
+      if (endpoint === 'botharness/list') {
+        return {
+          ok: true,
+          value: { bots: [{ slug: 'ada', displayName: 'Ada', computerAccess: false }] },
+        };
+      }
+      if (endpoint === 'botharness/computerAccessSet') {
+        return { ok: true, value: { bot: { slug: 'ada', computerAccess: true } } };
+      }
+      return { ok: false, error: { message: `unexpected ${endpoint}` } };
+    };
+    const view = mountEntry(rpcCall, 'ada');
+    try {
+      await view.render();
+      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      expect(toggle).not.toBeNull();
+      expect(toggle?.getAttribute('aria-checked')).toBe('false');
+      expect(view.container.textContent).toContain('开启后，该 Bot 的会话可以操作这台电脑');
+
+      await act(async () => {
+        toggle?.click();
+      });
+
+      expect(calls).toContainEqual({
+        endpoint: 'botharness/computerAccessSet',
+        payload: { args: { slug: 'ada', enabled: true } },
+      });
+      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    } finally {
+      await view.dispose();
+    }
+  });
+
+  it('rolls the switch back and shows the failure when the write rejects', async () => {
+    const rpcCall: RpcCall = async (_channel, endpoint) => {
+      if (endpoint === 'botharness/list') {
+        return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
+      }
+      throw new Error('bridge down');
+    };
+    const view = mountEntry(rpcCall, 'ada');
+    try {
+      await view.render();
+      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+
+      await act(async () => {
+        toggle?.click();
+      });
+
+      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(view.container.textContent).toContain('bridge down');
+    } finally {
+      await view.dispose();
+    }
+  });
+
+  it('disables the switch while the write is in flight', async () => {
+    let release: ((result: { ok: true; value: unknown }) => void) | undefined;
+    const rpcCall: RpcCall = (_channel, endpoint) => {
+      if (endpoint === 'botharness/list') {
+        return Promise.resolve({
+          ok: true,
+          value: { bots: [{ slug: 'ada', computerAccess: false }] },
+        });
+      }
+      return new Promise<{ ok: true; value: unknown }>((resolve) => {
+        release = resolve;
+      });
+    };
+    const view = mountEntry(rpcCall, 'ada');
+    try {
+      await view.render();
+      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      await act(async () => {
+        toggle?.click();
+      });
+      expect(toggle?.disabled).toBe(true);
+      await act(async () => {
+        release?.({ ok: true, value: { bot: { slug: 'ada', computerAccess: true } } });
+      });
+      expect(toggle?.disabled).toBe(false);
+      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    } finally {
+      await view.dispose();
+    }
+  });
+
+  it('disables the switch when the sidebar entry has no PersonaBot slug', async () => {
+    const rpcCall: RpcCall = async () => ({ ok: true, value: {} });
+    const view = mountEntry(rpcCall, undefined);
+    try {
+      await view.render();
+      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      expect(toggle?.disabled).toBe(true);
+    } finally {
+      await view.dispose();
+    }
+  });
+
+  it('keeps the switch visible above the setup guidance', async () => {
+    const rpcCall: RpcCall = async () => ({ ok: true, value: {} });
+    const view = mountEntry(rpcCall, 'ada', { probeAvailable: false });
+    try {
+      await view.render();
+      expect(view.container.querySelector('button[role="switch"]')).not.toBeNull();
+      expect(view.container.textContent).toContain('未检测到容器运行时');
+    } finally {
+      await view.dispose();
+    }
+  });
+
+  it('keeps the switch above the running viewer', async () => {
+    const rpcCall: RpcCall = async (_channel, endpoint) => {
+      if (endpoint === 'botharness/list') {
+        return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
+      }
+      return { ok: true, value: {} };
+    };
+    const view = mountEntry(rpcCall, 'ada', { state: 'running' });
+    try {
+      await view.render();
+      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
+      expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(view.container.querySelector('iframe')).not.toBeNull();
+    } finally {
+      await view.dispose();
+    }
   });
 });
 

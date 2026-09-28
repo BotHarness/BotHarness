@@ -31,6 +31,13 @@ import {
 import { DEFAULT_DOCKER_CONFIG, createDockerComputerProvider } from './providers/docker.js';
 import type { ComputerRuntimeResult, ComputerRuntimeRunner } from './provider.js';
 import { createComputerService, type ComputerService } from './service.js';
+import { createCuaDriver } from './tool/driver.js';
+import {
+  computerToolNames,
+  createComputerToolProvider,
+  formatAudit,
+  ownsComputerTool,
+} from './tool/provider.js';
 import { ViewerProxy, proxyUpgrade } from './viewer.js';
 
 export const name = 'botharness-computer';
@@ -43,8 +50,10 @@ export interface ComputerConfig {
   hostPort: number;
   /** CPU cores the container may use. */
   cpus: number;
-  /** Hard memory ceiling, e.g. 2g; swap is pinned to the same value. */
+  /** Hard memory ceiling, e.g. 4g; swap is pinned to the same value. */
   memory: string;
+  /** Desktop geometry ceiling (Xvfb `MAX_RES`), e.g. 2560x1600. */
+  resolution: string;
   /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
   /** Process-count ceiling so a runaway app cannot fork-bomb the host. */
@@ -57,6 +66,8 @@ export interface ComputerConfig {
   language: string;
   /** Human-chosen directory that holds Computer exports; empty uses the built-in default. */
   exportDir: string;
+  /** When on, PersonaBot Computer actions run without a per-session Human approval. */
+  autoAllowActions: boolean;
   /**
    * Opt-in host directory bind-mounted at /config (Linux only); empty keeps
    * the named volume. Changing it recreates the container without migrating data.
@@ -64,9 +75,13 @@ export interface ComputerConfig {
   dataDir: string;
 }
 
-type ComputerRuntimeConfig = Omit<ComputerConfig, 'exportDir' | 'idleStopMinutes'> & {
+type ComputerRuntimeConfig = Omit<
+  ComputerConfig,
+  'exportDir' | 'idleStopMinutes' | 'autoAllowActions'
+> & {
   exportDir: string | Volatile<string>;
   idleStopMinutes: number | Volatile<number>;
+  autoAllowActions: boolean | Volatile<boolean>;
 };
 
 function readLive<T>(value: T | Volatile<T>): T {
@@ -87,12 +102,14 @@ export const DEFAULT_CONFIG: ComputerConfig = {
   hostPort: DEFAULT_DOCKER_CONFIG.hostPort,
   cpus: DEFAULT_DOCKER_CONFIG.cpus,
   memory: DEFAULT_DOCKER_CONFIG.memory,
+  resolution: DEFAULT_DOCKER_CONFIG.resolution,
   shmSize: DEFAULT_DOCKER_CONFIG.shmSize,
   pidsLimit: DEFAULT_DOCKER_CONFIG.pidsLimit,
   idleStopMinutes: DEFAULT_DOCKER_CONFIG.idleStopMinutes,
   hardenDesktop: DEFAULT_DOCKER_CONFIG.hardenDesktop,
   language: DEFAULT_DOCKER_CONFIG.language,
   exportDir: '',
+  autoAllowActions: false,
   dataDir: '',
 };
 
@@ -104,16 +121,30 @@ export const Config = Schema.object({
   hostPort: Schema.number().default(DEFAULT_CONFIG.hostPort),
   cpus: Schema.number().default(DEFAULT_CONFIG.cpus),
   memory: Schema.string().default(DEFAULT_CONFIG.memory),
+  resolution: Schema.string()
+    .default(DEFAULT_CONFIG.resolution)
+    .description(
+      '桌面分辨率上限（Xvfb MAX_RES）；viewer 不缩放画面，需覆盖最大观看画布，默认 2560x1600',
+    ),
   shmSize: Schema.string().default(DEFAULT_CONFIG.shmSize),
   pidsLimit: Schema.number().default(DEFAULT_CONFIG.pidsLimit),
   idleStopMinutes: Schema.number().default(DEFAULT_CONFIG.idleStopMinutes).volatile(),
-  hardenDesktop: Schema.boolean().default(DEFAULT_CONFIG.hardenDesktop),
+  hardenDesktop: Schema.boolean()
+    .default(DEFAULT_CONFIG.hardenDesktop)
+    .description(
+      '硬化桌面（禁用 sudo/终端/xfce 启动器）；查看专用部署可选开，computer use 需要保持关闭',
+    ),
   language: Schema.string().default(DEFAULT_CONFIG.language),
   exportDir: Schema.string()
     .default(DEFAULT_CONFIG.exportDir)
     .description(
       '导出目录；为空时回退到默认目录（~/Desktop/BotHarness Exports，无 Desktop 时为 ~/BotHarness Exports）',
-    ).volatile(),
+    )
+    .volatile(),
+  autoAllowActions: Schema.boolean()
+    .default(DEFAULT_CONFIG.autoAllowActions)
+    .description('自动允许 PersonaBot 操作 Computer（跳过按会话的人工授权）')
+    .volatile(),
   dataDir: Schema.string()
     .default(DEFAULT_CONFIG.dataDir)
     .description('持久目录（仅 Linux 生效，bind mount 到 /config；为空时用命名卷）'),
@@ -276,8 +307,9 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   const transferTokens = createTransferTokens();
   const service: ComputerService = createComputerService();
   let requestedLanguage = '';
+  const runner = createProcessRunner();
   const provider = createDockerComputerProvider({
-    runner: createProcessRunner(),
+    runner,
     onEvent: (detail) => diagnostics.record('container', detail),
     getLanguage: () => (requestedLanguage === '' ? config.language : requestedLanguage),
     config: {
@@ -288,6 +320,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       hostPort: config.hostPort,
       cpus: config.cpus,
       memory: config.memory,
+      resolution: config.resolution,
       shmSize: config.shmSize,
       pidsLimit: config.pidsLimit,
       idleStopMinutes: readLive(config.idleStopMinutes),
@@ -300,6 +333,80 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   ctx.effect(() => release, 'botharness-computer: provider registration');
   ctx.provide('botharnessComputer', service);
 
+  // Computer Tool Provider (ADR-0079/0080): owns the official computer-use
+  // slot and injects the curated tools plus guidance into the session scopes
+  // of PersonaBots whose Computer Access is on. Registration is lazy: it
+  // requires the Computer to be running so the driver catalog can be read,
+  // and a stopped Computer degrades to a clear tool error.
+  // Assigned once the idle watcher exists; tool activity keeps the Computer
+  // alive while a PersonaBot is actually working.
+  const activity = { touch: (): void => undefined };
+  const driver = createCuaDriver({
+    runner,
+    containerName: config.containerName,
+    onEvent: (detail) => diagnostics.record('lifecycle', `driver: ${detail}`),
+  });
+  const toolProvider = createComputerToolProvider({
+    ctx,
+    driver,
+    isComputerRunning: () => service.upstream() !== undefined,
+    isAutoAllowed: () => effective().autoAllowActions,
+    audit: (event) => diagnostics.record('computer-action', formatAudit(event)),
+    note: (detail) => diagnostics.record('lifecycle', detail),
+    onActivity: () => activity.touch(),
+    core: () => {
+      const core = ctx.get('botharness') as unknown as
+        | { registry?: unknown; ownership?: unknown }
+        | undefined;
+      return {
+        registry: core?.registry as never,
+        ownership: core?.ownership as never,
+      };
+    },
+  });
+  ctx.provide('botharnessComputerTools', {
+    reconcileBot: (slug: string) => toolProvider.reconcileBot(slug),
+    ownsTool: (name: string) => ownsComputerTool(name),
+    needsAuthorization: (sessionId: string) => toolProvider.needsAuthorization(sessionId),
+    markAuthorized: (sessionId: string) => toolProvider.markAuthorized(sessionId),
+  });
+  // Core owns Bot agent construction (create, resume, borrow); contributing
+  // through its setup path guarantees the scoped tools exist before the
+  // agent's first prompt assembly — an agent/created listener raced it and
+  // produced turns without any Computer tools (2026-09-28 acceptance).
+  ctx.inject(['botharness'], (coreCtx) => {
+    const core = (
+      coreCtx as unknown as {
+        botharness?: {
+          contributeBotAgentSetup?: (
+            contribute: (
+              agentCtx: import('@deepseek-ai/cordis').Context,
+              agent: { id: unknown },
+              info: { botSlug: string; rootRole: string },
+            ) => void,
+          ) => () => void;
+        };
+      }
+    ).botharness;
+    const remove = core?.contributeBotAgentSetup?.((agentCtx, agent, info) => {
+      toolProvider.attachAgent(agentCtx, String(agent.id), info);
+    });
+    // Host-side tools that act outside Host files: core's file-grant guard and
+    // unconfined-native gate skip them; Computer Authorization governs instead.
+    const hostTools = (core as { hostTools?: Set<string> } | undefined)?.hostTools;
+    for (const name of computerToolNames()) hostTools?.add(name);
+    return () => {
+      remove?.();
+      for (const name of computerToolNames()) hostTools?.delete(name);
+    };
+  });
+  ctx.effect(
+    () => () => {
+      void toolProvider.dispose();
+    },
+    'botharness-computer: tool provider',
+  );
+
   const log = (message: string): void => {
     ctx.logger.info(`botharness-computer: ${message}`);
     diagnostics.record('lifecycle', message);
@@ -309,6 +416,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   const effective = (): ComputerSettings => ({
     exportDir: readLive(config.exportDir),
     idleStopMinutes: readLive(config.idleStopMinutes),
+    autoAllowActions: readLive(config.autoAllowActions),
   });
   // Export/import always resolve a concrete directory: the configured path,
   // or the built-in default when none is set — so pickerless deployments can
@@ -335,6 +443,10 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       }
     },
   });
+  activity.touch = () => watcher.touch();
+  // Warm the container state once at boot so a Host restart with a running
+  // container is reflected immediately (viewer + Computer tools).
+  void service.status().catch(() => undefined);
   ctx.effect(() => {
     const timer = setInterval(() => watcher.tick(), 60_000);
     return () => clearInterval(timer);
@@ -365,6 +477,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           probe,
           status,
           exportDir: resolveExportDir(),
+          resolution: config.resolution,
         });
       },
     };
@@ -400,7 +513,10 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           `start requested (panel)${requestedLanguage === '' ? '' : ` locale=${requestedLanguage}`}`,
         );
         watcher.touch();
-        void service.start().catch(() => undefined);
+        void service
+          .start()
+          .then(() => toolProvider.reconcileAll())
+          .catch(() => undefined);
         return json({ ok: true, started: true });
       },
     };

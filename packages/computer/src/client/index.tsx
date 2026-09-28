@@ -40,6 +40,7 @@ import {
   IconFullscreenOutlineRegular,
   Pill,
   StateDot,
+  Switch,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
@@ -88,6 +89,8 @@ interface ComputerProgress {
 }
 
 interface ComputerStatusPayload {
+  /** Configured remote desktop geometry, e.g. `1280x800`. */
+  resolution?: string;
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
   readonly exportDir?: string;
@@ -205,9 +208,16 @@ const VIDEO_SURFACE = {
 } as const;
 /* @bh-video-surface:end */
 
-/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+/** Fallback logical viewport when the Host has not reported one yet. */
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
+
+/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
+function designOf(resolution: string | undefined): { width: number; height: number } {
+  const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? '');
+  if (match === null) return { width: DESIGN_WIDTH, height: DESIGN_HEIGHT };
+  return { width: Number(match[1]), height: Number(match[2]) };
+}
 
 const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
@@ -385,6 +395,8 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
 
 interface ScaledFrameProps {
   readonly title: string;
+  /** Remote desktop geometry the iframe is laid out at, then scaled to fit. */
+  readonly design: { width: number; height: number };
   /** Interactive frames forward input; the inline card keeps a hover mask. */
   readonly interactive: boolean;
   /** `width` keeps a fixed aspect card; `contain` fits the whole box (fullscreen). */
@@ -395,10 +407,13 @@ interface ScaledFrameProps {
 /** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
 function ScaledFrame({
   title,
+  design,
   interactive,
   fit = 'width',
   iframeRef,
 }: ScaledFrameProps): ReactElement {
+  const DESIGN_WIDTH = design.width;
+  const DESIGN_HEIGHT = design.height;
   const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: DESIGN_WIDTH, height: DESIGN_HEIGHT });
 
@@ -555,6 +570,9 @@ export interface ViewerTitleBarProps {
   readonly reconnecting: boolean;
   readonly busy: boolean;
   readonly stopping: boolean;
+  /** Whether pointer and keyboard input currently reach the remote desktop. */
+  readonly interactive: boolean;
+  readonly onToggleInteractive: () => void;
   readonly onStop: () => void;
   readonly onCollapse: () => void;
 }
@@ -583,7 +601,18 @@ function StopButton({
  * the stop control and collapse on the right. Exported for component tests.
  */
 export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
-  const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+  const {
+    t,
+    title,
+    phase,
+    reconnecting,
+    busy,
+    stopping,
+    interactive,
+    onToggleInteractive,
+    onStop,
+    onCollapse,
+  } = props;
   return (
     <div
       style={{
@@ -601,7 +630,19 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
       <StateDot state={dotStateFor(phase)} />
       <strong style={{ fontSize: 13, fontWeight: 600 }}>{title}</strong>
       <span style={{ fontSize: 12, opacity: 0.65 }}>{t(statusKeyFor(phase, reconnecting))}</span>
+      {interactive ? null : (
+        <span style={{ fontSize: 12, opacity: 0.65 }}>{t('entry.watchOnly')}</span>
+      )}
       <span style={{ flex: 1 }} />
+      <Button
+        variant={interactive ? 'ghost' : 'primary'}
+        size="sm"
+        aria-pressed={interactive}
+        onClick={onToggleInteractive}
+        title={t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+      >
+        {t(interactive ? 'entry.interactive.disable' : 'entry.interactive.enable')}
+      </Button>
       <StopButton t={t} busy={busy} stopping={stopping} onStop={onStop} />
       <Button
         variant="ghost"
@@ -631,18 +672,23 @@ function RunningCard({
   botSlug,
   busy,
   stopping,
+  resolution,
   onStop,
 }: {
   readonly t: ComputerTranslate;
   readonly botSlug: string | undefined;
   readonly busy: boolean;
   readonly stopping: boolean;
+  readonly resolution?: string;
   readonly onStop: () => void;
 }): ReactElement {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
+  // Watching is the default; pointer and keyboard input need an explicit
+  // opt-in per fullscreen session, so a stray click never drives the desktop.
+  const [inputEnabled, setInputEnabled] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
   const wasReady = useRef(false);
@@ -651,6 +697,7 @@ function RunningCard({
   const prevPhase = useRef<FramePhase | undefined>(undefined);
   const prevExpanded = useRef(false);
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
+  const design = designOf(resolution);
 
   const rawPhase = useStreamPhase(frameRef, reloadKey);
   const rawLive = rawPhase === 'live';
@@ -834,8 +881,13 @@ function RunningCard({
           reconnecting={reconnecting}
           busy={busy}
           stopping={stopping}
+          interactive={inputEnabled}
+          onToggleInteractive={() => setInputEnabled((current) => !current)}
           onStop={onStop}
-          onCollapse={() => setExpanded(nextExpanded('collapse'))}
+          onCollapse={() => {
+            setInputEnabled(false);
+            setExpanded(nextExpanded('collapse'));
+          }}
         />
       ) : null}
       <div
@@ -863,7 +915,8 @@ function RunningCard({
         <ScaledFrame
           key={reloadKey}
           title={title}
-          interactive={expanded}
+          design={design}
+          interactive={expanded && inputEnabled}
           fit={expanded ? 'contain' : 'width'}
           iframeRef={frameRef}
         />
@@ -921,6 +974,8 @@ export interface ComputerEntryViewProps {
   readonly error?: string;
   readonly botSlug?: string;
   readonly storage?: ComputerStorage;
+  /** Remote desktop geometry reported by the Host; the viewer scales it to fit. */
+  readonly resolution?: string;
   readonly onStart: () => void;
   readonly onConfirmStart: () => void;
   readonly onStop: () => void;
@@ -944,12 +999,14 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
     error,
     botSlug,
     storage,
+    resolution,
     onStart,
     onConfirmStart,
     onStop,
     onApprove,
     onCancel,
   } = props;
+  const design = designOf(resolution);
 
   if (!runtimeAvailable) {
     return <div style={noteStyle}>{t(SETUP_GUIDANCE_KEY)}</div>;
@@ -1006,6 +1063,7 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
         botSlug={botSlug}
         busy={busy}
         stopping={phase === 'stopping'}
+        {...(resolution === undefined ? {} : { resolution })}
         onStop={onStop}
       />
     );
@@ -1077,11 +1135,20 @@ export function createComputerEntry(
   };
 }
 
-/** Resolves the PersonaBot's display name through the BotHarness bridge. */
-function useBotDisplayName(botSlug: string | undefined): string | undefined {
-  const [name, setName] = useState<string | undefined>(undefined);
+interface BotInfo {
+  readonly displayName: string | undefined;
+  readonly computerAccess: boolean | undefined;
+}
+
+/** Resolves the PersonaBot's display name and Computer Access through the BotHarness bridge. */
+function useBotInfo(botSlug: string | undefined): BotInfo {
+  const [info, setInfo] = useState<BotInfo>({
+    displayName: undefined,
+    computerAccess: undefined,
+  });
 
   useEffect(() => {
+    setInfo({ displayName: undefined, computerAccess: undefined });
     const rpc = connectionRpc;
     if (rpc === undefined || botSlug === undefined) return () => {};
     let cancelled = false;
@@ -1090,12 +1157,18 @@ function useBotDisplayName(botSlug: string | undefined): string | undefined {
       .then((result) => {
         if (cancelled || !result.ok) return;
         const value = result.value as {
-          bots?: readonly { slug?: unknown; displayName?: unknown }[];
+          bots?: readonly { slug?: unknown; displayName?: unknown; computerAccess?: unknown }[];
         };
         const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
-        if (typeof match?.displayName === 'string' && match.displayName.length > 0) {
-          setName(match.displayName);
-        }
+        if (match === undefined) return;
+        setInfo({
+          displayName:
+            typeof match.displayName === 'string' && match.displayName.length > 0
+              ? match.displayName
+              : undefined,
+          computerAccess:
+            typeof match.computerAccess === 'boolean' ? match.computerAccess : undefined,
+        });
       })
       .catch(() => undefined);
     return () => {
@@ -1103,7 +1176,7 @@ function useBotDisplayName(botSlug: string | undefined): string | undefined {
     };
   }, [botSlug]);
 
-  return name ?? botSlug;
+  return { displayName: info.displayName ?? botSlug, computerAccess: info.computerAccess };
 }
 
 /** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
@@ -1111,7 +1184,7 @@ function ComputerEntry({
   botSlug,
   t,
 }: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
-  const displayName = useBotDisplayName(botSlug);
+  const { displayName, computerAccess } = useBotInfo(botSlug);
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -1122,6 +1195,38 @@ function ComputerEntry({
   const [busySince, setBusySince] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
+  const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
+  const [accessBusy, setAccessBusy] = useState(false);
+  const [accessError, setAccessError] = useState<string | undefined>(undefined);
+  const accessOn = accessOverride ?? computerAccess === true;
+
+  const onToggleAccess = useCallback(
+    (next: boolean) => {
+      const rpc = connectionRpc;
+      if (rpc === undefined || botSlug === undefined || accessBusy) return;
+      const previous = accessOverride ?? computerAccess === true;
+      setAccessError(undefined);
+      setAccessOverride(next);
+      setAccessBusy(true);
+      void rpc
+        .call('/api', 'botharness/computerAccessSet', { args: { slug: botSlug, enabled: next } })
+        .then((result) => {
+          if (!result.ok) {
+            setAccessOverride(previous);
+            setAccessError(result.error.message ?? t('entry.access.failed'));
+            return;
+          }
+          const value = result.value as { bot?: { computerAccess?: unknown } };
+          setAccessOverride(value.bot?.computerAccess === true);
+        })
+        .catch((cause: unknown) => {
+          setAccessOverride(previous);
+          setAccessError(cause instanceof Error ? cause.message : String(cause));
+        })
+        .finally(() => setAccessBusy(false));
+    },
+    [accessBusy, accessOverride, botSlug, computerAccess, t],
+  );
 
   const refresh = useCallback(async () => {
     try {
@@ -1208,33 +1313,51 @@ function ComputerEntry({
   }, []);
 
   return (
-    <ComputerEntryView
-      t={t}
-      state={payload?.status.state ?? 'absent'}
-      {...(phase === undefined ? {} : { phase })}
-      {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
-      {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
-      runtimeAvailable={payload?.probe.available ?? true}
-      confirming={confirming}
-      busy={busy}
-      elapsed={elapsed}
-      nowTs={nowTs}
-      {...(error === undefined ? {} : { error })}
-      {...(displayName === undefined ? {} : { botSlug: displayName })}
-      {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
-      onStart={onStart}
-      onConfirmStart={onConfirmStart}
-      onStop={() => void act(STOP_ENDPOINT)}
-      onApprove={onApprove}
-      onCancel={() => setConfirming(false)}
-    />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 500 }}>{t('entry.access.title')}</div>
+          <div style={noteStyle}>{t('entry.access.description')}</div>
+        </div>
+        <Switch
+          checked={accessOn}
+          disabled={botSlug === undefined || accessBusy}
+          onChange={onToggleAccess}
+          label={t('entry.access.title')}
+        />
+      </div>
+      {accessError === undefined ? null : <div style={noteStyle}>{accessError}</div>}
+      <ComputerEntryView
+        t={t}
+        state={payload?.status.state ?? 'absent'}
+        {...(phase === undefined ? {} : { phase })}
+        {...(payload?.status.detail === undefined ? {} : { detail: payload.status.detail })}
+        {...(payload?.status.progress === undefined ? {} : { progress: payload.status.progress })}
+        runtimeAvailable={payload?.probe.available ?? true}
+        confirming={confirming}
+        busy={busy}
+        elapsed={elapsed}
+        nowTs={nowTs}
+        {...(error === undefined ? {} : { error })}
+        {...(displayName === undefined ? {} : { botSlug: displayName })}
+        {...(payload?.status.storage === undefined ? {} : { storage: payload.status.storage })}
+        {...(payload?.resolution === undefined ? {} : { resolution: payload.resolution })}
+        onStart={onStart}
+        onConfirmStart={onConfirmStart}
+        onStop={() => void act(STOP_ENDPOINT)}
+        onApprove={onApprove}
+        onCancel={() => setConfirming(false)}
+      />
+    </div>
   );
 }
 
 export function apply(ctx: ClientContext): void {
   const settingsPrefs = new ComputerSettingsPrefs();
   ctx.inject(['configForms'], (settingsCtx) => {
-    const scope = settingsCtx.configForms.get<ComputerSettings>(COMPUTER_SETTINGS_NAMESPACE) as unknown as ComputerSettingsScope;
+    const scope = settingsCtx.configForms.get<ComputerSettings>(
+      COMPUTER_SETTINGS_NAMESPACE,
+    ) as unknown as ComputerSettingsScope;
     const release = settingsPrefs.attach(scope);
     return () => {
       release();

@@ -286,6 +286,9 @@ window.__ModuleLoader__.load({
 			"entry.label": "电脑",
 			"entry.screen.title": "{name} 的屏幕",
 			"entry.shared": "这台电脑由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与文件。",
+			"entry.access.title": "Computer Access",
+			"entry.access.description": "开启后，该 Bot 的会话可以操作这台电脑",
+			"entry.access.failed": "切换 Computer Access 失败",
 			"entry.start": "启动",
 			"entry.starting": "启动中…",
 			"entry.stop": "停止",
@@ -296,6 +299,9 @@ window.__ModuleLoader__.load({
 			"entry.live": "已连接",
 			"entry.noScreen": "暂无画面",
 			"entry.openFullscreen": "打开大屏",
+			"entry.watchOnly": "观看模式 · 开启交互后可操作键盘鼠标",
+			"entry.interactive.enable": "开启交互",
+			"entry.interactive.disable": "停止交互",
 			"entry.collapseFullscreen": "收起全屏",
 			"entry.recentLogs": "近期动态",
 			"entry.recentLogs.empty": "暂无运行记录",
@@ -336,6 +342,8 @@ window.__ModuleLoader__.load({
 			"rows.idle.title": "空闲停止",
 			"rows.idle.description": "无观看者时 Computer 自动停止的等待时间",
 			"rows.idle.minutes": "{minutes} 分钟",
+			"rows.autoAllow.title": "自动允许 Computer 操作",
+			"rows.autoAllow.description": "打开后，PersonaBot 在 Computer 上的操作不再逐会话询问；默认关闭。",
 			"rows.exportSection.title": "导出",
 			"rows.exportSection.description": "把 Computer 的持久存储打包成一个归档",
 			"rows.importSection.title": "导入",
@@ -362,6 +370,9 @@ window.__ModuleLoader__.load({
 			"entry.label": "Computer",
 			"entry.screen.title": "{name}'s screen",
 			"entry.shared": "This Computer is shared by every PersonaBot in the profile: each keeps its own window and they share logins and files.",
+			"entry.access.title": "Computer Access",
+			"entry.access.description": "This PersonaBot's sessions may act on the Computer",
+			"entry.access.failed": "Could not change Computer Access",
 			"entry.start": "Start",
 			"entry.starting": "Starting…",
 			"entry.stop": "Stop",
@@ -372,6 +383,9 @@ window.__ModuleLoader__.load({
 			"entry.live": "Connected",
 			"entry.noScreen": "No picture",
 			"entry.openFullscreen": "Open fullscreen",
+			"entry.watchOnly": "Watch-only — enable input to use keyboard and mouse",
+			"entry.interactive.enable": "Enable input",
+			"entry.interactive.disable": "Stop input",
 			"entry.collapseFullscreen": "Leave fullscreen",
 			"entry.recentLogs": "Recent activity",
 			"entry.recentLogs.empty": "No operational records yet",
@@ -412,6 +426,8 @@ window.__ModuleLoader__.load({
 			"rows.idle.title": "Idle stop",
 			"rows.idle.description": "How long the Computer waits without viewers before stopping",
 			"rows.idle.minutes": "{minutes} min",
+			"rows.autoAllow.title": "Auto-allow Computer actions",
+			"rows.autoAllow.description": "When on, PersonaBot actions on the Computer run without a per-session approval; off by default.",
 			"rows.exportSection.title": "Export",
 			"rows.exportSection.description": "Pack the Computer's persistent store into one archive",
 			"rows.importSection.title": "Import",
@@ -458,6 +474,8 @@ window.__ModuleLoader__.load({
 		const COMPUTER_EXPORT_DIR_FIELD = "exportDir";
 		/** Field carrying the idle stop minutes. */
 		const COMPUTER_IDLE_STOP_FIELD = "idleStopMinutes";
+		/** Field carrying the profile-level Computer Authorization auto-allow switch. */
+		const COMPUTER_AUTO_ALLOW_FIELD = "autoAllowActions";
 		//#endregion
 		//#region packages/computer/src/client/settings-rows.tsx
 		/**
@@ -490,6 +508,7 @@ window.__ModuleLoader__.load({
 			snapshot = {
 				exportDir: "",
 				idleStopMinutes: 30,
+				autoAllowActions: false,
 				status: "loading",
 				writable: false
 			};
@@ -526,6 +545,13 @@ window.__ModuleLoader__.load({
 				this.publish({ idleStopMinutes });
 				this.scope?.set(COMPUTER_IDLE_STOP_FIELD, idleStopMinutes).catch(() => void 0);
 			}
+			setAutoAllowActions(autoAllowActions) {
+				const previous = this.snapshot.autoAllowActions;
+				this.publish({ autoAllowActions });
+				this.scope?.set(COMPUTER_AUTO_ALLOW_FIELD, autoAllowActions).catch(() => {
+					this.publish({ autoAllowActions: previous });
+				});
+			}
 			publish(patch) {
 				this.snapshot = {
 					...this.snapshot,
@@ -541,6 +567,7 @@ window.__ModuleLoader__.load({
 				this.snapshot = {
 					exportDir: value?.exportDir ?? "",
 					idleStopMinutes: value?.idleStopMinutes ?? 30,
+					autoAllowActions: value?.autoAllowActions ?? false,
 					status: next.status,
 					writable: next.writable
 				};
@@ -968,6 +995,18 @@ window.__ModuleLoader__.load({
 						})
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
+						title: t("rows.autoAllow.title"),
+						description: t("rows.autoAllow.description"),
+						children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+							checked: snapshot.autoAllowActions,
+							disabled: !writable,
+							onChange: (next) => {
+								prefs.setAutoAllowActions(next);
+							},
+							label: t("rows.autoAllow.title")
+						})
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(Row, {
 						title: t("rows.exportSection.title"),
 						description: t("rows.exportSection.description"),
 						children: /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -1195,9 +1234,21 @@ window.__ModuleLoader__.load({
 			spinnerArc: "#ffffff",
 			onVideo: "#ffffff"
 		};
-		/** Logical viewport the viewer renders at; the wrapper scales it to fit. */
+		/** Fallback logical viewport when the Host has not reported one yet. */
 		const DESIGN_WIDTH = 1280;
 		const DESIGN_HEIGHT = 800;
+		/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
+		function designOf(resolution) {
+			const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? "");
+			if (match === null) return {
+				width: DESIGN_WIDTH,
+				height: DESIGN_HEIGHT
+			};
+			return {
+				width: Number(match[1]),
+				height: Number(match[2])
+			};
+		}
 		const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
@@ -1365,7 +1416,9 @@ window.__ModuleLoader__.load({
 			});
 		}
 		/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
-		function ScaledFrame({ title, interactive, fit = "width", iframeRef }) {
+		function ScaledFrame({ title, design, interactive, fit = "width", iframeRef }) {
+			const DESIGN_WIDTH = design.width;
+			const DESIGN_HEIGHT = design.height;
 			const ref = (0, react.useRef)(null);
 			const [box, setBox] = (0, react.useState)({
 				width: DESIGN_WIDTH,
@@ -1515,7 +1568,7 @@ window.__ModuleLoader__.load({
 		* the stop control and collapse on the right. Exported for component tests.
 		*/
 		function ViewerTitleBar(props) {
-			const { t, title, phase, reconnecting, busy, stopping, onStop, onCollapse } = props;
+			const { t, title, phase, reconnecting, busy, stopping, interactive, onToggleInteractive, onStop, onCollapse } = props;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "flex",
@@ -1544,7 +1597,22 @@ window.__ModuleLoader__.load({
 						},
 						children: t(statusKeyFor(phase, reconnecting))
 					}),
+					interactive ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						style: {
+							fontSize: 12,
+							opacity: .65
+						},
+						children: t("entry.watchOnly")
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", { style: { flex: 1 } }),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
+						variant: interactive ? "ghost" : "primary",
+						size: "sm",
+						"aria-pressed": interactive,
+						onClick: onToggleInteractive,
+						title: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable"),
+						children: t(interactive ? "entry.interactive.disable" : "entry.interactive.enable")
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(StopButton, {
 						t,
 						busy,
@@ -1572,11 +1640,12 @@ window.__ModuleLoader__.load({
 		* to the card, page scroll locked). Sustained silence becomes an explicit
 		* empty state with a retry.
 		*/
-		function RunningCard({ t, botSlug, busy, stopping, onStop }) {
+		function RunningCard({ t, botSlug, busy, stopping, resolution, onStop }) {
 			const frameRef = (0, react.useRef)(null);
 			const dialogRef = (0, react.useRef)(null);
 			const [hovered, setHovered] = (0, react.useState)(false);
 			const [expanded, setExpanded] = (0, react.useState)(false);
+			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
 			const [reloadKey, setReloadKey] = (0, react.useState)(0);
 			const [reconnecting, setReconnecting] = (0, react.useState)(false);
 			const wasReady = (0, react.useRef)(false);
@@ -1585,6 +1654,7 @@ window.__ModuleLoader__.load({
 			const prevPhase = (0, react.useRef)(void 0);
 			const prevExpanded = (0, react.useRef)(false);
 			const title = t("entry.screen.title", { name: botSlug ?? "PersonaBot" });
+			const design = designOf(resolution);
 			const rawPhase = useStreamPhase(frameRef, reloadKey);
 			const rawLive = rawPhase === "live";
 			const [smooth, setSmooth] = (0, react.useState)({
@@ -1735,8 +1805,13 @@ window.__ModuleLoader__.load({
 						reconnecting,
 						busy,
 						stopping,
+						interactive: inputEnabled,
+						onToggleInteractive: () => setInputEnabled((current) => !current),
 						onStop,
-						onCollapse: () => setExpanded(nextExpanded("collapse"))
+						onCollapse: () => {
+							setInputEnabled(false);
+							setExpanded(nextExpanded("collapse"));
+						}
 					}, "viewer-titlebar") : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						role: openable ? "button" : void 0,
@@ -1763,7 +1838,8 @@ window.__ModuleLoader__.load({
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScaledFrame, {
 							title,
-							interactive: expanded,
+							design,
+							interactive: expanded && inputEnabled,
 							fit: expanded ? "contain" : "width",
 							iframeRef: frameRef
 						}, reloadKey), overlay]
@@ -1805,7 +1881,8 @@ window.__ModuleLoader__.load({
 		}
 		/** Pure three-state view; the container component supplies data and handlers. */
 		function ComputerEntryView(props) {
-			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
+			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, resolution, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
+			designOf(resolution);
 			if (!runtimeAvailable) return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: noteStyle,
 				children: t(SETUP_GUIDANCE_KEY)
@@ -1880,6 +1957,7 @@ window.__ModuleLoader__.load({
 				botSlug,
 				busy,
 				stopping: phase === "stopping",
+				...resolution === void 0 ? {} : { resolution },
 				onStop
 			});
 			if (inProgress) return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -1950,27 +2028,41 @@ window.__ModuleLoader__.load({
 				});
 			};
 		}
-		/** Resolves the PersonaBot's display name through the BotHarness bridge. */
-		function useBotDisplayName(botSlug) {
-			const [name, setName] = (0, react.useState)(void 0);
+		/** Resolves the PersonaBot's display name and Computer Access through the BotHarness bridge. */
+		function useBotInfo(botSlug) {
+			const [info, setInfo] = (0, react.useState)({
+				displayName: void 0,
+				computerAccess: void 0
+			});
 			(0, react.useEffect)(() => {
+				setInfo({
+					displayName: void 0,
+					computerAccess: void 0
+				});
 				const rpc = connectionRpc;
 				if (rpc === void 0 || botSlug === void 0) return () => {};
 				let cancelled = false;
 				rpc.call("/api", "botharness/list", { args: {} }).then((result) => {
 					if (cancelled || !result.ok) return;
 					const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
-					if (typeof match?.displayName === "string" && match.displayName.length > 0) setName(match.displayName);
+					if (match === void 0) return;
+					setInfo({
+						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
+						computerAccess: typeof match.computerAccess === "boolean" ? match.computerAccess : void 0
+					});
 				}).catch(() => void 0);
 				return () => {
 					cancelled = true;
 				};
 			}, [botSlug]);
-			return name ?? botSlug;
+			return {
+				displayName: info.displayName ?? botSlug,
+				computerAccess: info.computerAccess
+			};
 		}
 		/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
 		function ComputerEntry({ botSlug, t }) {
-			const displayName = useBotDisplayName(botSlug);
+			const { displayName, computerAccess } = useBotInfo(botSlug);
 			const [payload, setPayload] = (0, react.useState)();
 			const [error, setError] = (0, react.useState)();
 			const [busy, setBusy] = (0, react.useState)(false);
@@ -1979,6 +2071,39 @@ window.__ModuleLoader__.load({
 			const [busySince, setBusySince] = (0, react.useState)(void 0);
 			const [elapsed, setElapsed] = (0, react.useState)(0);
 			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
+			const [accessOverride, setAccessOverride] = (0, react.useState)(void 0);
+			const [accessBusy, setAccessBusy] = (0, react.useState)(false);
+			const [accessError, setAccessError] = (0, react.useState)(void 0);
+			const accessOn = accessOverride ?? computerAccess === true;
+			const onToggleAccess = (0, react.useCallback)((next) => {
+				const rpc = connectionRpc;
+				if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
+				const previous = accessOverride ?? computerAccess === true;
+				setAccessError(void 0);
+				setAccessOverride(next);
+				setAccessBusy(true);
+				rpc.call("/api", "botharness/computerAccessSet", { args: {
+					slug: botSlug,
+					enabled: next
+				} }).then((result) => {
+					if (!result.ok) {
+						setAccessOverride(previous);
+						setAccessError(result.error.message ?? t("entry.access.failed"));
+						return;
+					}
+					const value = result.value;
+					setAccessOverride(value.bot?.computerAccess === true);
+				}).catch((cause) => {
+					setAccessOverride(previous);
+					setAccessError(cause instanceof Error ? cause.message : String(cause));
+				}).finally(() => setAccessBusy(false));
+			}, [
+				accessBusy,
+				accessOverride,
+				botSlug,
+				computerAccess,
+				t
+			]);
 			const refresh = (0, react.useCallback)(async () => {
 				try {
 					setPayload(await requestJson(STATUS_ENDPOINT));
@@ -2045,25 +2170,67 @@ window.__ModuleLoader__.load({
 					setApproved(true);
 				}
 			}, []);
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
-				t,
-				state: payload?.status.state ?? "absent",
-				...phase === void 0 ? {} : { phase },
-				...payload?.status.detail === void 0 ? {} : { detail: payload.status.detail },
-				...payload?.status.progress === void 0 ? {} : { progress: payload.status.progress },
-				runtimeAvailable: payload?.probe.available ?? true,
-				confirming,
-				busy,
-				elapsed,
-				nowTs,
-				...error === void 0 ? {} : { error },
-				...displayName === void 0 ? {} : { botSlug: displayName },
-				...payload?.status.storage === void 0 ? {} : { storage: payload.status.storage },
-				onStart,
-				onConfirmStart,
-				onStop: () => void act(STOP_ENDPOINT),
-				onApprove,
-				onCancel: () => setConfirming(false)
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				style: {
+					display: "flex",
+					flexDirection: "column",
+					gap: 8
+				},
+				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "flex",
+							alignItems: "center",
+							gap: 8
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+							style: {
+								flex: 1,
+								minWidth: 0
+							},
+							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: {
+									fontSize: 13,
+									fontWeight: 500
+								},
+								children: t("entry.access.title")
+							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+								style: noteStyle,
+								children: t("entry.access.description")
+							})]
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+							checked: accessOn,
+							disabled: botSlug === void 0 || accessBusy,
+							onChange: onToggleAccess,
+							label: t("entry.access.title")
+						})]
+					}),
+					accessError === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: noteStyle,
+						children: accessError
+					}),
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
+						t,
+						state: payload?.status.state ?? "absent",
+						...phase === void 0 ? {} : { phase },
+						...payload?.status.detail === void 0 ? {} : { detail: payload.status.detail },
+						...payload?.status.progress === void 0 ? {} : { progress: payload.status.progress },
+						runtimeAvailable: payload?.probe.available ?? true,
+						confirming,
+						busy,
+						elapsed,
+						nowTs,
+						...error === void 0 ? {} : { error },
+						...displayName === void 0 ? {} : { botSlug: displayName },
+						...payload?.status.storage === void 0 ? {} : { storage: payload.status.storage },
+						...payload?.resolution === void 0 ? {} : { resolution: payload.resolution },
+						onStart,
+						onConfirmStart,
+						onStop: () => void act(STOP_ENDPOINT),
+						onApprove,
+						onCancel: () => setConfirming(false)
+					})
+				]
 			});
 		}
 		function apply(ctx) {
