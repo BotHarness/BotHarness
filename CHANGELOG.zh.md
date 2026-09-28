@@ -80,6 +80,8 @@
 
 ### Changed
 
+- BotHarness 现在以 SemVer 范围（`>=0.2.0-rc.1 <0.3.0-0`）声明 DSH 兼容性，以已验证的宿主行为下限，取代精确锁定；运行时行为不变（[ADR-0087](docs/adr/0087-dsh-compatibility-is-a-semver-range-with-a-verified-floor.md)、[#423](https://github.com/BotHarness/BotHarness/issues/423)）。
+
 - BotHarness 现以 DSH 0.2.0 RC1 为目标：工作区依赖与 `engines.dsh` 从 0.1.7 RC2 迁移到新 RC，隔离开发 Profile 需按新 RC 重建（[#419](https://github.com/BotHarness/BotHarness/issues/419)）。
 
 - 未置顶的 Group 与 PersonaBot 私聊 Channel 现在统一以头像、名称和最新消息预览组成会话列表行；空 Channel 显示简短占位文案。取消置顶的拖放提示增加了留白，活动中的 Bot 头像保留状态圆点且不再显示外框（[#404](https://github.com/BotHarness/BotHarness/issues/404)）。
