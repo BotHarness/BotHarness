@@ -24,21 +24,48 @@ export function MemoryFileView({
 
   useEffect(() => {
     let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
     setFile(undefined);
     setError(undefined);
-    void actions.memoryFile(channelId, path).then(
-      (next) => {
-        if (active) {
-          setFile(next);
-          if (next === undefined) setError(t('memory.fileMissing'));
-        }
-      },
-      (failure: unknown) => {
-        if (active) setError(failure instanceof Error ? failure.message : String(failure));
-      },
-    );
+    const load = (): void => {
+      if (!active || inFlight) return;
+      if (document.visibilityState === 'hidden') {
+        timer = setTimeout(load, 15_000);
+        return;
+      }
+      inFlight = true;
+      void actions
+        .memoryFile(channelId, path)
+        .then(
+          (next) => {
+            if (active) {
+              setFile(next);
+              setError(next === undefined ? t('memory.fileMissing') : undefined);
+            }
+          },
+          (failure: unknown) => {
+            if (active) setError(failure instanceof Error ? failure.message : String(failure));
+          },
+        )
+        .finally(() => {
+          inFlight = false;
+          if (active) timer = setTimeout(load, 15_000);
+        });
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      load();
+    };
+    load();
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
+      clearTimeout(timer);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [actions, channelId, path, revision, t]);
 
@@ -84,18 +111,48 @@ export function MemoryWorkingView({
 
   useEffect(() => {
     let active = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
     setDetail(undefined);
     setError(undefined);
-    void actions.memoryWorkingDiff(channelId, change.path, change.kind).then(
-      (next) => {
-        if (active) setDetail(next);
-      },
-      (failure: unknown) => {
-        if (active) setError(failure instanceof Error ? failure.message : String(failure));
-      },
-    );
+    const load = (): void => {
+      if (!active || inFlight) return;
+      if (document.visibilityState === 'hidden') {
+        timer = setTimeout(load, 15_000);
+        return;
+      }
+      inFlight = true;
+      void actions
+        .memoryWorkingDiff(channelId, change.path, change.kind)
+        .then(
+          (next) => {
+            if (active) {
+              setDetail(next);
+              setError(undefined);
+            }
+          },
+          (failure: unknown) => {
+            if (active) setError(failure instanceof Error ? failure.message : String(failure));
+          },
+        )
+        .finally(() => {
+          inFlight = false;
+          if (active) timer = setTimeout(load, 15_000);
+        });
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      load();
+    };
+    load();
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
+      clearTimeout(timer);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
     };
   }, [actions, channelId, change.path, change.kind, revision]);
 

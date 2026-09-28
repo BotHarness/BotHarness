@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactElement } from 'react';
 import type { MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { MemoryFileTree } from './memory-file-tree.js';
 
 /** Current checked-out files; content opens in the Channel body. */
 export function MemoryFilesEntry({
@@ -9,36 +10,54 @@ export function MemoryFilesEntry({
   conversationRevision,
   onMemoryFileSelect,
   selectedMemoryFilePath,
+  refreshRevision,
   t,
 }: ChannelSidebarEntryProps): ReactElement {
-  const [revision, setRevision] = useState(0);
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
   const [error, setError] = useState<string>();
 
   useEffect(() => {
     let active = true;
-    setSnapshot(undefined);
-    setError(undefined);
-    void actions.memorySnapshot(channelId).then(
-      (next) => {
-        if (active) setSnapshot(next);
-      },
-      (failure: unknown) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    let inFlight = false;
+    const load = async (): Promise<void> => {
+      if (!active || inFlight) return;
+      if (document.visibilityState === 'hidden') {
+        timer = setTimeout(() => void load(), 15_000);
+        return;
+      }
+      inFlight = true;
+      try {
+        const next = await actions.memorySnapshot(channelId);
+        if (active) {
+          setSnapshot(next);
+          setError(undefined);
+        }
+      } catch (failure) {
         if (active) setError(failure instanceof Error ? failure.message : String(failure));
-      },
-    );
+      } finally {
+        inFlight = false;
+        if (active) timer = setTimeout(() => void load(), 15_000);
+      }
+    };
+    const onVisible = (): void => {
+      if (document.visibilityState !== 'visible') return;
+      clearTimeout(timer);
+      void load();
+    };
+    void load();
+    window.addEventListener('focus', onVisible);
+    document.addEventListener('visibilitychange', onVisible);
     return () => {
       active = false;
+      clearTimeout(timer);
+      window.removeEventListener('focus', onVisible);
+      document.removeEventListener('visibilitychange', onVisible);
     };
-  }, [actions, channelId, conversationRevision, revision]);
+  }, [actions, channelId, conversationRevision, refreshRevision]);
 
   return (
     <div className="bh-memory-entry">
-      <div className="bh-memory-toolbar">
-        <button type="button" onClick={() => setRevision((value) => value + 1)}>
-          {t('memory.refresh')}
-        </button>
-      </div>
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}
@@ -51,23 +70,12 @@ export function MemoryFilesEntry({
       ) : snapshot.files.length === 0 ? (
         <div className="bh-note">{t('memory.empty')}</div>
       ) : (
-        <div className="bh-memory-files">
-          {snapshot.files.map((path) => (
-            <button
-              key={path}
-              type="button"
-              className={
-                path === selectedMemoryFilePath
-                  ? 'bh-memory-row bh-memory-row-selected'
-                  : 'bh-memory-row'
-              }
-              aria-pressed={path === selectedMemoryFilePath}
-              onClick={() => onMemoryFileSelect?.(path)}
-            >
-              {path}
-            </button>
-          ))}
-        </div>
+        <MemoryFileTree
+          paths={snapshot.files}
+          selectedPath={selectedMemoryFilePath}
+          onSelect={onMemoryFileSelect}
+          t={t}
+        />
       )}
     </div>
   );

@@ -1615,7 +1615,10 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const source = asObject(payload);
       const path = asNonBlank(source, 'path');
       const kind = source['kind'];
-      if (path === undefined || !['staged', 'unstaged', 'untracked'].includes(String(kind))) {
+      if (
+        path === undefined ||
+        !['staged', 'unstaged', 'untracked', 'current'].includes(String(kind))
+      ) {
         return invalidInput('valid path and kind are required');
       }
       return memoryCall(() =>

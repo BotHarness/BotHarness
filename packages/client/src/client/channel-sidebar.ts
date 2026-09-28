@@ -13,6 +13,9 @@ export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;
   channelId: string;
   conversationRevision?: number;
+  /** Section-local refresh signal shared by its header action and body. */
+  refreshRevision?: number;
+  requestRefresh?: () => void;
   botSlug: string | undefined;
   actions: BridgeActions;
   onMemoryCommitSelect?: ((sha: string) => void) | undefined;

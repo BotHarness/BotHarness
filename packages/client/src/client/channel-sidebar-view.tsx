@@ -137,6 +137,12 @@ export function ChannelSidebarEntrySection({
   const bodyId = useId();
   const Badge = entry.badge;
   const HeaderAction = entry.headerAction;
+  const [refreshRevision, setRefreshRevision] = useState(0);
+  const props = {
+    ...entryProps,
+    refreshRevision,
+    requestRefresh: () => setRefreshRevision((value) => value + 1),
+  };
   return (
     <section className="bh-channel-sidebar-entry">
       <div className="bh-channel-sidebar-entry-header">
@@ -156,15 +162,15 @@ export function ChannelSidebarEntrySection({
           <span className="bh-channel-sidebar-entry-label">{entry.label}</span>
           {Badge === undefined ? null : (
             <span className="bh-channel-sidebar-entry-badge">
-              <Badge {...entryProps} />
+              <Badge {...props} />
             </span>
           )}
         </button>
-        {HeaderAction === undefined ? null : <HeaderAction {...entryProps} />}
+        {HeaderAction === undefined ? null : <HeaderAction {...props} />}
       </div>
       {expanded ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">
-          <entry.component {...entryProps} />
+          <entry.component {...props} />
         </div>
       ) : null}
     </section>

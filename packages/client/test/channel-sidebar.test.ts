@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest';
 import {
   channelSidebarScopeKey,
   createChannelSidebarPrefs,
-  type ChannelSidebarPrefs,
 } from '../src/client/channel-sidebar-prefs.js';
 import { resolveChannelSidebarMode } from '../src/client/channel-sidebar-layout.js';
 import {
@@ -85,6 +84,7 @@ describe('Channel sidebar preferences', () => {
       collapsedSidebars: [],
       expandedEntries: [],
       width: 320,
+      memoryTerminology: 'memory',
     });
     expect(prefs.isSidebarCollapsed('personabot:ada')).toBe(false);
     expect(prefs.isEntryExpanded('personabot:ada', 'assignments')).toBe(false);
@@ -95,12 +95,14 @@ describe('Channel sidebar preferences', () => {
     const prefs = createChannelSidebarPrefs(storage);
     prefs.setSidebarCollapsed('channel:group-team', true);
     prefs.setEntryExpanded('personabot:ada', 'assignments', true);
+    prefs.setMemoryTerminology('git');
 
     const reopened = createChannelSidebarPrefs(storage);
     expect(reopened.isSidebarCollapsed('channel:group-team')).toBe(true);
     expect(reopened.isSidebarCollapsed('personabot:ada')).toBe(false);
     expect(reopened.isEntryExpanded('personabot:ada', 'assignments')).toBe(true);
     expect(reopened.isEntryExpanded('personabot:ada', 'inbox')).toBe(false);
+    expect(reopened.getSnapshot().memoryTerminology).toBe('git');
   });
 
   it('notifies once per real change and stays quiet otherwise', () => {
@@ -128,6 +130,7 @@ describe('Channel sidebar preferences', () => {
       collapsedSidebars: [],
       expandedEntries: [],
       width: 320,
+      memoryTerminology: 'memory',
     });
   });
 

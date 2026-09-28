@@ -3897,7 +3897,28 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   color: var(--dsw-alias-label-primary);
 }
 .bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }
-.bh-memory-working-list strong { display: block; margin-bottom: 3px; color: var(--dsw-alias-label-secondary); font-size: 12px; }
+.bh-memory-terminology { display: flex; gap: 2px; align-self: flex-start; padding: 2px; border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); }
+.bh-memory-terminology button { border: 0; border-radius: 6px; padding: 3px 8px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 11px; cursor: pointer; }
+.bh-memory-terminology button[aria-pressed='true'] { background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+.bh-memory-change-group { min-width: 0; }
+.bh-memory-change-heading { display: flex; align-items: center; gap: 5px; width: 100%; border: 0; border-radius: 6px; padding: 5px 3px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; text-align: left; cursor: pointer; }
+.bh-memory-change-heading:hover { background: var(--bh-hover); }
+.bh-memory-change-count { margin-left: auto; font-variant-numeric: tabular-nums; }
+.bh-memory-change-rows { display: flex; flex-direction: column; gap: 2px; }
+.bh-memory-change-rows .bh-memory-row { display: flex; align-items: center; gap: 7px; padding-left: 10px; }
+.bh-memory-change-badge { flex: none; min-width: 20px; border-radius: 4px; padding: 1px 4px; background: var(--dsw-alias-interactive-bg-hover); color: var(--dsw-alias-label-secondary); font-family: var(--bh-memory-font-code); font-size: 10px; font-weight: 600; text-align: center; }
+.bh-memory-change-badge[data-status='new'], .bh-memory-change-badge[data-status='A'], .bh-memory-change-badge[data-status='U'] { color: var(--dsw-alias-state-success-primary); }
+.bh-memory-change-badge[data-status='deleted'], .bh-memory-change-badge[data-status='D'] { color: var(--dsw-alias-state-error-primary); }
+.bh-memory-change-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-memory-file-tree { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bh-memory-tree-directory { min-width: 0; }
+.bh-memory-tree-group { margin-left: 9px; padding-left: 8px; border-left: 1px solid var(--dsw-alias-border-l2); }
+.bh-memory-tree-row { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; border: 0; border-radius: 8px; padding: 5px 6px; background: transparent; color: var(--dsw-alias-label-primary); font-size: 12px; text-align: left; cursor: pointer; }
+.bh-memory-tree-row:hover { background: var(--bh-hover); }
+.bh-memory-tree-row.bh-memory-row-selected { background: var(--bh-selected); }
+.bh-memory-tree-chevron-space { flex: none; width: 14px; }
+.bh-memory-tree-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-memory-file-tree button:focus-visible, .bh-memory-working-list button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: -2px; }
 .bh-memory-commit-view { flex: 1; min-height: 0; overflow: auto; padding: 20px 28px; color: var(--dsw-alias-label-primary); }
 .bh-memory-commit-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
 .bh-memory-continue-open { margin-left: auto; }

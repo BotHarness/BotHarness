@@ -92,7 +92,7 @@ export interface MemoryGitCommitDiff {
   diff: string;
 }
 
-export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked';
+export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked' | 'current';
 
 export interface MemoryWorkingChange {
   path: string;
@@ -1042,24 +1042,36 @@ export function createMemoryAcceptance(options: {
       return currentWorkingChanges(graphRepository(botSlug));
     },
     workingDiff(botSlug, path, kind) {
-      if (!['staged', 'unstaged', 'untracked'].includes(kind)) {
+      if (!['staged', 'unstaged', 'untracked', 'current'].includes(kind)) {
         throw new MemoryAcceptError('memory-invalid', 'Invalid Memory change kind');
       }
       const root = graphRepository(botSlug);
       const relative = toMemoryRelativePath(path);
-      const change = currentWorkingChanges(root).find(
-        (entry) => entry.path === relative && entry.kind === kind,
-      );
+      const phases = currentWorkingChanges(root).filter((entry) => entry.path === relative);
+      const change =
+        kind === 'current'
+          ? phases.length === 0
+            ? undefined
+            : {
+                path: relative,
+                kind,
+                status: phases.some((entry) => entry.kind === 'untracked' || entry.status === 'A')
+                  ? 'A'
+                  : phases.some((entry) => entry.status === 'D')
+                    ? 'D'
+                    : 'M',
+              }
+          : phases.find((entry) => entry.kind === kind);
       if (change === undefined) {
         throw new MemoryAcceptError('memory-invalid', 'Memory working change no longer exists');
       }
-      if (kind !== 'untracked') {
+      if (kind !== 'untracked' && !(kind === 'current' && phases[0]?.kind === 'untracked')) {
         const diff = output(root, [
           'diff',
           '--no-ext-diff',
           '--no-textconv',
           '--no-renames',
-          ...(kind === 'staged' ? ['--cached', 'HEAD'] : []),
+          ...(kind === 'staged' ? ['--cached', 'HEAD'] : kind === 'current' ? ['HEAD'] : []),
           '--',
           relative,
         ]);

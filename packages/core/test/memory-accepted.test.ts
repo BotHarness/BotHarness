@@ -159,7 +159,12 @@ describe('current Git working tree is Memory', () => {
       );
       expect(memory.workingDiff('atlas', 'note.md', 'staged').diff).toContain('+staged text');
       expect(memory.workingDiff('atlas', 'note.md', 'unstaged').diff).toContain('+unstaged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'current').diff).toContain('+unstaged text');
+      expect(memory.workingDiff('atlas', 'note.md', 'current').diff).not.toContain('+staged text');
       expect(memory.workingDiff('atlas', 'new.ts', 'untracked').diff).toContain(
+        '+export const memory = true;',
+      );
+      expect(memory.workingDiff('atlas', 'new.ts', 'current').diff).toContain(
         '+export const memory = true;',
       );
       expect(memory.workingDiff('atlas', 'image.bin', 'untracked').binary).toBe(true);

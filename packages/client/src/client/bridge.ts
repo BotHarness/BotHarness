@@ -1583,7 +1583,7 @@ export interface MemoryGitCommitDiff {
   diff: string;
 }
 
-export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked';
+export type MemoryWorkingKind = 'staged' | 'unstaged' | 'untracked' | 'current';
 export interface MemoryWorkingChange {
   path: string;
   kind: MemoryWorkingKind;
@@ -1789,11 +1789,13 @@ export async function loadProfileActivity(
   return response as unknown as ProfileActivity;
 }
 
-function parseWorkingChange(value: unknown): MemoryWorkingChange {
+function parseWorkingChange(value: unknown, allowCurrent = false): MemoryWorkingChange {
   const change = asRecord(value);
   if (
     typeof change?.['path'] !== 'string' ||
-    !['staged', 'unstaged', 'untracked'].includes(String(change['kind'])) ||
+    !['staged', 'unstaged', 'untracked', ...(allowCurrent ? ['current'] : [])].includes(
+      String(change['kind']),
+    ) ||
     typeof change['status'] !== 'string'
   )
     throw new Error('invalid Memory working change');
@@ -1806,7 +1808,7 @@ export async function loadMemoryWorkingChanges(
 ): Promise<MemoryWorkingChange[]> {
   const response = asRecord(await unwrap(call, 'memoryWorkingChanges', { channelId }));
   if (!Array.isArray(response?.['changes'])) throw new Error('invalid Memory working changes');
-  return response['changes'].map(parseWorkingChange);
+  return response['changes'].map((change: unknown) => parseWorkingChange(change));
 }
 
 export async function loadMemoryWorkingDiff(
@@ -1816,7 +1818,7 @@ export async function loadMemoryWorkingDiff(
   kind: MemoryWorkingKind,
 ): Promise<MemoryWorkingDiff> {
   const response = asRecord(await unwrap(call, 'memoryWorkingDiff', { channelId, path, kind }));
-  parseWorkingChange(response);
+  parseWorkingChange(response, true);
   if (
     response?.['path'] !== path ||
     response['kind'] !== kind ||
