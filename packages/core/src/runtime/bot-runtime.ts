@@ -388,6 +388,12 @@ interface DigestRow {
   author_slug: string | null;
 }
 
+function groupMessageAuthor(row: DigestRow): string {
+  if (row.author_kind === 'bot') return `PersonaBot ${row.author_slug ?? 'unknown'}`;
+  if (row.author_kind === 'system') return 'Channel system';
+  return 'Human';
+}
+
 interface GroupContext {
   channelId: string;
   rows: DigestRow[];
@@ -1479,7 +1485,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `Channel: ${channel?.name ?? context.channelId} (${context.channelId})`,
       ...context.rows.map(
         (row) =>
-          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${row.body.length > GROUP_CONTEXT_BODY_LIMIT ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]` : ''}`,
       ),
       context.omittedCount > 0
         ? `${context.omittedCount} earlier or intervening messages remain pending for later turns. Use channel_read if more history is needed.`
@@ -1497,7 +1503,7 @@ class BotRuntimeImplementation implements BotRuntime {
       `${rows.length} ordinary messages are due. Review them and respond only if useful; no acknowledgment is required.`,
       ...rows.map(
         (row) =>
-          `- Message ${row.message_id} from ${row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? 'unknown'}` : 'Human'} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
+          `- Message ${row.message_id} from ${groupMessageAuthor(row)} at ${row.created_at}: ${row.body.slice(0, 1000)}`,
       ),
       ...(omittedCount > 0
         ? [

@@ -3452,6 +3452,9 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
 
 .bh-member-departure {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   max-width: min(100%, 520px);
   width: fit-content;
   margin: 6px auto;
@@ -3461,6 +3464,11 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
   text-align: center;
+}
+.bh-member-departure .bh-delivery-trigger {
+  position: static;
+  flex: 0 0 auto;
+  background: transparent;
 }
 
 .bh-bot-dm-action {

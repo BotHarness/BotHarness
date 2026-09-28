@@ -46,6 +46,10 @@ describe('Bot Group self-leave', () => {
           return;
         }
         expect(run.bot.slug).toBe('bea');
+        if (!run.message.includes('Check the Group')) {
+          expect(run.message).toContain('ADA left the Channel.');
+          return;
+        }
         expect(run.channels.list({ channelId: groupId }).channels).toHaveLength(1);
         expect(
           run.channels.read({ channelId: groupId }).map((item) => item.message.body),
@@ -84,7 +88,7 @@ describe('Bot Group self-leave', () => {
         });
         await core.runtime.whenIdle();
       }
-      expect(turns).toEqual(['ada', 'bea']);
+      expect(turns).toEqual(['ada', 'bea', 'bea']);
       expect(core.channels.get(groupId)).toMatchObject({ members: ['bea'] });
       expect(core.channels.get(groupId)?.ownerBotSlug).toBeUndefined();
       const departures = core.channels
@@ -187,7 +191,7 @@ describe('Bot Group self-leave', () => {
     }
   });
 
-  it('writes one system notice when Human removes a member, without Bot Inbox delivery', async () => {
+  it('writes one system notice with an ordinary Inbox admission when Human removes a member', async () => {
     const core = createCore({ dshHome: createTempRoot('botharness-group-human-remove-notice-') });
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
@@ -229,13 +233,102 @@ describe('Bot Group self-leave', () => {
           .get(group.id, notices[0]!.id),
       }));
       expect(facts).toEqual({
-        source: { source_kind: 'system-message', bot_slug: null, attempt_state: 'handled' },
-        admissions: { count: 0 },
+        source: { source_kind: 'system-message', bot_slug: null, attempt_state: 'pending' },
+        admissions: { count: 1 },
       });
       expect(methods.channelGroupMemberRemove({ channelId: group.id, botSlug: 'bea' }).ok).toBe(
         false,
       );
       expect(core.channels.readMessages(group.id)).toHaveLength(1);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('uses each remaining Bot attention preset for the same departure message', async () => {
+    const turns: Array<{ botSlug: string; message: string }> = [];
+    const core = createCore({
+      dshHome: createTempRoot('botharness-group-departure-policy-'),
+      agents: adapter(async (run) => {
+        turns.push({ botSlug: run.bot.slug, message: run.message });
+      }),
+    });
+    try {
+      for (const slug of ['lee', 'eve', 'dia', 'men', 'sil'])
+        core.registry.create({ slug, displayName: slug.toUpperCase() });
+      const group = core.channels.createGroup({
+        name: 'Policy Team',
+        members: ['lee', 'eve', 'dia', 'men', 'sil'],
+      });
+      core.channels.setGroupWakePolicy(group.id, 'eve', {
+        mode: 'all',
+        count: 1,
+        intervalSeconds: 1,
+      });
+      core.channels.setGroupWakePolicy(group.id, 'dia', {
+        mode: 'digest',
+        count: 2,
+        intervalSeconds: 3600,
+      });
+      core.channels.setGroupWakePolicy(group.id, 'men', {
+        mode: 'mentions',
+        count: 2,
+        intervalSeconds: 3600,
+      });
+      core.channels.setGroupWakePolicy(group.id, 'sil', {
+        mode: 'silent',
+        count: 2,
+        intervalSeconds: 3600,
+      });
+      const methods = createBridgeMethods({ ...core });
+      expect(methods.channelGroupMemberRemove({ channelId: group.id, botSlug: 'lee' }).ok).toBe(
+        true,
+      );
+      const notice = core.channels.readMessages(group.id)[0]!;
+      expect(notice.memberDeparture?.memberId).toBe('lee');
+      const rows = attachOperationalModule(core.operationalDatabase, 'departure-policy-facts').read(
+        (db) =>
+          db
+            .prepare(
+              `SELECT a.bot_slug, a.reason, a.wake_mode, a.wake_count
+                 FROM inbox_admissions a
+                 JOIN source_events e ON e.source_event_id = a.source_event_id
+                WHERE e.channel_id = ? AND e.message_id = ?
+                ORDER BY a.bot_slug`,
+            )
+            .all(group.id, notice.id),
+      );
+      expect(rows).toEqual([
+        { bot_slug: 'dia', reason: 'group-ordinary', wake_mode: 'digest', wake_count: 2 },
+        { bot_slug: 'eve', reason: 'group-ordinary', wake_mode: 'all', wake_count: 1 },
+        { bot_slug: 'men', reason: 'group-ordinary', wake_mode: 'mentions', wake_count: null },
+        { bot_slug: 'sil', reason: 'group-ordinary', wake_mode: 'silent', wake_count: null },
+      ]);
+      await core.runtime.whenIdle();
+      expect(turns.map((turn) => turn.botSlug)).toEqual(['eve']);
+      expect(turns[0]?.message).toContain('Channel system');
+      expect(turns[0]?.message).toContain('LEE left the Channel.');
+      await core.channels.appendMessageOnce(group.id, {
+        id: 'ordinary-after-leave',
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: 'Next topic',
+      });
+      core.runtime.admitGroupMessage(group.id, 'ordinary-after-leave');
+      await core.runtime.whenIdle();
+      expect(turns.filter((turn) => turn.botSlug === 'dia')).toHaveLength(1);
+      expect(turns.find((turn) => turn.botSlug === 'dia')?.message).toContain(
+        'LEE left the Channel.',
+      );
+      expect(turns.filter((turn) => turn.botSlug === 'men' || turn.botSlug === 'sil')).toEqual([]);
+
+      expect(core.channels.message(group.id, notice.id)?.deliveries).toEqual([
+        { botSlug: 'dia', state: 'handled' },
+        { botSlug: 'eve', state: 'handled' },
+        { botSlug: 'men', state: 'pending' },
+        { botSlug: 'sil', state: 'pending' },
+      ]);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

@@ -1244,14 +1244,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           db.prepare(`
             INSERT INTO source_events (
               source_event_id, source_kind, bot_slug, channel_id, message_id,
-              body, created_at, handled_at, attempt_state, payload_json
-            ) VALUES (?, 'system-message', NULL, ?, ?, ?, ?, ?, 'handled', ?)
+              body, created_at, payload_json
+            ) VALUES (?, 'system-message', NULL, ?, ?, ?, ?, ?)
           `).run(
             sourceEventId,
             channelId,
             departure.id,
             departure.body,
-            timestamp,
             timestamp,
             eventPayload(departure),
           );
@@ -1259,6 +1258,27 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
             VALUES (?, ?, ?, ?)
           `).run(channelId, revision, sourceEventId, departure.id);
+          for (const recipientSlug of updated.members) {
+            if (!isBotActive(recipientSlug)) continue;
+            const policy = updated.wakePolicies?.[recipientSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
+            db.prepare(`
+              INSERT INTO inbox_admissions (
+                source_event_id, bot_slug, reason, wake_count, wake_interval_ms,
+                wake_policy_revision, wake_mode
+              ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?)
+            `).run(
+              sourceEventId,
+              recipientSlug,
+              policy.mode === 'all' ? 1 : policy.mode === 'digest' ? policy.count : null,
+              policy.mode === 'all'
+                ? 0
+                : policy.mode === 'digest'
+                  ? policy.intervalSeconds * 1000
+                  : null,
+              policy.revision,
+              policy.mode,
+            );
+          }
           for (const invitation of cancelled)
             db.prepare(`
               UPDATE inbox_admissions
@@ -1294,10 +1314,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         ['channel', 'bot-inbox'],
       );
       publishRecordChanged();
+      const deliveries = admissionStatuses(sourceEventId);
       try {
         options.onCommitted?.({
           channelId,
-          message: { ...departure, channelRevision: revision },
+          message: {
+            ...departure,
+            channelRevision: revision,
+            ...(deliveries === undefined ? {} : { deliveries }),
+          },
           revision,
         });
       } catch (error) {

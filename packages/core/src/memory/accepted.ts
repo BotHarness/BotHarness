@@ -666,6 +666,20 @@ export function createMemoryAcceptance(options: {
           .prepare('SELECT bot_slug, source_kind FROM source_events WHERE source_event_id = ?')
           .get(input.sourceEventId) as { bot_slug: string; source_kind: string } | undefined,
     );
+    const departureAdmission =
+      source?.source_kind === 'system-message' &&
+      database.read((db) =>
+        db
+          .prepare(`
+            SELECT 1 FROM inbox_admissions a
+              JOIN source_events e ON e.source_event_id = a.source_event_id
+             WHERE a.source_event_id = ? AND a.bot_slug = ?
+               AND a.reason = 'group-ordinary' AND a.attempt_state = 'running'
+               AND json_extract(e.payload_json, '$.author.kind') = 'system'
+               AND json_extract(e.payload_json, '$.memberDeparture.memberKind') = 'bot'
+          `)
+          .get(input.sourceEventId, input.botSlug),
+      ) !== undefined;
     if (
       (source?.bot_slug !== input.botSlug &&
         !database.read((db) =>
@@ -685,7 +699,8 @@ export function createMemoryAcceptance(options: {
               )
               .get(input.sourceEventId, input.botSlug),
           )
-        ))
+        ) &&
+        !departureAdmission)
     ) {
       throw new MemoryAcceptError(
         'memory-conflict',
