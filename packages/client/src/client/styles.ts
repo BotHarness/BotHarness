@@ -1636,6 +1636,14 @@ html[data-botharness-motion='reduce'] .bh-section-chevron {
   opacity: 0.5;
   cursor: default;
 }
+.bh-profile-avatar-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+}
+.bh-profile-avatar-input {
+  display: none;
+}
 .bh-profile-error {
   color: var(--dsw-alias-state-error-primary);
   font-size: 12px;
