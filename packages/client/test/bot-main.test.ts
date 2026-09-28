@@ -91,6 +91,55 @@ function sidebarRegistry() {
 }
 
 describe('Bot main Sessions pane', () => {
+  it('keeps the docked Channel sidebar present on every state update while switching Channels', () => {
+    const previous = store.getSnapshot();
+    const first = {
+      id: 'group-first',
+      type: 'group' as const,
+      name: 'First',
+      members: [],
+      createdAt: '2026-09-21T00:00:00.000Z',
+      updatedAt: '2026-09-21T00:00:00.000Z',
+    };
+    const second = { ...first, id: 'group-second', name: 'Second' };
+    const bot = {
+      slug: 'ada',
+      displayName: 'Ada',
+      roles: [],
+      aggregateState: 'idle' as const,
+      workspaces: [],
+      createdAt: first.createdAt,
+    };
+    const registry = sidebarRegistry();
+    const render = () =>
+      renderToStaticMarkup(
+        createElement(BotMain, { actions: {} as BridgeActions, channelSidebar: registry }),
+      );
+
+    store.setRoster([bot], [first, second]);
+    store.select({ kind: 'channel', channelId: first.id });
+    store.setConversation({ status: 'ready', channel: first });
+    const renders: string[] = [];
+    const unsubscribe = store.subscribe(() => renders.push(render()));
+    try {
+      store.select({ kind: 'channel', channelId: second.id });
+      store.setConversation({ status: 'loading', channel: second });
+      store.select({ kind: 'bot', slug: bot.slug });
+      store.setConversation({ status: 'loading', channel: undefined });
+      expect(renders).toHaveLength(4);
+      expect(renders.every((markup) => markup.includes('id="bh-channel-sidebar"'))).toBe(true);
+      expect(renders.every((markup) => markup.includes('aria-expanded="true"'))).toBe(true);
+    } finally {
+      unsubscribe();
+      store.setRoster(previous.bots, previous.channels);
+      store.select(previous.selection);
+      store.setConversation(previous.conversation);
+      store.setSessions(previous.sessions);
+      store.setBotInbox(previous.botInbox);
+      store.setHumanInbox(previous.humanInbox);
+    }
+  });
+
   it('shows a Session entry beside a DM while keeping the Bot title in the channel header', () => {
     const bot = {
       slug: 'ada',
