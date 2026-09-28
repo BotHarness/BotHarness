@@ -1203,48 +1203,61 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       return updated;
     },
     removeGroupMember(channelId, botSlug, departureType: 'left' | 'removed' = 'removed') {
-      const channel = readRecord(channelId);
-      if (channel?.type !== 'group' || !channel.members.includes(botSlug))
-        throw new Error('Group member not found');
-      const timestamp = now().toISOString();
-      const updated: ChannelRecord = {
-        ...channel,
-        members: channel.members.filter((item) => item !== botSlug),
-        invitations: (channel.invitations ?? []).map((item) =>
-          item.status === 'pending' && item.inviterBotSlug === botSlug
-            ? { ...item, status: 'cancelled', respondedAt: timestamp }
-            : item,
-        ),
-        updatedAt: timestamp,
-      };
-      if (channel.ownerBotSlug === botSlug) delete updated.ownerBotSlug;
-      if (updated.wakePolicies !== undefined) {
-        updated.wakePolicies = { ...updated.wakePolicies };
-        delete updated.wakePolicies[botSlug];
-      }
-      const cancelled = (channel.invitations ?? []).filter(
-        (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
-      );
-      const displayName = options.botDisplayName?.(botSlug) ?? botSlug;
-      const departure: ChannelMessage = {
-        id: 'member-left-' + randomUUID(),
-        at: timestamp,
-        author: { kind: 'system' },
-        body:
-          displayName +
-          (departureType === 'left' ? ' left the Channel.' : ' was removed from the Channel.'),
-        memberDeparture: {
-          memberKind: 'bot',
-          memberId: botSlug,
-          displayName,
-          departureType,
-        },
-        format: 'text',
-      };
-      const sourceEventId = randomUUID();
-      const revision = revisionOf(channelId) + 1;
-      database.transaction(
+      const { updated, departure, sourceEventId, revision } = database.transaction(
         (db) => {
+          const recordRow = db
+            .prepare('SELECT record_json FROM channel_records WHERE channel_id = ?')
+            .get(channelId) as { record_json: string } | undefined;
+          const channel =
+            recordRow === undefined ? undefined : parseRecord(recordRow.record_json, channelId);
+          if (
+            channel?.type !== 'group' ||
+            channel.deletedAt !== undefined ||
+            !channel.members.includes(botSlug)
+          )
+            throw new Error('Group member not found');
+          const timestamp = now().toISOString();
+          const updated: ChannelRecord = {
+            ...channel,
+            members: channel.members.filter((item) => item !== botSlug),
+            invitations: (channel.invitations ?? []).map((item) =>
+              item.status === 'pending' && item.inviterBotSlug === botSlug
+                ? { ...item, status: 'cancelled', respondedAt: timestamp }
+                : item,
+            ),
+            updatedAt: timestamp,
+          };
+          if (channel.ownerBotSlug === botSlug) delete updated.ownerBotSlug;
+          if (updated.wakePolicies !== undefined) {
+            updated.wakePolicies = { ...updated.wakePolicies };
+            delete updated.wakePolicies[botSlug];
+          }
+          const cancelled = (channel.invitations ?? []).filter(
+            (item) => item.status === 'pending' && item.inviterBotSlug === botSlug,
+          );
+          const displayName = options.botDisplayName?.(botSlug) ?? botSlug;
+          const departure: ChannelMessage = {
+            id: 'member-left-' + randomUUID(),
+            at: timestamp,
+            author: { kind: 'system' },
+            body:
+              displayName +
+              (departureType === 'left' ? ' left the Channel.' : ' was removed from the Channel.'),
+            memberDeparture: {
+              memberKind: 'bot',
+              memberId: botSlug,
+              displayName,
+              departureType,
+            },
+            format: 'text',
+          };
+          const sourceEventId = randomUUID();
+          const revisionRow = db
+            .prepare(
+              'SELECT COALESCE(MAX(revision), 0) AS revision FROM channel_placements WHERE channel_id = ?',
+            )
+            .get(channelId) as { revision: number };
+          const revision = revisionRow.revision + 1;
           db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
             JSON.stringify(updated),
             channelId,
@@ -1319,6 +1332,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                  SELECT source_event_id FROM source_events WHERE channel_id = ?
                )
           `).run(timestamp, botSlug, channelId);
+          return { updated, departure, sourceEventId, revision };
         },
         ['channel', 'bot-inbox'],
       );

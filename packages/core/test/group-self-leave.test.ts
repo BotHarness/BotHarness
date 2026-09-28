@@ -1,7 +1,13 @@
+import { join } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 import { createBridgeMethods } from '../src/bridge/methods.js';
-import { attachOperationalModule } from '../src/database/owner.js';
+import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
+import {
+  attachOperationalModule,
+  type OperationalDatabaseModulePort,
+} from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import type { BotAgentAdapter, OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
 import { createTempRoot } from './helpers.js';
@@ -345,6 +351,54 @@ describe('Bot Group self-leave', () => {
     }
   });
 
+  it('keeps a concurrent Group setting change when member removal begins', async () => {
+    const home = createTempRoot('botharness-group-leave-current-record-');
+    const core = createCore({ dshHome: home });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const group = core.channels.createGroup({
+        name: 'Colleagues',
+        members: ['ada', 'bea'],
+        ownerBotSlug: 'ada',
+      });
+      const port = attachOperationalModule(core.operationalDatabase, 'group-leave-current-record');
+      let updateBeforeTransaction = false;
+      const database: OperationalDatabaseModulePort = {
+        module: port.module,
+        read: (query) => port.read(query),
+        transaction: (command, topics) => {
+          if (updateBeforeTransaction) {
+            updateBeforeTransaction = false;
+            core.channels.setGroupWakePolicy(group.id, 'ada', {
+              mode: 'silent',
+              count: 2,
+              intervalSeconds: 3600,
+            });
+          }
+          return port.transaction(command, topics);
+        },
+      };
+      const channels = createSqliteChannelStore({
+        database,
+        rootDir: join(home, 'channels'),
+        databaseOwnerReady: true,
+      });
+      updateBeforeTransaction = true;
+
+      channels.removeGroupMember(group.id, 'bea');
+
+      expect(core.channels.get(group.id)).toMatchObject({
+        members: ['ada'],
+        wakePolicies: {
+          ada: { mode: 'silent', count: 2, intervalSeconds: 3600, revision: 1 },
+        },
+      });
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
   it('stops a pending direct Group mention when membership ends', async () => {
     const core = createCore({ dshHome: createTempRoot('botharness-group-leave-pending-') });
     try {
