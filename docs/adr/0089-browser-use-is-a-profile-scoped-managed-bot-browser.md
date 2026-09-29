@@ -5,7 +5,7 @@ Date: 2026-09-29
 
 # Browser use is a profile-scoped managed Bot Browser
 
-BotHarness gives PersonaBots browser use through a **Bot Browser**: one browser per profile, launched and supervised by BotHarness with its own persistent browser profile of cookies and sign-ins, shared by the PersonaBots as owned windows and tabs (ADR-0090). It is not the Human's everyday browser, and 1.0 ships no browser extension. The binary is preferably the Chrome or Edge already installed on the machine, launched with a dedicated `--user-data-dir` and a loopback CDP endpoint — which also sidesteps Chrome's restriction on debugging the default profile; when no suitable browser is installed, a version- and checksum-pinned Chromium is used. It is headed by default — the Human can see it, sign in once through the entry's **Open Bot Browser** action, and take over — with a setting for headless.
+BotHarness gives PersonaBots browser use through a **Bot Browser**: one browser per profile, launched and supervised by BotHarness with its own persistent browser profile of cookies and sign-ins, shared by the PersonaBots as owned windows and tabs (ADR-0091). It is not the Human's everyday browser, and 1.0 ships no browser extension. The binary is preferably the Chrome or Edge already installed on the machine, launched with a dedicated `--user-data-dir` and a loopback CDP endpoint — which also sidesteps Chrome's restriction on debugging the default profile; when no suitable browser is installed, a version- and checksum-pinned Chromium is used. It is headed by default — the Human can see it, sign in once through the entry's **Open Bot Browser** action, and take over — with a setting for headless.
 
 The capability ships as an optional standalone bundle, `@botharness/browser`, and owns the whole integration through a BotHarness-owned, application-defined provider: binary discovery and pinning, launch and supervision, the CDP driver, the persistent profile directory under `$DSH_HOME/botharness/browser`, and the sign-in flow. It does not depend on the experimental `@deepseek-ai/dsh-browser-use` service or provider packages: that seam only reserves a provider name, is not composed by default, and would add an experimental dependency for no capability. The Bot Browser starts on first use, stops after the same 30-minute idle window as the Computer, logs launch, stop, and refusals to `logs.db`, and a stopped browser is a readable tool-call error that never threatens Host boot.
 
@@ -29,6 +29,6 @@ Container execution is the same mechanism (Chromium plus CDP on a loopback port)
 ## Consequences
 
 - The bundle owns binary discovery and pinning, launch policy, the CDP driver, the persistent profile, and sign-in; browser-profile backup and export stay a later profile-level decision, like Computer Export.
-- Browser Access, Authorization, Audit, and Takeover land per ADR-0089; per-Bot window and tab scoping per ADR-0090.
+- Browser Access, Authorization, Audit, and Takeover land per ADR-0090; per-Bot window and tab scoping per ADR-0091.
 - Delivery starts with a read-only browsing slice — open, semantic observe, screenshot — carrying the full access, authorization, audit, and observation plumbing; interaction tools follow.
 - If DSH's browser-use seam stabilizes, registering this provider's name on it is a local change; the tool surface and Consumers stay.

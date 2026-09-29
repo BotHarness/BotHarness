@@ -20,7 +20,7 @@ Background operation is what makes one browser enough for many Bots: CDP targets
 
 - **One shared window with mixed Bot tabs** — rejected: weak ownership signal; takeover and audit ambiguity.
 - **Tabs in the Human's current window** — rejected: most intrusive; the Bot Browser must never require the Human's window.
-- **Per-PersonaBot browser instances** — rejected at the mechanism level (ADR-0088); tabs already parallelize.
+- **Per-PersonaBot browser instances** — rejected at the mechanism level (ADR-0089); tabs already parallelize.
 - **Borrow/return of Human tabs** — deferred; revisit only with the extension route.
 
 ## Consequences

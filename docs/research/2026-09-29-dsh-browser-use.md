@@ -228,4 +228,4 @@ export class BrowserUseRegistry extends Service {
 - **传输**：浏览器沙箱不允许扩展启动本机进程，连接必须由扩展发起；BrowserSkill 实测形状为"扩展作 WebSocket client 连 `ws://127.0.0.1:52800` + 强制握手 + 30 秒 alarms 保活"（其源码），native messaging 更稳但要为每个浏览器注册 host manifest（Windows 还需写注册表）。
 - **更新**：未打包扩展不会自动更新，升级需用户手动 Reload 并保持开发者模式开启。
 
-这些代价与收益的取舍记录在 ADR-0088 的 Considered options：扩展路线被记为 **deferred**（不是否决）；最终决议为 ADR-0088/0089/0090，交付切片见 hub #459。
+这些代价与收益的取舍记录在 ADR-0089 的 Considered options：扩展路线被记为 **deferred**（不是否决）；最终决议为 ADR-0089/0090/0091，交付切片见 hub #459。

@@ -13,8 +13,8 @@ Date: 2026-09-29
 
 ## Why
 
-- The Bot Browser is profile-shared (ADR-0088), but acting in it is a per-PersonaBot decision; a profile-wide injection would put the catalog into every prompt, remove the Human's ability to withhold one Bot, and blur audit attribution.
-- Human and Bot act in the same real browser: without takeover and observation invalidation, a Bot could act on a stale view over the Human's shoulders. Computer Takeover already models pause plus no model screenshots; the per-Bot scope follows from tabs being per-Bot (ADR-0090).
+- The Bot Browser is profile-shared (ADR-0089), but acting in it is a per-PersonaBot decision; a profile-wide injection would put the catalog into every prompt, remove the Human's ability to withhold one Bot, and blur audit attribution.
+- Human and Bot act in the same real browser: without takeover and observation invalidation, a Bot could act on a stale view over the Human's shoulders. Computer Takeover already models pause plus no model screenshots; the per-Bot scope follows from tabs being per-Bot (ADR-0091).
 - Serializing one Bot's actions prevents its Orchestrator and an Assignment from interleaving actions on the same tab; per-tab locking is the recorded refinement if parallel tool calls become common, and it needs no vocabulary change.
 - The audit is the Human's answer to "which Bot did what in the browser" and must stay useful without becoming a credential or screenshot store; the existing approval card and Tool Approval Rules already cover "always allow".
 

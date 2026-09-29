@@ -181,7 +181,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Recorded the Browser use design: a profile-scoped managed Bot Browser with per-PersonaBot Browser Access, session-scoped Browser Authorization, a redacted Browser Audit, and window-scoped Bot Tabs; runtime behavior lands in the tracer ([#459](https://github.com/BotHarness/BotHarness/issues/459), [ADR-0088](docs/adr/0088-browser-use-is-a-profile-scoped-managed-bot-browser.md), [ADR-0089](docs/adr/0089-browser-access-is-per-personabot-authorization-is-session-scoped.md), [ADR-0090](docs/adr/0090-bot-tabs-are-window-scoped-work-surfaces.md)).
+- Recorded the Browser use design: a profile-scoped managed Bot Browser with per-PersonaBot Browser Access, session-scoped Browser Authorization, a redacted Browser Audit, and window-scoped Bot Tabs; runtime behavior lands in the tracer ([#459](https://github.com/BotHarness/BotHarness/issues/459), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md), [ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md), [ADR-0091](docs/adr/0091-bot-tabs-are-window-scoped-work-surfaces.md)).
 
 - Documented that cross-device Memory continuity is agent-mediated Git plus Portability; no first-party sync Skill, Host-owned remote, or credential handling is added, and runtime behavior is unchanged ([ADR-0084](docs/adr/0084-memory-continuity-is-agent-git-plus-portability.md), [#398](https://github.com/BotHarness/BotHarness/issues/398)).
 
