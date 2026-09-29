@@ -1,7 +1,5 @@
-/** Locale namespace owning the Browser client's copy. */
 export const LOCALE_NS = 'botharness-browser';
 
-/** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
   'entry.label': '浏览器',
   'entry.shared':
@@ -23,7 +21,6 @@ export const zh = {
 
 export type BrowserKey = keyof typeof zh;
 
-/** English dictionary; must cover the same keys. */
 export const en: Record<BrowserKey, string> = {
   'entry.label': 'Browser',
   'entry.shared':

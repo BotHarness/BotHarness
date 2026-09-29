@@ -242,7 +242,6 @@ export interface BridgeMethods {
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-  /** Sets or clears one PersonaBot's Bot Browser opt-in (ADR-0089). */
   browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   /** Sets or clears one PersonaBot's custom avatar inside its DM scope (ADR-0086). */
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -269,7 +268,6 @@ export interface BridgeMethodsDeps {
   developerMode?: { set(enabled: boolean): void };
   /** Optional Computer Tool Provider hook: reconcile one PersonaBot after its access changed. */
   computerAccess?: { changed(slug: string): void };
-  /** Optional Browser Tool Provider hook: reconcile one PersonaBot after its access changed. */
   browserAccess?: { changed(slug: string): void };
   createBotId?: () => string;
 }

@@ -14,7 +14,6 @@ export interface PersonaBotRecord {
   paused?: boolean;
   /** Per-PersonaBot Computer tool opt-in; absent means off (ADR-0080). */
   computerAccess?: boolean;
-  /** Per-PersonaBot Bot Browser tool opt-in; absent means off (ADR-0089). */
   browserAccess?: boolean;
 }
 

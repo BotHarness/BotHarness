@@ -144,9 +144,8 @@ function ensureProfile(options) {
     ...manifest.dsh,
     profile: {
       ...manifest.dsh?.profile,
-      // Computer and Browser are optional product bundles (ADR-0050), but the
-      // dev loop exercises them by default so their sidebar entries and
-      // viewers are present.
+      // Computer is an optional product bundle (ADR-0050), but the dev loop
+      // exercises it by default so its sidebar entry and viewer are present.
       bundles: [
         '@deepseek-ai/dsh-base',
         '@deepseek-ai/dsh-web-app',

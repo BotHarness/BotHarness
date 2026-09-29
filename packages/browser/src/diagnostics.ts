@@ -1,12 +1,3 @@
-/**
- * Bounded, in-memory diagnostics for the Browser plugin: lifecycle initiators
- * and redacted browser action audits. Process evidence for Humans and agents —
- * never durable authority, never page contents, typed text, or screenshots.
- * @module @botharness/browser/diagnostics
- */
-
-// Deep relative import, not the package root: the log module is leaf-only
-// (node builtins) and must not pull core's barrel types into this bundle.
 import type { LogOwnerScope } from '../../core/src/logs/log-db.js';
 
 export interface BrowserDiagnosticEvent {
@@ -20,12 +11,10 @@ export interface BrowserDiagnostics {
   tail(limit?: number): readonly BrowserDiagnosticEvent[];
 }
 
-/** Durable drain for recorded events; failures never break recording. */
 export interface BrowserDiagnosticsSink {
   write(event: BrowserDiagnosticEvent): void;
 }
 
-/** Durable row shape for the operational log database. */
 export interface BrowserLogEntry {
   readonly plugin: string;
   readonly owner: LogOwnerScope;
@@ -34,7 +23,6 @@ export interface BrowserLogEntry {
   readonly ts: number;
 }
 
-/** Maps a ring event onto a log row; unparseable timestamps fall back to now. */
 export function toLogEntry(
   event: BrowserDiagnosticEvent,
   plugin: string,
@@ -64,9 +52,7 @@ export function createBrowserDiagnostics(
       if (events.length > limit) events.splice(0, events.length - limit);
       try {
         sink?.write(event);
-      } catch {
-        // Persistence is best effort by design.
-      }
+      } catch {}
     },
     tail(count = limit) {
       const size = Math.max(0, Math.min(count, events.length));

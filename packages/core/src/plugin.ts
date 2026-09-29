@@ -554,9 +554,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           untrackComputer();
         }
       }
-      // Bot Browser tools act on the profile's shared Bot Browser (ADR-0089),
-      // not on Host files; their session-scoped Browser Authorization rides
-      // this hook the same way the Computer's does.
       const browserTools = ctx.get('botharnessBrowserTools') as
         | {
             ownsTool?(name: string): boolean;
@@ -709,8 +706,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         },
       },
       browserAccess: {
-        // The Browser Tool Provider is a separate optional bundle; when it is
-        // not composed this hook is a no-op and nothing changes.
         changed: (slug: string) => {
           const provider = ctx.get('botharnessBrowserTools') as unknown as
             | { reconcileBot?: (slug: string) => Promise<void> }

@@ -1,12 +1,4 @@
-/**
- * Browser entry for the Channel sidebar: the Browser Access switch, the Bot
- * Browser status, and the Human's Open/Stop actions. The entry is our own
- * surface over the authenticated Host routes the browser plugin serves
- * (ADR-0089); it never talks to the browser directly.
- * @module @botharness/browser/client
- */
-
-import { useCallback, useEffect, useState, type ComponentType, type ReactElement } from 'react';
+import { useState, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
@@ -31,7 +23,6 @@ interface ChannelSidebarEntryProps {
   readonly t: BrowserTranslate;
 }
 
-/** Structural mirror of `@botharness/ui`'s Channel sidebar registry seam. */
 interface ChannelSidebarRegistryLike {
   register(entry: {
     readonly id: string;
@@ -52,47 +43,9 @@ interface ConnectionRpcLike {
 
 let connectionRpc: ConnectionRpcLike | undefined;
 
-interface BotInfo {
-  displayName: string | undefined;
-  browserAccess: boolean | undefined;
-}
-
-/** Resolves the PersonaBot's Browser Access through the BotHarness bridge. */
-function useBotInfo(botSlug: string | undefined): BotInfo {
-  const [info, setInfo] = useState<BotInfo>({
-    displayName: undefined,
-    browserAccess: undefined,
-  });
-
-  useEffect(() => {
-    setInfo({ displayName: undefined, browserAccess: undefined });
-    const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined) return () => {};
-    let cancelled = false;
-    void rpc
-      .call('/api', 'botharness/list', { args: {} })
-      .then((result) => {
-        if (cancelled || !result.ok) return;
-        const value = result.value as {
-          bots?: readonly { slug?: unknown; displayName?: unknown; browserAccess?: unknown }[];
-        };
-        const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
-        if (match === undefined) return;
-        setInfo({
-          displayName:
-            typeof match.displayName === 'string' && match.displayName.length > 0
-              ? match.displayName
-              : undefined,
-          browserAccess: typeof match.browserAccess === 'boolean' ? match.browserAccess : undefined,
-        });
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [botSlug]);
-
-  return { displayName: info.displayName ?? botSlug, browserAccess: info.browserAccess };
+interface BotInfoView {
+  readonly displayName: string | undefined;
+  readonly browserAccess: boolean | undefined;
 }
 
 interface BrowserStatus {
@@ -110,6 +63,85 @@ async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
   return body;
 }
 
+interface ReadableStore<T> {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): T;
+}
+
+function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoView> {
+  let info: BotInfoView = { displayName: undefined, browserAccess: undefined };
+  const listeners = new Set<() => void>();
+  const load = (): void => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined) return;
+    void rpc
+      .call('/api', 'botharness/list', { args: {} })
+      .then((result) => {
+        if (!result.ok) return;
+        const value = result.value as {
+          bots?: readonly { slug?: unknown; displayName?: unknown; browserAccess?: unknown }[];
+        };
+        const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
+        if (match === undefined) return;
+        info = {
+          displayName:
+            typeof match.displayName === 'string' && match.displayName.length > 0
+              ? match.displayName
+              : undefined,
+          browserAccess: typeof match.browserAccess === 'boolean' ? match.browserAccess : undefined,
+        };
+        for (const listener of listeners) listener();
+      })
+      .catch(() => undefined);
+  };
+  return {
+    subscribe(listener) {
+      if (listeners.size === 0) load();
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => info,
+  };
+}
+
+interface BrowserStatusStore extends ReadableStore<BrowserStatus | undefined> {
+  refresh(): void;
+}
+
+function createStatusStore(): BrowserStatusStore {
+  let status: BrowserStatus | undefined;
+  let timer: ReturnType<typeof setInterval> | undefined;
+  const listeners = new Set<() => void>();
+  const refresh = async (): Promise<void> => {
+    try {
+      status = await requestJson<BrowserStatus>(STATUS_ENDPOINT);
+    } catch {
+      status = undefined;
+    }
+    for (const listener of listeners) listener();
+  };
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        void refresh();
+        timer = setInterval(() => void refresh(), 3000);
+      }
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0 && timer !== undefined) {
+          clearInterval(timer);
+          timer = undefined;
+        }
+      };
+    },
+    getSnapshot: () => status,
+    refresh: () => void refresh(),
+  };
+}
+
 const buttonStyle = {
   padding: '4px 10px',
   borderRadius: 6,
@@ -121,71 +153,53 @@ const buttonStyle = {
 } as const;
 
 function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
-  const { browserAccess } = useBotInfo(botSlug);
+  const [botInfoStore] = useState(() => createBotInfoStore(botSlug));
+  const [statusStore] = useState(createStatusStore);
+  const botInfo = useSyncExternalStore(botInfoStore.subscribe, botInfoStore.getSnapshot);
+  const status = useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot);
   const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
   const [accessBusy, setAccessBusy] = useState(false);
   const [accessError, setAccessError] = useState<string | undefined>(undefined);
-  const [status, setStatus] = useState<BrowserStatus | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const accessOn = accessOverride ?? browserAccess === true;
+  const accessOn = accessOverride ?? botInfo.browserAccess === true;
 
-  const onToggleAccess = useCallback(
-    (next: boolean) => {
-      const rpc = connectionRpc;
-      if (rpc === undefined || botSlug === undefined || accessBusy) return;
-      const previous = accessOverride ?? browserAccess === true;
-      setAccessError(undefined);
-      setAccessOverride(next);
-      setAccessBusy(true);
-      void rpc
-        .call('/api', 'botharness/browserAccessSet', { args: { slug: botSlug, enabled: next } })
-        .then((result) => {
-          if (!result.ok) {
-            setAccessOverride(previous);
-            setAccessError(result.error?.message ?? t('entry.access.failed'));
-            return;
-          }
-          const value = result.value as { bot?: { browserAccess?: unknown } };
-          setAccessOverride(value.bot?.browserAccess === true);
-        })
-        .catch((cause: unknown) => {
+  const onToggleAccess = (next: boolean): void => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined || accessBusy) return;
+    const previous = accessOn;
+    setAccessError(undefined);
+    setAccessOverride(next);
+    setAccessBusy(true);
+    void rpc
+      .call('/api', 'botharness/browserAccessSet', { args: { slug: botSlug, enabled: next } })
+      .then((result) => {
+        if (!result.ok) {
           setAccessOverride(previous);
-          setAccessError(cause instanceof Error ? cause.message : String(cause));
-        })
-        .finally(() => setAccessBusy(false));
-    },
-    [accessBusy, accessOverride, botSlug, browserAccess, t],
-  );
+          setAccessError(result.error?.message ?? t('entry.access.failed'));
+          return;
+        }
+        const value = result.value as { bot?: { browserAccess?: unknown } };
+        setAccessOverride(value.bot?.browserAccess === true);
+      })
+      .catch((cause: unknown) => {
+        setAccessOverride(previous);
+        setAccessError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => setAccessBusy(false));
+  };
 
-  const refresh = useCallback(async () => {
-    try {
-      setStatus(await requestJson<BrowserStatus>(STATUS_ENDPOINT));
-    } catch {
-      setStatus(undefined);
-    }
-  }, []);
-
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(timer);
-  }, [refresh]);
-
-  const invoke = useCallback(
-    (endpoint: string) => {
-      if (busy) return;
-      setBusy(true);
-      setError(undefined);
-      void requestJson<{ ok: boolean }>(endpoint, { method: 'POST' })
-        .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
-        .finally(() => {
-          setBusy(false);
-          void refresh();
-        });
-    },
-    [busy, refresh],
-  );
+  const invoke = (endpoint: string): void => {
+    if (busy) return;
+    setBusy(true);
+    setError(undefined);
+    void requestJson<{ ok: boolean }>(endpoint, { method: 'POST' })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => {
+        setBusy(false);
+        statusStore.refresh();
+      });
+  };
 
   return (
     <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>

@@ -1,12 +1,3 @@
-/**
- * BotHarness Browser: the profile-scoped managed Bot Browser (ADR-0089).
- * Owns the browser runtime (launch, persistent profile, CDP), registers the
- * curated read-only tools plus guidance into the session scopes of PersonaBots
- * whose Browser Access is on, audits every call, and serves the Browser
- * entry's status/actions over authenticated Host routes.
- * @module @botharness/browser
- */
-
 import { homedir } from 'node:os';
 import { join } from 'node:path';
 
@@ -14,8 +5,6 @@ import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
-// Deep relative import, not the package root: the log module is leaf-only
-// (node builtins) and must not pull core's barrel types into this bundle.
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
 import { createBotBrowserRuntime } from './runtime/browser.js';
 import {
@@ -29,13 +18,9 @@ export const name = 'botharness-browser';
 
 export interface BrowserConfig {
   enabled: boolean;
-  /** Explicit browser binary; empty probes the platform's Chrome/Edge/Chromium. */
   browserPath: string;
-  /** Headless by default? The Human needs a window to sign in. */
   headless: boolean;
-  /** Minutes without tool activity before the Bot Browser stops itself. */
   idleStopMinutes: number;
-  /** When on, PersonaBot browser actions run without a per-session Human approval. */
   autoAllowActions: boolean;
 }
 
@@ -79,8 +64,6 @@ export function profileDirectory(): string {
 export function apply(ctx: Context, config: BrowserConfig): void {
   if (!config.enabled) return;
 
-  // Durable drain for the diagnostics ring: best effort — without a home, or
-  // when the file is unusable, the ring keeps serving reads on its own.
   let logDb: LogDatabase | undefined;
   try {
     const home = process.env.DSH_HOME?.trim();
@@ -130,11 +113,6 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     needsAuthorization: (sessionId: string) => provider.needsAuthorization(sessionId),
     markAuthorized: (sessionId: string) => provider.markAuthorized(sessionId),
   });
-  // Core owns Bot agent construction (create, resume, borrow); contributing
-  // through its setup path guarantees the scoped tools exist before the
-  // agent's first prompt assembly. Host-side tools that act outside Host
-  // files join `hostTools` so core's file-grant guard skips them; Browser
-  // Authorization governs instead.
   ctx.inject(['botharness'], (coreCtx) => {
     const core = (
       coreCtx as unknown as {
@@ -166,8 +144,6 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     'botharness-browser: tool provider',
   );
 
-  // Idle stop: the Bot Browser stops itself after the configured idle window,
-  // mirroring the Computer's policy; a stopped browser is a readable tool error.
   const idleMs = Math.max(1, config.idleStopMinutes) * 60_000;
   ctx.effect(() => {
     const timer = setInterval(() => {
@@ -179,8 +155,6 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     return () => clearInterval(timer);
   }, 'botharness-browser: idle stop');
 
-  // Human surfaces: the Browser entry reads status and invokes open/stop over
-  // the authenticated Host connection (the Computer viewer routes' pattern).
   ctx.inject(['connection'], (connectionCtx) => {
     const connection = (connectionCtx as unknown as { connection: HostConnectionLike }).connection;
     const json = (value: unknown, status = 200): Response =>

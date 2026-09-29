@@ -1,9 +1,3 @@
-/**
- * Bot Browser runtime: binary discovery, launch arguments, the DevTools
- * endpoint handshake, the minimal CDP client, and the open/observe/stop path
- * driven through a faked Chromium process and a faked CDP connection.
- * @module test/runtime
- */
 import { EventEmitter } from 'node:events';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';

@@ -1,11 +1,3 @@
-/**
- * Bot Browser runtime: launches and supervises the profile's managed browser
- * (the machine's installed Chrome/Edge with a dedicated persistent profile)
- * and drives it over the Chrome DevTools Protocol. One browser instance per
- * profile; tabs are owned per PersonaBot by the tool provider (ADR-0089/0091).
- * @module @botharness/browser/runtime/browser
- */
-
 import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,7 +21,6 @@ export interface BrowserTab {
   readonly title: string;
 }
 
-/** Minimal CDP client used by the runtime; also the test seam. */
 export interface CdpClient {
   send(
     method: string,
@@ -48,39 +39,28 @@ interface WebSocketLike {
 type WebSocketCtor = new (url: string) => WebSocketLike;
 
 export interface BotBrowserRuntimeOptions {
-  /** Explicit browser binary; when empty the platform candidates are probed. */
   readonly browserPath?: string;
-  /** Persistent profile directory; logins and cookies live here. */
   readonly userDataDir: string;
   readonly headless?: boolean;
   readonly launchTimeoutMs?: number;
   readonly onEvent?: (detail: string) => void;
-  /** Test seam: turns a DevTools websocket URL into a CDP client. */
   readonly connect?: (url: string) => Promise<CdpClient>;
-  /** Test seam: discovery platform/environment and existence probe. */
   readonly platform?: NodeJS.Platform;
   readonly env?: NodeJS.ProcessEnv;
   readonly fileExists?: (path: string) => boolean;
 }
 
 export interface BotBrowserRuntime {
-  /** Launch the browser when it is not running; resolves once CDP is connected. */
   ensure(): Promise<void>;
   isRunning(): boolean;
-  /** Open a URL, reusing an owned tab when it still exists. */
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
-  /** Observe one owned tab: URL, title, bounded text, and interactive elements. */
   observe(tabId: string): Promise<BrowserObservation>;
-  /** Open an empty window (the Human's sign-in surface). */
   openWindow(): Promise<BrowserTab>;
-  /** Last URL this runtime opened, for status surfaces. */
   currentUrl(): string | undefined;
-  /** The resolved browser binary, once launched. */
   binaryPath(): string | undefined;
   stop(): Promise<void>;
 }
 
-/** Candidate browser binaries, most preferred first. */
 export function browserCandidates(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
@@ -117,7 +97,6 @@ export function browserCandidates(
   ];
 }
 
-/** Resolve the browser binary: explicit config first, then platform candidates. */
 export function discoverBrowserBinary(
   browserPath?: string,
   platform: NodeJS.Platform = process.platform,
@@ -129,7 +108,6 @@ export function discoverBrowserBinary(
   return browserCandidates(platform, env).find((candidate) => fileExists(candidate));
 }
 
-/** Chrome flags for the Bot Browser: dedicated profile plus an ephemeral CDP port. */
 export function buildLaunchArgs(options: {
   userDataDir: string;
   headless?: boolean;
@@ -145,17 +123,11 @@ export function buildLaunchArgs(options: {
   ];
 }
 
-/** Extract the DevTools endpoint Chrome prints on stderr during startup. */
 export function parseDevToolsUrl(output: string): string | undefined {
   const match = /ws:\/\/[^\s]+\/devtools\/browser\/[^\s]+/u.exec(output);
   return match?.[0];
 }
 
-/**
- * Connect a minimal CDP client over the runtime's global WebSocket (Node 22+).
- * Requests are single-flight per id; connection loss rejects every in-flight
- * call so tool errors stay readable.
- */
 export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<CdpClient> {
   const Impl = ctor ?? (globalThis as { WebSocket?: WebSocketCtor }).WebSocket;
   if (Impl === undefined) {
@@ -206,19 +178,11 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
     close() {
       try {
         socket.close();
-      } catch {
-        // Already closed; nothing to release.
-      }
+      } catch {}
     },
   };
 }
 
-/**
- * Snapshot script injected into the observed tab: interactive elements get
- * `data-botharness-ref` attributes whose refs remain resolvable until the
- * document changes (navigation invalidates them by construction), plus a
- * bounded page text for reading.
- */
 const SNAPSHOT_SCRIPT = `(() => {
   const elements = [];
   const wanted = 'a[href],button,input,textarea,select,summary,[role],[contenteditable="true"]';

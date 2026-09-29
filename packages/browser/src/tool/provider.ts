@@ -1,11 +1,3 @@
-/**
- * Browser Tool Provider: injects the curated Bot Browser tools plus guidance
- * into the session scopes of PersonaBots whose Browser Access is on
- * (ADR-0089/0090). Calls are attributed, authorized once per session, audited
- * with redacted summaries, and serialized per PersonaBot.
- * @module @botharness/browser/tool/provider
- */
-
 import type { Context } from '@deepseek-ai/cordis';
 import { createMcpToolDefinition } from '@deepseek-ai/dsh-mcp-client';
 import type { Agent } from '@deepseek-ai/dsh-agent';
@@ -16,10 +8,8 @@ import type {} from '@deepseek-ai/dsh-tools';
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
 import type { BotBrowserRuntime } from '../runtime/browser.js';
 
-/** Stable prompt-section name for the Bot Browser guidance. */
 export const BROWSER_PROMPT_SECTION = 'botharness:browser';
 
-/** One redacted audit record; never contains page contents or typed text. */
 export interface BrowserAuditEvent {
   readonly at: string;
   readonly botSlug: string;
@@ -32,7 +22,6 @@ export interface BrowserAuditEvent {
   readonly error?: string;
 }
 
-/** Narrow view of the core services the provider needs (both optional). */
 export interface BrowserCoreLookup {
   readonly registry:
     | {
@@ -48,33 +37,19 @@ export interface BrowserCoreLookup {
 export interface BrowserToolProviderOptions {
   readonly ctx: Context;
   readonly runtime: BotBrowserRuntime;
-  /** Profile-level auto-allow switch for Browser Authorization. */
   readonly isAutoAllowed: () => boolean;
-  /** Durable redacted audit sink. */
   readonly audit: (event: BrowserAuditEvent) => void;
-  /** Developer-visible lifecycle notes. */
   readonly note?: (detail: string) => void;
-  /** Called on every tool call so browser activity resets the idle timer. */
   readonly onActivity?: () => void;
-  /** Core lookups; undefined members degrade to "no access, no attribution". */
   readonly core: () => BrowserCoreLookup;
 }
 
 export interface BrowserToolProvider {
-  /**
-   * Attach one Bot-owned agent as core sets it up (before its first prompt):
-   * track its scope and register the browser tools when its access is on.
-   */
   attachAgent(scope: Context, sessionId: string, info: { botSlug: string; rootRole: string }): void;
-  /** True while this session still needs a Human Browser Authorization ask. */
   needsAuthorization(sessionId: string): boolean;
-  /** Record that core asked and the Human allowed one browser action for this session. */
   markAuthorized(sessionId: string): void;
-  /** Reconcile the live registrations of one PersonaBot after its access changed. */
   reconcileBot(slug: string): Promise<void>;
-  /** Reconcile every tracked session (e.g. after the Bot Browser started). */
   reconcileAll(): Promise<void>;
-  /** Drop every registration and stop the browser. */
   dispose(): Promise<void>;
 }
 
@@ -84,17 +59,14 @@ interface SessionRegistration {
   readonly disposers: readonly (() => void)[];
 }
 
-/** Every model-facing name in the curated catalog. */
 export function browserToolNames(): readonly string[] {
   return BROWSER_TOOLS.map((spec) => browserToolName(spec.raw));
 }
 
-/** Whether this provider owns one model-facing tool name. */
 export function ownsBrowserTool(name: string): boolean {
   return BROWSER_TOOLS.some((spec) => browserToolName(spec.raw) === name);
 }
 
-/** Redacted audit summary for one call of one curated tool. */
 export function auditSummary(raw: string, args: Record<string, unknown>): string {
   const spec = BROWSER_TOOLS.find((candidate) => candidate.raw === raw);
   if (spec === undefined) return 'tool';
@@ -105,7 +77,6 @@ export function auditSummary(raw: string, args: Record<string, unknown>): string
   }
 }
 
-/** Human-readable audit line for the diagnostics stream / logs.db. */
 export function formatAudit(event: BrowserAuditEvent): string {
   const outcome = event.outcome === 'ok' ? 'ok' : `error: ${event.error ?? 'failed'}`;
   return `bot=${event.botSlug} session=${event.sessionId} role=${event.rootRole} ${event.tool} ${event.summary} -> ${outcome} (${event.durationMs}ms)`;
@@ -118,15 +89,10 @@ export function createBrowserToolProvider(
   const note = options.note ?? ((): void => undefined);
   const onActivity = options.onActivity ?? ((): void => undefined);
 
-  /** sessionId -> live agent scope plus its current tool disposers. */
   const sessions = new Map<string, { scope: Context }>();
-  /** sessionId -> active registrations (tools + guidance). */
   const registrations = new Map<string, SessionRegistration>();
-  /** Sessions already authorized for browser actions (grant lives per session). */
   const grants = new Set<string>();
-  /** botSlug -> the tab this PersonaBot owns (one tab per Bot in this tracer). */
   const tabs = new Map<string, string>();
-  /** botSlug -> tail of its serialized action queue (ADR-0090). */
   const queues = new Map<string, Promise<unknown>>();
   let disposed = false;
 
@@ -169,19 +135,13 @@ export function createBrowserToolProvider(
     };
     try {
       audit(event);
-    } catch {
-      // Audit is best effort; a failing sink never blocks a tool call.
-    }
+    } catch {}
   };
 
   const authorize = async (execution: ToolExecution, sessionId: string): Promise<void> => {
     const agent = execution.agent;
     if (agent === undefined) throw new Error('Browser tools require a PersonaBot session');
     if (grants.has(sessionId) || isAutoAllowed()) return;
-    // Core's `tools/pre-execute` hook owns the Human ask (so it rides the
-    // existing Bot DM approval cards and their one-time / always rules);
-    // reaching here without a grant means the gate did not run and the call
-    // fails closed.
     throw new Error('Browser action is not authorized for this session');
   };
 

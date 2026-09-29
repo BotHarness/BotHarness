@@ -1,9 +1,3 @@
-/**
- * Browser Tool Provider: curated catalog, redacted audit, per-PersonaBot
- * access/authorization, per-Bot tab reuse, and serialized actions driven
- * through fake scopes and a fake Bot Browser runtime.
- * @module test/browser-tools
- */
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Context } from '@deepseek-ai/cordis';
@@ -260,7 +254,6 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
         .execute({ url: 'https://example.com' }, execution('browser_open')),
     ).rejects.toThrow(/Browser Access is off/);
     expect(h.runtime.open).not.toHaveBeenCalled();
-    // Pre-flight refusals (authorization, access) never reach the audit.
     expect(h.audits).toHaveLength(0);
   });
 

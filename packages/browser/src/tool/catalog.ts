@@ -1,20 +1,9 @@
-/**
- * Curated Bot Browser tool surface: the read-only core PersonaBots get when
- * Browser Access is on. Interaction tools arrive with their own tracer slice;
- * this module curates names, schemas, and redacted audit summaries.
- * @module @botharness/browser/tool/catalog
- */
-
-/** Model-facing tool-name prefix; every Bot Browser tool is `browser_<raw>`. */
 export const BROWSER_TOOL_PREFIX = 'browser_';
 
-/** One curated browser tool. */
 export interface BrowserToolSpec {
-  /** Short operation name; the model-facing name is `browser_<raw>`. */
   readonly raw: string;
   readonly description: string;
   readonly inputSchema: Record<string, unknown>;
-  /** Redacted audit summary; never includes page contents beyond the URL. */
   readonly audit: (args: Record<string, unknown>) => string;
 }
 
@@ -23,7 +12,6 @@ function str(args: Record<string, unknown>, key: string): string {
   return typeof value === 'string' || typeof value === 'number' ? String(value) : '?';
 }
 
-/** The read-only core of this tracer: open a page and observe it. */
 export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   {
     raw: 'open',
@@ -51,16 +39,10 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   },
 ];
 
-/** Model-facing name for one curated browser tool. */
 export function browserToolName(raw: string): string {
   return `${BROWSER_TOOL_PREFIX}${raw}`;
 }
 
-/**
- * Prompt guidance injected with the tools (Bot session scope only). The Bot
- * Browser is profile-shared: every PersonaBot owns its own window and tabs,
- * but cookies and sign-ins are shared.
- */
 export const BROWSER_GUIDANCE = `You can browse the web through this profile's shared Bot Browser — a real browser window owned by BotHarness, shared by every PersonaBot of this profile. Other PersonaBots may be browsing at the same time: stay inside the tabs you opened.
 
 Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Re-observe after navigation, after a refusal, and after any Human input.

@@ -8,9 +8,7 @@ window.__ModuleLoader__.load({
     let _deepseek_ai_dsh_client_ui_primitives = require('@deepseek-ai/dsh-client-ui-primitives');
     let react_jsx_runtime = require('react/jsx-runtime');
     //#region packages/browser/src/client/locale.ts
-    /** Locale namespace owning the Browser client's copy. */
     const LOCALE_NS = 'botharness-browser';
-    /** Simplified Chinese dictionary and the key-set source of truth. */
     const zh = {
       'entry.label': '浏览器',
       'entry.shared':
@@ -29,7 +27,6 @@ window.__ModuleLoader__.load({
       'entry.hint': '首次使用请在打开的窗口里登录需要的网站；登录态会保留在这个浏览器 profile 中。',
       'entry.error': '浏览器操作失败',
     };
-    /** English dictionary; must cover the same keys. */
     const en = {
       'entry.label': 'Browser',
       'entry.shared':
@@ -51,57 +48,11 @@ window.__ModuleLoader__.load({
     };
     //#endregion
     //#region packages/browser/src/client/index.tsx
-    /**
-     * Browser entry for the Channel sidebar: the Browser Access switch, the Bot
-     * Browser status, and the Human's Open/Stop actions. The entry is our own
-     * surface over the authenticated Host routes the browser plugin serves
-     * (ADR-0089); it never talks to the browser directly.
-     * @module @botharness/browser/client
-     */
     const ENTRY_ID = 'botharness-browser';
     const STATUS_ENDPOINT = '/api/browser/status';
     const OPEN_ENDPOINT = '/api/browser/open';
     const STOP_ENDPOINT = '/api/browser/stop';
     let connectionRpc;
-    /** Resolves the PersonaBot's Browser Access through the BotHarness bridge. */
-    function useBotInfo(botSlug) {
-      const [info, setInfo] = (0, react.useState)({
-        displayName: void 0,
-        browserAccess: void 0,
-      });
-      (0, react.useEffect)(() => {
-        setInfo({
-          displayName: void 0,
-          browserAccess: void 0,
-        });
-        const rpc = connectionRpc;
-        if (rpc === void 0 || botSlug === void 0) return () => {};
-        let cancelled = false;
-        rpc
-          .call('/api', 'botharness/list', { args: {} })
-          .then((result) => {
-            if (cancelled || !result.ok) return;
-            const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
-            if (match === void 0) return;
-            setInfo({
-              displayName:
-                typeof match.displayName === 'string' && match.displayName.length > 0
-                  ? match.displayName
-                  : void 0,
-              browserAccess:
-                typeof match.browserAccess === 'boolean' ? match.browserAccess : void 0,
-            });
-          })
-          .catch(() => void 0);
-        return () => {
-          cancelled = true;
-        };
-      }, [botSlug]);
-      return {
-        displayName: info.displayName ?? botSlug,
-        browserAccess: info.browserAccess,
-      };
-    }
     async function requestJson(url, init) {
       const response = await fetch(url, {
         cache: 'no-store',
@@ -111,6 +62,75 @@ window.__ModuleLoader__.load({
       if (!response.ok || body.ok === false)
         throw new Error(body.error ?? `HTTP ${String(response.status)}`);
       return body;
+    }
+    function createBotInfoStore(botSlug) {
+      let info = {
+        displayName: void 0,
+        browserAccess: void 0,
+      };
+      const listeners = /* @__PURE__ */ new Set();
+      const load = () => {
+        const rpc = connectionRpc;
+        if (rpc === void 0 || botSlug === void 0) return;
+        rpc
+          .call('/api', 'botharness/list', { args: {} })
+          .then((result) => {
+            if (!result.ok) return;
+            const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
+            if (match === void 0) return;
+            info = {
+              displayName:
+                typeof match.displayName === 'string' && match.displayName.length > 0
+                  ? match.displayName
+                  : void 0,
+              browserAccess:
+                typeof match.browserAccess === 'boolean' ? match.browserAccess : void 0,
+            };
+            for (const listener of listeners) listener();
+          })
+          .catch(() => void 0);
+      };
+      return {
+        subscribe(listener) {
+          if (listeners.size === 0) load();
+          listeners.add(listener);
+          return () => {
+            listeners.delete(listener);
+          };
+        },
+        getSnapshot: () => info,
+      };
+    }
+    function createStatusStore() {
+      let status;
+      let timer;
+      const listeners = /* @__PURE__ */ new Set();
+      const refresh = async () => {
+        try {
+          status = await requestJson(STATUS_ENDPOINT);
+        } catch {
+          status = void 0;
+        }
+        for (const listener of listeners) listener();
+      };
+      return {
+        subscribe(listener) {
+          listeners.add(listener);
+          if (listeners.size === 1) {
+            refresh();
+            timer = setInterval(() => void refresh(), 3e3);
+          }
+          return () => {
+            listeners.delete(listener);
+            if (listeners.size === 0 && timer !== void 0) {
+              clearInterval(timer);
+              timer = void 0;
+            }
+          };
+        },
+        getSnapshot: () => status,
+        refresh: () => void refresh(),
+      };
     }
     const buttonStyle = {
       padding: '4px 10px',
@@ -122,72 +142,62 @@ window.__ModuleLoader__.load({
       fontSize: 12,
     };
     function BrowserEntryView({ botSlug, t }) {
-      const { browserAccess } = useBotInfo(botSlug);
+      const [botInfoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
+      const [statusStore] = (0, react.useState)(createStatusStore);
+      const botInfo = (0, react.useSyncExternalStore)(
+        botInfoStore.subscribe,
+        botInfoStore.getSnapshot,
+      );
+      const status = (0, react.useSyncExternalStore)(
+        statusStore.subscribe,
+        statusStore.getSnapshot,
+      );
       const [accessOverride, setAccessOverride] = (0, react.useState)(void 0);
       const [accessBusy, setAccessBusy] = (0, react.useState)(false);
       const [accessError, setAccessError] = (0, react.useState)(void 0);
-      const [status, setStatus] = (0, react.useState)(void 0);
       const [busy, setBusy] = (0, react.useState)(false);
       const [error, setError] = (0, react.useState)(void 0);
-      const accessOn = accessOverride ?? browserAccess === true;
-      const onToggleAccess = (0, react.useCallback)(
-        (next) => {
-          const rpc = connectionRpc;
-          if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
-          const previous = accessOverride ?? browserAccess === true;
-          setAccessError(void 0);
-          setAccessOverride(next);
-          setAccessBusy(true);
-          rpc
-            .call('/api', 'botharness/browserAccessSet', {
-              args: {
-                slug: botSlug,
-                enabled: next,
-              },
-            })
-            .then((result) => {
-              if (!result.ok) {
-                setAccessOverride(previous);
-                setAccessError(result.error?.message ?? t('entry.access.failed'));
-                return;
-              }
-              const value = result.value;
-              setAccessOverride(value.bot?.browserAccess === true);
-            })
-            .catch((cause) => {
+      const accessOn = accessOverride ?? botInfo.browserAccess === true;
+      const onToggleAccess = (next) => {
+        const rpc = connectionRpc;
+        if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
+        const previous = accessOn;
+        setAccessError(void 0);
+        setAccessOverride(next);
+        setAccessBusy(true);
+        rpc
+          .call('/api', 'botharness/browserAccessSet', {
+            args: {
+              slug: botSlug,
+              enabled: next,
+            },
+          })
+          .then((result) => {
+            if (!result.ok) {
               setAccessOverride(previous);
-              setAccessError(cause instanceof Error ? cause.message : String(cause));
-            })
-            .finally(() => setAccessBusy(false));
-        },
-        [accessBusy, accessOverride, botSlug, browserAccess, t],
-      );
-      const refresh = (0, react.useCallback)(async () => {
-        try {
-          setStatus(await requestJson(STATUS_ENDPOINT));
-        } catch {
-          setStatus(void 0);
-        }
-      }, []);
-      (0, react.useEffect)(() => {
-        refresh();
-        const timer = setInterval(() => void refresh(), 3e3);
-        return () => clearInterval(timer);
-      }, [refresh]);
-      const invoke = (0, react.useCallback)(
-        (endpoint) => {
-          if (busy) return;
-          setBusy(true);
-          setError(void 0);
-          requestJson(endpoint, { method: 'POST' })
-            .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
-            .finally(() => {
-              setBusy(false);
-              refresh();
-            });
-        },
-        [busy, refresh],
-      );
+              setAccessError(result.error?.message ?? t('entry.access.failed'));
+              return;
+            }
+            const value = result.value;
+            setAccessOverride(value.bot?.browserAccess === true);
+          })
+          .catch((cause) => {
+            setAccessOverride(previous);
+            setAccessError(cause instanceof Error ? cause.message : String(cause));
+          })
+          .finally(() => setAccessBusy(false));
+      };
+      const invoke = (endpoint) => {
+        if (busy) return;
+        setBusy(true);
+        setError(void 0);
+        requestJson(endpoint, { method: 'POST' })
+          .catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)))
+          .finally(() => {
+            setBusy(false);
+            statusStore.refresh();
+          });
+      };
       return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)('div', {
         style: {
           display: 'grid',
