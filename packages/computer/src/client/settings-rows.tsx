@@ -356,17 +356,20 @@ export function ComputerSettingsRows({
     setLivePhase(undefined);
     setLiveElapsed(0);
     const startedAt = Date.now();
-    let active = true;
+    const controller = new AbortController();
     let pending = false;
     const tick = async (): Promise<void> => {
-      if (!active || pending) return;
-      pending = true;
+      if (controller.signal.aborted) return;
       setLiveElapsed(Math.round((Date.now() - startedAt) / 1000));
+      if (pending) return;
+      pending = true;
       try {
-        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT);
-        if (active) setLivePhase(payload.status?.phase);
+        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+        });
+        if (!controller.signal.aborted) setLivePhase(payload.status?.phase);
       } catch {
-        return;
+        if (!controller.signal.aborted) setLivePhase(undefined);
       } finally {
         pending = false;
       }
@@ -374,7 +377,7 @@ export function ComputerSettingsRows({
     void tick();
     const timer = setInterval(() => void tick(), 1000);
     return () => {
-      active = false;
+      controller.abort();
       clearInterval(timer);
     };
   }, [busy]);

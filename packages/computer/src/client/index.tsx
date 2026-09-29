@@ -1215,8 +1215,11 @@ function ComputerEntry({
     const poll = async (): Promise<void> => {
       if (pending || controller.signal.aborted) return;
       pending = true;
-      await refresh(controller.signal);
-      pending = false;
+      try {
+        await refresh(AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]));
+      } finally {
+        pending = false;
+      }
     };
     void poll();
     const timer = setInterval(() => void poll(), 3000);

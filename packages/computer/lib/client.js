@@ -647,17 +647,18 @@ window.__ModuleLoader__.load({
 				setLivePhase(void 0);
 				setLiveElapsed(0);
 				const startedAt = Date.now();
-				let active = true;
+				const controller = new AbortController();
 				let pending = false;
 				const tick = async () => {
-					if (!active || pending) return;
-					pending = true;
+					if (controller.signal.aborted) return;
 					setLiveElapsed(Math.round((Date.now() - startedAt) / 1e3));
+					if (pending) return;
+					pending = true;
 					try {
-						const payload = await requestJson$1(STATUS_ENDPOINT$1);
-						if (active) setLivePhase(payload.status?.phase);
+						const payload = await requestJson$1(STATUS_ENDPOINT$1, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(1e4)]) });
+						if (!controller.signal.aborted) setLivePhase(payload.status?.phase);
 					} catch {
-						return;
+						if (!controller.signal.aborted) setLivePhase(void 0);
 					} finally {
 						pending = false;
 					}
@@ -665,7 +666,7 @@ window.__ModuleLoader__.load({
 				tick();
 				const timer = setInterval(() => void tick(), 1e3);
 				return () => {
-					active = false;
+					controller.abort();
 					clearInterval(timer);
 				};
 			}, [busy]);
@@ -2030,8 +2031,11 @@ window.__ModuleLoader__.load({
 				const poll = async () => {
 					if (pending || controller.signal.aborted) return;
 					pending = true;
-					await refresh(controller.signal);
-					pending = false;
+					try {
+						await refresh(AbortSignal.any([controller.signal, AbortSignal.timeout(1e4)]));
+					} finally {
+						pending = false;
+					}
 				};
 				poll();
 				const timer = setInterval(() => void poll(), 3e3);
