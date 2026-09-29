@@ -83,6 +83,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Memory file and diff readers now use edge-to-edge, distinct headers with quiet return and refresh controls; commit and working-tree diffs have collapsible file sections with the same status badges as the Git graph, and the historical branch action names its create-and-switch behavior ([#441](https://github.com/BotHarness/BotHarness/issues/441)).
 - BotHarness now declares its DSH compatibility as a SemVer range (`>=0.2.0-rc.1 <0.3.0-0`) whose floor is the verified host line, instead of an exact pin; runtime behavior is unchanged ([ADR-0087](docs/adr/0087-dsh-compatibility-is-a-semver-range-with-a-verified-floor.md), [#423](https://github.com/BotHarness/BotHarness/issues/423)).
 
 - BotHarness now targets DSH 0.2.0 RC1: workspace pins and `engines.dsh` moved from 0.1.7 RC2, and isolated development Profiles must be recreated for the new RC ([#419](https://github.com/BotHarness/BotHarness/issues/419)).
