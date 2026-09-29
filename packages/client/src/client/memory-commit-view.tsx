@@ -134,6 +134,8 @@ export function MemoryCommitView({
               status={file.status}
               diff={diffSections[index] ?? ''}
               label={t('memory.diff')}
+              binaryLabel={t('memory.binaryPreview')}
+              emptyLabel={t('memory.noTextDiff')}
             />
           ))}
         </>

@@ -199,8 +199,11 @@ export function MemoryWorkingView({
                   ? t('memory.badge.updated')
                   : (badge ?? detail.status)
           }
-          diff={detail.binary ? t('memory.binaryPreview') : detail.diff}
+          diff={detail.diff}
           label={t('memory.workingDiff')}
+          binary={detail.binary}
+          binaryLabel={t('memory.binaryPreview')}
+          emptyLabel={t('memory.noTextDiff')}
         />
       )}
     </div>
