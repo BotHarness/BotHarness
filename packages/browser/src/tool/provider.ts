@@ -102,6 +102,13 @@ export function formatAudit(event: BrowserAuditEvent): string {
   return `bot=${event.botSlug} session=${event.sessionId} role=${event.rootRole} ${event.tool} ${event.summary} -> ${outcome} (${event.durationMs}ms)`;
 }
 
+const DEAD_TARGET =
+  /target closed|no target with given id|inspected target navigated or closed|session closed|websocket closed|not attached|detached from target|browser has been closed/iu;
+
+function isDeadTarget(message: string): boolean {
+  return DEAD_TARGET.test(message);
+}
+
 function requiredString(args: Record<string, unknown>, key: string, message: string): string {
   const value = args[key];
   if (typeof value !== 'string' || value.trim() === '') throw new Error(message);
@@ -237,9 +244,11 @@ export function createBrowserToolProvider(
       try {
         observation = await runtime.observe(tabId);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!isDeadTarget(message)) throw error;
         dropCurrent(state);
         throw new Error(
-          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_tabs action list to pick another tab, or browser_open`,
+          `The Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
       const elementLines = observation.elements.map(
@@ -269,9 +278,11 @@ export function createBrowserToolProvider(
       try {
         shot = await runtime.captureScreenshot(tabId);
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!isDeadTarget(message)) throw error;
         dropCurrent(state);
         throw new Error(
-          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_tabs action list to pick another tab, or browser_open`,
+          `The Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
       if (shot === undefined) {
@@ -336,7 +347,7 @@ export function createBrowserToolProvider(
                   );
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes('stale')) dropCurrent(state);
+        if (isDeadTarget(message)) dropCurrent(state);
         throw error;
       }
       return { content: [{ type: 'text', text: `${raw} done — ${page.url}` }] };
@@ -355,7 +366,7 @@ export function createBrowserToolProvider(
         await runtime.uploadFile(tabId, { ...(ref === undefined ? {} : { ref }), path });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (!message.includes('stale')) dropCurrent(state);
+        if (isDeadTarget(message)) dropCurrent(state);
         throw error;
       }
       return {

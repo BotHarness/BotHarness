@@ -499,29 +499,35 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
           throw new Error('The element ref is stale; call browser_observe again before acting');
         }
       }
-      const document = await live.send('DOM.getDocument', {}, sessionId);
-      const rootId = asObject(document['root'])?.['nodeId'];
-      if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
-      const found = await live.send(
-        'DOM.querySelectorAll',
-        { nodeId: rootId, selector: 'input[type="file"]' },
-        sessionId,
-      );
-      const nodeIds = Array.isArray(found['nodeIds'])
-        ? (found['nodeIds'] as readonly unknown[]).filter(
-            (value): value is number => typeof value === 'number',
-          )
-        : [];
-      if (nodeIds.length === 0) {
+      const findInput = async (): Promise<number | undefined> => {
+        const document = await live.send('DOM.getDocument', {}, sessionId);
+        const rootId = asObject(document['root'])?.['nodeId'];
+        if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
+        const found = await live.send(
+          'DOM.querySelectorAll',
+          { nodeId: rootId, selector: 'input[type="file"]' },
+          sessionId,
+        );
+        const nodeIds = Array.isArray(found['nodeIds'])
+          ? (found['nodeIds'] as readonly unknown[]).filter(
+              (value): value is number => typeof value === 'number',
+            )
+          : [];
+        return nodeIds[nodeIds.length - 1];
+      };
+      let nodeId = await findInput();
+      if (nodeId === undefined && options.ref !== undefined) {
+        for (let attempt = 0; attempt < 10 && nodeId === undefined; attempt += 1) {
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          nodeId = await findInput();
+        }
+      }
+      if (nodeId === undefined) {
         throw new Error(
           'The page has no file input; click the upload control first so the page creates one, then retry',
         );
       }
-      await live.send(
-        'DOM.setFileInputFiles',
-        { files: [options.path], nodeId: nodeIds[nodeIds.length - 1] },
-        sessionId,
-      );
+      await live.send('DOM.setFileInputFiles', { files: [options.path], nodeId }, sessionId);
     } finally {
       await live
         .send('Page.setInterceptFileChooserDialog', { enabled: false }, sessionId)
