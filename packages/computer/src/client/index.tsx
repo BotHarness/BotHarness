@@ -4,6 +4,7 @@ import {
   useEffect,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type ComponentType,
   type ReactElement,
@@ -101,6 +102,8 @@ interface ChannelSidebarEntryProps {
   readonly channelId: string;
   readonly botSlug: string | undefined;
   readonly actions: unknown;
+  readonly setExpanded?: (expanded: boolean) => void;
+  readonly setExpandable?: (expandable: boolean) => void;
 }
 
 interface ConnectionRpcLike {
@@ -124,6 +127,7 @@ interface ChannelSidebarRegistryLike {
     readonly order?: number;
     readonly scope: 'channel' | 'personabot';
     readonly component: ComponentType<ChannelSidebarEntryProps>;
+    readonly headerAction?: ComponentType<ChannelSidebarEntryProps>;
   }): () => void;
 }
 
@@ -1051,49 +1055,135 @@ interface BotInfo {
   readonly computerAccess: boolean | undefined;
 }
 
-function useBotInfo(botSlug: string | undefined): BotInfo {
-  const [info, setInfo] = useState<BotInfo>({
-    displayName: undefined,
-    computerAccess: undefined,
-  });
+interface ReadableStore<T> {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): T;
+}
 
-  useEffect(() => {
-    setInfo({ displayName: undefined, computerAccess: undefined });
+function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfo> {
+  let info: BotInfo = { displayName: undefined, computerAccess: undefined };
+  const listeners = new Set<() => void>();
+  let started = false;
+  const load = (): void => {
     const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined) return () => {};
-    let cancelled = false;
+    if (rpc === undefined || botSlug === undefined) return;
     void rpc
       .call('/api', 'botharness/list', { args: {} })
       .then((result) => {
-        if (cancelled || !result.ok) return;
+        if (!result.ok) return;
         const value = result.value as {
           bots?: readonly { slug?: unknown; displayName?: unknown; computerAccess?: unknown }[];
         };
         const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
         if (match === undefined) return;
-        setInfo({
+        info = {
           displayName:
             typeof match.displayName === 'string' && match.displayName.length > 0
               ? match.displayName
               : undefined,
           computerAccess:
             typeof match.computerAccess === 'boolean' ? match.computerAccess : undefined,
-        });
+        };
+        for (const listener of listeners) listener();
       })
       .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-  }, [botSlug]);
+  };
+  return {
+    subscribe(listener) {
+      if (!started) {
+        started = true;
+        load();
+      }
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    getSnapshot: () => info,
+  };
+}
 
+function useBotInfo(botSlug: string | undefined): BotInfo {
+  const [store] = useState(() => createBotInfoStore(botSlug));
+  const info = useSyncExternalStore(store.subscribe, store.getSnapshot);
   return { displayName: info.displayName ?? botSlug, computerAccess: info.computerAccess };
+}
+
+function ComputerHeaderAction({
+  botSlug,
+  t,
+  setExpandable,
+  setExpanded,
+}: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
+  const [store] = useState(() => createBotInfoStore(botSlug));
+  const [override, setOverride] = useState<boolean | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const subscribe = (listener: () => void): (() => void) => {
+    const sync = (): void => {
+      const access = override ?? store.getSnapshot().computerAccess === true;
+      setExpandable?.(access);
+    };
+    const unsubscribe = store.subscribe(() => {
+      sync();
+      listener();
+    });
+    sync();
+    return unsubscribe;
+  };
+  const info = useSyncExternalStore(subscribe, store.getSnapshot);
+  const accessOn = override ?? info.computerAccess === true;
+
+  const onToggle = (next: boolean): void => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined || busy) return;
+    const previous = accessOn;
+    setOverride(next);
+    setBusy(true);
+    setExpandable?.(next);
+    if (next) setExpanded?.(true);
+    void rpc
+      .call('/api', 'botharness/computerAccessSet', { args: { slug: botSlug, enabled: next } })
+      .then((result) => {
+        if (!result.ok) {
+          setOverride(previous);
+          setExpandable?.(previous);
+          return;
+        }
+        const value = result.value as { bot?: { computerAccess?: unknown } };
+        const applied = value.bot?.computerAccess === true;
+        setOverride(applied);
+        setExpandable?.(applied);
+      })
+      .catch(() => {
+        setOverride(previous);
+        setExpandable?.(previous);
+      })
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <Switch
+      checked={accessOn}
+      disabled={busy || botSlug === undefined}
+      onChange={onToggle}
+      label={t('entry.access.title')}
+    />
+  );
+}
+
+export function createComputerHeader(
+  t: ComputerTranslate,
+): (props: ChannelSidebarEntryProps) => ReactElement {
+  return function ComputerHeaderWithLocale(props: ChannelSidebarEntryProps): ReactElement {
+    return <ComputerHeaderAction {...props} t={t} />;
+  };
 }
 
 function ComputerEntry({
   botSlug,
   t,
 }: ChannelSidebarEntryProps & { t: ComputerTranslate }): ReactElement {
-  const { displayName, computerAccess } = useBotInfo(botSlug);
+  const { displayName } = useBotInfo(botSlug);
   const [payload, setPayload] = useState<ComputerStatusPayload | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [busy, setBusy] = useState(false);
@@ -1104,39 +1194,6 @@ function ComputerEntry({
   const [busySince, setBusySince] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
-  const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
-  const [accessBusy, setAccessBusy] = useState(false);
-  const [accessError, setAccessError] = useState<string | undefined>(undefined);
-  const accessOn = accessOverride ?? computerAccess === true;
-
-  const onToggleAccess = useCallback(
-    (next: boolean) => {
-      const rpc = connectionRpc;
-      if (rpc === undefined || botSlug === undefined || accessBusy) return;
-      const previous = accessOverride ?? computerAccess === true;
-      setAccessError(undefined);
-      setAccessOverride(next);
-      setAccessBusy(true);
-      void rpc
-        .call('/api', 'botharness/computerAccessSet', { args: { slug: botSlug, enabled: next } })
-        .then((result) => {
-          if (!result.ok) {
-            setAccessOverride(previous);
-            setAccessError(result.error.message ?? t('entry.access.failed'));
-            return;
-          }
-          const value = result.value as { bot?: { computerAccess?: unknown } };
-          setAccessOverride(value.bot?.computerAccess === true);
-        })
-        .catch((cause: unknown) => {
-          setAccessOverride(previous);
-          setAccessError(cause instanceof Error ? cause.message : String(cause));
-        })
-        .finally(() => setAccessBusy(false));
-    },
-    [accessBusy, accessOverride, botSlug, computerAccess, t],
-  );
-
   const refresh = useCallback(async () => {
     try {
       setPayload(await requestJson<ComputerStatusPayload>(STATUS_ENDPOINT));
@@ -1223,19 +1280,6 @@ function ComputerEntry({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 500 }}>{t('entry.access.title')}</div>
-          <div style={noteStyle}>{t('entry.access.description')}</div>
-        </div>
-        <Switch
-          checked={accessOn}
-          disabled={botSlug === undefined || accessBusy}
-          onChange={onToggleAccess}
-          label={t('entry.access.title')}
-        />
-      </div>
-      {accessError === undefined ? null : <div style={noteStyle}>{accessError}</div>}
       <ComputerEntryView
         t={t}
         state={payload?.status.state ?? 'absent'}
@@ -1319,6 +1363,7 @@ export function apply(ctx: ClientContext): void {
           order: 40,
           scope: 'personabot',
           component: createComputerEntry(t),
+          headerAction: createComputerHeader(t),
         }),
       'botharness-computer: channel sidebar entry',
     );

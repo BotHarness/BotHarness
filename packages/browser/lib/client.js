@@ -68,6 +68,7 @@ window.__ModuleLoader__.load({
 				browserAccess: void 0
 			};
 			const listeners = /* @__PURE__ */ new Set();
+			let started = false;
 			const load = () => {
 				const rpc = connectionRpc;
 				if (rpc === void 0 || botSlug === void 0) return;
@@ -84,7 +85,10 @@ window.__ModuleLoader__.load({
 			};
 			return {
 				subscribe(listener) {
-					if (listeners.size === 0) load();
+					if (!started) {
+						started = true;
+						load();
+					}
 					listeners.add(listener);
 					return () => {
 						listeners.delete(listener);
@@ -92,15 +96,6 @@ window.__ModuleLoader__.load({
 				},
 				getSnapshot: () => info
 			};
-		}
-		const botInfoStores = /* @__PURE__ */ new Map();
-		function botInfoStoreFor(botSlug) {
-			const key = botSlug ?? "";
-			const existing = botInfoStores.get(key);
-			if (existing !== void 0) return existing;
-			const created = createBotInfoStore(botSlug);
-			botInfoStores.set(key, created);
-			return created;
 		}
 		function observationUrl(botSlug, tabId) {
 			const base = `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? "")}`;
@@ -143,12 +138,13 @@ window.__ModuleLoader__.load({
 			};
 		}
 		function BrowserHeaderAction({ botSlug, t, setExpandable, setExpanded }) {
-			const store = botInfoStoreFor(botSlug);
+			const [store] = (0, react.useState)(() => createBotInfoStore(botSlug));
 			const [override, setOverride] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
 			const subscribe = (listener) => {
 				const sync = () => {
-					setExpandable?.(store.getSnapshot().browserAccess === true);
+					const access = override ?? store.getSnapshot().browserAccess === true;
+					setExpandable?.(access);
 				};
 				const unsubscribe = store.subscribe(() => {
 					sync();
