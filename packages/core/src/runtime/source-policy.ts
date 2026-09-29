@@ -21,7 +21,7 @@ export const BOT_SOURCE_DEFAULTS = {
 } as const;
 
 export type BotSourceClass = keyof typeof BOT_SOURCE_DEFAULTS;
-export type BotSourceWake = 'immediate' | 'digest' | 'conditional';
+export type BotSourceWake = 'immediate' | 'digest' | 'conditional' | 'mentions' | 'silent';
 export type BotSourcePolicyEditor = { kind: 'human' } | { kind: 'bot'; botSlug: string };
 export type BotSourcePolicyActor =
   | { kind: 'built-in' }
@@ -53,21 +53,32 @@ export interface BotSourcePolicyStore {
     actor: BotSourcePolicyEditor,
   ): BotSourcePolicy;
   resetAssignmentReport(botSlug: string, actor: BotSourcePolicyEditor): BotSourcePolicy;
+  setGroupOrdinary(
+    botSlug: string,
+    wake: 'immediate' | 'digest' | 'mentions' | 'silent',
+    digestCount: number,
+    digestIntervalSeconds: number,
+    actor: BotSourcePolicyEditor,
+  ): BotSourcePolicy;
+  resetGroupOrdinary(botSlug: string, actor: BotSourcePolicyEditor): BotSourcePolicy;
 }
 
 /** An unset Group Channel override inherits the PersonaBot's ordinary-message default. */
 export function defaultGroupWakePolicy(policy: BotSourcePolicy): GroupWakePolicy {
   if (
     policy.sourceClass !== 'group-ordinary' ||
-    policy.wake !== 'digest' ||
-    policy.digestCount === undefined ||
-    policy.digestIntervalSeconds === undefined
+    (policy.wake !== 'immediate' &&
+      policy.wake !== 'digest' &&
+      policy.wake !== 'mentions' &&
+      policy.wake !== 'silent') ||
+    (policy.wake === 'digest' &&
+      (policy.digestCount === undefined || policy.digestIntervalSeconds === undefined))
   )
     throw new Error('Group ordinary source default is invalid');
   return {
-    mode: 'digest',
-    count: policy.digestCount,
-    intervalSeconds: policy.digestIntervalSeconds,
+    mode: policy.wake === 'immediate' ? 'all' : policy.wake,
+    count: policy.digestCount ?? DEFAULT_GROUP_WAKE_POLICY.count,
+    intervalSeconds: policy.digestIntervalSeconds ?? DEFAULT_GROUP_WAKE_POLICY.intervalSeconds,
     revision: 0,
   };
 }
@@ -128,6 +139,22 @@ export function createBotSourcePolicyStore(
         row.digest_interval_seconds !== null
       )
         throw new Error('Assignment report source wake mode is invalid');
+    } else if (sourceClass === 'group-ordinary') {
+      if (
+        (row.wake_mode !== 'immediate' &&
+          row.wake_mode !== 'digest' &&
+          row.wake_mode !== 'mentions' &&
+          row.wake_mode !== 'silent') ||
+        (row.wake_mode === 'digest'
+          ? !Number.isSafeInteger(row.digest_count) ||
+            row.digest_count! < 1 ||
+            row.digest_count! > 100 ||
+            !Number.isSafeInteger(row.digest_interval_seconds) ||
+            row.digest_interval_seconds! < 1 ||
+            row.digest_interval_seconds! > 3600
+          : row.digest_count !== null || row.digest_interval_seconds !== null)
+      )
+        throw new Error('Group ordinary source wake mode is invalid');
     } else if (
       row.wake_mode !== builtIn.wake ||
       row.override_active !== 0 ||
@@ -146,6 +173,22 @@ export function createBotSourcePolicyStore(
       (row.actor_kind === 'bot' && row.actor_bot_slug !== botSlug)
     )
       throw new Error('Source policy actor is invalid');
+    // The existing revision CHECK keeps parameters only on digest rows; recover
+    // the last digest thresholds for a later switch back from all/mentions/silent.
+    const previousDigest =
+      sourceClass === 'group-ordinary' && row.wake_mode !== 'digest'
+        ? (db
+            .prepare(`
+              SELECT digest_count, digest_interval_seconds
+                FROM bot_source_policy_revisions
+               WHERE bot_slug = ? AND source_class = 'group-ordinary' AND wake_mode = 'digest'
+               ORDER BY revision DESC LIMIT 1
+            `)
+            .get(botSlug) as { digest_count: number; digest_interval_seconds: number } | undefined)
+        : undefined;
+    const effectiveDigestCount = row.digest_count ?? previousDigest?.digest_count ?? null;
+    const effectiveDigestIntervalSeconds =
+      row.digest_interval_seconds ?? previousDigest?.digest_interval_seconds ?? null;
     const count = db
       .prepare(`
       SELECT COUNT(*) AS count FROM bot_source_wake_attempts
@@ -160,10 +203,10 @@ export function createBotSourcePolicyStore(
       sourceClass,
       admission: 'admit',
       wake: row.wake_mode as BotSourceWake,
-      ...(row.digest_count === null ? {} : { digestCount: row.digest_count }),
-      ...(row.digest_interval_seconds === null
+      ...(effectiveDigestCount === null ? {} : { digestCount: effectiveDigestCount }),
+      ...(effectiveDigestIntervalSeconds === null
         ? {}
-        : { digestIntervalSeconds: row.digest_interval_seconds }),
+        : { digestIntervalSeconds: effectiveDigestIntervalSeconds }),
       revision: row.revision,
       lastActor:
         row.actor_kind === 'bot'
@@ -174,31 +217,37 @@ export function createBotSourcePolicyStore(
       recentWakeCount: count.count,
     };
   };
-  const changeAssignmentReport = (
+  const changeSourcePolicy = (
     botSlug: string,
-    wake: 'conditional' | 'immediate',
+    sourceClass: 'assignment-report' | 'group-ordinary',
+    wake: BotSourceWake,
+    digestCount: number | null,
+    digestIntervalSeconds: number | null,
     actor: BotSourcePolicyEditor,
     overrideActive: boolean,
   ): BotSourcePolicy => {
     if (actor.kind === 'bot' && actor.botSlug !== botSlug)
       throw new Error('A PersonaBot may edit only its own source policy');
     return database.transaction((db) => {
-      const current = resolveIn(db, botSlug, 'assignment-report');
+      const current = resolveIn(db, botSlug, sourceClass);
       db.prepare(`
       INSERT INTO bot_source_policy_revisions
         (bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
          admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active)
-      VALUES (?, 'assignment-report', ?, ?, ?, ?, 'admit', ?, NULL, NULL, ?)
+      VALUES (?, ?, ?, ?, ?, ?, 'admit', ?, ?, ?, ?)
     `).run(
         botSlug,
+        sourceClass,
         current.revision + 1,
         actor.kind,
         actor.kind === 'bot' ? actor.botSlug : null,
         now().toISOString(),
         wake,
+        wake === 'digest' ? digestCount : null,
+        wake === 'digest' ? digestIntervalSeconds : null,
         overrideActive ? 1 : 0,
       );
-      return resolveIn(db, botSlug, 'assignment-report');
+      return resolveIn(db, botSlug, sourceClass);
     });
   };
   return {
@@ -213,10 +262,52 @@ export function createBotSourcePolicyStore(
     setAssignmentReport(botSlug, wake, actor) {
       if (wake !== 'conditional' && wake !== 'immediate')
         throw new Error('Assignment report wake must be conditional or immediate');
-      return changeAssignmentReport(botSlug, wake, actor, true);
+      return changeSourcePolicy(botSlug, 'assignment-report', wake, null, null, actor, true);
     },
     resetAssignmentReport(botSlug, actor) {
-      return changeAssignmentReport(botSlug, 'conditional', actor, false);
+      return changeSourcePolicy(
+        botSlug,
+        'assignment-report',
+        'conditional',
+        null,
+        null,
+        actor,
+        false,
+      );
+    },
+    setGroupOrdinary(botSlug, wake, digestCount, digestIntervalSeconds, actor) {
+      if (wake !== 'immediate' && wake !== 'digest' && wake !== 'mentions' && wake !== 'silent')
+        throw new Error('Group ordinary wake must be immediate, digest, mentions, or silent');
+      if (
+        !Number.isSafeInteger(digestCount) ||
+        digestCount < 1 ||
+        digestCount > 100 ||
+        !Number.isSafeInteger(digestIntervalSeconds) ||
+        digestIntervalSeconds < 1 ||
+        digestIntervalSeconds > 3600
+      )
+        throw new Error('Group ordinary digest bounds are invalid');
+      return changeSourcePolicy(
+        botSlug,
+        'group-ordinary',
+        wake,
+        digestCount,
+        digestIntervalSeconds,
+        actor,
+        true,
+      );
+    },
+    resetGroupOrdinary(botSlug, actor) {
+      const builtIn = BOT_SOURCE_DEFAULTS['group-ordinary'];
+      return changeSourcePolicy(
+        botSlug,
+        'group-ordinary',
+        builtIn.wake,
+        builtIn.digestCount,
+        builtIn.digestIntervalSeconds,
+        actor,
+        false,
+      );
     },
   };
 }

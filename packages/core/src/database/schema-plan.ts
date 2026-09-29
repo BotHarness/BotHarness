@@ -859,6 +859,53 @@ const BOT_SOURCE_POLICY_EDIT_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_SOURCE_GROUP_MODES_MIGRATION: SchemaMigration = {
+  generation: 31,
+  module: 'bot-inbox',
+  description: 'Allow ordinary Group source defaults to use mentions and silent wake modes',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_source_policy_revisions_next (
+        bot_slug TEXT NOT NULL,
+        source_class TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        actor_kind TEXT NOT NULL CHECK (actor_kind IN ('built-in', 'human', 'bot', 'template')),
+        actor_bot_slug TEXT,
+        changed_at TEXT NOT NULL,
+        admission_mode TEXT NOT NULL CHECK (admission_mode IN ('admit', 'drop')),
+        wake_mode TEXT NOT NULL
+          CHECK (wake_mode IN ('immediate', 'digest', 'conditional', 'mentions', 'silent')),
+        digest_count INTEGER CHECK (digest_count BETWEEN 1 AND 100),
+        digest_interval_seconds INTEGER CHECK (digest_interval_seconds BETWEEN 1 AND 3600),
+        override_active INTEGER NOT NULL DEFAULT 0 CHECK (override_active IN (0, 1)),
+        PRIMARY KEY (bot_slug, source_class, revision),
+        CHECK ((actor_kind = 'bot' AND actor_bot_slug = bot_slug)
+            OR (actor_kind <> 'bot' AND actor_bot_slug IS NULL)),
+        CHECK ((wake_mode = 'digest' AND digest_count IS NOT NULL
+                AND digest_interval_seconds IS NOT NULL)
+            OR (wake_mode <> 'digest' AND digest_count IS NULL
+                AND digest_interval_seconds IS NULL))
+      );
+      INSERT INTO bot_source_policy_revisions_next
+        (bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
+         admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active)
+      SELECT bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
+             admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active
+        FROM bot_source_policy_revisions;
+      DROP TRIGGER bot_source_policy_revisions_no_update;
+      DROP TRIGGER bot_source_policy_revisions_no_delete;
+      DROP TABLE bot_source_policy_revisions;
+      ALTER TABLE bot_source_policy_revisions_next RENAME TO bot_source_policy_revisions;
+      CREATE TRIGGER bot_source_policy_revisions_no_update
+      BEFORE UPDATE ON bot_source_policy_revisions
+      BEGIN SELECT RAISE(ABORT, 'Bot source policy revision is immutable'); END;
+      CREATE TRIGGER bot_source_policy_revisions_no_delete
+      BEFORE DELETE ON bot_source_policy_revisions
+      BEGIN SELECT RAISE(ABORT, 'Bot source policy revision is immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -889,4 +936,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   USAGE_DAILY_MIGRATION,
   BOT_SOURCE_POLICY_MIGRATION,
   BOT_SOURCE_POLICY_EDIT_MIGRATION,
+  BOT_SOURCE_GROUP_MODES_MIGRATION,
 ]);

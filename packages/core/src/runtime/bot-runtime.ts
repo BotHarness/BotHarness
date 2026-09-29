@@ -140,6 +140,12 @@ export interface OrchestratorAgentRun {
     list(): BotSourcePolicy[];
     setAssignmentReport(wake: 'conditional' | 'immediate'): BotSourcePolicy;
     resetAssignmentReport(): BotSourcePolicy;
+    setGroupOrdinary(
+      wake: 'immediate' | 'digest' | 'mentions' | 'silent',
+      digestCount: number,
+      digestIntervalSeconds: number,
+    ): BotSourcePolicy;
+    resetGroupOrdinary(): BotSourcePolicy;
   };
   assignments: OrchestratorAssignmentAccess;
   memory?: {
@@ -1051,7 +1057,8 @@ class BotRuntimeImplementation implements BotRuntime {
     const groups = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.wake_policy_revision, MIN(e.created_at) AS first_at,
+        SELECT a.wake_policy_revision, a.source_policy_revision,
+               MIN(e.created_at) AS first_at,
                MIN(a.wake_count) AS wake_count, MIN(a.wake_interval_ms) AS wake_interval_ms,
                COUNT(*) AS pending_count
           FROM inbox_admissions a
@@ -1059,11 +1066,12 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-         GROUP BY a.wake_policy_revision
+         GROUP BY a.wake_policy_revision, a.source_policy_revision
       `)
         .all(botSlug, channelId),
     ) as Array<{
       wake_policy_revision: number;
+      source_policy_revision: number | null;
       first_at: string;
       wake_count: number;
       wake_interval_ms: number;
@@ -1393,6 +1401,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const groups = database
           .prepare(`
         SELECT e.channel_id AS channel_id, a.wake_policy_revision AS revision,
+               a.source_policy_revision AS source_revision,
                MIN(e.created_at) AS first_at, a.wake_interval_ms AS interval_ms,
                a.wake_count AS wake_count, COUNT(*) AS count
           FROM inbox_admissions a
@@ -1400,12 +1409,13 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
-         GROUP BY e.channel_id, a.wake_policy_revision
+         GROUP BY e.channel_id, a.wake_policy_revision, a.source_policy_revision
          ORDER BY first_at, channel_id
       `)
           .all(botSlug) as unknown as Array<{
           channel_id: string;
           revision: number;
+          source_revision: number | null;
           first_at: string;
           interval_ms: number;
           wake_count: number;
@@ -1430,9 +1440,15 @@ class BotRuntimeImplementation implements BotRuntime {
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.channel_id = ? AND a.wake_policy_revision = ?
+             AND a.source_policy_revision IS ?
            ORDER BY e.created_at, e.rowid LIMIT 100
         `)
-            .all(botSlug, group.channel_id, group.revision) as unknown as DigestRow[];
+            .all(
+              botSlug,
+              group.channel_id,
+              group.revision,
+              group.source_revision,
+            ) as unknown as DigestRow[];
           const rows: DigestRow[] = [];
           const alreadyIncluded = budget.includedByChannel.get(group.channel_id) ?? 0;
           // A direct mention keeps room for its nearby pending context after due digests.
@@ -1982,6 +1998,23 @@ class BotRuntimeImplementation implements BotRuntime {
               botSlug: bot.slug,
             });
             return changed;
+          },
+          setGroupOrdinary: (wake, digestCount, digestIntervalSeconds) => {
+            markSideEffect();
+            return this.#sourcePolicy.setGroupOrdinary(
+              bot.slug,
+              wake,
+              digestCount,
+              digestIntervalSeconds,
+              { kind: 'bot', botSlug: bot.slug },
+            );
+          },
+          resetGroupOrdinary: () => {
+            markSideEffect();
+            return this.#sourcePolicy.resetGroupOrdinary(bot.slug, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
           },
         },
         memory: {

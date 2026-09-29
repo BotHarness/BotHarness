@@ -77,6 +77,18 @@ describe('DSH Bot Agent adapter', () => {
           calls.push(sourceGet.execute({}, {} as ToolRunContext));
           calls.push(sourceSet.execute({ wake: 'immediate' }, {} as ToolRunContext));
           calls.push(sourceReset.execute({}, {} as ToolRunContext));
+          calls.push(
+            sourceSet.execute(
+              {
+                sourceClass: 'group-ordinary',
+                wake: 'digest',
+                digestCount: 7,
+                digestIntervalSeconds: 45,
+              },
+              {} as ToolRunContext,
+            ),
+          );
+          calls.push(sourceReset.execute({ sourceClass: 'group-ordinary' }, {} as ToolRunContext));
         },
       },
     );
@@ -109,6 +121,30 @@ describe('DSH Bot Agent adapter', () => {
           sourceClass: 'assignment-report',
           admission: 'admit',
           wake: 'conditional',
+          revision: 3,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: false,
+          recentWakeCount: 0,
+        }),
+        setGroupOrdinary: (wake, digestCount, digestIntervalSeconds) => ({
+          sourceClass: 'group-ordinary',
+          admission: 'admit',
+          wake,
+          digestCount,
+          digestIntervalSeconds,
+          revision: 2,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: true,
+          recentWakeCount: 0,
+        }),
+        resetGroupOrdinary: () => ({
+          sourceClass: 'group-ordinary',
+          admission: 'admit',
+          wake: 'digest',
+          digestCount: 5,
+          digestIntervalSeconds: 30,
           revision: 3,
           lastActor: { kind: 'bot', botSlug: 'ada' },
           changedAt: BOT.createdAt,
@@ -163,6 +199,14 @@ describe('DSH Bot Agent adapter', () => {
       { policies: [] },
       { sourceClass: 'assignment-report', wake: 'immediate', revision: 2 },
       { sourceClass: 'assignment-report', wake: 'conditional', revision: 3 },
+      {
+        sourceClass: 'group-ordinary',
+        wake: 'digest',
+        digestCount: 7,
+        digestIntervalSeconds: 45,
+        revision: 2,
+      },
+      { sourceClass: 'group-ordinary', wake: 'digest', revision: 3 },
     ]);
     expect(writes).toEqual([
       {

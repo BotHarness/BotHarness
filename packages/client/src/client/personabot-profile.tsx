@@ -11,7 +11,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
+import type { BotSourcePolicyEdit, BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
 import { Modal } from './modal.js';
@@ -132,10 +132,12 @@ export function ProfileView({
   const [error, setError] = useState<string | undefined>(undefined);
   const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
   const [sourcePolicyError, setSourcePolicyError] = useState(false);
-  const [editingSourcePolicy, setEditingSourcePolicy] = useState(false);
-  const [sourceWakeDraft, setSourceWakeDraft] = useState<'conditional' | 'immediate'>(
-    'conditional',
-  );
+  const [editingSourcePolicy, setEditingSourcePolicy] =
+    useState<BotSourcePolicyEdit['sourceClass']>();
+  const [sourceWakeDraft, setSourceWakeDraft] =
+    useState<BotSourcePolicyView['wake']>('conditional');
+  const [digestCountDraft, setDigestCountDraft] = useState(5);
+  const [digestIntervalDraft, setDigestIntervalDraft] = useState(30);
   const [sourcePolicyBusy, setSourcePolicyBusy] = useState(false);
   const [sourcePolicySaveError, setSourcePolicySaveError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -163,14 +165,48 @@ export function ProfileView({
   }, [actions, bot.slug]);
 
   const changeSourcePolicy = async (reset: boolean): Promise<void> => {
-    if (sourcePolicyBusy) return;
+    if (sourcePolicyBusy || editingSourcePolicy === undefined) return;
+    if (
+      !reset &&
+      editingSourcePolicy === 'group-ordinary' &&
+      (!Number.isSafeInteger(digestCountDraft) ||
+        digestCountDraft < 1 ||
+        digestCountDraft > 100 ||
+        !Number.isSafeInteger(digestIntervalDraft) ||
+        digestIntervalDraft < 1 ||
+        digestIntervalDraft > 3600)
+    ) {
+      setSourcePolicySaveError(true);
+      return;
+    }
     setSourcePolicyBusy(true);
     setSourcePolicySaveError(false);
     try {
-      if (reset) await actions.resetBotSourcePolicy(bot.slug);
-      else await actions.setBotSourcePolicy(bot.slug, sourceWakeDraft);
+      if (reset) await actions.resetBotSourcePolicy(bot.slug, editingSourcePolicy);
+      else if (editingSourcePolicy === 'assignment-report') {
+        if (sourceWakeDraft !== 'conditional' && sourceWakeDraft !== 'immediate')
+          throw new Error('Invalid Assignment report wake');
+        await actions.setBotSourcePolicy(bot.slug, {
+          sourceClass: 'assignment-report',
+          wake: sourceWakeDraft,
+        });
+      } else {
+        if (
+          sourceWakeDraft !== 'immediate' &&
+          sourceWakeDraft !== 'digest' &&
+          sourceWakeDraft !== 'mentions' &&
+          sourceWakeDraft !== 'silent'
+        )
+          throw new Error('Invalid ordinary Group wake');
+        await actions.setBotSourcePolicy(bot.slug, {
+          sourceClass: 'group-ordinary',
+          wake: sourceWakeDraft,
+          digestCount: digestCountDraft,
+          digestIntervalSeconds: digestIntervalDraft,
+        });
+      }
       setSourcePolicies(await actions.botSourcePolicies(bot.slug));
-      setEditingSourcePolicy(false);
+      setEditingSourcePolicy(undefined);
     } catch {
       setSourcePolicySaveError(true);
     } finally {
@@ -377,7 +413,7 @@ export function ProfileView({
             <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
               <header className="bh-profile-card-head">
                 <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
-                <Tag tone="neutral">{t('sourcePolicy.oneEditable')}</Tag>
+                <Tag tone="neutral">{t('sourcePolicy.editableRules')}</Tag>
               </header>
               {sourcePolicyError ? (
                 <div className="bh-error" role="alert">
@@ -411,7 +447,11 @@ export function ProfileView({
                           })
                         : policy.wake === 'conditional'
                           ? t('sourcePolicy.admitConditional')
-                          : t('sourcePolicy.admitImmediate')}
+                          : policy.wake === 'mentions'
+                            ? t('sourcePolicy.admitMentions')
+                            : policy.wake === 'silent'
+                              ? t('sourcePolicy.admitSilent')
+                              : t('sourcePolicy.admitImmediate')}
                     </span>
                     {policy.sourceClass === 'group-ordinary' && (
                       <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
@@ -435,15 +475,18 @@ export function ProfileView({
                       {' · '}
                       {new Date(policy.changedAt).toLocaleString()}
                     </span>
-                    {policy.sourceClass === 'assignment-report' && (
+                    {(policy.sourceClass === 'assignment-report' ||
+                      policy.sourceClass === 'group-ordinary') && (
                       <Button
                         variant="outline"
                         onClick={() => {
-                          setSourceWakeDraft(
-                            policy.wake === 'immediate' ? 'immediate' : 'conditional',
-                          );
+                          setSourceWakeDraft(policy.wake);
+                          setDigestCountDraft(policy.digestCount ?? 5);
+                          setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
                           setSourcePolicySaveError(false);
-                          setEditingSourcePolicy(true);
+                          setEditingSourcePolicy(
+                            policy.sourceClass as BotSourcePolicyEdit['sourceClass'],
+                          );
                         }}
                       >
                         {t('sourcePolicy.edit')}
@@ -456,13 +499,21 @@ export function ProfileView({
           </div>
         </details>
       </section>
-      {editingSourcePolicy && (
+      {editingSourcePolicy !== undefined && (
         <Modal
           open
-          onClose={() => setEditingSourcePolicy(false)}
+          onClose={() => setEditingSourcePolicy(undefined)}
           closeLabel={t('common.close')}
-          title={t('sourcePolicy.editTitle')}
-          description={t('sourcePolicy.editDescription')}
+          title={t(
+            editingSourcePolicy === 'group-ordinary'
+              ? 'sourcePolicy.groupEditTitle'
+              : 'sourcePolicy.editTitle',
+          )}
+          description={t(
+            editingSourcePolicy === 'group-ordinary'
+              ? 'sourcePolicy.groupEditDescription'
+              : 'sourcePolicy.editDescription',
+          )}
           footer={
             <>
               <Button
@@ -484,16 +535,57 @@ export function ProfileView({
         >
           <select
             className="bh-profile-policy-select"
-            aria-label={t('sourcePolicy.editTitle')}
+            aria-label={t(
+              editingSourcePolicy === 'group-ordinary'
+                ? 'sourcePolicy.groupEditTitle'
+                : 'sourcePolicy.editTitle',
+            )}
             value={sourceWakeDraft}
             disabled={sourcePolicyBusy}
             onChange={(event) =>
-              setSourceWakeDraft(event.target.value as 'conditional' | 'immediate')
+              setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
             }
           >
-            <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
-            <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+            {editingSourcePolicy === 'assignment-report' ? (
+              <>
+                <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+                <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+              </>
+            ) : (
+              <>
+                <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
+                <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
+                <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
+                <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
+              </>
+            )}
           </select>
+          {editingSourcePolicy === 'group-ordinary' && sourceWakeDraft === 'digest' && (
+            <div className="bh-profile-policy-digest">
+              <label>
+                {t('sourcePolicy.digestCount')}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={digestCountDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) => setDigestCountDraft(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                {t('sourcePolicy.digestInterval')}
+                <input
+                  type="number"
+                  min={1}
+                  max={3600}
+                  value={digestIntervalDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) => setDigestIntervalDraft(Number(event.target.value))}
+                />
+              </label>
+            </div>
+          )}
           {sourcePolicySaveError && (
             <div className="bh-modal-error" role="alert">
               {t('sourcePolicy.saveFailed')}

@@ -1323,12 +1323,43 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const source = asObject(payload);
       const slug = asSlug(payload);
       const wake = source['wake'];
+      const sourceClass = source['sourceClass'] ?? 'assignment-report';
       if (slug === undefined) return invalidInput('slug is required');
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
-      if (wake !== 'conditional' && wake !== 'immediate')
-        return invalidInput('Assignment report wake must be conditional or immediate');
       try {
+        if (sourceClass === 'group-ordinary') {
+          const digestCount = source['digestCount'];
+          const digestIntervalSeconds = source['digestIntervalSeconds'];
+          if (
+            (wake !== 'immediate' &&
+              wake !== 'digest' &&
+              wake !== 'mentions' &&
+              wake !== 'silent') ||
+            !Number.isSafeInteger(digestCount) ||
+            !Number.isSafeInteger(digestIntervalSeconds)
+          )
+            return invalidInput('Group ordinary wake and digest parameters are required');
+          return {
+            ok: true,
+            value: {
+              policy: deps.sourcePolicy.setGroupOrdinary(
+                slug,
+                wake,
+                digestCount as number,
+                digestIntervalSeconds as number,
+                { kind: 'human' },
+              ),
+            },
+          };
+        }
+        if (
+          sourceClass !== 'assignment-report' ||
+          (wake !== 'conditional' && wake !== 'immediate') ||
+          source['digestCount'] !== undefined ||
+          source['digestIntervalSeconds'] !== undefined
+        )
+          return invalidInput('Assignment report wake must be conditional or immediate');
         return {
           ok: true,
           value: { policy: deps.sourcePolicy.setAssignmentReport(slug, wake, { kind: 'human' }) },
@@ -1338,11 +1369,20 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
     },
     botSourcePolicyReset(payload) {
+      const source = asObject(payload);
       const slug = asSlug(payload);
+      const sourceClass = source['sourceClass'] ?? 'assignment-report';
       if (slug === undefined) return invalidInput('slug is required');
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
       try {
+        if (sourceClass === 'group-ordinary')
+          return {
+            ok: true,
+            value: { policy: deps.sourcePolicy.resetGroupOrdinary(slug, { kind: 'human' }) },
+          };
+        if (sourceClass !== 'assignment-report')
+          return invalidInput('Source class is not editable');
         return {
           ok: true,
           value: { policy: deps.sourcePolicy.resetAssignmentReport(slug, { kind: 'human' }) },

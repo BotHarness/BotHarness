@@ -319,12 +319,29 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.botSourcePolicies({ slug }));
   }
 
-  botSourcePolicySet(slug: string, wake: 'conditional' | 'immediate'): { policy: BotSourcePolicy } {
-    return unwrap(this.methods.botSourcePolicySet({ slug, wake }));
+  botSourcePolicySet(
+    slug: string,
+    wake: 'conditional' | 'immediate' | 'digest' | 'mentions' | 'silent',
+    sourceClass?: 'assignment-report' | 'group-ordinary',
+    digestCount?: number,
+    digestIntervalSeconds?: number,
+  ): { policy: BotSourcePolicy } {
+    return unwrap(
+      this.methods.botSourcePolicySet({
+        slug,
+        wake,
+        sourceClass,
+        digestCount,
+        digestIntervalSeconds,
+      }),
+    );
   }
 
-  botSourcePolicyReset(slug: string): { policy: BotSourcePolicy } {
-    return unwrap(this.methods.botSourcePolicyReset({ slug }));
+  botSourcePolicyReset(
+    slug: string,
+    sourceClass?: 'assignment-report' | 'group-ordinary',
+  ): { policy: BotSourcePolicy } {
+    return unwrap(this.methods.botSourcePolicyReset({ slug, sourceClass }));
   }
 
   humanAttention(

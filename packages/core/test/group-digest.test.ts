@@ -99,6 +99,158 @@ describe('Group ordinary-message digest', () => {
     }
   });
 
+  it('applies a new PersonaBot Group default only to later Admissions and preserves a saved Channel override', async () => {
+    const home = createTempRoot('botharness-group-source-default-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const inherited = core.channels.createGroup({ name: 'Inherited', members: ['ada'] });
+      const overridden = core.channels.createGroup({ name: 'Overridden', members: ['ada'] });
+      core.channels.setGroupWakePolicy(overridden.id, 'ada', {
+        mode: 'mentions',
+        count: 5,
+        intervalSeconds: 30,
+      });
+      await ordinary(core, inherited.id, 'inherited-before');
+      await ordinary(core, overridden.id, 'overridden-before');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(0);
+      core.sourcePolicy.setGroupOrdinary('ada', 'immediate', 7, 45, {
+        kind: 'bot',
+        botSlug: 'ada',
+      });
+      await ordinary(core, inherited.id, 'inherited-after');
+      await ordinary(core, overridden.id, 'overridden-after');
+      const deadline = Date.now() + 2000;
+      while (runs.length === 0 && Date.now() < deadline)
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).toContain('inherited-after');
+      const rows = attachOperationalModule(core.operationalDatabase, 'group-source-default').read(
+        (db) =>
+          db
+            .prepare(`
+              SELECT e.message_id, a.source_policy_revision, a.source_policy_wake_mode,
+                     a.wake_policy_revision, a.wake_mode
+                FROM inbox_admissions a
+                JOIN source_events e ON e.source_event_id = a.source_event_id
+               WHERE a.reason = 'group-ordinary'
+               ORDER BY e.message_id
+            `)
+            .all(),
+      );
+      expect(rows).toMatchObject([
+        {
+          message_id: 'inherited-after',
+          source_policy_revision: 2,
+          source_policy_wake_mode: 'immediate',
+          wake_policy_revision: 0,
+          wake_mode: 'all',
+        },
+        {
+          message_id: 'inherited-before',
+          source_policy_revision: 1,
+          source_policy_wake_mode: 'digest',
+          wake_policy_revision: 0,
+          wake_mode: 'digest',
+        },
+        {
+          message_id: 'overridden-after',
+          source_policy_revision: 2,
+          source_policy_wake_mode: 'immediate',
+          wake_policy_revision: 1,
+          wake_mode: 'mentions',
+        },
+        {
+          message_id: 'overridden-before',
+          source_policy_revision: 1,
+          source_policy_wake_mode: 'digest',
+          wake_policy_revision: 1,
+          wake_mode: 'mentions',
+        },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('keeps direct mentions immediate under silent and mentions source defaults', async () => {
+    const home = createTempRoot('botharness-group-source-direct-');
+    const runs: string[] = [];
+    const core = createCore({
+      dshHome: home,
+      agents: adapter(async (run) => {
+        runs.push(run.message);
+      }),
+    });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      const group = core.channels.createGroup({ name: 'Team', members: ['ada'] });
+      core.sourcePolicy.setGroupOrdinary('ada', 'silent', 5, 30, { kind: 'human' });
+      await ordinary(core, group.id, 'silent-one');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(0);
+      const sendMention = async (id: string): Promise<void> => {
+        await core.channels.appendMessage(group.id, {
+          id,
+          at: new Date().toISOString(),
+          author: { kind: 'human' },
+          body: '@Ada please inspect',
+          mentions: [{ botSlug: 'ada', label: 'Ada', start: 0, end: 4 }],
+        });
+        core.runtime.admitGroupMessage(group.id, id);
+        await core.runtime.whenIdle();
+      };
+      await sendMention('mention-under-silent');
+      expect(runs).toHaveLength(1);
+      expect(runs[0]).not.toContain('silent-one');
+      core.sourcePolicy.setGroupOrdinary('ada', 'mentions', 5, 30, { kind: 'human' });
+      await ordinary(core, group.id, 'mentions-one');
+      await core.runtime.whenIdle();
+      expect(runs).toHaveLength(1);
+      await sendMention('mention-under-mentions');
+      expect(runs).toHaveLength(2);
+      expect(runs[1]).toContain('mentions-one');
+      expect(runs[1]).not.toContain('silent-one');
+      expect(
+        attachOperationalModule(core.operationalDatabase, 'source-direct-protection').read((db) =>
+          db
+            .prepare(`
+              SELECT e.message_id, a.reason, a.wake_mode, a.source_policy_wake_mode
+                FROM inbox_admissions a
+                JOIN source_events e ON e.source_event_id = a.source_event_id
+               WHERE e.message_id IN ('silent-one', 'mentions-one')
+               ORDER BY e.message_id
+            `)
+            .all(),
+        ),
+      ).toMatchObject([
+        {
+          message_id: 'mentions-one',
+          reason: 'group-ordinary',
+          wake_mode: 'mentions',
+          source_policy_wake_mode: 'mentions',
+        },
+        {
+          message_id: 'silent-one',
+          reason: 'group-ordinary',
+          wake_mode: 'silent',
+          source_policy_wake_mode: 'silent',
+        },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
   it('wakes on every ordinary message in all mode and persists the selected revision', async () => {
     const home = createTempRoot('botharness-attention-all-');
     const runs: string[] = [];
