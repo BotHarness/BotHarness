@@ -98,6 +98,7 @@ import { store } from '../src/client/store.js';
 import type { MemoryGitGraph } from '../src/client/bridge.js';
 import { zhTranslate } from '../src/client/locale.js';
 import { MemoryEntry } from '../src/client/memory-entry.js';
+import { MemoryRecovery } from '../src/client/memory-recovery.js';
 import { MemoryCommitView } from '../src/client/memory-commit-view.js';
 
 const SHA = 'a'.repeat(40);
@@ -114,6 +115,62 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+});
+
+it('requires an explicit confirmation before restoring an older Memory checkpoint', async () => {
+  const current = {
+    id: '11111111-1111-4111-8111-111111111111',
+    branch: 'main',
+    head: SHA,
+    indexTree: SHA,
+    workingTree: SHA,
+    origin: 'host-observation' as const,
+    originId: 'botharness-host',
+    causeKind: 'memory-scan' as const,
+    causeId: 'qa',
+    capturedAt: '2026-09-30T01:00:00Z',
+  };
+  const older = {
+    ...current,
+    id: '22222222-2222-4222-8222-222222222222',
+    head: 'b'.repeat(40),
+    capturedAt: '2026-09-29T01:00:00Z',
+  };
+  const actions = {
+    memoryRecoveryHistory: vi.fn().mockResolvedValue([current, older]),
+    memoryRestore: vi.fn().mockResolvedValue({ checkpoint: older, archivePath: '/backup/memory' }),
+  } as unknown as BridgeActions;
+  const onRestored = vi.fn();
+  await act(async () =>
+    root.render(
+      createElement(MemoryRecovery, {
+        actions,
+        channelId: 'dm-qa',
+        refreshRevision: undefined,
+        onRestored,
+        t: zhTranslate,
+      }),
+    ),
+  );
+  const olderRow = container.querySelectorAll<HTMLButtonElement>('.bh-memory-recovery-row')[1];
+  await act(async () => olderRow?.click());
+  const choose = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+    (button) => button.textContent === '恢复此检查点',
+  );
+  await act(async () => choose?.click());
+  expect(actions.memoryRestore).not.toHaveBeenCalled();
+  expect(container.textContent).toContain('当前仓库会完整备份');
+  const confirm = [...container.querySelectorAll<HTMLButtonElement>('button')].find(
+    (button) => button.textContent === '备份并恢复',
+  );
+  await act(async () => confirm?.click());
+  expect(actions.memoryRestore).toHaveBeenCalledWith({
+    channelId: 'dm-qa',
+    checkpointId: older.id,
+    expectedCurrentId: current.id,
+  });
+  expect(onRestored).toHaveBeenCalledOnce();
+  expect(container.textContent).toContain('/backup/memory');
 });
 
 describe('Memory Git graph sidebar', () => {
@@ -178,6 +235,7 @@ describe('Memory Git graph sidebar', () => {
     const pending = new Promise<never>(() => undefined);
     const actions = {
       memoryGitGraph: vi.fn().mockResolvedValueOnce(graph).mockReturnValue(pending),
+      memoryRecoveryHistory: vi.fn().mockResolvedValue([]),
       memoryWorkingChanges: vi
         .fn()
         .mockResolvedValueOnce([{ path: 'note.md', kind: 'unstaged', status: 'M' }])
@@ -760,6 +818,7 @@ describe('Memory Git graph sidebar', () => {
           .fn()
           .mockResolvedValue({ path: 'note.md', head: SHA, body: 'Current memory\n' }),
         memoryGitGraph: vi.fn().mockResolvedValue(graph),
+        memoryRecoveryHistory: vi.fn().mockResolvedValue([]),
         memoryWorkingChanges: vi
           .fn()
           .mockResolvedValue([{ path: 'note.md', kind: 'unstaged', status: 'M' }]),

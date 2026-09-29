@@ -296,7 +296,12 @@ export function createCore(
   const ownership = createSessionOwnership(
     attachOperationalModule(operationalDatabase, 'session-ownership'),
   );
-  const memory = createMemoryService({ registry, ownership, database: operationalDatabase });
+  const memory = createMemoryService({
+    registry,
+    ownership,
+    database: operationalDatabase,
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   const usage =
     operationalDatabase.mode === 'ready'
       ? createUsageProjection({ ownership, database: operationalDatabase })

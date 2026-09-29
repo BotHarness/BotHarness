@@ -993,6 +993,32 @@ const MEMORY_CHANGE_CHECKPOINT_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_RECOVERY_CHECKPOINT_MIGRATION: SchemaMigration = {
+  generation: 34,
+  module: 'memory',
+  description: 'Retain audited Git recovery checkpoints for Memory state',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_recovery_checkpoints (
+        id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        head_sha TEXT NOT NULL,
+        index_tree_sha TEXT NOT NULL,
+        working_tree_sha TEXT NOT NULL,
+        git_ref TEXT NOT NULL,
+        origin_kind TEXT NOT NULL CHECK (origin_kind IN ('host-observation', 'agent-session', 'human-command')),
+        origin_id TEXT NOT NULL,
+        cause_kind TEXT NOT NULL CHECK (cause_kind IN ('memory-scan', 'source-event', 'human-edit', 'turn-abort', 'human-restore')),
+        cause_id TEXT NOT NULL,
+        captured_at TEXT NOT NULL
+      );
+      CREATE INDEX memory_recovery_checkpoints_history
+        ON memory_recovery_checkpoints (bot_slug, captured_at DESC);
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1026,4 +1052,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_SOURCE_GROUP_MODES_MIGRATION,
   MEMORY_CHANGE_INBOX_MIGRATION,
   MEMORY_CHANGE_CHECKPOINT_MIGRATION,
+  MEMORY_RECOVERY_CHECKPOINT_MIGRATION,
 ]);

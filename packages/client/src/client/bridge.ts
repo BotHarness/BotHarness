@@ -1762,6 +1762,19 @@ export interface MemoryWorkingDiff extends MemoryWorkingChange {
   binary: boolean;
 }
 
+export interface MemoryRecoveryCheckpoint {
+  id: string;
+  branch: string;
+  head: string;
+  indexTree: string;
+  workingTree: string;
+  origin: 'host-observation' | 'agent-session' | 'human-command';
+  originId: string;
+  causeKind: 'memory-scan' | 'source-event' | 'human-edit' | 'turn-abort' | 'human-restore';
+  causeId: string;
+  capturedAt: string;
+}
+
 export interface MemoryRepairEvent {
   id: string;
   acceptedHeadSha: string;
@@ -2027,6 +2040,50 @@ export async function loadMemoryWorkingDiff(
   )
     throw new Error('invalid Memory working diff');
   return response as unknown as MemoryWorkingDiff;
+}
+
+export async function loadMemoryRecoveryHistory(
+  call: BridgeCall,
+  channelId: string,
+): Promise<MemoryRecoveryCheckpoint[]> {
+  const response = asRecord(await unwrap(call, 'memoryRecoveryHistory', { channelId }));
+  if (!Array.isArray(response?.['checkpoints'])) throw new Error('invalid Memory checkpoints');
+  return response['checkpoints'].map((value: unknown) => {
+    const point = asRecord(value);
+    if (
+      point === undefined ||
+      typeof point['id'] !== 'string' ||
+      typeof point['branch'] !== 'string' ||
+      typeof point['head'] !== 'string' ||
+      typeof point['indexTree'] !== 'string' ||
+      typeof point['workingTree'] !== 'string' ||
+      typeof point['origin'] !== 'string' ||
+      typeof point['originId'] !== 'string' ||
+      typeof point['causeKind'] !== 'string' ||
+      typeof point['causeId'] !== 'string' ||
+      typeof point['capturedAt'] !== 'string'
+    )
+      throw new Error('invalid Memory checkpoint');
+    return point as unknown as MemoryRecoveryCheckpoint;
+  });
+}
+
+export async function restoreMemoryCheckpoint(
+  call: BridgeCall,
+  input: { channelId: string; checkpointId: string; expectedCurrentId: string },
+): Promise<{ checkpoint: MemoryRecoveryCheckpoint; archivePath: string }> {
+  const response = asRecord(await unwrap(call, 'memoryRestore', input));
+  const checkpoint = asRecord(response?.['checkpoint']);
+  if (
+    checkpoint === undefined ||
+    typeof checkpoint['id'] !== 'string' ||
+    typeof response?.['archivePath'] !== 'string'
+  )
+    throw new Error('invalid Memory restore result');
+  return {
+    checkpoint: checkpoint as unknown as MemoryRecoveryCheckpoint,
+    archivePath: response['archivePath'] as string,
+  };
 }
 
 export async function saveMemoryFile(

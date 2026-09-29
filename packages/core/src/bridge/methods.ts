@@ -45,6 +45,7 @@ import {
   type MemoryWorkingKind,
   type MemoryRepairEvent,
 } from '../memory/accepted.js';
+import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { MemoryService } from '../memory/service.js';
 import type { UsageProjection } from '../usage/usage.js';
 import {
@@ -237,6 +238,12 @@ export interface BridgeMethods {
   memoryGitCommitDiff(payload: unknown): BridgeResult<MemoryGitCommitDiff>;
   memoryWorkingChanges(payload: unknown): BridgeResult<{ changes: MemoryWorkingChange[] }>;
   memoryWorkingDiff(payload: unknown): BridgeResult<MemoryWorkingDiff>;
+  memoryRecoveryHistory(
+    payload: unknown,
+  ): BridgeResult<{ checkpoints: MemoryRecoveryCheckpoint[] }>;
+  memoryRestore(
+    payload: unknown,
+  ): BridgeResult<{ checkpoint: MemoryRecoveryCheckpoint; archivePath: string }>;
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
@@ -1867,6 +1874,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       }
       return memoryCall(() =>
         deps.memory!.workingDiff(scope.botSlug, path, kind as MemoryWorkingKind),
+      );
+    },
+    memoryRecoveryHistory(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      return memoryCall(() => ({ checkpoints: deps.memory!.recoveryHistory(scope.botSlug) }));
+    },
+    memoryRestore(payload) {
+      const scope = dmMemory(payload);
+      if (!('botSlug' in scope)) return scope;
+      const source = asObject(payload);
+      const checkpointId = asNonBlank(source, 'checkpointId');
+      const expectedCurrentId = asNonBlank(source, 'expectedCurrentId');
+      const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+      if (
+        checkpointId === undefined ||
+        expectedCurrentId === undefined ||
+        !uuid.test(checkpointId) ||
+        !uuid.test(expectedCurrentId)
+      )
+        return invalidInput('valid checkpointId and expectedCurrentId are required');
+      return memoryCall(() =>
+        deps.memory!.restoreHuman({
+          botSlug: scope.botSlug,
+          checkpointId,
+          expectedCurrentId,
+        }),
       );
     },
     memorySave(payload) {
