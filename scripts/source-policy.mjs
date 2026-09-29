@@ -59,12 +59,7 @@ function isException(path, item) {
     path === 'packages/client/src/client/hash-icon.tsx' &&
     item.line === 1 &&
     item.column === 1 &&
-    item.token.startsWith(
-      '/**\n * Vendored `hash` glyph from lucide-react@1.46.0 (ISC, ADR-0032).',
-    ) &&
-    item.token.includes('ISC License') &&
-    item.token.includes('Copyright (c) for portions of Lucide') &&
-    item.token.endsWith('PERFORMANCE OF THIS SOFTWARE.\n */')
+    item.hash === '8d64b9069cfcfaab'
   )
     return true;
   return false;

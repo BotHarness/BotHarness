@@ -100,6 +100,9 @@ describe('source policy', () => {
     const actual = await scanSource('packages/client/src/client/hash-icon.tsx', licenseSource);
     expect(actual.some((item) => item.token.includes('ISC License'))).toBe(false);
     expect(actual.some((item) => item.token.includes('IconProps'))).toBe(true);
+    const alteredLicense = licenseSource.replace('Permission to use', 'Permission to misuse');
+    const altered = await scanSource('packages/client/src/client/hash-icon.tsx', alteredLicense);
+    expect(altered.some((item) => item.token.includes('ISC License'))).toBe(true);
   });
 
   it('rejects new fingerprints and counts and reveals stale entries', async () => {
