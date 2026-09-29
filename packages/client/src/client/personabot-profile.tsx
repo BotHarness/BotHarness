@@ -206,14 +206,22 @@ export function ProfileView({
         <span>{t('profile.close')}</span>
       </button>
       <div className="bh-profile-view-identity">
-        <PersonaBotAvatar
-          t={t}
-          personaBotId={bot.slug}
-          name={bot.displayName}
-          src={bot.avatar}
-          size={64}
-          indicator={false}
-        />
+        <button
+          type="button"
+          className="bh-profile-avatar-button"
+          aria-label={t('profile.avatar.change')}
+          disabled={avatarBusy}
+          onClick={() => avatarInputRef.current?.click()}
+        >
+          <PersonaBotAvatar
+            t={t}
+            personaBotId={bot.slug}
+            name={bot.displayName}
+            src={bot.avatar}
+            size={64}
+            indicator={false}
+          />
+        </button>
         <div className="bh-profile-view-heading">
           {editing ? (
             <form className="bh-profile-name-edit" onSubmit={onSubmit}>
