@@ -2310,8 +2310,26 @@ class BotRuntimeImplementation implements BotRuntime {
                AND attempt_state = 'retryable'
           `)
           .run();
+        database
+          .prepare(`
+            UPDATE source_events SET observed_at = NULL
+             WHERE source_kind = 'memory-change'
+               AND source_event_id IN (
+                 SELECT source_event_id FROM inbox_admissions
+                  WHERE reason = 'memory-change' AND attempt_state = 'retryable'
+                    AND side_effect_started_at IS NULL
+               )
+          `)
+          .run();
+        database
+          .prepare(`
+            UPDATE inbox_admissions SET observed_at = NULL
+             WHERE reason = 'memory-change' AND attempt_state = 'retryable'
+               AND side_effect_started_at IS NULL
+          `)
+          .run();
       },
-      ['bot-inbox'],
+      ['source-event', 'bot-inbox'],
     );
   }
 

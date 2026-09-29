@@ -48,7 +48,7 @@ function launch(port) {
 }
 
 function cookie() {
-  const file = join('/tmp', `dsh-${basename(home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`);
+  const file = join(tmpdir(), `dsh-${basename(home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`);
   const value = readFileSync(file, 'utf8').split(';')[0];
   if (!value.includes('=')) throw new Error('DSH authentication cookie is unavailable');
   return value;

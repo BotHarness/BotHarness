@@ -46,7 +46,7 @@ function launch(port, build) {
     cwd: root,
     env,
     encoding: 'utf8',
-    timeout: 120_000,
+    timeout: 600_000,
     maxBuffer: 2 * 1024 * 1024,
   });
   if (result.error !== undefined || result.status !== 0) {
@@ -64,7 +64,7 @@ function launch(port, build) {
 }
 
 function cookie() {
-  const file = join('/tmp', `dsh-${basename(home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`);
+  const file = join(tmpdir(), `dsh-${basename(home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`);
   const value = readFileSync(file, 'utf8').split(';')[0];
   if (!value.includes('=')) throw new Error('DSH authentication cookie is unavailable');
   return value;

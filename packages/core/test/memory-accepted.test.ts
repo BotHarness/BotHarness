@@ -663,6 +663,31 @@ describe('worktree delta for out-of-band Memory changes', () => {
     }
   });
 
+  it('keeps a turn available when more than 500 working paths change', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      for (let index = 0; index < 505; index += 1) {
+        writeFileSync(join(root, `many-${String(index).padStart(3, '0')}.md`), 'x\n');
+      }
+      addSource('next');
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
+      expect(note).toContain('More than 500 working Memory changes');
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'next',
+      });
+      writeFileSync(join(root, 'many-505.md'), 'x\n');
+      addSource('after');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.summary).toContain(
+        'More than 500 working Memory changes',
+      );
+    } finally {
+      database.close();
+    }
+  });
+
   it('caps annotations in UTF-8 bytes without splitting characters', () => {
     const { database, memory, root, addSource } = fixture();
     try {

@@ -5,6 +5,7 @@ import {
   constants,
   cpSync,
   existsSync,
+  fstatSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -295,6 +296,8 @@ interface TurnWorktreeObservation {
   branch: string;
   head: string;
   files: TurnWorktreeFile[];
+  overflowHash?: string;
+  overflowCount?: number;
 }
 
 interface TurnWorktreeFile {
@@ -321,21 +324,48 @@ function indexVersions(root: string, paths: string[]): Map<string, string> {
   return versions;
 }
 
-function worktreeVersion(root: string, path: string): string {
+function unstableObservation(path: string): MemoryAcceptError {
+  return new MemoryAcceptError(
+    'memory-conflict',
+    `Memory file changed during observation: ${path}`,
+  );
+}
+
+function worktreeVersion(root: string, path: string, status: string): string {
   const target = join(root, toMemoryRelativePath(path));
   let stat;
   try {
     stat = lstatSync(target);
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent';
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      if (status.includes('D')) return 'absent';
+      throw unstableObservation(path);
+    }
     throw error;
   }
-  if (stat.isSymbolicLink()) return `link:${readlinkSync(target)}`;
+  if (stat.isSymbolicLink()) {
+    try {
+      return `link:${readlinkSync(target)}`;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw unstableObservation(path);
+      throw error;
+    }
+  }
   if (!stat.isFile()) return `mode:${stat.mode}:size:${stat.size}:mtime:${stat.mtimeMs}`;
   resolveMemoryPath(root, path);
   const hash = createHash('sha256');
-  const fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  let fd;
   try {
+    fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  } catch (error) {
+    if (['ENOENT', 'ELOOP', 'EISDIR'].includes((error as NodeJS.ErrnoException).code ?? ''))
+      throw unstableObservation(path);
+    throw error;
+  }
+  try {
+    const opened = fstatSync(fd);
+    if (!opened.isFile() || opened.dev !== stat.dev || opened.ino !== stat.ino)
+      throw unstableObservation(path);
     const buffer = Buffer.allocUnsafe(64 * 1024);
     if (stat.size > MAX_HASHED_FILE_BYTES) {
       for (const offset of [0, Math.max(0, stat.size - buffer.length)]) {
@@ -353,19 +383,30 @@ function worktreeVersion(root: string, path: string): string {
   } finally {
     closeSync(fd);
   }
-  const after = lstatSync(target);
-  if (!after.isFile() || after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
-    throw new MemoryAcceptError(
-      'memory-conflict',
-      `Memory file changed during observation: ${path}`,
-    );
+  let after;
+  try {
+    after = lstatSync(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') throw unstableObservation(path);
+    throw error;
   }
+  if (
+    !after.isFile() ||
+    after.dev !== stat.dev ||
+    after.ino !== stat.ino ||
+    after.size !== stat.size ||
+    after.mtimeMs !== stat.mtimeMs ||
+    after.ctimeMs !== stat.ctimeMs
+  )
+    throw unstableObservation(path);
   return `file:${hash.digest('hex')}`;
 }
 
-function porcelainFiles(root: string): TurnWorktreeFile[] {
+function porcelainFiles(
+  root: string,
+): Pick<TurnWorktreeObservation, 'files' | 'overflowHash' | 'overflowCount'> {
   const raw = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString('utf8');
-  if (raw.length === 0) return [];
+  if (raw.length === 0) return { files: [] };
   const changes: Array<{ path: string; status: string; oldPath?: string }> = [];
   const entries = raw.split('\0');
   for (let index = 0; index < entries.length; index += 1) {
@@ -380,26 +421,32 @@ function porcelainFiles(root: string): TurnWorktreeFile[] {
       if (oldPath !== undefined) change.oldPath = oldPath;
     }
     changes.push(change);
-    if (changes.length > MAX_OBSERVED_PATHS) {
-      throw new MemoryAcceptError('memory-invalid', 'Too many Memory working changes');
-    }
   }
+  const selected = changes
+    .sort((left, right) => left.path.localeCompare(right.path))
+    .slice(0, MAX_OBSERVED_PATHS);
   const index = indexVersions(
     root,
-    changes.map((change) => change.path),
+    selected.map((change) => change.path),
   );
-  return changes
-    .map((change) => ({
-      path: change.path,
-      status: change.status,
-      version: [
-        change.status,
-        change.oldPath ?? '',
-        index.get(change.path) ?? '',
-        worktreeVersion(root, change.path),
-      ].join('\0'),
-    }))
-    .sort((left, right) => left.path.localeCompare(right.path));
+  const files = selected.map((change) => ({
+    path: change.path,
+    status: change.status,
+    version: [
+      change.status,
+      change.oldPath ?? '',
+      index.get(change.path) ?? '',
+      worktreeVersion(root, change.path, change.status),
+    ].join('\0'),
+  }));
+  const after = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString(
+    'utf8',
+  );
+  if (after !== raw) throw unstableObservation('working tree');
+  const overflowCount = changes.length - selected.length;
+  return overflowCount > 0
+    ? { files, overflowHash: createHash('sha256').update(raw).digest('hex'), overflowCount }
+    : { files };
 }
 
 function currentWorkingChanges(root: string): MemoryWorkingChange[] {
@@ -429,7 +476,24 @@ function currentWorkingChanges(root: string): MemoryWorkingChange[] {
 }
 
 function observeWorktree(root: string): Omit<TurnWorktreeObservation, 'sessionId'> {
-  return { branch: branchOf(root), head: head(root), files: porcelainFiles(root) };
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const branch = branchOf(root);
+      const currentHead = head(root);
+      const files = porcelainFiles(root);
+      if (branch !== branchOf(root) || currentHead !== head(root))
+        throw unstableObservation('repository');
+      return { branch, head: currentHead, ...files };
+    } catch (error) {
+      if (
+        !(error instanceof MemoryAcceptError) ||
+        error.code !== 'memory-conflict' ||
+        attempt === 2
+      )
+        throw error;
+    }
+  }
+  throw unstableObservation('working tree');
 }
 
 function safeGit(root: string, args: string[]): string {
@@ -521,6 +585,16 @@ function buildTurnChange(
   const currentPaths = new Set(current.files.map((file) => file.path));
   const changed = current.files.filter((file) => previousFiles.get(file.path) !== file.version);
   const cleared = previous.files.filter((file) => !currentPaths.has(file.path));
+  if (
+    current.overflowHash !== previous.overflowHash ||
+    current.overflowCount !== previous.overflowCount
+  ) {
+    details.push(
+      current.overflowCount
+        ? `More than ${MAX_OBSERVED_PATHS} working Memory changes are present (${current.overflowCount} further paths).`
+        : `Working Memory changes are now within the ${MAX_OBSERVED_PATHS}-path observation limit.`,
+    );
+  }
   if (changed.length > 0) {
     const shown = changed.slice(0, MAX_ANNOTATION_PATHS);
     details.push(
@@ -655,6 +729,11 @@ export function createMemoryAcceptance(options: {
       typeof observation.head !== 'string' ||
       !Array.isArray(observation.files) ||
       observation.files.length > MAX_OBSERVED_PATHS ||
+      (observation.overflowHash !== undefined &&
+        !/^[0-9a-f]{64}$/u.test(observation.overflowHash)) ||
+      (observation.overflowCount !== undefined &&
+        (!Number.isInteger(observation.overflowCount) || observation.overflowCount < 1)) ||
+      (observation.overflowHash === undefined) !== (observation.overflowCount === undefined) ||
       observation.files.some(
         (file) =>
           typeof file.path !== 'string' ||

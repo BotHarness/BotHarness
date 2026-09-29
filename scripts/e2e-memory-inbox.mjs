@@ -125,6 +125,7 @@ try {
     await page.waitForSelector(botMode, { timeout: 20_000 });
   } catch (error) {
     const diagnostic = resolve(dirname(screenshot), 'memory-inbox-page-diagnostic.png');
+    mkdirSync(dirname(diagnostic), { recursive: true });
     await page.screenshot({ path: diagnostic, fullPage: false });
     console.error(
       JSON.stringify(
@@ -179,7 +180,9 @@ try {
   });
   await sleep(1000);
   const visible = await page.evaluate(() =>
-    document.body.innerText.includes('qa-memory-change.md'),
+    Array.from(document.querySelectorAll('.bh-inbox-item-info .bh-inbox-item-summary')).some(
+      (node) => node.textContent?.includes('qa-memory-change.md'),
+    ),
   );
   mkdirSync(dirname(screenshot), { recursive: true });
   await page.screenshot({ path: screenshot, fullPage: false });

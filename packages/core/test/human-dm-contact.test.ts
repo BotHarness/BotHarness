@@ -235,10 +235,38 @@ describe('Human DM selected contact context', () => {
         .items.filter((item) => item.reason === 'memory-change');
       expect(pending).toHaveLength(1);
       expect(runs).toHaveLength(1);
+      attachOperationalModule(core.operationalDatabase, 'memory-restart-test').transaction((db) => {
+        db.prepare(
+          "UPDATE source_events SET observed_at = '2026-09-26T00:00:00.000Z' WHERE source_kind = 'memory-change'",
+        ).run();
+        db.prepare(
+          "UPDATE inbox_admissions SET observed_at = '2026-09-26T00:00:00.000Z', attempt_state = 'running' WHERE reason = 'memory-change'",
+        ).run();
+      });
       await core.runtime.close();
       core.operationalDatabase.close();
 
       core = createCore({ dshHome: home, agents });
+      const recovered = attachOperationalModule(
+        core.operationalDatabase,
+        'memory-restart-test',
+      ).read(
+        (db) =>
+          db
+            .prepare(`SELECT e.observed_at AS event_observed, a.observed_at AS admission_observed,
+                a.attempt_state FROM source_events e JOIN inbox_admissions a
+                ON a.source_event_id = e.source_event_id WHERE e.source_kind = 'memory-change'`)
+            .get() as {
+            event_observed: string | null;
+            admission_observed: string | null;
+            attempt_state: string;
+          },
+      );
+      expect(recovered).toEqual({
+        event_observed: null,
+        admission_observed: null,
+        attempt_state: 'retryable',
+      });
       expect(
         core.attention
           .list({ botSlug: 'ada' })
