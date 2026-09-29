@@ -87,6 +87,7 @@ describe('shared local DeepSeek dev credential', () => {
     const source = join(home, 'dev.env');
     writeFileSync(source, 'export DEEPSEEK_API_KEY=not a key\n', { mode: 0o600 });
     expect(() => adoptSharedEnv(source, destination)).toThrow();
+    expect(() => adoptSharedEnv(join(home, 'missing.env'), destination)).toThrow('not found');
   });
 
   it('never overwrites a shared credential already created', () => {

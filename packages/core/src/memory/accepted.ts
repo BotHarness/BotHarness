@@ -805,22 +805,28 @@ export function createMemoryAcceptance(options: {
     try {
       const root = repository(registry, botSlug);
       const current = observeWorktree(root);
-      recovery.capture(
-        botSlug,
-        root,
-        {
-          origin: 'agent-session',
-          originId: sessionId,
-          causeKind,
-          causeId,
-        },
-        beforeObservationJson !== undefined && JSON.stringify(current) !== beforeObservationJson,
-      );
       saveObservation(botSlug, root, current);
+      try {
+        recovery.capture(
+          botSlug,
+          root,
+          {
+            origin: 'agent-session',
+            originId: sessionId,
+            causeKind,
+            causeId,
+          },
+          beforeObservationJson !== undefined && JSON.stringify(current) !== beforeObservationJson,
+        );
+      } catch (error) {
+        options.warn?.(
+          `memory-recovery-capture-failed phase=turn-observation bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+        );
+      }
       return true;
     } catch (error) {
       options.warn?.(
-        `memory-recovery-capture-failed phase=turn-observation bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+        `memory-observation-failed phase=turn-observation bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
       );
       return false;
     }
@@ -839,12 +845,18 @@ export function createMemoryAcceptance(options: {
     const previous = readObservation(botSlug, root);
     const change = previous === undefined ? undefined : buildTurnChange(root, previous, current);
     if (previous === undefined || change !== undefined) {
-      recovery.capture(botSlug, root, {
-        origin: 'host-observation',
-        originId: 'botharness-host',
-        causeKind: 'memory-scan',
-        causeId: botSlug,
-      });
+      try {
+        recovery.capture(botSlug, root, {
+          origin: 'host-observation',
+          originId: 'botharness-host',
+          causeKind: 'memory-scan',
+          causeId: botSlug,
+        });
+      } catch (error) {
+        options.warn?.(
+          `memory-recovery-capture-failed phase=scan bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+        );
+      }
     }
     return {
       change,
@@ -1493,7 +1505,13 @@ export function createMemoryAcceptance(options: {
           input.checkpointId,
           input.expectedCurrentId,
         );
-        saveObservation(input.botSlug, root, observeWorktree(root));
+        try {
+          saveObservation(input.botSlug, root, observeWorktree(root));
+        } catch (error) {
+          options.warn?.(
+            `memory-observation-failed phase=after-restore bot=${input.botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+          );
+        }
         return result;
       } catch (error) {
         throw new MemoryAcceptError('memory-conflict', `Memory restore failed: ${String(error)}`);
@@ -1734,12 +1752,18 @@ export function createMemoryAcceptance(options: {
       );
       if (accepted === undefined)
         throw new MemoryAcceptError('memory-invalid', 'Memory edit was not accepted');
-      recovery.capture(input.botSlug, root, {
-        origin: 'human-command',
-        originId: LOCAL_HUMAN_ID,
-        causeKind: 'human-edit',
-        causeId: input.editId,
-      });
+      try {
+        recovery.capture(input.botSlug, root, {
+          origin: 'human-command',
+          originId: LOCAL_HUMAN_ID,
+          causeKind: 'human-edit',
+          causeId: input.editId,
+        });
+      } catch (error) {
+        options.warn?.(
+          `memory-recovery-capture-failed phase=after-human-edit bot=${input.botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+        );
+      }
       return accepted;
     },
   };

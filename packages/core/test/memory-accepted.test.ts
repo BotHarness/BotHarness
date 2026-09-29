@@ -693,6 +693,32 @@ describe('worktree delta for out-of-band Memory changes', () => {
     }
   });
 
+  it('keeps turns available and advances the observation after an unresolved merge', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      writeFileSync(join(root, 'conflict.md'), 'base\n');
+      git(root, 'add', 'conflict.md');
+      git(root, 'commit', '-m', 'Base note');
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '-c', 'side');
+      writeFileSync(join(root, 'conflict.md'), 'side\n');
+      git(root, 'commit', '-am', 'Side note');
+      git(root, 'switch', 'main');
+      writeFileSync(join(root, 'conflict.md'), 'main\n');
+      git(root, 'commit', '-am', 'Main note');
+      expect(() => git(root, 'merge', 'side')).toThrow();
+      expect(git(root, 'ls-files', '-u')).not.toBe('');
+      addSource('conflicted');
+      expect(() => memory.prepareTurn('atlas', 'session-atlas')).not.toThrow();
+      memory.abortTurn('atlas', 'session-atlas');
+      addSource('next');
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
   it('counts overflowed paths instead of silently dropping them', () => {
     const { database, memory, root, addSource } = fixture();
     try {

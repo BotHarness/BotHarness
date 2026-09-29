@@ -34,12 +34,14 @@ describe('Memory recovery checkpoints', () => {
         });
         git(root, 'config', 'user.name', 'Test Author');
         git(root, 'config', 'user.email', 'test@example.com');
+        git(root, 'config', 'commit.gpgsign', 'true');
         const baseline = memory.capture('atlas', root, {
           origin: 'host-observation',
           originId: 'botharness-host',
           causeKind: 'memory-scan',
           causeId: 'atlas',
         });
+        git(root, 'config', '--unset', 'commit.gpgsign');
         writeFileSync(join(root, 'note.md'), 'original\n');
         git(root, 'add', 'note.md');
         git(root, 'commit', '-m', 'Add note');
@@ -101,6 +103,8 @@ describe('Memory recovery checkpoints', () => {
         expect(() => memory.restore('atlas', root, dirty.id, reset.id)).toThrow(
           'Memory changed since recovery was opened',
         );
+        expect(memory.latest('atlas')?.origin).toBe('host-observation');
+        expect(memory.latest('atlas')?.causeKind).toBe('memory-scan');
         expect(readFileSync(join(root, 'unobserved.txt'), 'utf8')).toBe('must survive refusal\n');
         git(root, 'clean', '-fd');
         const current = memory.capture('atlas', root, {

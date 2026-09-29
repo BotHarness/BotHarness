@@ -69,6 +69,8 @@ function git(
         '-c',
         'core.fsmonitor=false',
         '-c',
+        'commit.gpgsign=false',
+        '-c',
         'core.attributesFile=/dev/null',
         '-c',
         'user.name=BotHarness',
@@ -254,10 +256,10 @@ export function createMemoryRecovery(options: {
     const target = targetRow === undefined ? undefined : rowToCheckpoint(targetRow);
     if (target === undefined) throw new Error('Unknown Memory recovery checkpoint');
     const current = capture(botSlug, root, {
-      origin: 'human-command',
-      originId: LOCAL_HUMAN_ID,
-      causeKind: 'human-restore',
-      causeId: targetId,
+      origin: 'host-observation',
+      originId: 'botharness-host',
+      causeKind: 'memory-scan',
+      causeId: botSlug,
     });
     if (current.id !== expectedCurrentId)
       throw new Error('Memory changed since recovery was opened');
@@ -316,12 +318,18 @@ export function createMemoryRecovery(options: {
         renameSync(archivePath, root);
         throw error;
       }
-      capture(botSlug, root, {
-        origin: 'human-command',
-        originId: LOCAL_HUMAN_ID,
-        causeKind: 'human-restore',
-        causeId: targetId,
-      });
+      try {
+        capture(botSlug, root, {
+          origin: 'human-command',
+          originId: LOCAL_HUMAN_ID,
+          causeKind: 'human-restore',
+          causeId: targetId,
+        });
+      } catch (error) {
+        options.warn?.(
+          `memory-recovery-capture-failed phase=after-restore bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+        );
+      }
       return { checkpoint: target, archivePath };
     } finally {
       if (existsSync(stage)) rmSync(stage, { recursive: true, force: true });

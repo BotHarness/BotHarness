@@ -85,7 +85,10 @@ export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) 
 }
 
 export function adoptSharedEnv(sourcePath, destination = DEV_ENV_PATH) {
-  const credential = fromDevEnvFile(resolve(sourcePath));
+  const resolved = resolve(sourcePath);
+  if (!existsSync(resolved))
+    throw new Error(`Shared DeepSeek dev secret file not found: ${resolved}`);
+  const credential = fromDevEnvFile(resolved);
   if (credential === undefined || !/^[A-Za-z0-9._-]+$/u.test(credential.value)) {
     throw new Error('No compatible DEEPSEEK_API_KEY in the selected shared file');
   }
