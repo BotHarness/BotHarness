@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
+import { useMountedResource } from './mounted-resource.js';
 
 const PREVIEW_SIZE = 280;
 const OUTPUT_SIZE = 128;
@@ -26,7 +27,10 @@ export function GroupAvatarCropModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const drag = useRef<{ x: number; y: number; offsetX: number; offsetY: number }>();
-  useEffect(() => {
+  const sourceMount = useMountedResource<HTMLDivElement>(() => {
+    setSource(undefined);
+    setDimensions(undefined);
+    setError(false);
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type) || file.size > 5_000_000) {
       setError(true);
       return;
@@ -98,7 +102,7 @@ export function GroupAvatarCropModal({
         </>
       }
     >
-      <div className="bh-group-avatar-crop">
+      <div className="bh-group-avatar-crop" ref={sourceMount}>
         <div
           className="bh-group-avatar-crop-viewport"
           role="img"

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 import { Button, Input, Menu } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { MemoryGitGraph, MemorySnapshot, MemoryWorkingChange } from './bridge.js';
@@ -14,6 +14,7 @@ import {
 } from './memory-git-lanes.js';
 import { MemoryWorkingGroups } from './memory-working-groups.js';
 import { MemoryRecovery } from './memory-recovery.js';
+import { useMountedResource } from './mounted-resource.js';
 
 type MemoryCache = {
   snapshot: MemorySnapshot | undefined;
@@ -111,7 +112,7 @@ export function MemoryEntry({
     closeBranchMenu();
   };
 
-  useEffect(() => {
+  const graphMount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     const requestGeneration = memoryRequestGeneration.current;
     let graphTimer: ReturnType<typeof setTimeout> | undefined;
@@ -194,7 +195,7 @@ export function MemoryEntry({
     };
   }, [actions, channelId, refresh, refreshRevision, conversationRevision, showFiles]);
 
-  useEffect(() => {
+  const workingMount = useMountedResource<HTMLDivElement>(() => {
     if (showFiles) return;
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -246,7 +247,7 @@ export function MemoryEntry({
     };
   }, [actions, channelId, refresh, refreshRevision, conversationRevision, showFiles]);
 
-  useEffect(() => {
+  const fileMount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     const requestGeneration = memoryRequestGeneration.current;
     const cachedFile = path === undefined ? undefined : cache.files.get(path);
@@ -390,9 +391,9 @@ export function MemoryEntry({
   };
 
   return (
-    <div className="bh-memory-entry">
+    <div className="bh-memory-entry" ref={graphMount}>
       {showFiles ? (
-        <div className="bh-memory-toolbar">
+        <div className="bh-memory-toolbar" ref={fileMount}>
           <span>{t('memory.accepted')}</span>
           <button type="button" onClick={() => setRefresh((value) => value + 1)}>
             {t('memory.refresh')}
@@ -493,7 +494,7 @@ export function MemoryEntry({
             ))}
         </>
       )}
-      <div className="bh-memory-history">
+      <div className="bh-memory-history" ref={workingMount}>
         {graph === undefined ? (
           graphError === undefined ? (
             <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />

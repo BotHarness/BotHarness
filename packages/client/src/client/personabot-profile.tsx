@@ -20,6 +20,7 @@ import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import { ModelPresetProfile } from './model-preset-profile.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
 function RoleBadges({ roles }: { roles: readonly string[] }): ReactElement | null {
   if (roles.length === 0) return null;
@@ -135,13 +136,20 @@ export function ProfileView({
   const [sourcePolicySaveError, setSourcePolicySaveError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
+  const activeBotSlug = useRef<string | undefined>(undefined);
+  const sourcePolicyGeneration = useRef(0);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
   const unchanged = trimmed === bot.displayName.trim();
   const visibleCards = cards.list().filter((card) => card.visible?.(bot) ?? true);
 
-  useEffect(() => {
+  const sourcePolicyMount = useMountedResource<HTMLDivElement>(() => {
+    ++sourcePolicyGeneration.current;
+    activeBotSlug.current = bot.slug;
     let active = true;
+    setSourcePolicyBusy(false);
+    setSourcePolicySaveError(false);
+    setEditingSourcePolicy(undefined);
     setSourcePolicies(undefined);
     setSourcePolicyError(false);
     void actions.botSourcePolicies(bot.slug).then(
@@ -154,6 +162,8 @@ export function ProfileView({
     );
     return () => {
       active = false;
+      ++sourcePolicyGeneration.current;
+      activeBotSlug.current = undefined;
     };
   }, [actions, bot.slug]);
 
@@ -174,6 +184,9 @@ export function ProfileView({
     }
     setSourcePolicyBusy(true);
     setSourcePolicySaveError(false);
+    const generation = sourcePolicyGeneration.current;
+    const current = (): boolean =>
+      activeBotSlug.current === bot.slug && sourcePolicyGeneration.current === generation;
     try {
       if (reset) await actions.resetBotSourcePolicy(bot.slug, editingSourcePolicy);
       else if (editingSourcePolicy === 'assignment-report') {
@@ -198,12 +211,15 @@ export function ProfileView({
           digestIntervalSeconds: digestIntervalDraft,
         });
       }
-      setSourcePolicies(await actions.botSourcePolicies(bot.slug));
+      if (!current()) return;
+      const policies = await actions.botSourcePolicies(bot.slug);
+      if (!current()) return;
+      setSourcePolicies(policies);
       setEditingSourcePolicy(undefined);
     } catch {
-      setSourcePolicySaveError(true);
+      if (current()) setSourcePolicySaveError(true);
     } finally {
-      setSourcePolicyBusy(false);
+      if (current()) setSourcePolicyBusy(false);
     }
   };
 
@@ -254,7 +270,7 @@ export function ProfileView({
   };
 
   return (
-    <div className="bh-profile-view">
+    <div className="bh-profile-view" ref={sourcePolicyMount}>
       <button type="button" className="bh-profile-back" onClick={onClose}>
         <IconChevronLeftOutlineRegular />
         <span>{t('profile.close')}</span>

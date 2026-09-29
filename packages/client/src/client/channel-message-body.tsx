@@ -13,7 +13,8 @@ import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import { referenceRuns } from './channel-refs.js';
 import type { BridgeActions, HostDirectoryListing } from './actions.js';
-import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entry.js';
+import { FolderBrowser } from './workspace-grants-entry.js';
+import { publishWorkspaceGrantChange, WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
 
@@ -460,9 +461,7 @@ function GrantRequestCard({
           throw new Error(t('grant.requestChannelChanged'));
         }
         const grant = await actions.authorizeWorkspacePath(botSlug, path);
-        window.dispatchEvent(
-          new CustomEvent(WORKSPACE_GRANTS_CHANGED, { detail: { slug: botSlug } }),
-        );
+        publishWorkspaceGrantChange(botSlug);
         if (store.getSnapshot().conversation.channel?.id !== expectedChannel) {
           throw new Error(t('grant.requestChannelChanged'));
         }
