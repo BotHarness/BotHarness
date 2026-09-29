@@ -1,5 +1,4 @@
 import {
-  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -104,6 +103,7 @@ import {
   UNGROUPED_MOVE_TARGET,
 } from './section-management.js';
 import { store, type BotSummary, type ChannelSummary, type ClientState } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export function useClientState(): ClientState {
   return useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
@@ -126,33 +126,32 @@ export function BotPanelIcon({
   t,
 }: BotPanelEntryProps & { onExit: () => void }): ReactElement {
   const icon = useBotModePrefs((prefs) => prefs.botIcon);
-  const glyph = useRef<HTMLSpanElement>(null);
   const [row, setRow] = useState<HTMLElement | null>(null);
   const wide = size === 16;
 
-  useEffect(() => {
-    const button = glyph.current?.closest('button') ?? null;
-    setRow(button);
-    button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
-  }, [size, icon]);
-
-  useEffect(() => {
-    if (row === null || !active) return () => {};
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Enter' && event.key !== ' ') return;
-      if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
-      event.preventDefault();
-      event.stopPropagation();
-      onExit();
-    };
-    row.addEventListener('keydown', onKeyDown);
-    return () => {
-      row.removeEventListener('keydown', onKeyDown);
-    };
-  }, [row, active, onExit]);
+  const glyphMount = useMountedResource<HTMLSpanElement>(
+    (glyph) => {
+      const button = glyph.closest('button');
+      setRow(button);
+      button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
+      if (button === null || !active) return;
+      const onKeyDown = (event: KeyboardEvent): void => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        if ((event.target as Element | null)?.closest('.bh-panel-gear') !== null) return;
+        event.preventDefault();
+        event.stopPropagation();
+        onExit();
+      };
+      button.addEventListener('keydown', onKeyDown);
+      return () => {
+        button.removeEventListener('keydown', onKeyDown);
+      };
+    },
+    [size, icon, active, onExit],
+  );
 
   return (
-    <span className="bh-panel-glyph" ref={glyph} {...(wide ? { 'data-wide': 'true' } : {})}>
+    <span className="bh-panel-glyph" ref={glyphMount} {...(wide ? { 'data-wide': 'true' } : {})}>
       <BotIcon icon={icon} size={size} />
       {active && row !== null
         ? createPortal(
@@ -667,72 +666,25 @@ export function BotSidebar({
   const [createRequest, setCreateRequest] = useState<CreateRequest | undefined>(undefined);
   const [renameTarget, setRenameTarget] = useState<RosterSection | undefined>(undefined);
   const [deleteTarget, setDeleteTarget] = useState<RosterSection | undefined>(undefined);
-  const searchRoot = useRef<HTMLDivElement | null>(null);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const pinZoneArmTimer = useRef<number | undefined>(undefined);
-
-  useEffect(
-    () => () => {
-      if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
+  const searchQueryRef = useRef(state.query);
+  searchQueryRef.current = state.query;
+  const searchMount = useMountedResource<HTMLDivElement>(
+    (node) => {
+      if (!searchOpen) return;
+      node.querySelector<HTMLInputElement>('.bh-search-input')?.focus({ preventScroll: true });
+      const onClick = (event: MouseEvent): void => {
+        if (!(event.target instanceof Node) || node.contains(event.target)) return;
+        searchInput.current?.blur();
+        if (searchQueryRef.current.trim() !== '') return;
+        setSearchOpen(false);
+      };
+      document.addEventListener('click', onClick);
+      return () => document.removeEventListener('click', onClick);
     },
-    [],
+    [searchOpen],
   );
-
-  useEffect(() => {
-    if (searchOpen) searchInput.current?.focus({ preventScroll: true });
-  }, [searchOpen]);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.altKey && !event.getModifierState('AltGraph')) setShowShortcutHints(true);
-    };
-    const onKeyUp = (event: KeyboardEvent): void => {
-      if (!event.altKey || event.getModifierState('AltGraph')) setShowShortcutHints(false);
-    };
-    const clear = (): void => setShowShortcutHints(false);
-    const onVisibilityChange = (): void => {
-      if (document.hidden) clear();
-    };
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
-    document.addEventListener('visibilitychange', onVisibilityChange);
-    window.addEventListener('blur', clear);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-      document.removeEventListener('keyup', onKeyUp);
-      document.removeEventListener('visibilitychange', onVisibilityChange);
-      window.removeEventListener('blur', clear);
-    };
-  }, []);
-
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape' || event.defaultPrevented) return;
-      if (webShortcutBlocked(event.target, document)) return;
-      if (document.querySelector('[role="menu"]') !== null) return;
-      setChannelSelection((current) =>
-        current.ids.length === 0 ? current : { ids: [], anchorId: undefined },
-      );
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
-  }, []);
-
-  useEffect(() => {
-    if (!searchOpen) return;
-    const onClick = (event: MouseEvent): void => {
-      if (!(event.target instanceof Node) || searchRoot.current?.contains(event.target) === true) {
-        return;
-      }
-      searchInput.current?.blur();
-      if (state.query.trim() !== '') return;
-      setSearchOpen(false);
-    };
-    document.addEventListener('click', onClick);
-    return () => {
-      document.removeEventListener('click', onClick);
-    };
-  }, [searchOpen, state.query]);
 
   const query = state.query.trim().toLowerCase();
   const botBySlug = new Map(state.bots.map((bot) => [bot.slug, bot]));
@@ -883,8 +835,35 @@ export function BotSidebar({
     : [...railPinnedChannels, ...railChannels].map((channel) => channel.id);
   const shortcutIdsRef = useRef<readonly string[]>(shortcutIds);
   shortcutIdsRef.current = shortcutIds;
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent): void => {
+  const dragActiveRef = useRef(false);
+  const rosterMount = useMountedResource<HTMLDivElement>(() => {
+    const acceptDrag = (event: DragEvent): void => {
+      if (!dragActiveRef.current) return;
+      event.preventDefault();
+      if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'move';
+    };
+    const acceptDrop = (event: DragEvent): void => {
+      if (dragActiveRef.current) event.preventDefault();
+    };
+    const onHintDown = (event: KeyboardEvent): void => {
+      if (event.altKey && !event.getModifierState('AltGraph')) setShowShortcutHints(true);
+    };
+    const onHintUp = (event: KeyboardEvent): void => {
+      if (!event.altKey || event.getModifierState('AltGraph')) setShowShortcutHints(false);
+    };
+    const clearHints = (): void => setShowShortcutHints(false);
+    const onVisibilityChange = (): void => {
+      if (document.hidden) clearHints();
+    };
+    const onSelectionEscape = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape' || event.defaultPrevented) return;
+      if (webShortcutBlocked(event.target, document)) return;
+      if (document.querySelector('[role="menu"]') !== null) return;
+      setChannelSelection((current) =>
+        current.ids.length === 0 ? current : { ids: [], anchorId: undefined },
+      );
+    };
+    const onChannelShortcut = (event: KeyboardEvent): void => {
       const index = webChannelShortcutIndex(event.code, {
         alt: event.altKey,
         ctrl: event.ctrlKey,
@@ -906,8 +885,25 @@ export function BotSidebar({
         ? actions.openChannel(id)
         : actions.openBot(channel.botSlug));
     };
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener('keydown', onHintDown);
+    document.addEventListener('keyup', onHintUp);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', clearHints);
+    document.addEventListener('keydown', onSelectionEscape);
+    document.addEventListener('keydown', onChannelShortcut);
+    document.addEventListener('dragover', acceptDrag);
+    document.addEventListener('drop', acceptDrop);
+    return () => {
+      document.removeEventListener('keydown', onHintDown);
+      document.removeEventListener('keyup', onHintUp);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', clearHints);
+      document.removeEventListener('keydown', onSelectionEscape);
+      document.removeEventListener('keydown', onChannelShortcut);
+      document.removeEventListener('dragover', acceptDrag);
+      document.removeEventListener('drop', acceptDrop);
+      if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
+    };
   }, [actions]);
   const shortcutFor = (channelId: string): string | undefined =>
     webChannelShortcutLabel(shortcutIds.indexOf(channelId));
@@ -1296,7 +1292,9 @@ export function BotSidebar({
     gapPropsFor: channelGapDropProps,
     clearGapHover,
   } = useChannelDrag(commitChannelDrag, commitChannelScopeDrop, commitChannelGapDrop);
-  const { propsFor: sectionDragProps } = useSectionDrag(commitSectionDrag);
+  const { active: sectionDragActive, propsFor: sectionDragProps } =
+    useSectionDrag(commitSectionDrag);
+  dragActiveRef.current = channelDragActive || sectionDragActive;
 
   const renderChannelRow = (channel: ChannelSummary, scopeId: ScopeId): ReactElement => {
     const drag = channelDragProps(scopeId, channel.id);
@@ -1421,6 +1419,7 @@ export function BotSidebar({
 
   return (
     <div
+      ref={rosterMount}
       className="bh-root bh-region"
       onDragOver={(event) => {
         if (!channelDragActive) return;
@@ -1459,7 +1458,7 @@ export function BotSidebar({
         </span>
         <div className={`bh-search-slot${searchOpen ? ' bh-search-slot-open' : ''}`}>
           <div
-            ref={searchRoot}
+            ref={searchMount}
             className={`bh-search${searchOpen ? ' bh-search-open' : ''}`}
             onClick={() => {
               setMenuOpen(false);
@@ -2327,7 +2326,7 @@ export function BulkChannelMenu({
   onClose: () => void;
 }): ReactElement {
   const proxy = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
+  const menuMount = useMountedResource<HTMLSpanElement>(() => {
     const timer = window.setTimeout(() => {
       const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
       lists
@@ -2356,7 +2355,7 @@ export function BulkChannelMenu({
     { id: 'hide', label: t('bulk.hide', { items: itemsLabel }) },
   ];
   return (
-    <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
+    <span ref={menuMount} className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
       <Menu
         open
         portal
@@ -2403,7 +2402,7 @@ export function ChannelMoveMenu({
   onClose: () => void;
 }): ReactElement {
   const proxy = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
+  const menuMount = useMountedResource<HTMLSpanElement>(() => {
     const timer = window.setTimeout(() => {
       const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
       lists
@@ -2431,7 +2430,7 @@ export function ChannelMoveMenu({
     ...hideItems,
   ];
   return (
-    <span className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
+    <span ref={menuMount} className="bh-menu-anchor" style={{ left: menu.x, top: menu.y }}>
       <Menu
         open
         portal

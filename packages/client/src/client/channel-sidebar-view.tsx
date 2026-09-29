@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useId,
   useRef,
   useState,
@@ -239,11 +238,8 @@ export function ChannelSidebar({
     return () => window.clearInterval(timer);
   }, [selectedBotSlug, actions]);
   const closeRef = useRef(controller);
-  useEffect(() => {
-    closeRef.current = controller;
-  });
-  useEffect(() => {
-    if (controller.mode !== 'overlay') return;
+  closeRef.current = controller;
+  const overlayMount = useMountedResource<HTMLDivElement>(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key === 'Escape') closeRef.current.close();
     };
@@ -352,7 +348,7 @@ export function ChannelSidebar({
   );
   if (controller.mode === 'overlay') {
     return (
-      <div className="bh-channel-sidebar-overlay-layer">
+      <div ref={overlayMount} className="bh-channel-sidebar-overlay-layer">
         <div
           className="bh-channel-sidebar-backdrop"
           aria-hidden="true"

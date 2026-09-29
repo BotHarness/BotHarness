@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 export type ScopeId = string | undefined;
 
@@ -24,25 +24,6 @@ export interface ChannelDragProps {
   hover: (half: 'before' | 'after') => void;
   drop: (half: 'before' | 'after') => void;
   end: () => void;
-}
-
-function useNativeDragAcceptance(active: boolean): void {
-  useEffect(() => {
-    if (!active) return;
-    const acceptDrag = (event: DragEvent): void => {
-      event.preventDefault();
-      if (event.dataTransfer !== null) event.dataTransfer.dropEffect = 'move';
-    };
-    const acceptDrop = (event: DragEvent): void => {
-      event.preventDefault();
-    };
-    document.addEventListener('dragover', acceptDrag);
-    document.addEventListener('drop', acceptDrop);
-    return () => {
-      document.removeEventListener('dragover', acceptDrag);
-      document.removeEventListener('drop', acceptDrop);
-    };
-  }, [active]);
 }
 
 export type ChannelDropCommit = (
@@ -90,7 +71,6 @@ export function useChannelDrag(
   commitGap: ChannelGapDropCommit,
 ): ChannelDragHandle {
   const [drag, setDrag] = useState<ChannelDragState | null>(null);
-  useNativeDragAcceptance(drag !== null);
 
   const clearOver = (
     current: ChannelDragState,
@@ -212,12 +192,12 @@ export interface SectionDragProps {
 export type SectionDropCommit = (sectionId: string, target: SectionDropTarget) => void;
 
 export interface SectionDragHandle {
+  active: boolean;
   propsFor: (sectionId: string) => SectionDragProps;
 }
 
 export function useSectionDrag(commit: SectionDropCommit): SectionDragHandle {
   const [drag, setDrag] = useState<SectionDragState | null>(null);
-  useNativeDragAcceptance(drag !== null);
 
   const propsFor = (sectionId: string): SectionDragProps => {
     const marker = drag !== null && drag.over?.sectionId === sectionId ? drag.over.half : null;
@@ -243,5 +223,5 @@ export function useSectionDrag(commit: SectionDropCommit): SectionDragHandle {
     };
   };
 
-  return { propsFor };
+  return { active: drag !== null, propsFor };
 }

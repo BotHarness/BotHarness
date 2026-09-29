@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactElement } from 'react';
+import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
 import {
   IconChevronLeftOutlineRegular,
@@ -134,7 +134,10 @@ export function ProfileView({
   const [digestIntervalDraft, setDigestIntervalDraft] = useState(30);
   const [sourcePolicyBusy, setSourcePolicyBusy] = useState(false);
   const [sourcePolicySaveError, setSourcePolicySaveError] = useState(false);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const nameInputMount = useMountedResource<HTMLInputElement>((input) => {
+    input.focus();
+    input.select();
+  }, []);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const activeBotSlug = useRef<string | undefined>(undefined);
   const sourcePolicyGeneration = useRef(0);
@@ -223,12 +226,6 @@ export function ProfileView({
     }
   };
 
-  useEffect(() => {
-    if (!editing) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
-  }, [editing]);
-
   const startEditing = (): void => {
     setDraft(bot.displayName);
     setError(undefined);
@@ -296,7 +293,7 @@ export function ProfileView({
           {editing ? (
             <form className="bh-profile-name-edit" onSubmit={onSubmit}>
               <NameInput
-                ref={inputRef}
+                ref={nameInputMount}
                 value={draft}
                 aria-label={t('bot.name.label')}
                 disabled={busy}

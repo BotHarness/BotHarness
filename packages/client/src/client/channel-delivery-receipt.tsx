@@ -1,11 +1,11 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { useId, useRef, useState, type ReactElement } from 'react';
 import { createPortal } from 'react-dom';
 
 import { PersonaBotAvatar } from './avatar.js';
 import type { BotHarnessKey, BotHarnessTranslate } from './locale.js';
 import type { BotSummary, ChannelMessage } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
-const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 type Delivery = NonNullable<ChannelMessage['deliveries']>[number];
 type DeliveryState = Delivery['state'] | 'human-read' | 'human-unread';
 type Recipient =
@@ -55,7 +55,7 @@ export function ChannelDeliveryReceipt({
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<{ left: number; top: number } | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
   const panelId = useId();
   const signature = recipients
     .map(
@@ -71,58 +71,56 @@ export function ChannelDeliveryReceipt({
     .map(({ state, recipients }) => recipients.length + ' ' + stateLabel(state, t))
     .join(' · ');
 
-  useClientLayoutEffect(() => {
-    if (!open) return;
-    const place = (): void => {
-      const anchor = anchorRef.current?.getBoundingClientRect();
-      const panel = panelRef.current;
-      if (anchor === undefined || panel === null) return;
-      const width = panel.offsetWidth;
-      const height = panel.offsetHeight;
-      const left = Math.max(
-        8,
-        Math.min(anchor.left + anchor.width / 2 - width / 2, window.innerWidth - width - 8),
-      );
-      const below = anchor.bottom + 8;
-      const top =
-        below + height <= window.innerHeight - 8 ? below : Math.max(8, anchor.top - height - 8);
-      setPosition((previous) =>
-        previous?.left === left && previous.top === top ? previous : { left, top },
-      );
-    };
-    place();
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-    return () => {
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [open, signature]);
-
-  useEffect(() => {
-    if (!open) return;
-    panelRef.current?.focus();
-    const dismissOutside = (event: Event): void => {
-      const target = event.target;
-      if (!(target instanceof Node)) return;
-      if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return;
-      setOpen(false);
-    };
-    const dismissEscape = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      setOpen(false);
-      anchorRef.current?.focus();
-    };
-    document.addEventListener('pointerdown', dismissOutside);
-    document.addEventListener('focusin', dismissOutside);
-    window.addEventListener('keydown', dismissEscape);
-    return () => {
-      document.removeEventListener('pointerdown', dismissOutside);
-      document.removeEventListener('focusin', dismissOutside);
-      window.removeEventListener('keydown', dismissEscape);
-    };
-  }, [open]);
+  const panelMount = useMountedResource<HTMLDivElement>(
+    (panel) => {
+      panelRef.current = panel;
+      const place = (): void => {
+        const anchor = anchorRef.current?.getBoundingClientRect();
+        const panel = panelRef.current;
+        if (anchor === undefined || panel === null) return;
+        const width = panel.offsetWidth;
+        const height = panel.offsetHeight;
+        const left = Math.max(
+          8,
+          Math.min(anchor.left + anchor.width / 2 - width / 2, window.innerWidth - width - 8),
+        );
+        const below = anchor.bottom + 8;
+        const top =
+          below + height <= window.innerHeight - 8 ? below : Math.max(8, anchor.top - height - 8);
+        setPosition((previous) =>
+          previous?.left === left && previous.top === top ? previous : { left, top },
+        );
+      };
+      place();
+      window.addEventListener('scroll', place, true);
+      window.addEventListener('resize', place);
+      panel.focus();
+      const dismissOutside = (event: Event): void => {
+        const target = event.target;
+        if (!(target instanceof Node)) return;
+        if (anchorRef.current?.contains(target) || panelRef.current?.contains(target)) return;
+        setOpen(false);
+      };
+      const dismissEscape = (event: KeyboardEvent): void => {
+        if (event.key !== 'Escape') return;
+        event.preventDefault();
+        setOpen(false);
+        anchorRef.current?.focus();
+      };
+      document.addEventListener('pointerdown', dismissOutside);
+      document.addEventListener('focusin', dismissOutside);
+      window.addEventListener('keydown', dismissEscape);
+      return () => {
+        document.removeEventListener('pointerdown', dismissOutside);
+        document.removeEventListener('focusin', dismissOutside);
+        window.removeEventListener('keydown', dismissEscape);
+        window.removeEventListener('scroll', place, true);
+        window.removeEventListener('resize', place);
+        panelRef.current = null;
+      };
+    },
+    [signature],
+  );
 
   if (recipients.length === 0 || message.pending === true || message.streaming === true)
     return null;
@@ -168,7 +166,7 @@ export function ChannelDeliveryReceipt({
       {open && typeof document !== 'undefined'
         ? createPortal(
             <div
-              ref={panelRef}
+              ref={panelMount}
               id={panelId}
               role="dialog"
               aria-label={t('message.delivery.label')}

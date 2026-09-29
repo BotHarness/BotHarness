@@ -24,6 +24,25 @@ try {
   await page.setViewport({ width: 1440, height: 960 });
   const menuSelector =
     'button[aria-label="Session view options"], button[aria-label="会话视图选项"]';
+  const clickMenu = async () => {
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await page.waitForSelector(menuSelector);
+      await page.evaluate((selector) => {
+        if (document.querySelector('div[role="menu"]') !== null) return;
+        const button = [...document.querySelectorAll(selector)].find(
+          (candidate) =>
+            candidate instanceof HTMLButtonElement && candidate.getClientRects().length > 0,
+        );
+        button?.click();
+      }, menuSelector);
+      try {
+        await page.waitForSelector('div[role="menu"]', { timeout: 2500 });
+        return;
+      } catch {
+        if (attempt === 2) throw new Error('Session view menu did not remain open');
+      }
+    }
+  };
   const screenshot = async (filename) => {
     const session = await page.target().createCDPSession();
     try {
@@ -114,6 +133,13 @@ try {
         ?.click(),
     );
   }
+  await page.waitForFunction(
+    (botName) =>
+      document.querySelector('.bh-channel-island')?.textContent?.includes(botName) === true &&
+      document.querySelector('.bh-composer-input') !== null,
+    { timeout: 20000 },
+    name,
+  );
   await page.waitForSelector(menuSelector);
   const heading = await page.evaluate(() =>
     Array.from(document.querySelectorAll('.bh-channel-sidebar-entry-head'))
@@ -130,7 +156,7 @@ try {
   if ((await page.$('.bh-session-controls')) !== null) {
     throw new Error('Old segmented controls remain');
   }
-  await page.click(menuSelector);
+  await clickMenu();
   await page.waitForSelector('div[role="menu"]');
   const menuText = await page.$eval('div[role="menu"]', (menu) => menu.textContent ?? '');
   for (const labels of [
@@ -160,7 +186,7 @@ try {
     .catch(() => undefined);
   await screenshot('01-session-menu.png');
   if ((await page.$('div[role="menu"]')) === null) {
-    await page.click(menuSelector);
+    await clickMenu();
     await page.waitForSelector('div[role="menu"]');
   }
 
@@ -175,7 +201,7 @@ try {
     if (!clicked) throw new Error('Could not click menu item: ' + labels.join(' / '));
   };
   await select(['All', '全部']);
-  await page.click(menuSelector);
+  await clickMenu();
   await page.waitForSelector('div[role="menu"]');
   await select(['By workspace', '按工作区']);
   const chosen = await page.evaluate(() => {
@@ -184,10 +210,17 @@ try {
   });
   if (chosen?.layout !== 'workspace') throw new Error('Menu changes did not persist');
 
-  await page.reload({ waitUntil: 'networkidle2' });
+  await page.reload({ waitUntil: 'domcontentloaded' });
+  await page.waitForSelector('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
+  if ((await page.$('.bh-root')) === null) {
+    await page.evaluate(() =>
+      document
+        .querySelector('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]')
+        ?.click(),
+    );
+    await page.waitForSelector('.bh-root');
+  }
   if ((await page.$(menuSelector)) === null) {
-    await page.waitForSelector('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
-    await page.click('button[aria-label="Bot mode"], button[aria-label="Bot 模式"]');
     await page.waitForFunction(
       (botName) =>
         Array.from(document.querySelectorAll('button')).some((button) =>
@@ -205,7 +238,7 @@ try {
     );
   }
   await page.waitForSelector(menuSelector);
-  await page.click(menuSelector);
+  await clickMenu();
   await page.waitForSelector('div[role="menu"]');
   const checks = await page.$$eval('div[role="menu"] button', (buttons) =>
     buttons
@@ -241,7 +274,7 @@ try {
   );
   if (collapsed !== 'false') throw new Error('Sessions heading did not collapse');
   if ((await page.$('div[role="menu"]')) === null) {
-    await page.click(menuSelector);
+    await clickMenu();
   }
   await page.waitForSelector('div[role="menu"]');
   await select(['Current', '当前']);

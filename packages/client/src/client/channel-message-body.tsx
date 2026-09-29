@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 
 import {
   Button,
@@ -17,6 +17,7 @@ import { FolderBrowser } from './workspace-grants-entry.js';
 import { publishWorkspaceGrantChange, WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
 const ChannelMarkdownText = MarkdownText as unknown as (
   props: Parameters<typeof MarkdownText>[0],
@@ -127,7 +128,7 @@ function ToolApprovalCard({
   const [busy, setBusy] = useState(false);
   const [confirmAll, setConfirmAll] = useState(false);
   const [error, setError] = useState<string | undefined>();
-  useEffect(() => {
+  const approvalMount = useMountedResource<HTMLDivElement>(() => {
     if (decision !== undefined) {
       setStatus('decided');
       return;
@@ -190,7 +191,7 @@ function ToolApprovalCard({
       .finally(() => setBusy(false));
   };
   return (
-    <div className="bh-tool-approval-card">
+    <div ref={approvalMount} className="bh-tool-approval-card">
       <div className="bh-grant-request-title">{t('approval.requestTitle')}</div>
       <div className="bh-note">
         {request.role === 'assignment' ? t('approval.assignment') : t('approval.orchestrator')}
@@ -271,7 +272,7 @@ function UserQuestionCard({
   const [statusError, setStatusError] = useState(false);
   const [statusRetry, setStatusRetry] = useState(0);
 
-  useEffect(() => {
+  const questionMount = useMountedResource<HTMLDivElement>(() => {
     if (resolution !== undefined) {
       setStatus(resolution);
       return;
@@ -340,7 +341,7 @@ function UserQuestionCard({
   };
 
   return (
-    <div className="bh-question-card">
+    <div ref={questionMount} className="bh-question-card">
       <div className="bh-grant-request-title">{t('question.title')}</div>
       <details className="bh-question-source">
         <summary>{t('question.source')}</summary>
