@@ -175,7 +175,11 @@ export function ChannelSidebarEntrySection({
             </span>
           )}
         </button>
-        {HeaderAction === undefined ? null : <HeaderAction {...props} />}
+        {HeaderAction === undefined ? null : (
+          <span className="bh-channel-sidebar-entry-action-slot">
+            <HeaderAction {...props} />
+          </span>
+        )}
       </div>
       {expanded ? (
         <div id={bodyId} className="bh-channel-sidebar-entry-body">

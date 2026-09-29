@@ -814,10 +814,11 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput('slug and profile are required');
       }
       const trimmed = profile.trim();
-      if (trimmed !== '' && !/^[a-zA-Z0-9._-]{1,40}$/u.test(trimmed)) {
+      const normalized = trimmed === 'default' ? '' : trimmed;
+      if (normalized !== '' && !/^[a-zA-Z0-9._-]{1,40}$/u.test(normalized)) {
         return invalidInput('profile must use letters, digits, dot, dash, or underscore (max 40)');
       }
-      const result = deps.registry.setBrowserProfile(slug, profile);
+      const result = deps.registry.setBrowserProfile(slug, normalized);
       if (!result.ok) return unknownBot(slug);
       deps.browserProfile?.changed(slug);
       return { ok: true, value: detailOf(result.record) };

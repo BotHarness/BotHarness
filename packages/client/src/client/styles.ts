@@ -2981,6 +2981,12 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
+.bh-channel-sidebar-entry-action-slot {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-right: 2px;
+}
 .bh-channel-sidebar-entry-action:hover,
 .bh-channel-sidebar-entry-action[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
