@@ -15,6 +15,7 @@
     "apps/docs",
     "reference",
     ".scratch",
-    "packages/computer/lib"
+    "packages/computer/lib",
+    "scripts/source-policy-baseline.json"
   ]
 }
