@@ -317,6 +317,10 @@ function createBrowserEntry(t: BrowserTranslate): ComponentType<ChannelSidebarEn
   };
 }
 
+export const name = 'botharness-browser-client';
+
+export const inject = ['channelSidebar', 'connection', 'locale'];
+
 export function apply(ctx: BrowserClientContext): void {
   const t = ctx.locale.bind(LOCALE_NS);
   ctx.effect(() => ctx.locale.register(LOCALE_NS, { zh, en }), 'botharness-browser: dictionaries');
