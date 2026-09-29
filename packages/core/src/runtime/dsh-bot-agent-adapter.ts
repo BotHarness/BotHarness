@@ -1222,6 +1222,127 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'source_attention_get',
+          description:
+            "Read this PersonaBot's nine effective source rules, their revision and editor, and actual Orchestrator wake attempts over the last seven days. Group Channel preferences override the ordinary Group default.",
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_get: Orchestrator run is unavailable');
+            return JSON.stringify({ policies: active.run.sourcePolicy.list() });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'source_attention_set',
+          description:
+            "Set this PersonaBot's source default for Assignment reports or ordinary Group messages. Group options are immediate (all), digest, mentions, and silent; per-Channel Group preferences still take priority. Only new Admissions use the new revision.",
+          parameters: {
+            sourceClass: {
+              type: 'string',
+              enum: ['assignment-report', 'group-ordinary'],
+              description: 'Defaults to assignment-report for compatibility.',
+            },
+            wake: {
+              type: 'string',
+              required: true,
+              enum: ['conditional', 'immediate', 'digest', 'mentions', 'silent'],
+            },
+            digestCount: {
+              type: 'number',
+              description: 'Group digest count, 1 to 100; used only with digest wake.',
+            },
+            digestIntervalSeconds: {
+              type: 'number',
+              description: 'Group digest interval, 1 to 3600 seconds; used only with digest wake.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_set: Orchestrator run is unavailable');
+            if (args.sourceClass === undefined || args.sourceClass === 'assignment-report') {
+              if (args.wake !== 'conditional' && args.wake !== 'immediate')
+                throw new Error('Assignment report wake must be conditional or immediate');
+              if (args.digestCount !== undefined || args.digestIntervalSeconds !== undefined)
+                throw new Error('Assignment report has no digest parameters');
+              return JSON.stringify(active.run.sourcePolicy.setAssignmentReport(args.wake));
+            }
+            if (args.sourceClass !== 'group-ordinary')
+              throw new Error('Source class is not editable');
+            if (
+              args.wake !== 'immediate' &&
+              args.wake !== 'digest' &&
+              args.wake !== 'mentions' &&
+              args.wake !== 'silent'
+            )
+              throw new Error('Group ordinary wake mode is invalid');
+            const current = active.run.sourcePolicy
+              .list()
+              .find((policy) => policy.sourceClass === 'group-ordinary');
+            const count = args.digestCount ?? current?.digestCount ?? 5;
+            const interval = args.digestIntervalSeconds ?? current?.digestIntervalSeconds ?? 30;
+            if (
+              !Number.isSafeInteger(count) ||
+              count! < 1 ||
+              count! > 100 ||
+              !Number.isSafeInteger(interval) ||
+              interval! < 1 ||
+              interval! > 3600
+            )
+              throw new Error('Group digest count or interval is invalid');
+            return JSON.stringify(
+              active.run.sourcePolicy.setGroupOrdinary(args.wake, count!, interval!),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'source_attention_reset',
+          description:
+            "Restore this PersonaBot's built-in Assignment report or ordinary Group default. The reset gets a new audited revision and leaves previous Admissions unchanged.",
+          parameters: {
+            sourceClass: {
+              type: 'string',
+              enum: ['assignment-report', 'group-ordinary'],
+              description: 'Defaults to assignment-report for compatibility.',
+            },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_reset: Orchestrator run is unavailable');
+            if (
+              args.sourceClass !== undefined &&
+              args.sourceClass !== 'assignment-report' &&
+              args.sourceClass !== 'group-ordinary'
+            )
+              throw new Error('Source class is not editable');
+            return JSON.stringify(
+              args.sourceClass === 'group-ordinary'
+                ? active.run.sourcePolicy.resetGroupOrdinary()
+                : active.run.sourcePolicy.resetAssignmentReport(),
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'group_leave',
           description:
             'Leave a joined Group Channel. This also relinquishes Bot creator management, and repeating the call is safe.',

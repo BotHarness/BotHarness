@@ -29,7 +29,11 @@ import {
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 import { sessionMentionText } from './session-mentions.js';
-import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './source-policy.js';
+import {
+  createBotSourcePolicyStore,
+  type BotSourcePolicy,
+  type BotSourcePolicyStore,
+} from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
   AssignmentPermissionSnapshot,
@@ -132,6 +136,17 @@ export interface OrchestratorAgentRun {
   inbox: string;
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
+  sourcePolicy?: {
+    list(): BotSourcePolicy[];
+    setAssignmentReport(wake: 'conditional' | 'immediate'): BotSourcePolicy;
+    resetAssignmentReport(): BotSourcePolicy;
+    setGroupOrdinary(
+      wake: 'immediate' | 'digest' | 'mentions' | 'silent',
+      digestCount: number,
+      digestIntervalSeconds: number,
+    ): BotSourcePolicy;
+    resetGroupOrdinary(): BotSourcePolicy;
+  };
   assignments: OrchestratorAssignmentAccess;
   memory?: {
     switchBranch(branch: string): { from: string; to: string; head: string };
@@ -1022,7 +1037,8 @@ class BotRuntimeImplementation implements BotRuntime {
     const groups = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.wake_policy_revision, MIN(e.created_at) AS first_at,
+        SELECT a.wake_policy_revision, a.source_policy_revision,
+               MIN(e.created_at) AS first_at,
                MIN(a.wake_count) AS wake_count, MIN(a.wake_interval_ms) AS wake_interval_ms,
                COUNT(*) AS pending_count
           FROM inbox_admissions a
@@ -1030,11 +1046,12 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable') AND e.channel_id = ?
-         GROUP BY a.wake_policy_revision
+         GROUP BY a.wake_policy_revision, a.source_policy_revision
       `)
         .all(botSlug, channelId),
     ) as Array<{
       wake_policy_revision: number;
+      source_policy_revision: number | null;
       first_at: string;
       wake_count: number;
       wake_interval_ms: number;
@@ -1234,6 +1251,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds.length > 0,
         () => this.#markAdmissionsSideEffect(botSlug, includedIds),
         collected.eventIds,
+        [...new Set([...includedIds, ...collected.eventIds])],
       );
       this.#markReportsHandled(collected.eventIds);
       this.#settleHarvestHandled(botSlug, includedIds);
@@ -1363,6 +1381,7 @@ class BotRuntimeImplementation implements BotRuntime {
         const groups = database
           .prepare(`
         SELECT e.channel_id AS channel_id, a.wake_policy_revision AS revision,
+               a.source_policy_revision AS source_revision,
                MIN(e.created_at) AS first_at, a.wake_interval_ms AS interval_ms,
                a.wake_count AS wake_count, COUNT(*) AS count
           FROM inbox_admissions a
@@ -1370,12 +1389,13 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE a.bot_slug = ? AND a.reason = 'group-ordinary'
            AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
            AND a.attempt_state IN ('pending', 'retryable')
-         GROUP BY e.channel_id, a.wake_policy_revision
+         GROUP BY e.channel_id, a.wake_policy_revision, a.source_policy_revision
          ORDER BY first_at, channel_id
       `)
           .all(botSlug) as unknown as Array<{
           channel_id: string;
           revision: number;
+          source_revision: number | null;
           first_at: string;
           interval_ms: number;
           wake_count: number;
@@ -1400,9 +1420,15 @@ class BotRuntimeImplementation implements BotRuntime {
              AND a.wake_count IS NOT NULL AND a.observed_at IS NULL
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.channel_id = ? AND a.wake_policy_revision = ?
+             AND a.source_policy_revision IS ?
            ORDER BY e.created_at, e.rowid LIMIT 100
         `)
-            .all(botSlug, group.channel_id, group.revision) as unknown as DigestRow[];
+            .all(
+              botSlug,
+              group.channel_id,
+              group.revision,
+              group.source_revision,
+            ) as unknown as DigestRow[];
           const rows: DigestRow[] = [];
           const alreadyIncluded = budget.includedByChannel.get(group.channel_id) ?? 0;
 
@@ -1876,6 +1902,7 @@ class BotRuntimeImplementation implements BotRuntime {
     coordinateBranchSwitch = false,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
+    wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
     const markSideEffect = (): void => {
@@ -1893,6 +1920,28 @@ class BotRuntimeImplementation implements BotRuntime {
         ? body
         : [body, annotation].filter((part) => part.trim().length > 0).join('\n\n');
     try {
+      const ids = [...new Set(wakeEventIds)];
+      if (ids.length > 0)
+        this.#database.transaction(
+          (database) => {
+            const rows = database
+              .prepare(`
+          SELECT DISTINCT reason FROM inbox_admissions
+           WHERE bot_slug = ? AND source_event_id IN (${ids.map(() => '?').join(', ')})
+        `)
+              .all(bot.slug, ...ids) as { reason: string }[];
+            const startedAt = this.#now().toISOString();
+            for (const row of rows)
+              database
+                .prepare(`
+          INSERT INTO bot_source_wake_attempts
+            (wake_id, bot_slug, source_class, session_id, started_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+                .run(randomUUID(), bot.slug, row.reason, orchestrator.sessionId, startedAt);
+          },
+          ['bot-inbox'],
+        );
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
@@ -1908,6 +1957,42 @@ class BotRuntimeImplementation implements BotRuntime {
           markSideEffect,
           readAdmissions,
         ),
+        sourcePolicy: {
+          list: () => this.#sourcePolicy.list(bot.slug),
+          setAssignmentReport: (wake) => {
+            markSideEffect();
+            const changed = this.#sourcePolicy.setAssignmentReport(bot.slug, wake, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+            return changed;
+          },
+          resetAssignmentReport: () => {
+            markSideEffect();
+            const changed = this.#sourcePolicy.resetAssignmentReport(bot.slug, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+            return changed;
+          },
+          setGroupOrdinary: (wake, digestCount, digestIntervalSeconds) => {
+            markSideEffect();
+            return this.#sourcePolicy.setGroupOrdinary(
+              bot.slug,
+              wake,
+              digestCount,
+              digestIntervalSeconds,
+              { kind: 'bot', botSlug: bot.slug },
+            );
+          },
+          resetGroupOrdinary: () => {
+            markSideEffect();
+            return this.#sourcePolicy.resetGroupOrdinary(bot.slug, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+          },
+        },
         memory: {
           continueFromCommit: (sha, branch) => {
             if (this.#memory === undefined) throw new Error('Memory is unavailable');
@@ -3479,7 +3564,10 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (reportWake === 'conditional' && this.#shouldWakeNow(input.state, expectsReply))
+    if (
+      reportWake === 'immediate' ||
+      (reportWake === 'conditional' && this.#shouldWakeNow(input.state, expectsReply))
+    )
       this.#scheduleHarvest(botSlug);
     return report;
   }

@@ -167,6 +167,8 @@ function stubActions(): BridgeActions {
       binary: false,
     })),
     botSourcePolicies: vi.fn(async () => []),
+    setBotSourcePolicy: vi.fn(async () => undefined),
+    resetBotSourcePolicy: vi.fn(async () => undefined),
     memoryRepair: vi.fn(async () => {
       throw new Error('not configured');
     }),

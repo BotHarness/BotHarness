@@ -48,6 +48,7 @@ describe('DSH Bot Agent adapter', () => {
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];
+    const rejectedSourceCalls: Array<Promise<{ ok: boolean; error?: string }>> = [];
     const current = {
       mode: 'digest' as const,
       count: 5,
@@ -69,6 +70,36 @@ describe('DSH Bot Agent adapter', () => {
           calls.push(
             write.execute({ channel_id: 'group-team', mode: 'mentions' }, {} as ToolRunContext),
           );
+          const sourceGet = tools.find((tool) => tool.name === 'source_attention_get');
+          const sourceSet = tools.find((tool) => tool.name === 'source_attention_set');
+          const sourceReset = tools.find((tool) => tool.name === 'source_attention_reset');
+          if (!sourceGet || !sourceSet || !sourceReset)
+            throw new Error('Source attention Tools not registered');
+          calls.push(sourceGet.execute({}, {} as ToolRunContext));
+          calls.push(sourceSet.execute({ wake: 'immediate' }, {} as ToolRunContext));
+          calls.push(sourceReset.execute({}, {} as ToolRunContext));
+          calls.push(
+            sourceSet.execute(
+              {
+                sourceClass: 'group-ordinary',
+                wake: 'digest',
+                digestCount: 7,
+                digestIntervalSeconds: 45,
+              },
+              {} as ToolRunContext,
+            ),
+          );
+          calls.push(sourceReset.execute({ sourceClass: 'group-ordinary' }, {} as ToolRunContext));
+          for (const call of [
+            sourceSet.execute({ sourceClass: 'human-dm', wake: 'immediate' }, {} as ToolRunContext),
+            sourceReset.execute({ sourceClass: 'group-mention' }, {} as ToolRunContext),
+          ])
+            rejectedSourceCalls.push(
+              call.then(
+                () => ({ ok: true }),
+                (error) => ({ ok: false, error: String(error) }),
+              ),
+            );
         },
       },
     );
@@ -85,6 +116,53 @@ describe('DSH Bot Agent adapter', () => {
       message: 'Change my Group attention to mentions',
       inboundChannelId: 'dm-test',
       inbox: '',
+      sourcePolicy: {
+        list: () => [],
+        setAssignmentReport: (wake) => ({
+          sourceClass: 'assignment-report',
+          admission: 'admit',
+          wake,
+          revision: 2,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: true,
+          recentWakeCount: 0,
+        }),
+        resetAssignmentReport: () => ({
+          sourceClass: 'assignment-report',
+          admission: 'admit',
+          wake: 'conditional',
+          revision: 3,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: false,
+          recentWakeCount: 0,
+        }),
+        setGroupOrdinary: (wake, digestCount, digestIntervalSeconds) => ({
+          sourceClass: 'group-ordinary',
+          admission: 'admit',
+          wake,
+          digestCount,
+          digestIntervalSeconds,
+          revision: 2,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: true,
+          recentWakeCount: 0,
+        }),
+        resetGroupOrdinary: () => ({
+          sourceClass: 'group-ordinary',
+          admission: 'admit',
+          wake: 'digest',
+          digestCount: 5,
+          digestIntervalSeconds: 30,
+          revision: 3,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: false,
+          recentWakeCount: 0,
+        }),
+      },
       channels: {
         ...groupTools,
         readGroupWakePolicy: () => current,
@@ -129,6 +207,17 @@ describe('DSH Bot Agent adapter', () => {
     expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
       { channelId: 'group-team', mode: 'digest', revision: 0 },
       { channelId: 'group-team', mode: 'mentions', revision: 1 },
+      { policies: [] },
+      { sourceClass: 'assignment-report', wake: 'immediate', revision: 2 },
+      { sourceClass: 'assignment-report', wake: 'conditional', revision: 3 },
+      {
+        sourceClass: 'group-ordinary',
+        wake: 'digest',
+        digestCount: 7,
+        digestIntervalSeconds: 45,
+        revision: 2,
+      },
+      { sourceClass: 'group-ordinary', wake: 'digest', revision: 3 },
     ]);
     expect(writes).toEqual([
       {
@@ -137,6 +226,10 @@ describe('DSH Bot Agent adapter', () => {
         count: 5,
         intervalSeconds: 30,
       },
+    ]);
+    expect(await Promise.all(rejectedSourceCalls)).toEqual([
+      { ok: false, error: expect.stringContaining('must be one of') },
+      { ok: false, error: expect.stringContaining('must be one of') },
     ]);
     const write = host.scopes
       .get('orchestrator-ada')
@@ -537,6 +630,9 @@ describe('DSH Bot Agent adapter', () => {
       'group_remove_member',
       'group_attention_get',
       'group_attention_set',
+      'source_attention_get',
+      'source_attention_set',
+      'source_attention_reset',
       'group_leave',
       'bot_dm_send',
       'channel_send',

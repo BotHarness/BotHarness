@@ -261,6 +261,8 @@ describe('plugin entry', () => {
       'channelSend',
       'botAttention',
       'botSourcePolicies',
+      'botSourcePolicySet',
+      'botSourcePolicyReset',
       'humanAttention',
       'humanAttentionIgnore',
       'assignments',

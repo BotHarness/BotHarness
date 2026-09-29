@@ -192,6 +192,8 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
+  botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
+  botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -1310,6 +1312,78 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       try {
         return { ok: true, value: { policies: deps.sourcePolicy?.list(slug) ?? [] } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    botSourcePolicySet(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const wake = source['wake'];
+      const sourceClass = source['sourceClass'] ?? 'assignment-report';
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
+      try {
+        if (sourceClass === 'group-ordinary') {
+          const digestCount = source['digestCount'];
+          const digestIntervalSeconds = source['digestIntervalSeconds'];
+          if (
+            (wake !== 'immediate' &&
+              wake !== 'digest' &&
+              wake !== 'mentions' &&
+              wake !== 'silent') ||
+            !Number.isSafeInteger(digestCount) ||
+            !Number.isSafeInteger(digestIntervalSeconds)
+          )
+            return invalidInput('Group ordinary wake and digest parameters are required');
+          return {
+            ok: true,
+            value: {
+              policy: deps.sourcePolicy.setGroupOrdinary(
+                slug,
+                wake,
+                digestCount as number,
+                digestIntervalSeconds as number,
+                { kind: 'human' },
+              ),
+            },
+          };
+        }
+        if (
+          sourceClass !== 'assignment-report' ||
+          (wake !== 'conditional' && wake !== 'immediate') ||
+          source['digestCount'] !== undefined ||
+          source['digestIntervalSeconds'] !== undefined
+        )
+          return invalidInput('Assignment report wake must be conditional or immediate');
+        return {
+          ok: true,
+          value: { policy: deps.sourcePolicy.setAssignmentReport(slug, wake, { kind: 'human' }) },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    botSourcePolicyReset(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const sourceClass = source['sourceClass'] ?? 'assignment-report';
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
+      try {
+        if (sourceClass === 'group-ordinary')
+          return {
+            ok: true,
+            value: { policy: deps.sourcePolicy.resetGroupOrdinary(slug, { kind: 'human' }) },
+          };
+        if (sourceClass !== 'assignment-report')
+          return invalidInput('Source class is not editable');
+        return {
+          ok: true,
+          value: { policy: deps.sourcePolicy.resetAssignmentReport(slug, { kind: 'human' }) },
+        };
       } catch (error) {
         return invalidInput(String(error));
       }

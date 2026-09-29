@@ -6,13 +6,15 @@ import {
   IconEditOutlineRegular,
   IconPinFillRegular,
   IconPinOutlineRegular,
+  Button,
   Tag,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
+import type { BotSourcePolicyEdit, BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
+import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
@@ -130,6 +132,14 @@ export function ProfileView({
   const [error, setError] = useState<string | undefined>(undefined);
   const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
   const [sourcePolicyError, setSourcePolicyError] = useState(false);
+  const [editingSourcePolicy, setEditingSourcePolicy] =
+    useState<BotSourcePolicyEdit['sourceClass']>();
+  const [sourceWakeDraft, setSourceWakeDraft] =
+    useState<BotSourcePolicyView['wake']>('conditional');
+  const [digestCountDraft, setDigestCountDraft] = useState(5);
+  const [digestIntervalDraft, setDigestIntervalDraft] = useState(30);
+  const [sourcePolicyBusy, setSourcePolicyBusy] = useState(false);
+  const [sourcePolicySaveError, setSourcePolicySaveError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const trimmed = draft.trim();
@@ -153,6 +163,56 @@ export function ProfileView({
       active = false;
     };
   }, [actions, bot.slug]);
+
+  const changeSourcePolicy = async (reset: boolean): Promise<void> => {
+    if (sourcePolicyBusy || editingSourcePolicy === undefined) return;
+    if (
+      !reset &&
+      editingSourcePolicy === 'group-ordinary' &&
+      (!Number.isSafeInteger(digestCountDraft) ||
+        digestCountDraft < 1 ||
+        digestCountDraft > 100 ||
+        !Number.isSafeInteger(digestIntervalDraft) ||
+        digestIntervalDraft < 1 ||
+        digestIntervalDraft > 3600)
+    ) {
+      setSourcePolicySaveError(true);
+      return;
+    }
+    setSourcePolicyBusy(true);
+    setSourcePolicySaveError(false);
+    try {
+      if (reset) await actions.resetBotSourcePolicy(bot.slug, editingSourcePolicy);
+      else if (editingSourcePolicy === 'assignment-report') {
+        if (sourceWakeDraft !== 'conditional' && sourceWakeDraft !== 'immediate')
+          throw new Error('Invalid Assignment report wake');
+        await actions.setBotSourcePolicy(bot.slug, {
+          sourceClass: 'assignment-report',
+          wake: sourceWakeDraft,
+        });
+      } else {
+        if (
+          sourceWakeDraft !== 'immediate' &&
+          sourceWakeDraft !== 'digest' &&
+          sourceWakeDraft !== 'mentions' &&
+          sourceWakeDraft !== 'silent'
+        )
+          throw new Error('Invalid ordinary Group wake');
+        await actions.setBotSourcePolicy(bot.slug, {
+          sourceClass: 'group-ordinary',
+          wake: sourceWakeDraft,
+          digestCount: digestCountDraft,
+          digestIntervalSeconds: digestIntervalDraft,
+        });
+      }
+      setSourcePolicies(await actions.botSourcePolicies(bot.slug));
+      setEditingSourcePolicy(undefined);
+    } catch {
+      setSourcePolicySaveError(true);
+    } finally {
+      setSourcePolicyBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!editing) return;
@@ -353,7 +413,7 @@ export function ProfileView({
             <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
               <header className="bh-profile-card-head">
                 <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
-                <Tag tone="neutral">{t('sourcePolicy.readOnly')}</Tag>
+                <Tag tone="neutral">{t('sourcePolicy.editableRules')}</Tag>
               </header>
               {sourcePolicyError ? (
                 <div className="bh-error" role="alert">
@@ -387,18 +447,51 @@ export function ProfileView({
                           })
                         : policy.wake === 'conditional'
                           ? t('sourcePolicy.admitConditional')
-                          : t('sourcePolicy.admitImmediate')}
+                          : policy.wake === 'mentions'
+                            ? t('sourcePolicy.admitMentions')
+                            : policy.wake === 'silent'
+                              ? t('sourcePolicy.admitSilent')
+                              : t('sourcePolicy.admitImmediate')}
                     </span>
                     {policy.sourceClass === 'group-ordinary' && (
                       <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
                     )}
                     <span className="bh-note">
+                      {t('sourcePolicy.recentWakes', { count: policy.recentWakeCount })}
+                    </span>
+                    <span className="bh-note">
                       {t('sourcePolicy.revision', { revision: policy.revision })}
                       {' · '}
-                      {t('sourcePolicy.builtIn')}
+                      {!policy.overrideActive &&
+                        policy.lastActor.kind !== 'built-in' &&
+                        `${t('sourcePolicy.restoredDefault')} · `}
+                      {policy.lastActor.kind === 'built-in'
+                        ? t('sourcePolicy.builtIn')
+                        : policy.lastActor.kind === 'human'
+                          ? t('sourcePolicy.human')
+                          : policy.lastActor.kind === 'bot'
+                            ? t('sourcePolicy.botActor', { slug: policy.lastActor.botSlug })
+                            : t('sourcePolicy.builtIn')}
                       {' · '}
                       {new Date(policy.changedAt).toLocaleString()}
                     </span>
+                    {(policy.sourceClass === 'assignment-report' ||
+                      policy.sourceClass === 'group-ordinary') && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSourceWakeDraft(policy.wake);
+                          setDigestCountDraft(policy.digestCount ?? 5);
+                          setDigestIntervalDraft(policy.digestIntervalSeconds ?? 30);
+                          setSourcePolicySaveError(false);
+                          setEditingSourcePolicy(
+                            policy.sourceClass as BotSourcePolicyEdit['sourceClass'],
+                          );
+                        }}
+                      >
+                        {t('sourcePolicy.edit')}
+                      </Button>
+                    )}
                   </div>
                 ))
               )}
@@ -406,6 +499,100 @@ export function ProfileView({
           </div>
         </details>
       </section>
+      {editingSourcePolicy !== undefined && (
+        <Modal
+          open
+          onClose={() => setEditingSourcePolicy(undefined)}
+          closeLabel={t('common.close')}
+          title={t(
+            editingSourcePolicy === 'group-ordinary'
+              ? 'sourcePolicy.groupEditTitle'
+              : 'sourcePolicy.editTitle',
+          )}
+          description={t(
+            editingSourcePolicy === 'group-ordinary'
+              ? 'sourcePolicy.groupEditDescription'
+              : 'sourcePolicy.editDescription',
+          )}
+          footer={
+            <>
+              <Button
+                variant="outline"
+                disabled={sourcePolicyBusy}
+                onClick={() => void changeSourcePolicy(true)}
+              >
+                {t('sourcePolicy.reset')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={sourcePolicyBusy}
+                onClick={() => void changeSourcePolicy(false)}
+              >
+                {t('profile.save')}
+              </Button>
+            </>
+          }
+        >
+          <select
+            className="bh-profile-policy-select"
+            aria-label={t(
+              editingSourcePolicy === 'group-ordinary'
+                ? 'sourcePolicy.groupEditTitle'
+                : 'sourcePolicy.editTitle',
+            )}
+            value={sourceWakeDraft}
+            disabled={sourcePolicyBusy}
+            onChange={(event) =>
+              setSourceWakeDraft(event.target.value as BotSourcePolicyView['wake'])
+            }
+          >
+            {editingSourcePolicy === 'assignment-report' ? (
+              <>
+                <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+                <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+              </>
+            ) : (
+              <>
+                <option value="immediate">{t('sourcePolicy.groupAllOption')}</option>
+                <option value="digest">{t('sourcePolicy.groupDigestOption')}</option>
+                <option value="mentions">{t('sourcePolicy.groupMentionsOption')}</option>
+                <option value="silent">{t('sourcePolicy.groupSilentOption')}</option>
+              </>
+            )}
+          </select>
+          {editingSourcePolicy === 'group-ordinary' && sourceWakeDraft === 'digest' && (
+            <div className="bh-profile-policy-digest">
+              <label>
+                {t('sourcePolicy.digestCount')}
+                <input
+                  type="number"
+                  min={1}
+                  max={100}
+                  value={digestCountDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) => setDigestCountDraft(Number(event.target.value))}
+                />
+              </label>
+              <label>
+                {t('sourcePolicy.digestInterval')}
+                <input
+                  type="number"
+                  min={1}
+                  max={3600}
+                  value={digestIntervalDraft}
+                  disabled={sourcePolicyBusy}
+                  onChange={(event) => setDigestIntervalDraft(Number(event.target.value))}
+                />
+              </label>
+            </div>
+          )}
+          {sourcePolicySaveError && (
+            <div className="bh-modal-error" role="alert">
+              {t('sourcePolicy.saveFailed')}
+            </div>
+          )}
+        </Modal>
+      )}
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal
           file={avatarFile}

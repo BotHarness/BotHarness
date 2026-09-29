@@ -1813,6 +1813,32 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   gap: 4px;
   font-size: 13px;
 }
+.bh-source-policy-row > button {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+.bh-profile-policy-select,
+.bh-profile-policy-digest input {
+  width: 100%;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+}
+.bh-profile-policy-digest {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+.bh-profile-policy-digest label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+}
 .bh-profile-card-total {
   font-size: 15px;
   font-weight: 600;

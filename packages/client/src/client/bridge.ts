@@ -70,13 +70,24 @@ export interface BotSourcePolicyView {
     | 'assignment-report'
     | 'assignment-lifecycle';
   admission: 'admit';
-  wake: 'immediate' | 'digest' | 'conditional';
+  wake: 'immediate' | 'digest' | 'conditional' | 'mentions' | 'silent';
   digestCount?: number;
   digestIntervalSeconds?: number;
   revision: number;
-  lastActor: { kind: 'built-in' };
+  lastActor: { kind: 'built-in' | 'human' | 'template' } | { kind: 'bot'; botSlug: string };
   changedAt: string;
+  overrideActive: boolean;
+  recentWakeCount: number;
 }
+
+export type BotSourcePolicyEdit =
+  | { sourceClass: 'assignment-report'; wake: 'conditional' | 'immediate' }
+  | {
+      sourceClass: 'group-ordinary';
+      wake: 'immediate' | 'digest' | 'mentions' | 'silent';
+      digestCount: number;
+      digestIntervalSeconds: number;
+    };
 
 export async function loadBotSourcePolicies(
   call: BridgeCall,
@@ -102,11 +113,17 @@ export async function loadBotSourcePolicies(
         'assignment-lifecycle',
       ].includes(String(policy?.['sourceClass'])) ||
       policy['admission'] !== 'admit' ||
-      !['immediate', 'digest', 'conditional'].includes(String(policy['wake'])) ||
+      !['immediate', 'digest', 'conditional', 'mentions', 'silent'].includes(
+        String(policy['wake']),
+      ) ||
       typeof policy['revision'] !== 'number' ||
       !Number.isSafeInteger(policy['revision']) ||
-      actor?.['kind'] !== 'built-in' ||
+      !['built-in', 'human', 'bot', 'template'].includes(String(actor?.['kind'])) ||
+      (actor?.['kind'] === 'bot' && typeof actor['botSlug'] !== 'string') ||
       typeof policy['changedAt'] !== 'string' ||
+      typeof policy['overrideActive'] !== 'boolean' ||
+      !Number.isSafeInteger(policy['recentWakeCount']) ||
+      (policy['recentWakeCount'] as number) < 0 ||
       (policy['wake'] === 'digest' &&
         (!Number.isSafeInteger(policy['digestCount']) ||
           !Number.isSafeInteger(policy['digestIntervalSeconds'])))
@@ -114,6 +131,22 @@ export async function loadBotSourcePolicies(
       throw new Error('invalid Bot source policy');
     return policy as unknown as BotSourcePolicyView;
   });
+}
+
+export async function setBotSourcePolicy(
+  call: BridgeCall,
+  slug: string,
+  edit: BotSourcePolicyEdit,
+): Promise<void> {
+  await unwrap(call, 'botSourcePolicySet', { slug, ...edit });
+}
+
+export async function resetBotSourcePolicy(
+  call: BridgeCall,
+  slug: string,
+  sourceClass: BotSourcePolicyEdit['sourceClass'],
+): Promise<void> {
+  await unwrap(call, 'botSourcePolicyReset', { slug, sourceClass });
 }
 
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {

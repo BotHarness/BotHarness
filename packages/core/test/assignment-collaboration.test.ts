@@ -8,6 +8,7 @@ import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createBotAttentionQuery } from '../src/runtime/attention.js';
+import { createBotSourcePolicyStore } from '../src/runtime/source-policy.js';
 import { readAssignmentReportPage } from '../src/runtime/assignment-tail.js';
 import {
   createHumanAttentionDecisions,
@@ -200,6 +201,50 @@ async function setup(
 }
 
 describe('Assignment collaboration', () => {
+  it('applies an edited Assignment report wake only to later Admissions', async () => {
+    const { agents, owner, admit, close } = await setup();
+    try {
+      await admit('Start research', 'human-policy-edit');
+      const created = agents.access!.create({ grantId: TEST_GRANT_ID, purpose: 'Research' });
+      if (created.outcome !== 'created') throw new Error('create failed');
+      const run = agents.started[0]!.run;
+      await run.report({ state: 'progress', summary: 'First quiet progress' });
+      expect(agents.inboxTurns).toEqual([]);
+      const policy = createBotSourcePolicyStore(
+        attachOperationalModule(owner, 'bot-inbox'),
+        FIXED_NOW,
+      );
+      expect(policy.setAssignmentReport('ada', 'immediate', { kind: 'human' })).toMatchObject({
+        revision: 2,
+        wake: 'immediate',
+      });
+      await run.report({ state: 'progress', summary: 'Second waking progress' });
+      await vi.waitFor(() => expect(agents.inboxTurns).toHaveLength(1));
+      expect(agents.inboxTurns).toHaveLength(1);
+      expect(agents.inboxTurns[0]).toContain('Second waking progress');
+      const snapshots = attachOperationalModule(owner, 'assignment-policy-snapshots').read((db) =>
+        db
+          .prepare(`
+          SELECT a.source_policy_revision, a.source_policy_wake_mode
+            FROM inbox_admissions a JOIN source_events e
+              ON e.source_event_id = a.source_event_id
+           WHERE a.bot_slug = 'ada' AND a.reason = 'assignment-report'
+           ORDER BY e.created_at, e.rowid
+        `)
+          .all(),
+      );
+      expect(snapshots).toMatchObject([
+        { source_policy_revision: 1, source_policy_wake_mode: 'conditional' },
+        { source_policy_revision: 2, source_policy_wake_mode: 'immediate' },
+      ]);
+      expect(
+        policy.list('ada').find((rule) => rule.sourceClass === 'assignment-report'),
+      ).toMatchObject({ recentWakeCount: 1 });
+    } finally {
+      await close();
+    }
+  });
+
   it('keeps a 2 KiB report inline and spills the next byte', async () => {
     const saved: string[] = [];
     const { agents, admit, close } = await setup({
