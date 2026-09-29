@@ -295,13 +295,18 @@ describe('runtime lifecycle', () => {
     child.ready();
     await ensuring;
     await runtime.open('https://example.com');
-    const tab = await runtime.createTab('https://example.org', 'tab-1');
+    const tab = await runtime.createTab('https://example.org');
     expect(tab.tabId).toBe('tab-2');
-    expect(sent.some((call) => call.method === 'Target.activateTarget')).toBe(true);
+    expect(sent.some((call) => call.method === 'Target.activateTarget')).toBe(false);
     const create = sent.find(
       (call) => call.method === 'Target.createTarget' && call.params?.['background'] === true,
     );
-    expect(create?.params).toEqual({ url: 'about:blank', newWindow: false, background: true });
+    expect(create?.params).toEqual({
+      url: 'about:blank',
+      newWindow: false,
+      background: true,
+      focus: false,
+    });
     const tabs = await runtime.listTabs();
     expect(tabs).toEqual([{ targetId: 'tab-2', url: 'https://example.org/', title: 'Other' }]);
     const info = await runtime.tabInfo('tab-2');

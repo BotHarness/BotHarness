@@ -21,6 +21,9 @@ export interface ChannelSidebarEntryProps {
   selectedMemoryFilePath?: string | undefined;
   onMemoryWorkingSelect?: ((change: MemoryWorkingChange) => void) | undefined;
   selectedMemoryWorking?: MemoryWorkingChange | undefined;
+  expanded?: boolean;
+  setExpanded?: (expanded: boolean) => void;
+  setExpandable?: (expandable: boolean) => void;
   t: BotHarnessTranslate;
 }
 

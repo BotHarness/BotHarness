@@ -9,12 +9,12 @@ Date: 2026-09-29
 
 **Browser Authorization** is the once-per-session Human approval before that PersonaBot's first browser action; it is requested through the native approval path and renders in the Bot DM, with the usual one-time and always choices and the profile-level auto-allow switch. Access decides whether tools exist; Authorization decides whether they may run.
 
-**Browser Audit** records every browser observation and action attributed to the PersonaBot, session, and root role, with a redacted per-tool summary including the URL, outcome, and duration. Typed text enters only as its character count; page contents and screenshots never enter the audit — screenshots exist only as model attachments. **Browser Takeover** pauses one PersonaBot's browser actions and disables model-facing screenshots for its duration, and any Human input always invalidates that PersonaBot's older observations so its next action re-observes. One PersonaBot's browser actions run serialized; different PersonaBots act in parallel.
+**Browser Audit** records every browser observation and action attributed to the PersonaBot, session, and root role, with a redacted per-tool summary including the URL, outcome, and duration. Typed text enters only as its character count; page contents and screenshots never enter the audit — screenshots exist only as model attachments. **Browser Pause** (the entry's Pause Bot control) stops one PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the Bot Browser window directly, and a returned Bot re-observes before acting. One PersonaBot's browser actions run serialized; different PersonaBots act in parallel.
 
 ## Why
 
 - The Bot Browser is profile-shared (ADR-0089), but acting in it is a per-PersonaBot decision; a profile-wide injection would put the catalog into every prompt, remove the Human's ability to withhold one Bot, and blur audit attribution.
-- Human and Bot act in the same real browser: without takeover and observation invalidation, a Bot could act on a stale view over the Human's shoulders. Computer Takeover already models pause plus no model screenshots; the per-Bot scope follows from tabs being per-Bot (ADR-0091).
+- Human and Bot act in the same real browser: without a pause, a Bot could keep acting while the Human drives. Computer Takeover already models pause plus no model screenshots; the per-Bot scope follows from tabs being per-Bot (ADR-0091, ADR-0095).
 - Serializing one Bot's actions prevents its Orchestrator and an Assignment from interleaving actions on the same tab; per-tab locking is the recorded refinement if parallel tool calls become common, and it needs no vocabulary change.
 - The audit is the Human's answer to "which Bot did what in the browser" and must stay useful without becoming a credential or screenshot store; the existing approval card and Tool Approval Rules already cover "always allow".
 

@@ -390,12 +390,19 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       { action: 'open', url: 'https://example.org' },
       execution('browser_tabs'),
     );
-    expect(h.runtime.createTab).toHaveBeenCalledWith('https://example.org', 'tab-1');
+    expect(h.runtime.createTab).toHaveBeenCalledWith('https://example.org');
     expect(JSON.stringify(opened)).toContain('tab-2');
     expect(h.provider.currentTab('bot-a')).toBe('tab-2');
     expect(h.provider.tabCount('bot-a')).toBe(2);
     const listed = await tabs.execute({ action: 'list' }, execution('browser_tabs'));
     expect(JSON.stringify(listed)).toContain('* tab-2');
+    const view = await h.provider.listTabs('bot-a');
+    expect(view.map((tab) => `${tab.targetId}${tab.current ? '*' : ''}`)).toEqual([
+      'tab-1',
+      'tab-2*',
+    ]);
+    expect(h.provider.ownsTab('bot-a', 'tab-2')).toBe(true);
+    expect(h.provider.ownsTab('bot-a', 'tab-9')).toBe(false);
     await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
     expect(h.provider.currentTab('bot-a')).toBe('tab-1');
     await tabs.execute({ action: 'close', targetId: 'tab-1' }, execution('browser_tabs'));

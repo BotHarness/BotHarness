@@ -212,9 +212,16 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
         activity.touch();
-        const slug = new URL(request.url).searchParams.get('slug') ?? '';
+        const url = new URL(request.url);
+        const slug = url.searchParams.get('slug') ?? '';
+        const requested = url.searchParams.get('tab') ?? '';
         if (slug !== '') provider.touch(slug);
-        const tabId = slug === '' ? undefined : provider.currentTab(slug);
+        const tabId =
+          slug === ''
+            ? undefined
+            : requested !== '' && provider.ownsTab(slug, requested)
+              ? requested
+              : provider.currentTab(slug);
         let frame: string | null = null;
         if (tabId !== undefined && runtime.isRunning()) {
           const shot = await runtime.captureScreenshot(tabId).catch(() => undefined);
@@ -224,8 +231,9 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           ok: true,
           running: runtime.isRunning(),
           frame,
+          focused: tabId ?? null,
           takeover: slug === '' ? false : provider.isTakeover(slug),
-          tabs: slug === '' ? 0 : provider.tabCount(slug),
+          tabs: slug === '' ? [] : await provider.listTabs(slug),
         });
       },
     };

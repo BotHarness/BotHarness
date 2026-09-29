@@ -32,7 +32,7 @@ describe('browser client module face', () => {
 
   it('registers the locale dictionaries and the Channel sidebar entry', () => {
     const effects: string[] = [];
-    const entries: { id: string; order: number; scope: string }[] = [];
+    const entries: { id: string; order: number; scope: string; headerAction?: unknown }[] = [];
     const ctx = {
       locale: {
         bind: () => (key: string) => key,
@@ -46,7 +46,12 @@ describe('browser client module face', () => {
       inject: (_deps: readonly string[], callback: (child: unknown) => void) => {
         callback({
           channelSidebar: {
-            register: (entry: { id: string; order: number; scope: string }) => {
+            register: (entry: {
+              id: string;
+              order: number;
+              scope: string;
+              headerAction?: unknown;
+            }) => {
               entries.push(entry);
               return () => undefined;
             },
@@ -59,5 +64,6 @@ describe('browser client module face', () => {
     expect(effects).toContain('botharness-browser: dictionaries');
     expect(entries).toHaveLength(1);
     expect(entries[0]).toMatchObject({ id: 'botharness-browser', order: 41, scope: 'personabot' });
+    expect(typeof entries[0]?.headerAction).toBe('function');
   });
 });
