@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 
 import {
   IconAgentPresetOutlineRegular,
@@ -57,7 +57,7 @@ import {
   type ChannelSummary,
   type ClientState,
 } from './store.js';
-const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+import { useMountedResource } from './mounted-resource.js';
 
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
@@ -360,7 +360,7 @@ function MessageActionMenu({
   t: BotHarnessTranslate;
 }): ReactElement {
   const proxy = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
+  const menuMount = useMountedResource<HTMLSpanElement>(() => {
     const timer = window.setTimeout(() => {
       const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
       lists
@@ -373,7 +373,7 @@ function MessageActionMenu({
     };
   }, []);
   return (
-    <span className="bh-menu-anchor" style={{ left: request.x, top: request.y }}>
+    <span ref={menuMount} className="bh-menu-anchor" style={{ left: request.x, top: request.y }}>
       <Menu
         open
         portal
@@ -489,7 +489,6 @@ function ConversationView({
     top: number;
     height: number;
   } | null>(null);
-  const openedChannel = useRef<string | undefined>(undefined);
   const lastRevision = useRef<number | undefined>(undefined);
   const readMarkTimer = useRef<number | undefined>(undefined);
   const [unseen, setUnseen] = useState(0);
@@ -619,46 +618,46 @@ function ConversationView({
     }, 250);
   };
 
-  useEffect(
-    () => () => {
-      window.clearTimeout(readMarkTimer.current);
-    },
-    [channelId],
-  );
   const currentChannel = useRef(channelId);
-
-  useEffect(() => {
-    currentChannel.current = channelId;
+  currentChannel.current = channelId;
+  const conversationMount = useMountedResource<HTMLDivElement>(() => {
+    return () => {
+      currentChannel.current = undefined;
+      window.clearTimeout(readMarkTimer.current);
+      for (const controller of uploadControllers.current.values()) controller.abort();
+      uploadControllers.current.clear();
+    };
   }, [channelId]);
 
-  useEffect(() => {
-    setDraft('');
-    setMentionTokens([]);
-    setChannelRefTokens([]);
-    setSelectedMemoryView(undefined);
-    setReplyTarget(undefined);
-    for (const controller of uploadControllers.current.values()) controller.abort();
-    uploadControllers.current.clear();
-    setUploadItems([]);
-    setRestoreBlocked(false);
-    setProfilePopoverOpen(false);
-    setProfileViewOpen(false);
-    setProfileActivity(undefined);
-  }, [channelId]);
-
-  useEffect(() => {
-    if ((!profilePopoverOpen && !profileViewOpen) || channelId === undefined) return;
+  const profileMount = useMountedResource<HTMLDivElement>(() => {
+    if (!profilePopoverOpen && !profileViewOpen) return;
     let cancelled = false;
-    void actions.profileActivity(channelId).then(
-      (activity) => {
-        if (!cancelled) setProfileActivity(activity);
-      },
-      (error: unknown) => {
-        console.warn('botharness: Profile activity failed', error);
-      },
-    );
+    if (channelId !== undefined)
+      void actions.profileActivity(channelId).then(
+        (activity) => {
+          if (!cancelled) setProfileActivity(activity);
+        },
+        (error: unknown) => {
+          console.warn('botharness: Profile activity failed', error);
+        },
+      );
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      if (profilePopoverOpen) setProfilePopoverOpen(false);
+      else setProfileViewOpen(false);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    const onPointerDown = (event: Event): void => {
+      const target = event.target;
+      if (target instanceof Node && profileTriggerRef.current?.contains(target) === true) return;
+      setProfilePopoverOpen(false);
+    };
+    if (profilePopoverOpen) document.addEventListener('pointerdown', onPointerDown);
     return () => {
       cancelled = true;
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [actions, channelId, profilePopoverOpen, profileViewOpen]);
 
@@ -669,33 +668,6 @@ function ConversationView({
       return next;
     });
   };
-
-  useEffect(() => {
-    if (!profilePopoverOpen && !profileViewOpen) return;
-    const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.key !== 'Escape') return;
-      event.preventDefault();
-      if (profilePopoverOpen) setProfilePopoverOpen(false);
-      else setProfileViewOpen(false);
-    };
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [profilePopoverOpen, profileViewOpen]);
-
-  useEffect(() => {
-    if (!profilePopoverOpen) return;
-    const onPointerDown = (event: Event): void => {
-      const target = event.target;
-      if (target instanceof Node && profileTriggerRef.current?.contains(target) === true) return;
-      setProfilePopoverOpen(false);
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-    };
-  }, [profilePopoverOpen]);
 
   const loadOlderAtTop = (retry = false): void => {
     const element = scrollRef.current;
@@ -728,82 +700,80 @@ function ConversationView({
     void actions.loadNewer(channelId);
   };
 
-  useClientLayoutEffect(() => {
-    if (openedChannel.current === channelId) return;
-    openedChannel.current = channelId;
-    followingLatest.current = true;
-    prependAnchor.current = null;
-    lastRevision.current = undefined;
-    setUnseen(0);
-  }, [channelId]);
-
-  useClientLayoutEffect(() => {
-    const element = scrollRef.current;
-    if (element === null || conversation.status !== 'ready') return;
-    if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer)
-      followingLatest.current = false;
-    const anchor = prependAnchor.current;
-    if (anchor !== null && messages[0]?.id !== anchor.firstId) {
-      const retained = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]')).find(
-        (candidate) => candidate.dataset['messageId'] === anchor.firstId,
-      );
-      if (retained !== undefined && anchor.y !== undefined) {
-        element.scrollTop += retained.getBoundingClientRect().top - anchor.y;
-      } else {
-        element.scrollTop = anchor.top + element.scrollHeight - anchor.height;
+  const timelineMount = useMountedResource<HTMLDivElement>(
+    (element) => {
+      scrollRef.current = element;
+      if (conversation.timeline.olderError !== undefined) prependAnchor.current = null;
+      if (conversation.status === 'ready') {
+        if (conversation.focusMessageId !== undefined && conversation.timeline.hasNewer)
+          followingLatest.current = false;
+        const anchor = prependAnchor.current;
+        if (anchor !== null && messages[0]?.id !== anchor.firstId) {
+          const retained = Array.from(
+            element.querySelectorAll<HTMLElement>('[data-message-id]'),
+          ).find((candidate) => candidate.dataset['messageId'] === anchor.firstId);
+          if (retained !== undefined && anchor.y !== undefined) {
+            element.scrollTop += retained.getBoundingClientRect().top - anchor.y;
+          } else {
+            element.scrollTop = anchor.top + element.scrollHeight - anchor.height;
+          }
+          prependAnchor.current = null;
+        } else if (followingLatest.current) {
+          element.scrollTop = element.scrollHeight;
+        }
+        const previousRevision = lastRevision.current;
+        if (
+          previousRevision !== undefined &&
+          conversation.revision > previousRevision &&
+          !followingLatest.current
+        ) {
+          setUnseen((count) => count + conversation.revision - previousRevision);
+        }
+        lastRevision.current = conversation.revision;
       }
-      prependAnchor.current = null;
-    } else if (followingLatest.current) {
-      element.scrollTop = element.scrollHeight;
-    }
-    const previousRevision = lastRevision.current;
-    if (
-      previousRevision !== undefined &&
-      conversation.revision > previousRevision &&
-      !followingLatest.current
-    ) {
-      setUnseen((count) => count + conversation.revision - previousRevision);
-    }
-    lastRevision.current = conversation.revision;
-  }, [channelId, conversation.status, conversation.drafts, conversation.revision, messages]);
-
-  useEffect(() => {
-    if (conversation.timeline.olderError !== undefined) prependAnchor.current = null;
-  }, [conversation.timeline.olderError]);
-
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (element !== null && element.scrollHeight <= element.clientHeight + 1) loadOlderAtTop();
-  }, [messages[0]?.id, conversation.timeline.hasOlder, conversation.timeline.loadingOlder]);
-  useEffect(() => {
-    const element = scrollRef.current;
-    if (element !== null && element.scrollHeight <= element.clientHeight + 1) loadNewerAtBottom();
-  }, [messages.at(-1)?.id, conversation.timeline.hasNewer, conversation.timeline.loadingNewer]);
-
-  useEffect(() => {
-    const id = conversation.focusMessageId;
-    const element = scrollRef.current;
-    if (id === undefined || element === null) return;
-    const target = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]')).find(
-      (candidate) => candidate.dataset['messageId'] === id,
-    );
-    target?.scrollIntoView({ block: 'center' });
-    const timer = window.setTimeout(() => {
-      const current = store.getSnapshot().conversation;
-      if (current.channel?.id === channelId && current.focusMessageId === id) {
-        store.setConversation({ focusMessageId: undefined });
+      const id = conversation.focusMessageId;
+      let focusTimer: number | undefined;
+      if (id !== undefined) {
+        const target = Array.from(element.querySelectorAll<HTMLElement>('[data-message-id]')).find(
+          (candidate) => candidate.dataset['messageId'] === id,
+        );
+        target?.scrollIntoView({ block: 'center' });
+        focusTimer = window.setTimeout(() => {
+          const current = store.getSnapshot().conversation;
+          if (current.channel?.id === channelId && current.focusMessageId === id) {
+            store.setConversation({ focusMessageId: undefined });
+          }
+        }, 2200);
       }
-    }, 2200);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [channelId, conversation.focusMessageId, messages]);
-
-  useEffect(() => {
-    if (conversation.status !== 'ready') return;
-    const frame = window.requestAnimationFrame(scheduleReadMark);
-    return () => window.cancelAnimationFrame(frame);
-  }, [channelId, conversation.status, conversation.focusMessageId, messages]);
+      const frame = window.requestAnimationFrame(() => {
+        if (element.scrollHeight <= element.clientHeight + 1) {
+          loadOlderAtTop();
+          loadNewerAtBottom();
+        }
+        if (conversation.status === 'ready') scheduleReadMark();
+      });
+      return () => {
+        window.cancelAnimationFrame(frame);
+        window.clearTimeout(focusTimer);
+        scrollRef.current = null;
+      };
+    },
+    [
+      actions,
+      channelId,
+      conversation.status,
+      conversation.drafts,
+      conversation.revision,
+      conversation.focusMessageId,
+      conversation.timeline.hasOlder,
+      conversation.timeline.hasNewer,
+      conversation.timeline.loadingOlder,
+      conversation.timeline.loadingNewer,
+      conversation.timeline.olderError,
+      conversation.timeline.newerError,
+      messages,
+    ],
+  );
 
   const onTimelineScroll = (): void => {
     const element = scrollRef.current;
@@ -943,10 +913,10 @@ function ConversationView({
   };
 
   return (
-    <div className="bh-root bh-main">
+    <div ref={conversationMount} className="bh-root bh-main">
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
-          <div className="bh-topbar">
+          <div ref={profileMount} className="bh-topbar">
             {profileBot === undefined ? (
               <button
                 type="button"
@@ -1085,7 +1055,7 @@ function ConversationView({
               )}
               <div
                 className="bh-chat-body"
-                ref={scrollRef}
+                ref={timelineMount}
                 onScroll={onTimelineScroll}
                 style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
               >
@@ -1406,8 +1376,13 @@ export function BotMain({
   const state = useClientState();
   if (state.selection === undefined) return <Welcome state={state} t={t} />;
   if (state.selection.kind === 'inbox') return <HumanInboxView actions={actions} t={t} />;
+  const scopeKey =
+    state.selection.kind === 'bot'
+      ? `bot:${state.selection.slug}`
+      : `channel:${state.selection.channelId}`;
   return (
     <ConversationView
+      key={`${scopeKey}:${state.conversation.channel?.id ?? ''}`}
       state={state}
       actions={actions}
       channelSidebar={channelSidebar}
@@ -1431,19 +1406,22 @@ export function BotPanel({
   nativeChatT?: NativeChatFailureText | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
-  useEffect(() => {
+  const modeMount = useMountedResource<HTMLSpanElement>(() => {
     store.setMode('bot');
     return () => {
       store.setMode('dsh');
     };
   }, []);
   return (
-    <BotMain
-      actions={actions}
-      channelSidebar={channelSidebar}
-      profileCards={profileCards}
-      nativeChatT={nativeChatT}
-      t={t}
-    />
+    <>
+      <span ref={modeMount} hidden aria-hidden="true" />
+      <BotMain
+        actions={actions}
+        channelSidebar={channelSidebar}
+        profileCards={profileCards}
+        nativeChatT={nativeChatT}
+        t={t}
+      />
+    </>
   );
 }

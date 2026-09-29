@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, type ReactElement } from 'react';
 
 import { blobatar } from 'blobatar';
 
@@ -104,10 +104,6 @@ function AvatarMedia({
 }): ReactElement {
   const [failedSrc, setFailedSrc] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    setFailedSrc(undefined);
-  }, [src]);
-
   if (src !== undefined && src.length > 0 && failedSrc !== src) {
     return (
       <span className="bh-avatar-media bh-avatar-media-image">
@@ -167,7 +163,7 @@ export function PersonaBotAvatar({
       role="img"
       aria-label={t('avatar.label', { name, activity: personaBotActivityLabel(state, t) })}
     >
-      <AvatarMedia personaBotId={personaBotId} name={name} src={src} />
+      <AvatarMedia key={src ?? ''} personaBotId={personaBotId} name={name} src={src} />
       {indicator ? <ActivityIndicator state={state} /> : null}
     </span>
   );

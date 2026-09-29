@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type RefCallback, type ReactElement } from 'react';
 
 import { Button, MenuItemButton } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { InjectFace, PropsLocale, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
@@ -7,6 +7,7 @@ import { PersonaBotAvatar } from './avatar.js';
 import { BotIcon } from './bot-icon.js';
 import type { SessionBotOwner } from './bridge.js';
 import { LOCALE_NS } from './locale.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export interface SessionReturnInjected {
   resolveOwner: (sessionId: string, signal: AbortSignal) => Promise<SessionBotOwner | undefined>;
@@ -33,9 +34,17 @@ interface SessionOwnerResolution {
 function useSessionOwner(
   sessionId: string,
   resolveOwner: SessionReturnInjected['resolveOwner'],
-): SessionOwnerResolution | undefined {
+  onScopeMount?: () => void,
+): {
+  resolution: SessionOwnerResolution | undefined;
+  mount: RefCallback<HTMLSpanElement>;
+  generation: React.RefObject<number>;
+} {
   const [resolved, setResolved] = useState<SessionOwnerResolution>();
-  useEffect(() => {
+  const generation = useRef(0);
+  const mount = useMountedResource<HTMLSpanElement>(() => {
+    ++generation.current;
+    onScopeMount?.();
     const controller = new AbortController();
     void resolveOwner(sessionId, controller.signal)
       .then((owner) => {
@@ -45,9 +54,16 @@ function useSessionOwner(
       .catch(() => {
         if (!controller.signal.aborted) setResolved({ sessionId });
       });
-    return () => controller.abort();
+    return () => {
+      ++generation.current;
+      controller.abort();
+    };
   }, [sessionId, resolveOwner]);
-  return resolved?.sessionId === sessionId ? resolved : undefined;
+  return {
+    resolution: resolved?.sessionId === sessionId ? resolved : undefined,
+    mount,
+    generation,
+  };
 }
 
 export function SessionReturnAction({
@@ -56,51 +72,54 @@ export function SessionReturnAction({
   returnToBot,
   t,
 }: SessionReturnActionProps): ReactElement | null {
-  const owner = useSessionOwner(sessionId, resolveOwner)?.owner;
-  const currentSessionId = useRef(sessionId);
-  currentSessionId.current = sessionId;
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
+  const { resolution, mount, generation } = useSessionOwner(sessionId, resolveOwner, () => {
     setBusy(false);
     setFailed(false);
-  }, [sessionId]);
+  });
+  const owner = resolution?.owner;
 
-  if (owner === undefined) return null;
   const open = async (): Promise<void> => {
+    if (owner === undefined) return;
+    const requestGeneration = generation.current;
     setBusy(true);
     setFailed(false);
     try {
       await returnToBot(owner.botSlug);
     } catch {
-      if (currentSessionId.current === sessionId) setFailed(true);
+      if (generation.current === requestGeneration) setFailed(true);
     } finally {
-      if (currentSessionId.current === sessionId) setBusy(false);
+      if (generation.current === requestGeneration) setBusy(false);
     }
   };
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="bh-session-return-action"
-      icon={
-        <PersonaBotAvatar
-          personaBotId={owner.botSlug}
-          name={owner.displayName}
-          src={owner.avatar}
-          size={20}
-          indicator={false}
-          t={t}
-        />
-      }
-      disabled={busy}
-      onClick={() => void open()}
-    >
-      {failed
-        ? t('sessions.return.failed')
-        : t('sessions.return.action', { name: owner.displayName })}
-    </Button>
+    <>
+      <span ref={mount} hidden aria-hidden="true" />
+      {owner === undefined ? null : (
+        <Button
+          variant="ghost"
+          size="sm"
+          className="bh-session-return-action"
+          icon={
+            <PersonaBotAvatar
+              personaBotId={owner.botSlug}
+              name={owner.displayName}
+              src={owner.avatar}
+              size={20}
+              indicator={false}
+              t={t}
+            />
+          }
+          disabled={busy}
+          onClick={() => void open()}
+        >
+          {failed
+            ? t('sessions.return.failed')
+            : t('sessions.return.action', { name: owner.displayName })}
+        </Button>
+      )}
+    </>
   );
 }
 
@@ -109,22 +128,25 @@ export function SessionOwnerLeading({
   resolveOwner,
   t,
 }: SessionOwnerLeadingProps): ReactElement | null {
-  const resolution = useSessionOwner(sessionId, resolveOwner);
-  if (resolution === undefined) return null;
-  const owner = resolution.owner;
-  if (owner === undefined)
-    return <span hidden data-bh-native-session-owner="unowned" data-session-id={sessionId} />;
-
+  const { resolution, mount } = useSessionOwner(sessionId, resolveOwner);
+  const owner = resolution?.owner;
   return (
-    <PersonaBotAvatar
-      personaBotId={owner.botSlug}
-      name={owner.displayName}
-      src={owner.avatar}
-      size={16}
-      indicator={false}
-      className="bh-native-session-owner"
-      t={t}
-    />
+    <>
+      <span ref={mount} hidden aria-hidden="true" />
+      {resolution === undefined ? null : owner === undefined ? (
+        <span hidden data-bh-native-session-owner="unowned" data-session-id={sessionId} />
+      ) : (
+        <PersonaBotAvatar
+          personaBotId={owner.botSlug}
+          name={owner.displayName}
+          src={owner.avatar}
+          size={16}
+          indicator={false}
+          className="bh-native-session-owner"
+          t={t}
+        />
+      )}
+    </>
   );
 }
 
@@ -135,40 +157,42 @@ export function SessionReturnMenuItem({
   returnToBot,
   t,
 }: SessionReturnMenuItemProps): ReactElement | null {
-  const owner = useSessionOwner(sessionId, resolveOwner)?.owner;
-  const currentSessionId = useRef(sessionId);
-  currentSessionId.current = sessionId;
   const [, setMenuOpen] = useMenuOpenState();
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
+  const { resolution, mount, generation } = useSessionOwner(sessionId, resolveOwner, () => {
     setBusy(false);
     setFailed(false);
-  }, [sessionId]);
-  if (owner === undefined) return null;
+  });
+  const owner = resolution?.owner;
 
   return (
-    <MenuItemButton
-      icon={<BotIcon icon="bot" size={16} />}
-      disabled={busy}
-      separatorBefore
-      onSelect={() => {
-        setBusy(true);
-        setFailed(false);
-        void returnToBot(owner.botSlug)
-          .then(() => {
-            if (currentSessionId.current === sessionId) setMenuOpen(false);
-          })
-          .catch(() => {
-            if (currentSessionId.current === sessionId) setFailed(true);
-          })
-          .finally(() => {
-            if (currentSessionId.current === sessionId) setBusy(false);
-          });
-      }}
-    >
-      {failed ? t('sessions.return.failed') : t('sessions.return.label')}
-    </MenuItemButton>
+    <>
+      <span ref={mount} hidden aria-hidden="true" />
+      {owner === undefined ? null : (
+        <MenuItemButton
+          icon={<BotIcon icon="bot" size={16} />}
+          disabled={busy}
+          separatorBefore
+          onSelect={() => {
+            const requestGeneration = generation.current;
+            setBusy(true);
+            setFailed(false);
+            void returnToBot(owner.botSlug)
+              .then(() => {
+                if (generation.current === requestGeneration) setMenuOpen(false);
+              })
+              .catch(() => {
+                if (generation.current === requestGeneration) setFailed(true);
+              })
+              .finally(() => {
+                if (generation.current === requestGeneration) setBusy(false);
+              });
+          }}
+        >
+          {failed ? t('sessions.return.failed') : t('sessions.return.label')}
+        </MenuItemButton>
+      )}
+    </>
   );
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 
 import {
   IconCheckOutlineRegular,
@@ -7,6 +7,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BotHarnessTranslate } from './locale.js';
+import { useMountedResource } from './mounted-resource.js';
 
 const COPY_SUCCESS_MS = 2_000;
 
@@ -21,7 +22,7 @@ export function MessageCopyAction({
   const resetTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const attempt = useRef(0);
 
-  useEffect(() => {
+  const buttonMount = useMountedResource<HTMLButtonElement>(() => {
     setCopiedBody(undefined);
     return () => {
       attempt.current += 1;
@@ -53,6 +54,7 @@ export function MessageCopyAction({
   return (
     <Tooltip label={label} side="top" portal delayMs={400}>
       <button
+        ref={buttonMount}
         type="button"
         className="bh-bubble-action"
         aria-label={label}

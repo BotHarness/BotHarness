@@ -153,6 +153,40 @@ describe('native Session menu return to PersonaBot', () => {
     }
   });
 
+  it('does not apply an old return failure after an A-B-A Session switch', async () => {
+    let rejectPrevious: ((reason: Error) => void) | undefined;
+    const returnToBot = vi.fn(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          rejectPrevious = reject;
+        }),
+    );
+    const view = setup(
+      vi.fn(async () => OWNER),
+      returnToBot,
+    );
+    try {
+      await view.render();
+      await act(async () => view.host.querySelector('button')?.click());
+      expect(view.host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(true);
+      await act(async () =>
+        view.root.render(
+          createElement(SessionReturnMenuItem, {
+            ...view.props,
+            sessionId: 'assignment-2',
+          } as never),
+        ),
+      );
+      await view.render();
+      expect(view.host.querySelector<HTMLButtonElement>('button')?.disabled).toBe(false);
+      await act(async () => rejectPrevious?.(new Error('old Session failed')));
+      expect(view.host.querySelector('button')?.textContent).toContain('返回 Bot 私聊');
+      expect(view.setMenuOpen).not.toHaveBeenCalled();
+    } finally {
+      await view.dispose();
+    }
+  });
+
   it('keeps the menu open and shows a localized retry message when navigation fails', async () => {
     const returnToBot = vi.fn(async () => {
       throw new Error('navigation failed');

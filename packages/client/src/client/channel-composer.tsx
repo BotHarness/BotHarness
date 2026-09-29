@@ -1,7 +1,5 @@
 import {
   useCallback,
-  useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -47,7 +45,7 @@ export interface ChannelComposerActivity {
 }
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
-const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
+import { useMountedResource } from './mounted-resource.js';
 
 export interface ChannelComposerUpload {
   id: string;
@@ -284,67 +282,70 @@ export function ChannelComposer({
       return [mention.botSlug, bot?.displayName, bot?.avatar].join(':');
     })
     .join('|');
-  useClientLayoutEffect(() => {
-    const editor = richRef.current;
-    if (editor === null) {
-      if (!rich) setAvatarMounts([]);
-      return;
-    }
-    const current = readRichMentionDraft(editor);
-    if (
-      sameRichMentionDraft(current, value, mentions, channelRefs) &&
-      renderedAvatarKey.current === avatarKey
-    )
-      return;
-    const caret =
-      requestedCaret.current ??
-      (editor.ownerDocument.activeElement === editor
-        ? richSelectionOffsets(editor)?.end
-        : undefined);
-    const mounts = renderRichMentionDraft(editor, value, mentions, mentionCandidates, channelRefs);
-    setAvatarMounts(mounts);
-    renderedAvatarKey.current = avatarKey;
-    requestedCaret.current = undefined;
-    if (caret !== undefined) setRichSelection(editor, Math.min(caret, value.length));
-    syncTextarea(editor);
-  }, [
-    rich,
-    value,
-    mentions,
-    channelRefs,
-    mentionCandidates,
-    channelCandidates,
-    avatarKey,
-    syncTextarea,
-  ]);
-
-  useEffect(() => {
-    const element = richRef.current ?? textareaRef.current;
-    if (element !== null) syncTextarea(element);
-  }, [syncTextarea, value, mentions, channelRefs, rich]);
-
-  const replyId = reply?.id;
-  useEffect(() => {
-    if (replyId !== undefined) (richRef.current ?? textareaRef.current)?.focus();
-  }, [replyId]);
-  useEffect(() => {
-    if (focusSignal > 0) (richRef.current ?? textareaRef.current)?.focus();
-  }, [focusSignal]);
-
-  useEffect(() => {
-    const element = richRef.current ?? textareaRef.current;
-    if (element === null || typeof ResizeObserver === 'undefined') return;
-
-    let width = element.clientWidth;
-    const observer = new ResizeObserver(([entry]) => {
-      const nextWidth = entry?.contentRect.width;
-      if (nextWidth === undefined || nextWidth === width) return;
-      width = nextWidth;
+  const richMount = useMountedResource<HTMLDivElement>(
+    (editor) => {
+      richRef.current = editor;
+      const current = readRichMentionDraft(editor);
+      if (
+        sameRichMentionDraft(current, value, mentions, channelRefs) &&
+        renderedAvatarKey.current === avatarKey
+      )
+        return () => {
+          richRef.current = null;
+        };
+      const caret =
+        requestedCaret.current ??
+        (editor.ownerDocument.activeElement === editor
+          ? richSelectionOffsets(editor)?.end
+          : undefined);
+      const mounts = renderRichMentionDraft(
+        editor,
+        value,
+        mentions,
+        mentionCandidates,
+        channelRefs,
+      );
+      setAvatarMounts(mounts);
+      renderedAvatarKey.current = avatarKey;
+      requestedCaret.current = undefined;
+      if (caret !== undefined) setRichSelection(editor, Math.min(caret, value.length));
+      syncTextarea(editor);
+      return () => {
+        richRef.current = null;
+      };
+    },
+    [value, mentions, channelRefs, mentionCandidates, channelCandidates, avatarKey, syncTextarea],
+  );
+  const textareaMount = useMountedResource<HTMLTextAreaElement>(
+    (element) => {
+      textareaRef.current = element;
+      setAvatarMounts((current) => (current.length === 0 ? current : []));
       syncTextarea(element);
-    });
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [syncTextarea, rich]);
+      return () => {
+        textareaRef.current = null;
+      };
+    },
+    [syncTextarea, value],
+  );
+  const replyId = reply?.id;
+  const bodyMount = useMountedResource<HTMLDivElement>(
+    (body) => {
+      const element = body.querySelector<HTMLElement>('.bh-composer-input');
+      if (replyId !== undefined || focusSignal > 0) element?.focus();
+      if (element === null || typeof ResizeObserver === 'undefined') return;
+
+      let width = element.clientWidth;
+      const observer = new ResizeObserver(([entry]) => {
+        const nextWidth = entry?.contentRect.width;
+        if (nextWidth === undefined || nextWidth === width) return;
+        width = nextWidth;
+        syncTextarea(element);
+      });
+      observer.observe(element);
+      return () => observer.disconnect();
+    },
+    [syncTextarea, rich, replyId, focusSignal],
+  );
 
   const emitRichChange = (editor: HTMLDivElement): void => {
     if (editor.innerHTML === '<br>') editor.replaceChildren();
@@ -575,10 +576,10 @@ export function ChannelComposer({
             ))}
           </div>
         ) : null}
-        <div className="bh-composer-body">
+        <div ref={bodyMount} className="bh-composer-body">
           {rich ? (
             <div
-              ref={richRef}
+              ref={richMount}
               className="bh-composer-input bh-composer-rich-input"
               role="textbox"
               aria-label={placeholder}
@@ -608,7 +609,7 @@ export function ChannelComposer({
             />
           ) : (
             <textarea
-              ref={textareaRef}
+              ref={textareaMount}
               className="bh-composer-input"
               rows={1}
               placeholder={placeholder}
