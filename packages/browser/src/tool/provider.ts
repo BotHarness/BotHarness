@@ -53,6 +53,8 @@ export interface BrowserToolProvider {
   isTakeover(slug: string): boolean;
   setTakeover(slug: string, active: boolean): boolean;
   currentTab(slug: string): string | undefined;
+  tabCount(slug: string): number;
+  closeIdleTabs(idleMs: number): Promise<void>;
   dispose(): Promise<void>;
 }
 
@@ -110,7 +112,27 @@ export function createBrowserToolProvider(
   const sessions = new Map<string, { scope: Context }>();
   const registrations = new Map<string, SessionRegistration>();
   const grants = new Set<string>();
-  const tabs = new Map<string, string>();
+  interface BotTabs {
+    current: string | undefined;
+    readonly owned: Set<string>;
+    lastActivity: number;
+  }
+
+  const tabsByBot = new Map<string, BotTabs>();
+
+  const botTabs = (slug: string): BotTabs => {
+    const existing = tabsByBot.get(slug);
+    if (existing !== undefined) return existing;
+    const created: BotTabs = { current: undefined, owned: new Set(), lastActivity: Date.now() };
+    tabsByBot.set(slug, created);
+    return created;
+  };
+
+  const dropCurrent = (state: BotTabs): void => {
+    if (state.current !== undefined) state.owned.delete(state.current);
+    state.current = undefined;
+  };
+
   const takeovers = new Set<string>();
   const queues = new Map<string, Promise<unknown>>();
   let disposed = false;
@@ -176,8 +198,11 @@ export function createBrowserToolProvider(
           'browser_open needs an absolute http(s) URL, for example https://example.com',
         );
       }
-      const tab = await runtime.open(url, tabs.get(slug));
-      tabs.set(slug, tab.tabId);
+      const state = botTabs(slug);
+      const tab = await runtime.open(url, state.current);
+      state.owned.add(tab.tabId);
+      state.current = tab.tabId;
+      state.lastActivity = Date.now();
       const title = tab.title === '' ? '' : ` — ${tab.title}`;
       return {
         content: [
@@ -189,7 +214,8 @@ export function createBrowserToolProvider(
       };
     }
     if (raw === 'observe') {
-      const tabId = tabs.get(slug);
+      const state = botTabs(slug);
+      const tabId = state.current;
       if (tabId === undefined) {
         throw new Error(
           'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
@@ -199,9 +225,9 @@ export function createBrowserToolProvider(
       try {
         observation = await runtime.observe(tabId);
       } catch (error) {
-        tabs.delete(slug);
+        dropCurrent(state);
         throw new Error(
-          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_open again`,
+          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
       const elementLines = observation.elements.map(
@@ -220,7 +246,8 @@ export function createBrowserToolProvider(
           'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
         );
       }
-      const tabId = tabs.get(slug);
+      const state = botTabs(slug);
+      const tabId = state.current;
       if (tabId === undefined) {
         throw new Error(
           'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
@@ -230,9 +257,9 @@ export function createBrowserToolProvider(
       try {
         shot = await runtime.captureScreenshot(tabId);
       } catch (error) {
-        tabs.delete(slug);
+        dropCurrent(state);
         throw new Error(
-          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_open again`,
+          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_tabs action list to pick another tab, or browser_open`,
         );
       }
       if (shot === undefined) {
@@ -248,35 +275,118 @@ export function createBrowserToolProvider(
       return { content: [{ type: 'image', data: shot.data, mimeType: shot.mimeType }] };
     }
     if (raw === 'click' || raw === 'type' || raw === 'press_key' || raw === 'scroll') {
-      const tabId = tabs.get(slug);
+      const state = botTabs(slug);
+      const tabId = state.current;
       if (tabId === undefined) {
         throw new Error(
           'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
         );
       }
-      const page =
-        raw === 'click'
-          ? await runtime.click(
-              tabId,
-              requiredString(args, 'ref', 'browser_click needs a ref from browser_observe'),
-            )
-          : raw === 'type'
-            ? await runtime.type(
+      let page;
+      try {
+        page =
+          raw === 'click'
+            ? await runtime.click(
                 tabId,
-                requiredString(args, 'ref', 'browser_type needs a ref from browser_observe'),
-                requiredString(args, 'text', 'browser_type needs text to enter'),
+                requiredString(args, 'ref', 'browser_click needs a ref from browser_observe'),
               )
-            : raw === 'press_key'
-              ? await runtime.pressKey(
+            : raw === 'type'
+              ? await runtime.type(
                   tabId,
-                  requiredString(args, 'key', 'browser_press_key needs a key'),
+                  requiredString(args, 'ref', 'browser_type needs a ref from browser_observe'),
+                  requiredString(args, 'text', 'browser_type needs text to enter'),
                 )
-              : await runtime.scroll(
-                  tabId,
-                  args['direction'] === 'up' ? 'up' : 'down',
-                  boundedNumber(args['amount'], 100, 2000, 600),
-                );
+              : raw === 'press_key'
+                ? await runtime.pressKey(
+                    tabId,
+                    requiredString(args, 'key', 'browser_press_key needs a key'),
+                  )
+                : await runtime.scroll(
+                    tabId,
+                    args['direction'] === 'up' ? 'up' : 'down',
+                    boundedNumber(args['amount'], 100, 2000, 600),
+                  );
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('stale')) dropCurrent(state);
+        throw error;
+      }
       return { content: [{ type: 'text', text: `${raw} done — ${page.url}` }] };
+    }
+    if (raw === 'tabs') {
+      const action = requiredString(args, 'action', 'browser_tabs needs an action');
+      const state = botTabs(slug);
+      if (action === 'list') {
+        const live = await runtime.listTabs();
+        const lines = live
+          .filter((tab) => state.owned.has(tab.targetId))
+          .map(
+            (tab) =>
+              `${tab.targetId === state.current ? '* ' : '  '}${tab.targetId} ${tab.url}${
+                tab.title === '' ? '' : ` — ${tab.title}`
+              }`,
+          );
+        if (lines.length === 0) {
+          throw new Error(
+            'This PersonaBot has no Bot Browser tabs; call browser_open or browser_tabs action open',
+          );
+        }
+        return {
+          content: [
+            { type: 'text', text: `Bot Browser tabs (current marked *):\n${lines.join('\n')}` },
+          ],
+        };
+      }
+      if (action === 'open') {
+        const url = requiredString(args, 'url', 'browser_tabs action open needs an absolute URL');
+        if (!/^https?:\/\//u.test(url)) {
+          throw new Error(
+            'browser_tabs action open needs an absolute http(s) URL, for example https://example.com',
+          );
+        }
+        const tab = await runtime.createTab(url, state.current);
+        state.owned.add(tab.tabId);
+        state.current = tab.tabId;
+        state.lastActivity = Date.now();
+        return {
+          content: [
+            {
+              type: 'text',
+              text: `Opened ${tab.url}${tab.title === '' ? '' : ` — ${tab.title}`} in a new tab (${tab.tabId})`,
+            },
+          ],
+        };
+      }
+      if (action === 'select' || action === 'close') {
+        const targetId = requiredString(
+          args,
+          'targetId',
+          `browser_tabs action ${action} needs a targetId from action list`,
+        );
+        if (!state.owned.has(targetId)) {
+          throw new Error(
+            'That tab is not owned by this PersonaBot; call browser_tabs action list to see its tabs',
+          );
+        }
+        if (action === 'select') {
+          state.current = targetId;
+          state.lastActivity = Date.now();
+          const info = await runtime.tabInfo(targetId);
+          return {
+            content: [
+              {
+                type: 'text',
+                text: `Selected ${targetId}${info.title === '' ? '' : ` — ${info.title}`}`,
+              },
+            ],
+          };
+        }
+        await runtime.closeTab(targetId);
+        state.owned.delete(targetId);
+        if (state.current === targetId) state.current = undefined;
+        return { content: [{ type: 'text', text: `Closed tab ${targetId}` }] };
+      }
+      throw new Error(`Unknown browser_tabs action: ${action}`);
     }
     if (raw === 'wait') {
       const ms = boundedNumber(args['ms'], 0, 10_000, 1000);
@@ -410,7 +520,7 @@ export function createBrowserToolProvider(
         }
       }
       if (!access) {
-        tabs.delete(slug);
+        tabsByBot.delete(slug);
         takeovers.delete(slug);
       }
     },
@@ -427,7 +537,24 @@ export function createBrowserToolProvider(
     },
 
     currentTab(slug) {
-      return tabs.get(slug);
+      return tabsByBot.get(slug)?.current;
+    },
+
+    tabCount(slug) {
+      return tabsByBot.get(slug)?.owned.size ?? 0;
+    },
+
+    async closeIdleTabs(idleMs) {
+      for (const [slug, state] of tabsByBot) {
+        if (state.owned.size === 0) continue;
+        if (Date.now() - state.lastActivity < idleMs) continue;
+        for (const targetId of [...state.owned]) {
+          await runtime.closeTab(targetId).catch(() => undefined);
+        }
+        state.owned.clear();
+        state.current = undefined;
+        note(`idle tabs closed slug=${slug}`);
+      }
     },
 
     async reconcileAll() {
@@ -443,7 +570,7 @@ export function createBrowserToolProvider(
       for (const sessionId of [...registrations.keys()]) unregisterSession(sessionId);
       sessions.clear();
       grants.clear();
-      tabs.clear();
+      tabsByBot.clear();
       takeovers.clear();
       queues.clear();
       await runtime.stop();

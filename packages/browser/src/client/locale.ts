@@ -20,6 +20,7 @@ export const zh = {
   'entry.view.noFrame': '暂无画面',
   'entry.view.takeover': '接管',
   'entry.view.release': '结束接管',
+  'entry.view.tabs': '标签：{count}',
   'entry.view.taken': '已接管 · 该 Bot 的动作与截图已暂停',
   'entry.error': '浏览器操作失败',
 };
@@ -47,6 +48,7 @@ export const en: Record<BrowserKey, string> = {
   'entry.view.noFrame': 'No frame yet',
   'entry.view.takeover': 'Take over',
   'entry.view.release': 'End takeover',
+  'entry.view.tabs': 'Tabs: {count}',
   'entry.view.taken': "Taken over · this Bot's actions and screenshots are paused",
   'entry.error': 'Browser action failed',
 };

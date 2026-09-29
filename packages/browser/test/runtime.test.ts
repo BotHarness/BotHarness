@@ -180,6 +180,19 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
       if (method === 'Page.captureScreenshot') return { data: 'Zm9v' };
       if (method === 'Target.createTarget') return { targetId: 'tab-1' };
       if (method === 'Target.attachToTarget') return { sessionId: 'session-1' };
+      if (method === 'Target.activateTarget') return {};
+      if (method === 'Target.closeTarget') return {};
+      if (method === 'Target.getTargetInfo') {
+        return { targetInfo: { url: 'https://example.com/', title: 'Example' } };
+      }
+      if (method === 'Target.getTargets') {
+        return {
+          targetInfos: [
+            { type: 'page', targetId: 'tab-2', url: 'https://example.org/', title: 'Other' },
+            { type: 'service_worker', targetId: 'worker-1', url: 'sw.js', title: '' },
+          ],
+        };
+      }
       return {};
     }),
     close: vi.fn(),
@@ -255,6 +268,45 @@ describe('runtime lifecycle', () => {
     await ensuring;
     const window = await runtime.openWindow();
     expect(window.tabId).toBe('tab-1');
+  });
+
+  it('opens background tabs in the Bot window and lists or closes them', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const sent: { method: string; params?: Record<string, unknown> }[] = [];
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        sent.push({ method, ...(params === undefined ? {} : { params }) });
+        if (method === 'Target.createTarget') return { targetId: 'tab-2' };
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    const tab = await runtime.createTab('https://example.org', 'tab-1');
+    expect(tab.tabId).toBe('tab-2');
+    expect(sent.some((call) => call.method === 'Target.activateTarget')).toBe(true);
+    const create = sent.find(
+      (call) => call.method === 'Target.createTarget' && call.params?.['background'] === true,
+    );
+    expect(create?.params).toEqual({ url: 'about:blank', newWindow: false, background: true });
+    const tabs = await runtime.listTabs();
+    expect(tabs).toEqual([{ targetId: 'tab-2', url: 'https://example.org/', title: 'Other' }]);
+    const info = await runtime.tabInfo('tab-2');
+    expect(info.url).toBe('https://example.com/');
+    await runtime.closeTab('tab-2');
+    expect(sent.some((call) => call.method === 'Target.closeTarget')).toBe(true);
   });
 
   it('acts on observed refs and surfaces a stale ref readably', async () => {

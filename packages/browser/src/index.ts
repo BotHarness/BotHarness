@@ -155,9 +155,10 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   ctx.effect(() => {
     const timer = setInterval(() => {
       if (!runtime.isRunning()) return;
+      void provider.closeIdleTabs(idleMs);
       if (Date.now() - lastActivity.at < idleMs) return;
       diagnostics.record('lifecycle', `idle stop after ${config.idleStopMinutes}m`);
-      void runtime.stop();
+      void runtime.stop().then(() => provider.closeIdleTabs(0));
     }, 30_000);
     return () => clearInterval(timer);
   }, 'botharness-browser: idle stop');
@@ -220,6 +221,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           running: runtime.isRunning(),
           frame,
           takeover: slug === '' ? false : provider.isTakeover(slug),
+          tabs: slug === '' ? 0 : provider.tabCount(slug),
         });
       },
     };
@@ -260,6 +262,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         diagnostics.record('lifecycle', 'stop requested (panel)');
         try {
           await runtime.stop();
+          await provider.closeIdleTabs(0);
           return json({ ok: true });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);

@@ -61,6 +61,10 @@ export interface BotBrowserRuntime {
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
   pressKey(tabId: string, key: string): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
+  createTab(url: string, inWindowOf?: string): Promise<BrowserTab>;
+  listTabs(): Promise<readonly { targetId: string; url: string; title: string }[]>;
+  tabInfo(targetId: string): Promise<{ url: string; title: string }>;
+  closeTab(targetId: string): Promise<void>;
   captureScreenshot(tabId: string): Promise<{ data: string; mimeType: string } | undefined>;
   openWindow(): Promise<BrowserTab>;
   currentUrl(): string | undefined;
@@ -459,6 +463,70 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId: targetId, url: page.url, title: page.title };
   };
 
+  const openTarget = async (url: string, newWindow: boolean): Promise<BrowserTab> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    const created = await live.send('Target.createTarget', {
+      url: 'about:blank',
+      newWindow,
+      ...(newWindow ? {} : { background: true }),
+    });
+    const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
+    if (targetId === '') throw new Error('The Bot Browser did not open a tab');
+    const sessionId = await attach(targetId);
+    await live.send('Page.navigate', { url }, sessionId);
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId: targetId, url: page.url, title: page.title };
+  };
+
+  const createTab = async (url: string, inWindowOf?: string): Promise<BrowserTab> => {
+    await ensure();
+    if (inWindowOf === undefined) return openTarget(url, true);
+    const live = client;
+    if (live !== undefined) {
+      await live.send('Target.activateTarget', { targetId: inWindowOf }).catch(() => undefined);
+    }
+    return openTarget(url, false);
+  };
+
+  const listTabs = async (): Promise<
+    readonly { targetId: string; url: string; title: string }[]
+  > => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    const result = await live.send('Target.getTargets', {});
+    const infos = Array.isArray(result['targetInfos'])
+      ? (result['targetInfos'] as readonly Record<string, unknown>[])
+      : [];
+    return infos
+      .filter((info) => info['type'] === 'page' && typeof info['targetId'] === 'string')
+      .map((info) => ({
+        targetId: String(info['targetId']),
+        url: typeof info['url'] === 'string' ? info['url'] : '',
+        title: typeof info['title'] === 'string' ? info['title'] : '',
+      }));
+  };
+
+  const tabInfo = async (targetId: string): Promise<{ url: string; title: string }> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    const result = await live.send('Target.getTargetInfo', { targetId });
+    const info = asObject(result['targetInfo']);
+    return {
+      url: typeof info?.['url'] === 'string' ? info['url'] : '',
+      title: typeof info?.['title'] === 'string' ? info['title'] : '',
+    };
+  };
+
+  const closeTab = async (targetId: string): Promise<void> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    await live.send('Target.closeTarget', { targetId });
+    sessions.delete(targetId);
+  };
+
   const observe = async (tabId: string): Promise<BrowserObservation> => {
     const sessionId = await attach(tabId);
     const value = asObject(await evaluate(sessionId, SNAPSHOT_SCRIPT));
@@ -555,6 +623,10 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     type,
     pressKey,
     scroll,
+    createTab,
+    listTabs,
+    tabInfo,
+    closeTab,
     captureScreenshot,
     openWindow,
     currentUrl: () => lastUrl,
