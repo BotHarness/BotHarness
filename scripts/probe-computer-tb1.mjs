@@ -1,3 +1,6 @@
+import { randomBytes } from 'node:crypto';
+import { request as httpRequest } from 'node:http';
+
 const VIEWER_PREFIX = '/botharness-computer/viewer';
 
 function parseArgs(argv) {
@@ -88,24 +91,34 @@ async function waitForState(base, cookie, want, timeoutMs) {
 function tryUpgrade(url, cookie, timeoutMs) {
   return new Promise((resolve) => {
     let done = false;
+    const target = new URL(url);
+    target.protocol = 'http:';
+    const request = httpRequest(target, {
+      headers: {
+        connection: 'Upgrade',
+        upgrade: 'websocket',
+        'sec-websocket-version': '13',
+        'sec-websocket-key': randomBytes(16).toString('base64'),
+        cookie,
+      },
+    });
     const finish = (ok, detail) => {
       if (done) return;
       done = true;
-      try {
-        socket.close();
-      } catch {}
+      request.destroy();
       resolve({ ok, detail });
     };
-    const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
-    const socket = new WebSocket(url, { headers: { cookie } });
-    socket.addEventListener('open', () => {
-      clearTimeout(timer);
-      finish(true, '101 switching protocols');
+    request.setTimeout(timeoutMs, () => finish(false, 'timeout'));
+    request.on('upgrade', (response, socket) => {
+      socket.destroy();
+      finish(response.statusCode === 101, `HTTP ${response.statusCode ?? '?'}`);
     });
-    socket.addEventListener('error', () => {
-      clearTimeout(timer);
-      finish(false, 'socket error before open');
+    request.on('response', (response) => {
+      response.resume();
+      finish(false, `HTTP ${response.statusCode ?? '?'}`);
     });
+    request.on('error', (error) => finish(false, error.message));
+    request.end();
   });
 }
 
@@ -194,7 +207,11 @@ async function main() {
     );
 
     let upgrade = { ok: false, detail: 'not attempted' };
-    for (const socketPath of [`${VIEWER_PREFIX}/websockets`, `${VIEWER_PREFIX}/websocket`]) {
+    for (const socketPath of [
+      `${VIEWER_PREFIX}/api/websockets`,
+      `${VIEWER_PREFIX}/websockets`,
+      `${VIEWER_PREFIX}/websocket`,
+    ]) {
       const wsBase = base.replace(/^http/, 'ws');
       const attempt = await tryUpgrade(`${wsBase}${socketPath}`, cookie, 15_000);
       upgrade = { ...attempt, detail: `${socketPath}: ${attempt.detail}` };
