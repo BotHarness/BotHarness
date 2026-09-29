@@ -305,6 +305,7 @@ describe('plugin entry', () => {
       'rosterBatch',
       'developerModeSet',
       'computerAccessSet',
+      'browserAccessSet',
       'botAvatarSet',
     ]);
   });

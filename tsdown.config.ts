@@ -62,6 +62,12 @@ export const computerClientBundleOptions: UserConfig = clientBundle(
   'packages/computer/lib',
 );
 
+export const browserClientBundleOptions: UserConfig = clientBundle(
+  '@botharness/browser',
+  ['packages/browser/src/client/index.tsx'],
+  'packages/browser/lib',
+);
+
 export default defineConfig([
   {
     entry: ['packages/core/src/index.ts'],
@@ -93,6 +99,15 @@ export default defineConfig([
     dts: true,
     clean: true,
   },
+  {
+    entry: ['packages/browser/src/index.ts'],
+    outDir: 'packages/browser/dist',
+    format: ['esm'],
+    platform: 'node',
+    dts: true,
+    clean: true,
+  },
   clientBundleOptions,
   computerClientBundleOptions,
+  browserClientBundleOptions,
 ]);

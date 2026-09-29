@@ -242,6 +242,8 @@ export interface BridgeMethods {
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  /** Sets or clears one PersonaBot's Bot Browser opt-in (ADR-0089). */
+  browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   /** Sets or clears one PersonaBot's custom avatar inside its DM scope (ADR-0086). */
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
@@ -267,6 +269,8 @@ export interface BridgeMethodsDeps {
   developerMode?: { set(enabled: boolean): void };
   /** Optional Computer Tool Provider hook: reconcile one PersonaBot after its access changed. */
   computerAccess?: { changed(slug: string): void };
+  /** Optional Browser Tool Provider hook: reconcile one PersonaBot after its access changed. */
+  browserAccess?: { changed(slug: string): void };
   createBotId?: () => string;
 }
 
@@ -488,6 +492,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
         }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
+    ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
   };
 }
 
@@ -710,6 +715,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setComputerAccess(slug, enabled);
       if (!result.ok) return unknownBot(slug);
       deps.computerAccess?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    browserAccessSet(payload) {
+      const slug = asSlug(payload);
+      const enabled = asObject(payload)['enabled'];
+      if (slug === undefined || typeof enabled !== 'boolean') {
+        return invalidInput('slug and enabled are required');
+      }
+      const result = deps.registry.setBrowserAccess(slug, enabled);
+      if (!result.ok) return unknownBot(slug);
+      deps.browserAccess?.changed(slug);
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {

@@ -14,6 +14,8 @@ export interface PersonaBotRecord {
   paused?: boolean;
   /** Per-PersonaBot Computer tool opt-in; absent means off (ADR-0080). */
   computerAccess?: boolean;
+  /** Per-PersonaBot Bot Browser tool opt-in; absent means off (ADR-0089). */
+  browserAccess?: boolean;
 }
 
 export interface CreatePersonaBotInput {
@@ -55,6 +57,7 @@ export interface PersonaBotPatch {
   preset?: string;
   workspaces?: string[];
   computerAccess?: boolean;
+  browserAccess?: boolean;
 }
 
 export type UpdatePersonaBotResult =
@@ -94,6 +97,8 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   if (typeof record['createdAt'] !== 'string') return false;
   if (record['paused'] !== undefined && typeof record['paused'] !== 'boolean') return false;
   if (record['computerAccess'] !== undefined && typeof record['computerAccess'] !== 'boolean')
+    return false;
+  if (record['browserAccess'] !== undefined && typeof record['browserAccess'] !== 'boolean')
     return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;

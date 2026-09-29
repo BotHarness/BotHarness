@@ -58,6 +58,7 @@ export interface PersonaBotRegistry {
   update(slug: string, patch: PersonaBotPatch): UpdatePersonaBotResult;
   setPaused(slug: string, paused: boolean): UpdatePersonaBotResult;
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
+  setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -316,6 +317,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (enabled) record.computerAccess = true;
       else delete record.computerAccess;
+      write(record);
+      return { ok: true, record };
+    },
+    setBrowserAccess(slug, enabled) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (enabled) record.browserAccess = true;
+      else delete record.browserAccess;
       write(record);
       return { ok: true, record };
     },
