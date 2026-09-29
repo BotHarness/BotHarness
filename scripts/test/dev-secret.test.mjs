@@ -13,6 +13,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   adoptProfileCredential,
+  adoptSharedEnv,
   devSecretEnvironment,
   profileDeepSeekCredential,
   resolveDevSecret,
@@ -68,6 +69,24 @@ describe('shared local DeepSeek dev credential', () => {
         devEnvPath: destination,
       })?.value,
     ).toBe('sk-override');
+  });
+
+  it('adopts an existing shared file across OS user homes without overwriting', () => {
+    const { home, destination } = fixture();
+    const source = join(home, 'dev.env');
+    writeFileSync(source, 'export DEEPSEEK_API_KEY=sk-test-456\n', { mode: 0o600 });
+    expect(adoptSharedEnv(source, destination).destination).toBe(destination);
+    expect(resolveDevSecret({ environment: {}, devEnvPath: destination })?.value).toBe(
+      'sk-test-456',
+    );
+    expect(() => adoptSharedEnv(source, destination)).toThrow();
+  });
+
+  it('rejects a shared source without a compatible key', () => {
+    const { home, destination } = fixture();
+    const source = join(home, 'dev.env');
+    writeFileSync(source, 'export DEEPSEEK_API_KEY=not a key\n', { mode: 0o600 });
+    expect(() => adoptSharedEnv(source, destination)).toThrow();
   });
 
   it('never overwrites a shared credential already created', () => {
