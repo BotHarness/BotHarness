@@ -16,6 +16,7 @@
     "reference",
     ".scratch",
     "packages/computer/lib",
+    "packages/browser/lib",
     "scripts/source-policy-baseline.json"
   ]
 }

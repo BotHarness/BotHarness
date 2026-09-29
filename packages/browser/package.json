@@ -18,7 +18,8 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.1"
+    "@deepseek-ai/dsh-mcp-client": "0.2.0-rc.1",
+    "@puppeteer/browsers": "3.2.2"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.4",

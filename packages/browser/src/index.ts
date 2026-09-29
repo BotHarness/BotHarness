@@ -61,6 +61,12 @@ export function profileDirectory(): string {
   return join(root, 'browser');
 }
 
+export function pinnedBrowserDirectory(): string {
+  const home = process.env.DSH_HOME?.trim() ?? '';
+  const root = home === '' ? join(homedir(), '.botharness') : join(home, 'botharness');
+  return join(root, 'browser-chromium');
+}
+
 export function apply(ctx: Context, config: BrowserConfig): void {
   if (!config.enabled) return;
 
@@ -84,6 +90,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   const runtime = createBotBrowserRuntime({
     ...(config.browserPath.trim() === '' ? {} : { browserPath: config.browserPath.trim() }),
     userDataDir: profileDirectory(),
+    installDir: pinnedBrowserDirectory(),
     ...(config.headless ? { headless: true } : {}),
     onEvent: (detail) => diagnostics.record('lifecycle', detail),
   });

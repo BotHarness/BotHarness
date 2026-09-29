@@ -252,4 +252,50 @@ describe('runtime lifecycle', () => {
     const window = await runtime.openWindow();
     expect(window.tabId).toBe('tab-1');
   });
+
+  it('installs the pinned fallback when no system browser exists', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const client = fakeClient();
+    const installs: string[] = [];
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: () => false,
+      installDir: '/tmp/browser-cache',
+      installFallback: async (installDir) => {
+        installs.push(installDir);
+        return '/tmp/browser-cache/chrome-linux64/chrome';
+      },
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    await vi.waitFor(() => expect(spawnMock).toHaveBeenCalled());
+    child.ready();
+    await ensuring;
+    expect(installs).toEqual(['/tmp/browser-cache']);
+    expect(runtime.binaryPath()).toBe('/tmp/browser-cache/chrome-linux64/chrome');
+    expect(spawnMock).toHaveBeenCalledWith(
+      '/tmp/browser-cache/chrome-linux64/chrome',
+      expect.anything(),
+      expect.anything(),
+    );
+  });
+
+  it('reports a readable error when the pinned fallback cannot install', async () => {
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: () => false,
+      installDir: '/tmp/browser-cache',
+      installFallback: async () => {
+        throw new Error('network down');
+      },
+    });
+    await expect(runtime.ensure()).rejects.toThrow(
+      /pinned fallback could not be installed: network down/,
+    );
+  });
 });
