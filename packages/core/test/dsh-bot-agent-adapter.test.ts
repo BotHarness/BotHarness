@@ -48,6 +48,7 @@ describe('DSH Bot Agent adapter', () => {
   it('dispatches Group attention Tools only during the owning Orchestrator run', async () => {
     const calls: Array<Promise<unknown>> = [];
     const writes: unknown[] = [];
+    const rejectedSourceCalls: Array<Promise<{ ok: boolean; error?: string }>> = [];
     const current = {
       mode: 'digest' as const,
       count: 5,
@@ -89,6 +90,16 @@ describe('DSH Bot Agent adapter', () => {
             ),
           );
           calls.push(sourceReset.execute({ sourceClass: 'group-ordinary' }, {} as ToolRunContext));
+          for (const call of [
+            sourceSet.execute({ sourceClass: 'human-dm', wake: 'immediate' }, {} as ToolRunContext),
+            sourceReset.execute({ sourceClass: 'group-mention' }, {} as ToolRunContext),
+          ])
+            rejectedSourceCalls.push(
+              call.then(
+                () => ({ ok: true }),
+                (error) => ({ ok: false, error: String(error) }),
+              ),
+            );
         },
       },
     );
@@ -215,6 +226,10 @@ describe('DSH Bot Agent adapter', () => {
         count: 5,
         intervalSeconds: 30,
       },
+    ]);
+    expect(await Promise.all(rejectedSourceCalls)).toEqual([
+      { ok: false, error: expect.stringContaining('must be one of') },
+      { ok: false, error: expect.stringContaining('must be one of') },
     ]);
     const write = host.scopes
       .get('orchestrator-ada')

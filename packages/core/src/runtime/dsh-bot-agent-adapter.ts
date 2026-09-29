@@ -1300,6 +1300,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 throw new Error('Assignment report has no digest parameters');
               return JSON.stringify(active.run.sourcePolicy.setAssignmentReport(args.wake));
             }
+            if (args.sourceClass !== 'group-ordinary')
+              throw new Error('Source class is not editable');
             if (
               args.wake !== 'immediate' &&
               args.wake !== 'digest' &&
@@ -1347,6 +1349,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
               throw new Error('source_attention_reset: Orchestrator run is unavailable');
+            if (
+              args.sourceClass !== undefined &&
+              args.sourceClass !== 'assignment-report' &&
+              args.sourceClass !== 'group-ordinary'
+            )
+              throw new Error('Source class is not editable');
             return JSON.stringify(
               args.sourceClass === 'group-ordinary'
                 ? active.run.sourcePolicy.resetGroupOrdinary()

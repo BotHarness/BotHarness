@@ -341,6 +341,31 @@ describe('per-PersonaBot source policy defaults', () => {
           digestIntervalSeconds: 45,
         }),
       ).toMatchObject({ ok: false });
+      const protectedClasses = [
+        'human-dm',
+        'bot-dm',
+        'group-mention',
+        'group-invite',
+        'group-join-request',
+        'group-join-decision',
+        'assignment-lifecycle',
+      ];
+      for (const sourceClass of protectedClasses) {
+        expect(
+          methods.botSourcePolicySet({ slug: 'ada', sourceClass, wake: 'immediate' }),
+        ).toMatchObject({ ok: false });
+        expect(methods.botSourcePolicyReset({ slug: 'ada', sourceClass })).toMatchObject({
+          ok: false,
+        });
+      }
+      const unchangedRules = core.sourcePolicy.list('ada');
+      for (const sourceClass of protectedClasses)
+        expect(unchangedRules.find((rule) => rule.sourceClass === sourceClass)).toMatchObject({
+          revision: 1,
+        });
+      expect(unchangedRules.find((rule) => rule.sourceClass === 'group-ordinary')).toMatchObject({
+        revision: 3,
+      });
       expect(
         methods.botSourcePolicyReset({ slug: 'ada', sourceClass: 'group-ordinary' }),
       ).toMatchObject({
