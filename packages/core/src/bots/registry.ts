@@ -25,6 +25,7 @@ import {
 } from './persona-bot.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
+import type { ModelPreset, PersonaBotModelPlan } from '../models/presets.js';
 
 export interface MemoryRepositoryInitialization {
   ok: boolean;
@@ -56,6 +57,7 @@ export interface PersonaBotRegistry {
   setComputerAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
+  applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -331,6 +333,21 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       const trimmed = profile.trim();
       if (trimmed === '') delete record.browserProfile;
       else record.browserProfile = trimmed;
+      write(record);
+      return { ok: true, record };
+    },
+    applyModelPreset(slug, preset) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      const plan: PersonaBotModelPlan = {
+        revision: (record.modelPlan?.revision ?? 0) + 1,
+        sourcePresetId: preset.id,
+        sourcePresetName: preset.name,
+        orchestrator: { ...preset.orchestrator },
+        assignmentDefault: { ...preset.assignmentDefault },
+        appliedAt: now().toISOString(),
+      };
+      record.modelPlan = plan;
       write(record);
       return { ok: true, record };
     },

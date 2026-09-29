@@ -102,6 +102,15 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    modelCatalog: vi.fn(async () => []),
+    modelPresets: vi.fn(async () => []),
+    modelPlan: vi.fn(async () => undefined),
+    createModelPreset: vi.fn(async () => {
+      throw new Error('unexpected Model Preset creation');
+    }),
+    applyModelPreset: vi.fn(async () => {
+      throw new Error('unexpected Model Preset application');
+    }),
     listHostFolders: vi.fn(async () => ({
       path: '/',
       home: '/',

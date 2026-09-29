@@ -12,12 +12,14 @@ import {
 } from '@deepseek-ai/dsh-agent';
 import { AttachmentId, type ImageMediaType } from '@deepseek-ai/dsh-attachment';
 import { createUserMessage } from '@deepseek-ai/dsh-llm';
+import { ReasoningEffortId } from '@deepseek-ai/dsh-llm';
 import { SessionId, type SessionLogOffset } from '@deepseek-ai/dsh-session';
 import { defineTool } from '@deepseek-ai/dsh-tools';
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import type { ModelRoute, PersonaBotModelPlan } from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
 import type {
@@ -66,6 +68,7 @@ export interface DshAgentPresetHost {
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
+  resolveModelPlan?: (botSlug: string) => PersonaBotModelPlan | undefined;
 
   resolveAgentPresets?: () => DshAgentPresetHost | undefined;
 
@@ -96,7 +99,19 @@ type ActiveRun =
 function agentOptions(
   run: OrchestratorAgentRun | AssignmentAgentRun,
   defaultSelection: ModelSelection,
+  plan: PersonaBotModelPlan | undefined,
 ): ModelSelection {
+  if (plan !== undefined) {
+    const route: ModelRoute =
+      'inboundChannelId' in run ? plan.orchestrator : plan.assignmentDefault;
+    return {
+      provider: route.provider,
+      model: route.model,
+      ...(route.reasoningEffort === undefined
+        ? {}
+        : { reasoningEffort: ReasoningEffortId(route.reasoningEffort) }),
+    };
+  }
   return run.bot.model === undefined
     ? defaultSelection
     : { ...defaultSelection, model: run.bot.model };
@@ -148,6 +163,7 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
 class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
+  readonly #resolveModelPlan: ((botSlug: string) => PersonaBotModelPlan | undefined) | undefined;
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
   readonly #authorizeBorrow:
@@ -159,6 +175,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     | undefined;
   readonly #ensureWorkspace: (path: string) => void;
   readonly #handles = new Map<string, AgentHandle>();
+  readonly #orchestratorSelections = new Map<
+    string,
+    { current: ModelSelection | undefined; assembled: ModelSelection | undefined }
+  >();
   readonly #runs = new Map<string, ActiveRun>();
   readonly #stopping = new Set<string>();
   readonly #drafts: ChannelDraftTracker;
@@ -167,6 +187,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   constructor(options: DshBotAgentAdapterOptions) {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
+    this.#resolveModelPlan = options.resolveModelPlan;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
     this.#authorizeBorrow = options.authorizeBorrow;
@@ -200,6 +221,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     });
     try {
       const handle = await this.#orchestratorHandle(run);
+      const selection = this.#orchestratorSelections.get(run.sessionId);
+      if (selection !== undefined) {
+        selection.current = agentOptions(
+          run,
+          this.#defaultModel.currentSelection(),
+          this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan,
+        );
+      }
       const fromSeq = handle.agent.session.seq;
       const text = [run.message, run.inbox].filter((part) => part.trim().length > 0).join('\n\n');
       handle.agent.followup(
@@ -298,6 +327,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#closed = true;
     const handles = [...this.#handles.values()];
     this.#handles.clear();
+    this.#orchestratorSelections.clear();
     for (const sessionId of this.#runs.keys()) this.#drafts.end(sessionId);
     this.#runs.clear();
     this.#stopping.clear();
@@ -307,7 +337,15 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   async #orchestratorHandle(run: OrchestratorAgentRun): Promise<AgentHandle> {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
-    const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
+    const resolvedAgentOptions = agentOptions(
+      run,
+      this.#defaultModel.currentSelection(),
+      this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan,
+    );
+    const selection = {
+      current: resolvedAgentOptions,
+      assembled: undefined as ModelSelection | undefined,
+    };
     const borrowedDisposers: Array<() => void> = [];
     const setup = async (agentCtx: Context, agent: Agent, borrowed = false): Promise<void> => {
       setSandboxMode(agent.session, 'workspace-write');
@@ -318,8 +356,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       });
       if (!borrowed) {
         await this.#composePreset(agentCtx, run.bot);
-        installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
       }
+      const disposeSelection = installModelSelection(agentCtx, selection);
+      if (borrowed) borrowedDisposers.push(disposeSelection);
       const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
         const dispose = agentCtx.tools.register(tool);
         if (borrowed) borrowedDisposers.push(dispose);
@@ -1482,6 +1521,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         },
       };
       this.#handles.set(run.sessionId, borrowed);
+      this.#orchestratorSelections.set(run.sessionId, selection);
       return borrowed;
     }
     const options = { agentOptions: resolvedAgentOptions, setup };
@@ -1502,6 +1542,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           ...options,
         });
     this.#handles.set(run.sessionId, handle);
+    this.#orchestratorSelections.set(run.sessionId, selection);
     return handle;
   }
 
@@ -1523,7 +1564,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const existing = this.#handles.get(run.sessionId);
     if (existing !== undefined) return existing;
     const meta = createMeta(run, run.permission.primaryCwd, undefined, this.#defaultAgentPreset);
-    const resolvedAgentOptions = agentOptions(run, this.#defaultModel.currentSelection());
+    const resolvedAgentOptions = agentOptions(
+      run,
+      this.#defaultModel.currentSelection(),
+      this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan,
+    );
     const borrowedDisposers: Array<() => void> = [];
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),

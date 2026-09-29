@@ -50,6 +50,82 @@ export type BridgeCall = (
   signal?: AbortSignal,
 ) => Promise<ConnectionRpcResult<unknown>>;
 
+export interface ModelRouteView {
+  provider: string;
+  model: string;
+  reasoningEffort?: string;
+}
+
+export interface ModelCatalogEntryView {
+  provider: string;
+  providerName: string;
+  model: string;
+  modelName: string;
+  efforts: { id: string; name: string }[];
+  defaultEffort?: string;
+}
+
+export interface ModelPresetView {
+  id: string;
+  name: string;
+  revision: number;
+  orchestrator: ModelRouteView;
+  assignmentDefault: ModelRouteView;
+  createdAt: string;
+}
+
+export interface ModelPlanView {
+  revision: number;
+  sourcePresetId: string;
+  sourcePresetName: string;
+  orchestrator: ModelRouteView;
+  assignmentDefault: ModelRouteView;
+  appliedAt: string;
+}
+
+export async function loadModelCatalog(call: BridgeCall): Promise<ModelCatalogEntryView[]> {
+  const value = asRecord(await unwrap(call, 'modelCatalog', {}));
+  if (!Array.isArray(value?.['models'])) throw new Error('Invalid model catalog');
+  return value['models'] as ModelCatalogEntryView[];
+}
+
+export async function loadModelPresets(call: BridgeCall): Promise<ModelPresetView[]> {
+  const value = asRecord(await unwrap(call, 'modelPresets', {}));
+  if (!Array.isArray(value?.['presets'])) throw new Error('Invalid Model Presets');
+  return value['presets'] as ModelPresetView[];
+}
+
+export async function loadModelPlan(
+  call: BridgeCall,
+  slug: string,
+): Promise<ModelPlanView | undefined> {
+  const value = asRecord(await unwrap(call, 'modelPlan', { slug }));
+  return value?.['plan'] as ModelPlanView | undefined;
+}
+
+export async function createModelPreset(
+  call: BridgeCall,
+  name: string,
+  orchestrator: ModelRouteView,
+  assignmentDefault: ModelRouteView,
+): Promise<ModelPresetView> {
+  const value = asRecord(
+    await unwrap(call, 'modelPresetCreate', { name, orchestrator, assignmentDefault }),
+  );
+  if (asRecord(value?.['preset']) === undefined) throw new Error('Invalid Model Preset result');
+  return value!['preset'] as ModelPresetView;
+}
+
+export async function applyModelPreset(
+  call: BridgeCall,
+  slug: string,
+  presetId: string,
+): Promise<ModelPlanView> {
+  const value = asRecord(await unwrap(call, 'modelPresetApply', { slug, presetId }));
+  if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
+  return value!['plan'] as ModelPlanView;
+}
+
 export interface CreatePersonaBotInput {
   displayName: string;
   roles: string[];

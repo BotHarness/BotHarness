@@ -17,6 +17,7 @@ import { NameInput } from './name-input.js';
 import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
+import { ModelPresetProfile } from './model-preset-profile.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 
@@ -389,6 +390,7 @@ export function ProfileView({
           </div>
         </section>
       )}
+      <ModelPresetProfile slug={bot.slug} actions={actions} t={t} />
       <section
         className="bh-profile-section bh-profile-policy-section"
         aria-label={t('sourcePolicy.title')}

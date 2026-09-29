@@ -10,6 +10,8 @@ import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import type { MemoryService } from '../src/memory/service.js';
 import type { UsageProjection } from '../src/usage/usage.js';
+import { createModelPresetStore } from '../src/models/presets.js';
+import type { ModelCatalog } from '../src/models/catalog.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
@@ -35,10 +37,12 @@ function setup(
   developerMode?: { set(enabled: boolean): void },
   memory?: MemoryService,
   usage?: UsageProjection,
+  modelCatalog?: ModelCatalog,
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
   const registry = createPersonaBotRegistry({ rootDir: root });
+  const modelPresets = createModelPresetStore(root);
   const states = createBotStateTracker();
   const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
   const channels = createChannelStore({
@@ -50,11 +54,14 @@ function setup(
   return {
     root,
     registry,
+    modelPresets,
     states,
     channels,
     attachments,
     methods: createBridgeMethods({
       registry,
+      modelPresets,
+      ...(modelCatalog === undefined ? {} : { modelCatalog }),
       states,
       channels,
       ownership,
@@ -74,6 +81,81 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('validates routes and applies independent named Model Preset snapshots to two Bots', async () => {
+    const valid = { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' };
+    const catalog: ModelCatalog = {
+      list: async () => [
+        {
+          provider: 'deepseek',
+          providerName: 'DeepSeek',
+          model: 'deepseek-chat',
+          modelName: 'DeepSeek Chat',
+          efforts: [{ id: 'high', name: 'High' }],
+        },
+      ],
+      validate: async (route) => {
+        if (
+          route.provider !== valid.provider ||
+          route.model !== valid.model ||
+          route.reasoningEffort !== valid.reasoningEffort
+        )
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { registry, methods, modelPresets } = setup(
+      [],
+      ['ada', 'bea'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    expect(
+      await methods.modelPresetCreate({
+        name: 'Invalid',
+        orchestrator: { provider: 'missing', model: 'missing' },
+        assignmentDefault: valid,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(modelPresets.list()).toHaveLength(0);
+    const created = await methods.modelPresetCreate({
+      name: 'Deep thinking',
+      orchestrator: valid,
+      assignmentDefault: valid,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const first = await methods.modelPresetApply({
+      slug: 'ada',
+      presetId: created.value.preset.id,
+    });
+    const second = await methods.modelPresetApply({
+      slug: 'bea',
+      presetId: created.value.preset.id,
+    });
+    expect(first).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1, orchestrator: valid } },
+    });
+    expect(second).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1, orchestrator: valid } },
+    });
+    expect(registry.get('ada')?.modelPlan).not.toBe(registry.get('bea')?.modelPlan);
+    expect(
+      await methods.modelPresetApply({ slug: 'ada', presetId: created.value.preset.id }),
+    ).toMatchObject({ ok: true, value: { plan: { revision: 2 } } });
+    expect(registry.get('bea')?.modelPlan?.revision).toBe(1);
+    expect(methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 2, sourcePresetName: 'Deep thinking' } },
+    });
+  });
   it('commits only a Grant-backed typed resolution for this Bot DM and retries it idempotently', async () => {
     const grant = {
       id: 'grant-1',

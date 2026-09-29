@@ -385,7 +385,7 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.close();
   });
 
-  it('lets a PersonaBot record choose its own agent preset over the default', async () => {
+  it('uses the applied Model Plan route without changing the DSH Agent preset', async () => {
     const host = new FakeAgentHost();
     const adapter = createDshBotAgentAdapter({
       agents: host,
@@ -398,7 +398,22 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.runOrchestrator({
       sessionId: 'orchestrator-ada',
       resume: false,
-      bot: { ...BOT, preset: 'cordis' },
+      bot: {
+        ...BOT,
+        preset: 'cordis',
+        modelPlan: {
+          revision: 1,
+          sourcePresetId: 'preset-1',
+          sourcePresetName: 'High intelligence',
+          orchestrator: {
+            provider: 'deepseek',
+            model: 'deepseek-reasoner',
+            reasoningEffort: 'high',
+          },
+          assignmentDefault: { provider: 'deepseek', model: 'deepseek-chat' },
+          appliedAt: BOT.createdAt,
+        },
+      },
       message: '你好',
       channels: {
         ...groupTools,
@@ -445,6 +460,11 @@ describe('DSH Bot Agent adapter', () => {
     });
 
     expect(host.createOptions[0]?.meta?.agentPreset).toBe('cordis');
+    expect(host.createOptions[0]?.agentOptions).toEqual({
+      provider: 'deepseek',
+      model: 'deepseek-reasoner',
+      reasoningEffort: 'high',
+    });
     await adapter.close();
   });
 

@@ -1839,6 +1839,42 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   gap: 6px;
   font-size: 13px;
 }
+.bh-model-preset-effective,
+.bh-model-preset-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  font-size: 13px;
+}
+.bh-model-preset-effective {
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-preset-form label,
+.bh-model-preset-apply label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+}
+.bh-model-preset-apply {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.bh-model-preset-apply label {
+  flex: 1;
+}
+.bh-model-preset-form {
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-preset-form > button {
+  align-self: flex-start;
+}
 .bh-profile-card-total {
   font-size: 15px;
   font-weight: 600;
