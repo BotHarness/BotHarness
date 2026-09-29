@@ -85,7 +85,7 @@ flowchart TB
     Memory["Optional Memory Service<br/>repositories · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
-    Usage["Usage<br/>daily token buckets · read model"]
+    Usage["Usage<br/>retained daily model tokens · read model"]
     Portable["Portability<br/>Soul · export · backup · restore"]
     Views["Read models<br/>RPC · UI projections"]
   end

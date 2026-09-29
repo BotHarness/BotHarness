@@ -83,6 +83,7 @@ flowchart TB
     Memory["Optional Memory Service<br/>repositories · Git commits · events"]
     Msg["Messaging<br/>events · channels · inbox · triggers<br/>grants · outbox"]
     Assignments["Assignments<br/>directory · capacity · requests · reports"]
+    Usage["Usage<br/>retained daily model tokens · read model"]
     Portable["Portability<br/>Soul · export · backup · restore"]
     Views["Read models<br/>RPC · UI projections"]
   end
@@ -92,11 +93,13 @@ flowchart TB
   Root -. optional Provider .-> Memory
   Root --> Msg
   Root --> Assignments
+  Root --> Usage
   Root --> Portable
   Root --> Views
   DB --> Bots
   DB --> Msg
   DB --> Assignments
+  DB --> Usage
   DB --> Portable
   Bots -. attachment .-> Memory
   Bots --> Assignments
@@ -106,6 +109,7 @@ flowchart TB
   Assignments -. scoped Consumer .-> Memory
   Memory --> Views
   Assignments --> Views
+  Usage --> Views
   Portable --> Views
 ```
 
