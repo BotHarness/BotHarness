@@ -56,6 +56,22 @@ describe('source policy', () => {
     expect(result.map((item) => item.token)).toEqual(['// real']);
   });
 
+  it('resolves calls by lexical binding when local names shadow React hooks', async () => {
+    const source = [
+      "import { useEffect } from 'react';",
+      "import * as R from 'react';",
+      'function local() { const useEffect = () => {}; useEffect(); }',
+      'function scoped() { const { useEffect: run } = R; run(() => {}); }',
+      'function unrelated() { const run = () => {}; run(); }',
+      'useEffect(() => {});',
+    ].join('\n');
+    const result = await scanSource('packages/client/src/scopes.tsx', source);
+    expect(result.filter((item) => item.kind === 'useEffect').map((item) => item.token)).toEqual([
+      'run(() => {})',
+      'useEffect(() => {})',
+    ]);
+  });
+
   it('parses Astro frontmatter, HTML, attributes, scripts, and styles', async () => {
     const source = [
       '---',

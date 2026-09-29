@@ -5,7 +5,7 @@ import { extname, join } from 'node:path';
 import { parse as parseAstro } from '@astrojs/compiler';
 import { parse as parseJavaScript } from '@babel/parser';
 import postcss from 'postcss';
-import ts from 'typescript-legacy';
+import { findReactEffects } from './react-effect-policy.mjs';
 
 const codeExtensions = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts']);
 const sourceExtensions = new Set([...codeExtensions, '.astro', '.css']);
@@ -65,129 +65,7 @@ function isException(path, item) {
   return false;
 }
 
-function scriptKind(path) {
-  if (path.endsWith('.tsx')) return ts.ScriptKind.TSX;
-  if (path.endsWith('.jsx')) return ts.ScriptKind.JSX;
-  if (path.endsWith('.ts') || path.endsWith('.mts') || path.endsWith('.cts'))
-    return ts.ScriptKind.TS;
-  return ts.ScriptKind.JS;
-}
-
-function memberUseEffect(expression, namespaces) {
-  if (
-    ts.isPropertyAccessExpression(expression) &&
-    expression.name.text === 'useEffect' &&
-    ts.isIdentifier(expression.expression)
-  )
-    return namespaces.has(expression.expression.text);
-  if (
-    ts.isElementAccessExpression(expression) &&
-    ts.isIdentifier(expression.expression) &&
-    ts.isStringLiteral(expression.argumentExpression)
-  )
-    return (
-      namespaces.has(expression.expression.text) &&
-      expression.argumentExpression.text === 'useEffect'
-    );
-  return false;
-}
-
-function effectValue(expression, functions, namespaces) {
-  if (ts.isIdentifier(expression)) return functions.has(expression.text);
-  if (memberUseEffect(expression, namespaces)) return true;
-  if (ts.isParenthesizedExpression(expression) || ts.isAsExpression(expression)) {
-    return effectValue(expression.expression, functions, namespaces);
-  }
-  if (ts.isConditionalExpression(expression)) {
-    return (
-      effectValue(expression.whenTrue, functions, namespaces) ||
-      effectValue(expression.whenFalse, functions, namespaces)
-    );
-  }
-  return false;
-}
-
-function reactBindings(file) {
-  const functions = new Set();
-  const namespaces = new Set();
-  for (const statement of file.statements) {
-    if (!ts.isImportDeclaration(statement) || statement.moduleSpecifier.text !== 'react') continue;
-    const clause = statement.importClause;
-    if (clause?.name) namespaces.add(clause.name.text);
-    if (clause?.namedBindings && ts.isNamespaceImport(clause.namedBindings)) {
-      namespaces.add(clause.namedBindings.name.text);
-    }
-    if (clause?.namedBindings && ts.isNamedImports(clause.namedBindings)) {
-      for (const specifier of clause.namedBindings.elements) {
-        if ((specifier.propertyName ?? specifier.name).text === 'useEffect')
-          functions.add(specifier.name.text);
-      }
-    }
-  }
-  for (let changed = true; changed;) {
-    changed = false;
-    function visit(node) {
-      if (
-        ts.isVariableDeclaration(node) &&
-        ts.isObjectBindingPattern(node.name) &&
-        node.initializer &&
-        ts.isIdentifier(node.initializer) &&
-        namespaces.has(node.initializer.text)
-      ) {
-        for (const element of node.name.elements) {
-          const key = element.propertyName ?? element.name;
-          if (
-            (ts.isIdentifier(key) || ts.isStringLiteral(key)) &&
-            key.text === 'useEffect' &&
-            ts.isIdentifier(element.name) &&
-            !functions.has(element.name.text)
-          ) {
-            functions.add(element.name.text);
-            changed = true;
-          }
-        }
-      }
-      if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
-        const name = node.name.text;
-        if (effectValue(node.initializer, functions, namespaces)) {
-          if (!functions.has(name)) {
-            functions.add(name);
-            changed = true;
-          }
-        } else if (
-          ts.isIdentifier(node.initializer) &&
-          namespaces.has(node.initializer.text) &&
-          !namespaces.has(name)
-        ) {
-          namespaces.add(name);
-          changed = true;
-        }
-      }
-      ts.forEachChild(node, visit);
-    }
-    visit(file);
-  }
-  return { functions, namespaces };
-}
-
 function scanScript(path, fragment, source, baseOffset) {
-  const file = ts.createSourceFile(path, fragment, ts.ScriptTarget.Latest, true, scriptKind(path));
-  const found = [];
-  const bindings = reactBindings(file);
-  function visit(node) {
-    if (ts.isCallExpression(node)) {
-      const callee = node.expression;
-      if (
-        (ts.isIdentifier(callee) && bindings.functions.has(callee.text)) ||
-        memberUseEffect(callee, bindings.namespaces)
-      )
-        found.push(
-          issue(path, source, 'useEffect', baseOffset + node.getStart(file), node.getText(file)),
-        );
-    }
-    ts.forEachChild(node, visit);
-  }
-  visit(file);
   const plugins = /\.[mc]?ts$/.test(path)
     ? ['typescript', 'decorators-legacy']
     : ['typescript', 'jsx', 'decorators-legacy'];
@@ -197,6 +75,7 @@ function scanScript(path, fragment, source, baseOffset) {
     allowReturnOutsideFunction: true,
     errorRecovery: true,
   });
+  const found = [];
   for (const comment of parsed.comments) {
     found.push(
       issue(
@@ -208,6 +87,17 @@ function scanScript(path, fragment, source, baseOffset) {
       ),
     );
   }
+  for (const call of findReactEffects(parsed)) {
+    found.push(
+      issue(
+        path,
+        source,
+        'useEffect',
+        baseOffset + call.start,
+        fragment.slice(call.start, call.end),
+      ),
+    );
+  }
   if (fragment.startsWith('#!')) {
     found.push(
       issue(path, source, 'comment', baseOffset, fragment.split('\n', 1)[0].replace(/\r$/, '')),
@@ -215,7 +105,6 @@ function scanScript(path, fragment, source, baseOffset) {
   }
   return found;
 }
-
 function scanCss(path, fragment, source, baseOffset) {
   const found = [];
   const root = postcss.parse(fragment, { from: path });

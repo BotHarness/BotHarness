@@ -33,6 +33,7 @@
   "devDependencies": {
     "@astrojs/compiler": "2.13.1",
     "@babel/parser": "7.29.8",
+    "@babel/traverse": "7.29.8",
     "@deepseek-ai/dsh": "0.2.0-rc.1",
     "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/node": "^22.20.2",
