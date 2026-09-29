@@ -485,6 +485,50 @@ describe('worktree delta for out-of-band Memory changes', () => {
     }
   });
 
+  it('does not repeatedly report a staged deletion and untracked file at the same path', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      agentTurn(memory, addSource, 'baseline', () => {
+        writeFileSync(join(root, 'notes.md'), 'Tracked note\n');
+        git(root, 'add', 'notes.md');
+        git(root, 'commit', '-m', 'Track note');
+      });
+      git(root, 'rm', '--cached', 'notes.md');
+      addSource('next');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.workingPaths).toEqual(['notes.md']);
+      memory.reconcileTurn({
+        botSlug: 'atlas',
+        sessionId: 'session-atlas',
+        sourceEventId: 'next',
+      });
+      addSource('unchanged');
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('reads the exact Git index entry for a filename containing pathspec characters', () => {
+    const { database, memory, root } = fixture();
+    try {
+      writeFileSync(join(root, 'note[1].md'), 'Literal path\n');
+      writeFileSync(join(root, 'note1.md'), 'Other path\n');
+      git(root, '--literal-pathspecs', 'add', '--', 'note[1].md');
+      git(root, 'add', 'note1.md');
+      const observation = JSON.parse(memory.scanChanges('atlas').observationJson) as {
+        files: Array<{ path: string; version: string }>;
+      };
+      const literal = observation.files.find((file) => file.path === 'note[1].md');
+      const exactIndex = git(root, 'rev-parse', ':note[1].md');
+      const otherIndex = git(root, 'rev-parse', ':note1.md');
+      expect(literal?.version).toContain(exactIndex);
+      expect(literal?.version).not.toContain(otherIndex);
+    } finally {
+      database.close();
+    }
+  });
+
   it('annotates an out-of-band disk commit with their paths', () => {
     const { database, memory, root, addSource } = fixture();
     try {
@@ -668,7 +712,10 @@ describe('worktree delta for out-of-band Memory changes', () => {
     try {
       agentTurn(memory, addSource, 'baseline');
       for (let index = 0; index < 505; index += 1) {
-        writeFileSync(join(root, `many-${String(index).padStart(3, '0')}.md`), 'x\n');
+        writeFileSync(
+          join(root, `many-${String(index).padStart(3, '0')}-${'x'.repeat(75)}.md`),
+          'x\n',
+        );
       }
       addSource('next');
       const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
@@ -678,7 +725,7 @@ describe('worktree delta for out-of-band Memory changes', () => {
         sessionId: 'session-atlas',
         sourceEventId: 'next',
       });
-      writeFileSync(join(root, 'many-505.md'), 'x\n');
+      writeFileSync(join(root, `many-505-${'x'.repeat(75)}.md`), 'x\n');
       addSource('after');
       expect(memory.prepareTurn('atlas', 'session-atlas')?.summary).toContain(
         'More than 500 working Memory changes',

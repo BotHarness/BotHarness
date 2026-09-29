@@ -314,13 +314,32 @@ const MAX_HASHED_FILE_BYTES = 8 * 1024 * 1024;
 function indexVersions(root: string, paths: string[]): Map<string, string> {
   if (paths.length === 0) return new Map();
   const versions = new Map<string, string>();
-  const raw = run(root, ['ls-files', '--stage', '-z', '--', ...paths]).toString('utf8');
-  for (const entry of raw.split('\0')) {
-    const separator = entry.indexOf('\t');
-    if (separator < 0) continue;
-    const path = entry.slice(separator + 1);
-    versions.set(path, `${versions.get(path) ?? ''}${entry.slice(0, separator)};`);
+  let batch: string[] = [];
+  let length = 0;
+  const flush = () => {
+    const raw = run(root, [
+      '--literal-pathspecs',
+      'ls-files',
+      '--stage',
+      '-z',
+      '--',
+      ...batch,
+    ]).toString('utf8');
+    for (const entry of raw.split('\0')) {
+      const separator = entry.indexOf('\t');
+      if (separator < 0) continue;
+      const path = entry.slice(separator + 1);
+      versions.set(path, `${versions.get(path) ?? ''}${entry.slice(0, separator)};`);
+    }
+    batch = [];
+    length = 0;
+  };
+  for (const path of paths) {
+    if (batch.length > 0 && (length + path.length + 1 > 8000 || batch.length === 100)) flush();
+    batch.push(path);
+    length += path.length + 1;
   }
+  if (batch.length > 0) flush();
   return versions;
 }
 
@@ -581,10 +600,11 @@ function buildTurnChange(
       details.push('Memory commits changed since your last turn; inspect them with git commands.');
     }
   }
-  const previousFiles = new Map(previous.files.map((file) => [file.path, file.version]));
-  const currentPaths = new Set(current.files.map((file) => file.path));
-  const changed = current.files.filter((file) => previousFiles.get(file.path) !== file.version);
-  const cleared = previous.files.filter((file) => !currentPaths.has(file.path));
+  const fileKey = (file: TurnWorktreeFile): string => `${file.path}\0${file.status}`;
+  const previousFiles = new Map(previous.files.map((file) => [fileKey(file), file.version]));
+  const currentKeys = new Set(current.files.map(fileKey));
+  const changed = current.files.filter((file) => previousFiles.get(fileKey(file)) !== file.version);
+  const cleared = previous.files.filter((file) => !currentKeys.has(fileKey(file)));
   if (
     current.overflowHash !== previous.overflowHash ||
     current.overflowCount !== previous.overflowCount
@@ -604,7 +624,7 @@ function buildTurnChange(
   if (cleared.length > 0) {
     const shown = cleared.slice(0, MAX_ANNOTATION_PATHS);
     details.push(
-      `Previously uncommitted paths now clean: ${shown.map((file) => file.path).join(', ')}${cleared.length > shown.length ? ` (+${cleared.length - shown.length} more)` : ''}`,
+      `Previous working Memory statuses no longer present: ${shown.map((file) => file.path).join(', ')}${cleared.length > shown.length ? ` (+${cleared.length - shown.length} more)` : ''}`,
     );
   }
   if (details.length === 0) return undefined;
@@ -622,8 +642,8 @@ function buildTurnChange(
     fromHead: previous.head,
     toHead: current.head,
     committedPaths: committedNames.slice(0, MAX_ANNOTATION_PATHS),
-    workingPaths: changed.slice(0, MAX_ANNOTATION_PATHS).map((file) => file.path),
-    clearedPaths: cleared.slice(0, MAX_ANNOTATION_PATHS).map((file) => file.path),
+    workingPaths: [...new Set(changed.map((file) => file.path))].slice(0, MAX_ANNOTATION_PATHS),
+    clearedPaths: [...new Set(cleared.map((file) => file.path))].slice(0, MAX_ANNOTATION_PATHS),
     personaChanged,
   };
 }
