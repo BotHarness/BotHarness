@@ -417,6 +417,7 @@ interface GroupPromptBudget {
 }
 
 const GROUP_PROMPT_CHARACTER_BUDGET = 24_000;
+const DM_CONTEXT_CHARACTER_BUDGET = 8_000;
 const GROUP_PROMPT_CHANNEL_LIMIT = 100;
 const GROUP_CONTEXT_OLDEST_LIMIT = 10;
 const GROUP_CONTEXT_RECENT_LIMIT = 10;
@@ -697,6 +698,7 @@ class BotRuntimeImplementation implements BotRuntime {
         channel.id,
         input.messageId,
         claim.sourceEventId,
+        'human-dm',
         this.#inboundChannelMessage(channel.id, input.messageId, body),
       );
     return {
@@ -815,6 +817,25 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId)
       )
         continue;
+      if (reason === 'bot-dm') {
+        const source = this.#database.read((database) =>
+          database
+            .prepare('SELECT body FROM source_events WHERE source_event_id = ?')
+            .get(row.source_event_id),
+        ) as { body: string } | undefined;
+        if (
+          source !== undefined &&
+          this.#steerDmAdmission(
+            row.bot_slug,
+            channelId,
+            messageId,
+            row.source_event_id,
+            'bot-dm',
+            this.#inboundChannelMessage(channelId, messageId, source.body),
+          )
+        )
+          continue;
+      }
       this.#scheduleHarvest(row.bot_slug);
     }
   }
@@ -824,55 +845,173 @@ class BotRuntimeImplementation implements BotRuntime {
     channelId: string,
     messageId: string,
     sourceEventId: string,
+    reason: 'human-dm' | 'bot-dm',
     prompt: string,
   ): boolean {
     const active = this.#activeTurns.get(botSlug);
     if (active === undefined || this.#agents.steerOrchestrator === undefined) return false;
-    const admission = { sourceEventId, messageId };
+    const claimed = this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`
+        UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+         WHERE source_event_id = ? AND bot_slug = ?
+           AND attempt_state IN ('pending', 'retryable')
+      `)
+          .run(sourceEventId, botSlug);
+        return this.#claimDmContext(database, botSlug, channelId, reason, sourceEventId);
+      },
+      ['bot-inbox'],
+    );
+    const admissions = [
+      { sourceEventId, messageId },
+      ...(claimed?.rows ?? []).map((row) => ({
+        sourceEventId: row.source_event_id,
+        messageId: row.message_id,
+      })),
+    ];
     this.#channels.admissionChanged?.(channelId, messageId);
-    this.#markAdmissionsSideEffect(botSlug, [sourceEventId]);
+    for (const row of claimed?.rows ?? [])
+      this.#channels.admissionChanged?.(channelId, row.message_id);
+    this.#markAdmissionsSideEffect(
+      botSlug,
+      admissions.map((admission) => admission.sourceEventId),
+    );
     let delivered: boolean;
     try {
-      delivered = this.#agents.steerOrchestrator(botSlug, prompt);
+      delivered = this.#agents.steerOrchestrator(
+        botSlug,
+        claimed === undefined ? prompt : `${prompt}\n\n${this.#dmContextSection(claimed)}`,
+      );
     } catch (error) {
       this.#database.transaction(
         (database) => {
-          database
-            .prepare(`
+          for (const admission of admissions)
+            database
+              .prepare(`
           UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = ?
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
-            .run(String(error).slice(0, 500), sourceEventId, botSlug);
+              .run(String(error).slice(0, 500), admission.sourceEventId, botSlug);
         },
         ['bot-inbox'],
       );
-      this.#channels.admissionChanged?.(channelId, messageId);
+      for (const admission of admissions)
+        this.#channels.admissionChanged?.(channelId, admission.messageId);
       return true;
     }
     if (!delivered) {
       this.#database.transaction(
         (database) => {
-          database
-            .prepare(`
+          for (const admission of admissions)
+            database
+              .prepare(`
           UPDATE inbox_admissions
              SET attempt_state = 'pending', side_effect_started_at = NULL
            WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
         `)
-            .run(sourceEventId, botSlug);
+              .run(admission.sourceEventId, botSlug);
         },
         ['bot-inbox'],
       );
-      this.#channels.admissionChanged?.(channelId, messageId);
+      for (const admission of admissions)
+        this.#channels.admissionChanged?.(channelId, admission.messageId);
       return false;
     }
-    this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
+    for (const admission of admissions)
+      this.#observeAdmission(admission.sourceEventId, botSlug, channelId, admission.messageId);
     const settlement = active.then(
-      () => this.#settleSteeredAdmission([admission], botSlug, channelId, true),
-      () => this.#settleSteeredAdmission([admission], botSlug, channelId, false),
+      () => this.#settleSteeredAdmission(admissions, botSlug, channelId, true),
+      () => this.#settleSteeredAdmission(admissions, botSlug, channelId, false),
     );
     this.#steerSettlements.add(settlement);
     void settlement.finally(() => this.#steerSettlements.delete(settlement)).catch(() => undefined);
     return true;
+  }
+
+  #claimDmContext(
+    database: DatabaseSync,
+    botSlug: string,
+    channelId: string,
+    reason: 'human-dm' | 'bot-dm',
+    excludeSourceEventId: string,
+  ): GroupContext | undefined {
+    const base = `
+      FROM inbox_admissions a JOIN source_events e ON e.source_event_id = a.source_event_id
+     WHERE a.bot_slug = ? AND a.reason = ? AND a.attempt_state IN ('pending', 'retryable')
+       AND e.channel_id = ? AND a.source_event_id != ?`;
+    const total = database
+      .prepare(`SELECT COUNT(*) AS count ${base}`)
+      .get(botSlug, reason, channelId, excludeSourceEventId) as { count: number };
+    if (total.count === 0) return undefined;
+    const columns = `SELECT a.source_event_id, e.message_id, e.body, e.created_at,
+      json_extract(e.payload_json, '$.author.kind') AS author_kind,
+      json_extract(e.payload_json, '$.author.slug') AS author_slug`;
+    const oldest = database
+      .prepare(`${columns} ${base} ORDER BY e.created_at, e.rowid LIMIT ?`)
+      .all(
+        botSlug,
+        reason,
+        channelId,
+        excludeSourceEventId,
+        GROUP_CONTEXT_OLDEST_LIMIT,
+      ) as unknown as DigestRow[];
+    const newest = database
+      .prepare(`${columns} ${base} ORDER BY e.created_at DESC, e.rowid DESC LIMIT ?`)
+      .all(
+        botSlug,
+        reason,
+        channelId,
+        excludeSourceEventId,
+        GROUP_CONTEXT_RECENT_LIMIT,
+      ) as unknown as DigestRow[];
+    const candidates = new Map<string, DigestRow>();
+    for (const row of [...oldest, ...newest]) candidates.set(row.source_event_id, row);
+    const rows: DigestRow[] = [];
+    let characters = 0;
+    for (const row of candidates.values()) {
+      const cost = Math.min(row.body.length, GROUP_CONTEXT_BODY_LIMIT) + 80;
+      if (
+        rows.length >= GROUP_PROMPT_CHANNEL_LIMIT ||
+        characters + cost > DM_CONTEXT_CHARACTER_BUDGET
+      )
+        break;
+      rows.push(row);
+      characters += cost;
+    }
+    if (rows.length === 0) return undefined;
+    rows.sort((left, right) => left.created_at.localeCompare(right.created_at));
+    const context = { channelId, rows, omittedCount: total.count - rows.length };
+    for (const row of rows)
+      database
+        .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'running', last_error = NULL
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state IN ('pending', 'retryable')
+        `)
+        .run(row.source_event_id, botSlug);
+    return context;
+  }
+
+  #dmContextSection(context: GroupContext): string {
+    return [
+      '[Bot Inbox: pending DM context]',
+      `Channel: ${context.channelId}`,
+      ...context.rows.map(
+        (row) =>
+          `- Message ${row.message_id} [Source Event ${row.source_event_id}] from ${
+            row.author_kind === 'bot' ? `PersonaBot ${row.author_slug ?? '?'}` : 'Human'
+          } at ${row.created_at}: ${row.body.slice(0, GROUP_CONTEXT_BODY_LIMIT)}${
+            row.body.length > GROUP_CONTEXT_BODY_LIMIT
+              ? ` [excerpt; ${row.body.length - GROUP_CONTEXT_BODY_LIMIT} more characters available with channel_read]`
+              : ''
+          }`,
+      ),
+      context.omittedCount > 0
+        ? `${context.omittedCount} messages remain pending for later turns. Use channel_read if more history is needed.`
+        : '',
+    ]
+      .filter((line) => line !== '')
+      .join('\n');
   }
 
   #steerGroupMention(
