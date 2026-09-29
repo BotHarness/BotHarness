@@ -58,6 +58,7 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       elements: [{ ref: 'e1', role: 'a', name: 'More information' }],
       text: 'Hello world',
     })),
+    captureScreenshot: vi.fn(async () => ({ data: 'Zm9v', mimeType: 'image/jpeg' })),
     openWindow: vi.fn(async () => ({ tabId: 'tab-9', url: 'about:blank', title: '' })),
     currentUrl: () => undefined,
     binaryPath: () => undefined,
@@ -179,7 +180,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
   it('registers the read-only tools plus guidance when access is on', () => {
     const h = harness({ access: true });
     h.created();
-    expect(h.state.registered()).toEqual(['browser_observe', 'browser_open']);
+    expect(h.state.registered()).toEqual(['browser_observe', 'browser_open', 'browser_screenshot']);
     expect(h.state.sections).toContain('botharness:browser');
   });
 
@@ -227,6 +228,55 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await expect(
       h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
     ).rejects.toThrow(/call browser_open/);
+  });
+
+  it('captures a screenshot as an image result and audits it redacted', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const shot = await h.state.definitions
+      .get('browser_screenshot')!
+      .execute({}, execution('browser_screenshot'));
+    expect(h.runtime.captureScreenshot).toHaveBeenCalledWith('tab-1');
+    expect(JSON.stringify(shot)).toContain('Zm9v');
+    expect(h.audits.at(-1)?.summary).toBe('screenshot');
+  });
+
+  it('reports a tab-less screenshot readably', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await expect(
+      h.state.definitions.get('browser_screenshot')!.execute({}, execution('browser_screenshot')),
+    ).rejects.toThrow(/call browser_open/);
+  });
+
+  it('pauses actions and screenshots under a Human takeover while observe stays read-only', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    h.provider.setTakeover('bot-a', true);
+    expect(h.provider.isTakeover('bot-a')).toBe(true);
+    await expect(
+      h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.org' }, execution('browser_open')),
+    ).rejects.toThrow(/Takeover is active/);
+    await expect(
+      h.state.definitions.get('browser_screenshot')!.execute({}, execution('browser_screenshot')),
+    ).rejects.toThrow(/Takeover is active/);
+    const observed = await h.state.definitions
+      .get('browser_observe')!
+      .execute({}, execution('browser_observe'));
+    expect(JSON.stringify(observed)).toContain('Hello world');
+    h.provider.setTakeover('bot-a', false);
+    await h.state.definitions
+      .get('browser_screenshot')!
+      .execute({}, execution('browser_screenshot'));
+    expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
   });
 
   it('drops a dead tab and reports it readably', async () => {

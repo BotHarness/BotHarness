@@ -16,6 +16,11 @@ export const zh = {
   'entry.stop': '停止',
   'entry.stopping': '正在停止…',
   'entry.hint': '首次使用请在打开的窗口里登录需要的网站；登录态会保留在这个浏览器 profile 中。',
+  'entry.view.title': '实时画面',
+  'entry.view.noFrame': '暂无画面',
+  'entry.view.takeover': '接管',
+  'entry.view.release': '结束接管',
+  'entry.view.taken': '已接管 · 该 Bot 的动作与截图已暂停',
   'entry.error': '浏览器操作失败',
 };
 
@@ -38,6 +43,11 @@ export const en: Record<BrowserKey, string> = {
   'entry.stopping': 'Stopping…',
   'entry.hint':
     'Sign in to the sites you need in the window that opens; logins persist in this browser profile.',
+  'entry.view.title': 'Live view',
+  'entry.view.noFrame': 'No frame yet',
+  'entry.view.takeover': 'Take over',
+  'entry.view.release': 'End takeover',
+  'entry.view.taken': "Taken over · this Bot's actions and screenshots are paused",
   'entry.error': 'Browser action failed',
 };
 

@@ -174,6 +174,7 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
           },
         };
       }
+      if (method === 'Page.captureScreenshot') return { data: 'Zm9v' };
       if (method === 'Target.createTarget') return { targetId: 'tab-1' };
       if (method === 'Target.attachToTarget') return { sessionId: 'session-1' };
       return {};
@@ -251,6 +252,37 @@ describe('runtime lifecycle', () => {
     await ensuring;
     const window = await runtime.openWindow();
     expect(window.tabId).toBe('tab-1');
+  });
+
+  it('captures a JPEG frame and retries with focus emulation when the first take fails', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    let captures = 0;
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Page.captureScreenshot') {
+          captures += 1;
+          if (captures === 1) throw new Error('no frame');
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    const shot = await runtime.captureScreenshot('tab-1');
+    expect(shot).toEqual({ data: 'Zm9v', mimeType: 'image/jpeg' });
+    expect(base.calls.map((call) => call.method)).toContain('Emulation.setFocusEmulationEnabled');
   });
 
   it('installs the pinned fallback when no system browser exists', async () => {

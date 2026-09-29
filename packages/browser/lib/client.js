@@ -24,6 +24,11 @@ window.__ModuleLoader__.load({
 			"entry.stop": "停止",
 			"entry.stopping": "正在停止…",
 			"entry.hint": "首次使用请在打开的窗口里登录需要的网站；登录态会保留在这个浏览器 profile 中。",
+			"entry.view.title": "实时画面",
+			"entry.view.noFrame": "暂无画面",
+			"entry.view.takeover": "接管",
+			"entry.view.release": "结束接管",
+			"entry.view.taken": "已接管 · 该 Bot 的动作与截图已暂停",
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
@@ -41,12 +46,19 @@ window.__ModuleLoader__.load({
 			"entry.stop": "Stop",
 			"entry.stopping": "Stopping…",
 			"entry.hint": "Sign in to the sites you need in the window that opens; logins persist in this browser profile.",
+			"entry.view.title": "Live view",
+			"entry.view.noFrame": "No frame yet",
+			"entry.view.takeover": "Take over",
+			"entry.view.release": "End takeover",
+			"entry.view.taken": "Taken over · this Bot's actions and screenshots are paused",
 			"entry.error": "Browser action failed"
 		};
 		//#endregion
 		//#region packages/browser/src/client/index.tsx
 		const ENTRY_ID = "botharness-browser";
 		const STATUS_ENDPOINT = "/api/browser/status";
+		const OBSERVATION_ENDPOINT = "/api/browser/observation";
+		const TAKEOVER_ENDPOINT = "/api/browser/takeover";
 		const OPEN_ENDPOINT = "/api/browser/open";
 		const STOP_ENDPOINT = "/api/browser/stop";
 		let connectionRpc;
@@ -90,15 +102,15 @@ window.__ModuleLoader__.load({
 				getSnapshot: () => info
 			};
 		}
-		function createStatusStore() {
-			let status;
+		function createPollingStore(url, intervalMs) {
+			let value;
 			let timer;
 			const listeners = /* @__PURE__ */ new Set();
 			const refresh = async () => {
 				try {
-					status = await requestJson(STATUS_ENDPOINT);
+					value = await requestJson(url);
 				} catch {
-					status = void 0;
+					value = void 0;
 				}
 				for (const listener of listeners) listener();
 			};
@@ -107,7 +119,7 @@ window.__ModuleLoader__.load({
 					listeners.add(listener);
 					if (listeners.size === 1) {
 						refresh();
-						timer = setInterval(() => void refresh(), 3e3);
+						timer = setInterval(() => void refresh(), intervalMs);
 					}
 					return () => {
 						listeners.delete(listener);
@@ -117,9 +129,12 @@ window.__ModuleLoader__.load({
 						}
 					};
 				},
-				getSnapshot: () => status,
+				getSnapshot: () => value,
 				refresh: () => void refresh()
 			};
+		}
+		function viewEndpoint(botSlug) {
+			return `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? "")}`;
 		}
 		const buttonStyle = {
 			padding: "4px 10px",
@@ -132,15 +147,20 @@ window.__ModuleLoader__.load({
 		};
 		function BrowserEntryView({ botSlug, t }) {
 			const [botInfoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
-			const [statusStore] = (0, react.useState)(createStatusStore);
+			const [statusStore] = (0, react.useState)(() => createPollingStore(STATUS_ENDPOINT, 3e3));
+			const [viewStore] = (0, react.useState)(() => createPollingStore(viewEndpoint(botSlug), 1500));
 			const botInfo = (0, react.useSyncExternalStore)(botInfoStore.subscribe, botInfoStore.getSnapshot);
 			const status = (0, react.useSyncExternalStore)(statusStore.subscribe, statusStore.getSnapshot);
+			const view = (0, react.useSyncExternalStore)(viewStore.subscribe, viewStore.getSnapshot);
 			const [accessOverride, setAccessOverride] = (0, react.useState)(void 0);
 			const [accessBusy, setAccessBusy] = (0, react.useState)(false);
 			const [accessError, setAccessError] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
+			const [takeoverBusy, setTakeoverBusy] = (0, react.useState)(false);
 			const [error, setError] = (0, react.useState)(void 0);
 			const accessOn = accessOverride ?? botInfo.browserAccess === true;
+			const running = status?.running === true || view?.running === true;
+			const takeover = view?.takeover === true;
 			const onToggleAccess = (next) => {
 				const rpc = connectionRpc;
 				if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
@@ -171,6 +191,24 @@ window.__ModuleLoader__.load({
 				requestJson(endpoint, { method: "POST" }).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
 					setBusy(false);
 					statusStore.refresh();
+					viewStore.refresh();
+				});
+			};
+			const onToggleTakeover = () => {
+				if (takeoverBusy || botSlug === void 0) return;
+				const next = view?.takeover !== true;
+				setTakeoverBusy(true);
+				setError(void 0);
+				requestJson(TAKEOVER_ENDPOINT, {
+					method: "POST",
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						slug: botSlug,
+						active: next
+					})
+				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
+					setTakeoverBusy(false);
+					viewStore.refresh();
 				});
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -204,7 +242,7 @@ window.__ModuleLoader__.load({
 					accessError !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: accessError }) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .8 },
-						children: status?.running === true ? `${t("entry.status.running")}${status.url === null ? "" : ` · ${t("entry.status.url", { url: status.url })}`}` : t("entry.status.stopped")
+						children: running ? `${t("entry.status.running")}${status?.url === null || status?.url === void 0 ? "" : ` · ${t("entry.status.url", { url: status.url })}`}` : t("entry.status.stopped")
 					}),
 					status?.binary === null || status?.binary === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: {
@@ -213,24 +251,47 @@ window.__ModuleLoader__.load({
 						},
 						children: t("entry.binary", { path: status.binary })
 					}),
+					view?.frame === null || view?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: { opacity: .6 },
+						children: t("entry.view.noFrame")
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
+						src: view.frame,
+						alt: t("entry.view.title"),
+						style: {
+							width: "100%",
+							borderRadius: 6,
+							border: "1px solid currentColor"
+						}
+					}),
+					takeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: t("entry.view.taken") }) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
 							gap: 8
 						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
-							disabled: busy,
-							onClick: () => invoke(OPEN_ENDPOINT),
-							children: t(busy ? "entry.opening" : "entry.open")
-						}), status?.running === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-							type: "button",
-							style: buttonStyle,
-							disabled: busy,
-							onClick: () => invoke(STOP_ENDPOINT),
-							children: t(busy ? "entry.stopping" : "entry.stop")
-						}) : null]
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: busy,
+								onClick: () => invoke(OPEN_ENDPOINT),
+								children: t(busy ? "entry.opening" : "entry.open")
+							}),
+							running ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: busy,
+								onClick: () => invoke(STOP_ENDPOINT),
+								children: t(busy ? "entry.stopping" : "entry.stop")
+							}) : null,
+							running ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: takeoverBusy,
+								onClick: onToggleTakeover,
+								children: t(takeover ? "entry.view.release" : "entry.view.takeover")
+							}) : null
+						]
 					}),
 					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: error }) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
