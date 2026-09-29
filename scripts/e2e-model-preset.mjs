@@ -64,12 +64,20 @@ try {
   const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
   await page.waitForSelector(botButton);
   if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.waitForFunction(
+    () =>
+      document.querySelector('.bh-root') !== null ||
+      Array.from(document.querySelectorAll('button')).some((button) =>
+        ['Configure later', '稍后配置'].includes(button.textContent?.trim() ?? ''),
+      ),
+    { timeout: 60000 },
+  );
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
       .find((button) => ['Configure later', '稍后配置'].includes(button.textContent?.trim() ?? ''))
       ?.click(),
   );
-  await page.waitForSelector('.bh-root');
+  await page.waitForSelector('.bh-root', { timeout: 60000 });
   const openSidebar = await page.$('button[aria-label="Open sidebar"]');
   if (openSidebar) await openSidebar.click();
   console.log(
