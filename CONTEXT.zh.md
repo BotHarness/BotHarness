@@ -46,12 +46,12 @@ _避免使用_：status、mood、presence
 PersonaBot 在不同 Binding 中共享的视觉形象：根据 PersonaBot ID 确定性生成的 Blobatar media，或 Human 上传的 image media，统一置于表达 Bot state 的 Activity Frame 中。Blobatar 可在 working 或 thinking 时运动；自定义图片保持静止，由外层 frame 呈现活动，Live2D 等后续 renderer 也消费同一状态。
 _避免使用_：profile picture、skin
 
-**模型预设（Model Preset）**：
-Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
+**Model Preset**：
+模型预设。Human 创建的可复用、仅对当前部署有效的 PersonaBot 模型方案：一个 Orchestrator provider、model 和 reasoning effort，以及 Assignment 可选的模型与 effort 集合和默认值。应用时将方案复制给 PersonaBot；之后修改预设不会更新已应用的副本。
 _避免使用_：DSH Agent preset、SoulSnapshot
 
-**PersonaBot 模型方案（PersonaBot Model Plan）**：
-某个 PersonaBot 持有的模型预设快照或 Human 自定义选择，决定其 Orchestrator 路由与后续 Assignment 的模型选择。它属于运行配置，不属于 Soul 或 Memory。
+**PersonaBot Model Plan**：
+PersonaBot 模型方案。某个 PersonaBot 持有的模型预设快照或 Human 自定义选择，决定其 Orchestrator 路由与后续 Assignment 的模型选择。它属于运行配置，不属于 Soul 或 Memory。
 _避免使用_：Persona、DSH Agent preset、model usage
 
 ### 支撑与执行
