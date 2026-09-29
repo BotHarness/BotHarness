@@ -250,6 +250,7 @@ describe('plugin entry', () => {
       'modelPresetApply',
       'modelPlan',
       'modelPlanCustomize',
+      'modelPlanAssignmentsSet',
       'list',
       'get',
       'create',

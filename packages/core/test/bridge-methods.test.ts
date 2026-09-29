@@ -81,6 +81,152 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('saves a Bot-specific Assignment model set and rejects stale or unsupported choices', async () => {
+    const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
+    const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        const allowed =
+          route.model === 'flash' ? ['high', 'low'] : route.model === 'pro' ? ['off'] : [];
+        if (route.provider !== 'deepseek' || !allowed.includes(route.reasoningEffort ?? ''))
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { root, registry, methods, modelPresets } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const preset = modelPresets.create({
+      name: 'High',
+      orchestrator: flash,
+      assignmentDefault: pro,
+    });
+    expect(await methods.modelPresetApply({ slug: 'ada', presetId: preset.id })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1 } },
+    });
+    const assignmentModels = [
+      {
+        provider: 'deepseek',
+        model: 'flash',
+        allowedEfforts: ['high', 'low'],
+        defaultEffort: 'low',
+      },
+      { provider: 'deepseek', model: 'pro', allowedEfforts: ['off'], defaultEffort: 'off' },
+    ];
+    expect(
+      await methods.modelPlanAssignmentsSet({
+        slug: 'ada',
+        expectedRevision: 1,
+        assignmentDefault: pro,
+        assignmentModels,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: {
+        plan: { revision: 2, sourcePresetId: '', assignmentDefault: pro, assignmentModels },
+      },
+    });
+    expect(
+      await methods.modelPlanAssignmentsSet({
+        slug: 'ada',
+        expectedRevision: 1,
+        assignmentDefault: flash,
+        assignmentModels,
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      await methods.modelPlanAssignmentsSet({
+        slug: 'ada',
+        expectedRevision: 2,
+        assignmentDefault: pro,
+        assignmentModels: [
+          {
+            provider: 'deepseek',
+            model: 'flash',
+            allowedEfforts: ['ultra'],
+            defaultEffort: 'ultra',
+          },
+        ],
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(createPersonaBotRegistry({ rootDir: root }).get('ada')?.modelPlan).toMatchObject({
+      revision: 2,
+      assignmentModels,
+    });
+  });
+
+  it('preserves a template model set when an older editor omits the choices', async () => {
+    const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
+    const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
+    const choices = [
+      { provider: 'deepseek', model: 'flash', allowedEfforts: ['low'], defaultEffort: 'low' },
+      { provider: 'deepseek', model: 'pro', allowedEfforts: ['off'], defaultEffort: 'off' },
+    ];
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (
+          route.provider !== 'deepseek' ||
+          (route.model === 'flash' && route.reasoningEffort !== 'low') ||
+          (route.model === 'pro' && route.reasoningEffort !== 'off') ||
+          !['flash', 'pro'].includes(route.model)
+        )
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { methods } = setup(
+      [],
+      [],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    const created = await methods.modelPresetCreate({
+      name: 'Choices',
+      orchestrator: flash,
+      assignmentDefault: pro,
+      assignmentModels: choices,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const id = created.value.preset.id;
+    expect(
+      await methods.modelPresetUpdate({
+        id,
+        expectedRevision: 1,
+        name: 'Renamed choices',
+        orchestrator: flash,
+        assignmentDefault: flash,
+      }),
+    ).toMatchObject({
+      ok: true,
+      value: { preset: { revision: 2, assignmentDefault: flash, assignmentModels: choices } },
+    });
+    expect(
+      await methods.modelPresetUpdate({
+        id,
+        expectedRevision: 2,
+        name: 'Invalid default',
+        orchestrator: flash,
+        assignmentDefault: { ...flash, reasoningEffort: 'high' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+  });
+
   it('validates routes and applies independent named Model Preset snapshots to two Bots', async () => {
     const valid = { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' };
     const catalog: ModelCatalog = {

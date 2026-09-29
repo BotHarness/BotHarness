@@ -74,6 +74,7 @@ describe('bridge typert service', () => {
       'modelPresetApply',
       'modelPlan',
       'modelPlanCustomize',
+      'modelPlanAssignmentsSet',
       'list',
       'get',
       'create',

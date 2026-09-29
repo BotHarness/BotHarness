@@ -1019,6 +1019,15 @@ const MEMORY_RECOVERY_CHECKPOINT_MIGRATION: SchemaMigration = {
   },
 };
 
+const ASSIGNMENT_MODEL_ROUTE_MIGRATION: SchemaMigration = {
+  generation: 35,
+  module: 'assignments',
+  description: 'Snapshot each new Assignment Session model route independently of the Bot plan',
+  migrate(database) {
+    database.exec(`ALTER TABLE assignments ADD COLUMN model_route_json TEXT;`);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -1053,4 +1062,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MEMORY_CHANGE_INBOX_MIGRATION,
   MEMORY_CHANGE_CHECKPOINT_MIGRATION,
   MEMORY_RECOVERY_CHECKPOINT_MIGRATION,
+  ASSIGNMENT_MODEL_ROUTE_MIGRATION,
 ]);

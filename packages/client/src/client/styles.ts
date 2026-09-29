@@ -1841,7 +1841,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 }
 .bh-model-preset-effective,
 .bh-model-preset-form,
-.bh-model-preset-custom {
+.bh-model-preset-custom,
+.bh-model-preset-assignment {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1854,6 +1855,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 }
 .bh-model-preset-form label,
 .bh-model-preset-custom label,
+.bh-model-preset-assignment > label,
 .bh-model-preset-quick label {
   display: flex;
   flex-direction: column;
@@ -1886,9 +1888,42 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
 .bh-model-preset-custom > button {
   align-self: flex-start;
 }
-.bh-model-preset-custom {
+.bh-model-preset-custom,
+.bh-model-preset-assignment {
   padding-top: 12px;
   border-top: 1px solid var(--dsw-alias-border-l2);
+}
+.bh-model-preset-assignment > button {
+  align-self: flex-start;
+}
+.bh-model-preset-assignment-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+}
+.bh-model-preset-assignment-row > label,
+.bh-model-preset-assignment-efforts > label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--dsw-alias-label-primary);
+}
+.bh-model-preset-assignment-efforts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding-left: 24px;
+  font-size: 12px;
+}
+.bh-model-preset-assignment-efforts > label:last-child {
+  flex-basis: 100%;
+}
+.bh-model-preset-assignment-efforts select {
+  max-width: 220px;
 }
 .bh-profile-card-total {
   font-size: 15px;

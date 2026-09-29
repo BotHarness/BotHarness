@@ -721,6 +721,7 @@ describe('DSH Bot Agent adapter', () => {
     expect(host.scopes.get('orchestrator-ada')?.tools.map((tool) => tool.name)).toEqual([
       'memory_switch_branch',
       'memory_continue_from_commit',
+      'list_assignment_models',
       'create_assignment',
       'request_workspace_grant',
       'list_workspace_grants',
@@ -810,6 +811,51 @@ describe('DSH Bot Agent adapter', () => {
 
     await adapter.close();
     expect(host.disposed.sort()).toEqual(['assignment-1', 'orchestrator-ada']);
+  });
+
+  it('passes the persisted Assignment route to its DSH Agent without changing the Bot default', async () => {
+    const host = new FakeAgentHost();
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    await adapter.runAssignment({
+      sessionId: 'assignment-selected',
+      bot: {
+        ...BOT,
+        modelPlan: {
+          revision: 2,
+          sourcePresetId: '',
+          sourcePresetName: '',
+          orchestrator: { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+          assignmentDefault: { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+          assignmentModels: [
+            { provider: 'deepseek', model: 'pro', allowedEfforts: ['off'], defaultEffort: 'off' },
+            { provider: 'deepseek', model: 'flash', allowedEfforts: ['low'], defaultEffort: 'low' },
+          ],
+          appliedAt: BOT.createdAt,
+        },
+      },
+      purpose: 'Inspect',
+      modelRoute: { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' },
+      permission: {
+        grantId: 'grant-1',
+        workspaceId: 'workspace-1',
+        primaryCwd: '/project',
+        mode: 'workspace-write',
+        approval: 'ask',
+        presetRevision: 0,
+      },
+      report: async (input) => ({ ...input, at: BOT.createdAt }),
+    });
+    expect(host.createOptions[0]?.agentOptions).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    await adapter.close();
   });
 
   it('uses a distinct prompt for a dangerous Assignment snapshot', async () => {

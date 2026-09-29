@@ -19,7 +19,11 @@ import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
-import type { ModelRoute, PersonaBotModelPlan } from '../models/presets.js';
+import {
+  assignmentModelsOf,
+  type ModelRoute,
+  type PersonaBotModelPlan,
+} from '../models/presets.js';
 import { MemoryAcceptError } from '../memory/accepted.js';
 import { ChannelDraftTracker, type ChannelDraftEvent } from '../channels/draft.js';
 import type {
@@ -103,7 +107,7 @@ function agentOptions(
 ): ModelSelection {
   if (plan !== undefined) {
     const route: ModelRoute =
-      'inboundChannelId' in run ? plan.orchestrator : plan.assignmentDefault;
+      'inboundChannelId' in run ? plan.orchestrator : (run.modelRoute ?? plan.assignmentDefault);
     return {
       provider: route.provider,
       model: route.model,
@@ -482,9 +486,37 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'list_assignment_models',
+          description:
+            'Read the Human-approved provider/model and effort choices for new Assignments, including each model’s default effort and the overall default model. Call before selecting a non-default route.',
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator')
+              throw new Error('list_assignment_models: Orchestrator run is unavailable');
+            const plan = this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan;
+            return JSON.stringify(
+              plan === undefined
+                ? { configured: false, message: 'Ask the Human to apply a Model Preset first' }
+                : {
+                    configured: true,
+                    revision: plan.revision,
+                    assignmentDefault: plan.assignmentDefault,
+                    assignmentModels: assignmentModelsOf(plan),
+                  },
+            );
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'create_assignment',
           description:
-            'Start one independent Assignment Session and return its Session id immediately. Pass a continuity key to continue the same direction of work in the keyed Assignment instead of creating another one; omit the key for a different direction.',
+            'Start one independent Assignment Session and return its Session id immediately. Call list_assignment_models before selecting an explicit provider/model/effort; omitted choices use the Human-selected default. Pass a continuity key to continue the same direction of work in the keyed Assignment instead of creating another one; omit the key for a different direction.',
           parameters: {
             purpose: {
               type: 'string',
@@ -502,6 +534,21 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               description:
                 'Optional continuity key naming this direction of work; reuse it to continue the same Assignment.',
             },
+            provider: {
+              type: 'string',
+              description:
+                'Optional exact provider id from the current Assignment model set; specify with model.',
+            },
+            model: {
+              type: 'string',
+              description:
+                'Optional exact model id from the current Assignment model set; specify with provider.',
+            },
+            reasoning_effort: {
+              type: 'string',
+              description:
+                'Optional allowed effort for the selected model; omitted uses that model’s Human-selected default. Pass an empty string to select the provider default when allowed.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -512,10 +559,25 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('create_assignment: Orchestrator run is unavailable');
             }
+            if ((args.provider === undefined) !== (args.model === undefined))
+              throw new Error('create_assignment: provider and model must be specified together');
+            if (args.reasoning_effort !== undefined && args.provider === undefined)
+              throw new Error('create_assignment: reasoning_effort requires provider and model');
             const outcome = active.run.assignments.create({
               purpose: args.purpose,
               grantId: args.grant_id,
               ...(args.key === undefined ? {} : { key: args.key }),
+              ...(args.provider === undefined
+                ? {}
+                : {
+                    model: {
+                      provider: args.provider,
+                      model: args.model!,
+                      ...(args.reasoning_effort === undefined
+                        ? {}
+                        : { reasoningEffort: args.reasoning_effort }),
+                    },
+                  }),
             });
             if (outcome.outcome === 'created' || outcome.outcome === 'reused') {
               return JSON.stringify({
@@ -523,6 +585,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 sessionId: outcome.assignment.sessionId,
                 purpose: outcome.assignment.purpose,
                 activity: outcome.assignment.activity,
+                ...(outcome.assignment.modelRoute === undefined
+                  ? {}
+                  : { modelRoute: outcome.assignment.modelRoute }),
               });
             }
             return JSON.stringify({

@@ -49,10 +49,12 @@ import {
   updateModelPreset,
   applyModelPreset,
   customizeModelPlan,
+  setModelPlanAssignments,
   type ModelCatalogEntryView,
   type ModelPresetView,
   type ModelPlanView,
   type ModelRouteView,
+  type AssignmentModelOptionView,
   loadBotSourcePolicies,
   type BotSourcePolicyEdit,
   setBotSourcePolicy,
@@ -142,6 +144,12 @@ export interface BridgeActions {
   ): Promise<ModelPresetView>;
   applyModelPreset(slug: string, presetId: string): Promise<ModelPlanView>;
   customizeModelPlan(slug: string, orchestrator: ModelRouteView): Promise<ModelPlanView>;
+  setModelPlanAssignments(
+    slug: string,
+    expectedRevision: number,
+    assignmentDefault: ModelRouteView,
+    assignmentModels: AssignmentModelOptionView[],
+  ): Promise<ModelPlanView>;
   listHostFolders(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
   addWorkspaceFolder(slug: string): Promise<WorkspaceGrantView | undefined>;
   authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
@@ -613,6 +621,8 @@ export function createActions(
       updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
     customizeModelPlan: (slug, orchestrator) => customizeModelPlan(call, slug, orchestrator),
+    setModelPlanAssignments: (slug, expectedRevision, assignmentDefault, assignmentModels) =>
+      setModelPlanAssignments(call, slug, expectedRevision, assignmentDefault, assignmentModels),
     listHostFolders(path, signal) {
       if (folderAccess?.listDirectory === undefined)
         throw new Error('DSH folder browser is unavailable');

@@ -3,6 +3,7 @@ import { Button, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-
 
 import type { BridgeActions } from './actions.js';
 import type {
+  AssignmentModelOptionView,
   ModelCatalogEntryView,
   ModelPlanView,
   ModelPresetView,
@@ -13,6 +14,22 @@ import type { BotHarnessTranslate } from './locale.js';
 
 function routeLabel(route: ModelRouteView, defaultLabel: string): string {
   return `${route.provider} / ${route.model} · ${route.reasoningEffort ?? defaultLabel}`;
+}
+
+const modelKey = (route: Pick<ModelRouteView, 'provider' | 'model'>): string =>
+  JSON.stringify([route.provider, route.model]);
+
+function assignmentDraftOf(plan: ModelPlanView): AssignmentModelOptionView[] {
+  return (
+    plan.assignmentModels ?? [
+      {
+        provider: plan.assignmentDefault.provider,
+        model: plan.assignmentDefault.model,
+        allowedEfforts: [plan.assignmentDefault.reasoningEffort ?? ''],
+        defaultEffort: plan.assignmentDefault.reasoningEffort ?? '',
+      },
+    ]
+  ).map((option) => ({ ...option, allowedEfforts: [...option.allowedEfforts] }));
 }
 
 export function ModelPresetProfile({
@@ -39,6 +56,8 @@ export function ModelPresetProfile({
   const [assignmentEffort, setAssignmentEffort] = useState('');
   const [customIndex, setCustomIndex] = useState(-1);
   const [customEffort, setCustomEffort] = useState('');
+  const [assignmentModels, setAssignmentModels] = useState<AssignmentModelOptionView[]>([]);
+  const [defaultAssignmentKey, setDefaultAssignmentKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
   const [notice, setNotice] = useState<string>();
@@ -61,6 +80,10 @@ export function ModelPresetProfile({
           setPlan((previous) =>
             (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
           );
+          if (current !== undefined) {
+            setAssignmentModels(assignmentDraftOf(current));
+            setDefaultAssignmentKey(modelKey(current.assignmentDefault));
+          }
           setPresets(saved);
           setSelectedPreset(
             saved.find((preset) => preset.id === current?.sourcePresetId)?.id ?? '',
@@ -92,6 +115,10 @@ export function ModelPresetProfile({
           '',
       );
       if (current !== undefined) setCustomDraft(models, current.orchestrator);
+      if (current !== undefined) {
+        setAssignmentModels(assignmentDraftOf(current));
+        setDefaultAssignmentKey(modelKey(current.assignmentDefault));
+      }
       setPlan((previous) =>
         (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
       );
@@ -154,6 +181,8 @@ export function ModelPresetProfile({
       planRequest.current += 1;
       setPlan(applied);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
+      setAssignmentModels(assignmentDraftOf(applied));
+      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
     } catch (failure) {
       const message = errorMessage(failure);
       setError(message);
@@ -177,6 +206,8 @@ export function ModelPresetProfile({
       setPlan(applied);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
       else void load();
+      setAssignmentModels(assignmentDraftOf(applied));
+      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -214,6 +245,37 @@ export function ModelPresetProfile({
       planRequest.current += 1;
       setPlan(applied);
       setSelectedPreset('');
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const saveAssignmentModels = async (): Promise<void> => {
+    if (busy || plan === undefined) return;
+    const chosen = assignmentModels.find((option) => modelKey(option) === defaultAssignmentKey);
+    if (chosen === undefined) return;
+    const assignmentDefault: ModelRouteView = {
+      provider: chosen.provider,
+      model: chosen.model,
+      ...(chosen.defaultEffort === '' ? {} : { reasoningEffort: chosen.defaultEffort }),
+    };
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      const applied = await actions.setModelPlanAssignments(
+        slug,
+        plan.revision,
+        assignmentDefault,
+        assignmentModels,
+      );
+      planRequest.current += 1;
+      setPlan(applied);
+      setSelectedPreset('');
+      setAssignmentModels(assignmentDraftOf(applied));
+      setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -286,6 +348,15 @@ export function ModelPresetProfile({
                 <span>
                   {t('modelPreset.assignment')}:{' '}
                   {routeLabel(plan.assignmentDefault, t('modelPreset.providerDefault'))}
+                </span>
+                <span>
+                  {t('modelPreset.assignmentAllowed')}:{' '}
+                  {assignmentDraftOf(plan)
+                    .map(
+                      (option) =>
+                        `${option.provider} / ${option.model} (${option.allowedEfforts.map((effort) => effort || t('modelPreset.providerDefault')).join(', ')})`,
+                    )
+                    .join(' · ')}
                 </span>
               </div>
             )}
@@ -451,6 +522,139 @@ export function ModelPresetProfile({
                       onClick={() => void customize()}
                     >
                       {t('modelPreset.saveCustom')}
+                    </Button>
+                  </div>
+                )}
+                {plan !== undefined && (
+                  <div className="bh-model-preset-assignment">
+                    <strong>{t('modelPreset.assignmentAllowed')}</strong>
+                    <span className="bh-note">{t('modelPreset.assignmentHint')}</span>
+                    {catalog.map((entry) => {
+                      const key = modelKey(entry);
+                      const option = assignmentModels.find((item) => modelKey(item) === key);
+                      return (
+                        <div key={key} className="bh-model-preset-assignment-row">
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={option !== undefined}
+                              onChange={(event) => {
+                                const next = event.target.checked
+                                  ? [
+                                      ...assignmentModels,
+                                      {
+                                        provider: entry.provider,
+                                        model: entry.model,
+                                        allowedEfforts: [
+                                          entry.defaultEffort ?? entry.efforts[0]?.id ?? '',
+                                        ],
+                                        defaultEffort:
+                                          entry.defaultEffort ?? entry.efforts[0]?.id ?? '',
+                                      },
+                                    ]
+                                  : assignmentModels.filter((item) => modelKey(item) !== key);
+                                setAssignmentModels(next);
+                                if (!next.some((item) => modelKey(item) === defaultAssignmentKey))
+                                  setDefaultAssignmentKey(
+                                    next[0] === undefined ? '' : modelKey(next[0]),
+                                  );
+                              }}
+                            />
+                            {entry.providerName} / {entry.modelName}
+                          </label>
+                          {option !== undefined && (
+                            <div className="bh-model-preset-assignment-efforts">
+                              <span>{t('modelPreset.allowedEfforts')}</span>
+                              {[
+                                { id: '', name: t('modelPreset.providerDefault') },
+                                ...entry.efforts,
+                              ].map((effort) => (
+                                <label key={effort.id}>
+                                  <input
+                                    type="checkbox"
+                                    checked={option.allowedEfforts.includes(effort.id)}
+                                    disabled={
+                                      option.allowedEfforts.length === 1 &&
+                                      option.allowedEfforts.includes(effort.id)
+                                    }
+                                    onChange={(event) => {
+                                      const allowedEfforts = event.target.checked
+                                        ? [...option.allowedEfforts, effort.id]
+                                        : option.allowedEfforts.filter((id) => id !== effort.id);
+                                      if (allowedEfforts.length === 0) return;
+                                      setAssignmentModels((current) =>
+                                        current.map((item) =>
+                                          modelKey(item) === key
+                                            ? {
+                                                ...item,
+                                                allowedEfforts,
+                                                defaultEffort: allowedEfforts.includes(
+                                                  item.defaultEffort,
+                                                )
+                                                  ? item.defaultEffort
+                                                  : allowedEfforts[0]!,
+                                              }
+                                            : item,
+                                        ),
+                                      );
+                                    }}
+                                  />
+                                  {effort.name}
+                                </label>
+                              ))}
+                              <label>
+                                {t('modelPreset.defaultEffort')}
+                                <select
+                                  className="bh-profile-policy-select"
+                                  value={option.defaultEffort}
+                                  onChange={(event) =>
+                                    setAssignmentModels((current) =>
+                                      current.map((item) =>
+                                        modelKey(item) === key
+                                          ? { ...item, defaultEffort: event.target.value }
+                                          : item,
+                                      ),
+                                    )
+                                  }
+                                >
+                                  {option.allowedEfforts.map((effort) => (
+                                    <option key={effort} value={effort}>
+                                      {entry.efforts.find((candidate) => candidate.id === effort)
+                                        ?.name ?? t('modelPreset.providerDefault')}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                    <label>
+                      {t('modelPreset.assignment')}
+                      <select
+                        className="bh-profile-policy-select"
+                        value={defaultAssignmentKey}
+                        onChange={(event) => setDefaultAssignmentKey(event.target.value)}
+                      >
+                        {assignmentModels.length === 0 && (
+                          <option value="">{t('modelPreset.chooseAssignment')}</option>
+                        )}
+                        {assignmentModels.map((option) => (
+                          <option key={modelKey(option)} value={modelKey(option)}>
+                            {option.provider} / {option.model}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      variant="outline"
+                      disabled={
+                        busy || assignmentModels.length === 0 || defaultAssignmentKey === ''
+                      }
+                      onClick={() => void saveAssignmentModels()}
+                    >
+                      {t('modelPreset.saveAssignment')}
                     </Button>
                   </div>
                 )}

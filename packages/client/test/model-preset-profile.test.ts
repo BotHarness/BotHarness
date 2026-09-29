@@ -176,6 +176,28 @@ describe('Model Preset Profile', () => {
       };
       return plan;
     });
+    const setModelPlanAssignments = vi.fn(
+      async (
+        _slug: string,
+        _revision: number,
+        assignmentDefault: typeof assignment,
+        assignmentModels: Array<{
+          provider: string;
+          model: string;
+          allowedEfforts: string[];
+          defaultEffort: string;
+        }>,
+      ) => {
+        plan = {
+          ...plan,
+          revision: plan.revision + 1,
+          sourcePresetId: '',
+          sourcePresetName: '',
+          assignmentDefault,
+        };
+        return { ...plan, assignmentModels };
+      },
+    );
     const modelPlan = vi.fn(async () => plan);
     const actions = {
       modelPlan,
@@ -202,6 +224,7 @@ describe('Model Preset Profile', () => {
       applyModelPreset,
       updateModelPreset,
       customizeModelPlan,
+      setModelPlanAssignments,
     } as unknown as BridgeActions;
     const container = document.createElement('div');
     document.body.append(container);
@@ -267,6 +290,32 @@ describe('Model Preset Profile', () => {
       expect(quick.value).toBe('');
       expect(quick.selectedOptions[0]?.textContent).toBe('Choose a preset to switch to');
       expect(button('Switch').disabled).toBe(true);
+
+      const flashChoice = container.querySelector<HTMLInputElement>(
+        '.bh-model-preset-assignment-row input[type="checkbox"]',
+      )!;
+      await act(async () => flashChoice.click());
+      const flashEfforts = container
+        .querySelector('.bh-model-preset-assignment-row')!
+        .querySelectorAll<HTMLInputElement>(
+          '.bh-model-preset-assignment-efforts input[type="checkbox"]',
+        );
+      await act(async () => flashEfforts[2]!.click());
+      await act(async () => button('Save Assignment model choices').click());
+      expect(setModelPlanAssignments).toHaveBeenCalledWith(
+        'ada',
+        3,
+        assignment,
+        expect.arrayContaining([
+          {
+            provider: 'deepseek',
+            model: 'flash',
+            allowedEfforts: ['low', 'high'],
+            defaultEffort: 'low',
+          },
+        ]),
+      );
+      expect(container.querySelector('summary')?.textContent).toContain('Revision 4');
     } finally {
       await act(async () => root.unmount());
       container.remove();

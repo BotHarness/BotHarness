@@ -3,6 +3,12 @@ import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
+import {
+  isAssignmentModelChoice,
+  isModelRoute,
+  selectAssignmentRoute,
+  type ModelRoute,
+} from '../models/presets.js';
 import { isValidSlug } from '../bots/slug.js';
 import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
@@ -80,6 +86,7 @@ export interface AssignmentSummary {
   continuityKey?: string;
   openAsk?: AssignmentOpenAsk;
   permission?: AssignmentPermissionSnapshot;
+  modelRoute?: ModelRoute;
   createdAt: string;
   updatedAt: string;
 }
@@ -109,7 +116,12 @@ export interface AssignmentRequestOutcome {
 }
 
 export interface OrchestratorAssignmentAccess {
-  create(input: { purpose: string; key?: string; grantId: string }): AssignmentCreateOutcome;
+  create(input: {
+    purpose: string;
+    key?: string;
+    grantId: string;
+    model?: ModelRoute;
+  }): AssignmentCreateOutcome;
   grants(): WorkspaceGrant[];
   list(): AssignmentSummary[];
   inspect(sessionId: string): AssignmentDetail | undefined;
@@ -162,6 +174,7 @@ export interface AssignmentAgentRun {
 
   resume?: boolean;
   permission: AssignmentPermissionSnapshot;
+  modelRoute?: ModelRoute;
   report(input: AssignmentReportInput): Promise<AssignmentReport>;
 }
 
@@ -375,6 +388,7 @@ interface AssignmentRow {
   permission_mode: string | null;
   approval_policy: string | null;
   preset_revision: number | null;
+  model_route_json: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -471,6 +485,13 @@ function permissionFromRow(row: AssignmentRow): AssignmentPermissionSnapshot | u
   };
 }
 
+function modelRouteFromRow(row: AssignmentRow): ModelRoute | undefined {
+  if (row.model_route_json === null) return undefined;
+  const route: unknown = JSON.parse(row.model_route_json);
+  if (!isModelRoute(route)) throw new Error(`Invalid Assignment model route: ${row.session_id}`);
+  return route;
+}
+
 function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
   const latestReport =
     row.latest_report_state === null ||
@@ -507,6 +528,7 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
     ...(row.continuity_key === null ? {} : { continuityKey: row.continuity_key }),
     ...(openAsk === undefined ? {} : { openAsk }),
     ...(permissionFromRow(row) === undefined ? {} : { permission: permissionFromRow(row)! }),
+    ...(modelRouteFromRow(row) === undefined ? {} : { modelRoute: modelRouteFromRow(row)! }),
   };
 }
 
@@ -1962,6 +1984,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
                   approval_policy, preset_revision, created_at, updated_at
+                  , model_route_json
              FROM assignments
             WHERE bot_slug = ?
             ORDER BY updated_at DESC, session_id ASC`,
@@ -1987,6 +2010,7 @@ class BotRuntimeImplementation implements BotRuntime {
                   continuity_key, open_ask_source_event_id, open_ask_at,
                   grant_id, workspace_id, primary_cwd, permission_mode,
                   approval_policy, preset_revision, created_at, updated_at
+                  , model_route_json
              FROM assignments
             WHERE bot_slug = ? AND session_id = ?`,
         )
@@ -3405,10 +3429,16 @@ class BotRuntimeImplementation implements BotRuntime {
   #createOrReuseAssignment(
     bot: PersonaBotRecord,
     sourceEventId: string,
-    input: { purpose: string; key?: string; grantId: string },
+    input: { purpose: string; key?: string; grantId: string; model?: ModelRoute },
   ): AssignmentCreateOutcome {
     const purpose = requireNonBlank(input.purpose, 'Assignment purpose');
     const grantId = requireNonBlank(input.grantId, 'Workspace Grant id');
+    const plan = this.#registry.get(bot.slug)?.modelPlan ?? bot.modelPlan;
+    if (input.model !== undefined && !isAssignmentModelChoice(input.model))
+      throw new Error('Assignment model choice is invalid');
+    if (input.model !== undefined && plan === undefined)
+      throw new Error('Apply a Model Preset before choosing an Assignment model');
+    const modelRoute = plan === undefined ? undefined : selectAssignmentRoute(plan, input.model);
     if (this.#grants === undefined) throw new Error('Workspace Grants are unavailable');
     const grant = this.#grants.requireActive(bot.slug, grantId);
     const access = this.#assignmentAccessPresetStore?.get(bot.slug) ?? {
@@ -3430,6 +3460,10 @@ class BotRuntimeImplementation implements BotRuntime {
         throw new Error('Continuity Key belongs to an Assignment with a different Workspace Grant');
       }
       if (holder !== undefined && holder.activity === 'idle' && holder.stop_state === 'running') {
+        if (input.model !== undefined)
+          throw new Error(
+            'An existing keyed Assignment keeps its model; use a new key for a new model choice',
+          );
         this.#requestAssignment(bot, {
           sessionId: holder.session_id,
           mode: 'next-turn',
@@ -3470,8 +3504,8 @@ class BotRuntimeImplementation implements BotRuntime {
             `INSERT INTO assignments (
                session_id, source_event_id, bot_slug, purpose, activity, continuity_key,
                grant_id, workspace_id, primary_cwd, permission_mode, approval_policy,
-               preset_revision, created_at, updated_at
-             ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               preset_revision, model_route_json, created_at, updated_at
+             ) VALUES (?, ?, ?, ?, 'working', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           )
           .run(
             sessionId,
@@ -3485,6 +3519,7 @@ class BotRuntimeImplementation implements BotRuntime {
             permission.mode,
             permission.approval,
             permission.presetRevision,
+            modelRoute === undefined ? null : JSON.stringify(modelRoute),
             createdAt,
             createdAt,
           );
@@ -3497,6 +3532,7 @@ class BotRuntimeImplementation implements BotRuntime {
         bot,
         purpose,
         permission,
+        ...(modelRoute === undefined ? {} : { modelRoute }),
         report: async (report) => this.#recordReport(bot.slug, sessionId, report),
       }),
     );
@@ -3549,12 +3585,14 @@ class BotRuntimeImplementation implements BotRuntime {
         ['assignments'],
       );
     }
+    const modelRoute = modelRouteFromRow(row);
     const run: AssignmentAgentRun = {
       sessionId: input.sessionId,
       bot,
       purpose: text,
       resume: true,
       permission,
+      ...(modelRoute === undefined ? {} : { modelRoute }),
       report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
     };
     const delivery = this.#agents.requestAssignment(run);
