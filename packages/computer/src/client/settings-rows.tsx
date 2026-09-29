@@ -369,7 +369,6 @@ export function ComputerSettingsRows({
         });
         if (!controller.signal.aborted) setLivePhase(payload.status?.phase);
       } catch {
-        if (!controller.signal.aborted) setLivePhase(undefined);
       } finally {
         pending = false;
       }

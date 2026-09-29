@@ -657,9 +657,7 @@ window.__ModuleLoader__.load({
 					try {
 						const payload = await requestJson$1(STATUS_ENDPOINT$1, { signal: AbortSignal.any([controller.signal, AbortSignal.timeout(1e4)]) });
 						if (!controller.signal.aborted) setLivePhase(payload.status?.phase);
-					} catch {
-						if (!controller.signal.aborted) setLivePhase(void 0);
-					} finally {
+					} catch {} finally {
 						pending = false;
 					}
 				};
