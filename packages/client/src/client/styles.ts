@@ -1712,10 +1712,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   flex-direction: column;
   gap: 14px;
   margin-top: 20px;
-  max-width: 640px;
 }
 .bh-profile-section {
-  max-width: 640px;
   margin-top: 20px;
 }
 .bh-profile-section-title {
