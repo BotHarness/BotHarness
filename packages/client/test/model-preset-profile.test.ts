@@ -28,6 +28,92 @@ function translate(key: string, params?: Record<string, unknown>): string {
 }
 
 describe('Model Preset Profile', () => {
+  it('keeps a switched plan and its custom draft when an older detail load finishes later', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
+    const low = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
+    const assignment = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
+    const presets = [
+      { id: 'high', name: 'High', revision: 1, orchestrator: high, assignmentDefault: assignment },
+      { id: 'low', name: 'Economy', revision: 1, orchestrator: low, assignmentDefault: assignment },
+    ];
+    let plan = {
+      revision: 1,
+      sourcePresetId: 'high',
+      sourcePresetName: 'High',
+      orchestrator: high,
+      assignmentDefault: assignment,
+      appliedAt: '',
+    };
+    const originalPlan = plan;
+    let finishStaleLoad!: (value: typeof plan) => void;
+    const staleLoad = new Promise<typeof plan>((resolve) => {
+      finishStaleLoad = resolve;
+    });
+    let planReads = 0;
+    const actions = {
+      modelPlan: vi.fn(async () => (++planReads === 2 ? staleLoad : plan)),
+      modelPresets: vi.fn(async () => presets),
+      modelCatalog: vi.fn(async () => [
+        {
+          provider: 'deepseek',
+          providerName: 'DeepSeek',
+          model: 'flash',
+          modelName: 'Flash',
+          efforts: [
+            { id: 'low', name: 'Low' },
+            { id: 'high', name: 'High' },
+          ],
+        },
+      ]),
+      applyModelPreset: vi.fn(async (_slug: string, id: string) => {
+        plan = {
+          ...plan,
+          revision: 2,
+          sourcePresetId: id,
+          sourcePresetName: 'Economy',
+          orchestrator: low,
+        };
+        return plan;
+      }),
+    } as unknown as BridgeActions;
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+      );
+      const details = container.querySelector<HTMLDetailsElement>('details')!;
+      await act(async () => {
+        details.open = true;
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(planReads).toBe(2);
+
+      const quick = container.querySelector<HTMLSelectElement>('.bh-model-preset-quick select')!;
+      await act(async () => {
+        quick.value = 'low';
+        quick.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      const switchButton = Array.from(container.querySelectorAll('button')).find(
+        (button) => button.textContent === 'Switch',
+      )!;
+      await act(async () => switchButton.click());
+      expect(container.querySelector('summary')?.textContent).toContain('Economy');
+
+      await act(async () => finishStaleLoad(originalPlan));
+      expect(quick.value).toBe('low');
+      expect(
+        container.querySelectorAll<HTMLSelectElement>('.bh-model-preset-custom select')[1]?.value,
+      ).toBe('low');
+      expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('switches a Bot quickly, edits only the template, and saves a custom Bot snapshot', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };

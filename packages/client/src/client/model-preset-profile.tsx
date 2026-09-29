@@ -152,6 +152,7 @@ export function ModelPresetProfile({
       setSelectedPreset(preset.id);
       setName('');
       const applied = await actions.applyModelPreset(slug, preset.id);
+      planRequest.current += 1;
       setPlan(applied);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
     } catch (failure) {
@@ -173,8 +174,10 @@ export function ModelPresetProfile({
     setNotice(undefined);
     try {
       const applied = await actions.applyModelPreset(slug, selectedPreset);
+      planRequest.current += 1;
       setPlan(applied);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
+      else void load();
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -208,7 +211,9 @@ export function ModelPresetProfile({
     setError(undefined);
     setNotice(undefined);
     try {
-      setPlan(await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort)));
+      const applied = await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort));
+      planRequest.current += 1;
+      setPlan(applied);
       setSelectedPreset('');
     } catch (failure) {
       setError(errorMessage(failure));
