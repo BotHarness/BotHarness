@@ -38,9 +38,7 @@ export interface BrowserCoreLookup {
 export interface BrowserToolProviderOptions {
   readonly ctx: Context;
   readonly runtime: BotBrowserRuntime;
-  /** Directory where captures are persisted; omitted disables saving. */
   readonly screenshotDir?: string;
-  /** Newest captures to keep; older files are pruned. */
   readonly screenshotLimit?: number;
   readonly isAutoAllowed: () => boolean;
   readonly audit: (event: BrowserAuditEvent) => void;
