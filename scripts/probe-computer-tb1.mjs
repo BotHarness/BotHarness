@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { request as httpRequest } from 'node:http';
+import { request as httpsRequest } from 'node:https';
 
 const VIEWER_PREFIX = '/botharness-computer/viewer';
 
@@ -92,8 +93,13 @@ function tryUpgrade(url, cookie, timeoutMs) {
   return new Promise((resolve) => {
     let done = false;
     const target = new URL(url);
-    target.protocol = 'http:';
-    const request = httpRequest(target, {
+    if (target.protocol !== 'ws:' && target.protocol !== 'wss:') {
+      throw new Error(`unsupported WebSocket protocol: ${target.protocol}`);
+    }
+    const secure = target.protocol === 'wss:';
+    const requestForProtocol = secure ? httpsRequest : httpRequest;
+    target.protocol = secure ? 'https:' : 'http:';
+    const request = requestForProtocol(target, {
       headers: {
         connection: 'Upgrade',
         upgrade: 'websocket',
@@ -120,6 +126,31 @@ function tryUpgrade(url, cookie, timeoutMs) {
     request.on('error', (error) => finish(false, error.message));
     request.end();
   });
+}
+
+async function waitForViewerUpgrade(base, cookie, timeoutMs) {
+  const deadline = Date.now() + timeoutMs;
+  const wsBase = base.replace(/^http/, 'ws');
+  let last = { ok: false, detail: 'not attempted' };
+  do {
+    for (const socketPath of [
+      `${VIEWER_PREFIX}/api/websockets`,
+      `${VIEWER_PREFIX}/websockets`,
+      `${VIEWER_PREFIX}/websocket`,
+    ]) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) return last;
+      const attempt = await tryUpgrade(
+        `${wsBase}${socketPath}`,
+        cookie,
+        Math.min(15_000, remaining),
+      );
+      last = { ...attempt, detail: `${socketPath}: ${attempt.detail}` };
+      if (attempt.ok) return last;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5_000));
+  } while (Date.now() < deadline);
+  return last;
 }
 
 async function main() {
@@ -206,17 +237,7 @@ async function main() {
       `HTTP ${live.status} content-type=${contentType || '?'}`,
     );
 
-    let upgrade = { ok: false, detail: 'not attempted' };
-    for (const socketPath of [
-      `${VIEWER_PREFIX}/api/websockets`,
-      `${VIEWER_PREFIX}/websockets`,
-      `${VIEWER_PREFIX}/websocket`,
-    ]) {
-      const wsBase = base.replace(/^http/, 'ws');
-      const attempt = await tryUpgrade(`${wsBase}${socketPath}`, cookie, 15_000);
-      upgrade = { ...attempt, detail: `${socketPath}: ${attempt.detail}` };
-      if (attempt.ok) break;
-    }
+    const upgrade = await waitForViewerUpgrade(base, cookie, 90_000);
     check('lifecycle-viewer-upgrade', upgrade.ok, upgrade.detail);
 
     const stopped = await postJson(base, cookie, '/api/computer/stop', { authorize: true });
