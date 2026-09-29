@@ -61,7 +61,7 @@ export interface BotBrowserRuntime {
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
   pressKey(tabId: string, key: string): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
-  createTab(url: string, inWindowOf?: string): Promise<BrowserTab>;
+  createTab(url: string): Promise<BrowserTab>;
   listTabs(): Promise<readonly { targetId: string; url: string; title: string }[]>;
   tabInfo(targetId: string): Promise<{ url: string; title: string }>;
   closeTab(targetId: string): Promise<void>;
@@ -448,14 +448,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         targetId = undefined;
       }
     }
-    if (targetId === undefined) {
-      const created = await live.send('Target.createTarget', {
-        url: 'about:blank',
-        newWindow: true,
-      });
-      targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
-      if (targetId === '') throw new Error('The Bot Browser did not open a tab');
-    }
+    if (targetId === undefined) return openTarget(url, false);
     const sessionId = await attach(targetId);
     await live.send('Page.navigate', { url }, sessionId);
     await waitForReady(sessionId);
@@ -470,7 +463,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     const created = await live.send('Target.createTarget', {
       url: 'about:blank',
       newWindow,
-      ...(newWindow ? {} : { background: true }),
+      ...(newWindow ? {} : { background: true, focus: false }),
     });
     const targetId = typeof created['targetId'] === 'string' ? created['targetId'] : '';
     if (targetId === '') throw new Error('The Bot Browser did not open a tab');
@@ -482,13 +475,8 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId: targetId, url: page.url, title: page.title };
   };
 
-  const createTab = async (url: string, inWindowOf?: string): Promise<BrowserTab> => {
+  const createTab = async (url: string): Promise<BrowserTab> => {
     await ensure();
-    if (inWindowOf === undefined) return openTarget(url, true);
-    const live = client;
-    if (live !== undefined) {
-      await live.send('Target.activateTarget', { targetId: inWindowOf }).catch(() => undefined);
-    }
     return openTarget(url, false);
   };
 

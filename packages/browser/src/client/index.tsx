@@ -5,11 +5,14 @@ import type {} from '@deepseek-ai/dsh-client-ui-slots';
 import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
 
 const ENTRY_ID = 'botharness-browser';
-const STATUS_ENDPOINT = '/api/browser/status';
 const OBSERVATION_ENDPOINT = '/api/browser/observation';
 const TAKEOVER_ENDPOINT = '/api/browser/takeover';
 const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
+
+export const name = 'botharness-browser-client';
+
+export const inject = ['channelSidebar', 'connection', 'locale'];
 
 export interface BrowserClientContext {
   readonly locale: {
@@ -23,6 +26,9 @@ export interface BrowserClientContext {
 interface ChannelSidebarEntryProps {
   readonly botSlug?: string;
   readonly t: BrowserTranslate;
+  readonly expanded?: boolean;
+  readonly setExpanded?: (expanded: boolean) => void;
+  readonly setExpandable?: (expandable: boolean) => void;
 }
 
 interface ChannelSidebarRegistryLike {
@@ -32,6 +38,7 @@ interface ChannelSidebarRegistryLike {
     readonly order: number;
     readonly scope: 'channel' | 'personabot';
     readonly component: ComponentType<ChannelSidebarEntryProps>;
+    readonly headerAction?: ComponentType<ChannelSidebarEntryProps>;
   }): () => void;
 }
 
@@ -50,17 +57,19 @@ interface BotInfoView {
   readonly browserAccess: boolean | undefined;
 }
 
-interface BrowserStatus {
-  readonly running: boolean;
-  readonly url: string | null;
-  readonly binary: string | null;
+interface BrowserTabView {
+  readonly targetId: string;
+  readonly url: string;
+  readonly title: string;
+  readonly current: boolean;
 }
 
-interface BrowserView {
+interface BrowserObservation {
   readonly running: boolean;
   readonly frame: string | null;
+  readonly focused: string | null;
   readonly takeover: boolean;
-  readonly tabs: number;
+  readonly tabs: readonly BrowserTabView[];
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -115,17 +124,37 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
   };
 }
 
-interface PollingStore<T> extends ReadableStore<T | undefined> {
+const botInfoStores = new Map<string, ReadableStore<BotInfoView>>();
+
+function botInfoStoreFor(botSlug: string | undefined): ReadableStore<BotInfoView> {
+  const key = botSlug ?? '';
+  const existing = botInfoStores.get(key);
+  if (existing !== undefined) return existing;
+  const created = createBotInfoStore(botSlug);
+  botInfoStores.set(key, created);
+  return created;
+}
+
+interface ObservationStore {
+  subscribe(listener: () => void): () => void;
+  getSnapshot(): BrowserObservation | undefined;
+  setTab(targetId: string | undefined): void;
   refresh(): void;
 }
 
-function createPollingStore<T>(url: string, intervalMs: number): PollingStore<T> {
-  let value: T | undefined;
+function observationUrl(botSlug: string | undefined, tabId: string | undefined): string {
+  const base = `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? '')}`;
+  return tabId === undefined || tabId === '' ? base : `${base}&tab=${encodeURIComponent(tabId)}`;
+}
+
+function createObservationStore(botSlug: string | undefined): ObservationStore {
+  let value: BrowserObservation | undefined;
+  let tab: string | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const listeners = new Set<() => void>();
   const refresh = async (): Promise<void> => {
     try {
-      value = await requestJson<T>(url);
+      value = await requestJson<BrowserObservation>(observationUrl(botSlug, tab));
     } catch {
       value = undefined;
     }
@@ -136,7 +165,7 @@ function createPollingStore<T>(url: string, intervalMs: number): PollingStore<T>
       listeners.add(listener);
       if (listeners.size === 1) {
         void refresh();
-        timer = setInterval(() => void refresh(), intervalMs);
+        timer = setInterval(() => void refresh(), 1500);
       }
       return () => {
         listeners.delete(listener);
@@ -147,12 +176,73 @@ function createPollingStore<T>(url: string, intervalMs: number): PollingStore<T>
       };
     },
     getSnapshot: () => value,
+    setTab(targetId) {
+      tab = targetId;
+      void refresh();
+    },
     refresh: () => void refresh(),
   };
 }
 
-function viewEndpoint(botSlug: string | undefined): string {
-  return `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? '')}`;
+function BrowserHeaderAction({
+  botSlug,
+  t,
+  setExpandable,
+  setExpanded,
+}: ChannelSidebarEntryProps): ReactElement {
+  const store = botInfoStoreFor(botSlug);
+  const [override, setOverride] = useState<boolean | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const subscribe = (listener: () => void): (() => void) => {
+    const sync = (): void => {
+      setExpandable?.(store.getSnapshot().browserAccess === true);
+    };
+    const unsubscribe = store.subscribe(() => {
+      sync();
+      listener();
+    });
+    sync();
+    return unsubscribe;
+  };
+  const info = useSyncExternalStore(subscribe, store.getSnapshot);
+  const accessOn = override ?? info.browserAccess === true;
+
+  const onToggle = (next: boolean): void => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined || busy) return;
+    const previous = accessOn;
+    setOverride(next);
+    setBusy(true);
+    setExpandable?.(next);
+    if (next) setExpanded?.(true);
+    void rpc
+      .call('/api', 'botharness/browserAccessSet', { args: { slug: botSlug, enabled: next } })
+      .then((result) => {
+        if (!result.ok) {
+          setOverride(previous);
+          setExpandable?.(previous);
+          return;
+        }
+        const value = result.value as { bot?: { browserAccess?: unknown } };
+        const applied = value.bot?.browserAccess === true;
+        setOverride(applied);
+        setExpandable?.(applied);
+      })
+      .catch(() => {
+        setOverride(previous);
+        setExpandable?.(previous);
+      })
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <Switch
+      checked={accessOn}
+      disabled={busy || botSlug === undefined}
+      onChange={onToggle}
+      label={t('entry.access.title')}
+    />
+  );
 }
 
 const buttonStyle = {
@@ -165,76 +255,69 @@ const buttonStyle = {
   fontSize: 12,
 } as const;
 
-function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
-  const [botInfoStore] = useState(() => createBotInfoStore(botSlug));
-  const [statusStore] = useState(() => createPollingStore<BrowserStatus>(STATUS_ENDPOINT, 3000));
-  const [viewStore] = useState(() => createPollingStore<BrowserView>(viewEndpoint(botSlug), 1500));
-  const botInfo = useSyncExternalStore(botInfoStore.subscribe, botInfoStore.getSnapshot);
-  const status = useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot);
-  const view = useSyncExternalStore(viewStore.subscribe, viewStore.getSnapshot);
-  const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
-  const [accessBusy, setAccessBusy] = useState(false);
-  const [accessError, setAccessError] = useState<string | undefined>(undefined);
+const tabRowStyle = {
+  display: 'block',
+  width: '100%',
+  textAlign: 'left',
+  padding: '3px 6px',
+  borderRadius: 4,
+  border: 'none',
+  background: 'transparent',
+  color: 'inherit',
+  cursor: 'pointer',
+  fontSize: 12,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const;
+
+function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
+  const [store] = useState(() => createObservationStore(botSlug));
+  const observation = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const [follow, setFollow] = useState(true);
+  const [preview, setPreview] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
-  const [takeoverBusy, setTakeoverBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
-  const accessOn = accessOverride ?? botInfo.browserAccess === true;
-  const running = status?.running === true || view?.running === true;
-  const takeover = view?.takeover === true;
 
-  const onToggleAccess = (next: boolean): void => {
-    const rpc = connectionRpc;
-    if (rpc === undefined || botSlug === undefined || accessBusy) return;
-    const previous = accessOn;
-    setAccessError(undefined);
-    setAccessOverride(next);
-    setAccessBusy(true);
-    void rpc
-      .call('/api', 'botharness/browserAccessSet', { args: { slug: botSlug, enabled: next } })
-      .then((result) => {
-        if (!result.ok) {
-          setAccessOverride(previous);
-          setAccessError(result.error?.message ?? t('entry.access.failed'));
-          return;
-        }
-        const value = result.value as { bot?: { browserAccess?: unknown } };
-        setAccessOverride(value.bot?.browserAccess === true);
-      })
-      .catch((cause: unknown) => {
-        setAccessOverride(previous);
-        setAccessError(cause instanceof Error ? cause.message : String(cause));
-      })
-      .finally(() => setAccessBusy(false));
-  };
+  const tabs = observation?.tabs ?? [];
+  const focused = observation?.focused ?? null;
+  const focusedTab = tabs.find((tab) => tab.targetId === focused);
+  const paused = observation?.takeover === true;
 
-  const invoke = (endpoint: string): void => {
+  const invoke = (endpoint: string, init?: RequestInit): void => {
     if (busy) return;
     setBusy(true);
     setError(undefined);
-    void requestJson<{ ok: boolean }>(endpoint, { method: 'POST' })
+    void requestJson<{ ok: boolean }>(endpoint, { method: 'POST', ...init })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => {
         setBusy(false);
-        statusStore.refresh();
-        viewStore.refresh();
+        store.refresh();
       });
   };
 
-  const onToggleTakeover = (): void => {
-    if (takeoverBusy || botSlug === undefined) return;
-    const next = view?.takeover !== true;
-    setTakeoverBusy(true);
-    setError(undefined);
-    void requestJson<{ ok: boolean; takeover: boolean }>(TAKEOVER_ENDPOINT, {
-      method: 'POST',
+  const onFollow = (next: boolean): void => {
+    setFollow(next);
+    if (next) {
+      setPreview(undefined);
+      store.setTab(undefined);
+    } else {
+      store.setTab(preview);
+    }
+  };
+
+  const onSelectTab = (targetId: string): void => {
+    setFollow(false);
+    setPreview(targetId);
+    store.setTab(targetId);
+  };
+
+  const onPause = (): void => {
+    if (botSlug === undefined) return;
+    invoke(TAKEOVER_ENDPOINT, {
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ slug: botSlug, active: next }),
-    })
-      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
-      .finally(() => {
-        setTakeoverBusy(false);
-        viewStore.refresh();
-      });
+      body: JSON.stringify({ slug: botSlug, active: !paused }),
+    });
   };
 
   return (
@@ -242,84 +325,89 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
       <div
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
       >
-        <span style={{ opacity: 0.85 }}>{t('entry.access.title')}</span>
+        <span style={{ opacity: 0.8 }}>{t('entry.view.follow')}</span>
         <Switch
-          checked={accessOn}
-          disabled={accessBusy || botSlug === undefined}
-          onChange={onToggleAccess}
-          label={t('entry.access.title')}
+          checked={follow}
+          onChange={onFollow}
+          label={t('entry.view.follow')}
+          disabled={botSlug === undefined}
         />
       </div>
-      <div style={{ opacity: 0.7 }}>{t('entry.access.description')}</div>
-      {accessError !== undefined ? <div>{accessError}</div> : null}
-      <div style={{ opacity: 0.8 }}>
-        {running
-          ? `${t('entry.status.running')}${status?.url === null || status?.url === undefined ? '' : ` · ${t('entry.status.url', { url: status.url })}`}`
-          : t('entry.status.stopped')}
-      </div>
-      {status?.binary === null || status?.binary === undefined ? null : (
-        <div style={{ opacity: 0.6, wordBreak: 'break-all' }}>
-          {t('entry.binary', { path: status.binary })}
-        </div>
-      )}
-      {view?.frame === null || view?.frame === undefined ? (
+      {paused ? <div style={{ opacity: 0.8 }}>{t('entry.view.paused')}</div> : null}
+      {observation?.frame === null || observation?.frame === undefined ? (
         <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
       ) : (
         <img
-          src={view.frame}
-          alt={t('entry.view.title')}
+          src={observation.frame}
+          alt={t('entry.label')}
           style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
         />
       )}
-      {view === undefined ? null : (
-        <div style={{ opacity: 0.7 }}>{t('entry.view.tabs', { count: view.tabs })}</div>
+      {focusedTab === undefined ? null : (
+        <div style={{ opacity: 0.7, wordBreak: 'break-all' }}>
+          {focusedTab.title === '' ? focusedTab.url : focusedTab.title}
+        </div>
       )}
-      {takeover ? <div>{t('entry.view.taken')}</div> : null}
-      <div style={{ display: 'flex', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button type="button" style={buttonStyle} disabled={busy} onClick={onPause}>
+          {t(paused ? 'entry.view.resume' : 'entry.view.pause')}
+        </button>
         <button
           type="button"
           style={buttonStyle}
           disabled={busy}
           onClick={() => invoke(OPEN_ENDPOINT)}
         >
-          {t(busy ? 'entry.opening' : 'entry.open')}
+          {t(busy ? 'entry.view.opening' : 'entry.view.open')}
         </button>
-        {running ? (
+        {observation?.running === true ? (
           <button
             type="button"
             style={buttonStyle}
             disabled={busy}
             onClick={() => invoke(STOP_ENDPOINT)}
           >
-            {t(busy ? 'entry.stopping' : 'entry.stop')}
-          </button>
-        ) : null}
-        {running ? (
-          <button
-            type="button"
-            style={buttonStyle}
-            disabled={takeoverBusy}
-            onClick={onToggleTakeover}
-          >
-            {t(takeover ? 'entry.view.release' : 'entry.view.takeover')}
+            {t('entry.view.stop')}
           </button>
         ) : null}
       </div>
+      {tabs.length === 0 ? (
+        <div style={{ opacity: 0.6 }}>{t('entry.view.noTabs')}</div>
+      ) : (
+        <div style={{ display: 'grid', gap: 2 }}>
+          {tabs.map((tab) => (
+            <button
+              key={tab.targetId}
+              type="button"
+              style={{
+                ...tabRowStyle,
+                opacity: tab.targetId === focused ? 1 : 0.75,
+                fontWeight: tab.targetId === focused ? 600 : 400,
+              }}
+              title={tab.url}
+              onClick={() => onSelectTab(tab.targetId)}
+            >
+              {tab.title === '' ? tab.url : tab.title}
+            </button>
+          ))}
+        </div>
+      )}
       {error !== undefined ? <div>{error}</div> : null}
-      <div style={{ opacity: 0.6 }}>{t('entry.hint')}</div>
     </div>
   );
 }
 
-function createBrowserEntry(t: BrowserTranslate): ComponentType<ChannelSidebarEntryProps> {
-  return function BrowserEntry(props: Omit<ChannelSidebarEntryProps, 't'>): ReactElement {
-    return <BrowserEntryView {...props} t={t} />;
+function createBrowserBody(t: BrowserTranslate): ComponentType<ChannelSidebarEntryProps> {
+  return function BrowserBodyView(props: Omit<ChannelSidebarEntryProps, 't'>): ReactElement {
+    return <BrowserBody {...props} t={t} />;
   };
 }
 
-export const name = 'botharness-browser-client';
-
-export const inject = ['channelSidebar', 'connection', 'locale'];
+function createBrowserHeader(t: BrowserTranslate): ComponentType<ChannelSidebarEntryProps> {
+  return function BrowserHeaderView(props: Omit<ChannelSidebarEntryProps, 't'>): ReactElement {
+    return <BrowserHeaderAction {...props} t={t} />;
+  };
+}
 
 export function apply(ctx: BrowserClientContext): void {
   const t = ctx.locale.bind(LOCALE_NS);
@@ -337,7 +425,8 @@ export function apply(ctx: BrowserClientContext): void {
           label: t('entry.label'),
           order: 41,
           scope: 'personabot',
-          component: createBrowserEntry(t),
+          component: createBrowserBody(t),
+          headerAction: createBrowserHeader(t),
         }),
       'botharness-browser: channel sidebar entry',
     );

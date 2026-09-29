@@ -11,58 +11,47 @@ window.__ModuleLoader__.load({
 		const LOCALE_NS = "botharness-browser";
 		const zh = {
 			"entry.label": "浏览器",
-			"entry.shared": "Bot Browser 由本 profile 的所有 PersonaBot 共享：各自拥有自己的窗口，共享登录态与 Cookie。",
 			"entry.access.title": "Browser Access",
-			"entry.access.description": "开启后，该 Bot 的会话可以使用 Bot Browser 工具",
 			"entry.access.failed": "切换 Browser Access 失败",
-			"entry.status.stopped": "未运行",
-			"entry.status.running": "运行中",
-			"entry.status.url": "当前页面：{url}",
-			"entry.binary": "浏览器：{path}",
-			"entry.open": "打开 Bot 浏览器",
-			"entry.opening": "正在打开…",
-			"entry.stop": "停止",
-			"entry.stopping": "正在停止…",
-			"entry.hint": "首次使用请在打开的窗口里登录需要的网站；登录态会保留在这个浏览器 profile 中。",
-			"entry.view.title": "实时画面",
+			"entry.view.follow": "跟随 Bot",
+			"entry.view.pause": "暂停 Bot",
+			"entry.view.resume": "继续",
+			"entry.view.paused": "已暂停 · 你可以直接操作浏览器窗口",
+			"entry.view.open": "打开 Bot 浏览器",
+			"entry.view.stop": "停止",
+			"entry.view.opening": "正在打开…",
 			"entry.view.noFrame": "暂无画面",
-			"entry.view.takeover": "接管",
-			"entry.view.release": "结束接管",
-			"entry.view.tabs": "标签：{count}",
-			"entry.view.taken": "已接管 · 该 Bot 的动作与截图已暂停",
+			"entry.view.noTabs": "暂无标签页",
 			"entry.error": "浏览器操作失败"
 		};
 		const en = {
 			"entry.label": "Browser",
-			"entry.shared": "The Bot Browser is shared by every PersonaBot of this profile: each owns its own window, while cookies and sign-ins are shared.",
 			"entry.access.title": "Browser Access",
-			"entry.access.description": "Lets this Bot's sessions use the Bot Browser tools",
 			"entry.access.failed": "Failed to switch Browser Access",
-			"entry.status.stopped": "Not running",
-			"entry.status.running": "Running",
-			"entry.status.url": "Current page: {url}",
-			"entry.binary": "Browser: {path}",
-			"entry.open": "Open Bot Browser",
-			"entry.opening": "Opening…",
-			"entry.stop": "Stop",
-			"entry.stopping": "Stopping…",
-			"entry.hint": "Sign in to the sites you need in the window that opens; logins persist in this browser profile.",
-			"entry.view.title": "Live view",
+			"entry.view.follow": "Follow the Bot",
+			"entry.view.pause": "Pause Bot",
+			"entry.view.resume": "Resume",
+			"entry.view.paused": "Paused · you can use the browser window directly",
+			"entry.view.open": "Open Bot Browser",
+			"entry.view.stop": "Stop",
+			"entry.view.opening": "Opening…",
 			"entry.view.noFrame": "No frame yet",
-			"entry.view.takeover": "Take over",
-			"entry.view.release": "End takeover",
-			"entry.view.tabs": "Tabs: {count}",
-			"entry.view.taken": "Taken over · this Bot's actions and screenshots are paused",
+			"entry.view.noTabs": "No tabs yet",
 			"entry.error": "Browser action failed"
 		};
 		//#endregion
 		//#region packages/browser/src/client/index.tsx
 		const ENTRY_ID = "botharness-browser";
-		const STATUS_ENDPOINT = "/api/browser/status";
 		const OBSERVATION_ENDPOINT = "/api/browser/observation";
 		const TAKEOVER_ENDPOINT = "/api/browser/takeover";
 		const OPEN_ENDPOINT = "/api/browser/open";
 		const STOP_ENDPOINT = "/api/browser/stop";
+		const name = "botharness-browser-client";
+		const inject = [
+			"channelSidebar",
+			"connection",
+			"locale"
+		];
 		let connectionRpc;
 		async function requestJson(url, init) {
 			const response = await fetch(url, {
@@ -104,13 +93,27 @@ window.__ModuleLoader__.load({
 				getSnapshot: () => info
 			};
 		}
-		function createPollingStore(url, intervalMs) {
+		const botInfoStores = /* @__PURE__ */ new Map();
+		function botInfoStoreFor(botSlug) {
+			const key = botSlug ?? "";
+			const existing = botInfoStores.get(key);
+			if (existing !== void 0) return existing;
+			const created = createBotInfoStore(botSlug);
+			botInfoStores.set(key, created);
+			return created;
+		}
+		function observationUrl(botSlug, tabId) {
+			const base = `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? "")}`;
+			return tabId === void 0 || tabId === "" ? base : `${base}&tab=${encodeURIComponent(tabId)}`;
+		}
+		function createObservationStore(botSlug) {
 			let value;
+			let tab;
 			let timer;
 			const listeners = /* @__PURE__ */ new Set();
 			const refresh = async () => {
 				try {
-					value = await requestJson(url);
+					value = await requestJson(observationUrl(botSlug, tab));
 				} catch {
 					value = void 0;
 				}
@@ -121,7 +124,7 @@ window.__ModuleLoader__.load({
 					listeners.add(listener);
 					if (listeners.size === 1) {
 						refresh();
-						timer = setInterval(() => void refresh(), intervalMs);
+						timer = setInterval(() => void refresh(), 1500);
 					}
 					return () => {
 						listeners.delete(listener);
@@ -132,11 +135,61 @@ window.__ModuleLoader__.load({
 					};
 				},
 				getSnapshot: () => value,
+				setTab(targetId) {
+					tab = targetId;
+					refresh();
+				},
 				refresh: () => void refresh()
 			};
 		}
-		function viewEndpoint(botSlug) {
-			return `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? "")}`;
+		function BrowserHeaderAction({ botSlug, t, setExpandable, setExpanded }) {
+			const store = botInfoStoreFor(botSlug);
+			const [override, setOverride] = (0, react.useState)(void 0);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const subscribe = (listener) => {
+				const sync = () => {
+					setExpandable?.(store.getSnapshot().browserAccess === true);
+				};
+				const unsubscribe = store.subscribe(() => {
+					sync();
+					listener();
+				});
+				sync();
+				return unsubscribe;
+			};
+			const info = (0, react.useSyncExternalStore)(subscribe, store.getSnapshot);
+			const accessOn = override ?? info.browserAccess === true;
+			const onToggle = (next) => {
+				const rpc = connectionRpc;
+				if (rpc === void 0 || botSlug === void 0 || busy) return;
+				const previous = accessOn;
+				setOverride(next);
+				setBusy(true);
+				setExpandable?.(next);
+				if (next) setExpanded?.(true);
+				rpc.call("/api", "botharness/browserAccessSet", { args: {
+					slug: botSlug,
+					enabled: next
+				} }).then((result) => {
+					if (!result.ok) {
+						setOverride(previous);
+						setExpandable?.(previous);
+						return;
+					}
+					const applied = result.value.bot?.browserAccess === true;
+					setOverride(applied);
+					setExpandable?.(applied);
+				}).catch(() => {
+					setOverride(previous);
+					setExpandable?.(previous);
+				}).finally(() => setBusy(false));
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+				checked: accessOn,
+				disabled: busy || botSlug === void 0,
+				onChange: onToggle,
+				label: t("entry.access.title")
+			});
 		}
 		const buttonStyle = {
 			padding: "4px 10px",
@@ -147,70 +200,64 @@ window.__ModuleLoader__.load({
 			cursor: "pointer",
 			fontSize: 12
 		};
-		function BrowserEntryView({ botSlug, t }) {
-			const [botInfoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
-			const [statusStore] = (0, react.useState)(() => createPollingStore(STATUS_ENDPOINT, 3e3));
-			const [viewStore] = (0, react.useState)(() => createPollingStore(viewEndpoint(botSlug), 1500));
-			const botInfo = (0, react.useSyncExternalStore)(botInfoStore.subscribe, botInfoStore.getSnapshot);
-			const status = (0, react.useSyncExternalStore)(statusStore.subscribe, statusStore.getSnapshot);
-			const view = (0, react.useSyncExternalStore)(viewStore.subscribe, viewStore.getSnapshot);
-			const [accessOverride, setAccessOverride] = (0, react.useState)(void 0);
-			const [accessBusy, setAccessBusy] = (0, react.useState)(false);
-			const [accessError, setAccessError] = (0, react.useState)(void 0);
+		const tabRowStyle = {
+			display: "block",
+			width: "100%",
+			textAlign: "left",
+			padding: "3px 6px",
+			borderRadius: 4,
+			border: "none",
+			background: "transparent",
+			color: "inherit",
+			cursor: "pointer",
+			fontSize: 12,
+			overflow: "hidden",
+			textOverflow: "ellipsis",
+			whiteSpace: "nowrap"
+		};
+		function BrowserBody({ botSlug, t }) {
+			const [store] = (0, react.useState)(() => createObservationStore(botSlug));
+			const observation = (0, react.useSyncExternalStore)(store.subscribe, store.getSnapshot);
+			const [follow, setFollow] = (0, react.useState)(true);
+			const [preview, setPreview] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
-			const [takeoverBusy, setTakeoverBusy] = (0, react.useState)(false);
 			const [error, setError] = (0, react.useState)(void 0);
-			const accessOn = accessOverride ?? botInfo.browserAccess === true;
-			const running = status?.running === true || view?.running === true;
-			const takeover = view?.takeover === true;
-			const onToggleAccess = (next) => {
-				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
-				const previous = accessOn;
-				setAccessError(void 0);
-				setAccessOverride(next);
-				setAccessBusy(true);
-				rpc.call("/api", "botharness/browserAccessSet", { args: {
-					slug: botSlug,
-					enabled: next
-				} }).then((result) => {
-					if (!result.ok) {
-						setAccessOverride(previous);
-						setAccessError(result.error?.message ?? t("entry.access.failed"));
-						return;
-					}
-					const value = result.value;
-					setAccessOverride(value.bot?.browserAccess === true);
-				}).catch((cause) => {
-					setAccessOverride(previous);
-					setAccessError(cause instanceof Error ? cause.message : String(cause));
-				}).finally(() => setAccessBusy(false));
-			};
-			const invoke = (endpoint) => {
+			const tabs = observation?.tabs ?? [];
+			const focused = observation?.focused ?? null;
+			const focusedTab = tabs.find((tab) => tab.targetId === focused);
+			const paused = observation?.takeover === true;
+			const invoke = (endpoint, init) => {
 				if (busy) return;
 				setBusy(true);
 				setError(void 0);
-				requestJson(endpoint, { method: "POST" }).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
+				requestJson(endpoint, {
+					method: "POST",
+					...init
+				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
 					setBusy(false);
-					statusStore.refresh();
-					viewStore.refresh();
+					store.refresh();
 				});
 			};
-			const onToggleTakeover = () => {
-				if (takeoverBusy || botSlug === void 0) return;
-				const next = view?.takeover !== true;
-				setTakeoverBusy(true);
-				setError(void 0);
-				requestJson(TAKEOVER_ENDPOINT, {
-					method: "POST",
+			const onFollow = (next) => {
+				setFollow(next);
+				if (next) {
+					setPreview(void 0);
+					store.setTab(void 0);
+				} else store.setTab(preview);
+			};
+			const onSelectTab = (targetId) => {
+				setFollow(false);
+				setPreview(targetId);
+				store.setTab(targetId);
+			};
+			const onPause = () => {
+				if (botSlug === void 0) return;
+				invoke(TAKEOVER_ENDPOINT, {
 					headers: { "content-type": "application/json" },
 					body: JSON.stringify({
 						slug: botSlug,
-						active: next
+						active: !paused
 					})
-				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
-					setTakeoverBusy(false);
-					viewStore.refresh();
 				});
 			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -228,99 +275,108 @@ window.__ModuleLoader__.load({
 							gap: 8
 						},
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							style: { opacity: .85 },
-							children: t("entry.access.title")
+							style: { opacity: .8 },
+							children: t("entry.view.follow")
 						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-							checked: accessOn,
-							disabled: accessBusy || botSlug === void 0,
-							onChange: onToggleAccess,
-							label: t("entry.access.title")
+							checked: follow,
+							onChange: onFollow,
+							label: t("entry.view.follow"),
+							disabled: botSlug === void 0
 						})]
 					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: { opacity: .7 },
-						children: t("entry.access.description")
-					}),
-					accessError !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: accessError }) : null,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					paused ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .8 },
-						children: running ? `${t("entry.status.running")}${status?.url === null || status?.url === void 0 ? "" : ` · ${t("entry.status.url", { url: status.url })}`}` : t("entry.status.stopped")
-					}),
-					status?.binary === null || status?.binary === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: {
-							opacity: .6,
-							wordBreak: "break-all"
-						},
-						children: t("entry.binary", { path: status.binary })
-					}),
-					view?.frame === null || view?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						children: t("entry.view.paused")
+					}) : null,
+					observation?.frame === null || observation?.frame === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },
 						children: t("entry.view.noFrame")
 					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("img", {
-						src: view.frame,
-						alt: t("entry.view.title"),
+						src: observation.frame,
+						alt: t("entry.label"),
 						style: {
 							width: "100%",
 							borderRadius: 6,
 							border: "1px solid currentColor"
 						}
 					}),
-					view === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: { opacity: .7 },
-						children: t("entry.view.tabs", { count: view.tabs })
+					focusedTab === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: {
+							opacity: .7,
+							wordBreak: "break-all"
+						},
+						children: focusedTab.title === "" ? focusedTab.url : focusedTab.title
 					}),
-					takeover ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: t("entry.view.taken") }) : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
-							gap: 8
+							gap: 8,
+							flexWrap: "wrap"
 						},
 						children: [
 							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
 								disabled: busy,
-								onClick: () => invoke(OPEN_ENDPOINT),
-								children: t(busy ? "entry.opening" : "entry.open")
+								onClick: onPause,
+								children: t(paused ? "entry.view.resume" : "entry.view.pause")
 							}),
-							running ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+								type: "button",
+								style: buttonStyle,
+								disabled: busy,
+								onClick: () => invoke(OPEN_ENDPOINT),
+								children: t(busy ? "entry.view.opening" : "entry.view.open")
+							}),
+							observation?.running === true ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
 								type: "button",
 								style: buttonStyle,
 								disabled: busy,
 								onClick: () => invoke(STOP_ENDPOINT),
-								children: t(busy ? "entry.stopping" : "entry.stop")
-							}) : null,
-							running ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-								type: "button",
-								style: buttonStyle,
-								disabled: takeoverBusy,
-								onClick: onToggleTakeover,
-								children: t(takeover ? "entry.view.release" : "entry.view.takeover")
+								children: t("entry.view.stop")
 							}) : null
 						]
 					}),
-					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: error }) : null,
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					tabs.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 						style: { opacity: .6 },
-						children: t("entry.hint")
-					})
+						children: t("entry.view.noTabs")
+					}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+						style: {
+							display: "grid",
+							gap: 2
+						},
+						children: tabs.map((tab) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+							type: "button",
+							style: {
+								...tabRowStyle,
+								opacity: tab.targetId === focused ? 1 : .75,
+								fontWeight: tab.targetId === focused ? 600 : 400
+							},
+							title: tab.url,
+							onClick: () => onSelectTab(tab.targetId),
+							children: tab.title === "" ? tab.url : tab.title
+						}, tab.targetId))
+					}),
+					error !== void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", { children: error }) : null
 				]
 			});
 		}
-		function createBrowserEntry(t) {
-			return function BrowserEntry(props) {
-				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BrowserEntryView, {
+		function createBrowserBody(t) {
+			return function BrowserBodyView(props) {
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BrowserBody, {
 					...props,
 					t
 				});
 			};
 		}
-		const name = "botharness-browser-client";
-		const inject = [
-			"channelSidebar",
-			"connection",
-			"locale"
-		];
+		function createBrowserHeader(t) {
+			return function BrowserHeaderView(props) {
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(BrowserHeaderAction, {
+					...props,
+					t
+				});
+			};
+		}
 		function apply(ctx) {
 			const t = ctx.locale.bind(LOCALE_NS);
 			ctx.effect(() => ctx.locale.register(LOCALE_NS, {
@@ -336,7 +392,8 @@ window.__ModuleLoader__.load({
 					label: t("entry.label"),
 					order: 41,
 					scope: "personabot",
-					component: createBrowserEntry(t)
+					component: createBrowserBody(t),
+					headerAction: createBrowserHeader(t)
 				}), "botharness-browser: channel sidebar entry");
 			});
 		}

@@ -90,6 +90,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- The Browser entry keeps its Browser Access switch in the collapsible header and refuses to open while the switch is off; the body is now a clean tab list with a focused preview that follows the Bot by default (or a tab you click), and Bot tabs open as background tabs in the shared Bot Browser without popping windows or stealing focus. The former Takeover control is now **Pause Bot**, which stops the Bot without implying you need permission to use the window ([#490](https://github.com/BotHarness/BotHarness/issues/490), [#492](https://github.com/BotHarness/BotHarness/issues/492), [#496](https://github.com/BotHarness/BotHarness/issues/496), [ADR-0093](docs/adr/0093-bot-tabs-are-background-tabs-on-the-shared-bot-browser.md)).
 - Memory file and diff readers now use edge-to-edge, distinct headers with quiet return and refresh controls; commit and working-tree diffs have collapsible file sections with the same status badges as the Git graph, and the historical branch action names its create-and-switch behavior ([#441](https://github.com/BotHarness/BotHarness/issues/441)).
 - BotHarness now declares its DSH compatibility as a SemVer range (`>=0.2.0-rc.1 <0.3.0-0`) whose floor is the verified host line, instead of an exact pin; runtime behavior is unchanged ([ADR-0087](docs/adr/0087-dsh-compatibility-is-a-semver-range-with-a-verified-floor.md), [#423](https://github.com/BotHarness/BotHarness/issues/423)).
 

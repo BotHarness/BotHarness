@@ -53,6 +53,10 @@ export interface BrowserToolProvider {
   isTakeover(slug: string): boolean;
   setTakeover(slug: string, active: boolean): boolean;
   currentTab(slug: string): string | undefined;
+  ownsTab(slug: string, targetId: string): boolean;
+  listTabs(
+    slug: string,
+  ): Promise<readonly { targetId: string; url: string; title: string; current: boolean }[]>;
   tabCount(slug: string): number;
   touch(slug: string): void;
   closeIdleTabs(idleMs: number): Promise<void>;
@@ -345,7 +349,7 @@ export function createBrowserToolProvider(
             'browser_tabs action open needs an absolute http(s) URL, for example https://example.com',
           );
         }
-        const tab = await runtime.createTab(url, state.current);
+        const tab = await runtime.createTab(url);
         state.owned.add(tab.tabId);
         state.current = tab.tabId;
         state.lastActivity = Date.now();
@@ -539,6 +543,19 @@ export function createBrowserToolProvider(
 
     currentTab(slug) {
       return tabsByBot.get(slug)?.current;
+    },
+
+    ownsTab(slug, targetId) {
+      return tabsByBot.get(slug)?.owned.has(targetId) === true;
+    },
+
+    async listTabs(slug) {
+      const state = tabsByBot.get(slug);
+      if (state === undefined || state.owned.size === 0) return [];
+      const live = await runtime.listTabs().catch(() => []);
+      return live
+        .filter((tab) => state.owned.has(tab.targetId))
+        .map((tab) => ({ ...tab, current: tab.targetId === state.current }));
     },
 
     tabCount(slug) {

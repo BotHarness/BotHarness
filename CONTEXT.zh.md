@@ -203,7 +203,7 @@ profile 为其 PersonaBot 运行并驱动的专用浏览器——单实例，拥
 _避免使用_：user browser、personal browser、headless browser、Chromium
 
 **Bot Tab**：
-某个 PersonaBot 在 Bot Browser 上拥有的窗口与标签——Human 观看时它的可见工作界面。观察与操作限定在它拥有的标签内；它是可见性作用域，不是安全边界。
+某个 PersonaBot 在共享 Bot Browser 上拥有的后台标签——Browser entry 中列出它的标签并预览焦点标签。观察与操作限定在它拥有的标签内；它是可见性作用域，不是安全边界。
 _避免使用_：agent window、session tab、borrowed tab、tab group
 
 **Browser Access**：
@@ -214,9 +214,9 @@ _避免使用_：permission、grant、feature flag、extension toggle
 PersonaBot 在 Bot Browser 上首次行动前、由 Human 按会话给予的一次授权；profile 级「自动允许」可跳过询问。Access 决定工具是否存在，Authorization 决定它们能否运行。
 _避免使用_：Browser Access、consent dialog、per-action approval
 
-**Browser Takeover**：
-Human 对某一个 PersonaBot 标签的接管会话：暂停该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 的任何输入都会使该 PersonaBot 更早的观察失效。
-_避免使用_：Computer Takeover、handoff、screen sharing
+**Browser Pause**：
+Human 对某一个 PersonaBot 标签的暂停：停止该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 始终可以直接操作 Bot Browser 窗口。
+_避免使用_：Computer Takeover、handoff、screen sharing、access gate
 
 **Browser Audit**：
 按 PersonaBot 与会话归因的、脱敏的 Bot Browser 观察与动作持久记录；绝不包含输入的原文、页面内容或截图。

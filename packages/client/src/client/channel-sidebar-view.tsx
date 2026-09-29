@@ -138,10 +138,21 @@ export function ChannelSidebarEntrySection({
   const Badge = entry.badge;
   const HeaderAction = entry.headerAction;
   const [refreshRevision, setRefreshRevision] = useState(0);
+  const [expandable, setExpandable] = useState(true);
   const props = {
     ...entryProps,
     refreshRevision,
     requestRefresh: () => setRefreshRevision((value) => value + 1),
+    expanded,
+    setExpanded: (next: boolean) => {
+      if (next === expanded) return;
+      if (next && !expandable) return;
+      onToggle();
+    },
+    setExpandable: (next: boolean) => {
+      setExpandable(next);
+      if (!next && expanded) onToggle();
+    },
   };
   return (
     <section className="bh-channel-sidebar-entry">
@@ -151,7 +162,10 @@ export function ChannelSidebarEntrySection({
           className="bh-channel-sidebar-entry-head"
           aria-expanded={expanded}
           aria-controls={bodyId}
-          onClick={onToggle}
+          aria-disabled={expandable ? undefined : true}
+          disabled={!expandable}
+          style={expandable ? undefined : { cursor: 'default', opacity: 0.6 }}
+          onClick={expandable ? onToggle : undefined}
         >
           <span
             className={`bh-channel-sidebar-entry-chevron${expanded ? '' : ' bh-chevron-collapsed'}`}

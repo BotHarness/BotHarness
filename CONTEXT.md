@@ -205,7 +205,7 @@ The dedicated browser a profile runs for its PersonaBots to drive — one browse
 _Avoid_: user browser, personal browser, headless browser, Chromium
 
 **Bot Tab**:
-The window and tabs one PersonaBot owns on the Bot Browser — its visible work surface while the Human watches. Observation and action are scoped to its owned tabs; it is a visibility scope, not a security boundary.
+The background tabs one PersonaBot owns on the shared Bot Browser — its work surface as listed in the Browser entry, where the Human previews the focused tab. Observation and action are scoped to its owned tabs; it is a visibility scope, not a security boundary.
 _Avoid_: agent window, session tab, borrowed tab, tab group
 
 **Browser Access**:
@@ -216,9 +216,9 @@ _Avoid_: permission, grant, feature flag, extension toggle
 The once-per-session Human approval before a PersonaBot's first action on the Bot Browser; a profile-level auto-allow setting can skip asking. Access decides whether the tools exist; Authorization decides whether they may run.
 _Avoid_: Browser Access, consent dialog, per-action approval
 
-**Browser Takeover**:
-A human session on one PersonaBot's tabs that pauses that PersonaBot's browser actions and disables model-facing screenshots for its duration; any Human input invalidates the PersonaBot's older observations.
-_Avoid_: Computer Takeover, handoff, screen sharing
+**Browser Pause**:
+A Human pause on one PersonaBot's tabs that stops that PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the Bot Browser window directly.
+_Avoid_: Computer Takeover, handoff, screen sharing, access gate
 
 **Browser Audit**:
 The durable, redacted record of Bot Browser observations and actions attributed to the PersonaBot and session that performed them; it never contains typed text, page contents, or screenshots.
