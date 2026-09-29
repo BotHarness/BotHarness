@@ -1892,6 +1892,14 @@ button.bh-profile-heat-cell:focus-visible {
   white-space: nowrap;
   pointer-events: none;
 }
+/* TanStack's tooltip container carries its own chrome; the inner
+   .bh-profile-chart-tip is the single surface, so neutralise the outer one. */
+.ts-chart-tooltip {
+  --ts-chart-tooltip-padding: 0;
+  --ts-chart-tooltip-border: 0;
+  --ts-chart-tooltip-background: transparent;
+  --ts-chart-tooltip-shadow: none;
+}
 .bh-profile-chart-tip {
   display: flex;
   flex-direction: column;
