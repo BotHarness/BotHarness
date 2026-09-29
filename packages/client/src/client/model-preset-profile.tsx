@@ -30,24 +30,40 @@ export function ModelPresetProfile({
   const [planLoadError, setPlanLoadError] = useState(false);
   const planRequest = useRef(0);
   const [selectedPreset, setSelectedPreset] = useState('');
+  const [editingPresetId, setEditingPresetId] = useState('');
   const [name, setName] = useState('');
   const [orchestratorIndex, setOrchestratorIndex] = useState(0);
   const [orchestratorEffort, setOrchestratorEffort] = useState('');
   const [assignmentIndex, setAssignmentIndex] = useState(0);
   const [assignmentEffort, setAssignmentEffort] = useState('');
+  const [customIndex, setCustomIndex] = useState(-1);
+  const [customEffort, setCustomEffort] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [notice, setNotice] = useState<string>();
+
+  const routeIndex = (models: ModelCatalogEntryView[], route: ModelRouteView): number =>
+    models.findIndex((entry) => entry.provider === route.provider && entry.model === route.model);
+
+  const setCustomDraft = (models: ModelCatalogEntryView[], route: ModelRouteView): void => {
+    setCustomIndex(routeIndex(models, route));
+    setCustomEffort(route.reasoningEffort ?? '');
+  };
 
   const loadPlanOnMount = useCallback(
     (element: HTMLElement | null): void => {
       const request = ++planRequest.current;
       if (element === null) return;
-      void actions.modelPlan(slug).then(
-        (current) => {
-          if (planRequest.current === request)
-            setPlan((previous) =>
-              (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
-            );
+      void Promise.all([actions.modelPlan(slug), actions.modelPresets()]).then(
+        ([current, saved]) => {
+          if (planRequest.current !== request) return;
+          setPlan((previous) =>
+            (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
+          );
+          setPresets(saved);
+          setSelectedPreset(
+            saved.find((preset) => preset.id === current?.sourcePresetId)?.id ?? '',
+          );
         },
         () => {
           if (planRequest.current === request) setPlanLoadError(true);
@@ -71,8 +87,11 @@ export function ModelPresetProfile({
       setCatalog(models);
       setPresets(saved);
       setSelectedPreset(
-        saved.find((preset) => preset.id === current?.sourcePresetId)?.id ?? saved[0]?.id ?? '',
+        saved.find((preset) => preset.id === current?.sourcePresetId)?.id ??
+          saved.find((preset) => preset.id === selectedPreset)?.id ??
+          '',
       );
+      if (current !== undefined) setCustomDraft(models, current.orchestrator);
       setPlan((previous) =>
         (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
       );
@@ -84,7 +103,9 @@ export function ModelPresetProfile({
 
   const selectedOrchestrator = catalog?.[orchestratorIndex];
   const selectedAssignment = catalog?.[assignmentIndex];
+  const selectedCustom = catalog?.[customIndex];
   const hasPlanError = planLoadError && plan === undefined;
+  const planLabel = plan?.sourcePresetId === '' ? t('modelPreset.custom') : plan?.sourcePresetName;
   const routeOf = (entry: ModelCatalogEntryView, effort: string): ModelRouteView => ({
     provider: entry.provider,
     model: entry.model,
@@ -95,7 +116,23 @@ export function ModelPresetProfile({
     if (busy || selectedOrchestrator === undefined || selectedAssignment === undefined) return;
     setBusy(true);
     setError(undefined);
+    setNotice(undefined);
     try {
+      if (editingPresetId !== '') {
+        const updated = await actions.updateModelPreset(
+          editingPresetId,
+          name,
+          routeOf(selectedOrchestrator, orchestratorEffort),
+          routeOf(selectedAssignment, assignmentEffort),
+        );
+        setPresets((current) =>
+          current.map((preset) => (preset.id === updated.id ? updated : preset)),
+        );
+        setEditingPresetId('');
+        setName('');
+        setNotice(t('modelPreset.futureOnly'));
+        return;
+      }
       const preset = await actions.createModelPreset(
         name,
         routeOf(selectedOrchestrator, orchestratorEffort),
@@ -106,6 +143,7 @@ export function ModelPresetProfile({
       setName('');
       const applied = await actions.applyModelPreset(slug, preset.id);
       setPlan(applied);
+      if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -117,8 +155,45 @@ export function ModelPresetProfile({
     if (busy || selectedPreset === '') return;
     setBusy(true);
     setError(undefined);
+    setNotice(undefined);
     try {
-      setPlan(await actions.applyModelPreset(slug, selectedPreset));
+      const applied = await actions.applyModelPreset(slug, selectedPreset);
+      setPlan(applied);
+      if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
+    } catch (failure) {
+      setError(errorMessage(failure));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const editSelected = (): void => {
+    const preset = presets.find((item) => item.id === selectedPreset);
+    if (preset === undefined || catalog === undefined) return;
+    const orchestrator = routeIndex(catalog, preset.orchestrator);
+    const assignment = routeIndex(catalog, preset.assignmentDefault);
+    if (orchestrator < 0 || assignment < 0) {
+      setError(t('modelPreset.routeUnavailable'));
+      return;
+    }
+    setEditingPresetId(preset.id);
+    setName(preset.name);
+    setOrchestratorIndex(orchestrator);
+    setOrchestratorEffort(preset.orchestrator.reasoningEffort ?? '');
+    setAssignmentIndex(assignment);
+    setAssignmentEffort(preset.assignmentDefault.reasoningEffort ?? '');
+    setError(undefined);
+    setNotice(undefined);
+  };
+
+  const customize = async (): Promise<void> => {
+    if (busy || selectedCustom === undefined || plan === undefined) return;
+    setBusy(true);
+    setError(undefined);
+    setNotice(undefined);
+    try {
+      setPlan(await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort)));
+      setSelectedPreset('');
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -132,6 +207,34 @@ export function ModelPresetProfile({
       className="bh-profile-section bh-profile-policy-section"
       aria-label={t('modelPreset.title')}
     >
+      {presets.length > 0 && (
+        <div className="bh-model-preset-quick">
+          <label>
+            {t('modelPreset.quickSwitch')}
+            <select
+              className="bh-profile-policy-select"
+              value={selectedPreset}
+              onChange={(event) => setSelectedPreset(event.target.value)}
+            >
+              <option value="" disabled>
+                {t('modelPreset.choosePreset')}
+              </option>
+              {presets.map((preset) => (
+                <option key={preset.id} value={preset.id}>
+                  {preset.name} · {t('modelPreset.revision', { revision: preset.revision })}
+                </option>
+              ))}
+            </select>
+          </label>
+          <Button
+            variant="outline"
+            disabled={busy || selectedPreset === ''}
+            onClick={() => void applySelected()}
+          >
+            {t('modelPreset.switch')}
+          </Button>
+        </div>
+      )}
       <details
         className="bh-profile-policy-details"
         onToggle={(event) => {
@@ -146,7 +249,7 @@ export function ModelPresetProfile({
                 ? t('modelPreset.loadFailed')
                 : plan === undefined
                   ? t('modelPreset.noPlan')
-                  : `${plan.sourcePresetName} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
+                  : `${planLabel} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
             </span>
           </span>
           <IconChevronRightOutlineRegular />
@@ -173,28 +276,20 @@ export function ModelPresetProfile({
             ) : (
               <>
                 {presets.length > 0 && (
-                  <div className="bh-model-preset-apply">
-                    <label>
-                      {t('modelPreset.saved')}
-                      <select
-                        className="bh-profile-policy-select"
-                        value={selectedPreset}
-                        onChange={(event) => setSelectedPreset(event.target.value)}
-                      >
-                        {presets.map((preset) => (
-                          <option key={preset.id} value={preset.id}>
-                            {preset.name}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    <Button variant="outline" disabled={busy} onClick={() => void applySelected()}>
-                      {t('modelPreset.apply')}
+                  <div className="bh-model-preset-edit-preset">
+                    <Button
+                      variant="outline"
+                      disabled={busy || selectedPreset === ''}
+                      onClick={editSelected}
+                    >
+                      {t('modelPreset.editSelected')}
                     </Button>
                   </div>
                 )}
                 <div className="bh-model-preset-form">
-                  <strong>{t('modelPreset.create')}</strong>
+                  <strong>
+                    {editingPresetId === '' ? t('modelPreset.create') : t('modelPreset.edit')}
+                  </strong>
                   <label>
                     {t('modelPreset.name')}
                     <input
@@ -273,24 +368,87 @@ export function ModelPresetProfile({
                     disabled={busy || name.trim() === ''}
                     onClick={() => void createAndApply()}
                   >
-                    {t('modelPreset.createApply')}
+                    {editingPresetId === ''
+                      ? t('modelPreset.createApply')
+                      : t('modelPreset.saveTemplate')}
                   </Button>
+                  {editingPresetId !== '' && (
+                    <Button
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => {
+                        setEditingPresetId('');
+                        setName('');
+                      }}
+                    >
+                      {t('common.cancel')}
+                    </Button>
+                  )}
                 </div>
+                {plan !== undefined && (
+                  <div className="bh-model-preset-custom">
+                    <strong>{t('modelPreset.customize')}</strong>
+                    <span className="bh-note">{t('modelPreset.customizeHint')}</span>
+                    <label>
+                      {t('modelPreset.orchestrator')}
+                      <select
+                        className="bh-profile-policy-select"
+                        value={customIndex}
+                        onChange={(event) => {
+                          setCustomIndex(Number(event.target.value));
+                          setCustomEffort('');
+                        }}
+                      >
+                        {customIndex < 0 && (
+                          <option value={-1}>{t('modelPreset.routeUnavailable')}</option>
+                        )}
+                        {catalog.map((entry, index) => (
+                          <option key={`${entry.provider}/${entry.model}`} value={index}>
+                            {entry.providerName} / {entry.modelName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {t('modelPreset.effort')}
+                      <select
+                        className="bh-profile-policy-select"
+                        value={customEffort}
+                        onChange={(event) => setCustomEffort(event.target.value)}
+                      >
+                        <option value="">{t('modelPreset.providerDefault')}</option>
+                        {selectedCustom?.efforts.map((effort) => (
+                          <option key={effort.id} value={effort.id}>
+                            {effort.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      variant="outline"
+                      disabled={busy || selectedCustom === undefined}
+                      onClick={() => void customize()}
+                    >
+                      {t('modelPreset.saveCustom')}
+                    </Button>
+                  </div>
+                )}
               </>
             )}
-            {error === undefined ? null : (
-              <span className="bh-profile-error" role="alert">
-                {error}
-              </span>
-            )}
-            {hasPlanError ? (
-              <span className="bh-profile-error" role="alert">
-                {t('modelPreset.loadFailed')}
-              </span>
-            ) : null}
           </div>
         </div>
       </details>
+      {notice !== undefined && <span className="bh-note">{notice}</span>}
+      {error !== undefined && (
+        <span className="bh-profile-error" role="alert">
+          {error}
+        </span>
+      )}
+      {hasPlanError && (
+        <span className="bh-profile-error" role="alert">
+          {t('modelPreset.loadFailed')}
+        </span>
+      )}
     </section>
   );
 }

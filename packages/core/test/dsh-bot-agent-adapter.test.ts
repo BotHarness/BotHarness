@@ -5,6 +5,7 @@ import type { ToolRunContext } from '@deepseek-ai/dsh-tools';
 import { describe, expect, it } from 'vitest';
 
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
+import type { OrchestratorAgentRun } from '../src/runtime/bot-runtime.js';
 import { FakeAgentHost, FAKE_BOT as BOT } from './dsh-agent-host-fixture.js';
 
 const ASSIGNMENT = {
@@ -466,6 +467,97 @@ describe('DSH Bot Agent adapter', () => {
       reasoningEffort: 'high',
     });
     await adapter.close();
+  });
+
+  it('keeps a running Turn on its selected route and uses an edited snapshot on the next Turn', async () => {
+    const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
+    const low = { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' };
+    const initialPlan = {
+      revision: 1,
+      sourcePresetId: 'high',
+      sourcePresetName: 'High',
+      orchestrator: high,
+      assignmentDefault: { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+      appliedAt: BOT.createdAt,
+    };
+    let currentPlan = initialPlan;
+    let releaseSend: () => void = () => undefined;
+    let reachedSend: () => void = () => undefined;
+    const sendGate = new Promise<void>((resolve) => {
+      releaseSend = resolve;
+    });
+    const sendStarted = new Promise<void>((resolve) => {
+      reachedSend = resolve;
+    });
+    let firstSend = true;
+    const host = new FakeAgentHost();
+    const defaultModel = { currentSelection: () => ({ provider: 'test', model: 'test' }) };
+    const adapter = createDshBotAgentAdapter({
+      agents: host,
+      defaultModel,
+      resolveModelPlan: () => currentPlan,
+      orchestratorCwd: () => '/memory/ada',
+      ensureWorkspace: () => undefined,
+    });
+    const run: OrchestratorAgentRun = {
+      sessionId: 'orchestrator-ada',
+      resume: false,
+      bot: { ...BOT, modelPlan: initialPlan },
+      message: 'First turn',
+      inbox: '',
+      inboundChannelId: 'dm-test',
+      channels: {
+        ...groupTools,
+        contacts: () => [],
+        sendToBot: async () => {
+          throw new Error('unexpected Bot DM');
+        },
+        ignore: () => ({
+          sourceEventId: 'source-1',
+          ignoredAt: BOT.createdAt,
+          alreadyIgnored: false,
+        }),
+        read: () => [],
+        requestGrant: async () => undefined as never,
+        send: async (input) => {
+          if (firstSend) {
+            firstSend = false;
+            reachedSend();
+            await sendGate;
+          }
+          return {
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          };
+        },
+      },
+      assignments: {
+        create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+        grants: () => [],
+        list: () => [],
+        inspect: () => undefined,
+        stop: async () => ASSIGNMENT,
+        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+      },
+    };
+    try {
+      const firstTurn = adapter.runOrchestrator(run);
+      await sendStarted;
+      expect(await host.selectedModel(run.sessionId)).toMatchObject(high);
+      currentPlan = { ...initialPlan, revision: 2, orchestrator: low };
+      expect(await host.selectedModel(run.sessionId)).toMatchObject(high);
+      releaseSend();
+      await firstTurn;
+
+      await adapter.runOrchestrator({ ...run, resume: true, message: 'Next turn' });
+      expect(await host.selectedModel(run.sessionId)).toMatchObject(low);
+      expect(defaultModel.currentSelection()).toEqual({ provider: 'test', model: 'test' });
+    } finally {
+      releaseSend();
+      await adapter.close();
+    }
   });
 
   it('rejects when the durable turn outcome is an error even though the Agent becomes idle', async () => {

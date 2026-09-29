@@ -178,8 +178,10 @@ export interface BridgeMethods {
   modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
   modelPresets(payload: unknown): BridgeResult<{ presets: ModelPreset[] }>;
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
+  modelPresetUpdate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
   modelPresetApply(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlan(payload: unknown): BridgeResult<{ plan?: PersonaBotModelPlan }>;
+  modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -609,6 +611,34 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return invalidInput(error instanceof Error ? error.message : String(error));
       }
     },
+    async modelPresetUpdate(payload) {
+      if (deps.modelPresets === undefined || deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const id = source['id'];
+      const name = source['name'];
+      const orchestrator = source['orchestrator'];
+      const assignmentDefault = source['assignmentDefault'];
+      if (
+        typeof id !== 'string' ||
+        typeof name !== 'string' ||
+        !isModelRoute(orchestrator) ||
+        !isModelRoute(assignmentDefault)
+      )
+        return invalidInput(
+          'An id, name, and valid Orchestrator and Assignment routes are required',
+        );
+      if (deps.modelPresets.get(id) === undefined)
+        return invalidInput('Model Preset was not found');
+      try {
+        await deps.modelCatalog.validate(orchestrator);
+        await deps.modelCatalog.validate(assignmentDefault);
+        const preset = deps.modelPresets.update(id, { name, orchestrator, assignmentDefault });
+        if (preset === undefined) return invalidInput('Model Preset was not found');
+        return { ok: true, value: { preset } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
     async modelPresetApply(payload) {
       if (deps.modelPresets === undefined || deps.modelCatalog === undefined) return unavailable();
       const source = asObject(payload);
@@ -636,6 +666,26 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const bot = deps.registry.get(slug);
       if (bot === undefined) return unknownBot(slug);
       return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
+    },
+    async modelPlanCustomize(payload) {
+      if (deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = source['slug'];
+      const orchestrator = source['orchestrator'];
+      if (typeof slug !== 'string' || !isModelRoute(orchestrator)) {
+        return invalidInput('slug and a valid Orchestrator route are required');
+      }
+      const bot = deps.registry.get(slug);
+      if (bot === undefined) return unknownBot(slug);
+      if (bot.modelPlan === undefined) return invalidInput('Apply a Model Preset first');
+      try {
+        await deps.modelCatalog.validate(orchestrator);
+        const result = deps.registry.customizeModelPlan(slug, orchestrator);
+        if (!result.ok || result.record.modelPlan === undefined) return unknownBot(slug);
+        return { ok: true, value: { plan: result.record.modelPlan } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
     },
     list(payload) {
       const query = asQuery(payload)?.trim().toLowerCase();

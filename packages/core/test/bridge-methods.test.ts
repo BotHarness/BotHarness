@@ -156,6 +156,94 @@ describe('bridge methods', () => {
       value: { plan: { revision: 2, sourcePresetName: 'Deep thinking' } },
     });
   });
+  it('edits a template for future applications and keeps custom Bot snapshots independent across restart', async () => {
+    const high = { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'high' };
+    const low = { provider: 'deepseek', model: 'deepseek-chat', reasoningEffort: 'low' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (
+          route.provider !== high.provider ||
+          route.model !== high.model ||
+          !['high', 'low'].includes(route.reasoningEffort ?? '')
+        )
+          throw new Error('Selected route is unavailable');
+      },
+    };
+    const { root, registry, methods, modelPresets } = setup(
+      [],
+      ['ada', 'bea'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.create({ slug: 'bea', displayName: 'Bea' });
+    const created = await methods.modelPresetCreate({
+      name: 'High intelligence',
+      orchestrator: high,
+      assignmentDefault: high,
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const id = created.value.preset.id;
+    expect(await methods.modelPresetApply({ slug: 'ada', presetId: id })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1, orchestrator: high } },
+    });
+
+    expect(
+      await methods.modelPresetUpdate({
+        id,
+        name: 'Economy',
+        orchestrator: low,
+        assignmentDefault: low,
+      }),
+    ).toMatchObject({ ok: true, value: { preset: { id, revision: 2, name: 'Economy' } } });
+    expect(registry.get('ada')?.modelPlan).toMatchObject({
+      revision: 1,
+      sourcePresetName: 'High intelligence',
+      orchestrator: high,
+    });
+    expect(await methods.modelPresetApply({ slug: 'bea', presetId: id })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1, sourcePresetName: 'Economy', orchestrator: low } },
+    });
+    expect(await methods.modelPlanCustomize({ slug: 'bea', orchestrator: high })).toMatchObject({
+      ok: true,
+      value: {
+        plan: {
+          revision: 2,
+          sourcePresetId: '',
+          sourcePresetName: '',
+          orchestrator: high,
+          assignmentDefault: low,
+        },
+      },
+    });
+    expect(modelPresets.get(id)).toMatchObject({ revision: 2, orchestrator: low });
+    expect(registry.get('ada')?.modelPlan?.revision).toBe(1);
+    expect(
+      await methods.modelPlanCustomize({
+        slug: 'ada',
+        orchestrator: { ...high, model: 'missing' },
+      }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(registry.get('ada')?.modelPlan?.revision).toBe(1);
+
+    const reopened = createPersonaBotRegistry({ rootDir: root });
+    expect(reopened.get('ada')?.modelPlan).toMatchObject({ revision: 1, orchestrator: high });
+    expect(reopened.get('bea')?.modelPlan).toMatchObject({
+      revision: 2,
+      sourcePresetId: '',
+      orchestrator: high,
+    });
+    expect(createModelPresetStore(root).get(id)).toMatchObject({ revision: 2, orchestrator: low });
+  });
   it('commits only a Grant-backed typed resolution for this Bot DM and retries it idempotently', async () => {
     const grant = {
       id: 'grant-1',

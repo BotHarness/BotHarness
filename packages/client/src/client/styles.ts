@@ -1840,7 +1840,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   font-size: 13px;
 }
 .bh-model-preset-effective,
-.bh-model-preset-form {
+.bh-model-preset-form,
+.bh-model-preset-custom {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1852,7 +1853,8 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   border-bottom: 1px solid var(--dsw-alias-border-l2);
 }
 .bh-model-preset-form label,
-.bh-model-preset-apply label {
+.bh-model-preset-custom label,
+.bh-model-preset-quick label {
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -1860,20 +1862,33 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   color: var(--dsw-alias-label-secondary);
   font-size: 12px;
 }
-.bh-model-preset-apply {
+.bh-model-preset-quick {
   display: flex;
   align-items: end;
   gap: 10px;
+  padding: 0 0 12px;
 }
-.bh-model-preset-apply label {
+.bh-model-preset-quick label {
   flex: 1;
+}
+.bh-model-preset-quick select {
+  width: 100%;
+}
+.bh-model-preset-edit-preset {
+  display: flex;
+  justify-content: flex-end;
 }
 .bh-model-preset-form {
   padding-top: 12px;
   border-top: 1px solid var(--dsw-alias-border-l2);
 }
-.bh-model-preset-form > button {
+.bh-model-preset-form > button,
+.bh-model-preset-custom > button {
   align-self: flex-start;
+}
+.bh-model-preset-custom {
+  padding-top: 12px;
+  border-top: 1px solid var(--dsw-alias-border-l2);
 }
 .bh-profile-card-total {
   font-size: 15px;
