@@ -13,6 +13,7 @@
     ".claude",
     "agent",
     "apps/docs",
+    "apps/presentations/CLAUDE.md",
     "reference",
     ".scratch",
     "packages/computer/lib",

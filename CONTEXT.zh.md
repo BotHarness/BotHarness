@@ -257,8 +257,12 @@ Memory Repository 中的普通 Git commit。Git 作者和拓扑保持原样；Bo
 _避免使用_：accepted commit、file save、filesystem event、auto-save
 
 **Memory Observation**：
-Orchestrator 的可信操作结束后，对 Memory Repository HEAD 的记录。观察不会暂存、提交、拒绝或隐藏当前工作树文件。
+Host 看到的仓库状态的可信记录，可关联受信任的 Orchestrator Session 与 Source Event。它说明状态何时被看到，不推断 Git 内容的作者；观察不会暂存、提交、拒绝或隐藏当前工作树文件。
 _避免使用_：commit acceptance、filesystem watch、background distillation
+
+**Memory Recovery Checkpoint**：
+对某次观察到的 Memory Repository 分支、HEAD、暂存区与工作树的可恢复记录。来源说明观察或显式命令的上下文，不推断文件作者；恢复需 Human 确认，并保留恢复前的完整仓库。
+_避免使用_：accepted commit、auto-save、Git author、普通 Inbox 观察
 
 **Attachment**：
 随 Source Event 接收的 content-addressed 文件；所有引用它的 Channel 或 PersonaBot 共同保留唯一一份。只有 PersonaBot 主动将该文件保存在自己的 Memory 或 Workspace 中时，它才拥有单独副本。

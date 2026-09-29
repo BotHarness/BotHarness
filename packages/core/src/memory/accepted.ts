@@ -21,10 +21,12 @@ import {
 import { dirname, join } from 'node:path';
 
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 import type { SessionOwnership } from '../sessions/ownership.js';
 import { toMemoryRelativePath, resolveMemoryPath } from './jail.js';
+import { createMemoryRecovery, type MemoryRecoveryCheckpoint } from './recovery.js';
 
 export type MemoryAcceptErrorCode =
   | 'memory-unavailable'
@@ -165,6 +167,11 @@ export interface MemoryAcceptance {
   gitCommitDiff(botSlug: string, sha: string): MemoryGitCommitDiff;
   workingChanges(botSlug: string): MemoryWorkingChange[];
   workingDiff(botSlug: string, path: string, kind: MemoryWorkingKind): MemoryWorkingDiff;
+  recoveryHistory(botSlug: string): MemoryRecoveryCheckpoint[];
+  restoreHuman(input: { botSlug: string; checkpointId: string; expectedCurrentId: string }): {
+    checkpoint: MemoryRecoveryCheckpoint;
+    archivePath: string;
+  };
   repairHuman(input: {
     botSlug: string;
     expectedHead: string;
@@ -238,6 +245,7 @@ function run(root: string, args: string[], maxBuffer = MAX_DIFF_BYTES): Buffer {
         env,
         stdio: ['ignore', 'pipe', 'pipe'],
         maxBuffer,
+        windowsHide: true,
       },
     );
   } catch {
@@ -709,9 +717,15 @@ export function createMemoryAcceptance(options: {
   ownership: SessionOwnership;
   database: OperationalDatabaseModulePort;
   now?: () => Date;
+  warn?: (message: string) => void;
 }): MemoryAcceptance {
   const { registry, ownership, database } = options;
   const now = options.now ?? (() => new Date());
+  const recovery = createMemoryRecovery({
+    database,
+    now,
+    ...(options.warn ? { warn: options.warn } : {}),
+  });
   const inFlight = new Map<
     string,
     { sessionId: string; branch: string; preservePending?: boolean; observation?: MemoryChangeScan }
@@ -781,13 +795,33 @@ export function createMemoryAcceptance(options: {
     });
   };
 
-  const refreshObservation = (botSlug: string, sessionId: string): boolean => {
+  const refreshObservation = (
+    botSlug: string,
+    sessionId: string,
+    causeKind: 'source-event' | 'turn-abort' = 'turn-abort',
+    causeId = sessionId,
+    beforeObservationJson?: string,
+  ): boolean => {
     try {
-      void sessionId;
       const root = repository(registry, botSlug);
-      saveObservation(botSlug, root, observeWorktree(root));
+      const current = observeWorktree(root);
+      recovery.capture(
+        botSlug,
+        root,
+        {
+          origin: 'agent-session',
+          originId: sessionId,
+          causeKind,
+          causeId,
+        },
+        beforeObservationJson !== undefined && JSON.stringify(current) !== beforeObservationJson,
+      );
+      saveObservation(botSlug, root, current);
       return true;
-    } catch {
+    } catch (error) {
+      options.warn?.(
+        `memory-recovery-capture-failed phase=turn-observation bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,
+      );
       return false;
     }
   };
@@ -803,8 +837,17 @@ export function createMemoryAcceptance(options: {
     }
     const current = observeWorktree(root);
     const previous = readObservation(botSlug, root);
+    const change = previous === undefined ? undefined : buildTurnChange(root, previous, current);
+    if (previous === undefined || change !== undefined) {
+      recovery.capture(botSlug, root, {
+        origin: 'host-observation',
+        originId: 'botharness-host',
+        causeKind: 'memory-scan',
+        causeId: botSlug,
+      });
+    }
     return {
-      change: previous === undefined ? undefined : buildTurnChange(root, previous, current),
+      change,
       repositoryRoot: root,
       repositoryIdentity: repositoryIdentity(root),
       observationJson: JSON.stringify(current),
@@ -1066,8 +1109,8 @@ export function createMemoryAcceptance(options: {
                 sha: current,
                 parentSha:
                   output(root, ['rev-list', '--parents', '-n', '1', current]).split(' ')[1] ?? null,
-                actorKind: 'agent',
-                actorId: input.sessionId,
+                actorKind: 'system',
+                actorId: 'botharness-host',
                 causeKind: 'source-event',
                 causeId: input.sourceEventId,
                 validationResult: validateCommit(root, current),
@@ -1075,7 +1118,13 @@ export function createMemoryAcceptance(options: {
             ],
             checkpoint,
           );
-    refreshObservation(input.botSlug, input.sessionId);
+    refreshObservation(
+      input.botSlug,
+      input.sessionId,
+      'source-event',
+      input.sourceEventId,
+      flight.observation?.observationJson,
+    );
     inFlight.delete(input.botSlug);
     return result;
   };
@@ -1168,9 +1217,17 @@ export function createMemoryAcceptance(options: {
     },
     reconcileTurn,
     abortTurn(botSlug, sessionId, preserveObservation = false) {
-      if (inFlight.get(botSlug)?.sessionId !== sessionId) return;
+      const flight = inFlight.get(botSlug);
+      if (flight?.sessionId !== sessionId) return;
       inFlight.delete(botSlug);
-      if (!preserveObservation) refreshObservation(botSlug, sessionId);
+      if (!preserveObservation)
+        refreshObservation(
+          botSlug,
+          sessionId,
+          'turn-abort',
+          sessionId,
+          flight.observation?.observationJson,
+        );
     },
     snapshot(botSlug) {
       const { root, repairing } = readRepository(botSlug);
@@ -1405,6 +1462,43 @@ export function createMemoryAcceptance(options: {
       ].join('\n');
       return { ...change, diff, binary: false };
     },
+    recoveryHistory(botSlug) {
+      if (pendingRepair(botSlug) !== undefined)
+        throw new MemoryAcceptError('memory-conflict', 'Memory repair must finish before recovery');
+      const root = repository(registry, botSlug);
+      try {
+        if (!inFlight.has(botSlug))
+          recovery.capture(botSlug, root, {
+            origin: 'host-observation',
+            originId: 'botharness-host',
+            causeKind: 'memory-scan',
+            causeId: botSlug,
+          });
+        return recovery.history(botSlug);
+      } catch (error) {
+        throw new MemoryAcceptError(
+          'memory-conflict',
+          `Memory checkpoint failed: ${String(error)}`,
+        );
+      }
+    },
+    restoreHuman(input) {
+      if (inFlight.has(input.botSlug) || pendingRepair(input.botSlug) !== undefined)
+        throw new MemoryAcceptError('memory-conflict', 'Memory is busy');
+      const root = repository(registry, input.botSlug);
+      try {
+        const result = recovery.restore(
+          input.botSlug,
+          root,
+          input.checkpointId,
+          input.expectedCurrentId,
+        );
+        saveObservation(input.botSlug, root, observeWorktree(root));
+        return result;
+      } catch (error) {
+        throw new MemoryAcceptError('memory-conflict', `Memory restore failed: ${String(error)}`);
+      }
+    },
     history(botSlug, limit = 20) {
       const { root } = readRepository(botSlug);
       bootstrap(botSlug, root);
@@ -1492,12 +1586,13 @@ export function createMemoryAcceptance(options: {
             db.prepare(`INSERT INTO memory_repair_events (
             id, bot_slug, accepted_head_sha, provisional_head_sha, backup_path,
             actor_kind, actor_id, cause_kind, status, requested_at
-          ) VALUES (?, ?, ?, ?, ?, 'human', 'authenticated-dsh-human', 'human-repair', 'started', ?)`).run(
+          ) VALUES (?, ?, ?, ?, ?, 'human', ?, 'human-repair', 'started', ?)`).run(
               input.repairId,
               input.botSlug,
               baseline,
               provisionalHead,
               backupPath,
+              LOCAL_HUMAN_ID,
               at,
             );
             return db
@@ -1629,7 +1724,7 @@ export function createMemoryAcceptance(options: {
             sha,
             parentSha: baseline,
             actorKind: 'human',
-            actorId: 'authenticated-dsh-human',
+            actorId: LOCAL_HUMAN_ID,
             causeKind: 'human-edit',
             causeId: input.editId,
             validationResult: validateCommit(root, sha),
@@ -1639,6 +1734,12 @@ export function createMemoryAcceptance(options: {
       );
       if (accepted === undefined)
         throw new MemoryAcceptError('memory-invalid', 'Memory edit was not accepted');
+      recovery.capture(input.botSlug, root, {
+        origin: 'human-command',
+        originId: LOCAL_HUMAN_ID,
+        causeKind: 'human-edit',
+        causeId: input.editId,
+      });
       return accepted;
     },
   };

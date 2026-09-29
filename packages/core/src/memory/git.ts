@@ -29,6 +29,7 @@ function run(root: string, args: string[]): string {
     cwd: root,
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
+    windowsHide: true,
   });
 }
 

@@ -15,6 +15,7 @@ export interface MemoryServiceOptions {
   ownership: SessionOwnership;
   database?: OperationalDatabaseOwner;
   now?: () => Date;
+  warn?: (message: string) => void;
 }
 
 export interface MemoryService extends MemoryAcceptance {
@@ -43,6 +44,7 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
           ownership,
           database: attachOperationalModule(options.database, 'memory'),
           ...(options.now === undefined ? {} : { now: options.now }),
+          ...(options.warn === undefined ? {} : { warn: options.warn }),
         });
   const requireAcceptance = (): MemoryAcceptance => {
     if (acceptance === undefined) throw new Error('Memory acceptance storage is unavailable');
@@ -128,6 +130,8 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     gitCommitDiff: (botSlug, sha) => requireAcceptance().gitCommitDiff(botSlug, sha),
     workingChanges: (botSlug) => requireAcceptance().workingChanges(botSlug),
     workingDiff: (botSlug, path, kind) => requireAcceptance().workingDiff(botSlug, path, kind),
+    recoveryHistory: (botSlug) => requireAcceptance().recoveryHistory(botSlug),
+    restoreHuman: (input) => requireAcceptance().restoreHuman(input),
     saveHuman: (input) => requireAcceptance().saveHuman(input),
     repairHuman: (input) => requireAcceptance().repairHuman(input),
     memoryDirFor,

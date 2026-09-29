@@ -13,6 +13,7 @@ import {
   MEMORY_GRAPH_ROW_HEIGHT,
 } from './memory-git-lanes.js';
 import { MemoryWorkingGroups } from './memory-working-groups.js';
+import { MemoryRecovery } from './memory-recovery.js';
 
 type MemoryCache = {
   snapshot: MemorySnapshot | undefined;
@@ -701,6 +702,22 @@ export function MemoryEntry({
             ) : null}
           </>
         )}
+        {!showFiles ? (
+          <MemoryRecovery
+            actions={actions}
+            channelId={channelId}
+            refreshRevision={refreshRevision}
+            t={t}
+            onRestored={() => {
+              memoryRequestGeneration.current += 1;
+              cache.snapshot = undefined;
+              cache.graph = undefined;
+              cache.working = undefined;
+              cache.files.clear();
+              setRefresh((value) => value + 1);
+            }}
+          />
+        ) : null}
       </div>
     </div>
   );

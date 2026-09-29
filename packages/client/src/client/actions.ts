@@ -48,6 +48,8 @@ import {
   resetBotSourcePolicy,
   loadMemoryWorkingChanges,
   loadMemoryWorkingDiff,
+  loadMemoryRecoveryHistory,
+  restoreMemoryCheckpoint,
   saveMemoryFile,
   repairMemory,
   loadTimelinePage,
@@ -72,6 +74,7 @@ import {
   type MemoryWorkingChange,
   type MemoryWorkingDiff,
   type MemoryWorkingKind,
+  type MemoryRecoveryCheckpoint,
   type MemoryRepairEvent,
   type ProfileActivity,
   type BotSourcePolicyView,
@@ -157,6 +160,12 @@ export interface BridgeActions {
     path: string,
     kind: MemoryWorkingKind,
   ): Promise<MemoryWorkingDiff>;
+  memoryRecoveryHistory(channelId: string): Promise<MemoryRecoveryCheckpoint[]>;
+  memoryRestore(input: {
+    channelId: string;
+    checkpointId: string;
+    expectedCurrentId: string;
+  }): Promise<{ checkpoint: MemoryRecoveryCheckpoint; archivePath: string }>;
   memoryRepair(input: {
     channelId: string;
     expectedHead: string;
@@ -984,6 +993,8 @@ export function createActions(
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
     memoryWorkingDiff: (channelId, path, kind) =>
       loadMemoryWorkingDiff(call, channelId, path, kind),
+    memoryRecoveryHistory: (channelId) => loadMemoryRecoveryHistory(call, channelId),
+    memoryRestore: (input) => restoreMemoryCheckpoint(call, input),
     memorySave: (input) => saveMemoryFile(call, input),
     memoryRepair: (input) => repairMemory(call, input),
     openSession(sessionId) {
