@@ -171,15 +171,11 @@ describe('Computer entry states', () => {
 
   it('renders the live viewer, its connecting overlay, and stop while running', () => {
     const html = view({ state: 'running', botSlug: 'atlas' });
-    // Exactly one iframe owns the stream in every layout (docked/fullscreen
-    // toggle only re-geometries the same element, never mounts a second one).
     expect(html.match(/<iframe/g)).toHaveLength(1);
     expect(html).toContain('/botharness-computer/viewer/');
     expect(html).toContain('停止');
     expect(html).toContain('atlas 的屏幕');
-    // The stream is not live yet in a static render, so the loading state shows.
     expect(html).toContain('连接中');
-    // The docked card never forwards input; fullscreen starts watch-only too.
     expect(html).toContain('pointer-events:none');
   });
 
@@ -355,7 +351,6 @@ type RpcCall = (
   | { readonly ok: false; readonly error: { readonly message?: string } }
 >;
 
-/** Mount the entry exactly as the sidebar registry does, through `apply`. */
 function mountEntry(
   rpcCall: RpcCall,
   botSlug: string | undefined,

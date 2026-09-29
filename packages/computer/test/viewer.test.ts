@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { joinUpstream, scrubFramingHeaders, ViewerProxy } from '../src/viewer.js';
+import {
+  joinUpstream,
+  scrubFramingHeaders,
+  ViewerProxy,
+  viewerUpgradePaths,
+} from '../src/viewer.js';
 
 const PREFIX = '/botharness-computer/viewer';
 
@@ -33,6 +38,20 @@ describe('viewer header scrubbing', () => {
 });
 
 describe('upstream URL joining', () => {
+  it('registers the Selkies 2 websocket path alongside older endpoints', () => {
+    expect(viewerUpgradePaths(PREFIX)).toEqual([
+      `${PREFIX}/api/websockets`,
+      `${PREFIX}/websockets`,
+      `${PREFIX}/websocket`,
+    ]);
+    const target = joinUpstream(
+      new URL('http://127.0.0.1:39001/'),
+      new URL(`http://localhost:3080${PREFIX}/api/websockets`),
+      PREFIX,
+    );
+    expect(target.pathname).toBe('/api/websockets');
+  });
+
   it('maps the viewer prefix onto the upstream base and preserves the query', () => {
     const target = joinUpstream(
       new URL('https://127.0.0.1:39001/'),

@@ -1,13 +1,3 @@
-/**
- * Bounded, in-memory diagnostics for the Computer plugin: lifecycle initiators,
- * container state transitions, viewer stream events, and redacted Computer
- * action audits. Process evidence for Humans and agents — never durable
- * authority, never secrets and never raw typed text or screenshots.
- * @module @botharness/computer/diagnostics
- */
-
-// Deep relative import, not the package root: the log module is leaf-only
-// (node builtins) and must not pull core's barrel types into this bundle.
 import type { LogOwnerScope } from '../../core/src/logs/log-db.js';
 
 export interface ComputerDiagnosticEvent {
@@ -21,12 +11,10 @@ export interface ComputerDiagnostics {
   tail(limit?: number): readonly ComputerDiagnosticEvent[];
 }
 
-/** Durable drain for recorded events; failures never break recording. */
 export interface ComputerDiagnosticsSink {
   write(event: ComputerDiagnosticEvent): void;
 }
 
-/** Durable row shape for the operational log database. */
 export interface ComputerLogEntry {
   readonly plugin: string;
   readonly owner: LogOwnerScope;
@@ -35,10 +23,6 @@ export interface ComputerLogEntry {
   readonly ts: number;
 }
 
-/**
- * Maps a ring event onto a log row. Unparseable timestamps fall back to now
- * rather than NaN — the row must stay sortable.
- */
 export function toLogEntry(
   event: ComputerDiagnosticEvent,
   plugin: string,
@@ -68,9 +52,7 @@ export function createComputerDiagnostics(
       if (events.length > limit) events.splice(0, events.length - limit);
       try {
         sink?.write(event);
-      } catch {
-        // Persistence is best effort by design.
-      }
+      } catch {}
     },
     tail(count = limit) {
       const size = Math.max(0, Math.min(count, events.length));

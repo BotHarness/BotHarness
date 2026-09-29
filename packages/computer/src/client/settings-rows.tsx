@@ -1,13 +1,3 @@
-/**
- * The Computer's rows inside the BotHarness settings section. They own the
- * runtime-editable settings (`exportDir`, `idleStopMinutes`) through the
- * shared settings scope, use the Host's directory picker, and drive the
- * export/import endpoints with an explicit authorization step. Copy stays in
- * this bundle's own words; the section's row classes come from
- * `@botharness/ui`, which is always mounted when this page renders.
- * @module @botharness/computer/settings-rows
- */
-
 import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
 
 import {
@@ -26,7 +16,6 @@ import {
 } from '../settings.js';
 import { PHASE_LABEL, type ComputerTranslate } from './locale.js';
 
-/** Sync state of the Host settings scope the rows consume. */
 export interface ComputerSettingsSnapshot {
   exportDir: string;
   idleStopMinutes: number;
@@ -35,7 +24,6 @@ export interface ComputerSettingsSnapshot {
   writable: boolean;
 }
 
-/** The slice of the settings scope these rows read and write. */
 export interface ComputerSettingsScope {
   getSnapshot(): {
     status: 'loading' | 'ready' | 'unavailable';
@@ -46,7 +34,6 @@ export interface ComputerSettingsScope {
   set(field: string, value: unknown): Promise<void>;
 }
 
-/** Thrown when the Host rolls the export directory back instead of storing it. */
 export class ExportDirRejectedError extends Error {
   constructor() {
     super('the Host did not accept the export directory');
@@ -54,17 +41,10 @@ export class ExportDirRejectedError extends Error {
   }
 }
 
-/**
- * Directory shown on the export row: a configured scope value wins; while the
- * scope is empty (the unconfigured default) fall back to the Host-resolved
- * path from the status route, so buttons and "Current" track what export and
- * open-dir will actually use.
- */
 export function displayExportDir(configured: string, hostDir: string | undefined): string {
   return configured !== '' ? configured : (hostDir ?? '');
 }
 
-/** Live Computer settings published to the rows. */
 export class ComputerSettingsPrefs {
   private snapshot: ComputerSettingsSnapshot = {
     exportDir: '',
@@ -107,8 +87,6 @@ export class ComputerSettingsPrefs {
     if (this.scope === undefined) throw new ExportDirRejectedError();
     this.publish({ exportDir });
     await this.scope.set(COMPUTER_EXPORT_DIR_FIELD, exportDir);
-    // The DSH scope resolves even when the Host refuses the write (it recovers
-    // silently), so a snapshot that rolled back is the only refusal signal.
     if (this.snapshot.exportDir !== exportDir) throw new ExportDirRejectedError();
   }
 
@@ -146,32 +124,17 @@ export class ComputerSettingsPrefs {
   }
 }
 
-/** Face injected into the rows by the registration. */
 export interface ComputerSettingsFace {
   prefs: ComputerSettingsPrefs;
-  /** Whether a directory picker is available in this deployment. */
   pickerAvailable: boolean;
-  /** Open the Host's directory picker; `null` when cancelled. */
   pickDirectory: () => Promise<string | null>;
-  /** Open a directory with the Host's file manager. */
   openDirectory: (dir: string) => Promise<void>;
-  /** Archive the Computer's store; `dir` overrides the configured directory. */
   exportArchive: (dir?: string) => Promise<{ archive: string; downloadToken?: string }>;
-  /** Browser download URL for an export token; the save dialog picks the destination. */
   downloadUrl: (downloadToken: string) => string;
-  /** Restore an archive from the configured directory. */
   importArchive: (file: string) => Promise<void>;
-  /** Authorize a browser upload and mint its single-use token. */
   requestUpload: (file: string) => Promise<string>;
-  /**
-   * Stream a file's bytes to an upload token. Mirrors DSH's own file-upload
-   * client: Blob bodies go over XMLHttpRequest (content-length, disk-streamed)
-   * instead of fetch+stream, which the transport mangles.
-   */
   sendUploadBytes: (uploadToken: string, file: File) => Promise<void>;
-  /** List the archives the configured directory holds. */
   listArchives: () => Promise<string[]>;
-  /** Effective export directory reported by the Host, for the no-scope case. */
   hostExportDir: () => Promise<string>;
 }
 
@@ -200,10 +163,6 @@ async function postAuthorized(url: string, body: Record<string, unknown> = {}): 
   });
 }
 
-/**
- * Build the rows' inject face: the settings prefs plus the picker and the
- * export/import endpoints.
- */
 export function createComputerSettingsFace(options: {
   prefs: ComputerSettingsPrefs;
   pickDirectory?: (() => Promise<string | null>) | undefined;
@@ -334,7 +293,6 @@ function Selector({
   );
 }
 
-/** The Computer group inside the BotHarness settings page. */
 export function ComputerSettingsRows({
   t,
   prefs,
@@ -376,17 +334,12 @@ export function ComputerSettingsRows({
   useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
 
   useEffect(() => {
-    // The Host-resolved path (status route) is what export/open-dir will use
-    // whenever the scope carries no configured directory — including the
-    // ready-but-empty default — and the only source when the scope is absent.
     if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
     void hostExportDir()
       .then((dir) => setHostDir(dir))
       .catch(() => undefined);
   }, [hostExportDir, snapshot.status, snapshot.exportDir]);
 
-  // While an export/import runs, mirror the Host's reported phase and an
-  // elapsed timer so the rows show stage and time, not only a busy label.
   useEffect(() => {
     if (busy === undefined) {
       setLivePhase(undefined);
@@ -401,9 +354,7 @@ export function ComputerSettingsRows({
       try {
         const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT);
         if (!cancelled) setLivePhase(payload.status?.phase);
-      } catch {
-        // Status is advisory here; the request that set `busy` owns the outcome.
-      }
+      } catch {}
     };
     void tick();
     const timer = setInterval(() => void tick(), 1000);
@@ -418,9 +369,6 @@ export function ComputerSettingsRows({
   const exportDir = displayExportDir(snapshot.exportDir, hostDir);
   const hasDir = exportDir !== '';
   const writable = snapshot.status === 'ready' && snapshot.writable;
-  // The directory is adjustable only while a working picker exists; once the
-  // picker rejects (e.g. web deployments) the row runs read-only against the
-  // directory the Host reports, default or configured.
   const canAdjust = pickerAvailable && !pickerBroken;
 
   const pickDirectoryInto = useCallback(
@@ -448,7 +396,6 @@ export function ComputerSettingsRows({
 
   const startExport = useCallback(() => {
     if (!canAdjust) {
-      // Fixed directory (no picker, or one that failed): export straight there.
       setExportTarget(undefined);
       setConfirming('export');
       return;
@@ -460,8 +407,6 @@ export function ComputerSettingsRows({
         setConfirming('export');
       })
       .catch(() => {
-        // Switch to the fixed directory shown on the row and keep the export
-        // intent — the Human clicked Export, not "enter a path".
         setPickerBroken(true);
         setManualOpen(false);
         setDirNote(t('rows.pickerFallback', { dir: exportDir }));
@@ -496,8 +441,6 @@ export function ComputerSettingsRows({
   }, [manualPath, prefs, t]);
 
   const runExport = useCallback(() => {
-    // In fixed-directory mode (pickerless) nobody saw a destination chooser,
-    // so open the folder once the archive lands.
     const autoOpen = !canAdjust;
     setConfirming(undefined);
     setBusy('export');
@@ -543,8 +486,6 @@ export function ComputerSettingsRows({
     setConfirming(undefined);
     setBusy('upload');
     setTransferNote(undefined);
-    // One click authorizes the whole chain; receipt and import run as two
-    // short calls so the import's minutes ride the normal progress display.
     void requestUpload(name)
       .then((token) => sendUploadBytes(token, file))
       .then(() => importArchive(name))
@@ -571,8 +512,6 @@ export function ComputerSettingsRows({
     void openDirectory(exportDir).catch((error: unknown) => setDirNote(String(error)));
   }, [exportDir, openDirectory]);
 
-  // Whatever the user picked to import — uploaded file first, listed archive
-  // second — shown once, truncated, instead of inside the authorize buttons.
   const selectedFile = uploadName ?? (confirming === 'import' ? archives?.[0] : undefined);
 
   return (

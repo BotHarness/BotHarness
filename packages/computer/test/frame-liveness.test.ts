@@ -160,7 +160,6 @@ describe('nextStreamTracker', () => {
     }
     const empty = tick(tracker, { sized: false, busy: false });
     expect(empty.phase).toBe('empty');
-    // A quiet tick keeps its own budget — the unsized misses stay put.
     const live = tick(empty.tracker, { sized: true, busy: false, signature: 2 });
     expect(live.phase).toBe('connecting');
     expect(live.tracker.misses).toBe(EMPTY_AFTER_MISSES);
@@ -175,7 +174,6 @@ describe('nextStreamTracker', () => {
       if (index < BUSY_EMPTY_AFTER) expect(next.phase).toBe('connecting');
     }
     expect(tracker.busyStreak).toBe(BUSY_EMPTY_AFTER);
-    // Busy ticks never consume the unsized budget.
     expect(tracker.misses).toBe(0);
     expect(tick(tracker, { sized: true, busy: true, signature: 99 }).phase).toBe('empty');
   });
@@ -218,10 +216,8 @@ describe('nextStreamTracker', () => {
     const vetoed = tick(quiet.tracker, { sized: true, busy: true, signature: 2 });
     expect(vetoed.tracker.lastSignature).toBe(1);
     expect(vetoed.tracker.busyStreak).toBe(1);
-    // The same picture after the veto clears keeps counting quiet ticks…
     const settled = tick(vetoed.tracker, { sized: true, busy: false, signature: 1 });
     expect(settled.phase).toBe('connecting');
-    // …while a genuinely new frame goes live at once.
     expect(tick(vetoed.tracker, { sized: true, busy: false, signature: 3 }).phase).toBe('live');
   });
 });

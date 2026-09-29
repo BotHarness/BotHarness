@@ -12,8 +12,6 @@ import type {} from '@deepseek-ai/dsh-settings';
 import Schema from '@deepseek-ai/schemastery';
 
 import { DIAGNOSTICS_LIMIT, createComputerDiagnostics, toLogEntry } from './diagnostics.js';
-// Deep relative import, not the package root: the log module is leaf-only
-// (node builtins) and must not pull core's barrel types into this bundle.
 import {
   openLogDatabase,
   type LogDatabase,
@@ -38,7 +36,7 @@ import {
   formatAudit,
   ownsComputerTool,
 } from './tool/provider.js';
-import { ViewerProxy, proxyUpgrade } from './viewer.js';
+import { ViewerProxy, proxyUpgrade, viewerUpgradePaths } from './viewer.js';
 
 export const name = 'botharness-computer';
 
@@ -48,30 +46,16 @@ export interface ComputerConfig {
   containerName: string;
   volumeName: string;
   hostPort: number;
-  /** CPU cores the container may use. */
   cpus: number;
-  /** Hard memory ceiling, e.g. 4g; swap is pinned to the same value. */
   memory: string;
-  /** Desktop geometry ceiling (Xvfb `MAX_RES`), e.g. 2560x1600. */
   resolution: string;
-  /** Size of /dev/shm; Chromium's shared memory is charged to the container. */
   shmSize: string;
-  /** Process-count ceiling so a runaway app cannot fork-bomb the host. */
   pidsLimit: number;
-  /** Minutes without viewers before the Computer stops itself. */
   idleStopMinutes: number;
-  /** Removes terminals and sudo inside the Computer; off for a full desktop. */
   hardenDesktop: boolean;
-  /** Desktop locale, e.g. zh_CN.UTF-8; defaults to the DSH locale preference. */
   language: string;
-  /** Human-chosen directory that holds Computer exports; empty uses the built-in default. */
   exportDir: string;
-  /** When on, PersonaBot Computer actions run without a per-session Human approval. */
   autoAllowActions: boolean;
-  /**
-   * Opt-in host directory bind-mounted at /config (Linux only); empty keeps
-   * the named volume. Changing it recreates the container without migrating data.
-   */
   dataDir: string;
 }
 
@@ -89,7 +73,6 @@ function readLive<T>(value: T | Volatile<T>): T {
     ? ((value as Volatile<T>).get() as T)
     : (value as T);
 }
-/** Maps a BCP 47 language tag onto a locale generated in the Computer image. */
 export function desktopLocale(language: string): string {
   return /^zh([-_]|$)/i.test(language) ? 'zh_CN.UTF-8' : 'en_US.UTF-8';
 }
@@ -150,17 +133,10 @@ export const Config = Schema.object({
     .description('持久目录（仅 Linux 生效，bind mount 到 /config；为空时用命名卷）'),
 });
 
-/** Rejects archive names that could escape the configured export directory. */
 export function isSafeArchiveName(name: string): boolean {
   return /^[A-Za-z0-9][A-Za-z0-9._-]*\.tar$/u.test(name) && !name.includes('..');
 }
 
-/**
- * Serves an archive file as a browser download: streams bytes with an
- * attachment disposition so the save dialog picks the destination instead
- * of buffering ~1GB in memory. Throws when the file is gone (the route
- * maps it to 404).
- */
 export async function streamArchiveResponse(archivePath: string): Promise<Response> {
   const info = await stat(archivePath);
   const body = Readable.toWeb(createReadStream(archivePath));
@@ -174,10 +150,6 @@ export async function streamArchiveResponse(archivePath: string): Promise<Respon
   });
 }
 
-/**
- * Writes a streaming upload body to disk without buffering it in memory;
- * the caller runs the import afterwards. Cleans up a torn write.
- */
 export async function receiveUploadBody(
   body: ReadableStream<Uint8Array> | null,
   destPath: string,
@@ -192,13 +164,6 @@ export async function receiveUploadBody(
   }
 }
 
-/**
- * Stores an upload atomically: bytes land in a sidecar file first, so a
- * torn write can never truncate an existing archive, then rename swaps it
- * into place. Returns when the bytes are durable — the import itself runs
- * as a separate short-lived call so no HTTP response stays open for the
- * minutes an import takes.
- */
 export async function storeUploadBody(
   body: ReadableStream<Uint8Array> | null,
   destPath: string,
@@ -208,11 +173,6 @@ export async function storeUploadBody(
   await rename(tmp, destPath);
 }
 
-/**
- * The export directory used when none is configured: a folder under the
- * Desktop when it exists, else under the home directory. Pickerless
- * deployments (e.g. web) run read-only against whatever this resolves to.
- */
 export function defaultExportDir(home = homedir()): string {
   const desktop = join(home, 'Desktop');
   return existsSync(desktop)
@@ -220,7 +180,6 @@ export function defaultExportDir(home = homedir()): string {
     : join(home, 'BotHarness Exports');
 }
 
-/** Runs one argv array through `node:child_process` without a shell. */
 export function createProcessRunner(): ComputerRuntimeRunner {
   const spawnOnce = (
     argv: readonly string[],
@@ -256,7 +215,6 @@ export function createProcessRunner(): ComputerRuntimeRunner {
   };
 }
 
-/** Structural view of the Host services this plugin optionally consumes. */
 interface HostConnectionLike {
   readonly fetch: {
     register(route: {
@@ -286,9 +244,6 @@ export const VIEWER_PREFIX = '/botharness-computer/viewer';
 export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   if (!config.enabled) return;
 
-  // Durable drain for the diagnostics ring (slice 1 of the operational log
-  // timeline): best effort — without a home, or when the file is unusable,
-  // the ring keeps serving reads on its own.
   let logDb: LogDatabase | undefined;
   try {
     const home = process.env.DSH_HOME?.trim();
@@ -333,13 +288,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
   ctx.effect(() => release, 'botharness-computer: provider registration');
   ctx.provide('botharnessComputer', service);
 
-  // Computer Tool Provider (ADR-0079/0080): owns the official computer-use
-  // slot and injects the curated tools plus guidance into the session scopes
-  // of PersonaBots whose Computer Access is on. Registration is lazy: it
-  // requires the Computer to be running so the driver catalog can be read,
-  // and a stopped Computer degrades to a clear tool error.
-  // Assigned once the idle watcher exists; tool activity keeps the Computer
-  // alive while a PersonaBot is actually working.
   const activity = { touch: (): void => undefined };
   const driver = createCuaDriver({
     runner,
@@ -370,10 +318,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     needsAuthorization: (sessionId: string) => toolProvider.needsAuthorization(sessionId),
     markAuthorized: (sessionId: string) => toolProvider.markAuthorized(sessionId),
   });
-  // Core owns Bot agent construction (create, resume, borrow); contributing
-  // through its setup path guarantees the scoped tools exist before the
-  // agent's first prompt assembly — an agent/created listener raced it and
-  // produced turns without any Computer tools (2026-09-28 acceptance).
   ctx.inject(['botharness'], (coreCtx) => {
     const core = (
       coreCtx as unknown as {
@@ -391,8 +335,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     const remove = core?.contributeBotAgentSetup?.((agentCtx, agent, info) => {
       toolProvider.attachAgent(agentCtx, String(agent.id), info);
     });
-    // Host-side tools that act outside Host files: core's file-grant guard and
-    // unconfined-native gate skip them; Computer Authorization governs instead.
     const hostTools = (core as { hostTools?: Set<string> } | undefined)?.hostTools;
     for (const name of computerToolNames()) hostTools?.add(name);
     return () => {
@@ -412,15 +354,11 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     diagnostics.record('lifecycle', message);
   };
 
-  // The profile Config is the durable authority; read live values at call time.
   const effective = (): ComputerSettings => ({
     exportDir: readLive(config.exportDir),
     idleStopMinutes: readLive(config.idleStopMinutes),
     autoAllowActions: readLive(config.autoAllowActions),
   });
-  // Export/import always resolve a concrete directory: the configured path,
-  // or the built-in default when none is set — so pickerless deployments can
-  // export, import, and open the folder without ever typing a path.
   const resolveExportDir = (): string => {
     const dir = effective().exportDir;
     return dir === '' ? defaultExportDir() : dir;
@@ -438,14 +376,10 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           log(`idle stop after ${String(effective().idleStopMinutes)} min without activity`);
           await service.stop();
         }
-      } catch {
-        // A provider that cannot answer is already unavailable; idle stop is best effort.
-      }
+      } catch {}
     },
   });
   activity.touch = () => watcher.touch();
-  // Warm the container state once at boot so a Host restart with a running
-  // container is reflected immediately (viewer + Computer tools).
   void service.status().catch(() => undefined);
   ctx.effect(() => {
     const timer = setInterval(() => watcher.tick(), 60_000);
@@ -457,7 +391,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
 
-    /** Single-use capability tokens are the transfer auth; unknown means gone. */
     const unknownToken = (kind: string): Response =>
       json({ ok: false, code: 'unknown-token', error: `unknown or expired ${kind} token` }, 404);
 
@@ -496,9 +429,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
         try {
           body = (await request.json()) as { authorize?: unknown; language?: unknown };
           authorize = body.authorize === true;
-        } catch {
-          // An empty or non-JSON body never authorizes a start.
-        }
+        } catch {}
         if (!authorize) {
           return json(
             { ok: false, code: 'authorize-required', error: 'explicit authorization required' },
@@ -534,9 +465,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
         try {
           const body = (await request.json()) as { authorize?: unknown };
           authorize = body.authorize === true;
-        } catch {
-          // An empty or non-JSON body never authorizes a stop.
-        }
+        } catch {}
         if (!authorize) {
           return json(
             { ok: false, code: 'authorize-required', error: 'explicit authorization required' },
@@ -577,8 +506,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       fetch: async (request: Request): Promise<Response> => {
         const body = await parseBody(request);
         if (body.authorize !== true) return unauthorized();
-        // The Human may export to a directory chosen at export time; the
-        // configured directory is the default.
         const requested = typeof body.dir === 'string' && body.dir !== '' ? body.dir : undefined;
         if (requested !== undefined && !isAbsolute(requested)) {
           return json({ ok: false, code: 'dir-invalid', error: 'dir must be absolute' }, 400);
@@ -586,8 +513,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
         const exportDir = requested ?? resolveExportDir();
         log(`export requested (panel)${requested === undefined ? '' : ` → ${requested}`}`);
         try {
-          // Create the destination as the Host user first: Docker would
-          // otherwise create a root-owned path on Linux engines.
           await mkdir(exportDir, { recursive: true });
           const archive = await service.exportTo(exportDir);
           return json({
@@ -625,11 +550,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
               : 'xdg-open';
         try {
           await mkdir(dir, { recursive: true });
-          // Argument array, never a shell: the path is data, not a command.
           const child = spawn(opener, [dir], { detached: true, stdio: 'ignore' });
-          // spawn() reports a missing binary asynchronously, so wait for the
-          // first event before claiming success (an unhandled 'error' would
-          // otherwise take the Host process down).
           await new Promise<void>((resolve, reject) => {
             child.once('spawn', () => {
               child.unref();
@@ -676,11 +597,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       'botharness-computer: viewer diagnostics route',
     );
 
-    // Operational-log read side (slice 2 of the timeline): newest-first rows
-    // from logs.db with optional plugin/owner/entity/since/limit filters.
-    // Same trust domain as the diagnostics GET above — the in-harness web
-    // client on this host — so no extra authorize gate; without a home there
-    // is no durable store and the answer is an empty list.
     const logsRoute = {
       path: '/api/computer/logs',
       methods: ['GET'] as const,
@@ -720,7 +636,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
           const entries = await readdir(exportDir);
           return json({ ok: true, files: entries.filter(isSafeArchiveName).sort() });
         } catch (error) {
-          // A directory that has never held an export lists as empty.
           if ((error as { code?: string }).code === 'ENOENT') {
             return json({ ok: true, files: [] });
           }
@@ -759,10 +674,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       'botharness-computer: import route',
     );
 
-    // Browser download for web deployments: the export response mints a
-    // single-use token bound to the archive, and this GET streams the bytes
-    // with an attachment disposition so the save dialog picks the
-    // destination. No Host path ever crosses into the page.
     const downloadRoute = {
       path: '/api/computer/download',
       methods: ['GET'] as const,
@@ -787,8 +698,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       'botharness-computer: download route',
     );
 
-    // Browser upload, step one: authorize + name the archive, mint the
-    // single-use token the byte stream below redeems.
     const uploadRoute = {
       path: '/api/computer/upload',
       methods: ['POST'] as const,
@@ -816,10 +725,6 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
       'botharness-computer: upload route',
     );
 
-    // Browser upload, step two: stream the bytes straight to disk (never
-    // buffered — archives run ~1GB) and report receipt at once. The client
-    // then runs the standard import as its own call, so this response never
-    // stays open for the minutes an import takes.
     const uploadContentRoute = {
       path: '/api/computer/upload-content',
       methods: ['POST'] as const,
@@ -913,9 +818,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     );
 
     if (webServer.registerUpgrade !== undefined) {
-      // Upgrades are exact-path in this DSH version, so register every socket
-      // path the upstream web VNC uses (Selkies serves its data socket there).
-      for (const socketPath of [`${VIEWER_PREFIX}/websockets`, `${VIEWER_PREFIX}/websocket`]) {
+      for (const socketPath of viewerUpgradePaths(VIEWER_PREFIX)) {
         ctx.effect(
           () =>
             webServer.registerUpgrade?.({

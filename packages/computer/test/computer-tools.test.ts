@@ -1,8 +1,3 @@
-/**
- * Computer Tool Provider: curated catalog selection, redacted audit, and the
- * per-PersonaBot access/authorization flow driven through fake scopes.
- * @module test/computer-tools
- */
 import { describe, expect, it, vi } from 'vitest';
 
 import type { Context } from '@deepseek-ai/cordis';
@@ -239,8 +234,6 @@ describe('per-PersonaBot registration and authorization', () => {
   it('registers curated tools plus guidance immediately, then upgrades to the driver catalog', async () => {
     const h = harness({ access: true, running: true });
     h.created({ agent });
-    // Registration is synchronous so it always precedes prompt assembly: the
-    // first registration may still carry the fallback catalog.
     expect(h.state.registered()).toHaveLength(10);
     expect(h.state.sections).toContain('botharness:computer');
     expect(h.state.registered()).toContain('computer_get_window_state');
@@ -256,7 +249,6 @@ describe('per-PersonaBot registration and authorization', () => {
   it('registers fallback tools while stopped and upgrades when the Computer starts', async () => {
     const h = harness({ access: true, running: false });
     h.created({ agent });
-    // The tools must exist even while the Computer is stopped (ADR-0079).
     await vi.waitFor(() => expect(h.state.registered()).toHaveLength(10));
     expect(h.driver.tools).not.toHaveBeenCalled();
     expect(h.state.definitions.get('computer_get_window_state')?.description).toContain(
@@ -290,7 +282,6 @@ describe('per-PersonaBot registration and authorization', () => {
     const type = h.state.definitions.get('computer_type_text');
     expect(click).toBeDefined();
     expect(type).toBeDefined();
-    // Core asks first (needsAuthorization); without its grant the call denies.
     expect(h.provider.needsAuthorization('session-a')).toBe(true);
     await expect(
       click!.execute({ pid: 7, x: 1, y: 2 }, execution('computer_click')),

@@ -1,9 +1,7 @@
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 
-/** Locale namespace owning the Computer client's copy. */
 export const LOCALE_NS = 'botharness-computer';
 
-/** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
   'entry.label': '电脑',
   'entry.screen.title': '{name} 的屏幕',
@@ -91,7 +89,6 @@ export const zh = {
   'rows.pickerFallback': '目录选择器不可用，已使用当前导出目录：{dir}',
 } as const;
 
-/** English dictionary; same keys as the Chinese one. */
 export const en: Record<keyof typeof zh, string> = {
   'entry.label': 'Computer',
   'entry.screen.title': "{name}'s screen",
@@ -185,14 +182,8 @@ export const en: Record<keyof typeof zh, string> = {
   'rows.pickerFallback': 'Directory picker unavailable — using the current export directory: {dir}',
 };
 
-/** Keys of the Computer client's copy. */
 export type ComputerKey = keyof typeof zh;
 
-/**
- * Server-reported phase → the locale key shown while it runs. Shared by the
- * sidebar entry card and the settings rows so both surfaces label a transfer
- * the same way.
- */
 export const PHASE_LABEL: Partial<Record<string, ComputerKey>> = {
   pulling: 'entry.phase.pulling',
   starting: 'entry.phase.starting',
@@ -201,12 +192,10 @@ export const PHASE_LABEL: Partial<Record<string, ComputerKey>> = {
   importing: 'entry.phase.importing',
 };
 
-/** Namespace-bound translate function. */
 export type ComputerTranslate = TranslateNS<typeof LOCALE_NS>;
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** Computer client copy. */
     'botharness-computer': ComputerKey;
   }
 }
