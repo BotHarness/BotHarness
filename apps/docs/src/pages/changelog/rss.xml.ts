@@ -1,6 +1,3 @@
-/**
- * /changelog/rss.xml — hand-rolled RSS 2.0 feed (no feed dependency).
- */
 import { getCollection } from "astro:content";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 import { config } from "virtual:nimbus/config";

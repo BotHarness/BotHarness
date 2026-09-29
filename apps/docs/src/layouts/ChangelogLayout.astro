@@ -1,9 +1,4 @@
 ---
-/**
- * ChangelogLayout — single-column chrome for the changelog feed and its
- * per-entry permalink pages. A changelog is a feed, not a doc tree: no
- * sidebar, no TOC. Just the header and a centered reading column.
- */
 import BaseLayout from "./BaseLayout.astro";
 import Header from "@/components/Header.astro";
 import type { BasePageProps } from "@cloudflare/nimbus-docs/types";
@@ -32,8 +27,6 @@ const baseProps = Astro.props;
     text-wrap: pretty;
   }
 
-  /* Subtle 1px outline on entry images for consistent depth — pure
-     black/white at 10%, never a tinted neutral. */
   .nb-cl-prose img {
     outline: 1px solid rgba(0, 0, 0, 0.1);
     outline-offset: -1px;

@@ -1,8 +1,3 @@
-/**
- * Per-page `/zh/<slug>/index.md` — clean Markdown alternate of every
- * indexable entry of the `docs-zh` collection. Mirrors the primary
- * Markdown route at `src/pages/[...slug]/index.md.ts`.
- */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,

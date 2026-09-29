@@ -1,8 +1,3 @@
-/**
- * Changelog feed controller — progressive enhancement for tag filtering and
- * "load older" reveal. No framework; vanilla DOM. Re-inits on Astro view
- * transitions via `astro:page-load`.
- */
 
 function initChangelog(): void {
   const feed = document.querySelector<HTMLElement>("[data-changelog-feed]");
@@ -45,7 +40,6 @@ function initChangelog(): void {
         lastVisible = el;
       }
     }
-    // Close the rail at the last visible node — drop its dangling segment.
     for (const el of entries) {
       el.toggleAttribute("data-rail-end", el === lastVisible);
     }

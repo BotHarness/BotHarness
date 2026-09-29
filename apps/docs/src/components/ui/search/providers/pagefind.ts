@@ -36,21 +36,6 @@ function withBase(url: string): string {
   return `${base}${url}`;
 }
 
-/**
- * Default Pagefind filters applied to every search.
- *
- * Versioning: when the site has a `versions.deprecated` list, the
- * layout emits `data-pagefind-filter="status:deprecated"` on every
- * deprecated-version page. Search defaults to current and non-deprecated
- * results.
- *
- * Versions are still searchable individually — readers on a v0 page
- * who explicitly search from there can opt the UI into a version-scoped
- * filter. The default exclusion is just for the top-level search.
- *
- * Computed at module-import time so we don't pay the config lookup on
- * every keystroke.
- */
 const defaultFilters: PagefindFilters | undefined =
   config.versions && config.versions.deprecated && config.versions.deprecated.length > 0
     ? { status: { none: "deprecated" } }

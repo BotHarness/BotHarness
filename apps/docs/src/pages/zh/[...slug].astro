@@ -1,13 +1,4 @@
 ---
-/**
- * `/zh/**` — Chinese docs collection (`docs-zh`), mounted at `/zh` through
- * Nimbus's `versions.others` mechanism. Mirrors `src/pages/[...slug].astro`.
- *
- * Pages flagged `untranslated: true` (English-authored pages with no Chinese
- * counterpart) render the English source plus a Chinese notice banner.
- * `suppressVersionAlternates` keeps Nimbus from canonicalizing a language
- * variant to its English sibling — `zh` is not an older docs version.
- */
 import DocsLayout from "../../layouts/DocsLayout.astro";
 import {
   getCollectionStaticPaths,
@@ -57,7 +48,6 @@ const breadcrumbs = await getBreadcrumbs(currentSlug, {
   resolveLabel: ({ node }) => localizeSectionLabel(node.label, locale),
 });
 const editUrl = await getEditUrl(entry);
-// Frontmatter wins; git is the fallback.
 const lastUpdated = entry.data.lastUpdated ??
   await getLastUpdated(entry);
 const tocConfig = entry.data.tableOfContents;
@@ -65,11 +55,8 @@ const toc = tocOn && tocConfig !== false ? getTOC(headings, tocConfig) : false;
 const routeKey = entryRouteKey(entry.id);
 const markdownPath = routeKey ? `/zh/${routeKey}.md` : "/zh/index.md";
 const markdownUrl = markdownPath;
-// The OG route prefixes version collections with their mount (`/og/zh/...`).
 const socialImage = entry.data.socialImage ?? `/og/zh/${entry.id}.png`;
 
-// English-only pages (rare) show the Chinese notice instead of any
-// frontmatter banner, linked to the English counterpart.
 const banner = entry.data.untranslated
   ? {
       content: untranslatedNotice(

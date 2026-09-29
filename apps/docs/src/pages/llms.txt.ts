@@ -6,10 +6,6 @@ import { DEVELOPMENT_STATUS_ROUTE } from "../lib/development-status-route";
 
 export const prerender = true;
 
-// Nimbus mounts the Chinese docs as a "version" (`versions.others`), and its
-// site index intentionally omits version sections. Language variants are not
-// older snapshots, so add the Chinese section link back by hand — otherwise
-// `/zh/llms.txt` would be unreachable from the root agent index.
 function withChineseSection(body: string): string {
   if (body.includes("/zh/llms.txt")) return body;
   const site = config.site ?? "http://localhost:4321";
@@ -27,9 +23,6 @@ function withDevelopmentStatus(body: string): string {
   return `${body.trimEnd()}\n- [Development status](${href})\n`;
 }
 
-// `changelog-zh` is the Chinese side of the changelog pairs, hand-mounted at
-// `/zh/changelog`; Nimbus indexes it as a raw secondary collection, which
-// would add a `/changelog-zh` section pointing at URLs that don't exist.
 function withoutZhChangelogSection(body: string): string {
   return body.replace(/^- \[changelog-zh\]\([^\n]*\)\n/m, "");
 }

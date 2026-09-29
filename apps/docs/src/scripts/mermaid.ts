@@ -2,7 +2,6 @@ let diagrams: HTMLPreElement[] = [];
 const captured = new WeakSet<HTMLPreElement>();
 const diagramPadding = 8;
 
-// Full-screen expand dialog (lazy — only created when needed)
 let dialog: HTMLDialogElement | null = null;
 
 function uniqueMermaidId(): string {
@@ -63,8 +62,6 @@ function getDialog(): HTMLDialogElement {
 		?.addEventListener("click", () => {
 			closeWithAnimation();
 		});
-	// Handle Escape key — native dialog closes immediately,
-	// so we intercept cancel to animate first
 	dialog.addEventListener("cancel", (e) => {
 		e.preventDefault();
 		closeWithAnimation();
@@ -77,10 +74,8 @@ function openDiagram(container: HTMLElement) {
 	const d = getDialog();
 	const clone = container.cloneNode(true) as HTMLElement;
 
-	// Remove the expand button from the clone
 	clone.querySelector(".mermaid-expand")?.remove();
 
-	// Let the SVG scale freely in the expanded view
 	const svg = clone.querySelector("svg");
 	if (svg) {
 		svg.removeAttribute("style");
@@ -92,13 +87,11 @@ function openDiagram(container: HTMLElement) {
 	if (!body) return;
 	body.replaceChildren(clone);
 
-	// Close dialog when clicking Mermaid `click` links inside the expanded view.
 	clone.addEventListener("click", (e) => {
 		const target = e.target as Element;
 		const anchor = target.closest("a");
 		const clickable = target.closest(".clickable");
 		if (anchor || clickable) {
-			// Skip animation for link clicks — navigate immediately
 			d.close();
 			document.documentElement.style.overflow = "";
 		}
@@ -108,7 +101,6 @@ function openDiagram(container: HTMLElement) {
 	d.showModal();
 }
 
-// Get computed font family from CSS variable
 function getFontFamily(): string {
 	const computedStyle = getComputedStyle(document.documentElement);
 	const font = computedStyle.getPropertyValue("--nb-font-sans").trim();
@@ -139,22 +131,17 @@ function isMermaidSupportedColor(value: string): boolean {
 	);
 }
 
-// Create wrapper container with expand affordance
 function wrapDiagram(diagram: HTMLPreElement) {
-	// Skip if already wrapped
 	if (diagram.parentElement?.classList.contains("mermaid-container")) {
 		return;
 	}
 
-	// Create container
 	const container = document.createElement("div");
 	container.className = "mermaid-container";
 
-	// Wrap the diagram
 	diagram.parentNode?.insertBefore(container, diagram);
 	container.appendChild(diagram);
 
-	// Add expand button
 	const expandBtn = document.createElement("button");
 	expandBtn.className = "mermaid-expand";
 	expandBtn.setAttribute("aria-label", "Expand diagram");
@@ -168,11 +155,6 @@ function wrapDiagram(diagram: HTMLPreElement) {
 	container.appendChild(expandBtn);
 }
 
-// On some browser/OS combinations Mermaid retains the oversized (~2000×2000)
-// foreignObject it uses to measure HTML labels, leaving a view box far larger
-// than the drawing so the diagram renders tiny. Refit only a view box that is
-// disproportionately large versus the actual rendered bounds; leave sane ones
-// (including their intentional padding) untouched.
 function fitSvgToContents(svg: SVGSVGElement): void {
 	let bounds: DOMRect;
 	try {
@@ -217,8 +199,6 @@ async function render() {
 
 	let mermaid: typeof import("mermaid").default;
 	try {
-		// Dynamically import mermaid — the ~2.5 MB bundle is only fetched
-		// on the pages that actually contain diagrams.
 		({ default: mermaid } = await import("mermaid"));
 	} catch (e) {
 		diagrams.forEach(showRenderError);
@@ -276,7 +256,6 @@ async function render() {
 	const themeVariables = isLight ? lightThemeVars : darkThemeVars;
 
 	try {
-		// Initialize once before the loop — config is identical for all diagrams
 		mermaid.initialize({
 			startOnLoad: false,
 			theme: "base",
@@ -326,10 +305,8 @@ function setup() {
 	diagrams = Array.from(
 		document.querySelectorAll<HTMLPreElement>("pre.mermaid"),
 	);
-	// Body was swapped by the router — any previous dialog is gone.
 	dialog = null;
 	if (diagrams.length > 0) render();
 }
 
-// Fires on initial load and after every client-side navigation.
 document.addEventListener("astro:page-load", setup);

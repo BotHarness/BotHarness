@@ -1,8 +1,3 @@
-/**
- * Per-entry `/zh/changelog/<slug>/index.mdx` — expanded source alternate of
- * the Chinese changelog permalink. Mirrors the English route at
- * `src/pages/changelog/[...slug]/index.mdx.ts`.
- */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,

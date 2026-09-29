@@ -1,7 +1,3 @@
-/**
- * Per-page `/zh/<slug>.md` — Chinese clean-Markdown alternate. The older
- * `/zh/<slug>/index.md` route remains available for compatibility.
- */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,

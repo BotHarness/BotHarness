@@ -1,10 +1,3 @@
-/**
- * `/docs/llms.txt`, `/dev/llms.txt`, `/changelog/llms.txt` — per-section agent
- * indexes. `changelog-zh` is the Chinese changelog tree mounted by hand at
- * `/zh/changelog`; its agent index lives at `/zh/changelog/llms.txt` (see
- * `src/pages/zh/[section]/llms.txt.ts`). Nimbus would otherwise emit a raw
- * `/changelog-zh/llms.txt` section whose URLs don't exist, so drop it here.
- */
 import {
   getLlmsPayload,
   getLlmsStaticPaths,

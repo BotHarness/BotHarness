@@ -1,11 +1,4 @@
 ---
-/**
- * ChangelogEntry — one release or the migration-only Development summary.
- * Renders the date marker, permalink title, one-sentence summary, and category pills.
- * Full release details stay on the permalink. `data-tags` feeds the filter; entries past
- * the initial page are `data-overflow` + hidden until "load older" reveals
- * them (older entries also reachable via /changelog/page/<n> with no JS).
- */
 import type { CollectionEntry } from "astro:content";
 import DateRail from "./DateRail.astro";
 import { Badge } from "@/components/ui/badge";
@@ -14,10 +7,7 @@ import { withBase } from "@cloudflare/nimbus-docs/runtime";
 interface Props {
   entry: CollectionEntry<"changelog"> | CollectionEntry<"changelog-zh">;
   overflow?: boolean;
-  /** Last visible entry — drops its trailing rail segment so the timeline
-   *  closes at the final dot. The controller keeps this in sync. */
   railEnd?: boolean;
-  /** URL prefix for the entry permalink; `/zh/changelog` on Chinese pages. */
   hrefBase?: string;
 }
 

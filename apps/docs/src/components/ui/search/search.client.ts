@@ -9,7 +9,6 @@ export interface SearchConfig {
   emptyState: HTMLElement;
   provider: SearchProvider;
   onNavigate?: () => void;
-  /** Current page locale; falls back to `<html lang>` when omitted. */
   locale?: Locale;
 }
 
@@ -207,11 +206,6 @@ export function initSearch(config: SearchConfig): SearchInstance {
   };
 }
 
-// ---------------------------------------------------------------------------
-// Bootstrap — imported for its side effects by SearchDialog.astro
-// (`import "./search.client"`). Wires each dialog through mount() and binds the
-// global open shortcut once.
-// ---------------------------------------------------------------------------
 
 type SearchDialogElement = HTMLDialogElement & {
   __openSearchDialog?: () => void;
@@ -221,12 +215,6 @@ function primaryDialog(): SearchDialogElement | null {
   return document.querySelector<SearchDialogElement>("[data-search-dialog][data-search-ready]");
 }
 
-// The open shortcut and trigger delegation live on `document`, which survives
-// view transitions, so they are bound once for the page's lifetime — never
-// through mount()'s per-element setup/teardown. A module-scoped boolean (not an
-// <html> attribute) is the guard: ClientRouter resets <html> on every swap but
-// keeps document listeners, so an attribute guard would stack a duplicate
-// keydown handler each navigation (Cmd+K then toggles twice).
 let globalsBound = false;
 
 function bindGlobals() {
@@ -249,9 +237,6 @@ function bindGlobals() {
   });
 }
 
-// Per-element wiring: idempotent discovery now and on astro:page-load, teardown
-// on astro:before-swap. Replaces the hand-rolled data-search-ready init loop;
-// data-search-ready is now just the "wired" marker primaryDialog() selects on.
 mount("[data-search-dialog]", (root) => {
   const dialog = root as SearchDialogElement;
   dialog.setAttribute("data-search-ready", "true");
@@ -267,7 +252,6 @@ mount("[data-search-dialog]", (root) => {
     emptyState,
     provider,
     onNavigate: () => dialog.close(),
-    // `data-locale` is rendered per page; `<html lang>` is the fallback.
     locale: normalizeLocale(dialog.dataset.locale ?? document.documentElement.lang),
   });
 

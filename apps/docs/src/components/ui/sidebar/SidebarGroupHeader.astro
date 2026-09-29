@@ -1,19 +1,4 @@
 ---
-/**
- * SidebarGroupHeader — the label + disclosure caret row of a sidebar group,
- * extracted so any consumer composes the same header (no forked markup). It
- * renders the header only; the caller wraps it in a `Collapsible` and supplies
- * the `CollapsibleContent`.
- *
- * Two shapes (matching the group's data):
- *   - `indexHref` set  → the label is an `<a>` to the landing page and the caret
- *     is a separate trigger (whole-row active state).
- *   - no `indexHref`   → the whole row is the disclosure trigger; the label is
- *     non-interactive (a pure section divider / nav-only category).
- *
- * `deprecated` strikes the label through. Caret rotation is driven by the
- * trigger's `data-nb-state` via the global rule below.
- */
 import Icon from "@cloudflare/nimbus-docs/components/Icon.astro";
 import { cn } from "@/lib/cn";
 import { CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -24,14 +9,12 @@ import { withBase } from "@cloudflare/nimbus-docs/runtime";
 interface Props {
   label: string;
   isOpen: boolean;
-  /** True when this group is on the active trail — bolds the label. */
   hasActive?: boolean;
   badge?: SidebarBadge;
   indexHref?: string;
   indexIsCurrent?: boolean;
   indexIsExternal?: boolean;
   icon?: string;
-  /** Strike the label through for deprecated sections. */
   deprecated?: boolean;
 }
 
@@ -103,11 +86,6 @@ const labelClass = cn("break-words", deprecated && "line-through");
 }
 
 <style is:global>
-  /*
-   * Chevron rotation, driven by the trigger's `data-nb-state`. The disclosure
-   * runtime (`@/components/ui/collapsible/collapsible.client`) keeps this
-   * attribute in sync on toggle; this rule turns it into the visual rotation.
-   */
   [data-nb-collapsible-trigger][data-nb-state="open"] [data-nb-caret] {
     rotate: 90deg;
   }

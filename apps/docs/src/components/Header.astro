@@ -10,27 +10,15 @@ import { languageLinks, localeFromPath, siteChrome } from "@/lib/language";
 import { DEVELOPMENT_STATUS_ROUTE } from "@/lib/development-status-route";
 
 interface Props {
-  /** Astro collection id for the current page, forwarded from DocsLayout. */
   collection?: string;
-  /** Astro entry id for the current page, forwarded from DocsLayout. */
   entryId?: string;
-  /**
-   * Whether the page has a sidebar to open. When `false`, the mobile
-   * menu button is hidden — pages that opted out via `sidebar: false`
-   * shouldn't show a button that opens an empty dialog. Default `true`.
-   */
   showSidebar?: boolean;
 }
 
 const { showSidebar = true } = Astro.props;
 
-// Normalize trailing slash so isActive matches sidebar hrefs.
 const currentSlug = stripBase(Astro.url.pathname, import.meta.env.BASE_URL).replace(/\/$/, "") || "/";
 
-// Manual language switcher (plain links, no JS). `links.en` is the current
-// route with any `/zh` prefix stripped, so section highlighting stays correct
-// on Chinese pages too. Chinese pages keep Chinese labels for the site nav;
-// English pages get English labels.
 const links = languageLinks(currentSlug);
 const chrome = siteChrome(localeFromPath(currentSlug));
 const homeHref = withBase(links.isZh ? "/zh" : "/", import.meta.env.BASE_URL);
