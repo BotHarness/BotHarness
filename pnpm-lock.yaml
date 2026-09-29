@@ -168,6 +168,12 @@ importers:
 
   .:
     devDependencies:
+      '@astrojs/compiler':
+        specifier: 2.13.1
+        version: 2.13.1
+      '@babel/parser':
+        specifier: 7.29.8
+        version: 7.29.8
       '@deepseek-ai/dsh':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(bf34fb2d3931b69b69fd86ca3d70cc89)
@@ -186,6 +192,9 @@ importers:
       portless:
         specifier: ^0.15.6
         version: 0.15.6
+      postcss:
+        specifier: 8.5.28
+        version: 8.5.28
       semver:
         specifier: ^7.8.5
         version: 7.8.5

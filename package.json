@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsdown",
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint && pnpm changelog:check && node scripts/check-adr-numbers.mjs",
+    "lint": "oxlint && node scripts/check-source-policy.mjs && pnpm changelog:check && node scripts/check-adr-numbers.mjs",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt --write .",
     "format:check": "oxfmt --check .",
@@ -31,12 +31,15 @@
     "docs:deploy": "pnpm --filter docs run deploy"
   },
   "devDependencies": {
+    "@astrojs/compiler": "2.13.1",
+    "@babel/parser": "7.29.8",
     "@deepseek-ai/dsh": "0.2.0-rc.1",
     "@mermaid-js/mermaid-cli": "^11.17.0",
     "@types/node": "^22.20.2",
     "oxfmt": "^0.68.0",
     "oxlint": "^1.83.0",
     "portless": "^0.15.6",
+    "postcss": "8.5.28",
     "semver": "^7.8.5",
     "subset-font": "^2.7.0",
     "tsdown": "^0.23.0",
