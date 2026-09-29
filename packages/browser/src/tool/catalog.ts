@@ -105,6 +105,28 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
       `${typeof args['direction'] === 'string' ? args['direction'] : 'down'} amount=${str(args, 'amount')}`,
   },
   {
+    raw: 'tabs',
+    description:
+      "Manage this PersonaBot's Bot Browser tabs: action list shows its tabs (the current one is marked *), open opens a URL in a new tab of its window, select makes a tab current for observe and actions, and close closes one.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        action: { type: 'string', enum: ['list', 'open', 'select', 'close'] },
+        url: { type: 'string', description: 'For action open: absolute http(s) URL' },
+        targetId: {
+          type: 'string',
+          description: 'For action select/close: a tab id from action list',
+        },
+      },
+      required: ['action'],
+      additionalProperties: false,
+    },
+    audit: (args) =>
+      `${str(args, 'action')}${
+        typeof args['url'] === 'string' ? ` ${args['url'].slice(0, 160)}` : ''
+      }${typeof args['targetId'] === 'string' ? ` ${args['targetId']}` : ''}`,
+  },
+  {
     raw: 'wait',
     description: 'Wait a bounded time (up to 10 seconds) for the page to settle after an action.',
     inputSchema: {
@@ -123,6 +145,8 @@ export function browserToolName(raw: string): string {
 export const BROWSER_GUIDANCE = `You can browse the web through this profile's shared Bot Browser — a real browser window owned by BotHarness, shared by every PersonaBot of this profile. Other PersonaBots may be browsing at the same time: stay inside the tabs you opened.
 
 Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs, and use \`browser_screenshot\` when you need to see the page rather than read it. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
+
+You may keep several tabs in your own Bot Browser window with \`browser_tabs\` (list, open, select, close); observe and act on the current tab, and select another one before reading it. The Human can close your tabs at any time; when a call reports a missing tab, list your tabs and select one, or open a new one.
 
 Credentials are the Human's. The Bot Browser has its own persistent profile; when a page asks for a login, tell the Human in the chat what to log in to, then wait — the Human signs in through the Bot Browser entry. Never type passwords, API keys, or recovery codes.
 

@@ -78,6 +78,17 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       url: 'https://example.com/',
       title: 'Example Domain',
     })),
+    createTab: vi.fn(async (url: string) => ({
+      tabId: 'tab-2',
+      url,
+      title: 'Example Domain',
+    })),
+    listTabs: vi.fn(async () => [
+      { targetId: 'tab-1', url: 'https://example.com/', title: 'Example Domain' },
+      { targetId: 'tab-2', url: 'https://example.org/', title: 'Other' },
+    ]),
+    tabInfo: vi.fn(async () => ({ url: 'https://example.com/', title: 'Example Domain' })),
+    closeTab: vi.fn(async () => undefined),
     captureScreenshot: vi.fn(async () => ({ data: 'Zm9v', mimeType: 'image/jpeg' })),
     openWindow: vi.fn(async () => ({ tabId: 'tab-9', url: 'about:blank', title: '' })),
     currentUrl: () => undefined,
@@ -208,6 +219,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       'browser_press_key',
       'browser_screenshot',
       'browser_scroll',
+      'browser_tabs',
       'browser_type',
       'browser_wait',
     ]);
@@ -367,6 +379,70 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
   });
 
+  it('manages multiple tabs: opens, lists the current, selects, and closes', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    const opened = await tabs.execute(
+      { action: 'open', url: 'https://example.org' },
+      execution('browser_tabs'),
+    );
+    expect(h.runtime.createTab).toHaveBeenCalledWith('https://example.org', 'tab-1');
+    expect(JSON.stringify(opened)).toContain('tab-2');
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    expect(h.provider.tabCount('bot-a')).toBe(2);
+    const listed = await tabs.execute({ action: 'list' }, execution('browser_tabs'));
+    expect(JSON.stringify(listed)).toContain('* tab-2');
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    await tabs.execute({ action: 'close', targetId: 'tab-1' }, execution('browser_tabs'));
+    expect(h.runtime.closeTab).toHaveBeenCalledWith('tab-1');
+    expect(h.provider.currentTab('bot-a')).toBeUndefined();
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+  });
+
+  it('rejects foreign tabs and closes idle tabs without stopping the browser', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await expect(
+      tabs.execute({ action: 'select', targetId: 'tab-9' }, execution('browser_tabs')),
+    ).rejects.toThrow(/not owned/);
+    await h.provider.closeIdleTabs(0);
+    expect(h.runtime.closeTab).toHaveBeenCalledWith('tab-1');
+    expect(h.provider.tabCount('bot-a')).toBe(0);
+  });
+
+  it('recovers from a human-closed current tab through tabs list and select', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const tabs = h.state.definitions.get('browser_tabs')!;
+    await tabs.execute({ action: 'open', url: 'https://example.org' }, execution('browser_tabs'));
+    await tabs.execute({ action: 'select', targetId: 'tab-1' }, execution('browser_tabs'));
+    const original = h.runtime.observe;
+    h.runtime.observe = vi.fn(async (tabId: string) => {
+      if (tabId === 'tab-1') throw new Error('target closed');
+      return original(tabId);
+    });
+    await expect(
+      h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
+    ).rejects.toThrow(/browser_tabs/);
+    expect(h.provider.currentTab('bot-a')).toBeUndefined();
+    expect(h.provider.tabCount('bot-a')).toBe(1);
+    await tabs.execute({ action: 'select', targetId: 'tab-2' }, execution('browser_tabs'));
+    expect(h.provider.currentTab('bot-a')).toBe('tab-2');
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+  });
+
   it('drops a dead tab and reports it readably', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
@@ -378,7 +454,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     });
     await expect(
       h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
-    ).rejects.toThrow(/call browser_open again/);
+    ).rejects.toThrow(/browser_tabs/);
     expect(h.audits.at(-1)?.outcome).toBe('error');
   });
 

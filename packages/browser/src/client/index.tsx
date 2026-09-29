@@ -60,6 +60,7 @@ interface BrowserView {
   readonly running: boolean;
   readonly frame: string | null;
   readonly takeover: boolean;
+  readonly tabs: number;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -269,6 +270,9 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
           alt={t('entry.view.title')}
           style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
         />
+      )}
+      {view === undefined ? null : (
+        <div style={{ opacity: 0.7 }}>{t('entry.view.tabs', { count: view.tabs })}</div>
       )}
       {takeover ? <div>{t('entry.view.taken')}</div> : null}
       <div style={{ display: 'flex', gap: 8 }}>
