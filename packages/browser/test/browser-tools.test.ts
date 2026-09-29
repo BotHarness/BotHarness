@@ -108,6 +108,9 @@ interface Harness {
   readonly scope: Context;
   readonly state: FakeScope;
   readonly runtime: BotBrowserRuntime;
+  readonly runtimes: {
+    readonly stopAll: ReturnType<typeof vi.fn>;
+  };
   readonly audits: BrowserAuditEvent[];
   readonly screenshotDir: string;
   created(): void;
@@ -136,9 +139,17 @@ function harness(options: { access: boolean; auto?: boolean }): Harness {
     logger: { info: () => undefined, warn: () => undefined },
     get: () => undefined,
   } as unknown as Context;
+  const runtimes = {
+    for: () => runtime,
+    touch: vi.fn(),
+    closeIdle: vi.fn(async () => undefined),
+    stop: vi.fn(async () => undefined),
+    stopAll: vi.fn(async () => undefined),
+    profileOf: () => '',
+  };
   const provider = createBrowserToolProvider({
     ctx,
-    runtime,
+    runtimes,
     screenshotDir,
     screenshotLimit: 2,
     isAutoAllowed: () => auto,
@@ -159,6 +170,7 @@ function harness(options: { access: boolean; auto?: boolean }): Harness {
     scope,
     state,
     runtime,
+    runtimes,
     audits,
     screenshotDir,
     created: () =>
@@ -560,6 +572,6 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await h.provider.reconcileBot('bot-a');
     expect(h.state.registered()).toEqual([]);
     await h.provider.dispose();
-    expect(h.runtime.stop).toHaveBeenCalled();
+    expect(h.runtimes.stopAll).toHaveBeenCalled();
   });
 });

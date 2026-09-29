@@ -4,10 +4,9 @@ import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 
-import { createActivityTracker } from './activity.js';
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
-import { createBotBrowserRuntime } from './runtime/browser.js';
+import { createBotBrowserRuntimes } from './runtimes.js';
 import {
   browserToolNames,
   createBrowserToolProvider,
@@ -87,29 +86,34 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     },
   });
 
-  const activity = createActivityTracker();
-  const runtime = createBotBrowserRuntime({
-    ...(config.browserPath.trim() === '' ? {} : { browserPath: config.browserPath.trim() }),
-    userDataDir: profileDirectory(),
+  const coreLookup = (): { registry?: unknown; ownership?: unknown } | undefined =>
+    ctx.get('botharness') as unknown as { registry?: unknown; ownership?: unknown } | undefined;
+  const runtimes = createBotBrowserRuntimes({
+    browserDir: profileDirectory(),
     installDir: pinnedBrowserDirectory(),
+    ...(config.browserPath.trim() === '' ? {} : { browserPath: config.browserPath.trim() }),
     ...(config.headless ? { headless: true } : {}),
     onEvent: (detail) => diagnostics.record('lifecycle', detail),
+    profileOf: (slug) => {
+      const registry = coreLookup()?.registry as
+        | { get(slug: string): { browserProfile?: string } | undefined }
+        | undefined;
+      return registry?.get(slug)?.browserProfile ?? '';
+    },
   });
 
   const provider = createBrowserToolProvider({
     ctx,
-    runtime,
+    runtimes,
     screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
-    onActivity: () => {
-      activity.touch();
+    onActivity: (slug) => {
+      runtimes.touch(slug);
     },
     core: () => {
-      const core = ctx.get('botharness') as unknown as
-        | { registry?: unknown; ownership?: unknown }
-        | undefined;
+      const core = coreLookup();
       return {
         registry: core?.registry as never,
         ownership: core?.ownership as never,
@@ -156,11 +160,8 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   const idleMs = Math.max(1, config.idleStopMinutes) * 60_000;
   ctx.effect(() => {
     const timer = setInterval(() => {
-      if (!runtime.isRunning()) return;
+      void runtimes.closeIdle(idleMs);
       void provider.closeIdleTabs(idleMs);
-      if (!activity.isIdle(idleMs)) return;
-      diagnostics.record('lifecycle', `idle stop after ${config.idleStopMinutes}m`);
-      void runtime.stop().then(() => provider.closeIdleTabs(0));
     }, 30_000);
     return () => clearInterval(timer);
   }, 'botharness-browser: idle stop');
@@ -170,32 +171,24 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     const json = (value: unknown, status = 200): Response =>
       Response.json(value as Record<string, unknown>, { status });
 
-    const statusRoute = {
-      path: '/api/browser/status',
-      methods: ['GET'] as const,
-      requestBody: 'buffered' as const,
-      fetch: async (): Promise<Response> =>
-        json({
-          ok: true,
-          running: runtime.isRunning(),
-          url: runtime.currentUrl() ?? null,
-          binary: runtime.binaryPath() ?? null,
-        }),
-    };
-    connectionCtx.effect(
-      () => connection.fetch.register(statusRoute),
-      'botharness-browser: status route',
-    );
-
     const openRoute = {
       path: '/api/browser/open',
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
-      fetch: async (): Promise<Response> => {
-        diagnostics.record('lifecycle', 'open requested (panel)');
-        activity.touch();
+      fetch: async (request: Request): Promise<Response> => {
+        let body: { slug?: unknown } = {};
         try {
-          await runtime.openWindow();
+          body = (await request.json()) as typeof body;
+        } catch {
+          void 0;
+        }
+        const slug = typeof body.slug === 'string' ? body.slug : '';
+        if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        diagnostics.record('lifecycle', `open requested (panel) slug=${slug}`);
+        runtimes.touch(slug);
+        provider.touch(slug);
+        try {
+          await runtimes.for(slug).openWindow();
           return json({ ok: true });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);
@@ -212,17 +205,26 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
-        activity.touch();
         const url = new URL(request.url);
         const slug = url.searchParams.get('slug') ?? '';
         const requested = url.searchParams.get('tab') ?? '';
-        if (slug !== '') provider.touch(slug);
+        if (slug === '') {
+          return json({
+            ok: true,
+            running: false,
+            frame: null,
+            focused: null,
+            takeover: false,
+            tabs: [],
+          });
+        }
+        runtimes.touch(slug);
+        provider.touch(slug);
+        const runtime = runtimes.for(slug);
         const tabId =
-          slug === ''
-            ? undefined
-            : requested !== '' && provider.ownsTab(slug, requested)
-              ? requested
-              : provider.currentTab(slug);
+          requested !== '' && provider.ownsTab(slug, requested)
+            ? requested
+            : provider.currentTab(slug);
         let frame: string | null = null;
         if (tabId !== undefined && runtime.isRunning()) {
           const shot = await runtime.captureScreenshot(tabId).catch(() => undefined);
@@ -233,8 +235,8 @@ export function apply(ctx: Context, config: BrowserConfig): void {
           running: runtime.isRunning(),
           frame,
           focused: tabId ?? null,
-          takeover: slug === '' ? false : provider.isTakeover(slug),
-          tabs: slug === '' ? [] : await provider.listTabs(slug),
+          takeover: provider.isTakeover(slug),
+          tabs: await provider.listTabs(slug),
         });
       },
     };
@@ -258,7 +260,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         if (slug === '' || typeof body.active !== 'boolean') {
           return json({ ok: false, error: 'slug and active are required' }, 400);
         }
-        activity.touch();
+        runtimes.touch(slug);
         provider.touch(slug);
         const takeover = provider.setTakeover(slug, body.active);
         return json({ ok: true, takeover });
@@ -273,11 +275,19 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       path: '/api/browser/stop',
       methods: ['POST'] as const,
       requestBody: 'buffered' as const,
-      fetch: async (): Promise<Response> => {
-        diagnostics.record('lifecycle', 'stop requested (panel)');
+      fetch: async (request: Request): Promise<Response> => {
+        let body: { slug?: unknown } = {};
         try {
-          await runtime.stop();
-          await provider.closeIdleTabs(0);
+          body = (await request.json()) as typeof body;
+        } catch {
+          void 0;
+        }
+        const slug = typeof body.slug === 'string' ? body.slug : '';
+        if (slug === '') return json({ ok: false, error: 'slug is required' }, 400);
+        diagnostics.record('lifecycle', `stop requested (panel) slug=${slug}`);
+        try {
+          await runtimes.stop(slug);
+          provider.resetBot(slug);
           return json({ ok: true });
         } catch (error) {
           return json({ ok: false, error: String(error) }, 500);

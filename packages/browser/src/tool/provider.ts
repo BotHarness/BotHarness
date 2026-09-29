@@ -8,8 +8,8 @@ import type {} from '@deepseek-ai/dsh-tools';
 import { basename } from 'node:path';
 
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
-import type { BotBrowserRuntime } from '../runtime/browser.js';
 import { saveScreenshot } from '../screenshots.js';
+import type { BotBrowserRuntimes } from '../runtimes.js';
 
 export const BROWSER_PROMPT_SECTION = 'botharness:browser';
 
@@ -39,13 +39,13 @@ export interface BrowserCoreLookup {
 
 export interface BrowserToolProviderOptions {
   readonly ctx: Context;
-  readonly runtime: BotBrowserRuntime;
+  readonly runtimes: BotBrowserRuntimes;
   readonly screenshotDir?: string;
   readonly screenshotLimit?: number;
   readonly isAutoAllowed: () => boolean;
   readonly audit: (event: BrowserAuditEvent) => void;
   readonly note?: (detail: string) => void;
-  readonly onActivity?: () => void;
+  readonly onActivity?: (slug: string) => void;
   readonly core: () => BrowserCoreLookup;
 }
 
@@ -64,6 +64,7 @@ export interface BrowserToolProvider {
   ): Promise<readonly { targetId: string; url: string; title: string; current: boolean }[]>;
   tabCount(slug: string): number;
   touch(slug: string): void;
+  resetBot(slug: string): void;
   closeIdleTabs(idleMs: number): Promise<void>;
   dispose(): Promise<void>;
 }
@@ -115,7 +116,7 @@ function boundedNumber(value: unknown, min: number, max: number, fallback: numbe
 export function createBrowserToolProvider(
   options: BrowserToolProviderOptions,
 ): BrowserToolProvider {
-  const { ctx, runtime, isAutoAllowed, audit, core } = options;
+  const { ctx, runtimes, isAutoAllowed, audit, core } = options;
   const note = options.note ?? ((): void => undefined);
   const onActivity = options.onActivity ?? ((): void => undefined);
 
@@ -201,6 +202,7 @@ export function createBrowserToolProvider(
     args: Record<string, unknown>,
     slug: string,
   ): Promise<{ content: BrowserToolContent[] }> => {
+    const runtime = runtimes.for(slug);
     if (raw === 'open') {
       const url = typeof args['url'] === 'string' ? args['url'] : '';
       if (!/^https?:\/\//u.test(url)) {
@@ -463,7 +465,7 @@ export function createBrowserToolProvider(
           inputSchema: spec.inputSchema,
           call: async (args, execution) => {
             await authorize(execution, sessionId);
-            onActivity();
+            onActivity(slug);
             if (core().registry?.get(slug)?.browserAccess !== true) {
               throw new Error('Browser Access is off for this PersonaBot');
             }
@@ -594,7 +596,10 @@ export function createBrowserToolProvider(
     async listTabs(slug) {
       const state = tabsByBot.get(slug);
       if (state === undefined || state.owned.size === 0) return [];
-      const live = await runtime.listTabs().catch(() => []);
+      const live = await runtimes
+        .for(slug)
+        .listTabs()
+        .catch(() => []);
       return live
         .filter((tab) => state.owned.has(tab.targetId))
         .map((tab) => ({ ...tab, current: tab.targetId === state.current }));
@@ -609,10 +614,16 @@ export function createBrowserToolProvider(
       if (state !== undefined) state.lastActivity = Date.now();
     },
 
+    resetBot(slug) {
+      tabsByBot.delete(slug);
+      takeovers.delete(slug);
+    },
+
     async closeIdleTabs(idleMs) {
       for (const [slug, state] of tabsByBot) {
         if (state.owned.size === 0) continue;
         if (Date.now() - state.lastActivity < idleMs) continue;
+        const runtime = runtimes.for(slug);
         for (const targetId of [...state.owned]) {
           await runtime.closeTab(targetId).catch(() => undefined);
         }
@@ -638,7 +649,7 @@ export function createBrowserToolProvider(
       tabsByBot.clear();
       takeovers.clear();
       queues.clear();
-      await runtime.stop();
+      await runtimes.stopAll();
     },
   };
 }

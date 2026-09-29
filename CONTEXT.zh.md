@@ -207,7 +207,7 @@ _避免使用_：logs、history、screenshot trail
 ### Browser
 
 **Bot Browser**：
-profile 为其 PersonaBot 运行并驱动的专用浏览器——单实例，拥有自己的持久 profile（Cookie 与登录态），以按 Bot 归属的窗口与标签共享。它的隔离边界是 profile，绝不是某个 PersonaBot。
+profile 为其 PersonaBot 运行并驱动的专用浏览器——每个被分配的浏览器 profile 一个实例，各自拥有持久 profile（Cookie 与登录态），由分配到它的 PersonaBot 共享。它的隔离边界是浏览器 profile，绝不是某个 PersonaBot。
 _避免使用_：user browser、personal browser、headless browser、Chromium
 
 **Bot Tab**：

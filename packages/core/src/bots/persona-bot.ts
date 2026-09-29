@@ -15,6 +15,7 @@ export interface PersonaBotRecord {
 
   computerAccess?: boolean;
   browserAccess?: boolean;
+  browserProfile?: string;
 }
 
 export interface CreatePersonaBotInput {
@@ -57,6 +58,7 @@ export interface PersonaBotPatch {
   workspaces?: string[];
   computerAccess?: boolean;
   browserAccess?: boolean;
+  browserProfile?: string;
 }
 
 export type UpdatePersonaBotResult =
@@ -93,6 +95,8 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
   if (record['computerAccess'] !== undefined && typeof record['computerAccess'] !== 'boolean')
     return false;
   if (record['browserAccess'] !== undefined && typeof record['browserAccess'] !== 'boolean')
+    return false;
+  if (record['browserProfile'] !== undefined && typeof record['browserProfile'] !== 'string')
     return false;
   if (!Array.isArray(record['workspaces'])) return false;
   if (!record['workspaces'].every((entry) => typeof entry === 'string')) return false;

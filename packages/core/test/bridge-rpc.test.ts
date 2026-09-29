@@ -136,6 +136,7 @@ describe('bridge typert service', () => {
       'developerModeSet',
       'computerAccessSet',
       'browserAccessSet',
+      'browserProfileSet',
       'botAvatarSet',
     ]);
   });

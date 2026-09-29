@@ -209,7 +209,7 @@ _Avoid_: logs, history, screenshot trail
 ### Browser
 
 **Bot Browser**:
-The dedicated browser a profile runs for its PersonaBots to drive — one browser with its own persistent profile of cookies and sign-ins, shared as owned windows and tabs. Its isolation boundary is the profile, never a PersonaBot.
+The dedicated browser a profile runs for its PersonaBots to drive — one instance per assigned browser profile, each with its own persistent profile of cookies and sign-ins, shared by the PersonaBots assigned to it. Its isolation boundary is the browser profile, never a PersonaBot.
 _Avoid_: user browser, personal browser, headless browser, Chromium
 
 **Bot Tab**:

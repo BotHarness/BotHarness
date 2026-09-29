@@ -13,6 +13,9 @@ window.__ModuleLoader__.load({
 			"entry.label": "浏览器",
 			"entry.access.title": "Browser Access",
 			"entry.access.failed": "切换 Browser Access 失败",
+			"entry.profile.label": "Profile",
+			"entry.profile.default": "default",
+			"entry.profile.failed": "切换浏览器 profile 失败",
 			"entry.view.follow": "跟随 Bot",
 			"entry.view.pause": "暂停 Bot",
 			"entry.view.resume": "继续",
@@ -28,6 +31,9 @@ window.__ModuleLoader__.load({
 			"entry.label": "Browser",
 			"entry.access.title": "Browser Access",
 			"entry.access.failed": "Failed to switch Browser Access",
+			"entry.profile.label": "Profile",
+			"entry.profile.default": "default",
+			"entry.profile.failed": "Failed to switch the browser profile",
 			"entry.view.follow": "Follow the Bot",
 			"entry.view.pause": "Pause Bot",
 			"entry.view.resume": "Resume",
@@ -65,7 +71,8 @@ window.__ModuleLoader__.load({
 		function createBotInfoStore(botSlug) {
 			let info = {
 				displayName: void 0,
-				browserAccess: void 0
+				browserAccess: void 0,
+				browserProfile: void 0
 			};
 			const listeners = /* @__PURE__ */ new Set();
 			let started = false;
@@ -78,7 +85,8 @@ window.__ModuleLoader__.load({
 					if (match === void 0) return;
 					info = {
 						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
-						browserAccess: typeof match.browserAccess === "boolean" ? match.browserAccess : void 0
+						browserAccess: typeof match.browserAccess === "boolean" ? match.browserAccess : void 0,
+						browserProfile: typeof match.browserProfile === "string" && match.browserProfile !== "" ? match.browserProfile : void 0
 					};
 					for (const listener of listeners) listener();
 				}).catch(() => void 0);
@@ -213,10 +221,14 @@ window.__ModuleLoader__.load({
 		};
 		function BrowserBody({ botSlug, t }) {
 			const [store] = (0, react.useState)(() => createObservationStore(botSlug));
+			const [infoStore] = (0, react.useState)(() => createBotInfoStore(botSlug));
 			const observation = (0, react.useSyncExternalStore)(store.subscribe, store.getSnapshot);
+			const info = (0, react.useSyncExternalStore)(infoStore.subscribe, infoStore.getSnapshot);
 			const [follow, setFollow] = (0, react.useState)(true);
 			const [preview, setPreview] = (0, react.useState)(void 0);
 			const [busy, setBusy] = (0, react.useState)(false);
+			const [draft, setDraft] = (0, react.useState)(void 0);
+			const [profileOverride, setProfileOverride] = (0, react.useState)(void 0);
 			const [error, setError] = (0, react.useState)(void 0);
 			const tabs = observation?.tabs ?? [];
 			const focused = observation?.focused ?? null;
@@ -256,6 +268,32 @@ window.__ModuleLoader__.load({
 					})
 				});
 			};
+			const currentProfile = profileOverride ?? info.browserProfile ?? "";
+			const saveProfile = () => {
+				const rpc = connectionRpc;
+				if (rpc === void 0 || botSlug === void 0 || draft === void 0) return;
+				const next = draft.trim();
+				setDraft(void 0);
+				if (next === currentProfile) return;
+				setError(void 0);
+				rpc.call("/api", "botharness/browserProfileSet", { args: {
+					slug: botSlug,
+					profile: next
+				} }).then((result) => {
+					if (!result.ok) {
+						setError(result.error?.message ?? t("entry.profile.failed"));
+						return;
+					}
+					const value = result.value;
+					setProfileOverride(typeof value.bot?.browserProfile === "string" ? value.bot.browserProfile : "");
+				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause)));
+			};
+			const onProfileChange = (event) => {
+				setDraft(event.target.value);
+			};
+			const onProfileKey = (event) => {
+				if (event.key === "Enter") saveProfile();
+			};
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				style: {
 					display: "grid",
@@ -263,6 +301,34 @@ window.__ModuleLoader__.load({
 					fontSize: 12.5
 				},
 				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						style: {
+							display: "flex",
+							alignItems: "center",
+							gap: 8
+						},
+						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+							style: { opacity: .8 },
+							children: t("entry.profile.label")
+						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+							value: draft ?? currentProfile,
+							placeholder: t("entry.profile.default"),
+							disabled: botSlug === void 0,
+							onChange: onProfileChange,
+							onBlur: saveProfile,
+							onKeyDown: onProfileKey,
+							style: {
+								flex: 1,
+								minWidth: 0,
+								padding: "2px 6px",
+								borderRadius: 4,
+								border: "1px solid currentColor",
+								background: "transparent",
+								color: "inherit",
+								fontSize: 12
+							}
+						})]
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {
 							display: "flex",
