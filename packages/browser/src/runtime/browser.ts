@@ -138,6 +138,7 @@ export function buildLaunchArgs(options: {
   return [
     `--user-data-dir=${options.userDataDir}`,
     '--remote-debugging-port=0',
+    '--disable-blink-features=AutomationControlled',
     '--no-first-run',
     '--no-default-browser-check',
     ...(options.headless === true ? ['--headless=new'] : []),
