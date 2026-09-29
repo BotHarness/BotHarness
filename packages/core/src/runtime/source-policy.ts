@@ -38,7 +38,6 @@ export interface BotSourcePolicy {
   lastActor: BotSourcePolicyActor;
   changedAt: string;
   overrideActive: boolean;
-  /** Actual Orchestrator wake attempts in the preceding seven days, not Admission count. */
   recentWakeCount: number;
 }
 
@@ -46,7 +45,6 @@ export interface BotSourcePolicyStore {
   /** Resolve inside the caller's Admission transaction, seeding the built-in revision once. */
   resolveIn(database: DatabaseSync, botSlug: string, sourceClass: BotSourceClass): BotSourcePolicy;
   list(botSlug: string): BotSourcePolicy[];
-  /** The first editable tracer is Assignment report: conditional or immediate wake. */
   setAssignmentReport(
     botSlug: string,
     wake: 'conditional' | 'immediate',
@@ -173,8 +171,6 @@ export function createBotSourcePolicyStore(
       (row.actor_kind === 'bot' && row.actor_bot_slug !== botSlug)
     )
       throw new Error('Source policy actor is invalid');
-    // The existing revision CHECK keeps parameters only on digest rows; recover
-    // the last digest thresholds for a later switch back from all/mentions/silent.
     const previousDigest =
       sourceClass === 'group-ordinary' && row.wake_mode !== 'digest'
         ? (db
