@@ -1,15 +1,3 @@
-/**
- * Runtime skill contribution for reading operational logs (issue #248, Q6).
- *
- * Agents get no dedicated log tool by design (ADR-0064); instead the Host
- * registers this model-only skill whose body is the reader guide. The skill
- * catalog carries only name + description until the model loads the body on
- * demand, so unread logs cost one directory line, not the guide.
- *
- * Single source: `docs/dev/guides/reading-operational-logs.md` is the
- * authored text and the docs site renders it; `LOGS_SKILL_CONTENT` is the
- * registered copy. `log-skill.test.ts` fails on any drift between the two.
- */
 export const LOGS_SKILL_NAME = 'reading-operational-logs';
 
 export const LOGS_SKILL_DESCRIPTION =
@@ -23,19 +11,10 @@ export const LOGS_SKILL_INVOCATION = {
   userInvocable: true,
 } as const;
 
-/**
- * Discovery bucket shown in the catalog. `register()` defaults an omitted
- * provider to `"runtime"` but never fills `source` — and the loader's
- * `validateDefinition` throws `source must be a string` on `get()`, so a
- * skill without an explicit source lists fine but never loads (diagnosed
- * live in #248: catalog showed the skill, two model `skill()` calls failed).
- */
 export const LOGS_SKILL_SOURCE = 'runtime';
 
-/** Attribution for the loaded body; kept distinct from the default. */
 export const LOGS_SKILL_PROVIDER = 'botharness-core';
 
-/** Minimal registrar surface the gate drives; `ctx.skills` satisfies it structurally. */
 export interface SkillRegistrar {
   register(definition: {
     readonly name: string;
@@ -48,12 +27,6 @@ export interface SkillRegistrar {
   }): () => void;
 }
 
-/**
- * Developer-Mode gate for the log skill (issue #248, Q6): the skill exists in
- * catalogs only while the Human-owned `developerMode` preference is on.
- * Register-once while on, dispose on off; repeated sets are idempotent. The
- * default is off, so a fresh Host exposes nothing until a client reports.
- */
 export class DeveloperModeSkillGate {
   private disposeRegistration: (() => void) | undefined;
   private enabled = false;

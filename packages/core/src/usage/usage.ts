@@ -11,7 +11,6 @@ import {
 import type { SessionOwnership } from '../sessions/ownership.js';
 import type { DshSessionEvent } from '../sessions/source.js';
 
-/** One Host-local day of billed tokens, split by the route and purpose that produced it. */
 export interface UsageDayRow {
   day: string;
   purpose: string;
@@ -24,13 +23,11 @@ export interface UsageDayRow {
 }
 
 export interface UsageRebuildReport {
-  /** Turns whose usage was folded into the projection. */
   folded: number;
-  /** Owned Sessions whose log could not be read; their buckets stay unknown. */
+
   failed: number;
 }
 
-/** One durable Session log cut: full events plus the fork-inherited prefix length. */
 export interface DshUsageSessionLog {
   events: readonly DshSessionEvent[];
   inheritedEventCount: number;
@@ -41,18 +38,13 @@ export type DshUsageSessionLogReader = (
 ) => Promise<DshUsageSessionLog | undefined>;
 
 export interface UsageProjection {
-  /** Live `session/event` sink; folds each completed turn exactly once. */
   handleSessionEvent(sessionId: string, event: DshSessionEvent): void;
-  /**
-   * Cold rebuild from durable logs; replaces the whole derived projection.
-   * Ownership decides the candidate Sessions; the reader supplies their
-   * durable Session Query logs with exact fork-inherited prefix lengths.
-   */
+
   rebuild(
     sessionIds: readonly string[],
     readLog: DshUsageSessionLogReader,
   ): Promise<UsageRebuildReport>;
-  /** Host-local daily buckets for one PersonaBot since an instant. */
+
   activity(botSlug: string, sinceIso: string): UsageDayRow[];
 }
 
@@ -67,7 +59,6 @@ interface UsageDailyDbRow {
   cache_write_tokens: number;
 }
 
-/** Host-local calendar day of one epoch-ms instant, matching the Profile day boundary. */
 export function usageLocalDay(timeMs: number): string {
   const date = new Date(timeMs);
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -98,9 +89,9 @@ export function createUsageProjection(options: {
     'usage',
   );
   const { ownership } = options;
-  /** Turn-local buffers, keyed by Session; only complete turns are folded. */
+
   const buffers = new Map<string, DshSessionEvent[]>();
-  /** Turns that completed while a rebuild was reading logs; folded after it. */
+
   let rebuilding = false;
   const queuedTurns: Array<{ sessionId: string; events: DshSessionEvent[] }> = [];
 
@@ -185,7 +176,6 @@ export function createUsageProjection(options: {
     return true;
   };
 
-  /** Split a durable log into complete `turn/start` … `turn/end` windows. */
   const foldLog = (
     sessionId: string,
     events: readonly DshSessionEvent[],
@@ -262,8 +252,7 @@ export function createUsageProjection(options: {
                 connection,
               );
             }
-            // Turns that completed while the logs were read are not in the
-            // snapshots; fold them after the replacement so none are lost.
+
             for (const turn of queuedTurns) {
               if (snapshotHasTurn(logs.get(turn.sessionId), turn.events)) continue;
               if (foldTurn(turn.sessionId, turn.events, connection)) folded += 1;

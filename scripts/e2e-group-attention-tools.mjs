@@ -1,4 +1,3 @@
-/** Real DSH model run for #365: Bot Tool write, Human override, Bot Tool read. */
 import { basename } from 'node:path';
 import { readFileSync, writeFileSync } from 'node:fs';
 

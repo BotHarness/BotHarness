@@ -112,7 +112,6 @@ export function createWorkspaceGrantStore(options: {
       return rows.map(toRecord);
     },
     async create(botSlug, workspaceId) {
-      // Fence a pending idempotent create against a Human revoke during status().
       const activeAtStart = database.read(
         (connection) =>
           connection

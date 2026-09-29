@@ -7,7 +7,6 @@ import {
   type RosterSectionRecord,
 } from '../src/roster/spec.js';
 
-/** Counted in-memory stand-in for one open roster domain. */
 export interface FakeRosterDomain {
   readonly facility: RosterDomainFacility;
   readonly records: Map<string, RosterSectionRecord>;
@@ -57,12 +56,6 @@ class FakeTable implements KvTable<string, RosterSectionRecord> {
   }
 }
 
-/**
- * Build one in-memory roster domain the store can attach to. The fake mirrors
- * the storage-domain handle surface the store uses; counters prove when a
- * write was actually issued (idempotence) and when close ran.
- * @param initial - Optional preloaded records/global for reopen-style tests.
- */
 export function createFakeRosterDomain(
   initial: {
     records?: Record<string, RosterSectionRecord>;

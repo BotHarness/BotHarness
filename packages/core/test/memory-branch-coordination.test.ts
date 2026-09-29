@@ -177,8 +177,6 @@ it('coordinates a dirty Memory switch with an addressed Assignment and retries i
     expect(git(memoryRoot, 'branch', '--show-current')).toBe('main');
     expect(git(memoryRoot, 'diff', '--cached', '--name-only')).toBe('draft.md');
 
-    // The Orchestrator preserves its own Memory edit only after the
-    // Assignment reaches a safe pause; the Assignment never touches Memory.
     await assignmentRun!.report({
       state: 'completed',
       summary: 'Assignment paused; project files preserved.',

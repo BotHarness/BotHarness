@@ -59,13 +59,6 @@ declare module '@deepseek-ai/dsh-typert-protocol/types' {
   }
 }
 
-/**
- * The Typert descriptor key, owned by `@deepseek-ai/dsh-typert-protocol`
- * (`REMOTE_METHOD_DESCRIPTOR`). The standard decorator syntax cannot survive
- * this repo's rolldown/oxc pipeline — Vite and tsdown both pass `@Remote`
- * through untouched — so the same descriptor is written directly instead.
- * Keep `markRemoteMethods` in sync with the methods below.
- */
 const REMOTE_METHOD_DESCRIPTOR = '@deepseek-ai/dsh-typert-protocol/remote-methods';
 
 interface RemoteMethodDescriptor {
@@ -102,16 +95,6 @@ async function unwrapAsync<T>(result: Promise<BridgeResult<T>>): Promise<T> {
   return unwrap(await result);
 }
 
-/**
- * Host half of the client bridge.
- *
- * The service is registered through the Cordis `Service` machinery with a
- * visible `typertRemote` binding (namespace `botharness`), so
- * `@deepseek-ai/dsh-api-gateway` claims the `botharness/<method>` endpoints
- * from the Typert registry and dispatches them through `/api`. Failures ride
- * `RemoteError` so the gateway encodes `{ code, message, details }` onto the
- * wire, matching the pre-migration `BridgeResult` error branch.
- */
 export class BotharnessBridgeService extends TypertRemoteService {
   private readonly methods: BridgeMethods;
 
@@ -591,12 +574,6 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'botAvatarSet',
 ]);
 
-/**
- * Register the bridge Service for the Typert Gateway.
- *
- * No `connection` dependency: claims are discovered from the Typert registry,
- * so profiles without a web connection keep loading the plugin (ADR-0022).
- */
 export function registerBridge(ctx: Context, methods: BridgeMethods): BotharnessBridgeService {
   return new BotharnessBridgeService(ctx, methods);
 }

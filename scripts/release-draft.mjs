@@ -162,9 +162,6 @@ function validateComparisonUrl(artifact, version, value, previousVersion) {
   return url.href;
 }
 
-/**
- * Build a reviewable GitHub Release payload without creating a tag, artifact, or remote release.
- */
 export function prepareReleaseDraft(input) {
   const artifact = ARTIFACTS[input.artifact];
   if (!artifact) fail('artifact must be deepseekbot or dsh-skill.');

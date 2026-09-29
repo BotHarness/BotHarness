@@ -297,7 +297,6 @@ describe('operational log database', () => {
     try {
       logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'a' });
       if (process.platform === 'win32') {
-        // Windows keeps the live SQLite file locked: verify denial and uninterrupted writes.
         expect(() => rmSync(join(dir, LOG_DB_FILENAME), { force: true })).toThrow(/EPERM|EACCES/);
         logs.write({ plugin: 'computer', owner: 'profile-shared', kind: 'viewer', detail: 'b' });
         expect(rowsOf(dir).map((row) => row.detail)).toEqual(['a', 'b']);
@@ -508,7 +507,7 @@ describe('operational log query', () => {
         'stop requested',
         'send failed',
       ]);
-      // Absurd and invalid limits fall back to the default window, not an error.
+
       expect(logs.query({ limit: 5000 })).toHaveLength(4);
       expect(logs.query({ limit: 0 })).toHaveLength(4);
     } finally {

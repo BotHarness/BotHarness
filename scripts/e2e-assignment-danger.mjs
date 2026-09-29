@@ -1,4 +1,3 @@
-// Live #116 danger-mode tracer: one Bot opts into unrestricted new Assignments.
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

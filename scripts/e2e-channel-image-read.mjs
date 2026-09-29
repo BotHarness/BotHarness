@@ -1,4 +1,3 @@
-// Live DSH tracer for #209: a PersonaBot reads an authorized Channel image by opaque reference.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

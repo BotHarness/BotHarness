@@ -120,11 +120,6 @@ export interface OperationalDatabaseOwnerOptions {
   onObserverError?: (error: unknown) => void;
 }
 
-/**
- * Internal seam for a deep module that owns concrete operational tables.
- * It is deliberately not exported from the package root: external callers get
- * lifecycle, diagnostics, and notifications, not a generic SQL repository.
- */
 export interface OperationalDatabaseModulePort {
   readonly module: string;
   read<T>(query: (database: DatabaseSync) => T): T;
@@ -508,8 +503,7 @@ function migrateInStaging(
     let staging: DatabaseSync | undefined;
     try {
       staging = openDatabase(stagingPath);
-      // A referenced-table rebuild needs FK checks after the staged transaction.
-      // The complete staged copy is integrity-checked before it can replace the active DB.
+
       if (
         plan.migrations.some(
           (migration) =>
@@ -535,9 +529,7 @@ function migrateInStaging(
       if (staging?.isTransaction === true) {
         try {
           staging.exec('ROLLBACK');
-        } catch {
-          // The original migration error remains the useful failure.
-        }
+        } catch {}
       }
       throw toOperationalError('migration-failed', 'Staged schema migration failed', error);
     } finally {
@@ -771,7 +763,6 @@ function fsyncFile(path: string): void {
 }
 
 function fsyncDirectory(path: string): void {
-  // Node cannot open directories for fsync on Windows (EPERM).
   if (process.platform === 'win32') return;
   let descriptor: number | undefined;
   try {

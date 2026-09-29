@@ -3,12 +3,11 @@ import type { DatabaseSync } from 'node:sqlite';
 export const FOUNDATION_SCHEMA_GENERATION = 1;
 
 export interface SchemaMigration {
-  /** The complete operational database generation after this step commits. */
   generation: number;
-  /** Deep module that owns the tables and invariants changed by this step. */
+
   module: string;
   description: string;
-  /** A staged migration that rebuilds a referenced table; integrity is checked before activation. */
+
   rebuildsReferencedTables?: boolean;
   migrate(database: DatabaseSync): void;
 }
@@ -25,11 +24,6 @@ export interface LegacyForwardMigrationPlanEntry {
   readonly policy: 'import-once-when-target-empty';
 }
 
-/**
- * The old domains are inputs to future owning-module migrations, never fallback
- * authorities. Their adapters land with the target tables (#80 / roster follow-up),
- * rather than making the database owner understand either domain model.
- */
 export const LEGACY_FORWARD_MIGRATION_PLAN: readonly LegacyForwardMigrationPlanEntry[] = [
   {
     source: 'dsh-storage-domain',

@@ -6,11 +6,6 @@ export const BOT_AVATAR_PATH = '/api/botharness/bot-avatar';
 
 const CACHE_CONTROL = 'private, max-age=300';
 
-/**
- * DSH-authenticated exact Fetch route for custom PersonaBot avatar bytes.
- * The summary read model carries this URL instead of inlining base64, so a
- * message-driven roster refresh never re-downloads the image (ADR-0086).
- */
 export function createBotAvatarHttp(
   registry: PersonaBotRegistry,
 ): (request: Request) => Promise<Response> {
@@ -46,7 +41,6 @@ export function createBotAvatarHttp(
   };
 }
 
-/** RFC 9110 conditional matching: wildcard, comma lists, and weak validators. */
 export function matchesIfNoneMatch(header: string | null, etag: string): boolean {
   if (header === null) return false;
   if (header.trim() === '*') return true;

@@ -45,7 +45,6 @@ export interface ChannelStoreOptions {
   botDisplayName?: (botSlug: string) => string | undefined;
 }
 
-/** A message accepted by the Channel writer, with its durable per-Channel position. */
 export interface ChannelMessageCommit {
   channelId: string;
   message: ChannelMessage;
@@ -57,7 +56,6 @@ export type ChannelAppendOnceResult =
   | { status: 'conflict' }
   | { status: 'missing' };
 
-/** Profile-scoped last committed Channel message observed by the Human. */
 export interface ChannelReadPosition {
   messageId: string;
   revision: number;
@@ -77,7 +75,7 @@ export interface ChannelMessageQueryOptions {
   to?: string;
   cursor?: string;
   limit?: number;
-  /** Internal joined-search order; default remains Channel commit revision. */
+
   orderBy?: 'time';
 }
 
@@ -98,7 +96,6 @@ export interface PreparedChannelMessageQuery {
   limit: number;
 }
 
-/** Normalize filters and bind an opaque cursor to its exact query. */
 export function prepareChannelMessageQuery(
   channelId: string,
   options: ChannelMessageQueryOptions = {},
@@ -178,7 +175,6 @@ export function prepareChannelMessageQuery(
   };
 }
 
-/** Query the full ordered history before applying the bounded page. */
 export function queryChannelMessages(
   channelId: string,
   messages: readonly ChannelMessage[],
@@ -240,13 +236,13 @@ export interface ChannelStore {
   rootDir: string;
   list(): ChannelRecord[];
   get(id: string): ChannelRecord | undefined;
-  /** Latest valid durable message, without parsing the full history into records. */
+
   latestMessage(id: string): ChannelMessage | undefined;
-  /** Check the full durable Channel history, including messages outside the latest page. */
+
   hasMessage(id: string, messageId: string): boolean;
   message(id: string, messageId: string): ChannelMessage | undefined;
   assertAttachmentRefs(refs: readonly ChannelAttachmentRef[]): void;
-  /** Durable mark set for a profile-scoped Attachment Store sweep. */
+
   referencedAttachmentHashes(): ReadonlySet<string>;
   getOrCreateDm(botSlug: string, botName: string): ChannelRecord | undefined;
   getOrCreateBotDm(
@@ -255,7 +251,7 @@ export interface ChannelStore {
     name: string,
   ): ChannelRecord | undefined;
   createGroup(input: CreateChannelGroupInput): ChannelRecord;
-  /** One pending invitation and its Inbox Admission are committed together. */
+
   inviteGroupBot(input: {
     channelId: string;
     inviterBotSlug?: string;
@@ -266,7 +262,7 @@ export interface ChannelStore {
     botCausation?: BotMessageCausation;
   }): GroupInvitation;
   setGroupAvatar(channelId: string, avatar: string | null): ChannelRecord;
-  /** Only the named invitee may decide; acceptance adds membership atomically. */
+
   respondToGroupInvite(input: {
     invitationId: string;
     targetBotSlug: string;
@@ -276,7 +272,7 @@ export interface ChannelStore {
     channel: ChannelRecord;
     invitation: GroupInvitation;
   };
-  /** Durable request for a Human-referenced Group; requester remains a nonmember. */
+
   requestGroupJoin(input: {
     channelId: string;
     requesterBotSlug: string;
@@ -284,7 +280,7 @@ export interface ChannelStore {
     ownerDmChannelId?: string;
     botCausation?: BotMessageCausation;
   }): GroupJoinRequest;
-  /** A Human or current Bot Group creator decides; first decision wins. */
+
   decideGroupJoin(input: {
     channelId: string;
     requestId: string;
@@ -294,7 +290,7 @@ export interface ChannelStore {
     requesterDmChannelId: string;
     botCausation?: BotMessageCausation;
   }): { channel: ChannelRecord; request: GroupJoinRequest; notified: boolean };
-  /** The Human may cancel a pending invite or remove a joined Bot. */
+
   cancelGroupInvite(channelId: string, invitationId: string): ChannelRecord;
   cancelInvitationsForBot(botSlug: string): void;
   getGroupWakePolicy(channelId: string, botSlug: string): GroupWakePolicyView;
@@ -313,7 +309,7 @@ export interface ChannelStore {
     botSlug: string,
     departureType?: 'left' | 'removed',
   ): ChannelRecord;
-  /** Human-only logical deletion; past operational events remain for recovery/audit. */
+
   deleteGroup(channelId: string): void;
   rename(id: string, name: string): ChannelRecord | undefined;
   appendMessageOnce(id: string, message: ChannelMessage): Promise<ChannelAppendOnceResult>;
@@ -326,7 +322,7 @@ export interface ChannelStore {
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
   admissionChanged?(channelId: string, messageId: string): void;
-  /** Observed Inbox Admissions of one PersonaBot since an instant, for activity views. */
+
   admissionActivity?(botSlug: string, sinceIso: string): Array<{ at: string; reason: string }>;
 }
 
@@ -672,9 +668,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
     cancelGroupInvite() {
       throw new Error('Group invitations require the operational Channel store');
     },
-    cancelInvitationsForBot() {
-      // Legacy file Channels cannot contain Inbox-backed invitations.
-    },
+    cancelInvitationsForBot() {},
     getGroupWakePolicy() {
       throw new Error('Group wake policy requires the operational Channel store');
     },

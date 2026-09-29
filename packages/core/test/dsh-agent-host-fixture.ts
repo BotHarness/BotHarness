@@ -29,9 +29,8 @@ export interface FakeSession {
 }
 
 export interface FakeAgentHostHooks {
-  /** Mirrors DSH's `agent/created` so a Host wiring can be driven end to end. */
   onAgentCreated?(agent: unknown): void;
-  /** Mirrors DSH's `session/event` firehose for every appended event. */
+
   onSessionEvent?(
     session: FakeSession,
     event: { type: string; seq: number; time: number; data: unknown },
@@ -51,7 +50,6 @@ interface FakeEvent {
   data: unknown;
 }
 
-/** Minimal DSH Agent host double that drives one deterministic turn per session. */
 export class FakeAgentHost implements DshAgentHost {
   readonly createOptions: CreateAgentOptions[] = [];
   readonly resumeOptions: ResumeAgentOptions[] = [];

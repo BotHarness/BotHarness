@@ -10,7 +10,6 @@ export type BotAttentionState =
   | 'handled'
   | 'ignored';
 
-/** A Bot-owned Inbox fact projected from one canonical admission and Source Event. */
 export interface BotAttentionItem {
   id: string;
   botSlug: string;
@@ -70,7 +69,6 @@ interface AttentionRow {
   state: BotAttentionState;
 }
 
-/** No second Inbox store: every page is rebuilt from committed Messaging facts. */
 export function createBotAttentionQuery(
   database: OperationalDatabaseModulePort,
   channels: ChannelStore,

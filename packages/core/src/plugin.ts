@@ -103,11 +103,6 @@ export interface CompactionRefreshSink {
   warn(message: string): void;
 }
 
-/**
- * Compaction-boundary trigger for persona refresh, extracted for testing.
- * Only an owned Session's `compaction/end` reaches the refresh; everything
- * else is a silent no-op and failures never propagate into event dispatch.
- */
 export function handleCompactionEvent(
   sink: CompactionRefreshSink,
   sessionId: string,
@@ -125,7 +120,7 @@ export function handleCompactionEvent(
 
 export interface BotHarnessConfig {
   enabled: boolean;
-  /** Defaulted by the schema in production; optional so tests can pass a partial config. */
+
   agentPreset?: string;
 }
 
@@ -147,15 +142,11 @@ export interface BotHarnessCore {
   rootDir: string;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
-  /** Register one optional bundle's Bot-agent contribution; returns its remover. */
+
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
-  /**
-   * Native tool names owned by optional Host-side bundles (e.g. the Computer
-   * Tool Provider). They act outside Host files, so the file-grant guard and
-   * the unconfined-native gate skip them; their own authorization governs.
-   */
+
   hostTools: Set<string>;
-  /** Run every registered Bot-agent contribution for one agent setup. */
+
   runBotAgentSetups(
     agentCtx: Context,
     agent: import('@deepseek-ai/dsh-agent').Agent,
@@ -164,7 +155,7 @@ export interface BotHarnessCore {
   states: BotStateTracker;
   ownership: SessionOwnership;
   memory: MemoryService;
-  /** Derived daily token buckets; absent when the operational database is unavailable. */
+
   usage?: UsageProjection;
   channels: ChannelStore;
   attachments: AttachmentStore;
@@ -193,7 +184,6 @@ function unavailableAgentAdapter(): BotAgentAdapter {
   };
 }
 
-/** One optional bundle's Bot-agent contribution (see onAgentSetup). */
 type BotAgentSetup = (
   agentCtx: import('@deepseek-ai/cordis').Context,
   agent: import('@deepseek-ai/dsh-agent').Agent,
@@ -457,7 +447,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
 
   const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
     grantExecutionDenial(core, session, ctx.get('sandboxPolicy'), ctx.get('approval'));
-  // Native DSH prompt/resume also enters this waterfall, including after a Host restart.
+
   ctx.on(
     'agent/pre-step',
     async ({ agent }, next) =>
@@ -515,11 +505,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       if (!requiresHumanToolApproval(execution.name)) return next();
       if (isSafeMemoryDirectoryListing(core, agent.session, execution.name, execution.arguments))
         return next();
-      // Computer tools act on the profile's shared Computer, not on Host
-      // files, so the file-grant approval never applies. Their own
-      // session-scoped Computer Authorization rides THIS hook instead: the
-      // ask becomes a Bot DM approval card (one-time / always rules included),
-      // and the grant lasts for the session (ADR-0080).
+
       const computerTools = ctx.get('botharnessComputerTools') as
         | {
             ownsTool?(name: string): boolean;
@@ -600,7 +586,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     },
     { global: true },
   );
-  // Every call is rechecked after the Human's decision; a revoked Assignment still fails.
+
   ctx.tools.guard(({ agent, name, arguments: args, token }) => {
     const allowedOnce = approvedCalls.delete(token);
     return agent === undefined
@@ -630,8 +616,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   );
 
   const dshSessions = (ctx as unknown as { sessions: DshSessionStore }).sessions;
-  // Holder filled by the skills inject below; the bridge method degrades to
-  // accepted:false until the skills service resolves it.
+
   const developerModeTarget: { gate?: DeveloperModeSkillGate } = {};
   registerBridge(
     ctx,
@@ -657,8 +642,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         set: (enabled: boolean) => developerModeTarget.gate?.set(enabled),
       },
       computerAccess: {
-        // The Computer Tool Provider is a separate optional bundle; when it
-        // is not composed this hook is a no-op and nothing changes.
         changed: (slug: string) => {
           const provider = ctx.get('botharnessComputerTools') as unknown as
             | { reconcileBot?: (slug: string) => Promise<void> }
@@ -674,11 +657,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     }),
   );
 
-  // DeveloperModeSkillGate owns the global-layer registration, so every
-  // agent scope sees one directory line only while the Human-owned
-  // developerMode preference is on. Clients report the flag over the bridge
-  // (`developerModeSet`); default off registers nothing until the first
-  // report. Runs only when the skills service is composed.
   ctx.inject(['skills'], (skillsCtx) => {
     const skills = (
       skillsCtx as unknown as {
@@ -710,7 +688,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     });
   });
 
-  // The shared /api carrier authenticates this exact Fetch route.
   ctx.inject(['connection'], (connectionCtx) => {
     const connection = (
       connectionCtx as unknown as {
@@ -773,9 +750,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ownership: core.ownership,
     states: core.states,
   });
-  // Runtime-verified in dsh-compaction-basic 0.1.7-rc.2 (appends
-  // compaction/start|summary|end session events); absent from its ctx.on
-  // typing, hence the widening.
+
   ctx.on(
     'session/event',
     (session, event) => {
@@ -810,8 +785,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   activity.rebuild(dshSessions.list());
   if (core.usage !== undefined) {
     const usage = core.usage;
-    // Ownership is the durable candidate list; Session Query supplies the logs,
-    // because a restored Session's in-memory snapshot may omit old turns.
+
     ctx.inject(['sessionQuery'], (sessionCtx) => {
       const query = sessionCtx.get('sessionQuery') as unknown as
         | {
@@ -848,8 +822,6 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     });
   }
 
-  // Storage is an optional capability: without it the plugin still loads and
-  // the bridge reports `storage-unavailable` for arrangement writes.
   ctx.inject(['storageDomain'], (storageCtx) => {
     void core.roster.attach(storageCtx.storageDomain).catch((error: unknown) => {
       ctx.logger.warn(`botharness: failed to open the roster domain: ${String(error)}`);

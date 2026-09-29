@@ -134,7 +134,6 @@ function parseReleaseLedgerDocument(markdown) {
   return { releases, unexpectedContent };
 }
 
-/** Parse a canonical DeepSeekBot Release Ledger into its public release shape. */
 export function parseReleaseLedger(markdown) {
   const { releases } = parseReleaseLedgerDocument(markdown);
   return { releases };
@@ -287,7 +286,6 @@ function validateReleaseLedgerForRepository(markdown, source, repository) {
   return errors;
 }
 
-/** Validate the objective structure of one canonical DeepSeekBot Release Ledger. */
 export function validateReleaseLedger(markdown, source = 'ledger') {
   return validateReleaseLedgerForRepository(markdown, source, DEEPSEEKBOT_RELEASE_REPOSITORY);
 }
@@ -417,7 +415,6 @@ function validateReleaseLedgerPairForRepository(english, chinese, repository) {
   return errors;
 }
 
-/** Validate the English authority and Chinese counterpart as one DeepSeekBot release ledger. */
 export function validateReleaseLedgerPair(english, chinese) {
   return validateReleaseLedgerPairForRepository(english, chinese, DEEPSEEKBOT_RELEASE_REPOSITORY);
 }
@@ -431,7 +428,6 @@ function sameProvenance(left, right) {
   );
 }
 
-/** Validate DSH Skill release provenance on top of the shared bilingual ledger contract. */
 export function validateDshSkillReleaseLedgerPair(english, chinese, current) {
   const errors = validateReleaseLedgerPairForRepository(
     english,

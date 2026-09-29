@@ -69,7 +69,6 @@ describe('Usage projection', () => {
     expect(usageLocalDay(TURN_END)).toBe(expectedDay(TURN_END));
     expect(usage.activity('bea', SINCE)).toEqual([]);
 
-    // A second fold of the same turn is impossible: the buffer is consumed.
     usage.handleSessionEvent('session-1', event('assistant/message', TURN_END + 1000));
     usage.handleSessionEvent('session-1', event('turn/end', TURN_END + 1000));
     expect(usage.activity('ada', SINCE)).toHaveLength(1);
@@ -165,7 +164,6 @@ describe('Usage projection', () => {
       },
     ]);
 
-    // Rebuild replaces the derived projection instead of doubling it.
     expect(await usage.rebuild(ids, readLog)).toEqual({ folded: 2, failed: 0 });
     const rebuilt = usage.activity('ada', SINCE);
     expect(rebuilt).toHaveLength(2);
@@ -205,15 +203,14 @@ describe('Usage rebuild races', () => {
       return { events: snapshotTurn, inheritedEventCount: 0 };
     };
 
-    // A turn on another Session is already in progress when the rebuild starts.
     usage.handleSessionEvent('session-2', event('turn/start', TURN_END + 1000));
     const rebuilding = usage.rebuild(['session-1'], readLog);
     await Promise.resolve();
-    // A second turn completes entirely while the snapshot is still being read.
+
     feedTurn(usage, 'session-1', TURN_END + 2000);
     release();
     expect(await rebuilding).toEqual({ folded: 2, failed: 0 });
-    // The in-progress buffer survived and still folds after the rebuild.
+
     usage.handleSessionEvent('session-2', event('assistant/message', TURN_END + 3000));
     usage.handleSessionEvent('session-2', event('turn/end', TURN_END + 3001));
 

@@ -3,7 +3,6 @@ import type { DatabaseSync } from 'node:sqlite';
 import { DEFAULT_GROUP_WAKE_POLICY, type GroupWakePolicy } from '../channels/channel.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
-/** Application-defined source classes; Channel overrides remain on Group Channel records. */
 export const BOT_SOURCE_DEFAULTS = {
   'human-dm': { wake: 'immediate' },
   'bot-dm': { wake: 'immediate' },
@@ -35,12 +34,10 @@ export interface BotSourcePolicy {
 }
 
 export interface BotSourcePolicyStore {
-  /** Resolve inside the caller's Admission transaction, seeding the built-in revision once. */
   resolveIn(database: DatabaseSync, botSlug: string, sourceClass: BotSourceClass): BotSourcePolicy;
   list(botSlug: string): BotSourcePolicy[];
 }
 
-/** An unset Group Channel override inherits the PersonaBot's ordinary-message default. */
 export function defaultGroupWakePolicy(policy: BotSourcePolicy): GroupWakePolicy {
   if (
     policy.sourceClass !== 'group-ordinary' ||

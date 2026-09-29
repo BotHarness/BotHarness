@@ -1,4 +1,3 @@
-// Live DSH regression for #208: committed roster placement crosses browser windows.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

@@ -88,7 +88,6 @@ function decodeCursor(value: string, filters: string): Cursor {
   }
 }
 
-/** Projects Human attention from canonical Channel requests, messages, and read positions. */
 export function createHumanAttentionQuery(
   database: OperationalDatabaseModulePort,
   activeQuestionMessageIds: () => readonly string[] = () => [],
@@ -345,7 +344,6 @@ export function createHumanAttentionQuery(
   };
 }
 
-/** Human decisions record only a disposition, never another copy of Inbox content. */
 export interface HumanAttentionDecisions {
   ignoreAssignmentReport(sourceEventId: string): boolean;
 }

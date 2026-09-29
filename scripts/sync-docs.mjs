@@ -1,42 +1,5 @@
 #!/usr/bin/env node
-/**
- * sync-docs.mjs — generate the docs site's content from repo sources.
- *
- * Bilingual layout (see `apps/docs` AGENT.md):
- *
- *   - English is primary. The `docs` collection serves the root URL tree
- *     (`/docs/**`, `/dev/**`). Hand-translated user docs live in
- *     `apps/docs/src/content/docs/docs/`; this script generates
- *     `docs/dev/**` from the repo sources.
- *   - Chinese is secondary, mounted at `/zh/**` through Nimbus's
- *     `versions.others` mechanism (`docs-zh` collection). Hand-translated
- *     user docs live in `apps/docs/src/content/docs-zh/docs/`; this script
- *     generates `docs-zh/dev/**` and bilingual `docs-zh/dsh/**` pages from
- *     the repo sources.
- *
- * The repo files are the single source of truth: every generated page is
- * rebuilt from them on each `syncDocs()` call.
- *
- *   - A page with both an English and a Chinese source (`PAGES[].en` /
- *     `PAGES[].zh`, e.g. the architecture page) is written verbatim into
- *     both trees.
- *   - A page with only a Chinese source is Chinese in both trees, but the
- *     English-tree copy carries `untranslated: true`, so the root route
- *     renders it with the "not translated yet" banner.
- *   - A page with only an English source would be English in both trees,
- *     with the Chinese-tree copy flagged `untranslated: true` so the `/zh`
- *     route renders the Chinese notice instead.
- *
- * Changelog entries are generated from the bilingual canonical Release
- * Ledger (`CHANGELOG.md` + `CHANGELOG.zh.md`). `Unreleased` never enters the
- * public trees. Dated SemVer sections become release pages; the one-time
- * `Development` consolidation remains visibly non-versioned.
- *
- * Never hand-edit anything under `src/content/docs/dev/**`,
- * `src/content/docs-zh/dev/**`, `src/content/docs/dsh/**`,
- * `src/content/docs-zh/dsh/**`, `src/content/changelog/**`, or
- * `src/content/changelog-zh/**`.
- */
+
 import {
   copyFileSync,
   mkdirSync,
@@ -131,13 +94,6 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
   { name: '09-dsh-host-client', caption: 'Host/client boundary' },
 ];
 
-/**
- * Repo sources per docs page. Each variant carries its source file, the
- * frontmatter fallback copy, and (for the architecture page) the diagram
- * captions/`lang`. `configuredTitle` keeps a locale-specific product title
- * when both trees share one source. Pages without a variant source are
- * rendered from the other language's source and flagged `untranslated`.
- */
 export const PAGES = [
   {
     slug: 'dev/index',
@@ -326,11 +282,6 @@ function frontmatter({ title, description, order, untranslated, extra = [] }) {
   return lines.join('\n');
 }
 
-/**
- * English sources may carry a maintainer note as an HTML comment directly
- * under the H1 (kept readable in the repo). MDX only accepts JSX-style
- * comments, so drop a leading note when generating the page.
- */
 function stripMaintainerNote(body) {
   return body.replace(/^(#\s+[^\r\n]*\r?\n+)\s*<!--[\s\S]*?-->\s*\r?\n+/, '$1');
 }
@@ -343,7 +294,6 @@ function prepare(body, diagrams, lang) {
   return rewriteLinks(transformed);
 }
 
-/** Render one variant of a page (frontmatter + prepared body). */
 function renderPage(variant, order, untranslated) {
   const raw = readText(variant.source);
   const { body } = stripFrontmatter(raw);
@@ -354,11 +304,6 @@ function renderPage(variant, order, untranslated) {
   );
 }
 
-/**
- * Generate every `PAGES` entry into both collections: the English tree
- * (`docs/`) keeps translated pages clean and flags Chinese-only fallbacks,
- * the Chinese tree (`docs-zh/`) is the mirror image.
- */
 function syncPages() {
   for (const page of PAGES) {
     const enTarget = `docs/${page.slug}.mdx`;
@@ -681,7 +626,6 @@ function renderReleaseLedgerEntry(release, language) {
   return lines.join('\n');
 }
 
-/** Convert one bilingual canonical ledger into public, version-level pages. */
 export function releaseLedgerSiteEntries(english, chinese) {
   const errors = validateReleaseLedgerPair(english, chinese);
   if (errors.length > 0) {
@@ -705,7 +649,6 @@ export function releaseLedgerSiteEntries(english, chinese) {
     }));
 }
 
-/** Generate both public Changelog trees from the canonical bilingual ledger. */
 function syncChangelog() {
   rmSync(join(CONTENT, 'changelog'), { recursive: true, force: true });
   rmSync(join(CONTENT, 'changelog-zh'), { recursive: true, force: true });
@@ -757,7 +700,6 @@ function syncDiagrams() {
   process.stdout.write(`diagrams: ${en} SVG(s) -> apps/docs/public/diagrams/en\n`);
 }
 
-/** Provenance metadata from the skill's frontmatter; reused by every DSH Dev Docs page. */
 function skillProvenance() {
   const { frontmatter: text } = stripFrontmatter(readText(`${SKILL}SKILL.md`));
   const lines = text.split(/\r?\n/);
@@ -845,13 +787,6 @@ function prepareSkill(body, tree, diagrams, lang) {
   );
 }
 
-/**
- * DSH Dev Docs: render the dsh-plugin-dev skill (`.agents/skills/dsh-plugin-dev/`)
- * into the `dsh/` section of both trees, plus the hand-written landing
- * (`docs/dsh/index.md` + `.zh.md`). Every page carries the skill's provenance
- * fields so readers can see which DSH revision its claims were verified
- * against — the mirror repo ships the same values.
- */
 function syncSkill() {
   const provenance = provenanceFields(skillProvenance());
 
