@@ -1,30 +1,16 @@
-/**
- * Pinned Cua Driver supply and stdio MCP connection for the Computer Tool
- * Provider. The driver runs inside the Computer container; this module
- * installs the checksummed binary into the persistent volume and speaks MCP
- * to it through `docker exec -i`. Nothing here is model-facing; the provider
- * adapts tools and content (see ./provider.ts).
- * @module @botharness/computer/tool/driver
- */
-
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 
 import type { ComputerRuntimeRunner } from '../provider.js';
 
-/** Pinned driver release (checksum verified against the published checksums.txt). */
 export const CUA_DRIVER_VERSION = '0.28.0';
 
-/** Install directory inside the container's persistent volume. */
 export const CUA_DRIVER_DIR = `/config/.botharness/cua-driver/${CUA_DRIVER_VERSION}`;
 
-/** Absolute path of the installed driver executable. */
 export const CUA_DRIVER_PATH = `${CUA_DRIVER_DIR}/cua-driver`;
 
-/** Desktop user the container runs as (linuxserver/webtop convention). */
 const DESKTOP_USER = 'abc';
 
-/** Driver process env: telemetry and update checks stay off (ADR-0050/0079). */
 const DRIVER_ENV_ARGS = [
   '-e',
   'CUA_DRIVER_RS_TELEMETRY_ENABLED=false',
@@ -32,7 +18,6 @@ const DRIVER_ENV_ARGS = [
   'CUA_DRIVER_RS_UPDATE_CHECK=false',
 ] as const;
 
-/** One tool as the driver's MCP catalog lists it. */
 export interface DriverToolDescriptor {
   readonly name: string;
   readonly description: string;
@@ -43,22 +28,16 @@ export interface DriverToolDescriptor {
 export interface CuaDriverOptions {
   readonly runner: ComputerRuntimeRunner;
   readonly containerName: string;
-  /** Container/lifecycle detail for the diagnostics stream. */
   readonly onEvent?: (detail: string) => void;
 }
 
 export interface CuaDriver {
-  /** Ensure the pinned driver exists in the container volume; install when missing. */
   ensure(signal?: AbortSignal): Promise<{ status: 'present' | 'installed'; arch: string }>;
-  /** List the driver's catalog (one MCP `tools/list`). */
   tools(signal?: AbortSignal): Promise<readonly DriverToolDescriptor[]>;
-  /** Call one driver tool by its raw name; returns the raw MCP result. */
   call(rawName: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<unknown>;
-  /** Drop the MCP child (the next call re-opens it). */
   close(): Promise<void>;
 }
 
-/** Observation tools safe to retry once after a transport loss (no side effect). */
 const READ_ONLY_TOOLS = new Set([
   'list_windows',
   'get_desktop_state',
@@ -66,7 +45,6 @@ const READ_ONLY_TOOLS = new Set([
   'verify_state',
 ]);
 
-/** Maps `uname -m` output onto the release asset suffix. */
 export function driverAssetArch(machine: string): string {
   const value = machine.trim();
   if (value === 'x86_64' || value === 'amd64') return 'linux-x86_64';
@@ -74,12 +52,10 @@ export function driverAssetArch(machine: string): string {
   throw new Error(`unsupported Computer architecture "${machine}"`);
 }
 
-/** Release asset URL for one architecture. */
 export function driverAssetUrl(arch: string): string {
   return `https://github.com/trycua/cua/releases/download/cua-driver-rs-v${CUA_DRIVER_VERSION}/cua-driver-rs-${CUA_DRIVER_VERSION}-${arch}-binary.tar.gz`;
 }
 
-/** Install script run as root inside the container (idempotent). */
 export function driverInstallScript(arch: string): string {
   const asset = `cua-driver-rs-${CUA_DRIVER_VERSION}-${arch}-binary.tar.gz`;
   return [
@@ -101,12 +77,8 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
   const { runner, containerName, onEvent } = options;
   const log = (detail: string): void => onEvent?.(detail);
 
-  /** `docker exec …` argv after the executable name; the MCP transport spawns
-   * `docker` itself, while the runtime runner takes the full argv. */
   const execArgs = (argv: readonly string[], user: string): string[] => [
     'exec',
-    // `-i` keeps the child's stdin open: stdio MCP ends at stdin EOF, and
-    // without it the driver exits right after startup (found live 2026-09-28).
     '-i',
     '-u',
     user,
@@ -145,17 +117,13 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
     if (current === undefined) return;
     try {
       await current.close();
-    } catch {
-      // A dead child cannot be closed; dropping the reference is the cleanup.
-    }
+    } catch {}
   };
 
   const openClient = async (): Promise<Client> => {
     const transport = new StdioClientTransport({
       command: 'docker',
       args: execArgs([CUA_DRIVER_PATH, 'mcp'], DESKTOP_USER),
-      // The child is `docker`; the desktop env rides the exec argv. Only PATH
-      // (and nothing else) is inherited so the transport stays deterministic.
       env: { PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin' },
       stderr: 'pipe',
     });
@@ -163,9 +131,6 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
       for (const line of String(chunk).split('\n'))
         if (line.trim() !== '') log(`driver: ${line.trim()}`);
     });
-    // Match the DSH mcp-client client options: `auto` version negotiation is
-    // what the driver accepts; the SDK default closed the connection
-    // immediately (found live 2026-09-28).
     const created = new Client(
       { name: 'botharness-computer', version: '0.0.0' },
       { capabilities: {}, versionNegotiation: { mode: 'auto' } },
@@ -236,13 +201,8 @@ export function createCuaDriver(options: CuaDriverOptions): CuaDriver {
       try {
         return await active.callTool({ name: rawName, arguments: args }, options);
       } catch (error) {
-        // Protocol/transport failures drop the child so the next call
-        // reconnects; a container restart therefore never wedges the bridge.
         await dropClient();
         if (alreadyAborted || !READ_ONLY_TOOLS.has(rawName)) throw error;
-        // Observation calls have no side effect, so one transparent retry is
-        // safe; action calls surface the error and let the model re-observe
-        // before deciding to act again (cancellation never rolls back).
         const retry = await ensureClient();
         return await retry.callTool({ name: rawName, arguments: args }, options);
       }

@@ -106,8 +106,6 @@ describe('computer settings prefs', () => {
   });
 
   it('rejects setExportDir when the Host silently recovers to the previous value', async () => {
-    // The real DSH scope resolves even on a refused write; the recovery read
-    // rolling the snapshot back is the only signal that nothing was stored.
     const fake = fakeScope({ exportDir: '/exports', idleStopMinutes: 30 });
     const prefs = new ComputerSettingsPrefs();
     prefs.attach(fake.scope);
@@ -287,7 +285,6 @@ describe('computer settings face', () => {
     expect(await face.requestUpload('a.tar')).toBe('up-1');
     const file = new File(['chunk-1', 'chunk-2'], 'a.tar');
     await face.sendUploadBytes('up-1', file);
-    // The Blob itself travels (XHR sets the length); nothing is stringified.
     expect(uploaded).toHaveLength(1);
     expect(uploaded[0]?.file).toBe(file);
     expect(xhr.headers['content-type']).toBe('application/octet-stream');

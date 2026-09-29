@@ -8,20 +8,9 @@ window.__ModuleLoader__.load({
 		let _deepseek_ai_dsh_client_ui_primitives = require("@deepseek-ai/dsh-client-ui-primitives");
 		let react_jsx_runtime = require("react/jsx-runtime");
 		//#region packages/computer/src/client/viewer-state.ts
-		/**
-		* The overlay target for an action: open targets the fullscreen overlay,
-		* collapse targets the resting entry. Fullscreen exits through the toolbar
-		* collapse button only — there is intentionally no Escape shortcut.
-		*/
 		function nextExpanded(action) {
 			return action === "open";
 		}
-		/**
-		* Display hysteresis for the phase: sub-hysteresis blips (resize
-		* renegotiation) never reach the overlay, title, or pill, while sustained
-		* changes flow through with at most one extra tick of lag. Raw tracker
-		* truth (loss/auto paths) never consults this.
-		*/
 		function smoothPhase(shown, raw, streak) {
 			if (raw === "live") return {
 				phase: "live",
@@ -41,41 +30,25 @@ window.__ModuleLoader__.load({
 				streak: next
 			};
 		}
-		/** StateDot semantics for a phase (done / blue ring / red). */
 		function dotStateFor(phase) {
 			if (phase === "live") return "done";
 			if (phase === "empty") return "error";
 			return "ongoing";
 		}
-		/** Locale key for the title-bar/overlay status text. */
 		function statusKeyFor(phase, reconnecting) {
 			if (phase === "live") return "entry.live";
 			if (phase === "empty") return "entry.noScreen";
 			return reconnecting ? "entry.reconnecting" : "entry.connecting";
 		}
-		/** Locale key for the stop control (shared by the title bar and the card row). */
 		function stopKey(busy, stopping) {
 			return busy || stopping ? "entry.stopping" : "entry.stop";
 		}
-		/**
-		* Bare container exit reports ("exited code=137") are machine noise from a
-		* normal stop — the start view shows the friendly shared note instead, while
-		* real server details and client errors still surface.
-		*/
 		const EXIT_REPORT = /^exited code=\d+$/;
 		function isExitReport(detail) {
 			return detail !== void 0 && EXIT_REPORT.test(detail);
 		}
-		/** Selkies' dedicated connection status line (a stable id, not minified). */
 		const STATUS_ELEMENT_ID = "status-display";
-		/**
-		* Substrings of a busy upstream: the connecting screen, the disconnect
-		* retry, and failure states. Scoped to `#status-display` only, so sidebar
-		* copy (e.g. a Reconnect button) can never trip it. Note "Connected" matches
-		* none of these — `connecting` is deliberately not truncated to `connect`.
-		*/
 		const BUSY_TEXT = /connecting|reconnect|disconnect|failed|error/i;
-		/** FNV-1a over raw bytes; the pixel-change detector below. */
 		function hashBytes(data) {
 			let hash = 2174524869;
 			for (let index = 0; index < data.length; index += 1) {
@@ -84,11 +57,6 @@ window.__ModuleLoader__.load({
 			}
 			return hash >>> 0;
 		}
-		/**
-		* Whether Selkies itself reports busy. False when the status element is
-		* absent (unknown page), hidden, or showing a non-busy state — never throws,
-		* so a cross-origin or exotic document degrades to "quiet".
-		*/
 		function upstreamBusy(doc) {
 			try {
 				const element = doc?.getElementById(STATUS_ELEMENT_ID);
@@ -112,12 +80,6 @@ window.__ModuleLoader__.load({
 				return;
 			}
 		}
-		/**
-		* Observes one frame of the viewer document: canvas size (the pre-#221
-		* signal), Selkies' own busy line, and a 16x16 pixel signature for change
-		* detection. Never throws; unreadable pixels degrade to `signature`
-		* undefined (the caller falls back to the sized-only signal).
-		*/
 		function sampleSurface(doc) {
 			const busy = upstreamBusy(doc);
 			let sized = false;
@@ -152,35 +114,12 @@ window.__ModuleLoader__.load({
 				lastSignature: prev.lastSignature
 			};
 		}
-		/**
-		* Remount the viewer after a loss only once the loss persists: a single
-		* missed tick (GC pause, slow first frame) must not restart the whole SPA —
-		* that churn is what kept post-start sessions from ever settling.
-		*/
 		function shouldRemountLoss(lossStreak) {
 			return lossStreak >= 3;
 		}
-		/**
-		* Remount a bounded number of times when the document never went live at
-		* all: the first load most likely failed while the server was still booting
-		* (proxy 503/connection-refused serves a dead error page no tick can
-		* recover). Beyond the bound the manual retry stays.
-		*/
 		function shouldAutoReload(phase, everLive, attempts) {
 			return phase === "empty" && !everLive && attempts < 3;
 		}
-		/**
-		* Projects one tick into the overlay phase:
-		* - unsized ticks never go live and age the miss budget (a dead first
-		*   document reaches empty fast, where auto-reload can rescue it);
-		* - upstream-busy ticks never go live but age a separate, patient budget, so
-		*   post-start negotiation flapping rides in connecting instead of forcing a
-		*   manual retry; the pixel baseline is preserved across them;
-		* - a changed signature goes live immediately (second tick at the latest);
-		* - unreadable pixels degrade to the old sized-only signal;
-		* - a quiet, sized, static surface goes live after QUIET_TOLERANCE (a real
-		*   desktop idling) and gives up to empty after QUIET_ABANDON.
-		*/
 		function nextStreamTracker(prev, sample) {
 			const signature = sample.signature;
 			if (!sample.sized) {
@@ -249,9 +188,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/computer/src/client/viewer-events.ts
-		/** Endpoint owning the bounded diagnostics ring (300 chars per detail). */
 		const VIEWER_EVENT_ENDPOINT = "/api/computer/diagnostics/viewer";
-		/** Stable machine-parseable line for one event. */
 		function viewerEventText(event) {
 			switch (event.type) {
 				case "mount": return "viewer mount docked";
@@ -262,11 +199,6 @@ window.__ModuleLoader__.load({
 				case "loss-remount": return `viewer loss-remount streak=${String(event.streak)}`;
 			}
 		}
-		/**
-		* Fire-and-forget post to the diagnostics route. Never throws — observability
-		* must not break the viewer — and defaults to the global fetch so call sites
-		* stay one argument.
-		*/
 		async function reportViewerEvent(fetchImpl, detail) {
 			try {
 				await (fetchImpl ?? fetch)(VIEWER_EVENT_ENDPOINT, {
@@ -279,9 +211,7 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		//#region packages/computer/src/client/locale.ts
-		/** Locale namespace owning the Computer client's copy. */
 		const LOCALE_NS = "botharness-computer";
-		/** Simplified Chinese dictionary and the key-set source of truth. */
 		const zh = {
 			"entry.label": "电脑",
 			"entry.screen.title": "{name} 的屏幕",
@@ -365,7 +295,6 @@ window.__ModuleLoader__.load({
 			"rows.noSettings": "设置服务不可用：可以导出/导入，但无法修改目录与空闲时间。",
 			"rows.pickerFallback": "目录选择器不可用，已使用当前导出目录：{dir}"
 		};
-		/** English dictionary; same keys as the Chinese one. */
 		const en = {
 			"entry.label": "Computer",
 			"entry.screen.title": "{name}'s screen",
@@ -449,11 +378,6 @@ window.__ModuleLoader__.load({
 			"rows.noSettings": "Settings service unavailable: export and import still work, but the directory and idle time cannot be changed.",
 			"rows.pickerFallback": "Directory picker unavailable — using the current export directory: {dir}"
 		};
-		/**
-		* Server-reported phase → the locale key shown while it runs. Shared by the
-		* sidebar entry card and the settings rows so both surfaces label a transfer
-		* the same way.
-		*/
 		const PHASE_LABEL = {
 			pulling: "entry.phase.pulling",
 			starting: "entry.phase.starting",
@@ -463,47 +387,21 @@ window.__ModuleLoader__.load({
 		};
 		//#endregion
 		//#region packages/computer/src/settings.ts
-		/**
-		* Runtime-editable Computer configuration, shared by the Host settings
-		* registration and the browser scope. Kept free of schemastery so the client
-		* bundle pulls only constants and types.
-		*/
-		/** Settings namespace owning the Computer's runtime-editable fields. */
 		const COMPUTER_SETTINGS_NAMESPACE = "botharness-computer";
-		/** Field carrying the directory that holds Computer exports. */
 		const COMPUTER_EXPORT_DIR_FIELD = "exportDir";
-		/** Field carrying the idle stop minutes. */
 		const COMPUTER_IDLE_STOP_FIELD = "idleStopMinutes";
-		/** Field carrying the profile-level Computer Authorization auto-allow switch. */
 		const COMPUTER_AUTO_ALLOW_FIELD = "autoAllowActions";
 		//#endregion
 		//#region packages/computer/src/client/settings-rows.tsx
-		/**
-		* The Computer's rows inside the BotHarness settings section. They own the
-		* runtime-editable settings (`exportDir`, `idleStopMinutes`) through the
-		* shared settings scope, use the Host's directory picker, and drive the
-		* export/import endpoints with an explicit authorization step. Copy stays in
-		* this bundle's own words; the section's row classes come from
-		* `@botharness/ui`, which is always mounted when this page renders.
-		* @module @botharness/computer/settings-rows
-		*/
-		/** Thrown when the Host rolls the export directory back instead of storing it. */
 		var ExportDirRejectedError = class extends Error {
 			constructor() {
 				super("the Host did not accept the export directory");
 				this.name = "ExportDirRejectedError";
 			}
 		};
-		/**
-		* Directory shown on the export row: a configured scope value wins; while the
-		* scope is empty (the unconfigured default) fall back to the Host-resolved
-		* path from the status route, so buttons and "Current" track what export and
-		* open-dir will actually use.
-		*/
 		function displayExportDir(configured, hostDir) {
 			return configured !== "" ? configured : hostDir ?? "";
 		}
-		/** Live Computer settings published to the rows. */
 		var ComputerSettingsPrefs = class {
 			snapshot = {
 				exportDir: "",
@@ -607,10 +505,6 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/**
-		* Build the rows' inject face: the settings prefs plus the picker and the
-		* export/import endpoints.
-		*/
 		function createComputerSettingsFace(options) {
 			const { prefs } = options;
 			return {
@@ -705,7 +599,6 @@ window.__ModuleLoader__.load({
 				children: [label, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.IconChevronDownOutlineRegular, { className: "bh-settings-chevron" })]
 			});
 		}
-		/** The Computer group inside the BotHarness settings page. */
 		function ComputerSettingsRows({ t, prefs, pickerAvailable, pickDirectory, openDirectory, exportArchive, downloadUrl, importArchive, requestUpload, sendUploadBytes, listArchives, hostExportDir }) {
 			const [snapshot, setSnapshot] = (0, react.useState)(prefs.getSnapshot);
 			const [idleOpen, setIdleOpen] = (0, react.useState)(false);
@@ -1153,12 +1046,6 @@ window.__ModuleLoader__.load({
 		//#endregion
 		//#region packages/computer/src/client/index.tsx
 		const name = "botharness-computer-client";
-		/**
-		* The Channel sidebar registry is a client-side service provided by
-		* `@botharness/ui`; the entry types are duplicated structurally so this
-		* bundle stays self-contained (importing that package at runtime would inline
-		* its client code into ours).
-		*/
 		const inject = [
 			"slots",
 			"channelSidebar",
@@ -1171,7 +1058,6 @@ window.__ModuleLoader__.load({
 		const VIEWER_SRC = "/botharness-computer/viewer/";
 		const APPROVED_KEY = "botharness-computer-start-approved";
 		const ENTRY_ID = "botharness-computer";
-		/** Captured from the client connection service so entries can read PersonaBot names. */
 		let connectionRpc;
 		async function requestJson(url, init) {
 			const response = await fetch(url, {
@@ -1234,10 +1120,8 @@ window.__ModuleLoader__.load({
 			spinnerArc: "#ffffff",
 			onVideo: "#ffffff"
 		};
-		/** Fallback logical viewport when the Host has not reported one yet. */
 		const DESIGN_WIDTH = 1280;
 		const DESIGN_HEIGHT = 800;
-		/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
 		function designOf(resolution) {
 			const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? "");
 			if (match === null) return {
@@ -1252,13 +1136,6 @@ window.__ModuleLoader__.load({
 		const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
-		/**
-		* Follows the single viewer iframe for the whole Running lifetime: each tick
-		* samples the document (canvas size, Selkies busy line, pixel signature) and
-		* projects the overlay phase. `epoch` bumps (reconnect) reset the tracker so
-		* the new document starts back at "connecting". The card stays mounted across
-		* docked/fullscreen toggles, so one tracker instance never resets on open.
-		*/
 		function useStreamPhase(iframeRef, epoch) {
 			const [phase, setPhase] = (0, react.useState)("connecting");
 			(0, react.useEffect)(() => {
@@ -1291,7 +1168,6 @@ window.__ModuleLoader__.load({
 			}, [iframeRef, epoch]);
 			return phase;
 		}
-		/** Centered spinner over black; the shared connecting/retrying indicator. */
 		function ScreenIndicator({ label = "连接中" }) {
 			const size = 26;
 			const stroke = 2;
@@ -1345,7 +1221,6 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/** Explicit "no picture" state once connecting has gone on too long. */
 		function ScreenEmpty({ t, onRetry }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: {
@@ -1378,12 +1253,6 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/**
-		* The single overlay selector for the stream surface: the connecting notice,
-		* the empty state with retry, the hover Open pill once live, nothing
-		* otherwise. Exported for component tests proving the overlay-vs-pill
-		* binding (a connecting stream never offers the pill).
-		*/
 		function StreamOverlay(props) {
 			const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
 			if (phase === "connecting") return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ScreenIndicator, { label: t(statusKeyFor(phase, reconnecting)) });
@@ -1415,7 +1284,6 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
 		function ScaledFrame({ title, design, interactive, fit = "width", iframeRef }) {
 			const DESIGN_WIDTH = design.width;
 			const DESIGN_HEIGHT = design.height;
@@ -1471,7 +1339,6 @@ window.__ModuleLoader__.load({
 				})
 			});
 		}
-		/** Pure newest-first list; the container supplies rows and the empty state. */
 		function RecentLogsList({ entries }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: terminalStyle,
@@ -1484,10 +1351,6 @@ window.__ModuleLoader__.load({
 				] }, entry.id))
 			});
 		}
-		/**
-		* Collapsed "recent activity" section under the resting card chrome.
-		* Fetches once on first expand; a closed section costs no requests.
-		*/
 		function RecentLogs({ t }) {
 			const [open, setOpen] = (0, react.useState)(false);
 			const [entries, setEntries] = (0, react.useState)(void 0);
@@ -1553,7 +1416,6 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		/** The shared stop control (title bar + resting card), one definition. */
 		function StopButton({ t, busy, stopping, onStop }) {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Button, {
 				variant: "ghost",
@@ -1563,10 +1425,6 @@ window.__ModuleLoader__.load({
 				children: busy || stopping ? t("entry.stopping") : t("entry.stop")
 			});
 		}
-		/**
-		* The fullscreen viewer's title bar: Bot name + stream status on the left,
-		* the stop control and collapse on the right. Exported for component tests.
-		*/
 		function ViewerTitleBar(props) {
 			const { t, title, phase, reconnecting, busy, stopping, interactive, onToggleInteractive, onStop, onCollapse } = props;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
@@ -1630,16 +1488,6 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		/**
-		* Running state: an AgentScreen-style card built around ONE viewer iframe. The
-		* shell keeps the same element mounted and only toggles its geometry — docked
-		* in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
-		* the stream, never re-handshakes its WebSocket, and never resets "connecting".
-		* Docked, a hover mask offers the blue Open pill; expanded, the same frame
-		* fills the viewport under the title bar (the toolbar collapse button returns
-		* to the card, page scroll locked). Sustained silence becomes an explicit
-		* empty state with a retry.
-		*/
 		function RunningCard({ t, botSlug, busy, stopping, resolution, onStop }) {
 			const frameRef = (0, react.useRef)(null);
 			const dialogRef = (0, react.useRef)(null);
@@ -1879,7 +1727,6 @@ window.__ModuleLoader__.load({
 				]
 			});
 		}
-		/** Pure three-state view; the container component supplies data and handlers. */
 		function ComputerEntryView(props) {
 			const { t, state, phase, detail, progress, runtimeAvailable, confirming, busy, elapsed, nowTs, error, botSlug, storage, resolution, onStart, onConfirmStart, onStop, onApprove, onCancel } = props;
 			designOf(resolution);
@@ -2019,7 +1866,6 @@ window.__ModuleLoader__.load({
 				})]
 			});
 		}
-		/** Bind the entry to the Computer's locale namespace once per registration. */
 		function createComputerEntry(t) {
 			return function ComputerEntryWithLocale(props) {
 				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntry, {
@@ -2028,7 +1874,6 @@ window.__ModuleLoader__.load({
 				});
 			};
 		}
-		/** Resolves the PersonaBot's display name and Computer Access through the BotHarness bridge. */
 		function useBotInfo(botSlug) {
 			const [info, setInfo] = (0, react.useState)({
 				displayName: void 0,
@@ -2060,7 +1905,6 @@ window.__ModuleLoader__.load({
 				computerAccess: info.computerAccess
 			};
 		}
-		/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
 		function ComputerEntry({ botSlug, t }) {
 			const { displayName, computerAccess } = useBotInfo(botSlug);
 			const [payload, setPayload] = (0, react.useState)();

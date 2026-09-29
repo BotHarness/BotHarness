@@ -56,12 +56,6 @@ import {
 
 export const name = 'botharness-computer-client';
 
-/**
- * The Channel sidebar registry is a client-side service provided by
- * `@botharness/ui`; the entry types are duplicated structurally so this
- * bundle stays self-contained (importing that package at runtime would inline
- * its client code into ours).
- */
 export const inject = ['slots', 'channelSidebar', 'connection', 'locale'];
 
 const STATUS_ENDPOINT = '/api/computer/status';
@@ -89,7 +83,6 @@ interface ComputerProgress {
 }
 
 interface ComputerStatusPayload {
-  /** Configured remote desktop geometry, e.g. `1280x800`. */
   resolution?: string;
   readonly provider: string | null;
   readonly probe: { readonly available: boolean; readonly detail?: string };
@@ -122,7 +115,6 @@ interface ConnectionRpcLike {
   >;
 }
 
-/** Captured from the client connection service so entries can read PersonaBot names. */
 let connectionRpc: ConnectionRpcLike | undefined;
 
 interface ChannelSidebarRegistryLike {
@@ -152,11 +144,6 @@ const AUTHORIZATION_POINTS: readonly ComputerKey[] = [
   'entry.authorize.bind',
 ];
 
-/* @bh-computer-aliases:start — the bundle's only literal colours. Each entry
-   reads a DSH token; entries that need one carry an audited light-theme
-   fallback measured against @deepseek-ai/dsh-client-ui-theme (pinned
-   0.1.5-rc.2). Components must use these names, never inline hex or bare
-   var(--dsw-*). Enforced by client-tokens.test.ts. */
 const BH = {
   labelPrimary: 'var(--dsw-alias-label-primary, #0f1115)',
   labelPrimaryForeground: 'var(--dsw-alias-label-primary-foreground, #ffffff)',
@@ -169,7 +156,6 @@ const BH = {
   businessPrimary: 'var(--dsw-alias-state-business-primary, #4176e6)',
   hoverScrim: 'color-mix(in srgb, var(--dsw-alias-bg-base) 35%, transparent)',
 } as const;
-/* @bh-computer-aliases:end */
 
 const noteStyle: CSSProperties = { opacity: 0.7, fontSize: 12, whiteSpace: 'pre-wrap' };
 const buttonStyle: CSSProperties = {
@@ -195,24 +181,16 @@ const terminalStyle: CSSProperties = {
   wordBreak: 'break-all',
 };
 
-/* @bh-video-surface:start — intentional fixed colours for the video surface.
-   The letterbox behind the scaled stream and the spinner drawn on top of it
-   are content-adjacent: they stay black/white in both host themes so the
-   picture never sits on a light plate. Every themed chrome colour must read a
-   --dsw token; enforced by client-tokens.test.ts. */
 const VIDEO_SURFACE = {
   background: '#000000',
   spinnerTrack: 'rgba(255, 255, 255, 0.18)',
   spinnerArc: '#ffffff',
   onVideo: '#ffffff',
 } as const;
-/* @bh-video-surface:end */
 
-/** Fallback logical viewport when the Host has not reported one yet. */
 const DESIGN_WIDTH = 1280;
 const DESIGN_HEIGHT = 800;
 
-/** Parses the Host's remote desktop geometry; falls back to 1280x800. */
 function designOf(resolution: string | undefined): { width: number; height: number } {
   const match = /^(\d{2,5})x(\d{2,5})$/u.exec(resolution ?? '');
   if (match === null) return { width: DESIGN_WIDTH, height: DESIGN_HEIGHT };
@@ -223,13 +201,6 @@ const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
-/**
- * Follows the single viewer iframe for the whole Running lifetime: each tick
- * samples the document (canvas size, Selkies busy line, pixel signature) and
- * projects the overlay phase. `epoch` bumps (reconnect) reset the tracker so
- * the new document starts back at "connecting". The card stays mounted across
- * docked/fullscreen toggles, so one tracker instance never resets on open.
- */
 function useStreamPhase(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): FramePhase {
   const [phase, setPhase] = useState<FramePhase>('connecting');
 
@@ -261,7 +232,6 @@ function useStreamPhase(iframeRef: RefObject<HTMLIFrameElement>, epoch: number):
   return phase;
 }
 
-/** Centered spinner over black; the shared connecting/retrying indicator. */
 export function ScreenIndicator({ label = '连接中' }: { readonly label?: string }): ReactElement {
   const size = 26;
   const stroke = 2;
@@ -310,7 +280,6 @@ export function ScreenIndicator({ label = '连接中' }: { readonly label?: stri
   );
 }
 
-/** Explicit "no picture" state once connecting has gone on too long. */
 function ScreenEmpty({
   t,
   onRetry,
@@ -342,19 +311,12 @@ function ScreenEmpty({
 export interface StreamOverlayProps {
   readonly phase: FramePhase;
   readonly reconnecting: boolean;
-  /** The hover pill only exists on the docked card; fullscreen passes false. */
   readonly hovered: boolean;
   readonly t: ComputerTranslate;
   readonly onRetry: () => void;
   readonly onOpen: () => void;
 }
 
-/**
- * The single overlay selector for the stream surface: the connecting notice,
- * the empty state with retry, the hover Open pill once live, nothing
- * otherwise. Exported for component tests proving the overlay-vs-pill
- * binding (a connecting stream never offers the pill).
- */
 export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
   const { phase, reconnecting, hovered, t, onRetry, onOpen } = props;
   if (phase === 'connecting') {
@@ -395,16 +357,12 @@ export function StreamOverlay(props: StreamOverlayProps): ReactElement | null {
 
 interface ScaledFrameProps {
   readonly title: string;
-  /** Remote desktop geometry the iframe is laid out at, then scaled to fit. */
   readonly design: { width: number; height: number };
-  /** Interactive frames forward input; the inline card keeps a hover mask. */
   readonly interactive: boolean;
-  /** `width` keeps a fixed aspect card; `contain` fits the whole box (fullscreen). */
   readonly fit?: 'width' | 'contain';
   readonly iframeRef?: RefObject<HTMLIFrameElement>;
 }
 
-/** Fixed-aspect card (or fullscreen surface) that scales the viewer to fit. */
 function ScaledFrame({
   title,
   design,
@@ -472,8 +430,6 @@ function ScaledFrame({
   );
 }
 
-/** minimize-2: two arrows converging, used to collapse the fullscreen viewer. */
-/** One operational-log row as the read API returns it. */
 export interface RecentLogRow {
   readonly id: number;
   readonly ts: number;
@@ -483,7 +439,6 @@ export interface RecentLogRow {
   readonly detail: string;
 }
 
-/** Pure newest-first list; the container supplies rows and the empty state. */
 export function RecentLogsList({
   entries,
 }: {
@@ -500,10 +455,6 @@ export function RecentLogsList({
   );
 }
 
-/**
- * Collapsed "recent activity" section under the resting card chrome.
- * Fetches once on first expand; a closed section costs no requests.
- */
 export function RecentLogs({ t }: { readonly t: ComputerTranslate }): ReactElement {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<readonly RecentLogRow[] | undefined>(undefined);
@@ -570,14 +521,12 @@ export interface ViewerTitleBarProps {
   readonly reconnecting: boolean;
   readonly busy: boolean;
   readonly stopping: boolean;
-  /** Whether pointer and keyboard input currently reach the remote desktop. */
   readonly interactive: boolean;
   readonly onToggleInteractive: () => void;
   readonly onStop: () => void;
   readonly onCollapse: () => void;
 }
 
-/** The shared stop control (title bar + resting card), one definition. */
 function StopButton({
   t,
   busy,
@@ -596,10 +545,6 @@ function StopButton({
   );
 }
 
-/**
- * The fullscreen viewer's title bar: Bot name + stream status on the left,
- * the stop control and collapse on the right. Exported for component tests.
- */
 export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
   const {
     t,
@@ -657,16 +602,6 @@ export function ViewerTitleBar(props: ViewerTitleBarProps): ReactElement {
   );
 }
 
-/**
- * Running state: an AgentScreen-style card built around ONE viewer iframe. The
- * shell keeps the same element mounted and only toggles its geometry — docked
- * in the sidebar or fixed fullscreen — so opening the viewer never re-mounts
- * the stream, never re-handshakes its WebSocket, and never resets "connecting".
- * Docked, a hover mask offers the blue Open pill; expanded, the same frame
- * fills the viewport under the title bar (the toolbar collapse button returns
- * to the card, page scroll locked). Sustained silence becomes an explicit
- * empty state with a retry.
- */
 function RunningCard({
   t,
   botSlug,
@@ -686,8 +621,6 @@ function RunningCard({
   const dialogRef = useRef<HTMLDivElement>(null);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  // Watching is the default; pointer and keyboard input need an explicit
-  // opt-in per fullscreen session, so a stray click never drives the desktop.
   const [inputEnabled, setInputEnabled] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [reconnecting, setReconnecting] = useState(false);
@@ -709,11 +642,8 @@ function RunningCard({
     setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak));
   }, [rawPhase]);
   useEffect(() => {
-    // A remounted document must never inherit the previous one's liveness.
     setSmooth({ phase: 'connecting', streak: 0 });
   }, [reloadKey]);
-  // Displayed phase: overlay, title, pill. Raw truth stays with the
-  // loss/auto paths and the diagnostics narrative below.
   const phase = smooth.phase;
 
   const reconnect = (): void => {
@@ -722,8 +652,6 @@ function RunningCard({
     setReloadKey((key) => key + 1);
   };
 
-  // Narrate lifecycle transitions into developer diagnostics (transitions
-  // only, never per-tick polls) so later debugging replays the card's story.
   useEffect(() => {
     void reportViewerEvent(undefined, viewerEventText({ type: 'mount' }));
   }, []);
@@ -744,9 +672,6 @@ function RunningCard({
     }
   }, [rawPhase, expanded]);
 
-  // A stream that disappears after being live remounts the viewer — but only
-  // once the loss persists, so a single missed tick (GC pause, slow frame)
-  // never restarts the whole SPA mid-negotiation.
   useEffect(() => {
     if (rawLive) {
       wasReady.current = true;
@@ -768,9 +693,6 @@ function RunningCard({
     setReloadKey((key) => key + 1);
   }, [rawLive]);
 
-  // A document that never went live most likely failed its first load while
-  // the server was still booting — remount a bounded number of times, then
-  // leave the manual retry.
   useEffect(() => {
     if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return;
     autoReloads.current += 1;
@@ -784,9 +706,6 @@ function RunningCard({
   useEffect(() => {
     if (!expanded) return () => {};
     const onKey = (event: KeyboardEvent): void => {
-      // Fullscreen exits through the toolbar collapse button only (no Escape
-      // shortcut): keep Tab inside the viewer instead of letting focus walk
-      // into the shell behind the overlay.
       if (event.key !== 'Tab') return;
       const dialog = dialogRef.current;
       if (dialog === null) return;
@@ -819,8 +738,6 @@ function RunningCard({
   const statusText = t(statusKeyFor(phase, reconnecting));
   const openable = phase === 'live' && !expanded;
 
-  // Shared connecting/empty notice; the resting card falls through to the
-  // hover mask only once the stream is actually live.
   const overlay = (
     <StreamOverlay
       phase={phase}
@@ -832,9 +749,6 @@ function RunningCard({
     />
   );
 
-  // The shell keeps its children keyed so toggling docked ↔ fullscreen only
-  // mounts/unmounts the title bar and the card chrome — the frame (and its
-  // iframe) stays at key "viewer-frame" in both layouts and never remounts.
   const stopLabel = t(stopKey(busy, stopping));
   const rowButton = (disabled: boolean): CSSProperties => ({
     flex: 1,
@@ -974,7 +888,6 @@ export interface ComputerEntryViewProps {
   readonly error?: string;
   readonly botSlug?: string;
   readonly storage?: ComputerStorage;
-  /** Remote desktop geometry reported by the Host; the viewer scales it to fit. */
   readonly resolution?: string;
   readonly onStart: () => void;
   readonly onConfirmStart: () => void;
@@ -983,7 +896,6 @@ export interface ComputerEntryViewProps {
   readonly onCancel: () => void;
 }
 
-/** Pure three-state view; the container component supplies data and handlers. */
 export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   const {
     t,
@@ -1126,7 +1038,6 @@ export function ComputerEntryView(props: ComputerEntryViewProps): ReactElement {
   );
 }
 
-/** Bind the entry to the Computer's locale namespace once per registration. */
 export function createComputerEntry(
   t: ComputerTranslate,
 ): (props: ChannelSidebarEntryProps) => ReactElement {
@@ -1140,7 +1051,6 @@ interface BotInfo {
   readonly computerAccess: boolean | undefined;
 }
 
-/** Resolves the PersonaBot's display name and Computer Access through the BotHarness bridge. */
 function useBotInfo(botSlug: string | undefined): BotInfo {
   const [info, setInfo] = useState<BotInfo>({
     displayName: undefined,
@@ -1179,7 +1089,6 @@ function useBotInfo(botSlug: string | undefined): BotInfo {
   return { displayName: info.displayName ?? botSlug, computerAccess: info.computerAccess };
 }
 
-/** The Computer entry: Setup → Ready → Running, rendered inside the Channel sidebar. */
 function ComputerEntry({
   botSlug,
   t,

@@ -1,13 +1,3 @@
-/**
- * v1 Computer Provider: one local Docker container running a Linux desktop
- * with a web VNC endpoint. The container port binds to loopback only; the Host
- * serves the authenticated viewer route in front of it.
- *
- * Startup is a background operation with a reported phase so the panel can show
- * progress (the first run pulls a large image) instead of blocking a request.
- * @module @botharness/computer/providers/docker
- */
-
 import { basename, dirname, isAbsolute, join } from 'node:path';
 
 import type {
@@ -25,37 +15,20 @@ export interface DockerComputerConfig {
   readonly image: string;
   readonly containerName: string;
   readonly volumeName: string;
-  /** Loopback port published from the container's web VNC port. */
   readonly hostPort: number;
   readonly containerPort: number;
-  /**
-   * Opt-in host directory bind-mounted at /config (Linux only). Empty keeps
-   * the named volume; set on other platforms it is ignored with a reason.
-   */
   readonly dataDir: string;
   readonly cpus: number;
   readonly memory: string;
-  /** Desktop geometry (Xvfb `MAX_RES`), e.g. 1280x800; lower costs less memory. */
   readonly resolution: string;
   readonly shmSize: string;
-  /** Caps the container's process count so a runaway app cannot fork-bomb the host. */
   readonly pidsLimit: number;
   readonly idleStopMinutes: number;
-  /**
-   * HARDEN_DESKTOP disables sudo, terminals, and the xfce launchers
-   * (`exo-open`) inside the container. Computer use needs those launchers to
-   * open applications, so hardening is opt-in for view-only deployments; the
-   * container itself is the isolation boundary (found live 2026-09-28:
-   * every `launch_app` failed with EACCES under the old `true` default).
-   */
   readonly hardenDesktop: boolean;
-  /** Locale the desktop runs in, e.g. zh_CN.UTF-8. */
   readonly language: string;
 }
 
 export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
-  // The upstream webtop image already ships an XFCE desktop, Chromium and the
-  // en_US/zh_CN locales, so BotHarness pulls it instead of building its own.
   image: 'lscr.io/linuxserver/webtop:ubuntu-xfce',
   containerName: 'botharness-computer',
   volumeName: 'botharness-computer-config',
@@ -75,17 +48,11 @@ export const DEFAULT_DOCKER_CONFIG: DockerComputerConfig = {
 interface DockerComputerProviderOptions {
   readonly runner: ComputerRuntimeRunner;
   readonly config?: Partial<DockerComputerConfig>;
-  /** Receives container state transitions for the plugin diagnostics stream. */
   readonly onEvent?: (detail: string) => void;
-  /** Resolved at start time so a viewer can choose the desktop language. */
   readonly getLanguage?: () => string;
-  /** Host platform for the Linux-only bind mount; defaults to process.platform. */
   readonly platform?: () => string;
-  /** Probed for HTTP 200 before start reports running; defaults to global fetch. */
   readonly fetchImpl?: typeof fetch;
-  /** Bound for the desktop-readiness wait; defaults to DESKTOP_READY_TIMEOUT_MS. */
   readonly readyTimeoutMs?: number;
-  /** Wait primitive; defaults to setTimeout. Injected in tests for instant time. */
   readonly sleepImpl?: (ms: number) => Promise<void>;
 }
 
@@ -103,12 +70,6 @@ function platformDisplay(platform: string): string {
   return platform;
 }
 
-/**
- * Resolves where the persistent store lives: the named volume by default, a
- * host bind mount when dataDir is configured on Linux. Never throws — an
- * unusable dataDir resolves to the volume with a reason the authorize view
- * shows; start itself rejects a relative path loudly instead (see runStart).
- */
 function resolveStorage(
   config: Pick<DockerComputerConfig, 'dataDir' | 'volumeName'>,
   platform: string,
@@ -125,7 +86,6 @@ function resolveStorage(
   return { kind: 'bind', target: dir };
 }
 
-/** Parses one `Type Source Destination;` mount list for the /config mount. */
 function parseConfigMount(output: string): { type: string; source: string } | undefined {
   for (const part of output.split(';')) {
     const [type = '', source = '', dest = ''] = part.trim().split(/\s+/);
@@ -136,11 +96,6 @@ function parseConfigMount(output: string): { type: string; source: string } | un
   return undefined;
 }
 
-/**
- * Compares a live mount against the wanted store. Named volumes surface as
- * host paths (`/var/lib/docker/volumes/<name>/_data`), so those compare by
- * volume name; bind sources compare exactly.
- */
 function mountMatches(
   current: { type: string; source: string },
   want: { type: string; source: string },
@@ -151,11 +106,6 @@ function mountMatches(
   return basename(current.source.slice(0, -'/_data'.length)) === want.source;
 }
 
-/**
- * Turns `docker pull` plain progress into a coarse percentage (completed
- * layers over layers seen) plus the latest terminal line. Docker prints one
- * layer id per line in non-TTY mode; we never claim precision we do not have.
- */
 export function createPullTracker(now: () => number = Date.now): {
   observe(chunk: string): void;
   snapshot(): ComputerProgress;
@@ -194,13 +144,10 @@ export function createPullTracker(now: () => number = Date.now): {
   };
 }
 
-/** Bound for the desktop-readiness wait inside start (staged, cancellable). */
 export const DESKTOP_READY_TIMEOUT_MS = 90_000;
 
-/** Per-attempt ceiling so a hung connection cannot block stop. */
 const DESKTOP_PROBE_TIMEOUT_MS = 3_000;
 
-/** Parses a `WxH` desktop geometry, e.g. `1280x800`. */
 export function parseResolution(value: string): { width: number; height: number } | undefined {
   const match = /^(\d{2,5})x(\d{2,5})$/u.exec(value.trim());
   if (match === null) return undefined;
@@ -209,7 +156,6 @@ export function parseResolution(value: string): { width: number; height: number 
   return width > 0 && height > 0 ? { width, height } : undefined;
 }
 
-/** Parses a docker size string (`2g`, `2gb`, `512m`, `1048576`) into bytes. */
 export function parseDockerSize(value: string): number | undefined {
   const match = /^(\d+(?:\.\d+)?)\s*([kmg]?b?)$/i.exec(value.trim());
   if (match === null) return undefined;
@@ -231,10 +177,6 @@ export function createDockerComputerProvider(
 ): ComputerProvider {
   const config = combine(options.config);
   const { runner, onEvent, getLanguage, fetchImpl, readyTimeoutMs, sleepImpl } = options;
-  // QA-only escape hatch for bind acceptance on non-Linux Hosts
-  // (BOTHARNESS_COMPUTER_FORCE_BIND=1 pretends to be Linux). Machine-local,
-  // never set it in production: on macOS/Windows the bind source still rides
-  // a virtual filesystem share, which is exactly what the guard excludes.
   const platformName =
     process.env.BOTHARNESS_COMPUTER_FORCE_BIND === '1'
       ? 'linux'
@@ -248,7 +190,6 @@ export function createDockerComputerProvider(
   let cancelRequested = false;
   let lastObservedState: string | undefined;
 
-  /** Serializes lifecycle operations so a stop cannot race an in-flight start. */
   const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
     const run = lifecycle.then(task, task);
     lifecycle = run.then(
@@ -258,7 +199,6 @@ export function createDockerComputerProvider(
     return run;
   };
 
-  /** Aborts an in-flight start at its next checkpoint when a stop was requested. */
   const throwIfCancelled = (): void => {
     if (!cancelRequested) return;
     cancelRequested = false;
@@ -315,7 +255,6 @@ export function createDockerComputerProvider(
     throw failure(message);
   };
 
-  /** The image the existing container was created from, if it still exists. */
   const containerImage = async (): Promise<string | undefined> => {
     const result = await runner.run([
       'docker',
@@ -327,7 +266,6 @@ export function createDockerComputerProvider(
     return result.code === 0 ? result.stdout.trim() : undefined;
   };
 
-  /** Removes the managed container or fails loudly; shared by recreate paths. */
   const removeContainer = async (reason: string): Promise<void> => {
     const remove = await runner.run(['docker', 'rm', '-f', config.containerName]);
     if (remove.code !== 0) fail(remove.stderr.trim() || 'docker rm failed');
@@ -335,13 +273,11 @@ export function createDockerComputerProvider(
     observe('absent', reason);
   };
 
-  /** The live /config mount the resolved storage calls for. */
   const describeWant = (storage: ComputerStorage): { type: string; source: string } =>
     storage.kind === 'bind'
       ? { type: 'bind', source: storage.target }
       : { type: 'volume', source: config.volumeName };
 
-  /** The container's live /config mount, or undefined when unknowable. */
   const readConfigMount = async (): Promise<{ type: string; source: string } | undefined> => {
     const mounts = await runner.run([
       'docker',
@@ -354,14 +290,6 @@ export function createDockerComputerProvider(
     return parseConfigMount(mounts.stdout);
   };
 
-  /**
-   * `docker start` applies none of the `docker run` arguments, so a container
-   * whose image or managed settings changed must be recreated — the named
-   * volume keeps the desktop. The locale is deliberately excluded: it follows
-   * the viewer's language, and recreating a live desktop to change its locale
-   * would destroy work in progress, so it applies on the next creation.
-   * Returns true when the container was removed.
-   */
   const recreateIfSpecChanged = async (allowRebuild: boolean): Promise<boolean> => {
     const spec = await runner.run([
       'docker',
@@ -389,8 +317,6 @@ export function createDockerComputerProvider(
           ]),
       'PIXELFLUX_WAYLAND=false',
     ];
-    // An unparseable configured size cannot be verified, so it never forces a
-    // recreate: an unknown value must not restart the desktop on every start.
     const matches =
       image.trim() === config.image &&
       (expectedMemory === undefined || memory.trim() === String(expectedMemory)) &&
@@ -404,13 +330,6 @@ export function createDockerComputerProvider(
     return true;
   };
 
-  /**
-   * A dataDir edit must not silently keep the old store — but it must never
-   * tear down a running desktop either. When the live mount differs and the
-   * container is stopped, recreate and say where the previous data stays;
-   * when it is running, leave it alone (the status hint carries the
-   * migration notice). Returns true when the container was removed.
-   */
   const checkMountChanged = async (allowRebuild: boolean): Promise<boolean> => {
     const storage = resolveStorage(config, platformName);
     const want = describeWant(storage);
@@ -425,11 +344,6 @@ export function createDockerComputerProvider(
     return true;
   };
 
-  /**
-   * Visible migration notice for a dataDir edit, computed fresh on every
-   * status poll for opt-in users only: a running desktop keeps its store
-   * while the notice names the pending target.
-   */
   const migrationHint = async (state: string): Promise<string | undefined> => {
     if (config.dataDir.trim() === '') return undefined;
     const want = describeWant(resolveStorage(config, platformName));
@@ -442,11 +356,6 @@ export function createDockerComputerProvider(
       : `存储位置已变更为 ${want.source}；下次启动将重建容器，旧数据需手工迁移`;
   };
 
-  /**
-   * The base image ships Chromium, but a shortcut inside the volume is only
-   * created at start: build-time writes under /config are shadowed by the
-   * mounted volume, and the volume may predate this version. Best effort.
-   */
   const ensureDesktopShortcut = async (): Promise<void> => {
     const result = await runner.run([
       'docker',
@@ -461,14 +370,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * Chromium in this container has no working GPU and a small /dev/shm; both
-   * are ordinary causes of renderer crashes ("Aw, Snap! Error code 9") on
-   * heavy pages. The image's launcher script has no environment hook for
-   * extra flags, so seed `/usr/local/bin` shims (earlier in PATH than
-   * /usr/bin) that add the two stabilising flags. Best effort; re-seeded
-   * every start because /usr/local/bin lives in the container layer.
-   */
   const ensureChromiumFlags = async (): Promise<void> => {
     const shim = (name: string): string =>
       `#!/bin/sh\nexec /usr/bin/${name} --disable-dev-shm-usage --disable-gpu "$@"\n`;
@@ -485,16 +386,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * A clean desktop stop makes Chromium forget open tabs: its default session
-   * policy opens a new-tab page, and only a crashed session is restored. A
-   * managed policy tells it to restore the previous session instead, so tabs
-   * survive stop → start the same way they survive export → import today (a
-   * tar taken while the browser runs keeps the crashed-session marker).
-   * Policies live outside the profile so Chromium never rewrites them, and
-   * they apply on the browser's next launch — safe to write while it runs.
-   * Best effort.
-   */
   const ensureSessionRestore = async (): Promise<void> => {
     const result = await runner.run([
       'docker',
@@ -509,20 +400,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * The stock desktop chrome is drawn for a large monitor: a 26px top bar and
-   * a 48px dock look tiny inside the viewer. Panels are fixed pixels (they do
-   * not follow the already-2x Xft DPI), so seed bigger defaults: top bar 52
-   * with 32px icons, dock 96. Chromium must NOT autostart: the shared desktop
-   * belongs to the PersonaBots and the Human, and a browser launched at boot
-   * would hold the profile lock and surprise whoever opens the Computer
-   * first; an older volume's autostart entry is removed. Stale Chromium
-   * profile locks from a previous container are cleared here too, while the
-   * desktop is down. All edits run in a helper container (xfconfd would
-   * overwrite a live edit) and only touch stock or previously-seeded values,
-   * so a Human's own customization is never overwritten. Best effort: a
-   * fresh volume has no config yet and migrates on the next start.
-   */
   const ensureDesktopDefaults = async (): Promise<void> => {
     const result = await runner.run([
       'docker',
@@ -541,13 +418,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * The durable workspace convention (#154): Human- and bot-produced files
-   * belong in `~/workspace` (HOME is `/config`, so the path sits on the named
-   * volume), separate from the browser profile at `~/.config/chromium`. Seeded
-   * at every start so the path exists on a fresh volume and travels through
-   * export → import. Best effort.
-   */
   const ensureWorkspaceDir = async (): Promise<void> => {
     const result = await runner.run([
       'docker',
@@ -562,13 +432,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * Best-effort graceful browser shutdown before an export: SIGTERM lets
-   * Chromium flush cookies, history, and open tabs so the tar below sees a
-   * consistent profile instead of a torn write. Bounded at ~10s; a timeout or
-   * failure falls through to `docker stop`, where the managed RestoreOnStartup
-   * policy still recovers the session. No-op while the container is down.
-   */
   const quiesceBrowser = async (): Promise<void> => {
     const current = await inspect();
     if (current.state !== 'running') return;
@@ -582,13 +445,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /**
-   * `docker start` returns as soon as the container process exists — the
-   * desktop (X, XFCE, Selkies) still needs seconds. Flipping `running` before
-   * the web endpoint serves mounts the viewer into a dead port, so every path
-   * into running waits here for HTTP 200 first: bounded, staged, and
-   * cancellable like the rest of start.
-   */
   const waitForDesktop = async (): Promise<void> => {
     const timeoutMs = readyTimeoutMs ?? DESKTOP_READY_TIMEOUT_MS;
     const delay =
@@ -605,9 +461,7 @@ export function createDockerComputerProvider(
         });
         await response.arrayBuffer();
         if (response.ok) return;
-      } catch {
-        // Not serving yet — keep waiting inside the bound.
-      }
+      } catch {}
       if (Date.now() - startedAt > timeoutMs) {
         fail(`桌面在 ${Math.round(timeoutMs / 1000)} 秒内未响应，请重试启动`);
       }
@@ -615,7 +469,6 @@ export function createDockerComputerProvider(
     }
   };
 
-  /** Gate the desktop, then promote to running. */
   const confirmRunning = async (): Promise<void> => {
     await waitForDesktop();
     phase = 'running';
@@ -804,9 +657,6 @@ export function createDockerComputerProvider(
         if (start.code !== 0) {
           fail(start.stderr.trim() || 'docker start failed');
         } else {
-          // Soft gate: the archive is already written, and an unconfirmed
-          // desktop must never become a silent black-screen running — leave
-          // it unflagged (a later start re-gates) and record the evidence.
           let confirmed = false;
           try {
             await waitForDesktop();
@@ -872,9 +722,6 @@ export function createDockerComputerProvider(
         return withStorage(withDetail({ state: 'failed', phase: 'failed' }));
       }
       const status = await inspect();
-      // Reconcile the cached `running` flag with reality: after a Host restart
-      // the container may already be up, and without this the viewer and the
-      // Computer tools would report "not running" until a fresh start.
       running = status.state === 'running';
       if (phase === 'stopping' || phase === 'exporting' || phase === 'importing') {
         return withStorage(withDetail({ ...status, phase }));

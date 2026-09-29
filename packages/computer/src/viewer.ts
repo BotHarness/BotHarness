@@ -2,36 +2,21 @@ import { request as httpRequest } from 'node:http';
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
 
-/**
- * Viewer helpers for the authenticated Computer route: the upstream container
- * speaks its own web VNC protocol; the Host scrubs framing headers so the
- * same-origin panel can embed it and forwards WebSocket upgrades so the live
- * picture reaches the browser.
- * @module @botharness/computer/viewer
- */
-
 const SCRUBBED_HEADERS = [
   'x-frame-options',
   'content-security-policy',
   'content-security-policy-report-only',
-  // `fetch` already decodes the body, so forwarding the upstream encoding or
-  // its compressed length makes the browser fail with a content-encoding error.
   'content-encoding',
   'content-length',
   'transfer-encoding',
 ] as const;
 
-/** Removes headers that would stop the DSH panel from embedding the upstream page. */
 export function scrubFramingHeaders(headers: Headers): Headers {
   const scrubbed = new Headers(headers);
   for (const name of SCRUBBED_HEADERS) scrubbed.delete(name);
   return scrubbed;
 }
 
-/**
- * Maps a viewer request below `prefix` onto the upstream base URL, preserving
- * the relative path and query.
- */
 export function joinUpstream(base: URL, requestUrl: URL, prefix: string): URL {
   const relative = requestUrl.pathname.startsWith(prefix)
     ? requestUrl.pathname.slice(prefix.length)
@@ -44,7 +29,6 @@ export function joinUpstream(base: URL, requestUrl: URL, prefix: string): URL {
 }
 
 export interface ViewerProxyOptions {
-  /** Resolved per request; undefined means the Computer is not running. */
   readonly upstream: () => URL | undefined;
   readonly prefix: string;
   readonly fetchImpl?: typeof fetch;
@@ -84,12 +68,6 @@ export interface UpgradeProxyOptions {
   readonly head: Buffer;
 }
 
-/**
- * Forwards one HTTP upgrade (the noVNC/Selkies WebSocket) to the upstream
- * container. The caller is responsible for authenticating the request before
- * calling this. Failures destroy the client socket so the viewer shows a
- * disconnect instead of hanging.
- */
 export function proxyUpgrade(options: UpgradeProxyOptions): void {
   const requestUrl = new URL(options.request.url ?? '/', 'http://127.0.0.1');
   const target = joinUpstream(options.upstream, requestUrl, options.prefix);

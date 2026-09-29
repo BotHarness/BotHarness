@@ -1,12 +1,3 @@
-/**
- * Computer Tool Provider: registers the single official `ctx.computerUse` slot
- * and injects the curated Computer tools plus guidance into the session scopes
- * of PersonaBots whose Computer Access is on (ADR-0079/0080). Tool calls are
- * attributed, authorized once per session, and audited with redacted
- * summaries; the provider tolerates a stopped Computer.
- * @module @botharness/computer/tool/provider
- */
-
 import type { Context } from '@deepseek-ai/cordis';
 import type {} from '@deepseek-ai/dsh-computer-use';
 import { ComputerUseProviderName } from '@deepseek-ai/dsh-computer-use/brand';
@@ -20,13 +11,10 @@ import type {} from '@deepseek-ai/dsh-user-approval';
 import { COMPUTER_GUIDANCE, COMPUTER_TOOLS, FALLBACK_TOOLS, computerToolName } from './catalog.js';
 import type { CuaDriver, DriverToolDescriptor } from './driver.js';
 
-/** Provider name occupying the exclusive computer-use registration. */
 export const COMPUTER_PROVIDER_NAME = 'botharness-computer';
 
-/** Stable prompt-section name for the Computer guidance. */
 export const COMPUTER_PROMPT_SECTION = 'botharness:computer';
 
-/** One redacted audit record; never contains typed text or screenshots. */
 export interface ComputerAuditEvent {
   readonly at: string;
   readonly botSlug: string;
@@ -39,7 +27,6 @@ export interface ComputerAuditEvent {
   readonly error?: string;
 }
 
-/** Narrow view of the core services the provider needs (both optional). */
 export interface ComputerCoreLookup {
   readonly registry:
     | {
@@ -64,45 +51,28 @@ export interface ComputerCoreLookup {
 export interface ComputerToolProviderOptions {
   readonly ctx: Context;
   readonly driver: CuaDriver;
-  /** Whether the Computer container is currently running. */
   readonly isComputerRunning: () => boolean;
-  /** Profile-level auto-allow switch for Computer Authorization. */
   readonly isAutoAllowed: () => boolean;
-  /** Durable redacted audit sink. */
   readonly audit: (event: ComputerAuditEvent) => void;
-  /** Developer-visible lifecycle notes for the Computer diagnostics ring. */
   readonly note?: (detail: string) => void;
-  /** Called on every tool call so Computer activity resets the idle timer. */
   readonly onActivity?: () => void;
-  /** Core lookups; undefined members degrade to "no access, no attribution". */
   readonly core: () => ComputerCoreLookup;
 }
 
-/** Every model-facing name in the curated catalog (the fallback mirrors it). */
 export function computerToolNames(): readonly string[] {
   return COMPUTER_TOOLS.map((spec) => computerToolName(spec.raw));
 }
 
-/** Whether this provider owns one model-facing tool name. */
 export function ownsComputerTool(name: string): boolean {
   return COMPUTER_TOOLS.some((spec) => computerToolName(spec.raw) === name);
 }
 
 export interface ComputerToolProvider {
-  /**
-   * Attach one Bot-owned agent as core sets it up (before its first prompt):
-   * track its scope and register Computer tools when its access is on.
-   */
   attachAgent(scope: Context, sessionId: string, info: { botSlug: string; rootRole: string }): void;
-  /** True while this session still needs a Human Computer Authorization ask. */
   needsAuthorization(sessionId: string): boolean;
-  /** Record that core asked and the Human allowed one Computer action for this session. */
   markAuthorized(sessionId: string): void;
-  /** Reconcile the live registrations of one PersonaBot after its access changed. */
   reconcileBot(slug: string): Promise<void>;
-  /** Reconcile every tracked session (e.g. after the Computer started). */
   reconcileAll(): Promise<void>;
-  /** Drop every registration, release the slot, and close the driver. */
   dispose(): Promise<void>;
 }
 
@@ -110,11 +80,9 @@ interface SessionRegistration {
   readonly slug: string;
   readonly scope: Context;
   readonly disposers: readonly (() => void)[];
-  /** Where the tool descriptors came from; a fallback registration upgrades in place. */
   readonly source: 'driver' | 'fallback';
 }
 
-/** Curated tools actually present in one driver catalog. */
 export function selectCuratedTools(
   descriptors: readonly DriverToolDescriptor[],
 ): readonly { raw: string; descriptor: DriverToolDescriptor }[] {
@@ -125,7 +93,6 @@ export function selectCuratedTools(
   });
 }
 
-/** Redacted audit summary for one call of one curated tool. */
 export function auditSummary(raw: string, args: Record<string, unknown>): string {
   const spec = COMPUTER_TOOLS.find((candidate) => candidate.raw === raw);
   if (spec === undefined) return 'tool';
@@ -136,7 +103,6 @@ export function auditSummary(raw: string, args: Record<string, unknown>): string
   }
 }
 
-/** Human-readable audit line for the diagnostics stream / logs.db. */
 export function formatAudit(event: ComputerAuditEvent): string {
   const outcome = event.outcome === 'ok' ? 'ok' : `error: ${event.error ?? 'failed'}`;
   return `bot=${event.botSlug} session=${event.sessionId} role=${event.rootRole} ${event.tool} ${event.summary} -> ${outcome} (${event.durationMs}ms)`;
@@ -149,11 +115,8 @@ export function createComputerToolProvider(
   const note = options.note ?? ((): void => undefined);
   const onActivity = options.onActivity ?? ((): void => undefined);
 
-  /** sessionId -> live agent scope plus its current tool disposers. */
   const sessions = new Map<string, { scope: Context; disposed: boolean }>();
-  /** sessionId -> active registrations (tools + guidance). */
   const registrations = new Map<string, SessionRegistration>();
-  /** Sessions already authorized for Computer actions (grant lives per session). */
   const grants = new Set<string>();
   let slotDisposer: (() => Promise<void>) | undefined;
   let disposed = false;
@@ -161,14 +124,6 @@ export function createComputerToolProvider(
   const botSlugOf = (sessionId: string): { botSlug: string; rootRole: string } | undefined =>
     core().ownership?.resolve(sessionId);
 
-  /**
-   * Driver catalog cached after the first successful fetch. Registration is
-   * synchronous so it always lands before the agent's first prompt assembly —
-   * an awaited connect here lost that race and the model saw no Computer
-   * tools at all (found by the 2026-09-28 acceptance session). Until the
-   * cache warms, the fallback catalog keeps the tools callable; the cache
-   * upgrade re-registers fallback sessions in place.
-   */
   let cachedTools: readonly DriverToolDescriptor[] | undefined;
   let warming: Promise<void> | undefined;
 
@@ -178,7 +133,6 @@ export function createComputerToolProvider(
       try {
         await driver.ensure();
         cachedTools = await driver.tools();
-        // Upgrade any session still on the fallback catalog.
         for (const [sessionId, registration] of [...registrations]) {
           if (registration.source !== 'fallback') continue;
           if (core().registry?.get(registration.slug)?.computerAccess !== true) continue;
@@ -206,14 +160,9 @@ export function createComputerToolProvider(
     if (disposed) return;
     const existing = registrations.get(sessionId);
     if (existing !== undefined) {
-      // A fallback registration upgrades in place once the catalog is warm;
-      // any other duplicate is already current.
       if (existing.source !== 'fallback' || cachedTools === undefined) return;
       unregisterSession(sessionId);
     }
-    // The tools must exist even while the Computer is stopped: register the
-    // fallback catalog and let each call return the readable not-running
-    // error (ADR-0079). The real catalog replaces it once the driver answers.
     const descriptors = cachedTools ?? FALLBACK_TOOLS;
     const source: SessionRegistration['source'] = cachedTools === undefined ? 'fallback' : 'driver';
     const curated = selectCuratedTools(descriptors);
@@ -316,9 +265,7 @@ export function createComputerToolProvider(
     };
     try {
       audit(event);
-    } catch {
-      // Audit is best effort; a failing sink never blocks a tool call.
-    }
+    } catch {}
   };
 
   const authorize = async (
@@ -329,10 +276,6 @@ export function createComputerToolProvider(
     const agent = execution.agent;
     if (agent === undefined) throw new Error('Computer tools require a PersonaBot session');
     if (grants.has(sessionId) || isAutoAllowed()) return;
-    // Core's `tools/pre-execute` hook owns the Human ask for Computer tools
-    // (so it rides the existing Bot DM approval cards and their one-time /
-    // always rules); reaching here without a grant means the gate did not run
-    // and the call fails closed.
     throw new Error('Computer action is not authorized for this session');
   };
 

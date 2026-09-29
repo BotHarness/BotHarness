@@ -30,15 +30,10 @@ const fetchOk = (): Promise<Response> =>
   } as unknown as Response);
 const fetchRefused = (): Promise<Response> => Promise.reject(new Error('connection refused'));
 
-/**
- * The desktop serves HTTP immediately unless a test overrides fetchImpl:
- * every existing test already assumes instant infrastructure.
- */
 beforeEach(() => {
   vi.stubGlobal('fetch', () => fetchOk());
 });
 
-/** One `docker inspect` spec line: image | memory | swap | nanoCpus | shm | pids | env. */
 function specLine(
   patch: {
     image?: string;
@@ -178,7 +173,6 @@ describe('Docker computer provider', () => {
     });
     await provider.start();
     expect(calls.some((argv) => argv[1] === 'start')).toBe(true);
-    // Helper one-shots run with --rm; only a persistent container creation counts.
     expect(calls.some((argv) => argv[1] === 'run' && !argv.includes('--rm'))).toBe(false);
   });
 
@@ -710,7 +704,6 @@ describe('Docker computer provider', () => {
 });
 
 describe('Docker desktop readiness gate', () => {
-  /** Stopped container with matching spec; flips to running on start/run. */
   function stoppedRunner(calls: string[][] = []): ComputerRuntimeRunner {
     let serving = false;
     return {
@@ -840,7 +833,6 @@ describe('Docker desktop readiness gate', () => {
     });
     await expect(provider.exportTo?.('/tmp/exports')).resolves.toMatch(/\.tar$/);
     expect(events.some((event) => event.includes('readiness'))).toBe(true);
-    // Unconfirmed means unflagged: no viewer URL for a maybe-dead desktop.
     expect(provider.upstream()).toBeUndefined();
   });
 
