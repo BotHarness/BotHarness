@@ -96,6 +96,7 @@
 
 ### Changed
 
+- Human 私聊消息现在默认在下一个安全 step 注入正在运行的 Orchestrator 回合（steer），而不是等后续 harvest；没有活动回合时行为不变（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
 - Windows 隔离 DSH 开发实例现可一次性安全导入 WSL 中已有的 DeepSeek 开发密钥，让两个环境的真实模型验收共用同一份本机凭据（[#115](https://github.com/BotHarness/BotHarness/issues/115)、[AX 指南](docs/client-bridge.md)）。
 - Computer entry 的 Access 开关移入可折叠标题栏；与 Browser entry 一样，开关关闭时该区块无法展开（[#493](https://github.com/BotHarness/BotHarness/issues/493)）。
 - Browser entry 的 Browser Access 开关现在位于可折叠标题栏中，开关关闭时无法展开；正文改为干净的标签列表，配一个默认跟随 Bot 的焦点预览（关闭跟随后点击列表项即可切换预览）；Bot 标签以后台标签开在共享 Bot Browser 里，不再弹新窗口、不抢焦点。原「接管」改为 **暂停 Bot**——只让该 Bot 停手，不暗示你需要授权才能操作窗口（[#490](https://github.com/BotHarness/BotHarness/issues/490)、[#492](https://github.com/BotHarness/BotHarness/issues/492)、[#496](https://github.com/BotHarness/BotHarness/issues/496)、[ADR-0095](docs/adr/0095-bot-tabs-are-background-tabs-on-the-shared-bot-browser.md)）。

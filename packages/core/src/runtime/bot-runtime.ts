@@ -690,11 +690,22 @@ class BotRuntimeImplementation implements BotRuntime {
       persistedBody ?? body,
       timestamp,
     );
+    const steered =
+      claim.shouldRun &&
+      this.#steerDmAdmission(
+        bot.slug,
+        channel.id,
+        input.messageId,
+        claim.sourceEventId,
+        this.#inboundChannelMessage(channel.id, input.messageId, body),
+      );
     return {
       admitted: true,
-      settled: this.#enqueue(bot.slug, () =>
-        this.#runHumanDmTurn(bot, channel.id, body, claim, input.messageId),
-      ),
+      settled: steered
+        ? Promise.resolve()
+        : this.#enqueue(bot.slug, () =>
+            this.#runHumanDmTurn(bot, channel.id, body, claim, input.messageId),
+          ),
     };
   }
 
@@ -806,6 +817,62 @@ class BotRuntimeImplementation implements BotRuntime {
         continue;
       this.#scheduleHarvest(row.bot_slug);
     }
+  }
+
+  #steerDmAdmission(
+    botSlug: string,
+    channelId: string,
+    messageId: string,
+    sourceEventId: string,
+    prompt: string,
+  ): boolean {
+    const active = this.#activeTurns.get(botSlug);
+    if (active === undefined || this.#agents.steerOrchestrator === undefined) return false;
+    const admission = { sourceEventId, messageId };
+    this.#channels.admissionChanged?.(channelId, messageId);
+    this.#markAdmissionsSideEffect(botSlug, [sourceEventId]);
+    let delivered: boolean;
+    try {
+      delivered = this.#agents.steerOrchestrator(botSlug, prompt);
+    } catch (error) {
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(`
+          UPDATE inbox_admissions SET attempt_state = 'needs-repair', last_error = ?
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(String(error).slice(0, 500), sourceEventId, botSlug);
+        },
+        ['bot-inbox'],
+      );
+      this.#channels.admissionChanged?.(channelId, messageId);
+      return true;
+    }
+    if (!delivered) {
+      this.#database.transaction(
+        (database) => {
+          database
+            .prepare(`
+          UPDATE inbox_admissions
+             SET attempt_state = 'pending', side_effect_started_at = NULL
+           WHERE source_event_id = ? AND bot_slug = ? AND attempt_state = 'running'
+        `)
+            .run(sourceEventId, botSlug);
+        },
+        ['bot-inbox'],
+      );
+      this.#channels.admissionChanged?.(channelId, messageId);
+      return false;
+    }
+    this.#observeAdmission(sourceEventId, botSlug, channelId, messageId);
+    const settlement = active.then(
+      () => this.#settleSteeredAdmission([admission], botSlug, channelId, true),
+      () => this.#settleSteeredAdmission([admission], botSlug, channelId, false),
+    );
+    this.#steerSettlements.add(settlement);
+    void settlement.finally(() => this.#steerSettlements.delete(settlement)).catch(() => undefined);
+    return true;
   }
 
   #steerGroupMention(

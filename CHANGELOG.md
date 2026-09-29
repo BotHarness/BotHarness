@@ -96,6 +96,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- A Human DM message now steers an active Orchestrator turn at its next safe step by default, instead of waiting for a later harvest; when no turn is running it behaves as before ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
 - The Computer entry's Access switch moved into the collapsible header and, like the Browser entry, the section cannot expand while access is off ([#493](https://github.com/BotHarness/BotHarness/issues/493)).
 - The Browser entry keeps its Browser Access switch in the collapsible header and refuses to open while the switch is off; the body is now a clean tab list with a focused preview that follows the Bot by default (or a tab you click), and Bot tabs open as background tabs in the shared Bot Browser without popping windows or stealing focus. The former Takeover control is now **Pause Bot**, which stops the Bot without implying you need permission to use the window ([#490](https://github.com/BotHarness/BotHarness/issues/490), [#492](https://github.com/BotHarness/BotHarness/issues/492), [#496](https://github.com/BotHarness/BotHarness/issues/496), [ADR-0095](docs/adr/0095-bot-tabs-are-background-tabs-on-the-shared-bot-browser.md)).
