@@ -64,6 +64,11 @@ try {
   const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
   await page.waitForSelector(botButton);
   if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.evaluate(() =>
+    Array.from(document.querySelectorAll('button'))
+      .find((button) => ['Configure later', '稍后配置'].includes(button.textContent?.trim() ?? ''))
+      ?.click(),
+  );
   await page.waitForSelector('.bh-root');
   const openSidebar = await page.$('button[aria-label="Open sidebar"]');
   if (openSidebar) await openSidebar.click();
@@ -111,6 +116,28 @@ try {
   ) {
     throw new Error(`Unexpected saved plan: ${JSON.stringify(plan)}`);
   }
+  await page.click('.bh-profile-view .bh-profile-policy-section summary');
+  const collapsedScreenshot = screenshot.replace(/\.png$/u, '-collapsed.png');
+  await page.waitForFunction(
+    () =>
+      document.querySelector('.bh-profile-view .bh-profile-policy-section details')?.open ===
+        false &&
+      document
+        .querySelector('.bh-profile-view .bh-profile-policy-section summary')
+        ?.textContent?.includes('Revision 1'),
+  );
+  await page.waitForFunction(
+    () => !document.body.textContent?.includes('Unable to create default workspace'),
+    { timeout: 15000 },
+  );
+  await page.screenshot({ path: collapsedScreenshot, fullPage: true });
+  await page.click('.bh-profile-view .bh-profile-policy-section summary');
+  await page.waitForSelector('.bh-model-preset-form input');
+  await page.waitForFunction(
+    (presetId) => document.querySelector('.bh-model-preset-apply select')?.value === presetId,
+    { timeout: 30000 },
+    plan.sourcePresetId,
+  );
   await page.screenshot({ path: screenshot, fullPage: true });
   await rpc('channelSend', {
     channelId: `dm-${bot.slug}`,
@@ -173,6 +200,7 @@ try {
       reply: reply?.body,
       dshLastUsed: lastUsed,
       screenshot,
+      collapsedScreenshot,
       replyScreenshot,
     }),
   );

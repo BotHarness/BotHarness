@@ -390,7 +390,7 @@ export function ProfileView({
           </div>
         </section>
       )}
-      <ModelPresetProfile slug={bot.slug} actions={actions} t={t} />
+      <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
       <section
         className="bh-profile-section bh-profile-policy-section"
         aria-label={t('sourcePolicy.title')}

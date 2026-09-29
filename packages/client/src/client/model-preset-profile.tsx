@@ -1,4 +1,4 @@
-import { useState, type ReactElement } from 'react';
+import { useCallback, useRef, useState, type ReactElement } from 'react';
 import { Button, IconChevronRightOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
@@ -27,6 +27,8 @@ export function ModelPresetProfile({
   const [catalog, setCatalog] = useState<ModelCatalogEntryView[]>();
   const [presets, setPresets] = useState<ModelPresetView[]>([]);
   const [plan, setPlan] = useState<ModelPlanView>();
+  const [planLoadError, setPlanLoadError] = useState(false);
+  const planRequest = useRef(0);
   const [selectedPreset, setSelectedPreset] = useState('');
   const [name, setName] = useState('');
   const [orchestratorIndex, setOrchestratorIndex] = useState(0);
@@ -36,7 +38,27 @@ export function ModelPresetProfile({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
 
+  const loadPlanOnMount = useCallback(
+    (element: HTMLElement | null): void => {
+      const request = ++planRequest.current;
+      if (element === null) return;
+      void actions.modelPlan(slug).then(
+        (current) => {
+          if (planRequest.current === request)
+            setPlan((previous) =>
+              (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
+            );
+        },
+        () => {
+          if (planRequest.current === request) setPlanLoadError(true);
+        },
+      );
+    },
+    [actions, slug],
+  );
+
   const load = async (): Promise<void> => {
+    const request = planRequest.current;
     setCatalog(undefined);
     setError(undefined);
     try {
@@ -45,17 +67,24 @@ export function ModelPresetProfile({
         actions.modelPresets(),
         actions.modelPlan(slug),
       ]);
+      if (planRequest.current !== request) return;
       setCatalog(models);
       setPresets(saved);
-      setSelectedPreset(saved[0]?.id ?? '');
-      setPlan(current);
+      setSelectedPreset(
+        saved.find((preset) => preset.id === current?.sourcePresetId)?.id ?? saved[0]?.id ?? '',
+      );
+      setPlan((previous) =>
+        (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
+      );
+      setPlanLoadError(false);
     } catch (failure) {
-      setError(errorMessage(failure));
+      if (planRequest.current === request) setError(errorMessage(failure));
     }
   };
 
   const selectedOrchestrator = catalog?.[orchestratorIndex];
   const selectedAssignment = catalog?.[assignmentIndex];
+  const hasPlanError = planLoadError && plan === undefined;
   const routeOf = (entry: ModelCatalogEntryView, effort: string): ModelRouteView => ({
     provider: entry.provider,
     model: entry.model,
@@ -72,11 +101,11 @@ export function ModelPresetProfile({
         routeOf(selectedOrchestrator, orchestratorEffort),
         routeOf(selectedAssignment, assignmentEffort),
       );
-      const applied = await actions.applyModelPreset(slug, preset.id);
       setPresets((current) => [...current, preset]);
       setSelectedPreset(preset.id);
-      setPlan(applied);
       setName('');
+      const applied = await actions.applyModelPreset(slug, preset.id);
+      setPlan(applied);
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -99,6 +128,7 @@ export function ModelPresetProfile({
 
   return (
     <section
+      ref={loadPlanOnMount}
       className="bh-profile-section bh-profile-policy-section"
       aria-label={t('modelPreset.title')}
     >
@@ -112,9 +142,11 @@ export function ModelPresetProfile({
           <span className="bh-profile-policy-summary-text">
             <strong>{t('modelPreset.title')}</strong>
             <span>
-              {plan === undefined
-                ? t('modelPreset.noPlan')
-                : `${plan.sourcePresetName} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
+              {hasPlanError
+                ? t('modelPreset.loadFailed')
+                : plan === undefined
+                  ? t('modelPreset.noPlan')
+                  : `${plan.sourcePresetName} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
             </span>
           </span>
           <IconChevronRightOutlineRegular />
@@ -251,6 +283,11 @@ export function ModelPresetProfile({
                 {error}
               </span>
             )}
+            {hasPlanError ? (
+              <span className="bh-profile-error" role="alert">
+                {t('modelPreset.loadFailed')}
+              </span>
+            ) : null}
           </div>
         </div>
       </details>
