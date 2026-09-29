@@ -50,6 +50,8 @@ export function MemoryDiffFile({
   binary = false,
   binaryLabel,
   emptyLabel,
+  oldLineLabel,
+  newLineLabel,
 }: {
   path: string;
   status: string;
@@ -59,6 +61,8 @@ export function MemoryDiffFile({
   binary?: boolean;
   binaryLabel: string;
   emptyLabel: string;
+  oldLineLabel: string;
+  newLineLabel: string;
 }): ReactElement {
   const model = parseMemoryDiff(diff);
   return (
@@ -85,8 +89,22 @@ export function MemoryDiffFile({
                   </tr>
                 ) : (
                   <tr key={index} className={`bh-memory-diff-${line.kind}`}>
-                    <td className="bh-memory-diff-number">{line.oldLine ?? ''}</td>
-                    <td className="bh-memory-diff-number">{line.newLine ?? ''}</td>
+                    <td
+                      className="bh-memory-diff-number"
+                      aria-label={
+                        line.oldLine === undefined ? undefined : `${oldLineLabel} ${line.oldLine}`
+                      }
+                    >
+                      {line.oldLine ?? ''}
+                    </td>
+                    <td
+                      className="bh-memory-diff-number"
+                      aria-label={
+                        line.newLine === undefined ? undefined : `${newLineLabel} ${line.newLine}`
+                      }
+                    >
+                      {line.newLine ?? ''}
+                    </td>
                     <td className="bh-memory-diff-sign" aria-hidden="true">
                       {line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ''}
                     </td>

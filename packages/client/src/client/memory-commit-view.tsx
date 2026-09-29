@@ -136,6 +136,8 @@ export function MemoryCommitView({
               label={t('memory.diff')}
               binaryLabel={t('memory.binaryPreview')}
               emptyLabel={t('memory.noTextDiff')}
+              oldLineLabel={t('memory.oldLine')}
+              newLineLabel={t('memory.newLine')}
             />
           ))}
         </>

@@ -204,6 +204,8 @@ export function MemoryWorkingView({
           binary={detail.binary}
           binaryLabel={t('memory.binaryPreview')}
           emptyLabel={t('memory.noTextDiff')}
+          oldLineLabel={t('memory.oldLine')}
+          newLineLabel={t('memory.newLine')}
         />
       )}
     </div>
