@@ -240,6 +240,7 @@ export interface BridgeMethods {
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
+  browserProfileSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
@@ -264,6 +265,7 @@ export interface BridgeMethodsDeps {
   developerMode?: { set(enabled: boolean): void };
   computerAccess?: { changed(slug: string): void };
   browserAccess?: { changed(slug: string): void };
+  browserProfile?: { changed(slug: string): void };
   createBotId?: () => string;
 }
 
@@ -485,6 +487,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
     ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
+    ...(record.browserProfile === undefined ? {} : { browserProfile: record.browserProfile }),
   };
 }
 
@@ -718,6 +721,21 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setBrowserAccess(slug, enabled);
       if (!result.ok) return unknownBot(slug);
       deps.browserAccess?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    browserProfileSet(payload) {
+      const slug = asSlug(payload);
+      const profile = asObject(payload)['profile'];
+      if (slug === undefined || typeof profile !== 'string') {
+        return invalidInput('slug and profile are required');
+      }
+      const trimmed = profile.trim();
+      if (trimmed !== '' && !/^[a-zA-Z0-9._-]{1,40}$/u.test(trimmed)) {
+        return invalidInput('profile must use letters, digits, dot, dash, or underscore (max 40)');
+      }
+      const result = deps.registry.setBrowserProfile(slug, profile);
+      if (!result.ok) return unknownBot(slug);
+      deps.browserProfile?.changed(slug);
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {

@@ -702,6 +702,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           });
         },
       },
+      browserProfile: {
+        changed: (slug: string) => {
+          const provider = ctx.get('botharnessBrowserTools') as unknown as
+            | { resetBot?: (slug: string) => void }
+            | undefined;
+          provider?.resetBot?.(slug);
+        },
+      },
     }),
   );
 

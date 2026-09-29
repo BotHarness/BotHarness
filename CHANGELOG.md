@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- PersonaBots can be assigned a named Bot Browser profile (default: the shared profile); bots on the same profile share its logins, and different profiles run as separate browsers on demand with independent idle stops. The Browser entry has a Profile field to change a Bot's assignment ([#497](https://github.com/BotHarness/BotHarness/issues/497), [ADR-0096](docs/adr/0096-bot-browser-profiles-are-named-and-assignable-per-personabot.md)).
 - A PersonaBot can attach Host files to a page through `browser_upload` (optionally clicking the control that opens the picker first): the native dialog is intercepted and the page's file input receives the path, with the audit recording only the file's basename ([#491](https://github.com/BotHarness/BotHarness/issues/491)).
 - `browser_screenshot` now also saves the capture under the browser data directory and reports its path, keeping only the newest captures ([#494](https://github.com/BotHarness/BotHarness/issues/494)).
 - A PersonaBot can keep several tabs in its own Bot Browser window through `browser_tabs` (list, open, select, close): background tabs are opened without stealing focus, observe and actions follow the selected tab, idle windows close while the browser keeps running, and a Human-closed tab recovers through list/select or a new open ([#463](https://github.com/BotHarness/BotHarness/issues/463)).

@@ -1,4 +1,11 @@
-import { useState, useSyncExternalStore, type ComponentType, type ReactElement } from 'react';
+import {
+  useState,
+  useSyncExternalStore,
+  type ChangeEvent,
+  type ComponentType,
+  type KeyboardEvent,
+  type ReactElement,
+} from 'react';
 import { Switch } from '@deepseek-ai/dsh-client-ui-primitives';
 import type {} from '@deepseek-ai/dsh-client-ui-slots';
 
@@ -55,6 +62,7 @@ let connectionRpc: ConnectionRpcLike | undefined;
 interface BotInfoView {
   readonly displayName: string | undefined;
   readonly browserAccess: boolean | undefined;
+  readonly browserProfile: string | undefined;
 }
 
 interface BrowserTabView {
@@ -87,7 +95,11 @@ interface ReadableStore<T> {
 }
 
 function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoView> {
-  let info: BotInfoView = { displayName: undefined, browserAccess: undefined };
+  let info: BotInfoView = {
+    displayName: undefined,
+    browserAccess: undefined,
+    browserProfile: undefined,
+  };
   const listeners = new Set<() => void>();
   let started = false;
   const load = (): void => {
@@ -98,7 +110,12 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
       .then((result) => {
         if (!result.ok) return;
         const value = result.value as {
-          bots?: readonly { slug?: unknown; displayName?: unknown; browserAccess?: unknown }[];
+          bots?: readonly {
+            slug?: unknown;
+            displayName?: unknown;
+            browserAccess?: unknown;
+            browserProfile?: unknown;
+          }[];
         };
         const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
         if (match === undefined) return;
@@ -108,6 +125,10 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
               ? match.displayName
               : undefined,
           browserAccess: typeof match.browserAccess === 'boolean' ? match.browserAccess : undefined,
+          browserProfile:
+            typeof match.browserProfile === 'string' && match.browserProfile !== ''
+              ? match.browserProfile
+              : undefined,
         };
         for (const listener of listeners) listener();
       })
@@ -267,10 +288,14 @@ const tabRowStyle = {
 
 function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [store] = useState(() => createObservationStore(botSlug));
+  const [infoStore] = useState(() => createBotInfoStore(botSlug));
   const observation = useSyncExternalStore(store.subscribe, store.getSnapshot);
+  const info = useSyncExternalStore(infoStore.subscribe, infoStore.getSnapshot);
   const [follow, setFollow] = useState(true);
   const [preview, setPreview] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [draft, setDraft] = useState<string | undefined>(undefined);
+  const [profileOverride, setProfileOverride] = useState<string | undefined>(undefined);
   const [error, setError] = useState<string | undefined>(undefined);
 
   const tabs = observation?.tabs ?? [];
@@ -314,8 +339,61 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
     });
   };
 
+  const currentProfile = profileOverride ?? info.browserProfile ?? '';
+
+  const saveProfile = (): void => {
+    const rpc = connectionRpc;
+    if (rpc === undefined || botSlug === undefined || draft === undefined) return;
+    const next = draft.trim();
+    setDraft(undefined);
+    if (next === currentProfile) return;
+    setError(undefined);
+    void rpc
+      .call('/api', 'botharness/browserProfileSet', { args: { slug: botSlug, profile: next } })
+      .then((result) => {
+        if (!result.ok) {
+          setError(result.error?.message ?? t('entry.profile.failed'));
+          return;
+        }
+        const value = result.value as { bot?: { browserProfile?: unknown } };
+        setProfileOverride(
+          typeof value.bot?.browserProfile === 'string' ? value.bot.browserProfile : '',
+        );
+      })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)));
+  };
+
+  const onProfileChange = (event: ChangeEvent<HTMLInputElement>): void => {
+    setDraft(event.target.value);
+  };
+
+  const onProfileKey = (event: KeyboardEvent<HTMLInputElement>): void => {
+    if (event.key === 'Enter') saveProfile();
+  };
+
   return (
     <div style={{ display: 'grid', gap: 8, fontSize: 12.5 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ opacity: 0.8 }}>{t('entry.profile.label')}</span>
+        <input
+          value={draft ?? currentProfile}
+          placeholder={t('entry.profile.default')}
+          disabled={botSlug === undefined}
+          onChange={onProfileChange}
+          onBlur={saveProfile}
+          onKeyDown={onProfileKey}
+          style={{
+            flex: 1,
+            minWidth: 0,
+            padding: '2px 6px',
+            borderRadius: 4,
+            border: '1px solid currentColor',
+            background: 'transparent',
+            color: 'inherit',
+            fontSize: 12,
+          }}
+        />
+      </div>
       <div
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
       >
