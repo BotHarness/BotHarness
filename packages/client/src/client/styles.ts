@@ -1872,6 +1872,7 @@ html[data-botharness-motion='full'] .bh-skeleton-line {
   gap: 6px;
 }
 .bh-profile-heat-grid {
+  width: max-content;
   display: grid;
   grid-auto-flow: column;
   grid-template-rows: repeat(7, 10px);

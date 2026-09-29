@@ -151,6 +151,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- PersonaBot activity heatmap tooltips now stay beside the hovered or focused day in wide and compact Profiles ([#478](https://github.com/BotHarness/BotHarness/issues/478)).
 - The docked Channel sidebar now stays in place while switching Channels or opening a PersonaBot DM, so the Channel body no longer shifts while the next conversation loads ([#430](https://github.com/BotHarness/BotHarness/issues/430)).
 - Previously opened Channels now show cached history and sidebar data immediately while refreshing in the background; first visits show skeleton placeholders in the Channel body, app sidebar, and Channel sidebar ([#434](https://github.com/BotHarness/BotHarness/issues/434)).
 - The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
