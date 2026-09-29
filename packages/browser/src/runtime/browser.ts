@@ -61,6 +61,7 @@ export interface BotBrowserRuntime {
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
   pressKey(tabId: string, key: string): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
+  uploadFile(tabId: string, options: { ref?: string; path: string }): Promise<void>;
   createTab(url: string): Promise<BrowserTab>;
   listTabs(): Promise<readonly { targetId: string; url: string; title: string }[]>;
   tabInfo(targetId: string): Promise<{ url: string; title: string }>;
@@ -480,6 +481,54 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return openTarget(url, false);
   };
 
+  const uploadFile = async (
+    tabId: string,
+    options: { ref?: string; path: string },
+  ): Promise<void> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    if (!existsSync(options.path)) {
+      throw new Error(`The file does not exist on the Host: ${options.path}`);
+    }
+    const sessionId = await attach(tabId);
+    await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
+    try {
+      if (options.ref !== undefined) {
+        const value = asObject(await evaluate(sessionId, clickScript(options.ref)));
+        if (value !== undefined && value['ok'] !== true) {
+          throw new Error('The element ref is stale; call browser_observe again before acting');
+        }
+      }
+      const document = await live.send('DOM.getDocument', {}, sessionId);
+      const rootId = asObject(document['root'])?.['nodeId'];
+      if (typeof rootId !== 'number') throw new Error('The Bot Browser returned no document');
+      const found = await live.send(
+        'DOM.querySelectorAll',
+        { nodeId: rootId, selector: 'input[type="file"]' },
+        sessionId,
+      );
+      const nodeIds = Array.isArray(found['nodeIds'])
+        ? (found['nodeIds'] as readonly unknown[]).filter(
+            (value): value is number => typeof value === 'number',
+          )
+        : [];
+      if (nodeIds.length === 0) {
+        throw new Error(
+          'The page has no file input; click the upload control first so the page creates one, then retry',
+        );
+      }
+      await live.send(
+        'DOM.setFileInputFiles',
+        { files: [options.path], nodeId: nodeIds[nodeIds.length - 1] },
+        sessionId,
+      );
+    } finally {
+      await live
+        .send('Page.setInterceptFileChooserDialog', { enabled: false }, sessionId)
+        .catch(() => undefined);
+    }
+  };
+
   const listTabs = async (): Promise<
     readonly { targetId: string; url: string; title: string }[]
   > => {
@@ -612,6 +661,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     type,
     pressKey,
     scroll,
+    uploadFile,
     createTab,
     listTabs,
     tabInfo,
