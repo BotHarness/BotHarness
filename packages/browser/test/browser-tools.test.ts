@@ -67,6 +67,11 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       url: 'https://example.com/',
       title: 'Example Domain',
     })),
+    clickAt: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
     type: vi.fn(async (tabId: string) => ({
       tabId,
       url: 'https://example.com/',
@@ -394,6 +399,22 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       .get('browser_wait')!
       .execute({ ms: 5 }, execution('browser_wait'));
     expect(JSON.stringify(waited)).toContain('waited 5ms');
+  });
+
+  it('clicks by coordinates when no ref is available', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    await h.state.definitions
+      .get('browser_click')!
+      .execute({ x: 120, y: 340 }, execution('browser_click'));
+    expect(h.runtime.clickAt).toHaveBeenCalledWith('tab-1', 120, 340);
+    expect(h.audits.at(-1)?.summary).toBe('x=120 y=340');
+    await expect(
+      h.state.definitions.get('browser_click')!.execute({}, execution('browser_click')),
+    ).rejects.toThrow(/ref from browser_observe or x\/y/);
   });
 
   it('keeps the current tab on recoverable errors and drops it on dead targets', async () => {

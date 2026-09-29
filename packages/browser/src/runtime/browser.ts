@@ -58,6 +58,7 @@ export interface BotBrowserRuntime {
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
   observe(tabId: string): Promise<BrowserObservation>;
   click(tabId: string, ref: string): Promise<BrowserTab>;
+  clickAt(tabId: string, x: number, y: number): Promise<BrowserTab>;
   type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
   pressKey(tabId: string, key: string): Promise<BrowserTab>;
   scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
@@ -208,22 +209,42 @@ export async function connectCdp(url: string, ctor?: WebSocketCtor): Promise<Cdp
   };
 }
 
-const SNAPSHOT_SCRIPT = `(() => {
+export const SNAPSHOT_SCRIPT = `(() => {
   const elements = [];
-  const wanted = 'a[href],button,input,textarea,select,summary,[role],[contenteditable="true"]';
-  for (const el of document.querySelectorAll(wanted)) {
-    if (elements.length >= 200) break;
-    const rect = el.getBoundingClientRect();
-    if (rect.width < 1 || rect.height < 1) continue;
+  const cap = 250;
+  const nameOf = (el) => {
+    const raw = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || (el.innerText || el.textContent || el.value || '');
+    return String(raw).trim().replace(/\\s+/g, ' ').slice(0, 80);
+  };
+  const add = (el, role) => {
+    if (elements.length >= cap) return false;
     const ref = 'e' + (elements.length + 1);
     el.setAttribute('data-botharness-ref', ref);
-    const tag = el.tagName.toLowerCase();
-    const role = el.getAttribute('role') || tag;
-    const raw = el.getAttribute('aria-label') || el.getAttribute('placeholder') || el.getAttribute('name') || (el.innerText || el.value || '');
-    const name = String(raw).trim().replace(/\\s+/g, ' ').slice(0, 80);
-    elements.push({ ref: ref, role: role, name: name });
+    elements.push({ ref: ref, role: role, name: nameOf(el) });
+    return true;
+  };
+  const wanted = 'a[href],button,input,textarea,select,summary,[role],[contenteditable="true"],[tabindex]';
+  for (const el of document.querySelectorAll(wanted)) {
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 1 || rect.height < 1) continue;
+    if (!add(el, el.getAttribute('role') || el.tagName.toLowerCase())) break;
   }
-  const text = (document.body ? document.body.innerText : '').replace(/\\s+/g, ' ').trim().slice(0, 6000);
+  const clickables = [];
+  for (const el of document.querySelectorAll('div,span,li,i,svg,img,label,section')) {
+    if (clickables.length >= 400 || elements.length >= cap) break;
+    if (el.hasAttribute('data-botharness-ref')) continue;
+    const rect = el.getBoundingClientRect();
+    if (rect.width < 8 || rect.height < 8) continue;
+    if (getComputedStyle(el).cursor !== 'pointer') continue;
+    if (el.closest(wanted)) continue;
+    clickables.push(el);
+  }
+  for (const el of clickables) {
+    if (elements.length >= cap) break;
+    if (clickables.some((other) => other !== el && el.contains(other))) continue;
+    add(el, 'clickable');
+  }
+  const text = String((document.body && (document.body.innerText || document.body.textContent)) || '').replace(/\\s+/g, ' ').trim().slice(0, 6000);
   return { url: location.href, title: document.title, elements: elements, text: text };
 })()`;
 
@@ -395,7 +416,38 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     `document.querySelector(${JSON.stringify(`[data-botharness-ref=${JSON.stringify(ref)}]`)})`;
 
   const clickScript = (ref: string): string =>
-    `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.scrollIntoView({ block: 'center', inline: 'center' }); el.click(); return { ok: true }; })()`;
+    `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.scrollIntoView({ block: 'center', inline: 'center' }); const rect = el.getBoundingClientRect(); if (rect.width < 1 || rect.height < 1) return { ok: false, reason: 'not-clickable' }; return { ok: true, x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }; })()`;
+
+  const dispatchMouseClick = async (sessionId: string, x: number, y: number): Promise<void> => {
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    await live.send('Input.dispatchMouseEvent', { type: 'mouseMoved', x, y }, sessionId);
+    await live.send(
+      'Input.dispatchMouseEvent',
+      { type: 'mousePressed', x, y, button: 'left', clickCount: 1 },
+      sessionId,
+    );
+    await live.send(
+      'Input.dispatchMouseEvent',
+      { type: 'mouseReleased', x, y, button: 'left', clickCount: 1 },
+      sessionId,
+    );
+  };
+
+  const clickRef = async (sessionId: string, ref: string): Promise<void> => {
+    const value = asObject(await evaluate(sessionId, clickScript(ref)));
+    if (value === undefined || value['ok'] !== true) {
+      const reason =
+        value !== undefined && typeof value['reason'] === 'string' ? value['reason'] : 'failed';
+      if (reason === 'stale-ref') {
+        throw new Error('The element ref is stale; call browser_observe again before acting');
+      }
+      throw new Error(`The Bot Browser action failed: ${reason}`);
+    }
+    const x = typeof value['x'] === 'number' ? value['x'] : 0;
+    const y = typeof value['y'] === 'number' ? value['y'] : 0;
+    await dispatchMouseClick(sessionId, x, y);
+  };
 
   const typeScript = (ref: string, text: string): string =>
     `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
@@ -425,8 +477,23 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     return { tabId, url: page.url, title: page.title };
   };
 
-  const click = (tabId: string, ref: string): Promise<BrowserTab> =>
-    runInteraction(tabId, clickScript(ref));
+  const click = async (tabId: string, ref: string): Promise<BrowserTab> => {
+    const sessionId = await attach(tabId);
+    await clickRef(sessionId, ref);
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, url: page.url, title: page.title };
+  };
+
+  const clickAt = async (tabId: string, x: number, y: number): Promise<BrowserTab> => {
+    const sessionId = await attach(tabId);
+    await dispatchMouseClick(sessionId, x, y);
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, url: page.url, title: page.title };
+  };
 
   const type = (tabId: string, ref: string, text: string): Promise<BrowserTab> =>
     runInteraction(tabId, typeScript(ref, text));
@@ -494,10 +561,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     await live.send('Page.setInterceptFileChooserDialog', { enabled: true }, sessionId);
     try {
       if (options.ref !== undefined) {
-        const value = asObject(await evaluate(sessionId, clickScript(options.ref)));
-        if (value !== undefined && value['ok'] !== true) {
-          throw new Error('The element ref is stale; call browser_observe again before acting');
-        }
+        await clickRef(sessionId, options.ref);
       }
       const findInput = async (): Promise<number | undefined> => {
         const document = await live.send('DOM.getDocument', {}, sessionId);
@@ -596,10 +660,30 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     const sessionId = await attach(tabId);
     const live = client;
     if (live === undefined) throw new Error('The Bot Browser is not running');
+    const metrics = await live.send('Page.getLayoutMetrics', {}, sessionId).catch(() => undefined);
+    const clip = asObject(metrics?.['cssVisualViewport']);
     const capture = async (): Promise<string | undefined> => {
       const result = await live.send(
         'Page.captureScreenshot',
-        { format: 'jpeg', quality: 60, fromSurface: true },
+        {
+          format: 'jpeg',
+          quality: 60,
+          fromSurface: true,
+          ...(clip === undefined ||
+          typeof clip['clientWidth'] !== 'number' ||
+          typeof clip['clientHeight'] !== 'number' ||
+          clip['clientWidth'] <= 0
+            ? {}
+            : {
+                clip: {
+                  x: typeof clip['pageX'] === 'number' ? clip['pageX'] : 0,
+                  y: typeof clip['pageY'] === 'number' ? clip['pageY'] : 0,
+                  width: clip['clientWidth'],
+                  height: clip['clientHeight'],
+                  scale: 1,
+                },
+              }),
+        },
         sessionId,
       );
       return typeof result['data'] === 'string' && result['data'] !== ''
@@ -664,6 +748,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     open,
     observe,
     click,
+    clickAt,
     type,
     pressKey,
     scroll,
