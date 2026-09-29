@@ -191,6 +191,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Defined deployment-local Model Presets as per-PersonaBot snapshots and retained per-model token statistics across ordinary Session deletion; implementation follows in separate runtime slices ([#488](https://github.com/BotHarness/BotHarness/issues/488), [#39](https://github.com/BotHarness/BotHarness/issues/39), [ADR-0093](docs/adr/0093-model-presets-are-local-snapshots.md), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
+
 - Recorded the Browser use design: a profile-scoped managed Bot Browser with per-PersonaBot Browser Access, session-scoped Browser Authorization, a redacted Browser Audit, and window-scoped Bot Tabs; runtime behavior lands in the tracer ([#459](https://github.com/BotHarness/BotHarness/issues/459), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md), [ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md), [ADR-0091](docs/adr/0091-bot-tabs-are-window-scoped-work-surfaces.md)).
 
 - Documented that cross-device Memory continuity is agent-mediated Git plus Portability; no first-party sync Skill, Host-owned remote, or credential handling is added, and runtime behavior is unchanged ([ADR-0084](docs/adr/0084-memory-continuity-is-agent-git-plus-portability.md), [#398](https://github.com/BotHarness/BotHarness/issues/398)).
