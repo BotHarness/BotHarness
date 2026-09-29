@@ -99,6 +99,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
   const provider = createBrowserToolProvider({
     ctx,
     runtime,
+    screenshotDir: join(profileDirectory(), 'screenshots'),
     isAutoAllowed: () => config.autoAllowActions,
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),

@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, readdirSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Context } from '@deepseek-ai/cordis';
 import type { Agent } from '@deepseek-ai/dsh-agent';
@@ -104,15 +108,24 @@ interface Harness {
   readonly state: FakeScope;
   readonly runtime: BotBrowserRuntime;
   readonly audits: BrowserAuditEvent[];
+  readonly screenshotDir: string;
   created(): void;
   setAccess(enabled: boolean): void;
   setAuto(allow: boolean): void;
 }
 
+const screenshotDirs: string[] = [];
+
+afterEach(() => {
+  for (const dir of screenshotDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
 function harness(options: { access: boolean; auto?: boolean }): Harness {
   const { scope, state } = fakeScope();
   const runtime = fakeRuntime();
   const audits: BrowserAuditEvent[] = [];
+  const screenshotDir = mkdtempSync(join(tmpdir(), 'browser-tools-'));
+  screenshotDirs.push(screenshotDir);
   let access = options.access;
   let auto = options.auto ?? false;
   const ctx = {
@@ -125,6 +138,8 @@ function harness(options: { access: boolean; auto?: boolean }): Harness {
   const provider = createBrowserToolProvider({
     ctx,
     runtime,
+    screenshotDir,
+    screenshotLimit: 2,
     isAutoAllowed: () => auto,
     audit: (event) => audits.push(event),
     core: () => ({
@@ -144,6 +159,7 @@ function harness(options: { access: boolean; auto?: boolean }): Harness {
     state,
     runtime,
     audits,
+    screenshotDir,
     created: () =>
       provider.attachAgent(scope, 'session-a', { botSlug: 'bot-a', rootRole: 'orchestrator' }),
     setAccess: (next) => {
@@ -283,7 +299,22 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       .execute({}, execution('browser_screenshot'));
     expect(h.runtime.captureScreenshot).toHaveBeenCalledWith('tab-1');
     expect(JSON.stringify(shot)).toContain('Zm9v');
+    expect(JSON.stringify(shot)).toContain('Screenshot saved to');
+    expect(readdirSync(h.screenshotDir)).toHaveLength(1);
     expect(h.audits.at(-1)?.summary).toBe('screenshot');
+  });
+
+  it('keeps only the newest screenshots on disk', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const screenshot = h.state.definitions.get('browser_screenshot')!;
+    await screenshot.execute({}, execution('browser_screenshot'));
+    await screenshot.execute({}, execution('browser_screenshot'));
+    await screenshot.execute({}, execution('browser_screenshot'));
+    expect(readdirSync(h.screenshotDir)).toHaveLength(2);
   });
 
   it('reports a tab-less screenshot readably', async () => {
