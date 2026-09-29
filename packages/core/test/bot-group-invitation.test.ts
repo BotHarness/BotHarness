@@ -60,11 +60,16 @@ describe('Bot Group invitation tracer', () => {
       ).read((db) =>
         db
           .prepare(
-            "SELECT reason, attempt_state FROM inbox_admissions WHERE reason = 'group-invite'",
+            "SELECT reason, attempt_state, source_policy_revision, source_policy_wake_mode FROM inbox_admissions WHERE reason = 'group-invite'",
           )
           .get(),
       );
-      expect(admission).toEqual({ reason: 'group-invite', attempt_state: 'pending' });
+      expect(admission).toEqual({
+        reason: 'group-invite',
+        attempt_state: 'pending',
+        source_policy_revision: 1,
+        source_policy_wake_mode: 'immediate',
+      });
       expect(methods.channelGroupInvite({ channelId: group.id, botSlug: 'missing' })).toMatchObject(
         { ok: false },
       );

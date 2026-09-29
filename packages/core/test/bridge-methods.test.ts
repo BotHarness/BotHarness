@@ -9,6 +9,7 @@ import { createBridgeMethods } from '../src/bridge/methods.js';
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
 import { createChannelStore, type ChannelStore } from '../src/channels/store.js';
 import type { MemoryService } from '../src/memory/service.js';
+import type { UsageProjection } from '../src/usage/usage.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
@@ -33,6 +34,7 @@ function setup(
   grants?: WorkspaceGrantStore,
   developerMode?: { set(enabled: boolean): void },
   memory?: MemoryService,
+  usage?: UsageProjection,
 ) {
   const root = mkdtempSync(join(tmpdir(), 'botharness-bridge-'));
   roots.push(root);
@@ -59,6 +61,7 @@ function setup(
       roster: createRosterStore(),
       ...(grants === undefined ? {} : { grants }),
       ...(memory === undefined ? {} : { memory }),
+      ...(usage === undefined ? {} : { usage }),
       ...(runtimeFactory === undefined ? {} : { runtime: runtimeFactory(channels) }),
       ...(developerMode === undefined ? {} : { developerMode }),
       createBotId: () => botIds[botIdIndex++] ?? 'bot-test-' + botIdIndex,
@@ -424,7 +427,7 @@ describe('bridge methods', () => {
     });
   });
 
-  it('creates a bot with persona, profile fields and avatar seed', () => {
+  it('creates a bot with persona, profile fields and a custom avatar', () => {
     const { root, methods } = setup();
 
     const result = methods.create({
@@ -436,7 +439,8 @@ describe('bridge methods', () => {
       model: 'deepseek-chat',
       preset: 'standard',
       workspaces: ['/srv/ada'],
-      avatarSeed: 'blue',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
     });
 
     expect(result).toEqual({
@@ -447,7 +451,7 @@ describe('bridge methods', () => {
           displayName: 'Ada',
           roles: ['研究'],
           description: '数学与计算',
-          avatar: 'blue',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
@@ -461,7 +465,7 @@ describe('bridge methods', () => {
       JSON.parse(readFileSync(join(root, 'ada', 'bot.json'), 'utf8')) as Record<string, unknown>,
     ).toMatchObject({
       slug: 'ada',
-      avatar: 'blue',
+      avatar: expect.stringMatching(/^data:image\/png;base64,/u),
       roles: ['研究'],
       description: '数学与计算',
     });
@@ -545,7 +549,8 @@ describe('bridge methods', () => {
         model: 'deepseek-chat',
         preset: 'standard',
         workspaces: ['/srv/ada'],
-        avatarSeed: 'green',
+        avatar:
+          'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
         persona: '# Evil\n',
       },
     });
@@ -558,7 +563,7 @@ describe('bridge methods', () => {
           displayName: 'Ada Lovelace',
           roles: [],
           description: '数学与计算',
-          avatar: 'green',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           aggregateState: 'idle',
           workspaces: ['/srv/ada'],
           createdAt: expect.any(String),
@@ -1112,7 +1117,12 @@ describe('bridge methods', () => {
       at: '2026-09-19T00:00:01.000Z',
     });
     const { methods } = setup([], ['ada'], undefined, ownership);
-    methods.create({ slug: 'ada', displayName: 'Ada', avatarSeed: 'https://example.com/ada.png' });
+    methods.create({
+      slug: 'ada',
+      displayName: 'Ada',
+      avatar:
+        'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=',
+    });
 
     expect(methods.sessionOwner({ sessionId: 'session-orchestrator' })).toEqual({
       ok: true,
@@ -1120,7 +1130,7 @@ describe('bridge methods', () => {
         owner: {
           botSlug: 'ada',
           displayName: 'Ada',
-          avatar: 'https://example.com/ada.png',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           role: 'orchestrator',
         },
       },
@@ -1131,7 +1141,7 @@ describe('bridge methods', () => {
         owner: {
           botSlug: 'ada',
           displayName: 'Ada',
-          avatar: 'https://example.com/ada.png',
+          avatar: expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u),
           role: 'assignment',
         },
       },
@@ -1226,6 +1236,20 @@ describe('bridge methods', () => {
     const memory = {
       activity: () => [{ at: atHour(-1, 9) }, { at: atHour(-1, 15) }, { at: atHour(0, 9) }],
     } as unknown as MemoryService;
+    const usage = {
+      activity: () => [
+        {
+          day: today,
+          purpose: 'orchestrator',
+          provider: 'deepseek',
+          model: 'deepseek-chat',
+          inputTokens: 100,
+          outputTokens: 40,
+          cacheReadTokens: 10,
+          cacheWriteTokens: 5,
+        },
+      ],
+    } as unknown as UsageProjection;
     const { registry, channels, methods } = setup(
       [],
       ['ada'],
@@ -1234,6 +1258,7 @@ describe('bridge methods', () => {
       undefined,
       undefined,
       memory,
+      usage,
     );
     expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
     const dm = channels.getOrCreateDm('ada', 'Ada')!;
@@ -1246,6 +1271,7 @@ describe('bridge methods', () => {
     if (!result.ok) return;
     expect(result.value.slug).toBe('ada');
     expect(result.value.weeks).toBe(26);
+    expect(result.value.today).toBe(today);
     expect(result.value.events).toEqual([
       { day: yesterday, reason: 'human-dm', count: 1 },
       { day: today, reason: 'group-mention', count: 1 },
@@ -1255,6 +1281,21 @@ describe('bridge methods', () => {
       { day: yesterday, count: 2 },
       { day: today, count: 1 },
     ]);
+    expect(result.value.tokens).toEqual([
+      {
+        day: today,
+        inputTokens: 100,
+        outputTokens: 40,
+        cacheReadTokens: 10,
+        cacheWriteTokens: 5,
+      },
+    ]);
+    expect(result.value.tokenTotals).toEqual({
+      inputTokens: 100,
+      outputTokens: 40,
+      cacheReadTokens: 10,
+      cacheWriteTokens: 5,
+    });
 
     expect(methods.profileActivity({ channelId: group.id })).toEqual({
       ok: false,
@@ -1267,5 +1308,36 @@ describe('bridge methods', () => {
       ok: false,
       error: { code: 'not-found', message: 'unknown Channel: missing' },
     });
+  });
+
+  it('sets, maps, and clears one PersonaBot custom avatar inside its DM', () => {
+    const avatar =
+      'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/ZFsAAAAASUVORK5CYII=';
+    const { registry, channels, methods } = setup();
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    const group = channels.createGroup({ name: 'Team', members: [] });
+    const avatarUrl = expect.stringMatching(/^\/api\/botharness\/bot-avatar\?slug=ada&v=/u);
+
+    const set = methods.botAvatarSet({ channelId: dm.id, avatar });
+    expect(set).toMatchObject({ ok: true, value: { bot: { avatar: avatarUrl } } });
+    expect(registry.get('ada')?.avatar).toBe(avatar);
+    expect(methods.list({})).toMatchObject({ ok: true, value: { bots: [{ avatar: avatarUrl }] } });
+
+    expect(
+      methods.botAvatarSet({ channelId: dm.id, avatar: 'https://example.com/ada.png' }),
+    ).toMatchObject({ ok: false, error: { code: 'invalid-input' } });
+    expect(
+      methods.botAvatarSet({ channelId: dm.id, avatar: 'data:image/svg+xml;base64,AAAA' }),
+    ).toMatchObject({ ok: false });
+    expect(methods.botAvatarSet({ channelId: group.id, avatar: null })).toMatchObject({
+      ok: false,
+    });
+
+    const cleared = methods.botAvatarSet({ channelId: dm.id, avatar: null });
+    expect(cleared.ok).toBe(true);
+    if (!cleared.ok) return;
+    expect(cleared.value.bot.avatar).toBeUndefined();
+    expect(registry.get('ada')?.avatar).toBeUndefined();
   });
 });

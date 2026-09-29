@@ -1,14 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import type { DatabaseSync } from 'node:sqlite';
 
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
+import {
+  createBotSourcePolicyStore,
+  defaultGroupWakePolicy,
+  type BotSourceClass,
+  type BotSourcePolicyStore,
+} from '../runtime/source-policy.js';
 import { isValidSlug } from '../bots/slug.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
 import {
   botDmChannelId,
-  DEFAULT_GROUP_WAKE_POLICY,
   dmChannelId,
   isBotDmChannel,
   MAX_BOT_HOPS,
@@ -37,6 +43,7 @@ import { DEFAULT_MESSAGE_PAGE, MAX_MESSAGE_PAGE, pageChannelTimeline } from './t
 interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   database: OperationalDatabaseModulePort;
   databaseOwnerReady?: boolean;
+  sourcePolicy?: BotSourcePolicyStore;
   /** Eligibility at the canonical Admission commit boundary. */
   isBotActive?: (botSlug: string) => boolean;
 }
@@ -151,6 +158,20 @@ function eventPayload(message: ChannelMessage): string {
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
+  const sourcePolicy = options.sourcePolicy ?? createBotSourcePolicyStore(database, now);
+  const insertSourceAdmission = (
+    db: DatabaseSync,
+    sourceEventId: string,
+    botSlug: string,
+    sourceClass: BotSourceClass,
+  ): void => {
+    const rule = sourcePolicy.resolveIn(db, botSlug, sourceClass);
+    db.prepare(`
+      INSERT INTO inbox_admissions
+        (source_event_id, bot_slug, reason, source_policy_revision, source_policy_wake_mode)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(sourceEventId, botSlug, sourceClass, rule.revision, rule.wake);
+  };
   const isBotActive = options.isBotActive ?? (() => true);
   let lowerRegistered = false;
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
@@ -472,26 +493,31 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             ? channel.members.flatMap((botSlug) => {
                 if (botSlug === senderSlug || immediate.has(botSlug) || !isBotActive(botSlug))
                   return [];
-                const policy = channel.wakePolicies?.[botSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
+                const sourceRule = sourcePolicy.resolveIn(db, botSlug, 'group-ordinary');
+                const policy =
+                  channel.wakePolicies?.[botSlug] ?? defaultGroupWakePolicy(sourceRule);
                 if (
                   durable.author.kind === 'bot' &&
                   durable.botCausation !== undefined &&
                   botAlreadyAdmitted(botSlug, durable.botCausation.rootSourceEventId)
                 )
                   return [];
-                return [{ botSlug, policy }];
+                return [{ botSlug, policy, sourceRule }];
               })
             : [];
         for (const recipient of recipients)
-          db.prepare(`
-        INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-        VALUES (?, ?, ?)
-      `).run(sourceEventId, recipient.botSlug, recipient.reason);
+          insertSourceAdmission(
+            db,
+            sourceEventId,
+            recipient.botSlug,
+            recipient.reason as BotSourceClass,
+          );
         for (const recipient of ordinary)
           db.prepare(`
         INSERT INTO inbox_admissions (
-          source_event_id, bot_slug, reason, wake_count, wake_interval_ms, wake_policy_revision, wake_mode
-        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?)
+          source_event_id, bot_slug, reason, wake_count, wake_interval_ms,
+          wake_policy_revision, wake_mode, source_policy_revision, source_policy_wake_mode
+        ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?)
       `).run(
             sourceEventId,
             recipient.botSlug,
@@ -507,6 +533,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                 : null,
             recipient.policy.revision,
             recipient.policy.mode,
+            recipient.sourceRule.revision,
+            recipient.sourceRule.wake,
           );
         db.prepare('UPDATE channel_records SET record_json = ? WHERE channel_id = ?').run(
           JSON.stringify({ ...channel, updatedAt: now().toISOString() }),
@@ -682,14 +710,17 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               record.type === 'dm' &&
               message.author.kind === 'human' &&
               record.botSlug !== undefined
-            )
+            ) {
+              const rule = sourcePolicy.resolveIn(db, record.botSlug, 'human-dm');
               db.prepare(`
               INSERT OR IGNORE INTO inbox_admissions (
-                source_event_id, bot_slug, reason, attempt_state, handled_at
+                source_event_id, bot_slug, reason, attempt_state, handled_at,
+                source_policy_revision, source_policy_wake_mode
               )
-              SELECT source_event_id, ?, 'human-dm', attempt_state, handled_at
+              SELECT source_event_id, ?, 'human-dm', attempt_state, handled_at, ?, ?
                 FROM source_events WHERE source_event_id = ?
-            `).run(record.botSlug, sourceEventId);
+            `).run(record.botSlug, rule.revision, rule.wake, sourceEventId);
+            }
             db.prepare(`
             INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
             VALUES (?, ?, ?, ?)
@@ -865,10 +896,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               ...(input.botCausation === undefined ? {} : { botCausation: input.botCausation }),
             }),
           );
-          db.prepare(`
-            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-            VALUES (?, ?, 'group-invite')
-          `).run(sourceEventId, input.targetBotSlug);
+          insertSourceAdmission(db, sourceEventId, input.targetBotSlug, 'group-invite');
         },
         ['channel', 'source-event', 'bot-inbox'],
       );
@@ -984,10 +1012,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                 ...(input.botCausation === undefined ? {} : { botCausation: input.botCausation }),
               }),
             );
-            db.prepare(`
-              INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-              VALUES (?, ?, 'group-join-request')
-            `).run(sourceEventId, channel.ownerBotSlug);
+            insertSourceAdmission(db, sourceEventId, channel.ownerBotSlug, 'group-join-request');
           }
         },
         ['channel', 'source-event', 'bot-inbox'],
@@ -1063,10 +1088,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
               ...(input.botCausation === undefined ? {} : { botCausation: input.botCausation }),
             }),
           );
-          db.prepare(`
-            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-            VALUES (?, ?, 'group-join-decision')
-          `).run(sourceEventId, request.requesterBotSlug);
+          insertSourceAdmission(db, sourceEventId, request.requesterBotSlug, 'group-join-decision');
           db.prepare(`
             UPDATE inbox_admissions
                SET attempt_state = 'handled', handled_at = ?
@@ -1173,7 +1195,11 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       const channel = readRecord(channelId);
       if (channel?.type !== 'group' || !channel.members.includes(botSlug))
         throw new Error('Group member not found');
-      const policy = channel.wakePolicies?.[botSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
+      const policy =
+        channel.wakePolicies?.[botSlug] ??
+        database.transaction((db) =>
+          defaultGroupWakePolicy(sourcePolicy.resolveIn(db, botSlug, 'group-ordinary')),
+        );
       const audit = database.read((db) =>
         db
           .prepare(`
@@ -1213,7 +1239,11 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       )
         throw new Error('Invalid Group wake policy');
       const previous = channel.wakePolicies?.[botSlug];
-      const effective = previous ?? DEFAULT_GROUP_WAKE_POLICY;
+      const effective =
+        previous ??
+        database.transaction((db) =>
+          defaultGroupWakePolicy(sourcePolicy.resolveIn(db, botSlug, 'group-ordinary')),
+        );
       if (
         effective.mode === policy.mode &&
         effective.count === policy.count &&
@@ -1337,12 +1367,15 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           `).run(channelId, revision, sourceEventId, departure.id);
           for (const recipientSlug of updated.members) {
             if (!isBotActive(recipientSlug)) continue;
-            const policy = updated.wakePolicies?.[recipientSlug] ?? DEFAULT_GROUP_WAKE_POLICY;
+            const sourceRule = sourcePolicy.resolveIn(db, recipientSlug, 'group-ordinary');
+            const policy =
+              updated.wakePolicies?.[recipientSlug] ?? defaultGroupWakePolicy(sourceRule);
             db.prepare(`
               INSERT INTO inbox_admissions (
                 source_event_id, bot_slug, reason, wake_count, wake_interval_ms,
-                wake_policy_revision, wake_mode
-              ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?)
+                wake_policy_revision, wake_mode, source_policy_revision,
+                source_policy_wake_mode
+              ) VALUES (?, ?, 'group-ordinary', ?, ?, ?, ?, ?, ?)
             `).run(
               sourceEventId,
               recipientSlug,
@@ -1354,6 +1387,8 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
                   : null,
               policy.revision,
               policy.mode,
+              sourceRule.revision,
+              sourceRule.wake,
             );
           }
           for (const invitation of cancelled)

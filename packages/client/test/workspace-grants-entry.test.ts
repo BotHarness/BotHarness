@@ -19,6 +19,49 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
 }));
 
 describe('Workspace Grant sidebar', () => {
+  it('shows cached Grants immediately when returning to the same PersonaBot', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const grant = {
+      id: 'grant-cached',
+      botSlug: 'ada',
+      workspaceId: 'workspace-cached',
+      workspacePath: '/tmp/cached',
+      workspaceTitle: 'cached project',
+      createdAt: '2026-09-25T00:00:00.000Z',
+    };
+    const actions = {
+      listWorkspaceGrants: vi
+        .fn()
+        .mockResolvedValueOnce([grant])
+        .mockImplementation(() => new Promise<never>(() => undefined)),
+      listWorkspaceOptions: vi.fn(async () => []),
+      memoryDirectory: vi.fn(async () => '/tmp/memory'),
+      listToolApprovalRules: vi.fn(async () => []),
+      assignmentAccess: vi.fn(async () => ({ mode: 'workspace-write' })),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-ada',
+      botSlug: 'ada',
+      actions,
+      t: zhTranslate,
+    };
+    try {
+      await act(async () => root.render(createElement(WorkspaceGrantsEntry, props)));
+      expect(container.textContent).toContain('cached project');
+      act(() => root.render(null));
+      act(() => root.render(createElement(WorkspaceGrantsEntry, props)));
+      expect(container.textContent).toContain('cached project');
+      expect(container.querySelector('.bh-skeleton')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('shows active Grants while unrelated workspace data is still loading', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const container = document.createElement('div');

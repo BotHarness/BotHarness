@@ -36,11 +36,7 @@ export interface ProfileCardRegistry {
 
 const PROFILE_CARDS_STORAGE_KEY = 'botharness.profile-cards';
 
-/** Pinned until the Usage tracer registers the token card. */
-export const DEFAULT_PINNED_PROFILE_CARDS: readonly string[] = [
-  'event-activity',
-  'memory-activity',
-];
+export const DEFAULT_PINNED_PROFILE_CARDS: readonly string[] = ['token-usage', 'event-activity'];
 
 export function createProfileCardRegistry(): ProfileCardRegistry {
   let cards: readonly ProfileCardDescriptor[] = [];

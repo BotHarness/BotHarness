@@ -24,6 +24,8 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconAgentPresetOutline16: stub,
     IconAgentPresetOutlineRegular: stub,
     IconCheckOutlineRegular: stub,
+    IconBranchOutlineRegular: stub,
+    IconChevronLeftOutlineRegular: stub,
     IconChevronDownOutline14: stub,
     IconChevronDownOutlineRegular: stub,
     IconCloseFill14: stub,
@@ -32,15 +34,19 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconCloseOutline16: stub,
     IconEllipsisOutline16: stub,
     IconEllipsisOutlineRegular: stub,
+    IconFolderCloseRegular: stub,
+    IconFolderOpenRegular: stub,
     IconFolderOpenOutline16: stub,
     IconNewChatOutline16: stub,
     IconPanelLeftOutline16: stub,
     IconPanelLeftOutlineRegular: stub,
     IconPlusOutline16: stub,
+    IconRefreshOutlineRegular: stub,
     IconSearchOutline16: stub,
     IconSendOutline16: stub,
     IconSendOutlineRegular: stub,
     IconTrashOutline16: stub,
+    FileTypeIcon: stub,
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
     Menu: ({
       anchor,
@@ -78,7 +84,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     Modal: stub,
     StateDot: stub,
     Tag: stub,
-    Tooltip: stub,
+    Tooltip: ({ children }: { children: ReactNode }) => children,
     relativeTime: () => ({ unit: 'now', n: 0 }),
   };
 });
@@ -111,6 +117,286 @@ afterEach(async () => {
 });
 
 describe('Memory Git graph sidebar', () => {
+  it('shows cached Memory and graph immediately on a return visit', async () => {
+    const graph: MemoryGitGraph = {
+      head: SHA,
+      currentBranch: 'main',
+      branches: ['main'],
+      dirty: false,
+      commits: [
+        {
+          sha: SHA,
+          parents: [],
+          subject: 'Cached memory',
+          authoredAt: '2026-09-25T00:00:00Z',
+          branches: ['main'],
+          status: 'accepted',
+        },
+      ],
+      hasMore: false,
+    };
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce({ head: SHA, files: [], provisional: false })
+        .mockImplementation(() => new Promise<never>(() => undefined)),
+      memoryGitGraph: vi.fn().mockResolvedValue(graph),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-qa',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Cached memory');
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Cached memory');
+    expect(container.querySelector('.bh-skeleton')).toBeNull();
+  });
+
+  it('keeps cached Memory evolution and working files visible on a return visit', async () => {
+    const graph: MemoryGitGraph = {
+      head: SHA,
+      currentBranch: 'main',
+      branches: ['main'],
+      dirty: true,
+      commits: [
+        {
+          sha: SHA,
+          parents: [],
+          subject: 'Current memory',
+          authoredAt: '2026-09-25T00:00:00Z',
+          branches: ['main'],
+          status: 'accepted',
+        },
+      ],
+      hasMore: false,
+    };
+    const pending = new Promise<never>(() => undefined);
+    const actions = {
+      memoryGitGraph: vi.fn().mockResolvedValueOnce(graph).mockReturnValue(pending),
+      memoryWorkingChanges: vi
+        .fn()
+        .mockResolvedValueOnce([{ path: 'note.md', kind: 'unstaged', status: 'M' }])
+        .mockReturnValue(pending),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-evolution-cache',
+      botSlug: 'qa',
+      actions,
+      showFiles: false,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Current memory');
+    expect(container.textContent).toContain('note.md');
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Current memory');
+    expect(container.textContent).toContain('note.md');
+    expect(container.querySelector('.bh-skeleton')).toBeNull();
+  });
+
+  it('preserves a Memory draft typed while a cached file refreshes', async () => {
+    let resolveFile!: (value: { path: string; body: string; head: string }) => void;
+    const pendingFile = new Promise<{ path: string; body: string; head: string }>((resolve) => {
+      resolveFile = resolve;
+    });
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({
+        head: SHA,
+        files: ['notes.md'],
+        provisional: false,
+      }),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryFile: vi
+        .fn()
+        .mockResolvedValueOnce({ path: 'notes.md', body: 'Original', head: SHA })
+        .mockReturnValueOnce(pendingFile),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-draft',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    const editor = container.querySelector<HTMLTextAreaElement>('#bh-memory-editor-body');
+    expect(editor?.value).toBe('Original');
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+      setter?.call(editor, 'Unsent edit');
+      editor?.dispatchEvent(new Event('input', { bubbles: true }));
+    });
+    await act(async () => resolveFile({ path: 'notes.md', body: 'Refreshed', head: SHA }));
+    expect(editor?.value).toBe('Unsent edit');
+  });
+
+  it('shows refresh errors alongside cached Memory and graph data', async () => {
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce({ head: SHA, files: [], provisional: false })
+        .mockRejectedValueOnce(new Error('Snapshot refresh failed')),
+      memoryGitGraph: vi
+        .fn()
+        .mockResolvedValueOnce({
+          head: SHA,
+          currentBranch: 'main',
+          branches: ['main'],
+          dirty: false,
+          commits: [],
+          hasMore: false,
+        })
+        .mockRejectedValueOnce(new Error('Graph refresh failed')),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-errors',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    expect(container.textContent).toContain('Snapshot refresh failed');
+    expect(container.textContent).toContain('Graph refresh failed');
+    expect(container.querySelector('.bh-memory-graph-meta')).not.toBeNull();
+  });
+
+  it('ignores a pre-repair Memory response after clearing the cache', async () => {
+    const provisional = { head: SHA, files: [], provisional: true };
+    let resolveStale!: (value: typeof provisional) => void;
+    const stale = new Promise<typeof provisional>((resolve) => {
+      resolveStale = resolve;
+    });
+    const pending = new Promise<never>(() => undefined);
+    const actions = {
+      memorySnapshot: vi
+        .fn()
+        .mockResolvedValueOnce(provisional)
+        .mockReturnValueOnce(stale)
+        .mockReturnValue(pending),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryRepair: vi.fn().mockResolvedValue({ backupPath: 'backup' }),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-repair',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '修复记忆')
+        ?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.textContent?.trim() === '备份并恢复')
+        ?.click();
+    });
+    expect(actions.memoryRepair).toHaveBeenCalledOnce();
+    await act(async () => resolveStale(provisional));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    expect(container.querySelector('.bh-skeleton')).not.toBeNull();
+    expect(container.textContent).not.toContain('修复记忆');
+  });
+
+  it('keeps the saved file head when an older file read finishes', async () => {
+    const savedHead = 'b'.repeat(40);
+    let resolveStale!: (value: { path: string; body: string; head: string }) => void;
+    const stale = new Promise<{ path: string; body: string; head: string }>((resolve) => {
+      resolveStale = resolve;
+    });
+    const pending = new Promise<never>(() => undefined);
+    const actions = {
+      memorySnapshot: vi.fn().mockResolvedValue({
+        head: SHA,
+        files: ['notes.md'],
+        provisional: false,
+      }),
+      memoryGitGraph: vi.fn().mockResolvedValue({
+        head: SHA,
+        currentBranch: 'main',
+        branches: ['main'],
+        dirty: false,
+        commits: [],
+        hasMore: false,
+      }),
+      memoryFile: vi
+        .fn()
+        .mockResolvedValueOnce({ path: 'notes.md', body: 'Original', head: SHA })
+        .mockReturnValueOnce(stale)
+        .mockReturnValue(pending),
+      memorySave: vi
+        .fn()
+        .mockResolvedValueOnce({ sha: savedHead })
+        .mockResolvedValue({ sha: 'c'.repeat(40) }),
+    } as unknown as BridgeActions;
+    const props = {
+      scope: 'personabot' as const,
+      channelId: 'dm-save',
+      botSlug: 'qa',
+      actions,
+      t: zhTranslate,
+    };
+    await act(async () => root.render(createElement(MemoryEntry, props)));
+    act(() => root.render(null));
+    act(() => root.render(createElement(MemoryEntry, props)));
+    const edit = async (value: string): Promise<void> => {
+      const editor = container.querySelector<HTMLTextAreaElement>('#bh-memory-editor-body');
+      await act(async () => {
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
+        setter?.call(editor, value);
+        editor?.dispatchEvent(new Event('input', { bubbles: true }));
+      });
+    };
+    const save = async (): Promise<void> => {
+      await act(async () => {
+        Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+          .find((button) => button.textContent?.trim() === '保存')
+          ?.click();
+      });
+    };
+    await edit('First edit');
+    await save();
+    await act(async () => resolveStale({ path: 'notes.md', body: 'Original', head: SHA }));
+    await edit('Second edit');
+    await save();
+    expect(actions.memorySave).toHaveBeenCalledTimes(2);
+    expect(actions.memorySave).toHaveBeenLastCalledWith(
+      expect.objectContaining({ expectedHead: savedHead }),
+    );
+  });
+
   it('sends a chosen historical commit and new branch to the same Channel', async () => {
     const actions = {
       memoryGitCommitDiff: vi
@@ -132,7 +418,7 @@ describe('Memory Git graph sidebar', () => {
     });
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '从此处继续')
+        .find((button) => button.textContent?.trim() === '从该记忆节点新建并切换分支')
         ?.click();
     });
     const input = container.querySelector<HTMLInputElement>('#bh-memory-new-branch');
@@ -146,6 +432,79 @@ describe('Memory Git graph sidebar', () => {
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('memory-aaaaaaa'));
     expect(actions.send).toHaveBeenCalledWith(expect.stringContaining('history.md'));
     expect(onClose).toHaveBeenCalledOnce();
+  });
+
+  it('groups commit changes into independently collapsible files with graph badges', async () => {
+    const actions = {
+      memoryGitCommitDiff: vi.fn().mockResolvedValue({
+        sha: SHA,
+        files: [
+          { path: 'profile.md', status: 'M' },
+          { path: 'notes/new.md', status: 'A' },
+        ],
+        diff: [
+          'diff --git a/profile.md b/profile.md',
+          '@@ -1 +1 @@',
+          '-old',
+          '+new',
+          'diff --git a/notes/new.md b/notes/new.md',
+          '@@ -0,0 +1 @@',
+          '+added',
+        ].join('\n'),
+      }),
+    } as unknown as BridgeActions;
+    await act(async () => {
+      root.render(
+        createElement(MemoryCommitView, {
+          actions,
+          channelId: 'dm-qa',
+          sha: SHA,
+          onClose: vi.fn(),
+          t: zhTranslate,
+        }),
+      );
+    });
+    const files = container.querySelectorAll<HTMLDetailsElement>('.bh-memory-diff-file');
+    expect(files).toHaveLength(2);
+    expect(files[0]?.querySelector('summary')?.textContent).toContain('profile.md');
+    expect(files[0]?.querySelector('.bh-memory-change-badge')?.getAttribute('data-status')).toBe(
+      'M',
+    );
+    expect(files[1]?.querySelector('.bh-memory-change-badge')?.getAttribute('data-status')).toBe(
+      'A',
+    );
+    expect(files[0]?.textContent).toContain('-old');
+    expect(files[0]?.textContent).not.toContain('+added');
+    expect(files[1]?.textContent).toContain('+added');
+    expect(files[0]?.textContent).not.toContain('diff --git');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-remove')?.querySelectorAll('td')[0]?.textContent,
+    ).toBe('1');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-remove')?.querySelectorAll('td')[1]?.textContent,
+    ).toBe('');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-add')?.querySelectorAll('td')[1]?.textContent,
+    ).toBe('1');
+    expect(
+      files[0]
+        ?.querySelector('.bh-memory-diff-remove')
+        ?.querySelectorAll('td')[0]
+        ?.getAttribute('aria-label'),
+    ).toBe('旧行 1');
+    expect(
+      files[0]
+        ?.querySelector('.bh-memory-diff-add')
+        ?.querySelectorAll('td')[1]
+        ?.getAttribute('aria-label'),
+    ).toBe('新行 1');
+    expect(files[0]?.open).toBe(true);
+    await act(async () =>
+      files[0]?.querySelector('summary')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+    );
+    expect(files[0]?.open).toBe(false);
+    expect(files[1]?.open).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>('[aria-label="返回对话"]')).not.toBeNull();
   });
 
   it('shows a checked-out side branch and opens a commit even when accepted snapshot rejects it', async () => {
@@ -388,12 +747,27 @@ describe('Memory Git graph sidebar', () => {
     };
     const actions = new Proxy(
       {
-        memorySnapshot: vi.fn().mockResolvedValue({ head: SHA, files: [], provisional: false }),
+        memorySnapshot: vi
+          .fn()
+          .mockResolvedValue({ head: SHA, files: ['note.md'], provisional: false }),
+        memoryFile: vi
+          .fn()
+          .mockResolvedValue({ path: 'note.md', head: SHA, body: 'Current memory\n' }),
         memoryGitGraph: vi.fn().mockResolvedValue(graph),
+        memoryWorkingChanges: vi
+          .fn()
+          .mockResolvedValue([{ path: 'note.md', kind: 'unstaged', status: 'M' }]),
+        memoryWorkingDiff: vi.fn().mockResolvedValue({
+          path: 'note.md',
+          kind: 'current',
+          status: 'M',
+          diff: '@@ -1 +1 @@\n-Before\n+Current memory',
+          binary: false,
+        }),
         memoryGitCommitDiff: vi.fn(async (_channelId: string, sha: string) => ({
           sha,
           files: [{ path: 'memory.md', status: 'M' }],
-          diff: '+Memory at ' + sha.slice(0, 1),
+          diff: '@@ -0,0 +1 @@\n+Memory at ' + sha.slice(0, 1),
         })),
       },
       {
@@ -404,7 +778,8 @@ describe('Memory Git graph sidebar', () => {
     ) as unknown as BridgeActions;
     const registry = createChannelSidebarRegistry();
     for (const entry of createChannelSidebarBuiltins(zhTranslate)) registry.register(entry);
-    channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory', true);
+    channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-evolution', true);
+    channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-files', true);
     await act(async () => {
       store.setRoster(
         [
@@ -466,7 +841,7 @@ describe('Memory Git graph sidebar', () => {
     expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain('Memory at b');
     await act(async () => {
       Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
-        .find((button) => button.textContent?.trim() === '返回对话')
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
         ?.click();
       await new Promise((resolve) => setTimeout(resolve, 50));
     });
@@ -475,11 +850,38 @@ describe('Memory Git graph sidebar', () => {
     expect(chat?.scrollTop).toBe(73);
 
     await act(async () => {
+      container.querySelector<HTMLButtonElement>('.bh-memory-change-rows .bh-memory-row')?.click();
+    });
+    expect(actions.memoryWorkingDiff).toHaveBeenCalledWith(channel.id, 'note.md', 'current');
+    expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain(
+      '+Current memory',
+    );
+    expect(chat?.style.display).toBe('none');
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
+        ?.click();
+    });
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>('.bh-memory-file-tree [role="treeitem"]')?.click();
+    });
+    expect(container.querySelector('.bh-memory-commit-view')?.textContent).toContain(
+      'Current memory',
+    );
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('button'))
+        .find((button) => button.getAttribute('aria-label') === '返回对话')
+        ?.click();
+    });
+    expect(container.querySelector<HTMLTextAreaElement>('textarea')?.value).toBe('Unsent QA draft');
+
+    await act(async () => {
       store.setRoster(previous.bots, previous.channels);
       store.select(previous.selection);
       store.setConversation(previous.conversation);
       store.setSessions(previous.sessions);
-      channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory', false);
+      channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-evolution', false);
+      channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-files', false);
     });
   });
 });

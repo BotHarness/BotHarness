@@ -1,6 +1,16 @@
-import type { ReactElement } from 'react';
+import { useEffect, useMemo, useState, type ReactElement } from 'react';
 
-import type { ProfileActivityDay, ProfileActivityReasonDay } from './bridge.js';
+import { barY, defineChart, stack } from '@tanstack/charts';
+import { scaleLinear } from '@tanstack/charts/scales/linear';
+import { scalePoint } from '@tanstack/charts/scales/point';
+import { tooltip } from '@tanstack/charts/tooltip';
+import { Chart } from '@tanstack/charts/react/tooltip';
+
+import type {
+  ProfileActivityDay,
+  ProfileActivityReasonDay,
+  ProfileActivityTokensDay,
+} from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
 
@@ -8,6 +18,7 @@ import type { ProfileCardDescriptor } from './profile-cards.js';
 export const PROFILE_ACTIVITY_WEEKS = 26;
 
 const HEAT_LEVEL_THRESHOLDS = [1, 3, 6, 11] as const;
+const TOKEN_SERIES_STORAGE_DAYS = 14;
 
 function localDayKey(date: Date): string {
   const month = `${date.getMonth() + 1}`.padStart(2, '0');
@@ -15,8 +26,30 @@ function localDayKey(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-/** Monday-aligned columns; days after today render as blank future cells. */
-function heatWindow(today: Date): { days: string[]; todayKey: string } {
+/** Host-local day anchors activity windows; a missing key falls back to the browser. */
+function anchorDate(todayKey: string | undefined): Date {
+  if (todayKey !== undefined && /^\d{4}-\d{2}-\d{2}$/u.test(todayKey)) {
+    const [year, month, day] = todayKey.split('-').map(Number);
+    return new Date(year ?? 1970, (month ?? 1) - 1, day ?? 1);
+  }
+  return new Date();
+}
+
+/** Last `count` Host-local days, oldest first, ending on the activity anchor. */
+export function trailingProfileDays(todayKey: string | undefined, count: number): string[] {
+  const today = anchorDate(todayKey);
+  const days: string[] = [];
+  for (let index = count - 1; index >= 0; index -= 1) {
+    const date = new Date(today);
+    date.setDate(today.getDate() - index);
+    days.push(localDayKey(date));
+  }
+  return days;
+}
+
+/** Monday-aligned columns; days after the anchor render as blank future cells. */
+function heatWindow(todayKey: string | undefined): { days: string[]; todayKey: string } {
+  const today = anchorDate(todayKey);
   const start = new Date(today);
   const mondayOffset = (start.getDay() + 6) % 7;
   start.setDate(start.getDate() - mondayOffset - (PROFILE_ACTIVITY_WEEKS - 1) * 7);
@@ -52,33 +85,66 @@ function sumCounts(days: readonly ProfileActivityDay[]): number {
 function ProfileHeatmap({
   counts,
   label,
+  today,
   t,
 }: {
   counts: ReadonlyMap<string, number>;
   label: string;
+  today: string | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const { days, todayKey } = heatWindow(new Date());
+  const { days, todayKey } = heatWindow(today);
+  const [hovered, setHovered] = useState<
+    { day: string; count: number; column: number } | undefined
+  >(undefined);
   const total = [...counts.values()].reduce((sum, value) => sum + value, 0);
+  const tipLeft =
+    hovered === undefined
+      ? '50%'
+      : `${Math.min(92, Math.max(8, ((hovered.column + 0.5) / PROFILE_ACTIVITY_WEEKS) * 100))}%`;
   return (
     <div className="bh-profile-heat">
       <div
         className="bh-profile-heat-grid"
-        role="img"
+        role="group"
         aria-label={t('profile.heat.aria', { label })}
       >
-        {days.map((day) => {
+        {days.map((day, index) => {
           const future = day > todayKey;
           const count = counts.get(day) ?? 0;
+          const column = Math.floor(index / 7);
+          if (future) {
+            return (
+              <span
+                key={day}
+                className="bh-profile-heat-cell"
+                data-level="future"
+                aria-hidden="true"
+              />
+            );
+          }
           return (
-            <span
+            <button
               key={day}
+              type="button"
               className="bh-profile-heat-cell"
-              data-level={future ? 'future' : heatLevel(count)}
-              title={future ? undefined : `${day} · ${count}`}
+              data-level={heatLevel(count)}
+              aria-label={`${day} · ${t('profile.heat.tip', { count })}`}
+              onMouseEnter={() => setHovered({ day, count, column })}
+              onMouseLeave={() => setHovered(undefined)}
+              onFocus={() => setHovered({ day, count, column })}
+              onBlur={() => setHovered(undefined)}
             />
           );
         })}
+        {hovered === undefined ? null : (
+          <div className="bh-profile-heat-tip" role="tooltip" style={{ left: tipLeft }}>
+            <span className="bh-profile-tip-day">{hovered.day}</span>
+            <span className="bh-profile-tip-value">
+              {t('profile.heat.tip', { count: hovered.count })}
+            </span>
+          </div>
+        )}
       </div>
       {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
     </div>
@@ -129,7 +195,12 @@ function EventActivityCard({
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">{totalText(sumCounts(events), weeks, t)}</div>
-      <ProfileHeatmap counts={countByDay(events)} label={t('profile.card.events')} t={t} />
+      <ProfileHeatmap
+        counts={countByDay(events)}
+        label={t('profile.card.events')}
+        today={activity?.today}
+        t={t}
+      />
       {reasons.length === 0 ? null : (
         <ul className="bh-profile-reasons">
           {reasons.map((entry) => (
@@ -153,7 +224,253 @@ function MemoryActivityCard({
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">{totalText(sumCounts(commits), weeks, t)}</div>
-      <ProfileHeatmap counts={countByDay(commits)} label={t('profile.card.memory')} t={t} />
+      <ProfileHeatmap
+        counts={countByDay(commits)}
+        label={t('profile.card.memory')}
+        today={activity?.today}
+        t={t}
+      />
+    </div>
+  );
+}
+
+/** Deterministic compact token count; no locale surprises in cards or tests. */
+export function formatTokenCount(value: number): string {
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return `${value}`;
+}
+
+type TokenSeries = 'cached' | 'uncached' | 'output';
+
+interface TokenBarRow {
+  id: string;
+  day: string;
+  series: TokenSeries;
+  tokens: number;
+}
+
+interface TokenDayTotals {
+  day: string;
+  cached: number;
+  uncached: number;
+  output: number;
+}
+
+/** Read = cached + uncached input; cache writes count as uncached prompt work. */
+function tokenDayTotals(tokens: readonly ProfileActivityTokensDay[]): Map<string, TokenDayTotals> {
+  const days = new Map<string, TokenDayTotals>();
+  for (const entry of tokens) {
+    const totals = days.get(entry.day) ?? {
+      day: entry.day,
+      cached: 0,
+      uncached: 0,
+      output: 0,
+    };
+    totals.cached += entry.cacheReadTokens;
+    totals.uncached += entry.inputTokens + entry.cacheWriteTokens;
+    totals.output += entry.outputTokens;
+    days.set(entry.day, totals);
+  }
+  return days;
+}
+
+function percent(part: number, whole: number): number {
+  if (whole <= 0) return 0;
+  return Math.round((part / whole) * 100);
+}
+
+export interface TokenShares {
+  read: number;
+  output: number;
+  cachedPercent: number;
+  outputPercent: number;
+}
+
+/** Cached share of read and output share of all input + output tokens. */
+export function tokenShares(totals: {
+  cached: number;
+  uncached: number;
+  output: number;
+}): TokenShares {
+  const read = totals.cached + totals.uncached;
+  return {
+    read,
+    output: totals.output,
+    cachedPercent: percent(totals.cached, read),
+    outputPercent: percent(totals.output, read + totals.output),
+  };
+}
+
+interface ChartTokens {
+  cached: string;
+  uncached: string;
+  output: string;
+  foreground: string;
+  muted: string;
+  grid: string;
+}
+
+/** Tokens resolve from the live `.bh-root` surface so charts follow the theme. */
+function resolveChartTokens(): ChartTokens {
+  const fallback: ChartTokens = {
+    cached: 'currentColor',
+    uncached: 'currentColor',
+    output: 'currentColor',
+    foreground: 'currentColor',
+    muted: 'currentColor',
+    grid: 'currentColor',
+  };
+  if (typeof window === 'undefined' || typeof getComputedStyle !== 'function') return fallback;
+  const surface = document.querySelector('.bh-root') ?? document.documentElement;
+  const style = getComputedStyle(surface);
+  const token = (name: string, fallbackValue: string): string =>
+    style.getPropertyValue(name).trim() || fallbackValue;
+  const cached = token('--bh-accent', 'currentColor');
+  return {
+    cached,
+    uncached: token('--bh-chart-read-dim', cached),
+    output: token('--bh-chart-output', cached),
+    foreground: token('--dsw-alias-label-primary', 'currentColor'),
+    muted: token('--dsw-alias-label-tertiary', 'currentColor'),
+    grid: token('--dsw-alias-border-l2', 'currentColor'),
+  };
+}
+
+function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslate }): ReactElement {
+  const shares = tokenShares(totals);
+  return (
+    <div className="bh-profile-chart-tip">
+      <span className="bh-profile-tip-day">{totals.day}</span>
+      <ul className="bh-profile-tip-rows">
+        <li>
+          <span>{t('profile.tokens.cached')}</span>
+          <span>{formatTokenCount(totals.cached)}</span>
+        </li>
+        <li>
+          <span>{t('profile.tokens.uncachedInput')}</span>
+          <span>{formatTokenCount(totals.uncached)}</span>
+        </li>
+        <li>
+          <span>{t('profile.tokens.output')}</span>
+          <span>{formatTokenCount(totals.output)}</span>
+        </li>
+      </ul>
+      <span className="bh-profile-tip-shares">
+        {t('profile.tokens.shares', {
+          cached: shares.cachedPercent,
+          output: shares.outputPercent,
+        })}
+      </span>
+    </div>
+  );
+}
+
+function TokenUsageCard({
+  activity,
+  t,
+}: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
+  const tokens = activity?.tokens ?? [];
+  const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
+  const days = useMemo(
+    () => trailingProfileDays(activity?.today, TOKEN_SERIES_STORAGE_DAYS),
+    [activity?.today],
+  );
+  const dayTotals = useMemo(() => tokenDayTotals(tokens), [tokens]);
+  const windowTotals = useMemo(() => {
+    let cached = 0;
+    let uncached = 0;
+    let output = 0;
+    for (const totals of dayTotals.values()) {
+      cached += totals.cached;
+      uncached += totals.uncached;
+      output += totals.output;
+    }
+    return { cached, uncached, output };
+  }, [dayTotals]);
+  const shares = tokenShares(windowTotals);
+  const rows = useMemo<TokenBarRow[]>(
+    () =>
+      days.flatMap((day) => {
+        const totals = dayTotals.get(day);
+        return [
+          { id: `${day}-cached`, day, series: 'cached' as const, tokens: totals?.cached ?? 0 },
+          {
+            id: `${day}-uncached`,
+            day,
+            series: 'uncached' as const,
+            tokens: totals?.uncached ?? 0,
+          },
+          { id: `${day}-output`, day, series: 'output' as const, tokens: totals?.output ?? 0 },
+        ];
+      }),
+    [dayTotals, days],
+  );
+  const [colors, setColors] = useState(resolveChartTokens);
+  useEffect(() => {
+    if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
+    const refresh = (): void => setColors(resolveChartTokens());
+    const observer = new MutationObserver(refresh);
+    observer.observe(document.body, { attributes: true });
+    observer.observe(document.documentElement, { attributes: true });
+    return () => observer.disconnect();
+  }, []);
+  const definition = useMemo(
+    () =>
+      defineChart({
+        marks: [
+          barY<TokenBarRow>(rows, {
+            x: 'day',
+            y: 'tokens',
+            z: 'series',
+            color: 'series',
+            layout: stack(),
+            radius: 2,
+            maxThickness: 10,
+          }),
+        ],
+        scales: {
+          x: { scale: () => scalePoint<string>().padding(0.4) },
+          y: { scale: scaleLinear, nice: true },
+        },
+        guides: false,
+        theme: {
+          foreground: colors.foreground,
+          muted: colors.muted,
+          grid: colors.grid,
+          background: 'transparent',
+          palette: [colors.cached, colors.uncached, colors.output],
+        },
+        tooltip,
+      }),
+    [colors, rows],
+  );
+  const total = windowTotals.cached + windowTotals.uncached + windowTotals.output;
+  return (
+    <div className="bh-profile-card-body">
+      <div className="bh-profile-card-total">
+        {t('profile.tokens.window', { weeks, count: formatTokenCount(total) })}
+      </div>
+      <Chart
+        definition={definition}
+        ariaLabel={t('profile.tokens.sparkline')}
+        height={48}
+        className="bh-profile-bar-chart"
+        renderTooltipBody={({ points }) => {
+          const datum = points[0]?.datum as TokenBarRow | undefined;
+          if (datum === undefined) return null;
+          const totals = dayTotals.get(datum.day);
+          if (totals === undefined) return null;
+          return <TokenTip totals={totals} t={t} />;
+        }}
+      />
+      <div className="bh-profile-token-shares">
+        {t('profile.tokens.shares', {
+          cached: shares.cachedPercent,
+          output: shares.outputPercent,
+        })}
+      </div>
+      {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
     </div>
   );
 }
@@ -161,6 +478,11 @@ function MemoryActivityCard({
 function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const events = sumCounts(activity?.events ?? []);
   const commits = sumCounts(activity?.memoryCommits ?? []);
+  const tokens = (activity?.tokens ?? []).reduce(
+    (sum, entry) =>
+      sum + entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens,
+    0,
+  );
   return (
     <div className="bh-profile-card-body">
       <dl className="bh-profile-stats">
@@ -171,6 +493,10 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
         <div>
           <dt>{t('profile.stat.memoryCommits')}</dt>
           <dd>{commits}</dd>
+        </div>
+        <div>
+          <dt>{t('profile.stat.tokens')}</dt>
+          <dd>{formatTokenCount(tokens)}</dd>
         </div>
       </dl>
     </div>
@@ -186,6 +512,12 @@ export function createProfileCardBuiltins(
   t: BotHarnessTranslate,
 ): readonly ProfileCardDescriptor[] {
   return [
+    {
+      id: 'token-usage',
+      label: t('profile.card.tokens'),
+      order: 5,
+      render: (props) => <TokenUsageCard {...props} />,
+    },
     {
       id: 'event-activity',
       label: t('profile.card.events'),

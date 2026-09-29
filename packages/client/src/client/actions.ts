@@ -5,6 +5,7 @@ import {
   createGroupChannel,
   inviteGroupBot,
   setGroupAvatar as setGroupAvatarViaBridge,
+  setBotAvatar as setBotAvatarViaBridge,
   cancelGroupInvitation,
   decideGroupJoin,
   removeGroupMember,
@@ -41,6 +42,9 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadBotSourcePolicies,
+  loadMemoryWorkingChanges,
+  loadMemoryWorkingDiff,
   saveMemoryFile,
   repairMemory,
   loadTimelinePage,
@@ -62,8 +66,12 @@ import {
   type MemorySnapshot,
   type MemoryGitGraph,
   type MemoryGitCommitDiff,
+  type MemoryWorkingChange,
+  type MemoryWorkingDiff,
+  type MemoryWorkingKind,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type BotSourcePolicyView,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -128,12 +136,19 @@ export interface BridgeActions {
   memoryFile(
     channelId: string,
     path: string,
-  ): Promise<{ path: string; body: string; head: string } | undefined>;
+  ): Promise<{ path: string; body: string; head: string; binary?: boolean } | undefined>;
   memoryHistory(channelId: string): Promise<MemoryAcceptedCommit[]>;
   memoryDiff(channelId: string, sha: string): Promise<string>;
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
+  memoryWorkingChanges(channelId: string): Promise<MemoryWorkingChange[]>;
+  memoryWorkingDiff(
+    channelId: string,
+    path: string,
+    kind: MemoryWorkingKind,
+  ): Promise<MemoryWorkingDiff>;
   memoryRepair(input: {
     channelId: string;
     expectedHead: string;
@@ -183,6 +198,7 @@ export interface BridgeActions {
   createGroup(name: string, sectionId?: string): Promise<ChannelSummary | undefined>;
   renameChannel(channelId: string, name: string): Promise<boolean>;
   setGroupAvatar(channelId: string, avatar: string | null): Promise<boolean>;
+  setBotAvatar(channelId: string, avatar: string | null): Promise<boolean>;
   inviteGroupBot(channelId: string, botSlug: string): Promise<boolean>;
   cancelGroupInvitation(channelId: string, invitationId: string): Promise<boolean>;
   decideGroupJoin(channelId: string, requestId: string, accept: boolean): Promise<boolean>;
@@ -525,6 +541,18 @@ export function createActions(
     clientStore.select(selection);
     const active = currentSelection();
     if (active === undefined) return;
+    if (clientStore.getSnapshot().conversation.status === 'ready') {
+      clientStore.setConversation({ channel, error: undefined });
+      try {
+        await actions.refreshChannelMessages(channelId);
+      } catch (error) {
+        if (currentSelection() === active)
+          clientStore.setConversation({ error: errorMessage(error) });
+      }
+      if (channel.type === 'dm' && channel.botSlug !== undefined)
+        await loadSessionsFor(channel.botSlug, active);
+      return;
+    }
     clientStore.setConversation({
       status: 'loading',
       channel,
@@ -626,18 +654,41 @@ export function createActions(
       // `select` may retain its existing object; compare the active request token.
       const active = currentSelection();
       if (active === undefined) return;
-      clientStore.setConversation({
-        status: 'loading',
-        channel: undefined,
-        messages: [],
-        revision: 0,
-        timeline: initialTimeline(),
-        focusMessageId: undefined,
-        error: undefined,
-        sending: false,
-      });
+      let cached = clientStore.getSnapshot().conversation.status === 'ready';
+      if (!cached)
+        clientStore.setConversation({
+          status: 'loading',
+          channel: undefined,
+          messages: [],
+          revision: 0,
+          timeline: initialTimeline(),
+          focusMessageId: undefined,
+          error: undefined,
+          sending: false,
+        });
       try {
         const channel = await openDmChannel(call, slug, bot.displayName);
+        if (currentSelection() !== active) return;
+        if (cached && clientStore.getSnapshot().conversation.channel?.id === channel.id) {
+          clientStore.upsertChannel(channel);
+          clientStore.setConversation({ channel, error: undefined });
+          await actions.refreshChannelMessages(channel.id);
+          await Promise.all([loadSessionsFor(slug, active), loadBotInboxFor(slug, active)]);
+          return;
+        }
+        if (cached) {
+          cached = false;
+          clientStore.setConversation({
+            status: 'loading',
+            channel,
+            messages: [],
+            drafts: [],
+            revision: 0,
+            timeline: initialTimeline(),
+            focusMessageId: undefined,
+            error: undefined,
+          });
+        }
         const { page, revision, focusMessageId } = await loadOpeningTimeline(channel.id);
         const messages = page.entries;
         if (currentSelection() !== active) return;
@@ -667,7 +718,7 @@ export function createActions(
       } catch (error) {
         if (currentSelection() !== active) return;
         clientStore.setConversation({
-          status: 'error',
+          status: cached ? 'ready' : 'error',
           error: errorMessage(error),
           sending: false,
         });
@@ -906,6 +957,8 @@ export function createActions(
       }
     },
     async refreshChannelMessages(channelId) {
+      const before = clientStore.getSnapshot().conversation.messages;
+      const beforeById = new Map(before.map((message) => [message.id, message]));
       const { page, revision } = await loadTimelinePage(call, channelId);
       const snapshot = clientStore.getSnapshot();
       if (snapshot.conversation.channel?.id !== channelId) return;
@@ -917,8 +970,21 @@ export function createActions(
         return;
       }
       const merged = mergeLatestWindow(snapshot.conversation.messages, page.entries);
+      const concurrent = snapshot.conversation.messages.filter((message) => {
+        const previous = beforeById.get(message.id);
+        return (
+          previous === undefined ||
+          previous.pending !== message.pending ||
+          previous.failed !== message.failed
+        );
+      });
+      const concurrentById = new Map(concurrent.map((message) => [message.id, message]));
+      const mergedIds = new Set(merged.messages.map((message) => message.id));
       clientStore.setConversation({
-        messages: merged.messages,
+        messages: [
+          ...merged.messages.map((message) => concurrentById.get(message.id) ?? message),
+          ...concurrent.filter((message) => !mergedIds.has(message.id)),
+        ],
         revision,
         timeline: {
           ...snapshot.conversation.timeline,
@@ -938,6 +1004,10 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
+    memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
+    memoryWorkingDiff: (channelId, path, kind) =>
+      loadMemoryWorkingDiff(call, channelId, path, kind),
     memorySave: (input) => saveMemoryFile(call, input),
     memoryRepair: (input) => repairMemory(call, input),
     openSession(sessionId) {
@@ -1051,6 +1121,11 @@ export function createActions(
             sending: false,
             messages: reconcileCommittedMessage(latest.conversation.messages, localId, message),
           });
+        } else {
+          clientStore.updateCachedConversation(channel.id, (cached) => ({
+            ...cached,
+            messages: reconcileCommittedMessage(cached.messages, localId, message),
+          }));
         }
         const slug = selectedBotSlug(selection);
         if (selection !== undefined && slug !== undefined) {
@@ -1079,6 +1154,11 @@ export function createActions(
               error: error.message,
               messages: latest.conversation.messages.filter((message) => message.id !== localId),
             });
+          } else {
+            clientStore.updateCachedConversation(channel.id, (cached) => ({
+              ...cached,
+              messages: cached.messages.filter((message) => message.id !== localId),
+            }));
           }
           return false;
         }
@@ -1101,6 +1181,13 @@ export function createActions(
                 )
               : [...latest.conversation.messages, failedEcho],
           });
+        } else {
+          clientStore.updateCachedConversation(channel.id, (cached) => ({
+            ...cached,
+            messages: cached.messages.some((message) => message.id === localId)
+              ? cached.messages.map((message) => (message.id === localId ? failedEcho : message))
+              : [...cached.messages, failedEcho],
+          }));
         }
         return false;
       }
@@ -1149,6 +1236,16 @@ export function createActions(
         return true;
       } catch (error) {
         console.warn('botharness: channel rename failed', error);
+        return false;
+      }
+    },
+    async setBotAvatar(channelId, avatar) {
+      try {
+        const bot = await setBotAvatarViaBridge(call, channelId, avatar);
+        clientStore.upsertBot(bot);
+        return true;
+      } catch (error) {
+        console.warn('botharness: PersonaBot avatar update failed', error);
         return false;
       }
     },

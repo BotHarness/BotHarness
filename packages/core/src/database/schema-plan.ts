@@ -772,6 +772,66 @@ const GROUP_WAKE_POLICY_AUDIT_MIGRATION: SchemaMigration = {
   },
 };
 
+const USAGE_DAILY_MIGRATION: SchemaMigration = {
+  generation: 28,
+  module: 'usage',
+  description: 'Derive per-PersonaBot daily token buckets from DSH Session usage events',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE usage_daily (
+        bot_slug TEXT NOT NULL,
+        day TEXT NOT NULL,
+        provider TEXT NOT NULL,
+        model TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL DEFAULT 0,
+        output_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_read_tokens INTEGER NOT NULL DEFAULT 0,
+        cache_write_tokens INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (bot_slug, day, provider, model, purpose)
+      );
+      CREATE INDEX usage_daily_bot_day ON usage_daily (bot_slug, day);
+    `);
+  },
+};
+
+const BOT_SOURCE_POLICY_MIGRATION: SchemaMigration = {
+  generation: 29,
+  module: 'bot-inbox',
+  description: 'Record per-PersonaBot source policy revisions and Admission snapshots',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE bot_source_policy_revisions (
+        bot_slug TEXT NOT NULL,
+        source_class TEXT NOT NULL,
+        revision INTEGER NOT NULL CHECK (revision > 0),
+        actor_kind TEXT NOT NULL CHECK (actor_kind IN ('built-in', 'human', 'bot', 'template')),
+        actor_bot_slug TEXT,
+        changed_at TEXT NOT NULL,
+        admission_mode TEXT NOT NULL CHECK (admission_mode IN ('admit', 'drop')),
+        wake_mode TEXT NOT NULL CHECK (wake_mode IN ('immediate', 'digest', 'conditional')),
+        digest_count INTEGER CHECK (digest_count BETWEEN 1 AND 100),
+        digest_interval_seconds INTEGER CHECK (digest_interval_seconds BETWEEN 1 AND 3600),
+        PRIMARY KEY (bot_slug, source_class, revision),
+        CHECK ((actor_kind = 'bot' AND actor_bot_slug = bot_slug)
+            OR (actor_kind <> 'bot' AND actor_bot_slug IS NULL)),
+        CHECK ((wake_mode = 'digest' AND digest_count IS NOT NULL
+                AND digest_interval_seconds IS NOT NULL)
+            OR (wake_mode <> 'digest' AND digest_count IS NULL
+                AND digest_interval_seconds IS NULL))
+      );
+      CREATE TRIGGER bot_source_policy_revisions_no_update
+      BEFORE UPDATE ON bot_source_policy_revisions
+      BEGIN SELECT RAISE(ABORT, 'Bot source policy revision is immutable'); END;
+      CREATE TRIGGER bot_source_policy_revisions_no_delete
+      BEFORE DELETE ON bot_source_policy_revisions
+      BEGIN SELECT RAISE(ABORT, 'Bot source policy revision is immutable'); END;
+      ALTER TABLE inbox_admissions ADD COLUMN source_policy_revision INTEGER;
+      ALTER TABLE inbox_admissions ADD COLUMN source_policy_wake_mode TEXT;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -799,4 +859,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   LOCAL_HUMAN_RECEIPTS_MIGRATION,
   GROUP_WAKE_MODE_MIGRATION,
   GROUP_WAKE_POLICY_AUDIT_MIGRATION,
+  USAGE_DAILY_MIGRATION,
+  BOT_SOURCE_POLICY_MIGRATION,
 ]);

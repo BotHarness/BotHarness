@@ -3,6 +3,12 @@ import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import type { MemoryGitCommitDiff } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
+import {
+  MemoryBranchIcon,
+  MemoryDiffFile,
+  MemoryViewIconButton,
+  splitMemoryDiffFiles,
+} from './memory-reader-parts.js';
 
 export function MemoryCommitView({
   actions,
@@ -61,12 +67,12 @@ export function MemoryCommitView({
     };
   }, [actions, channelId, sha]);
 
+  const diffSections = splitMemoryDiffFiles(detail?.diff ?? '');
+
   return (
     <div className="bh-memory-commit-view" role="region" aria-label={t('memory.diff')}>
       <div className="bh-memory-commit-header">
-        <Button variant="outline" size="sm" onClick={onClose}>
-          {t('memory.backToChat')}
-        </Button>
+        <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
         <div>
           <strong>{t('memory.diff')}</strong>
           <span title={sha}>{sha.slice(0, 12)}</span>
@@ -80,6 +86,7 @@ export function MemoryCommitView({
             setContinueOpen((current) => !current);
           }}
         >
+          <MemoryBranchIcon />
           {t('memory.continueHere')}
         </Button>
       </div>
@@ -117,35 +124,22 @@ export function MemoryCommitView({
         <div className="bh-note">{t('memory.loading')}</div>
       ) : (
         <>
-          <div className="bh-memory-commit-files">
-            <strong>
-              {t('memory.changedFiles')} · {detail.files.length}
-            </strong>
-            {detail.files.map((file, index) => (
-              <div key={file.path + index} className="bh-memory-commit-file">
-                <span className="bh-memory-file-status">{file.status}</span>
-                <span>{file.path}</span>
-              </div>
-            ))}
+          <div className="bh-memory-commit-files-count">
+            {t('memory.changedFiles')} · {detail.files.length}
           </div>
-          <div className="bh-memory-commit-code" aria-label={t('memory.diff')}>
-            {detail.diff.split('\n').map((line, index) => (
-              <div
-                key={index}
-                className={
-                  line.startsWith('+') && !line.startsWith('+++')
-                    ? 'bh-memory-diff-add'
-                    : line.startsWith('-') && !line.startsWith('---')
-                      ? 'bh-memory-diff-remove'
-                      : line.startsWith('diff --git') || line.startsWith('@@')
-                        ? 'bh-memory-diff-header'
-                        : ''
-                }
-              >
-                {line || ' '}
-              </div>
-            ))}
-          </div>
+          {detail.files.map((file, index) => (
+            <MemoryDiffFile
+              key={file.path + index}
+              path={file.path}
+              status={file.status}
+              diff={diffSections[index] ?? ''}
+              label={t('memory.diff')}
+              binaryLabel={t('memory.binaryPreview')}
+              emptyLabel={t('memory.noTextDiff')}
+              oldLineLabel={t('memory.oldLine')}
+              newLineLabel={t('memory.newLine')}
+            />
+          ))}
         </>
       )}
     </div>
