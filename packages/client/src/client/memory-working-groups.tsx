@@ -45,22 +45,6 @@ export function MemoryWorkingGroups({
 
   return (
     <div className="bh-memory-working-list" aria-label={t('memory.workingDiff')}>
-      <div className="bh-memory-terminology" role="group" aria-label={t('memory.terminology')}>
-        <button
-          type="button"
-          aria-pressed={terminology === 'memory'}
-          onClick={() => channelSidebarPrefs.setMemoryTerminology('memory')}
-        >
-          {t('memory.terms.memory')}
-        </button>
-        <button
-          type="button"
-          aria-pressed={terminology === 'git'}
-          onClick={() => channelSidebarPrefs.setMemoryTerminology('git')}
-        >
-          {t('memory.terms.git')}
-        </button>
-      </div>
       {groups.every((group) => group.changes.length === 0) ? (
         <div className="bh-note">{t('memory.noChanges')}</div>
       ) : (

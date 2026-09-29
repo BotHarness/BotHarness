@@ -18,7 +18,7 @@ import { formatRelativeTime } from './labels.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { MemoryEntry } from './memory-entry.js';
 import { MemoryFilesEntry } from './memory-files-entry.js';
-import { MemoryRefreshHeaderAction } from './memory-header-action.js';
+import { MemoryEvolutionHeaderAction, MemoryRefreshHeaderAction } from './memory-header-action.js';
 import { Modal } from './modal.js';
 import { GroupAvatarCropModal } from './group-avatar-crop.js';
 import { MembersEntry, MembersHeaderAction } from './group-member-controls.js';
@@ -403,7 +403,7 @@ export function createChannelSidebarBuiltins(
       order: 6,
       scope: 'personabot',
       component: MemoryEvolutionEntry,
-      headerAction: MemoryRefreshHeaderAction,
+      headerAction: MemoryEvolutionHeaderAction,
     },
     {
       id: 'sessions',

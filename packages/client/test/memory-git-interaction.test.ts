@@ -276,7 +276,7 @@ describe('Memory Git graph sidebar', () => {
     await act(async () => root.render(createElement(MemoryEntry, props)));
     expect(container.textContent).toContain('Snapshot refresh failed');
     expect(container.textContent).toContain('Graph refresh failed');
-    expect(container.querySelector('.bh-memory-graph-meta')).not.toBeNull();
+    expect(container.querySelector('#bh-memory-branch-choice')).not.toBeNull();
   });
 
   it('ignores a pre-repair Memory response after clearing the cache', async () => {
@@ -683,7 +683,9 @@ describe('Memory Git graph sidebar', () => {
       root.render(createElement(MemoryEntry, { ...props, conversationRevision: 1 })),
     );
     expect(actions.memoryGitGraph).toHaveBeenCalledTimes(2);
-    expect(container.querySelector('.bh-memory-graph-branch')?.textContent).toBe('history-qa');
+    expect(container.querySelector<HTMLInputElement>('#bh-memory-branch-choice')?.value).toBe(
+      'history-qa',
+    );
   });
 
   it('shows a graph query failure instead of a permanent loading indicator', async () => {
@@ -813,6 +815,45 @@ describe('Memory Git graph sidebar', () => {
       root.render(createElement(BotMain, { actions, channelSidebar: registry }));
     });
 
+    const evolution = Array.from(container.querySelectorAll('.bh-channel-sidebar-entry')).find(
+      (section) =>
+        section.querySelector('.bh-channel-sidebar-entry-label')?.textContent === '记忆演化',
+    );
+    expect(evolution?.querySelector('.bh-memory-graph-heading')).toBeNull();
+    expect(evolution?.querySelector('.bh-memory-graph-meta')).toBeNull();
+    expect(evolution?.querySelector<HTMLInputElement>('#bh-memory-branch-choice')?.value).toBe(
+      'main',
+    );
+    expect(evolution?.querySelector('.bh-memory-terminology')).toBeNull();
+    await act(async () => {
+      evolution
+        ?.querySelector<HTMLButtonElement>(
+          '.bh-channel-sidebar-entry-header [aria-label="显示术语"]',
+        )
+        ?.click();
+    });
+    expect(container.querySelector('[role="menu"]')?.textContent).toContain('Git');
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        .find((item) => item.textContent === 'Git')
+        ?.click();
+    });
+    expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('git');
+    expect(evolution?.querySelector('.bh-memory-change-badge')?.textContent).toBe('M');
+    await act(async () => {
+      evolution
+        ?.querySelector<HTMLButtonElement>(
+          '.bh-channel-sidebar-entry-header [aria-label="显示术语"]',
+        )
+        ?.click();
+    });
+    await act(async () => {
+      Array.from(container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]'))
+        .find((item) => item.textContent === '记忆')
+        ?.click();
+    });
+    expect(channelSidebarPrefs.getSnapshot().memoryTerminology).toBe('memory');
+
     const chat = container.querySelector<HTMLElement>('.bh-chat-body');
     const composer = container.querySelector<HTMLTextAreaElement>('textarea');
     expect(chat).not.toBeNull();
@@ -882,6 +923,7 @@ describe('Memory Git graph sidebar', () => {
       store.setSessions(previous.sessions);
       channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-evolution', false);
       channelSidebarPrefs.setEntryExpanded('personabot:qa', 'memory-files', false);
+      channelSidebarPrefs.setMemoryTerminology('memory');
     });
   });
 });

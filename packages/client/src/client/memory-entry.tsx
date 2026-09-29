@@ -493,15 +493,6 @@ export function MemoryEntry({
         </>
       )}
       <div className="bh-memory-history">
-        <div className="bh-memory-graph-heading">
-          <strong>{t('memory.gitGraph')}</strong>
-          {graph === undefined ? null : (
-            <span className="bh-memory-graph-count">
-              {graph.commits.length}
-              {graph.hasMore ? '+' : ''}
-            </span>
-          )}
-        </div>
         {graph === undefined ? (
           graphError === undefined ? (
             <LoadingSkeleton kind="sidebar" label={t('memory.loading')} />
@@ -517,14 +508,6 @@ export function MemoryEntry({
                 {graphError}
               </div>
             )}
-            <div className="bh-memory-graph-meta">
-              <span className="bh-memory-graph-branch">
-                {graph.currentBranch === null ? t('memory.detached') : graph.currentBranch}
-              </span>
-              {graph.dirty ? (
-                <span className="bh-memory-graph-dirty"> · {t('memory.dirty')}</span>
-              ) : null}
-            </div>
             {!showFiles ? (
               <>
                 {workingError === undefined ? null : (
@@ -546,6 +529,9 @@ export function MemoryEntry({
             ) : null}
             <div className="bh-memory-branch-control">
               <label htmlFor="bh-memory-branch-choice">{t('memory.branch')}</label>
+              {graph.dirty ? (
+                <span className="bh-memory-graph-dirty">{t('memory.dirty')}</span>
+              ) : null}
               <Menu
                 className="bh-memory-branch-picker"
                 listClassName="bh-memory-branch-menu"

@@ -3910,45 +3910,10 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 
 .bh-memory-history {
   gap: 0;
-  margin-top: 8px;
-  border-top: 1px solid var(--dsw-alias-border-l2);
-}
-.bh-memory-graph-heading {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 32px;
-}
-.bh-memory-graph-heading strong {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.bh-memory-graph-count {
-  padding: 0 5px;
-  border-radius: var(--bh-memory-radius-count);
-  background: var(--dsw-alias-button-ghost-active-fill);
-  color: var(--dsw-alias-label-secondary);
-  font-size: 10px;
-  font-variant-numeric: tabular-nums;
-  line-height: 17px;
-}
-.bh-memory-graph-meta {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  margin-bottom: 3px;
-  color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
-}
-.bh-memory-graph-branch {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 .bh-memory-graph-dirty {
   flex: none;
+  font-size: 11px;
 }
 .bh-memory-branch-control {
   display: flex;
@@ -4119,10 +4084,8 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-graph-more:hover {
   color: var(--dsw-alias-label-primary);
 }
-.bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--dsw-alias-border-l2); }
-.bh-memory-terminology { display: flex; gap: 2px; align-self: flex-start; padding: 2px; border-radius: 8px; background: var(--dsw-alias-interactive-bg-hover); }
-.bh-memory-terminology button { border: 0; border-radius: 6px; padding: 3px 8px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 11px; cursor: pointer; }
-.bh-memory-terminology button[aria-pressed='true'] { background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); }
+.bh-memory-header-actions { display: flex; align-items: center; gap: 2px; }
+.bh-memory-working-list { display: flex; flex-direction: column; gap: 8px; padding: 8px 0; }
 .bh-memory-change-group { min-width: 0; }
 .bh-memory-change-heading { display: flex; align-items: center; gap: 5px; width: 100%; border: 0; border-radius: 6px; padding: 5px 3px; background: transparent; color: var(--dsw-alias-label-secondary); font-size: 12px; text-align: left; cursor: pointer; }
 .bh-memory-change-heading:hover { background: var(--bh-hover); }
