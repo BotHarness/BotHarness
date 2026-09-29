@@ -51,6 +51,7 @@ describe('browser profiles', () => {
   it('sanitizes names and falls back to the default profile', () => {
     expect(sanitizeProfileName('work')).toBe('work');
     expect(sanitizeProfileName(' work-2 ')).toBe('work-2');
+    expect(sanitizeProfileName('default')).toBe('');
     expect(sanitizeProfileName('bad/name')).toBe('');
     expect(sanitizeProfileName('')).toBe('');
   });

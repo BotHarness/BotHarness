@@ -63,11 +63,7 @@ export function profileDeepSeekCredential(profileHome) {
     : undefined;
 }
 
-export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) {
-  const credential = profileDeepSeekCredential(profileHome);
-  if (credential === undefined) {
-    throw new Error('No compatible DEEPSEEK_API_KEY in the selected DSH profile');
-  }
+function saveSharedCredential(credential, destination) {
   mkdirSync(dirname(destination), { recursive: true, mode: 0o700 });
   if (process.platform !== 'win32' && (statSync(dirname(destination)).mode & 0o077) !== 0) {
     throw new Error('Shared DeepSeek dev secret directory must not be accessible by others');
@@ -78,6 +74,25 @@ export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) 
     mode: 0o600,
   });
   return { source: credential.source, destination };
+}
+
+export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) {
+  const credential = profileDeepSeekCredential(profileHome);
+  if (credential === undefined) {
+    throw new Error('No compatible DEEPSEEK_API_KEY in the selected DSH profile');
+  }
+  return saveSharedCredential(credential, destination);
+}
+
+export function adoptSharedEnv(sourcePath, destination = DEV_ENV_PATH) {
+  const resolved = resolve(sourcePath);
+  if (!existsSync(resolved))
+    throw new Error(`Shared DeepSeek dev secret file not found: ${resolved}`);
+  const credential = fromDevEnvFile(resolved);
+  if (credential === undefined || !/^[A-Za-z0-9._-]+$/u.test(credential.value)) {
+    throw new Error('No compatible DEEPSEEK_API_KEY in the selected shared file');
+  }
+  return saveSharedCredential(credential, destination);
 }
 
 export function resolveDevSecret({ environment = process.env, devEnvPath = DEV_ENV_PATH } = {}) {
@@ -114,6 +129,15 @@ if (invokedDirectly) {
     }
     const adopted = adoptProfileCredential(process.argv[4]);
     console.log(`Shared DeepSeek dev key saved at ${adopted.destination} (0600); no key printed.`);
+    process.exit(0);
+  }
+  if (mode === 'adopt-env') {
+    if (process.argv[3] !== '--from' || !process.argv[4] || process.argv.length !== 5) {
+      console.error('usage: node scripts/dev-secret.mjs adopt-env --from <existing-dev.env>');
+      process.exit(2);
+    }
+    const adopted = adoptSharedEnv(process.argv[4]);
+    console.log(`Shared DeepSeek dev key saved at ${adopted.destination}; no key printed.`);
     process.exit(0);
   }
   const resolved = resolveDevSecret();

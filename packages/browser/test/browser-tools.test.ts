@@ -396,6 +396,32 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(JSON.stringify(waited)).toContain('waited 5ms');
   });
 
+  it('keeps the current tab on recoverable errors and drops it on dead targets', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    h.runtime.click = vi.fn(async () => {
+      throw new Error(
+        'The page has no file input; click the upload control first so the page creates one, then retry',
+      );
+    });
+    await expect(
+      h.state.definitions.get('browser_click')!.execute({ ref: 'e3' }, execution('browser_click')),
+    ).rejects.toThrow(/no file input/);
+    expect(h.provider.currentTab('bot-a')).toBe('tab-1');
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+
+    h.runtime.observe = vi.fn(async () => {
+      throw new Error('Target closed');
+    });
+    await expect(
+      h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe')),
+    ).rejects.toThrow(/tab is gone/);
+    expect(h.provider.currentTab('bot-a')).toBeUndefined();
+  });
+
   it('surfaces a stale ref readably and audits the failure', async () => {
     const h = harness({ access: true, auto: true });
     h.created();

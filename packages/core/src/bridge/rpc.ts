@@ -35,6 +35,7 @@ import type {
   MemoryWorkingKind,
   MemoryRepairEvent,
 } from '../memory/accepted.js';
+import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { WorkspaceGrant } from '../workspaces/grants.js';
 import type { ToolApprovalRule } from '../workspaces/tool-approval-rules.js';
 import type {
@@ -513,6 +514,21 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.memoryWorkingDiff({ channelId, path, kind }));
   }
 
+  memoryRecoveryHistory(channelId: string): { checkpoints: MemoryRecoveryCheckpoint[] } {
+    return unwrap(this.methods.memoryRecoveryHistory({ channelId }));
+  }
+
+  memoryRestore(
+    channelId: string,
+    checkpointId: string,
+    expectedCurrentId: string,
+  ): {
+    checkpoint: MemoryRecoveryCheckpoint;
+    archivePath: string;
+  } {
+    return unwrap(this.methods.memoryRestore({ channelId, checkpointId, expectedCurrentId }));
+  }
+
   memorySave(
     channelId: string,
     path: string,
@@ -649,6 +665,8 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memoryGitCommitDiff',
   'memoryWorkingChanges',
   'memoryWorkingDiff',
+  'memoryRecoveryHistory',
+  'memoryRestore',
   'memorySave',
   'memoryRepair',
   'profileActivity',

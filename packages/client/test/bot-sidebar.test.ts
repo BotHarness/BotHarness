@@ -181,6 +181,10 @@ function stubActions(): BridgeActions {
       diff: '',
       binary: false,
     })),
+    memoryRecoveryHistory: vi.fn(async () => []),
+    memoryRestore: vi.fn(async () => {
+      throw new Error('not configured');
+    }),
     botSourcePolicies: vi.fn(async () => []),
     setBotSourcePolicy: vi.fn(async () => undefined),
     resetBotSourcePolicy: vi.fn(async () => undefined),

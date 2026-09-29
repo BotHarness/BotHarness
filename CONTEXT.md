@@ -259,8 +259,12 @@ An ordinary Git commit in a Memory Repository. Git authorship and topology remai
 _Avoid_: accepted commit, file save, filesystem event, auto-save
 
 **Memory Observation**:
-A trusted record of the Memory Repository HEAD after an Orchestrator operation. Observation does not stage, commit, reject, or hide current working-tree files.
+A trusted record of repository state seen by the Host, optionally in the context of an owned Orchestrator Session and Source Event. It describes when the state was seen, not who authored Git content; observation does not stage, commit, reject, or hide current working-tree files.
 _Avoid_: commit acceptance, filesystem watch, background distillation
+
+**Memory Recovery Checkpoint**:
+A recoverable record of one observed Memory Repository branch, HEAD, index, and working tree. Its origin names the observation or explicit command context, not an inferred file author; restoring it requires a Human confirmation and preserves the pre-restore repository.
+_Avoid_: accepted commit, auto-save, Git author, ordinary Inbox observation
 
 **Attachment**:
 A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.

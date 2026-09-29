@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { MemoryFileTree } from './memory-file-tree.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export function MemoryFilesEntry({
   actions,
@@ -15,7 +16,7 @@ export function MemoryFilesEntry({
   const [snapshot, setSnapshot] = useState<MemorySnapshot>();
   const [error, setError] = useState<string>();
 
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight = false;
@@ -56,7 +57,7 @@ export function MemoryFilesEntry({
   }, [actions, channelId, conversationRevision, refreshRevision]);
 
   return (
-    <div className="bh-memory-entry">
+    <div className="bh-memory-entry" ref={mount}>
       {error === undefined ? null : (
         <div className="bh-error" role="alert">
           {error}

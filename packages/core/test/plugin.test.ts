@@ -303,6 +303,8 @@ describe('plugin entry', () => {
       'memoryGitCommitDiff',
       'memoryWorkingChanges',
       'memoryWorkingDiff',
+      'memoryRecoveryHistory',
+      'memoryRestore',
       'memorySave',
       'memoryRepair',
       'profileActivity',

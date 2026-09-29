@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import { createPersonaBotRegistry } from '../src/bots/registry.js';
+import { LOCAL_HUMAN_ID } from '../src/channels/channel.js';
 import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
 import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { defineSchemaPlan } from '../src/database/schema.js';
@@ -15,7 +16,7 @@ import { createSessionOwnership } from '../src/sessions/ownership.js';
 import { createTempRoot, FIXED_NOW } from './helpers.js';
 
 function git(root: string, ...args: string[]): string {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8' }).trim();
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', windowsHide: true }).trim();
 }
 
 function fixture() {
@@ -242,7 +243,7 @@ describe('current Git working tree is Memory', () => {
       });
       expect(checkpoints).toHaveLength(1);
       expect(checkpoints[0]?.sha).toBe(external.head);
-      expect(checkpoints[0]?.actorId).toBe('session-atlas');
+      expect(checkpoints[0]?.actorId).toBe('botharness-host');
       expect(memory.snapshot('atlas').head).toBe(external.head);
       const reopened = createMemoryService({ registry, ownership, database, now: FIXED_NOW });
       expect(reopened.readAccepted('atlas', 'src/memory.ts')?.body).toContain('"remote"');
@@ -321,6 +322,7 @@ describe('current Git working tree is Memory', () => {
         editId: 'edit-code',
       });
       expect(saved.actorKind).toBe('human');
+      expect(saved.actorId).toBe(LOCAL_HUMAN_ID);
       expect(saved.parentSha).toBe(external.head);
       expect(memory.readAccepted('atlas', 'src/memory.ts')?.body).toContain('"human"');
       expect(memory.gitGraph('atlas').head).toBe(saved.sha);
@@ -686,6 +688,32 @@ describe('worktree delta for out-of-band Memory changes', () => {
         sessionId: 'session-atlas',
         sourceEventId: 'recovered',
       });
+    } finally {
+      database.close();
+    }
+  });
+
+  it('keeps turns available and advances the observation after an unresolved merge', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      gitIdentity(root);
+      writeFileSync(join(root, 'conflict.md'), 'base\n');
+      git(root, 'add', 'conflict.md');
+      git(root, 'commit', '-m', 'Base note');
+      agentTurn(memory, addSource, 'baseline');
+      git(root, 'switch', '-c', 'side');
+      writeFileSync(join(root, 'conflict.md'), 'side\n');
+      git(root, 'commit', '-am', 'Side note');
+      git(root, 'switch', 'main');
+      writeFileSync(join(root, 'conflict.md'), 'main\n');
+      git(root, 'commit', '-am', 'Main note');
+      expect(() => git(root, 'merge', 'side')).toThrow();
+      expect(git(root, 'ls-files', '-u')).not.toBe('');
+      addSource('conflicted');
+      expect(() => memory.prepareTurn('atlas', 'session-atlas')).not.toThrow();
+      memory.abortTurn('atlas', 'session-atlas');
+      addSource('next');
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
     } finally {
       database.close();
     }

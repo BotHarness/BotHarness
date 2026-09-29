@@ -366,6 +366,45 @@ describe('runtime lifecycle', () => {
     }
   });
 
+  it('waits briefly for the file input after clicking the upload control', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'browser-upload-wait-'));
+    const file = join(dir, 'shot.jpg');
+    writeFileSync(file, 'x');
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { method: string; params?: Record<string, unknown> }[] = [];
+      let queries = 0;
+      const client: CdpClient = {
+        send: async (method, params, sessionId) => {
+          sent.push({ method, ...(params === undefined ? {} : { params }) });
+          if (method === 'DOM.querySelectorAll') {
+            queries += 1;
+            return { nodeIds: queries < 2 ? [] : [7] };
+          }
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      };
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      await runtime.open('https://example.com');
+      await runtime.uploadFile('tab-1', { ref: 'e3', path: file });
+      expect(sent.some((call) => call.method === 'DOM.setFileInputFiles')).toBe(true);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('acts on observed refs and surfaces a stale ref readably', async () => {
     const child = fakeChild();
     spawnMock.mockReturnValue(child.proc as never);

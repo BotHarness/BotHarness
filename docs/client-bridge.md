@@ -135,6 +135,8 @@ corepack pnpm dev:client
 
 0.1.7 RC2 实测：Client Modules 将结尾 `/client` 当作导出子路径剥离，因此包名 `@botharness/client` 在插件页会显示 `prefetch("@botharness/client") — not a graph entry`；当前包名为 `@botharness/ui`（[ADR-0066](adr/0066-rc2-client-bundle-identity.md)）。在本机链接此包并运行 `pnpm dev:client` 时，Desktop 可收到 `rebuilt` 事件并在当前 DM 自动显示新文案，同时恢复所选 Bot/Channel。不要对运行过 Client HMR 的安装版 Desktop 做整页刷新：实测新文档的 boot 注入仍指向旧 Bundle revision（旧 URL 404，当前 graph URL 200），会报 `@botharness/ui: import failed`。这一故障发生在插件代码导入之前，不能由插件内的重试修复。若发生，先停止 watcher，显式 `pnpm build`，然后重启应用及 Host；保留已安装插件和 Profile，不点「禁用第三方插件」。崩溃报告位于 Windows `%APPDATA%\@deepseek-ai\dsh-desktop\logs\crash-*-web-boot.log`。以上 Desktop 结论均为 0.1.7 RC2 实测，0.2.0 RC1 未复验。
 
+Windows 与 WSL 的 `~/.config/botharness/dev.env` 分属不同的用户目录。若密钥已保存在 WSL、但从 Windows 启动隔离实例，可在 Windows 终端一次性运行 `node scripts/dev-secret.mjs adopt-env --from <WSL-dev.env-path>`（传入该文件的 UNC 路径）；它只读取 DeepSeek 项并在 Windows 用户目录中创建本机文件，不覆盖已有文件，也不打印密钥。随后用 `node scripts/dev-secret.mjs check` 核实来源，再重启隔离 DSH Host 并实测模型回复。反向迁移也可使用同一命令和相应的源路径。
+
 ## 8. 未决
 
 - 桥方法已实现（`packages/core/src/bridge/`），包括 PersonaBot 六个、Channel 相关方法、Assignment 两个、`sessions` 一个，以及 `rosterGet/sectionCreate/sectionRename/sectionRemove/channelAssign/sectionReorder/topReorder/pinsSet/hiddenSet/rosterBatch` 十个 roster 方法。前六个 PersonaBot 方法只落 `bot.json`/`PERSONA.md`，Channel 方法经 Messaging module 读写 `botharness.db` 的 Source Event、placement 与已读位置（ADR-0037）；其中 `channelReadPosition` / `channelMarkRead` 持久化单调的已读锚点；DM 重命名同时更新 PersonaBot Registry 的显示名。roster 方法经可选 `storageDomain` 落 `botharness_roster`（无后端时读写都回 `storage-unavailable`，客户端首屏只读）。

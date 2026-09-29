@@ -72,7 +72,8 @@ window.__ModuleLoader__.load({
 			let info = {
 				displayName: void 0,
 				browserAccess: void 0,
-				browserProfile: void 0
+				browserProfile: void 0,
+				profiles: []
 			};
 			const listeners = /* @__PURE__ */ new Set();
 			let started = false;
@@ -81,12 +82,15 @@ window.__ModuleLoader__.load({
 				if (rpc === void 0 || botSlug === void 0) return;
 				rpc.call("/api", "botharness/list", { args: {} }).then((result) => {
 					if (!result.ok) return;
-					const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
+					const bots = result.value.bots ?? [];
+					const match = bots.find((bot) => bot.slug === botSlug);
 					if (match === void 0) return;
+					const profiles = [...new Set(bots.map((bot) => typeof bot.browserProfile === "string" ? bot.browserProfile : "").filter((name) => name !== ""))].sort();
 					info = {
 						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
 						browserAccess: typeof match.browserAccess === "boolean" ? match.browserAccess : void 0,
-						browserProfile: typeof match.browserProfile === "string" && match.browserProfile !== "" ? match.browserProfile : void 0
+						browserProfile: typeof match.browserProfile === "string" && match.browserProfile !== "" ? match.browserProfile : void 0,
+						profiles
 					};
 					for (const listener of listeners) listener();
 				}).catch(() => void 0);
@@ -234,13 +238,17 @@ window.__ModuleLoader__.load({
 			const focused = observation?.focused ?? null;
 			const focusedTab = tabs.find((tab) => tab.targetId === focused);
 			const paused = observation?.takeover === true;
-			const invoke = (endpoint, init) => {
-				if (busy) return;
+			const invoke = (endpoint, body = {}) => {
+				if (busy || botSlug === void 0) return;
 				setBusy(true);
 				setError(void 0);
 				requestJson(endpoint, {
 					method: "POST",
-					...init
+					headers: { "content-type": "application/json" },
+					body: JSON.stringify({
+						slug: botSlug,
+						...body
+					})
 				}).catch((cause) => setError(cause instanceof Error ? cause.message : String(cause))).finally(() => {
 					setBusy(false);
 					store.refresh();
@@ -259,20 +267,14 @@ window.__ModuleLoader__.load({
 				store.setTab(targetId);
 			};
 			const onPause = () => {
-				if (botSlug === void 0) return;
-				invoke(TAKEOVER_ENDPOINT, {
-					headers: { "content-type": "application/json" },
-					body: JSON.stringify({
-						slug: botSlug,
-						active: !paused
-					})
-				});
+				invoke(TAKEOVER_ENDPOINT, { active: !paused });
 			};
 			const currentProfile = profileOverride ?? info.browserProfile ?? "";
 			const saveProfile = () => {
 				const rpc = connectionRpc;
 				if (rpc === void 0 || botSlug === void 0 || draft === void 0) return;
-				const next = draft.trim();
+				const trimmed = draft.trim();
+				const next = trimmed === "default" ? "" : trimmed;
 				setDraft(void 0);
 				if (next === currentProfile) return;
 				setError(void 0);
@@ -307,27 +309,35 @@ window.__ModuleLoader__.load({
 							alignItems: "center",
 							gap: 8
 						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
-							style: { opacity: .8 },
-							children: t("entry.profile.label")
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
-							value: draft ?? currentProfile,
-							placeholder: t("entry.profile.default"),
-							disabled: botSlug === void 0,
-							onChange: onProfileChange,
-							onBlur: saveProfile,
-							onKeyDown: onProfileKey,
-							style: {
-								flex: 1,
-								minWidth: 0,
-								padding: "2px 6px",
-								borderRadius: 4,
-								border: "1px solid currentColor",
-								background: "transparent",
-								color: "inherit",
-								fontSize: 12
-							}
-						})]
+						children: [
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+								style: { opacity: .8 },
+								children: t("entry.profile.label")
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsx)("input", {
+								value: draft ?? currentProfile,
+								placeholder: t("entry.profile.default"),
+								list: `browser-profiles-${botSlug ?? ""}`,
+								disabled: botSlug === void 0,
+								onChange: onProfileChange,
+								onBlur: saveProfile,
+								onKeyDown: onProfileKey,
+								style: {
+									flex: 1,
+									minWidth: 0,
+									padding: "2px 6px",
+									borderRadius: 4,
+									border: "1px solid currentColor",
+									background: "transparent",
+									color: "inherit",
+									fontSize: 12
+								}
+							}),
+							/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("datalist", {
+								id: `browser-profiles-${botSlug ?? ""}`,
+								children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { value: "default" }), info.profiles.map((name) => /* @__PURE__ */ (0, react_jsx_runtime.jsx)("option", { value: name }, name))]
+							})
+						]
 					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						style: {

@@ -2996,6 +2996,12 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   color: var(--dsw-alias-label-tertiary);
   cursor: pointer;
 }
+.bh-channel-sidebar-entry-action-slot {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  padding-right: 2px;
+}
 .bh-channel-sidebar-entry-action:hover,
 .bh-channel-sidebar-entry-action[aria-expanded='true'] {
   background: var(--dsw-alias-interactive-bg-hover);
@@ -3991,6 +3997,73 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 
 .bh-memory-history {
   gap: 0;
+}
+.bh-memory-recovery {
+  border-top: 1px solid var(--dsw-alias-border-l3);
+  margin-top: 8px;
+  padding-top: 8px;
+  color: var(--dsw-alias-label-primary);
+  font-size: 12px;
+}
+.bh-memory-recovery > summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.bh-memory-recovery-help,
+.bh-memory-recovery-meta {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 11px;
+}
+.bh-memory-recovery-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.bh-memory-recovery-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 6px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  text-align: left;
+  cursor: pointer;
+}
+.bh-memory-recovery-row:hover {
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-memory-recovery-row[aria-pressed='true'] {
+  background: var(--bh-selected);
+}
+.bh-memory-recovery-main,
+.bh-memory-recovery-confirm {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+  .bh-memory-recovery-selection {
+    display: grid;
+    gap: 8px;
+    margin-top: 8px;
+  }
+  .bh-memory-recovery-archive {
+    overflow-wrap: anywhere;
+  }
+  .bh-memory-recovery-archive > summary {
+    cursor: pointer;
+  }
+  .bh-memory-recovery-archive code {
+    display: block;
+    margin-top: 6px;
+    user-select: all;
+  }
+.bh-memory-recovery-confirm p {
+  flex-basis: 100%;
+  margin: 0;
 }
 .bh-memory-graph-dirty {
   flex: none;
