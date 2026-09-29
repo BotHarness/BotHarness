@@ -10,6 +10,7 @@ function fakeRuntime(): BotBrowserRuntime & { stop: ReturnType<typeof vi.fn> } {
     open: vi.fn(async (url: string) => ({ tabId: 't', url, title: '' })),
     observe: vi.fn(async () => ({ url: '', title: '', elements: [], text: '' })),
     click: vi.fn(async () => ({ tabId: 't', url: '', title: '' })),
+    clickAt: vi.fn(async () => ({ tabId: 't', url: '', title: '' })),
     type: vi.fn(async () => ({ tabId: 't', url: '', title: '' })),
     pressKey: vi.fn(async () => ({ tabId: 't', url: '', title: '' })),
     scroll: vi.fn(async () => ({ tabId: 't', url: '', title: '' })),

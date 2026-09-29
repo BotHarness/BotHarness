@@ -323,28 +323,36 @@ export function createBrowserToolProvider(
       }
       let page;
       try {
-        page =
-          raw === 'click'
-            ? await runtime.click(
-                tabId,
-                requiredString(args, 'ref', 'browser_click needs a ref from browser_observe'),
-              )
-            : raw === 'type'
-              ? await runtime.type(
-                  tabId,
-                  requiredString(args, 'ref', 'browser_type needs a ref from browser_observe'),
-                  requiredString(args, 'text', 'browser_type needs text to enter'),
-                )
-              : raw === 'press_key'
-                ? await runtime.pressKey(
-                    tabId,
-                    requiredString(args, 'key', 'browser_press_key needs a key'),
-                  )
-                : await runtime.scroll(
-                    tabId,
-                    args['direction'] === 'up' ? 'up' : 'down',
-                    boundedNumber(args['amount'], 100, 2000, 600),
-                  );
+        if (raw === 'click') {
+          const ref =
+            typeof args['ref'] === 'string' && args['ref'] !== '' ? args['ref'] : undefined;
+          const x = typeof args['x'] === 'number' ? args['x'] : undefined;
+          const y = typeof args['y'] === 'number' ? args['y'] : undefined;
+          if (ref !== undefined) page = await runtime.click(tabId, ref);
+          else if (x !== undefined && y !== undefined) page = await runtime.clickAt(tabId, x, y);
+          else {
+            throw new Error(
+              'browser_click needs a ref from browser_observe or x/y coordinates from browser_screenshot',
+            );
+          }
+        } else if (raw === 'type') {
+          page = await runtime.type(
+            tabId,
+            requiredString(args, 'ref', 'browser_type needs a ref from browser_observe'),
+            requiredString(args, 'text', 'browser_type needs text to enter'),
+          );
+        } else if (raw === 'press_key') {
+          page = await runtime.pressKey(
+            tabId,
+            requiredString(args, 'key', 'browser_press_key needs a key'),
+          );
+        } else {
+          page = await runtime.scroll(
+            tabId,
+            args['direction'] === 'up' ? 'up' : 'down',
+            boundedNumber(args['amount'], 100, 2000, 600),
+          );
+        }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         if (isDeadTarget(message)) dropCurrent(state);

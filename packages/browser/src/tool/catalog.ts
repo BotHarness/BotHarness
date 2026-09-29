@@ -47,23 +47,27 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
   {
     raw: 'screenshot',
     description:
-      "Capture this PersonaBot's current Bot Browser tab as an image for visual verification (layout, images, charts). Returns an image when the active route supports it, otherwise a readable fallback; the capture is also saved on the Host and its path is reported.",
+      "Capture this PersonaBot's current Bot Browser tab as an image for visual verification (layout, images, charts). The image is 1:1 with the viewport in CSS pixels, so its coordinates can be passed to browser_click x/y when an element has no ref. Returns an image when the active route supports it, otherwise a readable fallback; the capture is also saved on the Host and its path is reported.",
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     audit: () => 'screenshot',
   },
   {
     raw: 'click',
     description:
-      'Click the element with a ref from the latest browser_observe (its line starts with the ref, for example e3). Scrolls it into view first.',
+      'Click a target: pass a ref from the latest browser_observe (including elements listed as clickable), or viewport coordinates (x, y in CSS pixels from the latest browser_screenshot) for targets without a ref. Refs scroll into view first.',
     inputSchema: {
       type: 'object',
       properties: {
         ref: { type: 'string', description: 'Element ref from browser_observe, e.g. e3' },
+        x: { type: 'number', description: 'Viewport CSS x from the latest screenshot' },
+        y: { type: 'number', description: 'Viewport CSS y from the latest screenshot' },
       },
-      required: ['ref'],
       additionalProperties: false,
     },
-    audit: (args) => `ref=${str(args, 'ref')}`,
+    audit: (args) =>
+      typeof args['ref'] === 'string'
+        ? `ref=${args['ref']}`
+        : `x=${str(args, 'x')} y=${str(args, 'y')}`,
   },
   {
     raw: 'type',
@@ -167,7 +171,7 @@ export function browserToolName(raw: string): string {
 
 export const BROWSER_GUIDANCE = `You can browse the web through this profile's shared Bot Browser — a real browser window owned by BotHarness, shared by every PersonaBot of this profile. Other PersonaBots may be browsing at the same time: stay inside the tabs you opened.
 
-Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs, and use \`browser_screenshot\` when you need to see the page rather than read it. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
+Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Elements listed with role \`clickable\` are role-less click targets (icons, custom buttons) and take refs like any other. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs; when a target has no ref at all, take \`browser_screenshot\` and click by x/y coordinates. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
 
 You may keep several tabs in your own Bot Browser window with \`browser_tabs\` (list, open, select, close); observe and act on the current tab, and select another one before reading it. The Human can close your tabs at any time; when a call reports a missing tab, list your tabs and select one, or open a new one.
 
