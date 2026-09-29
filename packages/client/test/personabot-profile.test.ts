@@ -176,6 +176,16 @@ describe('PersonaBot Profile surface', () => {
       await act(async () => click(container, '.bh-profile-expand'));
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
+      const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
+      expect(sections.length).toBe(2);
+      expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
+      expect(sections[1]?.getAttribute('aria-label')).toBe('提醒策略');
+      const policyDetails = container.querySelector<HTMLDetailsElement>(
+        '.bh-profile-policy-details',
+      );
+      expect(policyDetails?.open).toBe(false);
+      await act(async () => click(container, '.bh-profile-policy-summary'));
+      expect(policyDetails?.open).toBe(true);
       expect(container.querySelector('.bh-profile-view')?.textContent).toContain('Human 私聊');
       expect(container.querySelector('.bh-profile-view')?.textContent).toContain('修订 1');
       expect(container.querySelector('.bh-chat-body')).toBeNull();
