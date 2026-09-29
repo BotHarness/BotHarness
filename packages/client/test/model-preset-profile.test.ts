@@ -176,8 +176,9 @@ describe('Model Preset Profile', () => {
       };
       return plan;
     });
+    const modelPlan = vi.fn(async () => plan);
     const actions = {
-      modelPlan: vi.fn(async () => plan),
+      modelPlan,
       modelPresets: vi.fn(async () => presets),
       modelCatalog: vi.fn(async () => [
         {
@@ -250,7 +251,16 @@ describe('Model Preset Profile', () => {
         'Updated elsewhere',
       );
 
+      const beforeCustom = plan;
+      let finishRefresh!: (value: typeof plan) => void;
+      const pendingRefresh = new Promise<typeof plan>((resolve) => {
+        finishRefresh = resolve;
+      });
+      modelPlan.mockImplementationOnce(async () => pendingRefresh);
+      await act(async () => details.dispatchEvent(new Event('toggle')));
+      expect(container.querySelector('.bh-model-preset-custom')).not.toBeNull();
       await act(async () => button('Save custom snapshot').click());
+      await act(async () => finishRefresh(beforeCustom));
       expect(customizeModelPlan).toHaveBeenCalledWith('ada', low);
       expect(container.querySelector('summary')?.textContent).toContain('Custom snapshot');
       expect(container.querySelector('summary')?.textContent).toContain('Revision 3');

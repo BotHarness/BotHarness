@@ -76,7 +76,6 @@ export function ModelPresetProfile({
 
   const load = async (): Promise<void> => {
     const request = planRequest.current;
-    setCatalog(undefined);
     setError(undefined);
     try {
       const [models, saved, current] = await Promise.all([
