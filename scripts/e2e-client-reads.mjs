@@ -67,6 +67,7 @@ const group = (
   })
 ).channel;
 let browser;
+let failure;
 try {
   browser = await puppeteer.launch({
     headless: true,
@@ -194,7 +195,20 @@ try {
       errors,
     }),
   );
+} catch (error) {
+  failure = error;
 } finally {
-  await browser?.close();
-  await rpc('channelGroupDelete', { channelId: group.id });
+  try {
+    await browser?.close();
+  } catch (error) {
+    console.error('browser close failed', error);
+    failure ??= error;
+  }
+  try {
+    await rpc('channelGroupDelete', { channelId: group.id });
+  } catch (error) {
+    console.error('group cleanup failed', error);
+    failure ??= error;
+  }
 }
+if (failure) throw failure;

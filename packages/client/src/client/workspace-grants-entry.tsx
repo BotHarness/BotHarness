@@ -492,7 +492,7 @@ export function WorkspaceGrantsEntry({
                   row.id === revokedGrant.id ? revokedGrant : row,
                 );
                 rememberWorkspace(actions, botSlug, { grants: next });
-                setGrants(next);
+                if (activeSlug.current === botSlug) setGrants(next);
               })
             }
           />
@@ -527,8 +527,10 @@ export function WorkspaceGrantsEntry({
               onClick={() =>
                 mutate('manual-folder', async () => {
                   showGrant(await actions.authorizeWorkspacePath(botSlug, manualPath.trim()));
-                  setManualPath('');
-                  setManualOpen(false);
+                  if (activeSlug.current === botSlug) {
+                    setManualPath('');
+                    setManualOpen(false);
+                  }
                 })
               }
             >
@@ -613,7 +615,7 @@ export function WorkspaceGrantsEntry({
               onClick={() =>
                 mutate('danger-access', async () => {
                   await actions.setAssignmentAccess(botSlug, 'danger-full-access', true);
-                  setConfirmDanger(false);
+                  if (activeSlug.current === botSlug) setConfirmDanger(false);
                 })
               }
             >
@@ -681,7 +683,7 @@ export function WorkspaceGrantsEntry({
           onChoose={(path) =>
             mutate('browse-folder', async () => {
               showGrant(await actions.authorizeWorkspacePath(botSlug, path));
-              setBrowserListing(undefined);
+              if (activeSlug.current === botSlug) setBrowserListing(undefined);
             })
           }
           busy={busy !== undefined}

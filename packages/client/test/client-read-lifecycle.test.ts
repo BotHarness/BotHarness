@@ -11,15 +11,32 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Input: () => null,
   IconChevronDownOutlineRegular: () => null,
   IconChevronLeftOutlineRegular: () => null,
+  IconChevronRightOutlineRegular: () => null,
+  IconEditOutlineRegular: () => null,
+  IconPinFillRegular: () => null,
+  IconPinOutlineRegular: () => null,
   IconRefreshOutlineRegular: () => null,
   IconBranchOutlineRegular: () => null,
   Tooltip: ({ children }: { children: ReactNode }) => children,
   IconCloseOutlineRegular: () => null,
   IconFolderOpenOutlineRegular: () => null,
+  Tag: ({ children }: { children: ReactNode }) => createElement('span', null, children),
 }));
 
 vi.mock('../src/client/modal.js', () => ({
-  Modal: ({ children }: { children: ReactNode }) => createElement('section', null, children),
+  Modal: ({
+    children,
+    footer,
+    open,
+  }: {
+    children: ReactNode;
+    footer?: ReactNode;
+    open?: boolean;
+  }) => (open === false ? null : createElement('section', null, children, footer)),
+}));
+
+vi.mock('../src/client/avatar.js', () => ({
+  PersonaBotAvatar: () => createElement('span', null),
 }));
 
 import type { BridgeActions } from '../src/client/actions.js';
@@ -27,11 +44,14 @@ import { zhTranslate } from '../src/client/locale.js';
 import { MemoryFileView } from '../src/client/memory-current-view.js';
 import { GroupAvatarCropModal } from '../src/client/group-avatar-crop.js';
 import { PersonaBotAvatarCropModal } from '../src/client/personabot-avatar-crop.js';
+import { ProfileView } from '../src/client/personabot-profile.js';
 import { createProfileCardBuiltins } from '../src/client/profile-cards-builtins.js';
-import type { ProfileCardViewProps } from '../src/client/profile-cards.js';
+import type { ProfileCardRegistry, ProfileCardViewProps } from '../src/client/profile-cards.js';
 import { useMountedResource } from '../src/client/mounted-resource.js';
 import { WorkspaceGrantsEntry } from '../src/client/workspace-grants-entry.js';
 import { publishWorkspaceGrantChange } from '../src/client/workspace-grant-events.js';
+import type { BotSourcePolicyView } from '../src/client/bridge.js';
+import type { BotSummary, ChannelSummary } from '../src/client/store.js';
 
 let host: HTMLDivElement;
 let root: Root;
@@ -158,6 +178,108 @@ describe('mounted request ownership', () => {
     await act(async () => root.render(null));
     await act(async () => publishWorkspaceGrantChange('bea'));
     expect(actions.listWorkspaceGrants).toHaveBeenCalledTimes(3);
+  });
+
+  it('keeps a completed revoke scoped to its original PersonaBot', async () => {
+    const revoke = deferred<Awaited<ReturnType<BridgeActions['revokeWorkspaceGrant']>>>();
+    const grant = (slug: string) => ({
+      id: slug,
+      botSlug: slug,
+      workspaceId: slug,
+      workspacePath: '/tmp/' + slug,
+      workspaceTitle: slug + ' project',
+      path: '/tmp/' + slug,
+      title: slug + ' project',
+      createdAt: '2026-09-25T00:00:00.000Z',
+    });
+    const actions = {
+      listWorkspaceGrants: vi.fn(async (slug: string) => [grant(slug)]),
+      listWorkspaceOptions: vi.fn(async () => []),
+      memoryDirectory: vi.fn(async () => '/tmp/memory'),
+      listToolApprovalRules: vi.fn(async () => []),
+      assignmentAccess: vi.fn(async () => ({ mode: 'workspace-write' })),
+      revokeWorkspaceGrant: vi.fn(() => revoke.promise),
+    } as unknown as BridgeActions;
+    const render = (botSlug: string) =>
+      createElement(WorkspaceGrantsEntry, {
+        scope: 'personabot' as const,
+        channelId: 'dm-' + botSlug,
+        botSlug,
+        actions,
+        t: zhTranslate,
+      });
+    await act(async () => root.render(render('ada')));
+    await act(async () =>
+      host.querySelector<HTMLButtonElement>('button[aria-label*="ada project"]')?.click(),
+    );
+    await act(async () => root.render(render('bea')));
+    await act(async () =>
+      revoke.resolve({ ...grant('ada'), revokedAt: '2026-09-29T00:00:00.000Z' }),
+    );
+    expect(host.textContent).toContain('bea project');
+    expect(host.textContent).not.toContain('ada project');
+  });
+
+  it('enables the new PersonaBot policy editor while an old save is pending', async () => {
+    const save = deferred<void>();
+    const policy = (): BotSourcePolicyView => ({
+      sourceClass: 'assignment-report',
+      admission: 'admit',
+      wake: 'conditional',
+      revision: 1,
+      lastActor: { kind: 'built-in' },
+      changedAt: '2026-09-25T00:00:00.000Z',
+      overrideActive: false,
+      recentWakeCount: 0,
+    });
+    const bot = (slug: string): BotSummary => ({
+      slug,
+      displayName: slug,
+      roles: [],
+      aggregateState: 'idle',
+      workspaces: [],
+      createdAt: '2026-09-25T00:00:00.000Z',
+    });
+    const channel = (slug: string): ChannelSummary => ({
+      id: 'dm-' + slug,
+      type: 'dm',
+      name: slug,
+      members: [slug],
+      botSlug: slug,
+      createdAt: '2026-09-25T00:00:00.000Z',
+      updatedAt: '2026-09-25T00:00:00.000Z',
+    });
+    const actions = {
+      botSourcePolicies: vi.fn(async () => [policy()]),
+      setBotSourcePolicy: vi.fn(() => save.promise),
+      modelPlan: vi.fn(async () => undefined),
+    } as unknown as BridgeActions;
+    const render = (slug: string) =>
+      createElement(ProfileView, {
+        bot: bot(slug),
+        channel: channel(slug),
+        activity: undefined,
+        cards: { list: () => [] } as unknown as ProfileCardRegistry,
+        pinned: [],
+        actions,
+        t: zhTranslate,
+        onTogglePin: () => {},
+        onClose: () => {},
+      });
+    const edit = () => host.querySelector<HTMLButtonElement>('.bh-source-policy-row button');
+    const saveButton = () =>
+      [...host.querySelectorAll<HTMLButtonElement>('button')].find(
+        (button) => button.textContent === zhTranslate('profile.save'),
+      );
+    await act(async () => root.render(render('ada')));
+    await act(async () => edit()?.click());
+    await act(async () => saveButton()?.click());
+    expect(saveButton()?.disabled).toBe(true);
+    await act(async () => root.render(render('bea')));
+    await act(async () => edit()?.click());
+    expect(saveButton()?.disabled).toBe(false);
+    await act(async () => save.resolve());
+    expect(saveButton()?.disabled).toBe(false);
   });
 
   it.each([GroupAvatarCropModal, PersonaBotAvatarCropModal])(

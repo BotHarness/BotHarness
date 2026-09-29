@@ -145,6 +145,9 @@ export function ProfileView({
   const sourcePolicyMount = useMountedResource<HTMLDivElement>(() => {
     activeBotSlug.current = bot.slug;
     let active = true;
+    setSourcePolicyBusy(false);
+    setSourcePolicySaveError(false);
+    setEditingSourcePolicy(undefined);
     setSourcePolicies(undefined);
     setSourcePolicyError(false);
     void actions.botSourcePolicies(bot.slug).then(
