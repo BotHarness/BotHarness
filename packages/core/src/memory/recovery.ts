@@ -319,12 +319,17 @@ export function createMemoryRecovery(options: {
         throw error;
       }
       try {
-        capture(botSlug, root, {
-          origin: 'human-command',
-          originId: LOCAL_HUMAN_ID,
-          causeKind: 'human-restore',
-          causeId: targetId,
-        });
+        capture(
+          botSlug,
+          root,
+          {
+            origin: 'human-command',
+            originId: LOCAL_HUMAN_ID,
+            causeKind: 'human-restore',
+            causeId: targetId,
+          },
+          true,
+        );
       } catch (error) {
         options.warn?.(
           `memory-recovery-capture-failed phase=after-restore bot=${botSlug} reason=${error instanceof Error ? error.name : 'unknown'}`,

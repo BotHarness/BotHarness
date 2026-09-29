@@ -134,6 +134,12 @@ describe('Memory recovery checkpoints', () => {
         expect(reopened.history('atlas').map((point) => point.id)).toContain(dirty.id);
         expect(reopened.latest('atlas')?.originId).toBe(LOCAL_HUMAN_ID);
         expect(reopened.latest('atlas')?.causeKind).toBe('human-restore');
+        const firstRestoreId = reopened.latest('atlas')?.id;
+        if (firstRestoreId === undefined) throw new Error('Missing restore checkpoint');
+        const repeated = reopened.restore('atlas', root, dirty.id, firstRestoreId);
+        expect(existsSync(repeated.archivePath)).toBe(true);
+        expect(reopened.latest('atlas')?.id).not.toBe(firstRestoreId);
+        expect(reopened.latest('atlas')?.causeKind).toBe('human-restore');
       } finally {
         database.close();
       }
