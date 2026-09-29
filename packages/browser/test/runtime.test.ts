@@ -1,4 +1,7 @@
 import { EventEmitter } from 'node:events';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -181,6 +184,10 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
       if (method === 'Page.captureScreenshot') return { data: 'Zm9v' };
       if (method === 'Target.createTarget') return { targetId: 'tab-1' };
       if (method === 'Target.attachToTarget') return { sessionId: 'session-1' };
+      if (method === 'Page.setInterceptFileChooserDialog') return {};
+      if (method === 'DOM.getDocument') return { root: { nodeId: 1 } };
+      if (method === 'DOM.querySelectorAll') return { nodeIds: [7] };
+      if (method === 'DOM.setFileInputFiles') return {};
       if (method === 'Target.activateTarget') return {};
       if (method === 'Target.closeTarget') return {};
       if (method === 'Target.getTargetInfo') {
@@ -313,6 +320,50 @@ describe('runtime lifecycle', () => {
     expect(info.url).toBe('https://example.com/');
     await runtime.closeTab('tab-2');
     expect(sent.some((call) => call.method === 'Target.closeTarget')).toBe(true);
+  });
+
+  it('uploads a Host file into the page file input, and reports a page without one', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'browser-upload-'));
+    const file = join(dir, 'shot.jpg');
+    writeFileSync(file, 'x');
+    try {
+      const child = fakeChild();
+      spawnMock.mockReturnValue(child.proc as never);
+      const base = fakeClient();
+      const sent: { method: string; params?: Record<string, unknown> }[] = [];
+      let inputs: number[] = [7];
+      const client: CdpClient = {
+        send: async (method, params, sessionId) => {
+          sent.push({ method, ...(params === undefined ? {} : { params }) });
+          if (method === 'DOM.querySelectorAll') return { nodeIds: inputs };
+          return base.send(method, params, sessionId);
+        },
+        close: () => base.close(),
+      };
+      const runtime = createBotBrowserRuntime({
+        userDataDir: '/tmp/browser-test',
+        platform: 'linux',
+        env: {},
+        fileExists: (path) => path === '/usr/bin/google-chrome',
+        connect: async () => client,
+      });
+      const ensuring = runtime.ensure();
+      child.ready();
+      await ensuring;
+      await runtime.open('https://example.com');
+      await runtime.uploadFile('tab-1', { ref: 'e3', path: file });
+      const setFiles = sent.find((call) => call.method === 'DOM.setFileInputFiles');
+      expect(setFiles?.params).toEqual({ files: [file], nodeId: 7 });
+      expect(sent.some((call) => call.method === 'Page.setInterceptFileChooserDialog')).toBe(true);
+
+      inputs = [];
+      await expect(runtime.uploadFile('tab-1', { path: file })).rejects.toThrow(/no file input/);
+      await expect(runtime.uploadFile('tab-1', { path: join(dir, 'missing.jpg') })).rejects.toThrow(
+        /does not exist/,
+      );
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
   });
 
   it('acts on observed refs and surfaces a stale ref readably', async () => {

@@ -1,3 +1,5 @@
+import { basename } from 'node:path';
+
 export const BROWSER_TOOL_PREFIX = 'browser_';
 
 export interface BrowserToolSpec {
@@ -105,6 +107,27 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
       `${typeof args['direction'] === 'string' ? args['direction'] : 'down'} amount=${str(args, 'amount')}`,
   },
   {
+    raw: 'upload',
+    description:
+      "Attach a file from the Host to the current Bot Browser tab: clicks the element with the given ref (when provided), intercepts the native file dialog, and sets the page's file input to the given path. Use a path returned by browser_screenshot or a file you created. Uploading is externally visible: confirm with the Human before posting.",
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ref: {
+          type: 'string',
+          description: 'Optional ref of the control that opens the file picker',
+        },
+        path: { type: 'string', description: 'Absolute path to a file on the Host' },
+      },
+      required: ['path'],
+      additionalProperties: false,
+    },
+    audit: (args) =>
+      `file=${basename(str(args, 'path'))}${
+        typeof args['ref'] === 'string' ? ` ref=${args['ref']}` : ''
+      }`,
+  },
+  {
     raw: 'tabs',
     description:
       "Manage this PersonaBot's Bot Browser tabs: action list shows its tabs (the current one is marked *), open opens a URL in a new tab of its window, select makes a tab current for observe and actions, and close closes one.",
@@ -147,6 +170,8 @@ export const BROWSER_GUIDANCE = `You can browse the web through this profile's s
 Observe before you act. Call \`browser_open\` to open a page (it reuses your current tab) and \`browser_observe\` to read it; element refs belong to that exact observation. Act with \`browser_click\`, \`browser_type\`, \`browser_press_key\`, and \`browser_scroll\` on those refs, and use \`browser_screenshot\` when you need to see the page rather than read it. A stale ref is a contract, not an obstacle: re-observe and retry. Re-observe after navigation, after a refusal, and after any Human input.
 
 You may keep several tabs in your own Bot Browser window with \`browser_tabs\` (list, open, select, close); observe and act on the current tab, and select another one before reading it. The Human can close your tabs at any time; when a call reports a missing tab, list your tabs and select one, or open a new one.
+
+\`browser_upload\` attaches a Host file (for example a path returned by \`browser_screenshot\`) to a page's file input without the system dialog; uploading is an externally visible action, so confirm with the Human first.
 
 Credentials are the Human's. The Bot Browser has its own persistent profile; when a page asks for a login, tell the Human in the chat what to log in to, then wait — the Human signs in through the Bot Browser entry. Never type passwords, API keys, or recovery codes.
 

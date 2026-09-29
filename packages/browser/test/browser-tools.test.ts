@@ -82,6 +82,7 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       url: 'https://example.com/',
       title: 'Example Domain',
     })),
+    uploadFile: vi.fn(async () => undefined),
     createTab: vi.fn(async (url: string) => ({
       tabId: 'tab-2',
       url,
@@ -237,6 +238,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       'browser_scroll',
       'browser_tabs',
       'browser_type',
+      'browser_upload',
       'browser_wait',
     ]);
     expect(h.state.sections).toContain('botharness:browser');
@@ -440,6 +442,24 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.runtime.closeTab).toHaveBeenCalledWith('tab-1');
     expect(h.provider.currentTab('bot-a')).toBeUndefined();
     expect(h.provider.tabCount('bot-a')).toBe(1);
+  });
+
+  it('uploads a Host file and audits only its basename', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    const uploaded = await h.state.definitions
+      .get('browser_upload')!
+      .execute({ ref: 'e3', path: '/Users/someone/secret/shot.jpg' }, execution('browser_upload'));
+    expect(h.runtime.uploadFile).toHaveBeenCalledWith('tab-1', {
+      ref: 'e3',
+      path: '/Users/someone/secret/shot.jpg',
+    });
+    expect(JSON.stringify(uploaded)).toContain('shot.jpg');
+    expect(h.audits.at(-1)?.summary).toContain('file=shot.jpg');
+    expect(JSON.stringify(h.audits)).not.toContain('/Users/someone');
   });
 
   it('rejects foreign tabs and closes idle tabs without stopping the browser', async () => {

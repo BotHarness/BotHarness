@@ -5,6 +5,8 @@ import type { ToolExecution } from '@deepseek-ai/dsh-tools';
 import type {} from '@deepseek-ai/dsh-system-prompt';
 import type {} from '@deepseek-ai/dsh-tools';
 
+import { basename } from 'node:path';
+
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
 import type { BotBrowserRuntime } from '../runtime/browser.js';
 import { saveScreenshot } from '../screenshots.js';
@@ -336,6 +338,27 @@ export function createBrowserToolProvider(
         throw error;
       }
       return { content: [{ type: 'text', text: `${raw} done — ${page.url}` }] };
+    }
+    if (raw === 'upload') {
+      const state = botTabs(slug);
+      const tabId = state.current;
+      if (tabId === undefined) {
+        throw new Error(
+          'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
+        );
+      }
+      const path = requiredString(args, 'path', 'browser_upload needs an absolute file path');
+      const ref = typeof args['ref'] === 'string' && args['ref'] !== '' ? args['ref'] : undefined;
+      try {
+        await runtime.uploadFile(tabId, { ...(ref === undefined ? {} : { ref }), path });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (!message.includes('stale')) dropCurrent(state);
+        throw error;
+      }
+      return {
+        content: [{ type: 'text', text: `Uploaded ${basename(path)} to the page.` }],
+      };
     }
     if (raw === 'tabs') {
       const action = requiredString(args, 'action', 'browser_tabs needs an action');
