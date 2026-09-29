@@ -209,9 +209,10 @@ describe('mounted request ownership', () => {
         t: zhTranslate,
       });
     await act(async () => root.render(render('ada')));
-    await act(async () =>
-      host.querySelector<HTMLButtonElement>('button[aria-label*="ada project"]')?.click(),
-    );
+    const revokeButton = host.querySelector<HTMLButtonElement>('button[aria-label*="ada project"]');
+    expect(revokeButton).not.toBeNull();
+    await act(async () => revokeButton!.click());
+    expect(actions.revokeWorkspaceGrant).toHaveBeenCalledWith('ada', 'ada');
     await act(async () => root.render(render('bea')));
     await act(async () =>
       revoke.resolve({ ...grant('ada'), revokedAt: '2026-09-29T00:00:00.000Z' }),
@@ -220,7 +221,7 @@ describe('mounted request ownership', () => {
     expect(host.textContent).not.toContain('ada project');
   });
 
-  it('enables the new PersonaBot policy editor while an old save is pending', async () => {
+  it('keeps the new PersonaBot policy editor open through an old A-B-A save', async () => {
     const save = deferred<void>();
     const policy = (): BotSourcePolicyView => ({
       sourceClass: 'assignment-report',
@@ -278,7 +279,11 @@ describe('mounted request ownership', () => {
     await act(async () => root.render(render('bea')));
     await act(async () => edit()?.click());
     expect(saveButton()?.disabled).toBe(false);
+    await act(async () => root.render(render('ada')));
+    await act(async () => edit()?.click());
+    expect(saveButton()?.disabled).toBe(false);
     await act(async () => save.resolve());
+    expect(saveButton()).toBeDefined();
     expect(saveButton()?.disabled).toBe(false);
   });
 

@@ -137,12 +137,14 @@ export function ProfileView({
   const inputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const activeBotSlug = useRef<string | undefined>(undefined);
+  const sourcePolicyGeneration = useRef(0);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
   const unchanged = trimmed === bot.displayName.trim();
   const visibleCards = cards.list().filter((card) => card.visible?.(bot) ?? true);
 
   const sourcePolicyMount = useMountedResource<HTMLDivElement>(() => {
+    ++sourcePolicyGeneration.current;
     activeBotSlug.current = bot.slug;
     let active = true;
     setSourcePolicyBusy(false);
@@ -160,6 +162,7 @@ export function ProfileView({
     );
     return () => {
       active = false;
+      ++sourcePolicyGeneration.current;
       activeBotSlug.current = undefined;
     };
   }, [actions, bot.slug]);
@@ -181,7 +184,9 @@ export function ProfileView({
     }
     setSourcePolicyBusy(true);
     setSourcePolicySaveError(false);
-    const current = (): boolean => activeBotSlug.current === bot.slug;
+    const generation = sourcePolicyGeneration.current;
+    const current = (): boolean =>
+      activeBotSlug.current === bot.slug && sourcePolicyGeneration.current === generation;
     try {
       if (reset) await actions.resetBotSourcePolicy(bot.slug, editingSourcePolicy);
       else if (editingSourcePolicy === 'assignment-report') {
