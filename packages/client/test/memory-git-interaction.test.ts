@@ -467,6 +467,9 @@ describe('Memory Git graph sidebar', () => {
     const files = container.querySelectorAll<HTMLDetailsElement>('.bh-memory-diff-file');
     expect(files).toHaveLength(2);
     expect(files[0]?.querySelector('summary')?.textContent).toContain('profile.md');
+    expect(files[0]?.querySelector('.bh-memory-diff-file-name')?.textContent).toBe('profile.md');
+    expect(files[0]?.querySelector('.bh-memory-diff-stat')?.textContent).toBe('+1-1');
+    expect(files[1]?.querySelector('.bh-memory-diff-stat')?.textContent).toBe('+1-0');
     expect(files[0]?.querySelector('.bh-memory-change-badge')?.getAttribute('data-status')).toBe(
       'M',
     );
@@ -503,6 +506,7 @@ describe('Memory Git graph sidebar', () => {
       files[0]?.querySelector('summary')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
     );
     expect(files[0]?.open).toBe(false);
+    expect(files[0]?.querySelector('summary')?.textContent).toContain('+1-1');
     expect(files[1]?.open).toBe(true);
     expect(container.querySelector<HTMLButtonElement>('[aria-label="返回对话"]')).not.toBeNull();
   });
