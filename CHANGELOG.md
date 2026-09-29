@@ -163,6 +163,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- The Computer viewer now remounts its stream after three consecutive lost samples, then makes at most three automatic attempts before showing the no-picture retry control; manual retry can recover the live desktop ([#456](https://github.com/BotHarness/BotHarness/issues/456)).
 - Recoverable browser tool errors (for example a page whose file input does not exist yet) no longer make a PersonaBot forget its current tab and reopen a new one; only a genuinely closed tab drops the bookkeeping, and `browser_upload` now waits briefly for the page to create its file input after clicking the upload control ([#523](https://github.com/BotHarness/BotHarness/issues/523)).
 - The Bot Browser no longer stops itself seconds after the Human opens it: opening, watching the live view, and taking over in the Browser entry all count as activity, so the idle sweep only stops a genuinely idle browser ([#486](https://github.com/BotHarness/BotHarness/issues/486)).
 - The Bot Browser launches without the automation marker (`navigator.webdriver` is false), so Human sign-in on sites that reject automated browsers, such as Google and X, works ([#483](https://github.com/BotHarness/BotHarness/issues/483), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)).

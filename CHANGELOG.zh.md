@@ -163,6 +163,7 @@
 
 ### Fixed
 
+- Computer 查看器在连续三次采样丢失画面后会重挂流；自动重试最多三次，之后显示「暂无画面」与手动重连入口，手动重连可恢复实时桌面（[#456](https://github.com/BotHarness/BotHarness/issues/456)）。
 - 可恢复的浏览器工具错误（例如页面尚未出现文件输入框）不再让 PersonaBot 丢失当前标签页并重开新标签；只有标签页真正关闭才会清空记账；`browser_upload` 在点击上传控件后会短暂等待页面创建文件输入框（[#523](https://github.com/BotHarness/BotHarness/issues/523)）。
 - Human 打开 Bot Browser 后不会再出现"刚打开就自动关闭"：Browser entry 的打开、观看实时画面与接管都计为活动，空闲巡检只停止真正空闲的浏览器（[#486](https://github.com/BotHarness/BotHarness/issues/486)）。
 - Bot Browser 启动时不再暴露自动化标记（`navigator.webdriver` 为 false），因此在 Google、X 等拒绝自动化浏览器的站点上，Human 可以正常登录（[#483](https://github.com/BotHarness/BotHarness/issues/483)、[ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)）。

@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
+import { useMountedResource } from './mounted-resource.js';
 
 import {
   IconChevronDownOutlineRegular,
@@ -309,7 +317,7 @@ export function ComputerSettingsRows({
 }: PropsRuntime<'botharness.settings.item'> &
   PropsLocale<'botharness-computer'> &
   InjectFace<ComputerSettingsFace>): ReactElement {
-  const [snapshot, setSnapshot] = useState(prefs.getSnapshot);
+  const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot);
   const [idleOpen, setIdleOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [archives, setArchives] = useState<readonly string[] | undefined>(undefined);
@@ -331,35 +339,44 @@ export function ComputerSettingsRows({
   const [livePhase, setLivePhase] = useState<string | undefined>(undefined);
   const [liveElapsed, setLiveElapsed] = useState(0);
 
-  useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
-
-  useEffect(() => {
+  const hostDirResource = useMountedResource<HTMLSpanElement>(() => {
     if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return;
+    let active = true;
     void hostExportDir()
-      .then((dir) => setHostDir(dir))
+      .then((dir) => {
+        if (active) setHostDir(dir);
+      })
       .catch(() => undefined);
+    return () => {
+      active = false;
+    };
   }, [hostExportDir, snapshot.status, snapshot.exportDir]);
 
-  useEffect(() => {
-    if (busy === undefined) {
-      setLivePhase(undefined);
-      setLiveElapsed(0);
-      return;
-    }
+  const busyResource = useMountedResource<HTMLSpanElement>(() => {
+    setLivePhase(undefined);
+    setLiveElapsed(0);
     const startedAt = Date.now();
-    let cancelled = false;
+    const controller = new AbortController();
+    let pending = false;
     const tick = async (): Promise<void> => {
-      if (cancelled) return;
+      if (controller.signal.aborted) return;
       setLiveElapsed(Math.round((Date.now() - startedAt) / 1000));
+      if (pending) return;
+      pending = true;
       try {
-        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT);
-        if (!cancelled) setLivePhase(payload.status?.phase);
-      } catch {}
+        const payload = await requestJson<{ status?: { phase?: string } }>(STATUS_ENDPOINT, {
+          signal: AbortSignal.any([controller.signal, AbortSignal.timeout(10_000)]),
+        });
+        if (!controller.signal.aborted) setLivePhase(payload.status?.phase);
+      } catch {
+      } finally {
+        pending = false;
+      }
     };
     void tick();
     const timer = setInterval(() => void tick(), 1000);
     return () => {
-      cancelled = true;
+      controller.abort();
       clearInterval(timer);
     };
   }, [busy]);
@@ -516,6 +533,8 @@ export function ComputerSettingsRows({
 
   return (
     <div className="bh-settings-rows">
+      <span hidden ref={hostDirResource} />
+      {busy === undefined ? null : <span hidden ref={busyResource} />}
       <div className="bh-settings-section-head">
         <div className="bh-settings-section-title">{t('section.title')}</div>
         <div className="bh-settings-section-desc">{t('section.description')}</div>
