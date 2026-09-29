@@ -476,6 +476,28 @@ describe('Memory Git graph sidebar', () => {
     expect(files[0]?.textContent).toContain('-old');
     expect(files[0]?.textContent).not.toContain('+added');
     expect(files[1]?.textContent).toContain('+added');
+    expect(files[0]?.textContent).not.toContain('diff --git');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-remove')?.querySelectorAll('td')[0]?.textContent,
+    ).toBe('1');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-remove')?.querySelectorAll('td')[1]?.textContent,
+    ).toBe('');
+    expect(
+      files[0]?.querySelector('.bh-memory-diff-add')?.querySelectorAll('td')[1]?.textContent,
+    ).toBe('1');
+    expect(
+      files[0]
+        ?.querySelector('.bh-memory-diff-remove')
+        ?.querySelectorAll('td')[0]
+        ?.getAttribute('aria-label'),
+    ).toBe('旧行 1');
+    expect(
+      files[0]
+        ?.querySelector('.bh-memory-diff-add')
+        ?.querySelectorAll('td')[1]
+        ?.getAttribute('aria-label'),
+    ).toBe('新行 1');
     expect(files[0]?.open).toBe(true);
     await act(async () =>
       files[0]?.querySelector('summary')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
@@ -739,13 +761,13 @@ describe('Memory Git graph sidebar', () => {
           path: 'note.md',
           kind: 'current',
           status: 'M',
-          diff: '-Before\n+Current memory',
+          diff: '@@ -1 +1 @@\n-Before\n+Current memory',
           binary: false,
         }),
         memoryGitCommitDiff: vi.fn(async (_channelId: string, sha: string) => ({
           sha,
           files: [{ path: 'memory.md', status: 'M' }],
-          diff: '+Memory at ' + sha.slice(0, 1),
+          diff: '@@ -0,0 +1 @@\n+Memory at ' + sha.slice(0, 1),
         })),
       },
       {

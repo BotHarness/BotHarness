@@ -4090,13 +4090,22 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-diff-file-header > svg { flex: none; transition: transform 150ms; }
 .bh-memory-diff-file:not([open]) .bh-memory-diff-file-header > svg { transform: rotate(-90deg); }
 .bh-memory-diff-file-header strong { min-width: 0; overflow-wrap: anywhere; font-size: 12px; font-weight: 600; }
-.bh-memory-diff-file .bh-memory-commit-code { margin: 0; border: 0; background: var(--dsw-alias-bg-base); }
 .bh-memory-commit-code { overflow: auto; margin: 0 -12px; border-top: 1px solid var(--dsw-alias-border-l2); border-bottom: 1px solid var(--dsw-alias-border-l2); padding: 4px 0; font-family: var(--bh-memory-font-code); font-size: 13px; line-height: 1.5; white-space: pre; }
 pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-wrap: anywhere; }
-.bh-memory-commit-code > div { padding: 0 18px; min-height: 1.5em; }
-.bh-memory-diff-header { color: var(--dsw-alias-label-secondary); font-weight: 600; }
-.bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, transparent); }
-.bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, transparent); }
+.bh-memory-diff-scroll { overflow: auto; background: var(--dsw-alias-bg-base); }
+.bh-memory-diff-table { width: 100%; min-width: max-content; border-collapse: collapse; font-family: var(--bh-memory-font-code); font-size: 12px; line-height: 1.55; white-space: pre; }
+.bh-memory-diff-table td { box-sizing: border-box; height: 20px; padding: 0; vertical-align: top; }
+.bh-memory-diff-number { width: 1%; min-width: 36px; padding: 0 6px !important; border-right: 1px solid var(--dsw-alias-border-l2); color: var(--dsw-alias-label-tertiary); text-align: right; user-select: none; }
+.bh-memory-diff-sign { width: 1%; padding: 0 8px !important; color: var(--dsw-alias-label-secondary); user-select: none; }
+.bh-memory-diff-content { padding: 0 16px 0 0 !important; }
+.bh-memory-diff-hunk td, .bh-memory-diff-note td { padding: 3px 14px !important; color: var(--dsw-alias-label-secondary); }
+.bh-memory-diff-hunk { background: var(--dsw-alias-interactive-bg-hover); }
+.bh-memory-diff-note { font-style: italic; }
+.bh-memory-diff-add { background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 15%, var(--dsw-alias-bg-base)); }
+.bh-memory-diff-remove { background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 15%, var(--dsw-alias-bg-base)); }
+.bh-memory-diff-add .bh-memory-diff-sign { color: var(--dsw-alias-state-success-primary); }
+.bh-memory-diff-remove .bh-memory-diff-sign { color: var(--dsw-alias-state-error-primary); }
+.bh-memory-diff-empty { padding: 12px 14px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-secondary); font-size: 12px; }
 
 .bh-member-departure {
   display: flex;

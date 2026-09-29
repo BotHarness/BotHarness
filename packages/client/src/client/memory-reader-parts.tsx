@@ -7,6 +7,7 @@ import {
   Tooltip,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BotHarnessTranslate } from './locale.js';
+import { parseMemoryDiff } from './memory-diff-model.js';
 
 export function MemoryViewIconButton({
   action,
@@ -46,13 +47,24 @@ export function MemoryDiffFile({
   badge,
   diff,
   label,
+  binary = false,
+  binaryLabel,
+  emptyLabel,
+  oldLineLabel,
+  newLineLabel,
 }: {
   path: string;
   status: string;
   badge?: string;
   diff: string;
   label: string;
+  binary?: boolean;
+  binaryLabel: string;
+  emptyLabel: string;
+  oldLineLabel: string;
+  newLineLabel: string;
 }): ReactElement {
+  const model = parseMemoryDiff(diff);
   return (
     <details className="bh-memory-diff-file" open>
       <summary className="bh-memory-diff-file-header">
@@ -62,24 +74,48 @@ export function MemoryDiffFile({
         </span>
         <strong title={path}>{path}</strong>
       </summary>
-      <div className="bh-memory-commit-code" aria-label={label}>
-        {diff.split('\n').map((line, index) => (
-          <div
-            key={index}
-            className={
-              line.startsWith('+') && !line.startsWith('+++')
-                ? 'bh-memory-diff-add'
-                : line.startsWith('-') && !line.startsWith('---')
-                  ? 'bh-memory-diff-remove'
-                  : line.startsWith('diff --git') || line.startsWith('@@')
-                    ? 'bh-memory-diff-header'
-                    : ''
-            }
-          >
-            {line || ' '}
-          </div>
-        ))}
-      </div>
+      {binary || model.binary ? (
+        <div className="bh-memory-diff-empty">{binaryLabel}</div>
+      ) : model.lines.length === 0 ? (
+        <div className="bh-memory-diff-empty">{emptyLabel}</div>
+      ) : (
+        <div className="bh-memory-diff-scroll">
+          <table className="bh-memory-diff-table" aria-label={label}>
+            <tbody>
+              {model.lines.map((line, index) =>
+                line.kind === 'hunk' || line.kind === 'note' ? (
+                  <tr key={index} className={`bh-memory-diff-${line.kind}`}>
+                    <td colSpan={4}>{line.text}</td>
+                  </tr>
+                ) : (
+                  <tr key={index} className={`bh-memory-diff-${line.kind}`}>
+                    <td
+                      className="bh-memory-diff-number"
+                      aria-label={
+                        line.oldLine === undefined ? undefined : `${oldLineLabel} ${line.oldLine}`
+                      }
+                    >
+                      {line.oldLine ?? ''}
+                    </td>
+                    <td
+                      className="bh-memory-diff-number"
+                      aria-label={
+                        line.newLine === undefined ? undefined : `${newLineLabel} ${line.newLine}`
+                      }
+                    >
+                      {line.newLine ?? ''}
+                    </td>
+                    <td className="bh-memory-diff-sign" aria-hidden="true">
+                      {line.kind === 'add' ? '+' : line.kind === 'remove' ? '-' : ''}
+                    </td>
+                    <td className="bh-memory-diff-content">{line.text || ' '}</td>
+                  </tr>
+                ),
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </details>
   );
 }
