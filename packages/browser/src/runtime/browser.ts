@@ -41,6 +41,8 @@ type WebSocketCtor = new (url: string) => WebSocketLike;
 export interface BotBrowserRuntimeOptions {
   readonly browserPath?: string;
   readonly userDataDir: string;
+  readonly installDir?: string;
+  readonly installFallback?: (installDir: string) => Promise<string>;
   readonly headless?: boolean;
   readonly launchTimeoutMs?: number;
   readonly onEvent?: (detail: string) => void;
@@ -106,6 +108,18 @@ export function discoverBrowserBinary(
   const explicit = browserPath?.trim() ?? '';
   if (explicit !== '') return fileExists(explicit) ? explicit : undefined;
   return browserCandidates(platform, env).find((candidate) => fileExists(candidate));
+}
+
+export const PINNED_CHROMIUM_VERSION = '154.0.8037.57';
+
+export async function installPinnedBrowser(cacheDir: string): Promise<string> {
+  const { Browser, install } = await import('@puppeteer/browsers');
+  const installed = await install({
+    browser: Browser.CHROME,
+    buildId: PINNED_CHROMIUM_VERSION,
+    cacheDir,
+  });
+  return installed.executablePath;
 }
 
 export function buildLaunchArgs(options: {
@@ -231,11 +245,24 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     );
     if (binary === undefined) {
       const explicit = options.browserPath?.trim() ?? '';
-      throw new Error(
-        explicit === ''
-          ? 'No Chrome, Edge, or Chromium was found for the Bot Browser; install one or set browserPath in the browser plugin configuration'
-          : `The configured Bot Browser binary does not exist: ${explicit}`,
-      );
+      if (explicit !== '') {
+        throw new Error(`The configured Bot Browser binary does not exist: ${explicit}`);
+      }
+      const installer = options.installFallback ?? installPinnedBrowser;
+      if (options.installDir === undefined && options.installFallback === undefined) {
+        throw new Error(
+          'No Chrome, Edge, or Chromium was found for the Bot Browser; install one or set browserPath in the browser plugin configuration',
+        );
+      }
+      onEvent(`no system browser; installing Chrome for Testing ${PINNED_CHROMIUM_VERSION}`);
+      try {
+        binary = await installer(options.installDir ?? options.userDataDir);
+      } catch (error) {
+        throw new Error(
+          `No Chrome, Edge, or Chromium was found and the pinned fallback could not be installed: ${error instanceof Error ? error.message : String(error)}; install a browser or set browserPath in the browser plugin configuration`,
+        );
+      }
+      onEvent(`installed ${binary}`);
     }
     mkdirSync(options.userDataDir, { recursive: true });
     onEvent(`launch ${binary}`);

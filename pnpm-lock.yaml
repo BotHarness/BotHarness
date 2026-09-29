@@ -332,6 +332,9 @@ importers:
       '@deepseek-ai/dsh-mcp-client':
         specifier: 0.2.0-rc.1
         version: 0.2.0-rc.1(d76a55e12407a42fdabab01081363e49)
+      '@puppeteer/browsers':
+        specifier: 3.2.2
+        version: 3.2.2
     devDependencies:
       '@deepseek-ai/cordis':
         specifier: 4.0.4
