@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- `browser_screenshot` now also saves the capture under the browser data directory and reports its path, keeping only the newest captures ([#494](https://github.com/BotHarness/BotHarness/issues/494)).
 - A PersonaBot can keep several tabs in its own Bot Browser window through `browser_tabs` (list, open, select, close): background tabs are opened without stealing focus, observe and actions follow the selected tab, idle windows close while the browser keeps running, and a Human-closed tab recovers through list/select or a new open ([#463](https://github.com/BotHarness/BotHarness/issues/463)).
 - A PersonaBot can act as well as read in the Bot Browser: `browser_click`, `browser_type`, `browser_press_key`, `browser_scroll`, and `browser_wait` use refs from the latest observation, a stale ref fails with a clear re-observe instruction, and typed text enters the audit only as a character count ([#462](https://github.com/BotHarness/BotHarness/issues/462)).
 - The Browser entry shows a live frame of the Bot's current tab and offers a Human **takeover** that pauses that Bot's browser actions and model screenshots until released; the Bot gains a `browser_screenshot` tool whose images reach the model only as attachments and never the audit ([#461](https://github.com/BotHarness/BotHarness/issues/461), [ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)).

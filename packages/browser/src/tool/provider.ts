@@ -7,6 +7,7 @@ import type {} from '@deepseek-ai/dsh-tools';
 
 import { BROWSER_GUIDANCE, BROWSER_TOOLS, browserToolName } from './catalog.js';
 import type { BotBrowserRuntime } from '../runtime/browser.js';
+import { saveScreenshot } from '../screenshots.js';
 
 export const BROWSER_PROMPT_SECTION = 'botharness:browser';
 
@@ -37,6 +38,8 @@ export interface BrowserCoreLookup {
 export interface BrowserToolProviderOptions {
   readonly ctx: Context;
   readonly runtime: BotBrowserRuntime;
+  readonly screenshotDir?: string;
+  readonly screenshotLimit?: number;
   readonly isAutoAllowed: () => boolean;
   readonly audit: (event: BrowserAuditEvent) => void;
   readonly note?: (detail: string) => void;
@@ -277,7 +280,23 @@ export function createBrowserToolProvider(
           ],
         };
       }
-      return { content: [{ type: 'image', data: shot.data, mimeType: shot.mimeType }] };
+      const saved =
+        options.screenshotDir === undefined
+          ? undefined
+          : await saveScreenshot(
+              options.screenshotDir,
+              options.screenshotLimit ?? 100,
+              shot.data,
+            ).catch(() => undefined);
+      return {
+        content: [
+          { type: 'image', data: shot.data, mimeType: shot.mimeType },
+          {
+            type: 'text',
+            text: saved === undefined ? 'Screenshot captured.' : `Screenshot saved to ${saved}`,
+          },
+        ],
+      };
     }
     if (raw === 'click' || raw === 'type' || raw === 'press_key' || raw === 'scroll') {
       const state = botTabs(slug);
