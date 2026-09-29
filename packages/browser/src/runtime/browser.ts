@@ -57,6 +57,10 @@ export interface BotBrowserRuntime {
   isRunning(): boolean;
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
   observe(tabId: string): Promise<BrowserObservation>;
+  click(tabId: string, ref: string): Promise<BrowserTab>;
+  type(tabId: string, ref: string, text: string): Promise<BrowserTab>;
+  pressKey(tabId: string, key: string): Promise<BrowserTab>;
+  scroll(tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab>;
   captureScreenshot(tabId: string): Promise<{ data: string; mimeType: string } | undefined>;
   openWindow(): Promise<BrowserTab>;
   currentUrl(): string | undefined;
@@ -381,6 +385,52 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     };
   };
 
+  const selectorExpression = (ref: string): string =>
+    `document.querySelector(${JSON.stringify(`[data-botharness-ref=${JSON.stringify(ref)}]`)})`;
+
+  const clickScript = (ref: string): string =>
+    `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.scrollIntoView({ block: 'center', inline: 'center' }); el.click(); return { ok: true }; })()`;
+
+  const typeScript = (ref: string, text: string): string =>
+    `(() => { const el = ${selectorExpression(ref)}; if (!el) return { ok: false, reason: 'stale-ref' }; el.focus(); if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) { const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype; const descriptor = Object.getOwnPropertyDescriptor(proto, 'value'); const setter = descriptor && descriptor.set; if (setter) { setter.call(el, ${JSON.stringify(text)}); } else { el.value = ${JSON.stringify(text)}; } el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); return { ok: true }; } if (el.isContentEditable) { el.textContent = ${JSON.stringify(text)}; el.dispatchEvent(new InputEvent('input', { bubbles: true, data: ${JSON.stringify(text)} })); return { ok: true }; } return { ok: false, reason: 'not-editable' }; })()`;
+
+  const pressKeyScript = (key: string): string =>
+    `(() => { const el = document.activeElement || document.body; const opts = { key: ${JSON.stringify(key)}, bubbles: true, cancelable: true }; el.dispatchEvent(new KeyboardEvent('keydown', opts)); el.dispatchEvent(new KeyboardEvent('keypress', opts)); el.dispatchEvent(new KeyboardEvent('keyup', opts)); return { ok: true }; })()`;
+
+  const scrollScript = (direction: 'up' | 'down', amount: number): string =>
+    `(() => { window.scrollBy(0, ${direction === 'down' ? amount : -amount}); return { ok: true }; })()`;
+
+  const runInteraction = async (tabId: string, expression: string): Promise<BrowserTab> => {
+    const sessionId = await attach(tabId);
+    const value = asObject(await evaluate(sessionId, expression));
+    if (value !== undefined && value['ok'] !== true) {
+      const reason = typeof value['reason'] === 'string' ? value['reason'] : 'failed';
+      if (reason === 'stale-ref') {
+        throw new Error('The element ref is stale; call browser_observe again before acting');
+      }
+      if (reason === 'not-editable') {
+        throw new Error('The referenced element is not an editable field');
+      }
+      throw new Error(`The Bot Browser action failed: ${reason}`);
+    }
+    await waitForReady(sessionId);
+    const page = await readPage(sessionId);
+    lastUrl = page.url;
+    return { tabId, url: page.url, title: page.title };
+  };
+
+  const click = (tabId: string, ref: string): Promise<BrowserTab> =>
+    runInteraction(tabId, clickScript(ref));
+
+  const type = (tabId: string, ref: string, text: string): Promise<BrowserTab> =>
+    runInteraction(tabId, typeScript(ref, text));
+
+  const pressKey = (tabId: string, key: string): Promise<BrowserTab> =>
+    runInteraction(tabId, pressKeyScript(key));
+
+  const scroll = (tabId: string, direction: 'up' | 'down', amount: number): Promise<BrowserTab> =>
+    runInteraction(tabId, scrollScript(direction, amount));
+
   const open = async (url: string, reuseTabId?: string): Promise<BrowserTab> => {
     await ensure();
     const live = client;
@@ -501,6 +551,10 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     isRunning,
     open,
     observe,
+    click,
+    type,
+    pressKey,
+    scroll,
     captureScreenshot,
     openWindow,
     currentUrl: () => lastUrl,

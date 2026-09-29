@@ -58,6 +58,26 @@ function fakeRuntime(overrides: Partial<BotBrowserRuntime> = {}): BotBrowserRunt
       elements: [{ ref: 'e1', role: 'a', name: 'More information' }],
       text: 'Hello world',
     })),
+    click: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
+    type: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
+    pressKey: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
+    scroll: vi.fn(async (tabId: string) => ({
+      tabId,
+      url: 'https://example.com/',
+      title: 'Example Domain',
+    })),
     captureScreenshot: vi.fn(async () => ({ data: 'Zm9v', mimeType: 'image/jpeg' })),
     openWindow: vi.fn(async () => ({ tabId: 'tab-9', url: 'about:blank', title: '' })),
     currentUrl: () => undefined,
@@ -142,7 +162,8 @@ describe('curated catalog and audit redaction', () => {
   it('owns exactly the curated model-facing names', () => {
     expect(ownsBrowserTool('browser_open')).toBe(true);
     expect(ownsBrowserTool('browser_observe')).toBe(true);
-    expect(ownsBrowserTool('browser_click')).toBe(false);
+    expect(ownsBrowserTool('browser_click')).toBe(true);
+    expect(ownsBrowserTool('browser_hover')).toBe(false);
     expect(ownsBrowserTool('computer_click')).toBe(false);
   });
 
@@ -180,7 +201,16 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
   it('registers the read-only tools plus guidance when access is on', () => {
     const h = harness({ access: true });
     h.created();
-    expect(h.state.registered()).toEqual(['browser_observe', 'browser_open', 'browser_screenshot']);
+    expect(h.state.registered()).toEqual([
+      'browser_click',
+      'browser_observe',
+      'browser_open',
+      'browser_press_key',
+      'browser_screenshot',
+      'browser_scroll',
+      'browser_type',
+      'browser_wait',
+    ]);
     expect(h.state.sections).toContain('botharness:browser');
   });
 
@@ -277,6 +307,64 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       .get('browser_screenshot')!
       .execute({}, execution('browser_screenshot'));
     expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicks observed refs, redacts typed text, and clamps scroll and wait', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    await h.state.definitions
+      .get('browser_click')!
+      .execute({ ref: 'e3' }, execution('browser_click'));
+    expect(h.runtime.click).toHaveBeenCalledWith('tab-1', 'e3');
+    expect(h.audits.at(-1)?.summary).toBe('ref=e3');
+
+    await h.state.definitions
+      .get('browser_type')!
+      .execute({ ref: 'e2', text: 'hunter2' }, execution('browser_type'));
+    expect(h.runtime.type).toHaveBeenCalledWith('tab-1', 'e2', 'hunter2');
+    expect(h.audits.at(-1)?.summary).toContain('chars=7');
+    expect(JSON.stringify(h.audits)).not.toContain('hunter2');
+
+    await h.state.definitions
+      .get('browser_scroll')!
+      .execute({ direction: 'down' }, execution('browser_scroll'));
+    expect(h.runtime.scroll).toHaveBeenCalledWith('tab-1', 'down', 600);
+
+    const waited = await h.state.definitions
+      .get('browser_wait')!
+      .execute({ ms: 5 }, execution('browser_wait'));
+    expect(JSON.stringify(waited)).toContain('waited 5ms');
+  });
+
+  it('surfaces a stale ref readably and audits the failure', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    h.runtime.click = vi.fn(async () => {
+      throw new Error('The element ref is stale; call browser_observe again before acting');
+    });
+    await expect(
+      h.state.definitions.get('browser_click')!.execute({ ref: 'e1' }, execution('browser_click')),
+    ).rejects.toThrow(/stale/);
+    expect(h.audits.at(-1)?.outcome).toBe('error');
+  });
+
+  it('pauses interaction tools under a Human takeover while observe stays read-only', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    await h.state.definitions
+      .get('browser_open')!
+      .execute({ url: 'https://example.com' }, execution('browser_open'));
+    h.provider.setTakeover('bot-a', true);
+    await expect(
+      h.state.definitions.get('browser_click')!.execute({ ref: 'e3' }, execution('browser_click')),
+    ).rejects.toThrow(/Takeover is active/);
+    await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
   });
 
   it('drops a dead tab and reports it readably', async () => {
