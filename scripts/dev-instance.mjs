@@ -10,6 +10,7 @@ import {
   profileDeepSeekCredential,
   resolveDevSecret,
 } from './dev-secret.mjs';
+import { pnpmCommand } from './dev-package-manager.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function dshCommand(worktree) {
@@ -87,18 +88,6 @@ function run(command, args, options) {
     );
   }
   return result.stdout ?? '';
-}
-
-function pnpmCommand(args) {
-  if (process.platform !== 'win32') return ['pnpm', args];
-  const corepack = join(
-    dirname(process.execPath),
-    'node_modules',
-    'corepack',
-    'dist',
-    'corepack.js',
-  );
-  return [process.execPath, [corepack, 'pnpm', ...args]];
 }
 
 function ensureProfile(options) {
