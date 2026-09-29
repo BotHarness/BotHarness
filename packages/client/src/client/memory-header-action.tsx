@@ -64,6 +64,7 @@ export function MemoryEvolutionHeaderAction(props: ChannelSidebarEntryProps): Re
               type="button"
               className="bh-channel-sidebar-entry-action"
               aria-label={props.t('memory.terminology')}
+              aria-haspopup="menu"
               aria-expanded={open}
               onClick={() => setOpen((value) => !value)}
             >

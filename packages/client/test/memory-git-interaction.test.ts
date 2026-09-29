@@ -825,6 +825,11 @@ describe('Memory Git graph sidebar', () => {
       'main',
     );
     expect(evolution?.querySelector('.bh-memory-terminology')).toBeNull();
+    expect(
+      evolution
+        ?.querySelector('.bh-channel-sidebar-entry-header [aria-label="显示术语"]')
+        ?.getAttribute('aria-haspopup'),
+    ).toBe('menu');
     await act(async () => {
       evolution
         ?.querySelector<HTMLButtonElement>(
