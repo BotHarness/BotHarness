@@ -57,6 +57,7 @@ export interface BotBrowserRuntime {
   isRunning(): boolean;
   open(url: string, reuseTabId?: string): Promise<BrowserTab>;
   observe(tabId: string): Promise<BrowserObservation>;
+  captureScreenshot(tabId: string): Promise<{ data: string; mimeType: string } | undefined>;
   openWindow(): Promise<BrowserTab>;
   currentUrl(): string | undefined;
   binaryPath(): string | undefined;
@@ -425,6 +426,40 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     };
   };
 
+  const focusEmulated = new Set<string>();
+
+  const captureScreenshot = async (
+    tabId: string,
+  ): Promise<{ data: string; mimeType: string } | undefined> => {
+    const sessionId = await attach(tabId);
+    const live = client;
+    if (live === undefined) throw new Error('The Bot Browser is not running');
+    const capture = async (): Promise<string | undefined> => {
+      const result = await live.send(
+        'Page.captureScreenshot',
+        { format: 'jpeg', quality: 60, fromSurface: true },
+        sessionId,
+      );
+      return typeof result['data'] === 'string' && result['data'] !== ''
+        ? result['data']
+        : undefined;
+    };
+    try {
+      const data = await capture();
+      if (data !== undefined) return { data, mimeType: 'image/jpeg' };
+    } catch {
+      void 0;
+    }
+    if (!focusEmulated.has(sessionId)) {
+      await live
+        .send('Emulation.setFocusEmulationEnabled', { enabled: true }, sessionId)
+        .catch(() => undefined);
+      focusEmulated.add(sessionId);
+    }
+    const data = await capture().catch(() => undefined);
+    return data === undefined ? undefined : { data, mimeType: 'image/jpeg' };
+  };
+
   const openWindow = async (): Promise<BrowserTab> => {
     await ensure();
     const live = client;
@@ -466,6 +501,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     isRunning,
     open,
     observe,
+    captureScreenshot,
     openWindow,
     currentUrl: () => lastUrl,
     binaryPath: () => binary,

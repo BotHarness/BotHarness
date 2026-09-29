@@ -37,6 +37,13 @@ export const BROWSER_TOOLS: readonly BrowserToolSpec[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     audit: () => 'observe',
   },
+  {
+    raw: 'screenshot',
+    description:
+      "Capture this PersonaBot's current Bot Browser tab as an image for visual verification (layout, images, charts). Returns an image when the active route supports it, otherwise a readable fallback.",
+    inputSchema: { type: 'object', properties: {}, additionalProperties: false },
+    audit: () => 'screenshot',
+  },
 ];
 
 export function browserToolName(raw: string): string {

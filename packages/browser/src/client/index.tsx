@@ -6,6 +6,8 @@ import { LOCALE_NS, en, zh, type BrowserTranslate } from './locale.js';
 
 const ENTRY_ID = 'botharness-browser';
 const STATUS_ENDPOINT = '/api/browser/status';
+const OBSERVATION_ENDPOINT = '/api/browser/observation';
+const TAKEOVER_ENDPOINT = '/api/browser/takeover';
 const OPEN_ENDPOINT = '/api/browser/open';
 const STOP_ENDPOINT = '/api/browser/stop';
 
@@ -52,6 +54,12 @@ interface BrowserStatus {
   readonly running: boolean;
   readonly url: string | null;
   readonly binary: string | null;
+}
+
+interface BrowserView {
+  readonly running: boolean;
+  readonly frame: string | null;
+  readonly takeover: boolean;
 }
 
 async function requestJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -106,19 +114,19 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
   };
 }
 
-interface BrowserStatusStore extends ReadableStore<BrowserStatus | undefined> {
+interface PollingStore<T> extends ReadableStore<T | undefined> {
   refresh(): void;
 }
 
-function createStatusStore(): BrowserStatusStore {
-  let status: BrowserStatus | undefined;
+function createPollingStore<T>(url: string, intervalMs: number): PollingStore<T> {
+  let value: T | undefined;
   let timer: ReturnType<typeof setInterval> | undefined;
   const listeners = new Set<() => void>();
   const refresh = async (): Promise<void> => {
     try {
-      status = await requestJson<BrowserStatus>(STATUS_ENDPOINT);
+      value = await requestJson<T>(url);
     } catch {
-      status = undefined;
+      value = undefined;
     }
     for (const listener of listeners) listener();
   };
@@ -127,7 +135,7 @@ function createStatusStore(): BrowserStatusStore {
       listeners.add(listener);
       if (listeners.size === 1) {
         void refresh();
-        timer = setInterval(() => void refresh(), 3000);
+        timer = setInterval(() => void refresh(), intervalMs);
       }
       return () => {
         listeners.delete(listener);
@@ -137,9 +145,13 @@ function createStatusStore(): BrowserStatusStore {
         }
       };
     },
-    getSnapshot: () => status,
+    getSnapshot: () => value,
     refresh: () => void refresh(),
   };
+}
+
+function viewEndpoint(botSlug: string | undefined): string {
+  return `${OBSERVATION_ENDPOINT}?slug=${encodeURIComponent(botSlug ?? '')}`;
 }
 
 const buttonStyle = {
@@ -154,15 +166,20 @@ const buttonStyle = {
 
 function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const [botInfoStore] = useState(() => createBotInfoStore(botSlug));
-  const [statusStore] = useState(createStatusStore);
+  const [statusStore] = useState(() => createPollingStore<BrowserStatus>(STATUS_ENDPOINT, 3000));
+  const [viewStore] = useState(() => createPollingStore<BrowserView>(viewEndpoint(botSlug), 1500));
   const botInfo = useSyncExternalStore(botInfoStore.subscribe, botInfoStore.getSnapshot);
   const status = useSyncExternalStore(statusStore.subscribe, statusStore.getSnapshot);
+  const view = useSyncExternalStore(viewStore.subscribe, viewStore.getSnapshot);
   const [accessOverride, setAccessOverride] = useState<boolean | undefined>(undefined);
   const [accessBusy, setAccessBusy] = useState(false);
   const [accessError, setAccessError] = useState<string | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [takeoverBusy, setTakeoverBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
   const accessOn = accessOverride ?? botInfo.browserAccess === true;
+  const running = status?.running === true || view?.running === true;
+  const takeover = view?.takeover === true;
 
   const onToggleAccess = (next: boolean): void => {
     const rpc = connectionRpc;
@@ -198,6 +215,24 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
       .finally(() => {
         setBusy(false);
         statusStore.refresh();
+        viewStore.refresh();
+      });
+  };
+
+  const onToggleTakeover = (): void => {
+    if (takeoverBusy || botSlug === undefined) return;
+    const next = view?.takeover !== true;
+    setTakeoverBusy(true);
+    setError(undefined);
+    void requestJson<{ ok: boolean; takeover: boolean }>(TAKEOVER_ENDPOINT, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: botSlug, active: next }),
+    })
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => {
+        setTakeoverBusy(false);
+        viewStore.refresh();
       });
   };
 
@@ -217,8 +252,8 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
       <div style={{ opacity: 0.7 }}>{t('entry.access.description')}</div>
       {accessError !== undefined ? <div>{accessError}</div> : null}
       <div style={{ opacity: 0.8 }}>
-        {status?.running === true
-          ? `${t('entry.status.running')}${status.url === null ? '' : ` · ${t('entry.status.url', { url: status.url })}`}`
+        {running
+          ? `${t('entry.status.running')}${status?.url === null || status?.url === undefined ? '' : ` · ${t('entry.status.url', { url: status.url })}`}`
           : t('entry.status.stopped')}
       </div>
       {status?.binary === null || status?.binary === undefined ? null : (
@@ -226,6 +261,16 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
           {t('entry.binary', { path: status.binary })}
         </div>
       )}
+      {view?.frame === null || view?.frame === undefined ? (
+        <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
+      ) : (
+        <img
+          src={view.frame}
+          alt={t('entry.view.title')}
+          style={{ width: '100%', borderRadius: 6, border: '1px solid currentColor' }}
+        />
+      )}
+      {takeover ? <div>{t('entry.view.taken')}</div> : null}
       <div style={{ display: 'flex', gap: 8 }}>
         <button
           type="button"
@@ -235,7 +280,7 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
         >
           {t(busy ? 'entry.opening' : 'entry.open')}
         </button>
-        {status?.running === true ? (
+        {running ? (
           <button
             type="button"
             style={buttonStyle}
@@ -243,6 +288,16 @@ function BrowserEntryView({ botSlug, t }: ChannelSidebarEntryProps): ReactElemen
             onClick={() => invoke(STOP_ENDPOINT)}
           >
             {t(busy ? 'entry.stopping' : 'entry.stop')}
+          </button>
+        ) : null}
+        {running ? (
+          <button
+            type="button"
+            style={buttonStyle}
+            disabled={takeoverBusy}
+            onClick={onToggleTakeover}
+          >
+            {t(takeover ? 'entry.view.release' : 'entry.view.takeover')}
           </button>
         ) : null}
       </div>

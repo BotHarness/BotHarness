@@ -50,8 +50,15 @@ export interface BrowserToolProvider {
   markAuthorized(sessionId: string): void;
   reconcileBot(slug: string): Promise<void>;
   reconcileAll(): Promise<void>;
+  isTakeover(slug: string): boolean;
+  setTakeover(slug: string, active: boolean): boolean;
+  currentTab(slug: string): string | undefined;
   dispose(): Promise<void>;
 }
+
+type BrowserToolContent =
+  | { readonly type: 'text'; readonly text: string }
+  | { readonly type: 'image'; readonly data: string; readonly mimeType: string };
 
 interface SessionRegistration {
   readonly slug: string;
@@ -93,6 +100,7 @@ export function createBrowserToolProvider(
   const registrations = new Map<string, SessionRegistration>();
   const grants = new Set<string>();
   const tabs = new Map<string, string>();
+  const takeovers = new Set<string>();
   const queues = new Map<string, Promise<unknown>>();
   let disposed = false;
 
@@ -149,7 +157,7 @@ export function createBrowserToolProvider(
     raw: string,
     args: Record<string, unknown>,
     slug: string,
-  ): Promise<{ content: { type: 'text'; text: string }[] }> => {
+  ): Promise<{ content: BrowserToolContent[] }> => {
     if (raw === 'open') {
       const url = typeof args['url'] === 'string' ? args['url'] : '';
       if (!/^https?:\/\//u.test(url)) {
@@ -195,6 +203,39 @@ export function createBrowserToolProvider(
       parts.push('', 'Page text:', observation.text);
       return { content: [{ type: 'text', text: parts.join('\n') }] };
     }
+    if (raw === 'screenshot') {
+      if (takeovers.has(slug)) {
+        throw new Error(
+          'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
+        );
+      }
+      const tabId = tabs.get(slug);
+      if (tabId === undefined) {
+        throw new Error(
+          'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
+        );
+      }
+      let shot;
+      try {
+        shot = await runtime.captureScreenshot(tabId);
+      } catch (error) {
+        tabs.delete(slug);
+        throw new Error(
+          `The Bot Browser tab is gone (${error instanceof Error ? error.message : String(error)}); call browser_open again`,
+        );
+      }
+      if (shot === undefined) {
+        return {
+          content: [
+            {
+              type: 'text',
+              text: '[image unavailable: the Bot Browser returned no frame; the tab may be in the background or minimized]',
+            },
+          ],
+        };
+      }
+      return { content: [{ type: 'image', data: shot.data, mimeType: shot.mimeType }] };
+    }
     throw new Error(`Unknown Bot Browser operation: ${raw}`);
   };
 
@@ -221,6 +262,11 @@ export function createBrowserToolProvider(
             onActivity();
             if (core().registry?.get(slug)?.browserAccess !== true) {
               throw new Error('Browser Access is off for this PersonaBot');
+            }
+            if (spec.raw !== 'observe' && takeovers.has(slug)) {
+              throw new Error(
+                'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
+              );
             }
             const started = Date.now();
             try {
@@ -316,7 +362,25 @@ export function createBrowserToolProvider(
           unregisterSession(sessionId);
         }
       }
-      if (!access) tabs.delete(slug);
+      if (!access) {
+        tabs.delete(slug);
+        takeovers.delete(slug);
+      }
+    },
+
+    isTakeover(slug) {
+      return takeovers.has(slug);
+    },
+
+    setTakeover(slug, active) {
+      if (active) takeovers.add(slug);
+      else takeovers.delete(slug);
+      note(`takeover ${active ? 'on' : 'off'} slug=${slug}`);
+      return takeovers.has(slug);
+    },
+
+    currentTab(slug) {
+      return tabs.get(slug);
     },
 
     async reconcileAll() {
@@ -333,6 +397,7 @@ export function createBrowserToolProvider(
       sessions.clear();
       grants.clear();
       tabs.clear();
+      takeovers.clear();
       queues.clear();
       await runtime.stop();
     },

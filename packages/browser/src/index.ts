@@ -203,6 +203,55 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       'botharness-browser: open route',
     );
 
+    const observationRoute = {
+      path: '/api/browser/observation',
+      methods: ['GET'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        const slug = new URL(request.url).searchParams.get('slug') ?? '';
+        const tabId = slug === '' ? undefined : provider.currentTab(slug);
+        let frame: string | null = null;
+        if (tabId !== undefined && runtime.isRunning()) {
+          const shot = await runtime.captureScreenshot(tabId).catch(() => undefined);
+          if (shot !== undefined) frame = `data:${shot.mimeType};base64,${shot.data}`;
+        }
+        return json({
+          ok: true,
+          running: runtime.isRunning(),
+          frame,
+          takeover: slug === '' ? false : provider.isTakeover(slug),
+        });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(observationRoute),
+      'botharness-browser: observation route',
+    );
+
+    const takeoverRoute = {
+      path: '/api/browser/takeover',
+      methods: ['POST'] as const,
+      requestBody: 'buffered' as const,
+      fetch: async (request: Request): Promise<Response> => {
+        let body: { slug?: unknown; active?: unknown } = {};
+        try {
+          body = (await request.json()) as typeof body;
+        } catch {
+          void 0;
+        }
+        const slug = typeof body.slug === 'string' ? body.slug : '';
+        if (slug === '' || typeof body.active !== 'boolean') {
+          return json({ ok: false, error: 'slug and active are required' }, 400);
+        }
+        const takeover = provider.setTakeover(slug, body.active);
+        return json({ ok: true, takeover });
+      },
+    };
+    connectionCtx.effect(
+      () => connection.fetch.register(takeoverRoute),
+      'botharness-browser: takeover route',
+    );
+
     const stopRoute = {
       path: '/api/browser/stop',
       methods: ['POST'] as const,
