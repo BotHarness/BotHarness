@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import { channelSidebarPrefs, channelSidebarScopeKey } from './channel-sidebar-prefs.js';
 import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export function HumanInboxView({
   actions,
@@ -18,7 +19,7 @@ export function HumanInboxView({
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
 
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
       void actions.refreshHumanInbox();
     }, 10_000);
@@ -109,7 +110,7 @@ export function HumanInboxView({
   };
 
   return (
-    <div className="bh-root bh-main bh-human-inbox">
+    <div className="bh-root bh-main bh-human-inbox" ref={mount}>
       <main className="bh-human-inbox-inner">
         <h1>{t('humanInbox.title')}</h1>
         <div className="bh-human-inbox-tabs" role="tablist" aria-label={t('humanInbox.title')}>

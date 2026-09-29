@@ -1,4 +1,4 @@
-import { useEffect, useState, type KeyboardEvent, type ReactElement } from 'react';
+import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import {
   FileTypeIcon,
   IconChevronDownOutlineRegular,
@@ -7,6 +7,18 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BotHarnessTranslate } from './locale.js';
 import { memoryFileTree, type MemoryFileNode } from './memory-file-tree-model.js';
+
+function withSelectedAncestors(
+  open: ReadonlySet<string>,
+  selectedPath: string | undefined,
+): Set<string> {
+  const next = new Set(open);
+  const parts = selectedPath?.split('/') ?? [];
+  for (let index = 1; index < parts.length; index += 1) {
+    next.add(parts.slice(0, index).join('/'));
+  }
+  return next;
+}
 
 export function MemoryFileTree({
   paths,
@@ -19,25 +31,23 @@ export function MemoryFileTree({
   onSelect: ((path: string) => void) | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const [openPaths, setOpenPaths] = useState<ReadonlySet<string>>(new Set());
-  useEffect(() => {
-    if (selectedPath === undefined) return;
-    const parts = selectedPath.split('/');
-    setOpenPaths((current) => {
-      const next = new Set(current);
-      for (let index = 1; index < parts.length; index += 1) {
-        next.add(parts.slice(0, index).join('/'));
-      }
-      return next.size === current.size ? current : next;
-    });
-  }, [selectedPath]);
+  const [selection, setSelection] = useState<{
+    path: string | undefined;
+    open: ReadonlySet<string>;
+  }>({ path: selectedPath, open: withSelectedAncestors(new Set(), selectedPath) });
+  let openPaths = selection.open;
+  if (selection.path !== selectedPath) {
+    const next = withSelectedAncestors(openPaths, selectedPath);
+    openPaths = next;
+    setSelection({ path: selectedPath, open: next });
+  }
 
   const toggle = (path: string): void => {
-    setOpenPaths((current) => {
-      const next = new Set(current);
+    setSelection((current) => {
+      const next = new Set(current.open);
       if (next.has(path)) next.delete(path);
       else next.add(path);
-      return next;
+      return { ...current, open: next };
     });
   };
   const onTreeKeyDown = (event: KeyboardEvent<HTMLDivElement>): void => {

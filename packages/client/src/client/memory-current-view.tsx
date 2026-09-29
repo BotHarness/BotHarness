@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import type { BridgeActions } from './actions.js';
 import type { MemoryWorkingChange, MemoryWorkingDiff } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { MemoryDiffFile, MemoryViewIconButton } from './memory-reader-parts.js';
 import { channelSidebarPrefs } from './channel-sidebar-prefs.js';
 import { memoryChangeBadge } from './memory-working-presentation.js';
+import { useMountedResource } from './mounted-resource.js';
 
 interface CommonProps {
   actions: BridgeActions;
@@ -24,7 +25,7 @@ export function MemoryFileView({
   const [file, setFile] = useState<Awaited<ReturnType<BridgeActions['memoryFile']>>>();
   const [error, setError] = useState<string>();
 
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight = false;
@@ -72,7 +73,12 @@ export function MemoryFileView({
   }, [actions, channelId, path, revision, t]);
 
   return (
-    <div className="bh-memory-commit-view" role="region" aria-label={t('entry.memoryFiles')}>
+    <div
+      className="bh-memory-commit-view"
+      role="region"
+      aria-label={t('entry.memoryFiles')}
+      ref={mount}
+    >
       <div className="bh-memory-commit-header">
         <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
         <strong>{path}</strong>
@@ -111,7 +117,7 @@ export function MemoryWorkingView({
   const [detail, setDetail] = useState<MemoryWorkingDiff>();
   const [error, setError] = useState<string>();
 
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     let timer: ReturnType<typeof setTimeout> | undefined;
     let inFlight = false;
@@ -167,7 +173,12 @@ export function MemoryWorkingView({
         );
 
   return (
-    <div className="bh-memory-commit-view" role="region" aria-label={t('memory.workingDiff')}>
+    <div
+      className="bh-memory-commit-view"
+      role="region"
+      aria-label={t('memory.workingDiff')}
+      ref={mount}
+    >
       <div className="bh-memory-commit-header">
         <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
         <strong>{t('memory.workingDiff')}</strong>

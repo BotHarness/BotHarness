@@ -33,6 +33,7 @@ import {
 } from './channel-sidebar-prefs.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
+import { useMountedResource } from './mounted-resource.js';
 
 function matchesNarrow(): boolean {
   return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
@@ -227,11 +228,12 @@ export function ChannelSidebar({
     () => registry.entries(scope),
     () => registry.entries(scope),
   );
-  useEffect(() => {
-    if (selection?.kind !== 'bot' || controller.mode === 'hidden') return;
-    const timer = window.setInterval(() => void actions.refreshBotInbox(selection.slug), 10_000);
+  const selectedBotSlug = selection?.kind === 'bot' ? selection.slug : undefined;
+  const inboxMount = useMountedResource<HTMLDivElement>(() => {
+    if (selectedBotSlug === undefined) return;
+    const timer = window.setInterval(() => void actions.refreshBotInbox(selectedBotSlug), 10_000);
     return () => window.clearInterval(timer);
-  }, [selection, controller.mode, actions]);
+  }, [selectedBotSlug, actions]);
   const closeRef = useRef(controller);
   useEffect(() => {
     closeRef.current = controller;
@@ -273,6 +275,7 @@ export function ChannelSidebar({
   const panel = (
     <div
       id="bh-channel-sidebar"
+      ref={inboxMount}
       className={`bh-channel-sidebar${controller.mode === 'overlay' ? ' bh-channel-sidebar-overlay' : ''}`}
       role="complementary"
       aria-label={t('sidebar.region')}

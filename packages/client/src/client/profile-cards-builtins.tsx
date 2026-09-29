@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useMemo, useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import { barY, defineChart, stack } from '@tanstack/charts';
 import { scaleLinear } from '@tanstack/charts/scales/linear';
@@ -329,6 +329,52 @@ function resolveChartTokens(): ChartTokens {
   };
 }
 
+let chartTokens: ChartTokens | undefined;
+let chartObserver: MutationObserver | undefined;
+const chartListeners = new Set<() => void>();
+
+function chartTokenSnapshot(): ChartTokens {
+  chartTokens ??= resolveChartTokens();
+  return chartTokens;
+}
+
+function refreshChartTokens(): void {
+  const next = resolveChartTokens();
+  const previous = chartTokenSnapshot();
+  if (
+    next.cached === previous.cached &&
+    next.uncached === previous.uncached &&
+    next.output === previous.output &&
+    next.foreground === previous.foreground &&
+    next.muted === previous.muted &&
+    next.grid === previous.grid
+  )
+    return;
+  chartTokens = next;
+  chartListeners.forEach((listener) => listener());
+}
+
+function subscribeChartTokens(listener: () => void): () => void {
+  chartListeners.add(listener);
+  if (
+    chartObserver === undefined &&
+    typeof MutationObserver === 'function' &&
+    typeof document !== 'undefined'
+  ) {
+    chartObserver = new MutationObserver(refreshChartTokens);
+    chartObserver.observe(document.body, { attributes: true });
+    chartObserver.observe(document.documentElement, { attributes: true });
+  }
+  refreshChartTokens();
+  return () => {
+    chartListeners.delete(listener);
+    if (chartListeners.size === 0) {
+      chartObserver?.disconnect();
+      chartObserver = undefined;
+    }
+  };
+}
+
 function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslate }): ReactElement {
   const shares = tokenShares(totals);
   return (
@@ -398,15 +444,7 @@ function TokenUsageCard({
       }),
     [dayTotals, days],
   );
-  const [colors, setColors] = useState(resolveChartTokens);
-  useEffect(() => {
-    if (typeof MutationObserver !== 'function' || typeof document === 'undefined') return;
-    const refresh = (): void => setColors(resolveChartTokens());
-    const observer = new MutationObserver(refresh);
-    observer.observe(document.body, { attributes: true });
-    observer.observe(document.documentElement, { attributes: true });
-    return () => observer.disconnect();
-  }, []);
+  const colors = useSyncExternalStore(subscribeChartTokens, chartTokenSnapshot, chartTokenSnapshot);
   const definition = useMemo(
     () =>
       defineChart({

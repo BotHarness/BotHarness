@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactElement } from 'react';
+import { useState, type ReactElement } from 'react';
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 import type { BridgeActions } from './actions.js';
 import type { MemoryGitCommitDiff } from './bridge.js';
@@ -9,6 +9,7 @@ import {
   MemoryViewIconButton,
   splitMemoryDiffFiles,
 } from './memory-reader-parts.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export function MemoryCommitView({
   actions,
@@ -50,7 +51,7 @@ export function MemoryCommitView({
       setSending(false);
     }
   };
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     let active = true;
     setDetail(undefined);
     setError(undefined);
@@ -70,7 +71,7 @@ export function MemoryCommitView({
   const diffSections = splitMemoryDiffFiles(detail?.diff ?? '');
 
   return (
-    <div className="bh-memory-commit-view" role="region" aria-label={t('memory.diff')}>
+    <div className="bh-memory-commit-view" role="region" aria-label={t('memory.diff')} ref={mount}>
       <div className="bh-memory-commit-header">
         <MemoryViewIconButton action="backToChat" onClick={onClose} t={t} />
         <div>

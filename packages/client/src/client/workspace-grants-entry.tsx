@@ -1,4 +1,12 @@
-import { useEffect, useId, useRef, useState, type ReactElement, type ReactNode } from 'react';
+import {
+  useCallback,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactElement,
+  type ReactNode,
+} from 'react';
 import {
   Button,
   IconChevronDownOutlineRegular,
@@ -19,8 +27,14 @@ import type {
 import { errorMessage } from './bridge.js';
 import { Modal } from './modal.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
+import { useMountedResource } from './mounted-resource.js';
+import {
+  publishWorkspaceGrantChange,
+  subscribeWorkspaceGrantChanges,
+  workspaceGrantRevision,
+} from './workspace-grant-events.js';
 
-export const WORKSPACE_GRANTS_CHANGED = 'botharness/workspace-grants-changed';
+export { WORKSPACE_GRANTS_CHANGED } from './workspace-grant-events.js';
 
 type WorkspaceCache = {
   grants: WorkspaceGrantView[];
@@ -188,7 +202,10 @@ export function FolderBrowser({
   const [showHidden, setShowHidden] = useState(false);
   const request = useRef<AbortController | undefined>();
 
-  useEffect(() => () => request.current?.abort(), []);
+  const abortOnUnmount = useMountedResource<HTMLDivElement>(
+    () => () => request.current?.abort(),
+    [],
+  );
 
   const navigate = (path: string): void => {
     if (busy) return;
@@ -237,7 +254,11 @@ export function FolderBrowser({
         </>
       }
     >
-      <div className="bh-folder-browser-crumbs" aria-label={t('grant.browseLocation')}>
+      <div
+        className="bh-folder-browser-crumbs"
+        aria-label={t('grant.browseLocation')}
+        ref={abortOnUnmount}
+      >
         {listing.crumbs.map((crumb, index) => (
           <button
             type="button"
@@ -296,6 +317,17 @@ export function WorkspaceGrantsEntry({
   t,
   developerMode = false,
 }: ChannelSidebarEntryProps & { developerMode?: boolean }): ReactElement {
+  const slug = botSlug ?? '';
+  const subscribeChanges = useCallback(
+    (listener: () => void) => subscribeWorkspaceGrantChanges(slug, listener),
+    [slug],
+  );
+  const getChangeRevision = useCallback(() => workspaceGrantRevision(slug), [slug]);
+  const changeRevision = useSyncExternalStore(
+    subscribeChanges,
+    getChangeRevision,
+    getChangeRevision,
+  );
   const cached = cachedWorkspace(actions, botSlug);
   const [workspaces, setWorkspaces] = useState<WorkspaceOption[]>(cached?.workspaces ?? []);
   const [grants, setGrants] = useState<WorkspaceGrantView[]>(cached?.grants ?? []);
@@ -309,65 +341,76 @@ export function WorkspaceGrantsEntry({
   const [busy, setBusy] = useState<string | undefined>();
   const [error, setError] = useState<string | undefined>();
   const [loading, setLoading] = useState(cached === undefined);
+  const activeSlug = useRef<string | undefined>(undefined);
+  const requestVersion = useRef(0);
   const showGrant = (grant: WorkspaceGrantView): void => {
-    if (botSlug === undefined) return;
+    if (botSlug === undefined || activeSlug.current !== botSlug) return;
     const current = cachedWorkspace(actions, botSlug)?.grants ?? grants;
     const next = [...current.filter((row) => row.id !== grant.id), grant];
     rememberWorkspace(actions, botSlug, { grants: next });
     setGrants(next);
   };
 
-  const refresh = async (slug: string, isCurrent: () => boolean = () => true): Promise<void> => {
-    const owned = await withWorkspaceActionDeadline(
-      actions.listWorkspaceGrants(slug),
-      t('grant.loadTimeout'),
-    );
-    if (!isCurrent()) return;
-    rememberWorkspace(actions, slug, { grants: owned });
-    setGrants(owned);
-    setLoading(false);
-    const [available, memory, ruleRows, preset] = await Promise.all([
-      actions.listWorkspaceOptions(),
-      actions.memoryDirectory(slug),
-      actions.listToolApprovalRules(slug),
-      actions.assignmentAccess(slug),
-    ]);
-    if (!isCurrent()) return;
-    rememberWorkspace(actions, slug, {
-      workspaces: available,
-      memoryDir: memory,
-      rules: ruleRows,
-      access: preset,
-    });
-    setWorkspaces(available);
-    setMemoryDir(memory);
-    setRules(ruleRows);
-    setAccess(preset);
+  const refresh = async (slug: string): Promise<void> => {
+    if (activeSlug.current !== slug) return;
+    const version = ++requestVersion.current;
+    const isCurrent = (): boolean =>
+      activeSlug.current === slug && requestVersion.current === version;
+    try {
+      const owned = await withWorkspaceActionDeadline(
+        actions.listWorkspaceGrants(slug),
+        t('grant.loadTimeout'),
+      );
+      if (!isCurrent()) return;
+      rememberWorkspace(actions, slug, { grants: owned });
+      setGrants(owned);
+      setLoading(false);
+      const [available, memory, ruleRows, preset] = await Promise.all([
+        actions.listWorkspaceOptions(),
+        actions.memoryDirectory(slug),
+        actions.listToolApprovalRules(slug),
+        actions.assignmentAccess(slug),
+      ]);
+      if (!isCurrent()) return;
+      rememberWorkspace(actions, slug, {
+        workspaces: available,
+        memoryDir: memory,
+        rules: ruleRows,
+        access: preset,
+      });
+      setWorkspaces(available);
+      setMemoryDir(memory);
+      setRules(ruleRows);
+      setAccess(preset);
+    } catch (cause) {
+      if (isCurrent()) throw cause;
+    }
   };
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
+    activeSlug.current = botSlug;
+    requestVersion.current += 1;
+    const current = cachedWorkspace(actions, botSlug);
+    setWorkspaces(current?.workspaces ?? []);
+    setGrants(current?.grants ?? []);
+    setRules(current?.rules ?? []);
+    setAccess(current?.access);
+    setMemoryDir(current?.memoryDir);
+    setBrowserListing(undefined);
+    setBusy(undefined);
+    setConfirmDanger(false);
     if (botSlug === undefined) return;
-    const onGrantChanged = (event: Event): void => {
-      if ((event as CustomEvent<{ slug: string }>).detail?.slug !== botSlug) return;
-      void refresh(botSlug).catch((cause: unknown) => setError(errorMessage(cause)));
-    };
-    window.addEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-    return () => window.removeEventListener(WORKSPACE_GRANTS_CHANGED, onGrantChanged);
-  }, [actions, botSlug]);
-
-  useEffect(() => {
-    if (botSlug === undefined) return;
-    let cancelled = false;
     setLoading(cachedWorkspace(actions, botSlug) === undefined);
     setError(undefined);
-    void refresh(botSlug, () => !cancelled).catch((cause: unknown) => {
-      if (cancelled) return;
+    void refresh(botSlug).catch((cause: unknown) => {
+      if (activeSlug.current !== botSlug) return;
       setError(errorMessage(cause));
       setLoading(false);
     });
     return () => {
-      cancelled = true;
+      activeSlug.current = undefined;
+      requestVersion.current += 1;
     };
-  }, [actions, botSlug]);
+  }, [actions, botSlug, changeRevision]);
   const mutate = (id: string, action: () => Promise<unknown>): void => {
     if (botSlug === undefined || busy !== undefined) return;
     setBusy(id);
@@ -375,16 +418,14 @@ export function WorkspaceGrantsEntry({
     void (async () => {
       try {
         const operation = action().then((value) => {
-          window.dispatchEvent(
-            new CustomEvent(WORKSPACE_GRANTS_CHANGED, { detail: { slug: botSlug } }),
-          );
+          publishWorkspaceGrantChange(botSlug);
           return value;
         });
         await withWorkspaceActionDeadline(operation, t('grant.operationTimeout'));
       } catch (cause) {
-        setError(errorMessage(cause));
+        if (activeSlug.current === botSlug) setError(errorMessage(cause));
       } finally {
-        setBusy(undefined);
+        if (activeSlug.current === botSlug) setBusy(undefined);
       }
     })();
   };
@@ -395,21 +436,24 @@ export function WorkspaceGrantsEntry({
     setError(undefined);
     void (async () => {
       try {
-        setBrowserListing(await actions.listHostFolders());
+        const listing = await actions.listHostFolders();
+        if (activeSlug.current !== botSlug) return;
+        setBrowserListing(listing);
       } catch (cause) {
+        if (activeSlug.current !== botSlug) return;
         if (pickerUnavailable(cause)) {
           try {
             const grant = await actions.addWorkspaceFolder(botSlug);
             if (grant !== undefined) showGrant(grant);
             await refresh(botSlug);
           } catch (nativeCause) {
-            setError(errorMessage(nativeCause));
+            if (activeSlug.current === botSlug) setError(errorMessage(nativeCause));
           }
         } else {
           setError(errorMessage(cause));
         }
       } finally {
-        setBusy(undefined);
+        if (activeSlug.current === botSlug) setBusy(undefined);
       }
     })();
   };
@@ -421,7 +465,7 @@ export function WorkspaceGrantsEntry({
   const available = workspaces.filter((workspace) => !activeIds.has(workspace.id));
 
   return (
-    <div className="bh-workspace-grants">
+    <div className="bh-workspace-grants" ref={mount}>
       {developerMode ? <div className="bh-note">{t('grant.safeDefault')}</div> : null}
       {loading && grants.length === 0 ? (
         <LoadingSkeleton kind="sidebar" label={t('grant.loading')} />

@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   IconCheckOutlineRegular,
@@ -25,6 +25,7 @@ import {
   subscribeSessionViewPreference,
   updateSessionViewPreference,
 } from './session-view-prefs.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export interface NativeSessionCatalog {
   subscribe(listener: () => void): () => void;
@@ -132,7 +133,7 @@ function SessionsPanel({
     .map((id) => id + ':' + (native.byId[id]?.running === true ? '1' : '0'))
     .join('|');
 
-  useEffect(() => {
+  const mount = useMountedResource<HTMLDivElement>(() => {
     if (botSlug !== undefined) void actions.refreshSessions(botSlug);
   }, [actions, botSlug, signature]);
 
@@ -189,7 +190,7 @@ function SessionsPanel({
   );
 
   return (
-    <div className="bh-sessions">
+    <div className="bh-sessions" ref={mount}>
       {owned.status === 'loading' && rows.length === 0 ? (
         <LoadingSkeleton kind="sidebar" label={t('sessions.loading')} />
       ) : null}
