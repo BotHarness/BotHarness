@@ -16,7 +16,7 @@ export type MemoryRepositoryResult =
 export interface MemoryRepositoryInspection {
   state: 'ready' | 'missing' | 'invalid';
   head?: string;
-  /** Whether the working tree has provisional changes that no accept covered. */
+
   dirty?: boolean;
   detail?: string;
 }
@@ -25,13 +25,6 @@ function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-/**
- * Create or open one PersonaBot's Git-backed Memory Repository. Idempotent for
- * an existing repository: it never commits or rewrites the working tree, so a
- * provisional edit made with ordinary file tools survives a restart. A
- * repository that exists without a seed commit (interrupted creation) is
- * repaired by committing only its seed files.
- */
 export function ensureMemoryRepository(options: { memoryDir: string }): MemoryRepositoryResult {
   const memoryDir = options.memoryDir;
   try {
@@ -64,7 +57,6 @@ export function ensureMemoryRepository(options: { memoryDir: string }): MemoryRe
   return { ok: true, memoryDir, created };
 }
 
-/** Diagnostics for the Memory surface and repair paths; never mutates. */
 export function inspectMemoryRepository(options: {
   memoryDir: string;
 }): MemoryRepositoryInspection {

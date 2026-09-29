@@ -23,14 +23,12 @@ function within(root: string, target: string): boolean {
   return tail === '' || (tail !== '..' && !tail.startsWith('..' + sep) && !isAbsolute(tail));
 }
 
-/** A missing leaf may be created; its parent must already resolve inside a root. */
 function canonicalTarget(path: string): string | undefined {
   try {
     return realpathSync(path);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return undefined;
     try {
-      // A dangling symlink must not be treated as an ordinary missing leaf.
       lstatSync(path);
       return undefined;
     } catch (leafError) {
@@ -106,7 +104,6 @@ function nativePath(name: string, args: unknown): { path: string; kind: AccessKi
   return { path, kind: name === 'write' || name === 'edit' ? 'write' : 'read' };
 }
 
-/** Synchronous final gate before an existing DSH file tool reaches its body. */
 export function nativeFileToolDenial(
   core: GrantCore,
   session: Session,
@@ -123,11 +120,9 @@ export function nativeFileToolDenial(
   for (const root of roots) {
     try {
       const canonicalRoot = realpathSync(root);
-      // A replaced or redirected Grant root cannot silently change authority.
+
       if (canonicalRoot === resolve(root) && within(canonicalRoot, target)) return undefined;
-    } catch {
-      // Missing roots confer no access.
-    }
+    } catch {}
   }
   return "Path is outside this Session's authorized workspace";
 }

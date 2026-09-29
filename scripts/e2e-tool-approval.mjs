@@ -1,5 +1,3 @@
-// Live #116 tracer: a real model requests a native command, the Channel card
-// approves this exact call, and the original Agent turn resumes.
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

@@ -189,7 +189,7 @@ describe('roster bridge methods with storage', () => {
 
     const pinned = await methods.rosterBatch({ action: 'pin', channelIds: ids });
     expect(pinned).toMatchObject({ ok: true, value: { pins: ids } });
-    expect(fake.setCount()).toBe(2); // section creation + one batch pin
+    expect(fake.setCount()).toBe(2);
 
     const moved = await methods.rosterBatch({
       action: 'move',
@@ -204,7 +204,7 @@ describe('roster bridge methods with storage', () => {
       },
     });
     expect(fake.records.get(sectionId)?.channelIds).toEqual(ids);
-    expect(fake.setCount()).toBe(3); // one global update for the whole move
+    expect(fake.setCount()).toBe(3);
 
     expect(await methods.rosterBatch({ action: 'pin', channelIds: ['missing'] })).toMatchObject({
       ok: false,

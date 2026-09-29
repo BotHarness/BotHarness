@@ -20,7 +20,6 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 const roots: string[] = [];
 const owners: OperationalDatabaseOwner[] = [];
 
-/** Ensure manually mounted test databases close before Windows temp-root cleanup. */
 export function trackTestOwner(owner: OperationalDatabaseOwner): OperationalDatabaseOwner {
   owners.push(owner);
   return owner;
@@ -29,8 +28,6 @@ export function trackTestOwner(owner: OperationalDatabaseOwner): OperationalData
 export const FIXED_NOW = (): Date => new Date('2026-09-17T00:00:00.000Z');
 
 export function createTempRoot(prefix = 'botharness-test-'): string {
-  // realpath keeps the fixture canonical for tests that assert on it (macOS
-  // os.tmpdir() lives behind the /var -> /private/var symlink); no-op on Linux.
   const root = realpathSync(mkdtempSync(join(tmpdir(), prefix)));
   roots.push(root);
   return root;
@@ -50,7 +47,6 @@ export function remember(store: MemoryStore, input: MemoryWriteInput): Promise<M
   return store.write(input);
 }
 
-/** Real ownership module over a throwaway operational database. */
 export function createTestOwnership(
   seeded: Record<string, { botSlug: string; rootRole?: SessionRootRole }> = {},
 ): SessionOwnership {

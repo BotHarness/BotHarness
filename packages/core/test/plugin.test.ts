@@ -101,9 +101,6 @@ describe('plugin entry', () => {
     apply(ctx, { enabled: true });
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    // Default off: the DeveloperModeSkillGate registers only on a bridge
-    // `developerModeSet` report (gate transitions unit-tested in
-    // log-skill.test.ts; the method-to-gate drive in bridge-methods.test.ts).
     expect(stubs.skills.register).not.toHaveBeenCalled();
   });
 

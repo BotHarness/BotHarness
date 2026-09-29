@@ -489,11 +489,11 @@ describe('Bot runtime tracer bullet', () => {
         source_event_id: 'source-retry',
         handled_at: FIXED_NOW().toISOString(),
         attempt_state: 'handled',
-        // The successful retry performed side effects, so the marker remains as evidence.
+
         side_effect_started_at: expect.any(String),
       },
     ]);
-    // The DM turn starts the Assignment; the inbox turn answers the Channel afterwards.
+
     expect(orchestratorAttempts).toBe(3);
     expect(assignmentRuns).toBe(1);
     expect(
@@ -592,8 +592,7 @@ describe('Bot runtime tracer bullet', () => {
         side_effect_started_at: expect.any(String),
       },
     ]);
-    // One DM turn starts the Assignment, one inbox turn reports it; the failed
-    // attempt is never replayed.
+
     expect(orchestratorAttempts).toBe(2);
     expect(assignmentRuns).toBe(1);
     expect(runtime.listAssignments('ada')).toHaveLength(1);

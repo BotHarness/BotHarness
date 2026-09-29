@@ -2,7 +2,7 @@ export interface PersonaBotRecord {
   slug: string;
   displayName: string;
   roles?: string[];
-  /** Legacy v1.6 field; read for migration but never written by new code. */
+
   tag?: string;
   description?: string;
   avatar?: string;
@@ -12,7 +12,7 @@ export interface PersonaBotRecord {
   workspaces: string[];
   createdAt: string;
   paused?: boolean;
-  /** Per-PersonaBot Computer tool opt-in; absent means off (ADR-0080). */
+
   computerAccess?: boolean;
   browserAccess?: boolean;
 }
@@ -63,14 +63,9 @@ export type UpdatePersonaBotResult =
   | { ok: true; record: PersonaBotRecord }
   | { ok: false; reason: 'not-found' | 'invalid-input' };
 
-/** Decoded custom-avatar budget: 512×512 WebP with room for detailed images (ADR-0086). */
 export const MAX_PERSONA_BOT_AVATAR_BYTES = 131_072;
 const MAX_PERSONA_BOT_AVATAR_CHARS = 175_000;
 
-/**
- * A stored custom avatar is a bounded image data URL; remote URLs and seed-like
- * strings are rejected on write. Blobatar media needs no stored value at all.
- */
 export function isPersonaBotAvatar(value: unknown): value is string {
   if (typeof value !== 'string' || value.length > MAX_PERSONA_BOT_AVATAR_CHARS) return false;
   const match = /^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})$/u.exec(value);

@@ -59,11 +59,6 @@ export interface DshAgentHost {
   get?(id: ReturnType<typeof SessionId>): Agent | undefined;
 }
 
-/**
- * The agent-preset roster that composes a session's tools and prompt sections.
- * A session that names a preset but never mounts it sees only the tools its own
- * factory setup registered, so mounting is not optional.
- */
 export interface DshAgentPresetHost {
   mount(agentCtx: Context, id?: string): Promise<unknown>;
 }
@@ -71,36 +66,20 @@ export interface DshAgentPresetHost {
 export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
-  /**
-   * Resolves the preset roster lazily: a service may mount after this plugin
-   * applies, so the roster is looked up per agent creation, not captured once.
-   */
+
   resolveAgentPresets?: () => DshAgentPresetHost | undefined;
-  /**
-   * Agent preset a PersonaBot session joins when its record names none. Every
-   * session must join one: an agent without a preset resolves against the
-   * empty global layer and sees only the tools its own setup registered.
-   */
+
   defaultAgentPreset?: string;
-  /**
-   * Explicit Orchestrator working directory (the PersonaBot's Memory
-   * Repository). Absent falls back to the legacy workspace resolution.
-   */
+
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
   ensureWorkspace?: (path: string) => void;
   publishDraft?: (event: ChannelDraftEvent) => void;
-  /** Validate a foreign live Agent before attaching BotHarness role behavior. */
+
   authorizeBorrow?: (agent: Agent, role: 'orchestrator' | 'assignment') => void;
-  /**
-   * Optional per-Bot-agent contribution hook, called synchronously from the
-   * agent's `setup` before its first prompt assembly (create, resume, and
-   * borrow all pass through here). The Computer Tool Provider uses it to
-   * register scoped tools without racing prompt assembly.
-   */
+
   onAgentSetup?: (agentCtx: Context, agent: Agent, info: BotAgentSetupInfo) => void;
 }
 
-/** Identity of one Bot-owned agent as it is set up. */
 export interface BotAgentSetupInfo {
   readonly botSlug: string;
   readonly rootRole: 'orchestrator' | 'assignment';
@@ -267,8 +246,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#assertOpen();
     const handle = this.#handles.get(run.sessionId);
     const active = this.#runs.get(run.sessionId);
-    // Only a mid-turn Assignment can be steered; a live but settled Agent is
-    // followed up so the caller keeps a completion signal for the new turn.
+
     if (handle !== undefined && active?.role === 'assignment') {
       handle.agent.steer(
         createUserMessage({

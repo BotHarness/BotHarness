@@ -9,14 +9,13 @@ export interface MemoryCommit {
 }
 
 export interface MemoryGit {
-  /** Working-tree changes, relative paths from `git status --porcelain`. */
   status(): string[];
-  /** Unified diff of the working tree against HEAD (bounded by the caller). */
+
   diff(): string;
   head(): string;
   commit(message: string): string;
   log(limit?: number): MemoryCommit[];
-  /** Author dates of commits reachable from any local branch since an instant. */
+
   activitySince(sinceIso: string): Array<{ at: string }>;
 }
 
@@ -52,13 +51,10 @@ function commitIfChanges(root: string, message: string): string {
 function ensureIdentity(root: string, key: 'user.name' | 'user.email', value: string): void {
   try {
     if (run(root, ['config', '--local', '--get', key]).trim().length > 0) return;
-  } catch {
-    // unset locally: fall through and configure
-  }
+  } catch {}
   run(root, ['config', key, value]);
 }
 
-/** Initialize a real Git repository on disk; idempotent for an existing one. */
 export function initializeMemoryGit(root: string): { created: boolean } {
   const created = !existsSync(join(root, '.git'));
   if (created) {
@@ -75,12 +71,10 @@ export function initializeMemoryGit(root: string): { created: boolean } {
   return { created };
 }
 
-/** Commit the repository's initial files; only valid while it has no HEAD. */
 export function commitMemoryRepositorySeed(root: string): string {
   return commitIfChanges(root, INIT_COMMIT_MESSAGE);
 }
 
-/** Open an existing repository without touching the working tree. */
 export function createMemoryGit(root: string): MemoryGit {
   return {
     status() {

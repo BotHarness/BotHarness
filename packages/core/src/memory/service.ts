@@ -18,33 +18,17 @@ export interface MemoryServiceOptions {
 }
 
 export interface MemoryService extends MemoryAcceptance {
-  /**
-   * Resolve the Memory Repository of the PersonaBot that owns one Session.
-   * Ownership is explicit; cwd, workspace membership, and UI selection never
-   * decide it. An unknown Session or an unready repository returns undefined
-   * rather than a store that would pretend Memory works.
-   */
   storeForSession(sessionId: string | undefined): MemoryStore | undefined;
   storeForAgent(agent: MemoryAgentRef | undefined): MemoryStore | undefined;
-  /**
-   * The Session-frozen persona text for the system prompt. The first assembly
-   * snapshots the current PERSONA.md durably; every later assembly, including
-   * after a restart or a cold resume, returns those same bytes even when a
-   * Human edited the file. Unowned or unready Sessions contribute nothing.
-   */
+
   personaForSession(sessionId: string | undefined): string;
-  /**
-   * Compaction-boundary persona refresh: compare the current PERSONA.md body
-   * against the Session's recorded snapshot and overwrite only on difference.
-   * Unowned, unknown-bot, or unready Sessions report no refresh. An empty body
-   * follows the same rule as first assembly: a missing file reads as no persona.
-   */
+
   refreshPersonaAfterCompaction(botSlug: string, sessionId: string): { refreshed: boolean };
-  /** Explicit repository path for diagnostics and repair surfaces. */
+
   memoryDirFor(sessionId: string | undefined): string | undefined;
-  /** Repository health for the Memory surface; never mutates. */
+
   repositoryFor(sessionId: string | undefined): MemoryRepositoryInspection | undefined;
-  /** Author-dated Memory Commits since an instant, for Profile memory activity. */
+
   activity?(botSlug: string, sinceIso: string): Array<{ at: string }>;
 }
 

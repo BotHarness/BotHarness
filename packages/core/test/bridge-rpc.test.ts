@@ -41,11 +41,6 @@ function setup() {
   return { root, registry, methods, service };
 }
 
-/**
- * Mirrors the gateway's SRC resolver: it reads the formal parameter names the
- * wire `{ args }` mapping is keyed on. Tolerant of the arrow/rest/default
- * forms the resolver accepts so a behaviour-preserving rewrite stays green.
- */
 function parameterNames(method: (...args: never[]) => unknown): string[] {
   const source = Function.prototype.toString.call(method);
   const open = source.indexOf('(');

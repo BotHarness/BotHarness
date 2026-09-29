@@ -11,25 +11,16 @@ const CONFIG = join(DIAGRAMS, 'mermaid.config.json');
 const PUPPETEER_CONFIG = join(DIAGRAMS, 'puppeteer.json');
 const MMDC = join(ROOT, 'node_modules', '.bin', process.platform === 'win32' ? 'mmdc.cmd' : 'mmdc');
 
-// Two parallel source sets: Chinese (`diagrams/*.mmd`) and English
-// (`diagrams/en/*.mmd`). Both land under `rendered/` — the English pair under
-// `rendered/en/` — so `sync-docs.mjs` can copy them to `/diagrams` and
-// `/diagrams/en` in the docs site. Same config (deterministic IDs) for both.
 const SETS = [
   { source: DIAGRAMS, output: RENDERED, prefix: '' },
   { source: join(DIAGRAMS, 'en'), output: join(RENDERED, 'en'), prefix: 'en/' },
 ];
 
-// `-t default` for light, `-t dark` for the `.dark.svg` pair. `-b transparent`
-// keeps the page background (and its theme) in charge.
 const VARIANTS = [
   { suffix: '', theme: 'default' },
   { suffix: '.dark', theme: 'dark' },
 ];
 
-// mmdc emits `width="100%"` with no intrinsic size, which makes `<img>`
-// report a 300x150 natural size. Pin the viewBox dimensions on the root tag
-// so the docs component can size and zoom the diagram correctly.
 function pinIntrinsicSize(output) {
   const source = readFileSync(output, 'utf8');
   const box = source

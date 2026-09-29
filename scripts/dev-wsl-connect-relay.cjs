@@ -1,4 +1,3 @@
-// Developer-only WSL -> Windows HTTPS tunnel. One client, one target, CONNECT:443 only.
 const net = require('node:net');
 
 const [bindAddress, clientAddress, destination, rawPort] = process.argv.slice(2);

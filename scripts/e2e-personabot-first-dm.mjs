@@ -1,6 +1,3 @@
-// Live DSH tracer bullet for #186. Configure the LLM in DSH; pass only its web token.
-// BH_E2E_TOKEN=<token> node scripts/e2e-personabot-first-dm.mjs [--expect-reply]
-// Controls for the ablation: --reselect and --wait-ms=3000.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -115,9 +112,7 @@ try {
         const envelope = await response.json();
         calls.push({ method: request.method, status: response.status(), ok: envelope.result?.ok });
       }
-    } catch {
-      // The verdict uses the visible UI and a fresh authoritative Host read.
-    }
+    } catch {}
   });
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, {
     waitUntil: 'networkidle2',
@@ -188,9 +183,7 @@ try {
       prompt,
     );
     visible = true;
-  } catch {
-    // Return a safe failure verdict rather than a token-bearing URL.
-  }
+  } catch {}
   const draftRetained = await page.evaluate(() => {
     const textarea = document.querySelector(
       'textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]',
@@ -265,9 +258,7 @@ try {
           nonce,
         );
         replyVisible = true;
-      } catch {
-        // A committed message that missed UI delivery is still a failing E2E.
-      }
+      } catch {}
     }
   }
   const draftStream = await page.evaluate(() => {

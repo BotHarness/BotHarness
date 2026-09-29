@@ -35,11 +35,7 @@ export interface MemoryRepositoryInitialization {
 export interface PersonaBotRegistryOptions {
   rootDir: string;
   now?: () => Date;
-  /**
-   * Create or open the PersonaBot's Git-backed Memory Repository. Creation
-   * fails closed: without it the registry refuses to create the PersonaBot
-   * rather than pretending it is fully executable.
-   */
+
   initializeMemory?: (memoryDir: string) => MemoryRepositoryInitialization;
   cloneMemory?: (destination: string, url: string) => Promise<MemoryCloneResult>;
 }

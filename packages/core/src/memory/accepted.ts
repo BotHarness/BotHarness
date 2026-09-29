@@ -67,7 +67,6 @@ export interface MemoryAcceptedSnapshot {
   provisional: boolean;
 }
 
-/** Git history view. The checked-out working tree is current Memory. */
 export interface MemoryGitCommit {
   sha: string;
   parents: string[];
@@ -285,8 +284,7 @@ function porcelainPaths(root: string): string[] {
     const entry = entries[index] ?? '';
     if (entry.length < 4) continue;
     paths.push(entry.slice(3));
-    // Rename/copy entries carry the original path as the next NUL field,
-    // which has no XY prefix and must not be parsed as its own entry.
+
     if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') index += 1;
   }
   return paths;
@@ -308,7 +306,7 @@ function currentWorkingChanges(root: string): MemoryWorkingChange[] {
       if (entry[0] !== ' ') changes.push({ path, kind: 'staged', status: entry[0]! });
       if (entry[1] !== ' ') changes.push({ path, kind: 'unstaged', status: entry[1]! });
       if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') {
-        index += 1; // porcelain -z includes a second path for renames and copies.
+        index += 1;
       }
     }
     if (changes.length > 500) {
@@ -337,8 +335,7 @@ function truncateUtf8(text: string, maxBytes: number): string {
   const encoded = new TextEncoder().encode(text);
   if (encoded.length <= maxBytes) return text;
   const byteAt = (index: number): number => encoded[index] ?? 0;
-  // Walk back past continuation bytes, then drop a lead byte whose sequence
-  // was cut short, so the cut always lands on a character boundary.
+
   let end = maxBytes;
   while (end > 0 && byteAt(end - 1) >= 0x80 && byteAt(end - 1) < 0xc0) end -= 1;
   const lead = byteAt(end - 1);
@@ -369,14 +366,7 @@ function buildTurnAnnotation(
   previous: TurnWorktreeObservation,
   current: { branch: string; head: string; porcelain: string[] },
 ): string | undefined {
-  // Webhook shape, deliberately: paths only, never bodies. The agent reads
-  // details itself with ordinary git and file tools (including untracked
-  // files, which porcelain already lists). Stat and full-diff blocks were
-  // cut: the turn pays for what it names, nothing more.
   if (current.branch !== previous.branch) {
-    // A branch swap re-contextualizes the whole tree; file-by-file lists
-    // would be noise. Only PERSONA.md earns a targeted check: its frozen
-    // copy still governs this Session.
     const details = [`Memory branch is now '${current.branch}' (was '${previous.branch}').`];
     if (personaDiffersAcrossHeads(root, previous.head, current.head)) {
       details.push(PERSONA_FROZEN_SENTENCE);
@@ -486,12 +476,9 @@ export function createMemoryAcceptance(options: {
     string,
     { sessionId: string; branch: string; preservePending?: boolean }
   >();
-  // Last worktree state observed at a turn boundary (reconcile/abort end).
-  // Everything the agent wrote during its own turn is in history by then, so
-  // the next prepare only reports out-of-band changes. In-memory only: after a
-  // Host restart the first prepare re-baselines silently.
+
   const observed = new Map<string, TurnWorktreeObservation>();
-  // Take-once annotation staged by prepareTurn for the current turn message.
+
   const pendingAnnotation = new Map<string, { sessionId: string; text: string }>();
 
   const refreshObservation = (botSlug: string, sessionId: string): boolean => {
@@ -499,7 +486,6 @@ export function createMemoryAcceptance(options: {
       observed.set(botSlug, { ...observeWorktree(repository(registry, botSlug)), sessionId });
       return true;
     } catch {
-      // A broken repository keeps the previous baseline; the turn error path reports it.
       return false;
     }
   };
@@ -678,8 +664,7 @@ export function createMemoryAcceptance(options: {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
     void options;
-    // Observe before marking the turn in flight: a throwing observation must
-    // not leak an entry that blocks every later turn until Host restart.
+
     const current = observeWorktree(root);
     inFlight.set(botSlug, { sessionId, branch: current.branch });
     const previous = observed.get(botSlug);
@@ -802,17 +787,14 @@ export function createMemoryAcceptance(options: {
       try {
         run(root, ['show-ref', '--verify', '--quiet', 'refs/heads/' + branch]);
         exists = true;
-      } catch {
-        // Git exits nonzero when the branch does not exist.
-      }
+      } catch {}
       if (exists) throw new MemoryAcceptError('memory-conflict', 'Memory branch already exists');
       if (!/^[0-9a-f]{40}$/u.test(input.sha)) {
         throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
       }
-      // The diff query verifies both the object type and reachability from a
-      // visible local branch. A dangling object must not become a branch point.
+
       this.gitCommitDiff(input.botSlug, input.sha);
-      // Native Git decides whether the working tree permits this branch.
+
       try {
         run(root, ['switch', '-c', branch, input.sha]);
       } catch {
@@ -845,7 +827,7 @@ export function createMemoryAcceptance(options: {
       } catch {
         throw new MemoryAcceptError('memory-invalid', 'Memory branch does not exist');
       }
-      // Native Git handles staged and working-tree conflicts.
+
       const targetHead = output(root, ['rev-parse', '--verify', `refs/heads/${branch}`]);
       if (from !== branch) {
         try {
@@ -862,7 +844,7 @@ export function createMemoryAcceptance(options: {
     abortTurn(botSlug, sessionId) {
       if (inFlight.get(botSlug)?.sessionId !== sessionId) return;
       inFlight.delete(botSlug);
-      // The failed turn's tool calls stay in history, so they need no annotation.
+
       refreshObservation(botSlug, sessionId);
     },
     takeTurnAnnotation(input: { botSlug: string; sessionId: string }): string | undefined {
@@ -996,9 +978,7 @@ export function createMemoryAcceptance(options: {
       try {
         run(root, ['merge-base', '--is-ancestor', sha, 'HEAD']);
         reachableFromHead = true;
-      } catch {
-        // A side branch can be selected while HEAD remains elsewhere.
-      }
+      } catch {}
       if (containing.length === 0 && !reachableFromHead) {
         throw new MemoryAcceptError('memory-unknown-commit', 'Unknown Memory Git commit');
       }
@@ -1048,7 +1028,7 @@ export function createMemoryAcceptance(options: {
       const root = graphRepository(botSlug);
       const relative = toMemoryRelativePath(path);
       const phases = currentWorkingChanges(root).filter((entry) => entry.path === relative);
-      // A file added to the index and then removed from disk has no HEAD-to-worktree change.
+
       const addedThenRemoved =
         phases.some((entry) => entry.kind === 'staged' && entry.status === 'A') &&
         phases.some((entry) => entry.kind === 'unstaged' && entry.status === 'D');
@@ -1149,8 +1129,7 @@ export function createMemoryAcceptance(options: {
       );
       const pending = existing ?? pendingRepair(input.botSlug);
       const archived = pending === undefined ? undefined : join(pending.backup_path, 'repository');
-      // After an interrupted archive move, the canonical path is absent. The
-      // archived Git HEAD retains the exact branch that Human Repair started on.
+
       const branchSource =
         archived !== undefined && existsSync(join(archived, '.git')) ? archived : root;
       const branch =

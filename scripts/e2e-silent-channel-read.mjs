@@ -1,4 +1,3 @@
-/** Live #364 tracer: an Orchestrator reads exactly one silent Group message. */
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 

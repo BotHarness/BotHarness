@@ -53,7 +53,7 @@ const REPORT_PREVIEW_CHARACTERS = 400;
 export interface AssignmentReportInput {
   state: AssignmentReportState;
   summary: string;
-  /** The Assignment declares it needs an Orchestrator reply before continuing. */
+
   expectsReply?: boolean;
 }
 
@@ -128,7 +128,7 @@ export interface OrchestratorAgentRun {
   resume: boolean;
   bot: PersonaBotRecord;
   message: string;
-  /** Bounded Bot Inbox block rendered by the runtime; empty when nothing is pending. */
+
   inbox: string;
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
@@ -143,13 +143,12 @@ export interface AssignmentAgentRun {
   sessionId: string;
   bot: PersonaBotRecord;
   purpose: string;
-  /** An addressed request into an existing Session rather than an initial turn. */
+
   resume?: boolean;
   permission: AssignmentPermissionSnapshot;
   report(input: AssignmentReportInput): Promise<AssignmentReport>;
 }
 
-/** An addressed request is steered into a live run or accepted as a follow-up turn. */
 export type AssignmentRequestDelivery =
   | { delivery: 'steer' }
   | { delivery: 'followup'; done: Promise<void> };
@@ -187,7 +186,7 @@ export interface ChannelListPage {
 export interface OrchestratorChannelAccess {
   list(input?: ChannelListInput): ChannelListPage;
   read(input?: { channelId?: string; before?: string; limit?: number }): ChannelMessageView[];
-  /** Explicitly dismiss an observed Channel message for this PersonaBot. */
+
   ignore(input: { channelId?: string; messageId: string }): {
     sourceEventId: string;
     ignoredAt: string;
@@ -248,10 +247,9 @@ export interface OrchestratorChannelAccess {
   }): Promise<ChannelMessage>;
 }
 
-/** Adapter at the DSH Agent seam; tests and the pinned Host runtime satisfy the same interface. */
 export interface BotAgentAdapter {
   runOrchestrator(run: OrchestratorAgentRun): Promise<void>;
-  /** Steer a running Orchestrator at DSH's next safe step. */
+
   steerOrchestrator?(botSlug: string, text: string): boolean;
   runAssignment(run: AssignmentAgentRun): Promise<void>;
   requestAssignment(run: AssignmentAgentRun): AssignmentRequestDelivery;
@@ -278,29 +276,22 @@ export type DmMessageAdmission =
   | { admitted: false; reason: DmAdmissionFailure };
 
 export interface BotRuntime {
-  /**
-   * Validate one Human DM against the current Channel and PersonaBot, durably
-   * claim its Source Event, and schedule the Orchestrator turn on the
-   * Channel's serial queue. Returns after admission and scheduling; the
-   * returned `settled` promise resolves when that turn finishes and is never
-   * awaited by the browser bridge.
-   */
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
-  /** Schedule each committed Group mention independently; content and Admissions already exist. */
+
   admitGroupMessage(channelId: string, messageId: string): void;
-  /** Retry a committed Group admission wake after transient post-commit notification failure. */
+
   retryGroupMessageAdmission?(channelId: string, messageId: string): void;
-  /** Schedule the one recipient of a committed Bot-to-Bot DM message. */
+
   admitBotDmMessage(channelId: string, messageId: string): void;
-  /** Wake an invitee on a durable invitation without granting Group membership. */
+
   admitGroupInvitation(targetDmChannelId: string, invitationId: string): void;
   admitGroupJoinRequest?(ownerDmChannelId: string, requestId: string): void;
   admitGroupJoinDecision?(requesterDmChannelId: string, requestId: string): void;
   listAssignments(botSlug: string): AssignmentSummary[];
   getAssignment(botSlug: string, sessionId: string): AssignmentDetail | undefined;
-  /** Re-arm persisted ordinary-message digests after a paused Bot resumes. */
+
   resumePendingDigests?(botSlug: string): void;
-  /** Resolves when queued turns and detached Assignment runs have drained. */
+
   whenIdle(): Promise<void>;
   close(): Promise<void>;
 }
@@ -320,36 +311,32 @@ export interface BotRuntimeOptions {
     | 'continueFromCommit'
     | 'takeTurnAnnotation'
   >;
-  /** Profile-scoped Channel attachment authority. */
+
   attachments?: AttachmentStore;
-  /** Shared ownership interface; defaults to one bound to `database`. */
+
   ownership?: SessionOwnership;
-  /** Human-owned Workspace Grant authority; Assignment creation fails closed when absent. */
+
   grants?: WorkspaceGrantStore;
   assignmentAccess?: AssignmentAccessStore;
-  /** DSH Spill provider for oversized Assignment reports. */
+
   saveReportSpill?: (input: {
     sessionId: string;
     content: string;
   }) => Promise<{ locator: string; bytes: number; retrievalHint: string }>;
-  /** DSH Session Query exact read, supplied by the Host rather than model input. */
+
   readAssignmentTail?: (sessionId: string) => Promise<AssignmentEventTail>;
   readAssignmentReportPage?: (
     sessionId: string,
     acceptedSummary: string,
     offset: number,
   ) => Promise<AssignmentReportPage>;
-  /** Explicit run-configuration root recorded as each Session's cwd reference. */
+
   workspaceRoot?: string;
-  /**
-   * Explicit Orchestrator working directory (the PersonaBot's Memory
-   * Repository). Assignments keep the legacy workspace resolution until
-   * Workspace Grants land.
-   */
+
   orchestratorCwd?: (bot: PersonaBotRecord) => string | undefined;
-  /** Profile-wide Assignment Concurrency Limit; defaults to 3. */
+
   assignmentConcurrencyLimit?: number;
-  /** Machine-readable Host diagnostics for recoverable runtime transitions. */
+
   warn?: (message: string) => void;
   now?: () => Date;
   createSessionId?: () => string;
@@ -510,7 +497,6 @@ function assignmentFromRow(row: AssignmentRow): AssignmentDetail {
   };
 }
 
-/** The inbox block coalesces unobserved reports of one Assignment into one unit. */
 function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
   const units = new Map<string, InboxUnit>();
   for (const row of rows) {
@@ -657,8 +643,7 @@ class BotRuntimeImplementation implements BotRuntime {
       32,
     );
     this.#warn = options.warn;
-    // Recovery mode still mounts the plugin for files and diagnostics; every
-    // Messaging operation there already fails closed, so skip the sweep.
+
     if (options.database.mode === 'ready') {
       this.#recoverInterruptedAttempts();
       this.#recoverPendingChannelAdmissions();
@@ -677,8 +662,7 @@ class BotRuntimeImplementation implements BotRuntime {
     const bot = this.#registry.get(channel.botSlug);
     if (bot === undefined) return { admitted: false, reason: 'unknown-bot' };
     if (bot.paused === true) return { admitted: false, reason: 'archived-bot' };
-    // The Source Event stores the Channel body verbatim. Keep its identity
-    // separate from the attachment-only text supplied to the Orchestrator.
+
     const persistedBody = this.#channels.message(channel.id, input.messageId)?.body;
     const body = persistedBody?.trim() ? persistedBody : input.body;
     if (body.trim().length === 0) return { admitted: false, reason: 'blank-body' };
@@ -719,9 +703,7 @@ class BotRuntimeImplementation implements BotRuntime {
             schedule(attempt + 1);
             try {
               this.#warn?.('group-admission-notification-retry-failed');
-            } catch {
-              // A diagnostic sink failure must not stop the next recovery attempt.
-            }
+            } catch {}
           }
         },
         Math.min(100 * 2 ** attempt, 30_000),
@@ -859,8 +841,7 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#channels.admissionChanged?.(channelId, messageId);
     for (const row of claimed?.rows ?? [])
       this.#channels.admissionChanged?.(channelId, row.message_id);
-    // Record the DSH boundary before invoking it. A crash after delivery must
-    // require repair rather than silently replaying the same mention.
+
     this.#markAdmissionsSideEffect(
       botSlug,
       admissions.map((item) => item.sourceEventId),
@@ -911,8 +892,7 @@ class BotRuntimeImplementation implements BotRuntime {
     }
     for (const admission of admissions)
       this.#observeAdmission(admission.sourceEventId, botSlug, channelId, admission.messageId);
-    // Settle the steered admissions as part of tracked work: whenIdle() must
-    // never return before a state write it could observe has happened.
+
     const settlement = active.then(
       () => this.#settleSteeredAdmission(admissions, botSlug, channelId, true),
       () => this.#settleSteeredAdmission(admissions, botSlug, channelId, false),
@@ -1425,7 +1405,7 @@ class BotRuntimeImplementation implements BotRuntime {
             .all(botSlug, group.channel_id, group.revision) as unknown as DigestRow[];
           const rows: DigestRow[] = [];
           const alreadyIncluded = budget.includedByChannel.get(group.channel_id) ?? 0;
-          // A direct mention keeps room for its nearby pending context after due digests.
+
           const contextReserve = itemRows.some((row) => row.channel_id === group.channel_id)
             ? 4_000
             : 0;
@@ -1510,8 +1490,7 @@ class BotRuntimeImplementation implements BotRuntime {
       .prepare(`${columns} ${base} ORDER BY e.created_at DESC, e.rowid DESC LIMIT ?`)
       .all(botSlug, channelId, GROUP_CONTEXT_RECENT_LIMIT) as unknown as DigestRow[];
     const candidates = new Map<string, DigestRow>();
-    // Reserve the first two slots for the oldest unread and the closest context
-    // to the trigger, then advance the old slice before filling recent slots.
+
     for (const row of [
       ...oldest.slice(0, 1),
       ...newest.slice(0, 1),
@@ -1828,8 +1807,7 @@ class BotRuntimeImplementation implements BotRuntime {
 
     const timestamp = this.#now().toISOString();
     const orchestrator = this.#ensureOrchestrator(bot, timestamp);
-    // Pending reports ride the Human turn too; Observation is recorded the
-    // moment the block enters the turn input and rolled back if the turn fails.
+
     const collected = this.#collectInbox(bot.slug);
     this.#setObserved(collected.eventIds, timestamp);
     try {
@@ -1901,8 +1879,6 @@ class BotRuntimeImplementation implements BotRuntime {
   ): Promise<void> {
     const readAdmissions = new Set<string>();
     const markSideEffect = (): void => {
-      // Mark every report in the context before crossing the external boundary.
-      // A crash between markers must conservatively leave reports for repair.
       this.#markReportSideEffects(reportEventIds, bot.slug);
       markAttemptSideEffect();
     };
@@ -2017,8 +1993,6 @@ class BotRuntimeImplementation implements BotRuntime {
     sourceEventId: string,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
   ): OrchestratorAssignmentAccess {
-    // Creating or waking an Assignment Session crosses into DSH, so the current
-    // attempt is no longer safely replayable once either starts.
     const markSideEffect = markAttemptSideEffect;
     return {
       create: (input) => {
@@ -2138,12 +2112,6 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  /**
-   * Record that an external side effect started while the attempt stays
-   * `running`: the attempt is no longer safely replayable, but it has not
-   * failed yet. The marker survives a crash and is what boot recovery and the
-   * failure path use to decide between reconciliation and retry.
-   */
   #markSideEffectStarted(sourceEventId: string): void {
     this.#database.transaction(
       (database) => {
@@ -2166,7 +2134,6 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  /** A failed attempt is retryable only when no side effect had started. */
   #markSourceEventFailed(sourceEventId: string): void {
     this.#database.transaction(
       (database) => {
@@ -2193,10 +2160,6 @@ class BotRuntimeImplementation implements BotRuntime {
     );
   }
 
-  /**
-   * Boot recovery for attempts a previous process left behind: an unfinished
-   * attempt with a side effect needs reconciliation; one without is retryable.
-   */
   #recoverInterruptedAttempts(): void {
     this.#database.transaction(
       (database) => {
@@ -2222,9 +2185,7 @@ class BotRuntimeImplementation implements BotRuntime {
             "UPDATE assignments SET stop_state = 'stopped', activity = 'idle', continuity_key = NULL, open_ask_source_event_id = NULL, open_ask_at = NULL WHERE stop_state = 'requested'",
           )
           .run();
-        // A previous Host process cannot still own an Agent turn. Keep the
-        // failed Assignment visible, but free its slot and continuity key so
-        // the Orchestrator can create a replacement under the same direction.
+
         database
           .prepare(
             "UPDATE assignments SET activity = 'error', continuity_key = NULL, updated_at = ? WHERE activity = 'working' AND stop_state = 'running'",
@@ -3558,8 +3519,7 @@ class BotRuntimeImplementation implements BotRuntime {
       return false;
     }
     if (prior?.timer !== undefined) clearTimeout(prior.timer);
-    // BotHarness may mount before DSH's Agent Loop registers its factory.
-    // Keep the durable admission pending until that startup gap closes.
+
     const delayMs = Math.min(250 * 2 ** attempts, 2_000);
     this.#warn?.(
       JSON.stringify({
@@ -3599,8 +3559,7 @@ class BotRuntimeImplementation implements BotRuntime {
           )
           .all(botSlug) as unknown as InboxReportRow[],
     );
-    // Newest-first in SQL bounds the batch; coalescing reads oldest-first so the
-    // unit keeps the latest summary and its repeat count.
+
     rows.reverse();
     const units = coalesceInbox(rows);
     return {

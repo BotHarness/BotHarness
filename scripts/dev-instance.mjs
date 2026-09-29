@@ -1,16 +1,3 @@
-// Boot one isolated DSH dev instance for agent or human verification.
-//
-// Usage (from any worktree of this repo):
-//   node scripts/dev-instance.mjs [--home <path>] [--port <port>] [--profile <name>]
-//                                 [--worktree <path>] [--build] [--json]
-//
-// The helper owns the whole dev-loop ritual so agents never re-derive it:
-//   profile from the web template → link this worktree's packages → install →
-//   launch detached with the machine-local DeepSeek secret → wait for the
-//   one-shot token URL → verify the plugin layer answers `/api`.
-//
-// Every instance is isolated by DSH_HOME and port, so worktrees, ports, and
-// tokens can multiply without disturbing each other or a running VNC session.
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -144,8 +131,7 @@ function ensureProfile(options) {
     ...manifest.dsh,
     profile: {
       ...manifest.dsh?.profile,
-      // Computer is an optional product bundle (ADR-0050), but the dev loop
-      // exercises it by default so its sidebar entry and viewer are present.
+
       bundles: [
         '@deepseek-ai/dsh-base',
         '@deepseek-ai/dsh-web-app',
@@ -170,8 +156,7 @@ function launch(options) {
   );
   const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
   const [command, cli] = dshCommand(options.worktree);
-  // The child writes straight to the log fd: no pipes means this parent can
-  // exit without holding the detached server open.
+
   const logFd = openSync(logPath, 'w');
   const child = spawn(
     command,

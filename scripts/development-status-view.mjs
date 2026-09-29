@@ -120,7 +120,6 @@ function artifactView(definition, projection, pair) {
   };
 }
 
-/** Build the four-state, artifact-separated public Development status model. */
 export function buildDevelopmentStatus({ projection, deepSeekBot, dshSkill }) {
   const pairs = { deepseekbot: deepSeekBot, 'dsh-skill': dshSkill };
   return {

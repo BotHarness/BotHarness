@@ -1,16 +1,3 @@
-// Round-trip evidence probe for #154 (Computer export/import portable snapshot).
-//
-// Usage:
-//   node scripts/dev-instance.mjs --home <dsh-home> --port <port> --worktree <path> --build
-//   # profile cordis.patch.yml must set botharness-computer config:
-//   #   containerName/volumeName (scratch names), hostPort, exportDir
-//   node scripts/probe-computer-export.mjs --url '<token-url-from-dev-instance>' \
-//     --container <scratch-container> --volume <scratch-volume> --export-dir <dir> [--json]
-//
-// Flow: start → seed workspace markers + hash stable files → export (watch
-// stopping/exporting phases) → remove container + volume → import → re-hash
-// and compare. Refuses the Human's default container/volume names.
-
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -176,9 +163,7 @@ async function watchPhases(base, cookie, stop, samples) {
       if (last === undefined || last.state !== state || last.phase !== phase) {
         samples.push({ at: Date.now(), state, phase: phase ?? null });
       }
-    } catch {
-      // A poll racing a restart is expected; keep watching.
-    }
+    } catch {}
     await new Promise((resolve) => setTimeout(resolve, 400));
   }
 }
@@ -220,9 +205,6 @@ async function main() {
   await waitForState(base, cookie, 'running', 300_000);
   check('reaches-running', true, '');
 
-  // The fresh-create path seeds the desktop shortcut but not the panel
-  // defaults/autostart entry; those run on the next stopped → start cycle.
-  // One cycle here matches the Human's steady state before hashing.
   const cycledStop = await postJson(base, cookie, '/api/computer/stop', { authorize: true });
   check(
     'cycle-stop-accepted',

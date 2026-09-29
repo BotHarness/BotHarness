@@ -65,11 +65,11 @@ describe('Channel post-commit stream', () => {
       new Request(`http://localhost/api/botharness/stream?channelId=${group.id}&after=1`),
     );
     const reader = response.body!.getReader();
-    await reader.read(); // retry
+    await reader.read();
     const baseline = new TextDecoder().decode((await reader.read()).value);
     expect(baseline).toContain('event: channel/human-read');
     expect(baseline).toContain('"revision":1');
-    await reader.read(); // draft baseline
+    await reader.read();
     hub.publishHumanRead(group.id, 'local-human', 2);
     const update = new TextDecoder().decode((await reader.read()).value);
     expect(update).toContain('event: channel/human-read');
@@ -139,7 +139,7 @@ describe('Channel post-commit stream', () => {
       }),
     );
     const reader = response.body?.getReader();
-    await reader?.read(); // retry
+    await reader?.read();
     const replay = await reader?.read();
     expect(new TextDecoder().decode(replay?.value)).toContain('id: 2\nevent: channel/message');
     await reader?.cancel();
@@ -159,8 +159,8 @@ describe('Channel post-commit stream', () => {
     const reader = hub
       .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=0`))
       .body?.getReader();
-    await reader?.read(); // retry
-    await reader?.read(); // draft baseline
+    await reader?.read();
+    await reader?.read();
     await store.appendMessage(dm.id, {
       ...message('reply'),
       author: { kind: 'bot', slug: 'persona-live' },
@@ -185,7 +185,7 @@ describe('Channel post-commit stream', () => {
     const reader = hub
       .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=0`))
       .body?.getReader();
-    await reader?.read(); // retry
+    await reader?.read();
     expect(new TextDecoder().decode((await reader?.read())?.value)).toContain(
       'event: channel/draft-baseline',
     );
@@ -265,7 +265,7 @@ describe('Channel post-commit stream', () => {
     const reader = hub
       .open(new Request(`http://localhost${CHANNEL_STREAM_PATH}?channelId=${dm.id}&after=1`))
       .body?.getReader();
-    await reader?.read(); // retry
+    await reader?.read();
     const baseline = new TextDecoder().decode((await reader?.read())?.value);
     expect(baseline).toContain('"drafts":[]');
     await reader?.cancel();

@@ -1,12 +1,3 @@
-/**
- * Regenerate the Bot icon asset module from the source artwork.
- *
- * The client bundle is a single file (`packages/client/lib/client.js`), so the
- * DeepSeekBot mascot artwork ships as base64 data URIs rather than as separate
- * files. Edit the PNGs under `packages/client/assets/bot/` and run
- * `pnpm bot:icons`; never hand-edit the generated module.
- */
-
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';

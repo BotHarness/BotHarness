@@ -1,4 +1,3 @@
-// Live DSH tracer for #215: selection and bounded batch commands use the real sidebar and roster store.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -330,8 +329,7 @@ try {
   );
   if (pinnedBefore.length !== 2) throw new Error('pinned pair is not visible');
   const [pinTarget, pinSource] = pinnedBefore;
-  // CDP pointer drags can miss the grid hit target; dispatch the same browser
-  // DragEvents to verify the UI handlers and durable Host ordering deterministically.
+
   await page.evaluate((sourceId) => {
     const source = document.querySelector(`button.bh-pinned[data-channel-id="${sourceId}"]`);
     if (!(source instanceof HTMLButtonElement)) throw new Error('pin source missing');

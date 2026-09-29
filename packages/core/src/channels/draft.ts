@@ -1,7 +1,6 @@
 import type { AssistantStreamFrame } from '@deepseek-ai/dsh-agent';
 import { BlockAssembler } from '@deepseek-ai/dsh-llm';
 
-/** A presentation-only Channel draft; neither a Channel message nor a Source Event. */
 export interface ChannelDraft {
   channelId: string;
   draftId: string;
@@ -40,7 +39,6 @@ interface DraftCall {
   published: ChannelDraft | undefined;
 }
 
-/** Reads flat string fields even before the outer JSON object is closed. */
 function stringField(raw: string, key: string): { value: string; complete: boolean } | undefined {
   const segments: string[] = [];
   let depth = 0;
@@ -89,9 +87,7 @@ function stringField(raw: string, key: string): { value: string; complete: boole
         const value: unknown = JSON.parse('"' + content.slice(0, length) + '"');
         if (typeof value === 'string')
           return { value, complete: complete && length === content.length };
-      } catch {
-        // The provider may split an escape or Unicode sequence across chunks.
-      }
+      } catch {}
     }
     return undefined;
   }
@@ -107,7 +103,6 @@ function explicitChannelId(raw: string): string | undefined {
   return field?.complete === true && field.value.length > 0 ? field.value : undefined;
 }
 
-/** Tracks only Orchestrator channel_send arguments; never treats final assistant text as chat. */
 export class ChannelDraftTracker {
   readonly #runs = new Map<string, DraftRun>();
   readonly #publish: (event: ChannelDraftEvent) => void;
@@ -156,7 +151,6 @@ export class ChannelDraftTracker {
     }
   }
 
-  /** Called only after channel_send has durably committed its message. */
   settle(sessionId: string, channelId: string, body: string): void {
     const run = this.#runs.get(sessionId);
     if (run === undefined) return;

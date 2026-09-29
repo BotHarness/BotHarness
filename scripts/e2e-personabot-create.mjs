@@ -1,14 +1,3 @@
-/**
- * Live DSH Web Profile regression for the first BotHarness tracer bullet.
- *
- * Builds and links this checkout, creates a native Workspace and a PersonaBot
- * through the authenticated API Gateway, restarts its own isolated Host, then
- * reads the PersonaBot and Git Memory Repository again. With --with-dm,
- * it also checks a real API Gateway DM after restart.
- *
- * Run with a working Node/pnpm toolchain:
- *   node scripts/e2e-personabot-create.mjs [--with-dm]
- */
 import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';

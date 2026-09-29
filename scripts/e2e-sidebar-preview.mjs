@@ -1,4 +1,3 @@
-/** Installed DSH check for unpinned Group and PersonaBot DM conversation rows. */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';

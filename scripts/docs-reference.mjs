@@ -1,8 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 
-// TypeScript 7's root export contains version metadata only. The docs
-// generator uses the stable 5.9 compiler API through an explicit alias.
 import * as ts from 'typescript-legacy';
 
 const EVENT_METHODS = new Set(['on', 'emit', 'parallel', 'serial', 'bail']);

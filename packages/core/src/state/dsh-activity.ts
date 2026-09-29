@@ -2,11 +2,6 @@ import type { SessionOwnership } from '../sessions/ownership.js';
 import type { DshSessionEvent } from '../sessions/source.js';
 import type { BotStateTracker, SessionState } from './bot-state.js';
 
-/**
- * Map one durable DSH Session event to the coarse presentation state the
- * PersonaBot tracker exposes. Waiting and blocked are not derivable from raw
- * execution events; they come from BotHarness attention facts later.
- */
 export function sessionStateForEvent(event: DshSessionEvent): SessionState | undefined {
   switch (event.type) {
     case 'tool/call':
@@ -25,7 +20,6 @@ export function sessionStateForEvent(event: DshSessionEvent): SessionState | und
   }
 }
 
-/** The last state-bearing event wins; logs without one stay unknown. */
 export function deriveSessionState(events: readonly DshSessionEvent[]): SessionState | undefined {
   for (let index = events.length - 1; index >= 0; index -= 1) {
     const event = events[index];
@@ -36,7 +30,6 @@ export function deriveSessionState(events: readonly DshSessionEvent[]): SessionS
   return undefined;
 }
 
-/** The durable header fields lineage attribution reads; never ownership proof. */
 export interface DshActivitySessionHeader {
   parentSession?: string;
   origin?: 'subagent';
@@ -49,25 +42,20 @@ export interface DshActivitySession {
 }
 
 export interface DshActivityRebuildReport {
-  /** Owned Sessions whose state was derived and published. */
   rebuilt: number;
-  /** Sessions newly attributed to an owned parent through lineage. */
+
   attributed: number;
-  /** Sessions without an ownership record; they never enter a PersonaBot. */
+
   unowned: number;
 }
 
 export interface DshActivityProjection {
-  /** Live `session/event` sink; unowned Sessions are ignored. */
   handleSessionEvent(sessionId: string, event: DshSessionEvent): void;
-  /**
-   * `agent/created` sink: a fork or DSH Subagent inherits its parent's
-   * PersonaBot through lineage, and never becomes an independent root.
-   */
+
   handleAgentCreated(session: DshActivitySession): boolean;
-  /** `agent/disposed` sink; the Session leaves its PersonaBot's projection. */
+
   handleSessionDisposed(sessionId: string): void;
-  /** Cold rebuild from durable logs, bounded by owned Sessions. */
+
   rebuild(sessions: readonly DshActivitySession[]): DshActivityRebuildReport;
 }
 
