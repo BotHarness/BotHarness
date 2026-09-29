@@ -108,8 +108,14 @@ function stubActions(): BridgeActions {
     createModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset creation');
     }),
+    updateModelPreset: vi.fn(async () => {
+      throw new Error('unexpected Model Preset update');
+    }),
     applyModelPreset: vi.fn(async () => {
       throw new Error('unexpected Model Preset application');
+    }),
+    customizeModelPlan: vi.fn(async () => {
+      throw new Error('unexpected Model Plan customization');
     }),
     listHostFolders: vi.fn(async () => ({
       path: '/',

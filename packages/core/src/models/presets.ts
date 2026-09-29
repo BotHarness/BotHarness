@@ -36,6 +36,15 @@ export interface ModelPresetStore {
     orchestrator: ModelRoute;
     assignmentDefault: ModelRoute;
   }): ModelPreset;
+  update(
+    id: string,
+    input: {
+      expectedRevision: number;
+      name: string;
+      orchestrator: ModelRoute;
+      assignmentDefault: ModelRoute;
+    },
+  ): ModelPreset | undefined;
 }
 
 export function isModelRoute(value: unknown): value is ModelRoute {
@@ -115,6 +124,34 @@ export function createModelPresetStore(rootDir: string, now = () => new Date()):
       mkdirSync(dirname(file), { recursive: true });
       atomicWriteFile(file, `${JSON.stringify([...presets, preset], null, 2)}\n`);
       return preset;
+    },
+    update(id, input) {
+      const name = input.name.trim();
+      if (name.length === 0 || name.length > 100) throw new Error('Model Preset name is required');
+      const presets = read();
+      const index = presets.findIndex((preset) => preset.id === id);
+      if (index < 0) return undefined;
+      const current = presets[index]!;
+      if (current.revision !== input.expectedRevision) {
+        throw new Error('Model Preset changed; select Edit selected preset again before saving');
+      }
+      if (
+        presets.some(
+          (preset) => preset.id !== id && preset.name.toLowerCase() === name.toLowerCase(),
+        )
+      ) {
+        throw new Error('Model Preset name already exists');
+      }
+      const updated: ModelPreset = {
+        ...current,
+        name,
+        revision: current.revision + 1,
+        orchestrator: { ...input.orchestrator },
+        assignmentDefault: { ...input.assignmentDefault },
+      };
+      presets[index] = updated;
+      atomicWriteFile(file, `${JSON.stringify(presets, null, 2)}\n`);
+      return updated;
     },
   };
 }

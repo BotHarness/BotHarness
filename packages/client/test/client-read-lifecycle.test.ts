@@ -254,6 +254,7 @@ describe('mounted request ownership', () => {
       botSourcePolicies: vi.fn(async () => [policy()]),
       setBotSourcePolicy: vi.fn(() => save.promise),
       modelPlan: vi.fn(async () => undefined),
+      modelPresets: vi.fn(async () => []),
     } as unknown as BridgeActions;
     const render = (slug: string) =>
       createElement(ProfileView, {

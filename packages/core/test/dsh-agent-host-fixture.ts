@@ -41,6 +41,7 @@ interface FakeScope {
   tools: ToolDefinition[];
   restrictions: Array<{ allow?: readonly string[]; deny?: readonly string[] }>;
   sections: Array<{ name: string; text: string }>;
+  listeners: Map<string, (...args: unknown[]) => unknown>;
 }
 
 interface FakeEvent {
@@ -61,6 +62,17 @@ export class FakeAgentHost implements DshAgentHost {
 
   get(id: string): Agent | undefined {
     return this.#live.get(String(id));
+  }
+
+  async selectedModel(sessionId: string): Promise<unknown> {
+    const scope = this.scopes.get(sessionId);
+    const assemble = scope?.listeners.get('system-prompt/assemble');
+    const request = scope?.listeners.get('agent/request');
+    if (assemble === undefined || request === undefined) {
+      throw new Error(`Model selection listeners unavailable for ${sessionId}`);
+    }
+    await assemble({}, {}, async () => ({ variables: {} }));
+    return request({}, async () => ({ provider: 'test', model: 'test' }));
   }
 
   constructor(
@@ -86,7 +98,7 @@ export class FakeAgentHost implements DshAgentHost {
     cwd: string | undefined,
     setup: CreateAgentOptions['setup'] | ResumeAgentOptions['setup'],
   ): Promise<AgentHandle> {
-    const scope: FakeScope = { tools: [], restrictions: [], sections: [] };
+    const scope: FakeScope = { tools: [], restrictions: [], sections: [], listeners: new Map() };
     const messages: Message[] = [];
     const events: FakeEvent[] = [];
     const session: FakeSession = {
@@ -130,7 +142,10 @@ export class FakeAgentHost implements DshAgentHost {
       whenIdle: () => pending,
     };
     const fakeContext = {
-      on: () => () => undefined,
+      on: (event: string, listener: (...args: unknown[]) => unknown) => {
+        scope.listeners.set(event, listener);
+        return () => void scope.listeners.delete(event);
+      },
       tools: {
         schemas: (viewingAgent: unknown) =>
           viewingAgent === undefined

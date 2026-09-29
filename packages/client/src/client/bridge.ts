@@ -116,12 +116,43 @@ export async function createModelPreset(
   return value!['preset'] as ModelPresetView;
 }
 
+export async function updateModelPreset(
+  call: BridgeCall,
+  id: string,
+  expectedRevision: number,
+  name: string,
+  orchestrator: ModelRouteView,
+  assignmentDefault: ModelRouteView,
+): Promise<ModelPresetView> {
+  const value = asRecord(
+    await unwrap(call, 'modelPresetUpdate', {
+      id,
+      expectedRevision,
+      name,
+      orchestrator,
+      assignmentDefault,
+    }),
+  );
+  if (asRecord(value?.['preset']) === undefined) throw new Error('Invalid Model Preset result');
+  return value!['preset'] as ModelPresetView;
+}
+
 export async function applyModelPreset(
   call: BridgeCall,
   slug: string,
   presetId: string,
 ): Promise<ModelPlanView> {
   const value = asRecord(await unwrap(call, 'modelPresetApply', { slug, presetId }));
+  if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
+  return value!['plan'] as ModelPlanView;
+}
+
+export async function customizeModelPlan(
+  call: BridgeCall,
+  slug: string,
+  orchestrator: ModelRouteView,
+): Promise<ModelPlanView> {
+  const value = asRecord(await unwrap(call, 'modelPlanCustomize', { slug, orchestrator }));
   if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
   return value!['plan'] as ModelPlanView;
 }

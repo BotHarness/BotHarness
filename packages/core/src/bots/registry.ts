@@ -58,6 +58,11 @@ export interface PersonaBotRegistry {
   setBrowserAccess(slug: string, enabled: boolean): UpdatePersonaBotResult;
   setBrowserProfile(slug: string, profile: string): UpdatePersonaBotResult;
   applyModelPreset(slug: string, preset: ModelPreset): UpdatePersonaBotResult;
+  customizeModelPlan(
+    slug: string,
+    orchestrator: PersonaBotModelPlan['orchestrator'],
+    expectedRevision: number,
+  ): UpdatePersonaBotResult;
 }
 
 function isMissing(error: unknown): boolean {
@@ -348,6 +353,23 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         appliedAt: now().toISOString(),
       };
       record.modelPlan = plan;
+      write(record);
+      return { ok: true, record };
+    },
+    customizeModelPlan(slug, orchestrator, expectedRevision) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (record.modelPlan === undefined) return { ok: false, reason: 'invalid-input' };
+      if (record.modelPlan.revision !== expectedRevision)
+        return { ok: false, reason: 'invalid-input' };
+      record.modelPlan = {
+        ...record.modelPlan,
+        revision: record.modelPlan.revision + 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        orchestrator: { ...orchestrator },
+        appliedAt: now().toISOString(),
+      };
       write(record);
       return { ok: true, record };
     },
