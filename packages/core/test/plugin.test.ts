@@ -62,7 +62,14 @@ function createStubContext(): { ctx: Context; stubs: Stubs } {
 describe('plugin entry', () => {
   it('declares its identity', () => {
     expect(name).toBe('botharness-core');
-    expect(inject).toEqual(['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel']);
+    expect(inject).toEqual([
+      'tools',
+      'systemPrompt',
+      'sessions',
+      'agents',
+      'agentDefaultModel',
+      'llm',
+    ]);
   });
 
   it('registers nothing when disabled', () => {
@@ -236,6 +243,11 @@ describe('plugin entry', () => {
     expect(
       remoteMethods(bridge as object).map((marker) => marker.exportName ?? marker.method),
     ).toEqual([
+      'modelCatalog',
+      'modelPresets',
+      'modelPresetCreate',
+      'modelPresetApply',
+      'modelPlan',
       'list',
       'get',
       'create',

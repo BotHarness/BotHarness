@@ -47,6 +47,13 @@ import {
 } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import type { UsageProjection } from '../usage/usage.js';
+import {
+  isModelRoute,
+  type ModelPreset,
+  type ModelPresetStore,
+  type PersonaBotModelPlan,
+} from '../models/presets.js';
+import type { ModelCatalog, ModelCatalogEntry } from '../models/catalog.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
   WorkspaceGrantError,
@@ -102,6 +109,7 @@ export interface PersonaBotSummary {
 
 export interface PersonaBotDetail extends PersonaBotSummary {
   model?: string;
+  modelPlan?: PersonaBotModelPlan;
   preset?: string;
   memoryDir?: string;
   sessions: Record<string, SessionState>;
@@ -167,6 +175,11 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
+  modelPresets(payload: unknown): BridgeResult<{ presets: ModelPreset[] }>;
+  modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
+  modelPresetApply(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
+  modelPlan(payload: unknown): BridgeResult<{ plan?: PersonaBotModelPlan }>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -246,6 +259,8 @@ export interface BridgeMethods {
 
 export interface BridgeMethodsDeps {
   registry: PersonaBotRegistry;
+  modelPresets?: ModelPresetStore;
+  modelCatalog?: ModelCatalog;
   states: BotStateTracker;
   channels: ChannelStore;
   ownership: SessionOwnership;
@@ -496,6 +511,7 @@ function detail(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBo
     ...summarize(record, snapshot),
     sessions: { ...snapshot.sessions },
     ...(record.model === undefined ? {} : { model: record.model }),
+    ...(record.modelPlan === undefined ? {} : { modelPlan: record.modelPlan }),
     ...(record.preset === undefined ? {} : { preset: record.preset }),
     ...(record.memoryDir === undefined ? {} : { memoryDir: record.memoryDir }),
   };
@@ -560,6 +576,67 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    async modelCatalog() {
+      if (deps.modelCatalog === undefined) return unavailable();
+      try {
+        return { ok: true, value: { models: await deps.modelCatalog.list() } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    modelPresets() {
+      if (deps.modelPresets === undefined) return unavailable();
+      return { ok: true, value: { presets: deps.modelPresets.list() } };
+    },
+    async modelPresetCreate(payload) {
+      if (deps.modelPresets === undefined || deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const name = source['name'];
+      const orchestrator = source['orchestrator'];
+      const assignmentDefault = source['assignmentDefault'];
+      if (
+        typeof name !== 'string' ||
+        !isModelRoute(orchestrator) ||
+        !isModelRoute(assignmentDefault)
+      )
+        return invalidInput('A name and valid Orchestrator and Assignment routes are required');
+      try {
+        await deps.modelCatalog.validate(orchestrator);
+        await deps.modelCatalog.validate(assignmentDefault);
+        const preset = deps.modelPresets.create({ name, orchestrator, assignmentDefault });
+        return { ok: true, value: { preset } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    async modelPresetApply(payload) {
+      if (deps.modelPresets === undefined || deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = source['slug'];
+      const presetId = source['presetId'];
+      if (typeof slug !== 'string' || typeof presetId !== 'string') {
+        return invalidInput('slug and presetId are required');
+      }
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      const preset = deps.modelPresets.get(presetId);
+      if (preset === undefined) return invalidInput('Model Preset was not found');
+      try {
+        await deps.modelCatalog.validate(preset.orchestrator);
+        await deps.modelCatalog.validate(preset.assignmentDefault);
+        const result = deps.registry.applyModelPreset(slug, preset);
+        if (!result.ok || result.record.modelPlan === undefined) return unknownBot(slug);
+        return { ok: true, value: { plan: result.record.modelPlan } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    modelPlan(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      const bot = deps.registry.get(slug);
+      if (bot === undefined) return unknownBot(slug);
+      return { ok: true, value: bot.modelPlan === undefined ? {} : { plan: bot.modelPlan } };
+    },
     list(payload) {
       const query = asQuery(payload)?.trim().toLowerCase();
       const bots = deps.registry

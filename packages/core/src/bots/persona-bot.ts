@@ -1,3 +1,5 @@
+import { isPersonaBotModelPlan, type PersonaBotModelPlan } from '../models/presets.js';
+
 export interface PersonaBotRecord {
   slug: string;
   displayName: string;
@@ -7,6 +9,7 @@ export interface PersonaBotRecord {
   description?: string;
   avatar?: string;
   model?: string;
+  modelPlan?: PersonaBotModelPlan;
   preset?: string;
   memoryDir?: string;
   workspaces: string[];
@@ -108,5 +111,7 @@ export function isPersonaBotRecord(value: unknown, slug: string): value is Perso
     const optional = record[key];
     if (optional !== undefined && typeof optional !== 'string') return false;
   }
+  if (record['modelPlan'] !== undefined && !isPersonaBotModelPlan(record['modelPlan']))
+    return false;
   return true;
 }

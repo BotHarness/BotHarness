@@ -18,6 +18,8 @@ import { createBridgeMethods } from './bridge/methods.js';
 import type { BotAgentSetupInfo } from './runtime/dsh-bot-agent-adapter.js';
 import { registerBridge } from './bridge/rpc.js';
 import { createPersonaBotRegistry, type PersonaBotRegistry } from './bots/registry.js';
+import { createModelPresetStore, type ModelPresetStore } from './models/presets.js';
+import { createModelCatalog } from './models/catalog.js';
 import { createBotAvatarHttp, BOT_AVATAR_PATH } from './bots/avatar-http.js';
 import { createChannelLiveHub, CHANNEL_STREAM_PATH, type ChannelLiveHub } from './channels/live.js';
 import type { ChannelDraftEvent } from './channels/draft.js';
@@ -89,7 +91,7 @@ import { createUsageProjection, type UsageProjection } from './usage/usage.js';
 
 export const name = 'botharness-core';
 
-export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel'];
+export const inject = ['tools', 'systemPrompt', 'sessions', 'agents', 'agentDefaultModel', 'llm'];
 
 export const PERSONA_SECTION_ORDER = 10400;
 
@@ -142,6 +144,7 @@ export interface BotHarnessCore {
   rootDir: string;
   operationalDatabase: OperationalDatabaseOwner;
   registry: PersonaBotRegistry;
+  modelPresets: ModelPresetStore;
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
 
@@ -226,6 +229,7 @@ export function createCore(
           };
     },
   });
+  const modelPresets = createModelPresetStore(join(dshHome, 'botharness'));
   const states = createBotStateTracker();
   let live: ChannelLiveHub | undefined;
   let runtime: BotRuntime | undefined;
@@ -352,6 +356,7 @@ export function createCore(
     rootDir,
     operationalDatabase,
     registry,
+    modelPresets,
     contributeBotAgentSetup,
     runBotAgentSetups,
     hostTools,
@@ -384,6 +389,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   const agentAdapter = createDshBotAgentAdapter({
     agents: ctx.agents,
     defaultModel: (ctx as unknown as { agentDefaultModel: DshDefaultModelHost }).agentDefaultModel,
+    resolveModelPlan: (slug) => core.registry.get(slug)?.modelPlan,
     orchestratorCwd: (bot) => core.registry.memoryDirFor(bot.slug),
     defaultAgentPreset: config.agentPreset ?? DEFAULT_AGENT_PRESET,
     resolveAgentPresets: () => ctx.get('agentPresets') as DshAgentPresetHost | undefined,
@@ -657,6 +663,8 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     ctx,
     createBridgeMethods({
       registry: core.registry,
+      modelPresets: core.modelPresets,
+      modelCatalog: createModelCatalog(ctx.llm),
       states: core.states,
       channels: core.channels,
       ownership: core.ownership,

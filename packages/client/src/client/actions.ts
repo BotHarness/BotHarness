@@ -42,6 +42,15 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadModelCatalog,
+  loadModelPresets,
+  loadModelPlan,
+  createModelPreset,
+  applyModelPreset,
+  type ModelCatalogEntryView,
+  type ModelPresetView,
+  type ModelPlanView,
+  type ModelRouteView,
   loadBotSourcePolicies,
   type BotSourcePolicyEdit,
   setBotSourcePolicy,
@@ -111,6 +120,15 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  modelCatalog(): Promise<ModelCatalogEntryView[]>;
+  modelPresets(): Promise<ModelPresetView[]>;
+  modelPlan(slug: string): Promise<ModelPlanView | undefined>;
+  createModelPreset(
+    name: string,
+    orchestrator: ModelRouteView,
+    assignmentDefault: ModelRouteView,
+  ): Promise<ModelPresetView>;
+  applyModelPreset(slug: string, presetId: string): Promise<ModelPlanView>;
   listHostFolders(path?: string, signal?: AbortSignal): Promise<HostDirectoryListing>;
   addWorkspaceFolder(slug: string): Promise<WorkspaceGrantView | undefined>;
   authorizeWorkspacePath(slug: string, path: string): Promise<WorkspaceGrantView>;
@@ -567,6 +585,12 @@ export function createActions(
   };
 
   const actions: BridgeActions = {
+    modelCatalog: () => loadModelCatalog(call),
+    modelPresets: () => loadModelPresets(call),
+    modelPlan: (slug) => loadModelPlan(call, slug),
+    createModelPreset: (name, orchestrator, assignmentDefault) =>
+      createModelPreset(call, name, orchestrator, assignmentDefault),
+    applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
     listHostFolders(path, signal) {
       if (folderAccess?.listDirectory === undefined)
         throw new Error('DSH folder browser is unavailable');

@@ -2,6 +2,8 @@ import type { Context } from '@deepseek-ai/cordis';
 import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
 import type { PersonaBotPatch } from '../bots/persona-bot.js';
+import type { ModelCatalogEntry } from '../models/catalog.js';
+import type { ModelPreset, ModelRoute, PersonaBotModelPlan } from '../models/presets.js';
 import type {
   BridgeError,
   BridgeMethods,
@@ -101,6 +103,30 @@ export class BotharnessBridgeService extends TypertRemoteService {
   constructor(ctx: Context, methods: BridgeMethods) {
     super(ctx, BRIDGE_SERVICE_KEY, { namespace: BRIDGE_NAMESPACE });
     this.methods = methods;
+  }
+
+  modelCatalog(): Promise<{ models: ModelCatalogEntry[] }> {
+    return unwrapAsync(this.methods.modelCatalog({}));
+  }
+
+  modelPresets(): { presets: ModelPreset[] } {
+    return unwrap(this.methods.modelPresets({}));
+  }
+
+  modelPresetCreate(
+    name: string,
+    orchestrator: ModelRoute,
+    assignmentDefault: ModelRoute,
+  ): Promise<{ preset: ModelPreset }> {
+    return unwrapAsync(this.methods.modelPresetCreate({ name, orchestrator, assignmentDefault }));
+  }
+
+  modelPresetApply(slug: string, presetId: string): Promise<{ plan: PersonaBotModelPlan }> {
+    return unwrapAsync(this.methods.modelPresetApply({ slug, presetId }));
+  }
+
+  modelPlan(slug: string): { plan?: PersonaBotModelPlan } {
+    return unwrap(this.methods.modelPlan({ slug }));
   }
 
   list(query?: string): { bots: PersonaBotSummary[] } {
@@ -538,6 +564,11 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'modelCatalog',
+  'modelPresets',
+  'modelPresetCreate',
+  'modelPresetApply',
+  'modelPlan',
   'list',
   'get',
   'create',
