@@ -3,7 +3,6 @@ const shortcutTargetSelector =
 const openModalSelector =
   '[role="dialog"][aria-modal="true"], [role="alertdialog"][aria-modal="true"], dialog[open]';
 
-/** Keep navigation shortcuts out of edit fields and active modal UI. */
 export function webShortcutBlocked(
   target: EventTarget | null,
   root: { querySelector(selector: string): unknown },
@@ -18,7 +17,6 @@ export function webShortcutBlocked(
   return root.querySelector(openModalSelector) !== null;
 }
 
-/** Web keymap: Ctrl/Command+digits belong to browser tabs, so channels use Alt. */
 export function webChannelShortcutIndex(
   code: string,
   keys: {
@@ -54,7 +52,6 @@ export function webChannelShortcutLabel(index: number): string | undefined {
   return `Alt+${index === 9 ? 0 : index + 1}`;
 }
 
-/** The physical key left of Digit1 toggles the Bot panel while Alt is held. */
 export function webBotModeShortcut(
   code: string,
   keys: {

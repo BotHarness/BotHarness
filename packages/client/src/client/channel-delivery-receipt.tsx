@@ -135,8 +135,6 @@ export function ChannelDeliveryReceipt({
     offset += length;
     return sector;
   });
-  // Follow the filled, segmented status badge used by anysoul's message history.
-  // Keep a small gap between status groups, but never hollow out the center.
   const separator = Math.min(1.6, Math.max(0.8, (360 / allRecipients) * 0.04));
   const pieBackground =
     sectors.length === 1

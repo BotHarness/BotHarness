@@ -124,8 +124,7 @@ describe('source policy', () => {
     ).toHaveLength(1);
     const licenseSource = readFileSync('packages/client/src/client/hash-icon.tsx', 'utf8');
     const actual = await scanSource('packages/client/src/client/hash-icon.tsx', licenseSource);
-    expect(actual.some((item) => item.token.includes('ISC License'))).toBe(false);
-    expect(actual.some((item) => item.token.includes('IconProps'))).toBe(true);
+    expect(actual).toEqual([]);
     const alteredLicense = licenseSource.replace('Permission to use', 'Permission to misuse');
     const altered = await scanSource('packages/client/src/client/hash-icon.tsx', alteredLicense);
     expect(altered.some((item) => item.token.includes('ISC License'))).toBe(true);

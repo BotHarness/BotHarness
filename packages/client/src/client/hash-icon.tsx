@@ -28,13 +28,11 @@
 
 import type { ReactElement } from 'react';
 
-/** Primitives `IconProps` contract: square edge plus layout class, color rides `currentColor`. */
 export interface HashIconProps {
   size?: number | undefined;
   className?: string | undefined;
 }
 
-/** Group-channel `#` slot glyph: a 16px Lucide hash, vertically centered by the slot's flex. */
 export function HashIcon({ size = 16, className }: HashIconProps): ReactElement {
   return (
     <svg

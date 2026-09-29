@@ -17,26 +17,15 @@ import {
   type ConfigStorage,
 } from './roster-config.js';
 
-/** Dependencies of the one-shot arrangement migration. */
 export interface RosterMigrationOptions {
   storage: ConfigStorage | undefined;
   call: BridgeCall;
-  /** Re-key the #68 sort-mode store; false aborts the migration transaction. */
   remapSortModes: (mapping: ReadonlyMap<string, string>) => Promise<boolean>;
   warn?: ((message: string, error?: unknown) => void) | undefined;
 }
 
-/** `skipped`: nothing to do (or already migrated). */
 export type RosterMigrationOutcome = 'skipped' | 'migrated' | 'deferred';
 
-/**
- * Move the legacy browser arrangement into the host `botharness_roster`
- * domain once. Runs only when the host arrangement is empty and a legacy
- * record exists, and only clears the legacy fields after every step — host
- * writes, the sort-mode remap, and the backup — succeeded. A failure rolls
- * back the sections and pins this run wrote, so the host stays empty and the
- * next load retries cleanly from the legacy record.
- */
 export async function migrateLegacyRoster(
   options: RosterMigrationOptions,
 ): Promise<RosterMigrationOutcome> {

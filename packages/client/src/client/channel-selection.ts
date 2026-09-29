@@ -1,4 +1,3 @@
-/** Transient sidebar selection, independent of the currently open conversation. */
 export interface ChannelSelection {
   ids: readonly string[];
   anchorId: string | undefined;
@@ -6,7 +5,6 @@ export interface ChannelSelection {
 
 export type ChannelSelectionGesture = 'plain' | 'toggle' | 'range';
 
-/** Visible order is the authority: pinned first, then expanded roster rows. */
 export function selectChannels(
   current: ChannelSelection,
   visibleIds: readonly string[],

@@ -63,8 +63,6 @@ describe('bot panel entry', () => {
       createElement(entry, { size: 16, active: true, useBotModePrefs, openSettings, t }),
     );
 
-    // The exit hit layer and the gear live in a portal into the shell row,
-    // which only exists in the browser; server rendering shows the mark.
     expect(inactive).toContain('bh-bot-icon');
     expect(active).toContain('bh-bot-icon');
     expect(inactive).toContain('data-wide="true"');

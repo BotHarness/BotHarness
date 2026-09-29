@@ -22,7 +22,6 @@ export type PersonaBotActivityEffect =
   | 'generic-working';
 
 export interface PersonaBotAvatarProps {
-  /** Stable PersonaBot identity; never use a mutable display name as the seed. */
   personaBotId: string;
   name: string;
   size: number;
@@ -30,7 +29,6 @@ export interface PersonaBotAvatarProps {
   state?: PersonaBotActivityState | undefined;
   effect?: PersonaBotActivityEffect | undefined;
   indicator?: boolean | undefined;
-  /** Locale-bound translate for the activity label; Chinese when rendered in isolation. */
   t?: BotHarnessTranslate | undefined;
   className?: string | undefined;
 }
@@ -142,11 +140,6 @@ function ActivityIndicator({ state }: { state: PersonaBotActivityState }): React
   return <span className="bh-avatar-indicator" aria-hidden="true" />;
 }
 
-/**
- * The only PersonaBot avatar renderer used by BotHarness surfaces. Blobatar
- * motion and custom-image activity live behind this interface, so every
- * binding can render the same projected state without knowing media details.
- */
 export function PersonaBotAvatar({
   personaBotId,
   name,
@@ -210,7 +203,6 @@ export function PersonaBotFacepile({
   );
 }
 
-/** Compatibility wrapper for older call sites outside the bundled client. */
 export function Blobatar({ seed, size }: { seed: string; size: number }): ReactElement {
   return (
     <PersonaBotAvatar

@@ -1,12 +1,6 @@
 import { isBotModeSortMode, type BotModeSortMode } from '../bot-mode-settings.js';
 import { uniqueStrings } from './roster.js';
 
-/**
- * Browser-local BOT-mode view state after ADR-0034: only `collapsed` remains
- * here. The durable arrangement (sections/pins/order) lives in the host
- * `botharness_roster` domain and the sort preference in `ui-bot-mode`; the
- * legacy record fields are kept as the one-time migration source.
- */
 export interface RosterConfig {
   collapsed: Record<string, boolean>;
 }
@@ -16,7 +10,6 @@ export interface ConfigStorage {
   setItem(key: string, value: string): void;
 }
 
-/** One section row as stored by the pre-#66 legacy record. */
 export interface LegacyRosterSection {
   id: string;
   name: string;
@@ -24,26 +17,20 @@ export interface LegacyRosterSection {
   collapsed?: boolean;
 }
 
-/** The legacy arrangement still readable from `roster.json` for migration. */
 export interface LegacyRosterArrangement {
   pins: string[];
   sections: LegacyRosterSection[];
 }
 
-/** Legacy browser sort preference exported from `roster.json` before #68. */
 export interface LegacySortPreference {
-  /** Global default, when the legacy key stored one. */
   global?: BotModeSortMode;
-  /** Per-section modes by legacy section id; `inherit` was stored as absence. */
   sections: Record<string, BotModeSortMode>;
 }
 
 export const ROSTER_CONFIG_KEY = 'botharness/roster.json';
 
-/** One-time copy of the pre-#66 record, written before the live key is cleared. */
 export const ROSTER_BACKUP_KEY = 'botharness/roster.json.backup';
 
-/** Marker written after a successful roster migration. */
 export const ROSTER_MIGRATED_KEY = 'botharness/roster.migrated';
 
 function emptyConfig(): RosterConfig {
@@ -64,7 +51,6 @@ function legacyRecord(storage: ConfigStorage | undefined): Record<string, unknow
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) return undefined;
     return parsed as Record<string, unknown>;
   } catch {
-    // Corrupt storage has no legacy preference to export.
     return undefined;
   }
 }
@@ -82,8 +68,6 @@ export function parseRosterConfig(value: unknown): RosterConfig {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return emptyConfig();
   const record = value as Record<string, unknown>;
   const collapsed = collapsedMap(record['collapsed']);
-  // A pre-migration record carries collapse state inside its section rows;
-  // keep it readable until the migration re-keys it to host section ids.
   if (Array.isArray(record['sections'])) {
     for (const entry of record['sections']) {
       if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) continue;
@@ -108,10 +92,6 @@ export function loadRosterConfig(storage: ConfigStorage | undefined): RosterConf
   }
 }
 
-/**
- * Persist the local view config.
- * @returns `true` when the record was written; `false` on denied storage.
- */
 export function saveRosterConfig(
   config: RosterConfig,
   storage: ConfigStorage | undefined,
@@ -132,10 +112,6 @@ export function toggleSectionCollapsed(config: RosterConfig, sectionId: string):
   return { collapsed };
 }
 
-/**
- * Parse the pre-#66 arrangement out of a legacy record. `undefined` means the
- * record carries nothing worth migrating (already migrated or never had one).
- */
 export function parseLegacyRosterArrangement(value: unknown): LegacyRosterArrangement | undefined {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) return undefined;
   const record = value as Record<string, unknown>;
@@ -162,18 +138,12 @@ export function parseLegacyRosterArrangement(value: unknown): LegacyRosterArrang
   return { pins, sections };
 }
 
-/** Read the legacy arrangement from browser storage, when one is present. */
 export function loadLegacyRosterArrangement(
   storage: ConfigStorage | undefined,
 ): LegacyRosterArrangement | undefined {
   return parseLegacyRosterArrangement(legacyRecord(storage));
 }
 
-/**
- * Copy the current live record aside once, before the migration clears it.
- * @returns `true` when the record is backed up or nothing needed backing up;
- *   `false` when storage denied the copy.
- */
 export function backupLegacyRoster(storage: ConfigStorage | undefined): boolean {
   if (storage === undefined) return false;
   try {
@@ -187,17 +157,13 @@ export function backupLegacyRoster(storage: ConfigStorage | undefined): boolean 
   }
 }
 
-/** Record that the arrangement migration completed. */
 export function markRosterMigrated(storage: ConfigStorage | undefined): void {
   if (storage === undefined) return;
   try {
     storage.setItem(ROSTER_MIGRATED_KEY, new Date().toISOString());
-  } catch {
-    // The marker is informational; a denied write does not undo the migration.
-  }
+  } catch {}
 }
 
-/** Whether this browser already ran the one-shot arrangement migration. */
 export function hasRosterMigrated(storage: ConfigStorage | undefined): boolean {
   if (storage === undefined) return false;
   try {
@@ -207,10 +173,6 @@ export function hasRosterMigrated(storage: ConfigStorage | undefined): boolean {
   }
 }
 
-/**
- * Export the legacy global and per-section sort preference. The caller owns
- * the one-shot migration; this helper only reads the roster record shape.
- */
 export function readLegacySortPreference(
   storage: ConfigStorage | undefined,
 ): LegacySortPreference | undefined {
@@ -235,7 +197,6 @@ export function readLegacySortPreference(
   };
 }
 
-/** Drop the legacy sort fields, leaving the remaining record for its own migration. */
 export function clearLegacySortPreference(storage: ConfigStorage | undefined): void {
   const record = legacyRecord(storage);
   if (record === undefined) return;
@@ -257,9 +218,7 @@ export function clearLegacySortPreference(storage: ConfigStorage | undefined): v
   if (!changed) return;
   try {
     storage?.setItem(ROSTER_CONFIG_KEY, JSON.stringify(record));
-  } catch {
-    // Storage denied: the legacy fields stay and the migration retries on the next load.
-  }
+  } catch {}
 }
 
 export function defaultStorage(): ConfigStorage | undefined {

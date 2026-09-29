@@ -321,7 +321,6 @@ describe('Profile activity windows', () => {
       '2026-01-01',
       '2026-01-02',
     ]);
-    // A missing anchor falls back to the browser calendar without throwing.
     expect(trailingProfileDays(undefined, 3)).toHaveLength(3);
   });
 });

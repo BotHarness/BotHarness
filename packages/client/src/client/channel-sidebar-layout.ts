@@ -1,8 +1,5 @@
-/** Layout decisions for the Channel sidebar, kept free of React so tests stay pure. */
-
 export type ChannelSidebarMode = 'dock' | 'overlay' | 'hidden';
 
-/** Width below which the Channel sidebar hides behind an overlay control. */
 export const NARROW_CHANNEL_SIDEBAR_QUERY = '(max-width: 960px)';
 
 export function resolveChannelSidebarMode(input: {

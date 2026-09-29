@@ -38,7 +38,6 @@ import { ChannelSidebarEntrySection } from '../src/client/channel-sidebar-view.j
 import { en, zh, type BotHarnessTranslate } from '../src/client/locale.js';
 import { store } from '../src/client/store.js';
 
-/** English translate with the same interpolation the framework `t` performs. */
 const tEn = ((key: string, params?: Record<string, unknown>): string => {
   let text = (en as Record<string, string>)[key] ?? key;
   for (const [name, value] of Object.entries(params ?? {})) {

@@ -13,7 +13,6 @@ export interface ChannelRefQuery {
   query: string;
 }
 
-/** A typed #word is a search query, never a Channel identity. */
 export function activeChannelRefQuery(
   value: string,
   caret: number,
@@ -103,7 +102,6 @@ export type ReferenceRun =
   | { text: string; mention: SelectedMention; channelRef?: never }
   | { text: string; mention?: never; channelRef: SelectedChannelRef };
 
-/** Text plus non-overlapping selected identities in their visible order. */
 export function referenceRuns(
   value: string,
   mentions: readonly SelectedMention[],

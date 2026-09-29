@@ -1175,7 +1175,6 @@ describe('bot sidebar rows', () => {
     expect(before).toContain('一级渠道');
     expect(before.indexOf('工作流')).toBeLessThan(before.indexOf('一级渠道'));
 
-    // The host drops the section and its membership; the client re-reads.
     setRoster({ sections: [] });
     const after = renderSidebar();
     expect(after).not.toContain('工作流');

@@ -11,7 +11,6 @@ export interface MentionQuery {
   query: string;
 }
 
-/** Preserve identity only for untouched spans after a textarea edit. */
 export function rebaseMentions(
   before: string,
   after: string,
@@ -39,7 +38,6 @@ export function rebaseMentions(
     .filter((item) => after.slice(item.start, item.end) === '@' + item.label);
 }
 
-/** Plain typed @text is a search query, never a selected identity. */
 export function activeMentionQuery(
   value: string,
   caret: number,
@@ -73,7 +71,6 @@ export function selectMention(
   };
 }
 
-/** Render only spans whose persisted identity still matches the visible text. */
 export function mentionRuns(
   value: string,
   mentions: readonly SelectedMention[],
@@ -91,7 +88,6 @@ export function mentionRuns(
   return runs;
 }
 
-/** Backspace/Delete treats a selected mention and its insertion space as one unit. */
 export function deleteSelectedMention(
   value: string,
   mentions: readonly SelectedMention[],
@@ -116,7 +112,6 @@ export function deleteSelectedMention(
   return { value: next, mentions: rebaseMentions(value, next, mentions), caret: start };
 }
 
-/** DSH Session prose otherwise projects bare @refs as file chips. */
 export function sessionBotReference(botSlug: string): string {
   return '\u2060@' + botSlug;
 }

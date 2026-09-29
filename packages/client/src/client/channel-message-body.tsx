@@ -17,7 +17,6 @@ import { FolderBrowser, WORKSPACE_GRANTS_CHANGED } from './workspace-grants-entr
 import type { BotHarnessTranslate } from './locale.js';
 import { store, type BotSummary, type ChannelMessage } from './store.js';
 
-// DSH's memoized primitive carries React 19 types; this Client still uses React 18 types.
 const ChannelMarkdownText = MarkdownText as unknown as (
   props: Parameters<typeof MarkdownText>[0],
 ) => ReactElement;

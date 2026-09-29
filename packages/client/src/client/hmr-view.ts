@@ -11,7 +11,6 @@ interface StoredHmrView extends HmrView {
   at: number;
 }
 
-/** Keep only presentation state across a Client fiber replacement in this document. */
 export function saveHmrView(
   target: Record<string, unknown>,
   selection: ConversationSelection | undefined,
@@ -20,7 +19,6 @@ export function saveHmrView(
   target[KEY] = { at: now, selection } satisfies StoredHmrView;
 }
 
-/** Consume once; a page reload or later plugin activation starts from normal navigation. */
 export function takeHmrView(
   target: Record<string, unknown>,
   now = Date.now(),

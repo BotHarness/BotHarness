@@ -5,10 +5,6 @@ export interface MessageGroup {
   messages: ChannelMessage[];
 }
 
-/**
- * A compact visual group: same concrete sender, same day, short gap, bounded
- * span/count. The durable Channel log remains one message per entry.
- */
 export function groupChannelMessages(messages: readonly ChannelMessage[]): MessageGroup[] {
   const groups: MessageGroup[] = [];
   for (const message of messages) {

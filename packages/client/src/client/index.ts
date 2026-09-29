@@ -4,7 +4,6 @@ import type { InputTriggerSource } from '@deepseek-ai/dsh-client-ui-input-trigge
 import type { MainPanelId } from '@deepseek-ai/dsh-client-ui-layout/client';
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client';
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client';
-// Type-only: the `configForms` Context merge and the settings slot contract.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client';
 import type {} from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import type {} from '@deepseek-ai/dsh-client-ui-workspace/client';
@@ -62,7 +61,6 @@ export const inject = [
 
 export const PANEL_ID = 'botharness' as MainPanelId;
 
-/** Newer layout facet behind view-persist; compositions without it skip that feature instead of crashing boot (#357). */
 interface PanelInfoLike {
   getSnapshot(): { activePanelId: string | null };
   subscribe(listener: () => void): () => void;
@@ -111,7 +109,6 @@ export function apply(ctx: ClientContext): void {
     openSession: (sessionId) => ctx.uiWorkspace.openSession(sessionId as SessionId),
   });
   const prefs = new BotModePrefs(storage);
-  // Read the last actual view once per document. HMR has its own in-document handoff.
   const lastView =
     typeof window === 'undefined'
       ? undefined
@@ -126,8 +123,6 @@ export function apply(ctx: ClientContext): void {
   const profileCards = createProfileCardRegistry();
   ctx.provide('profileCards', profileCards);
   ctx.effect(() => {
-    // Labels resolve at build time, so re-register the entries when the locale
-    // changes; the registry notifies the sidebar and it re-renders.
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
@@ -144,7 +139,6 @@ export function apply(ctx: ClientContext): void {
   }, 'botharness: Channel sidebar entries');
 
   ctx.effect(() => {
-    // Profile Card labels resolve at build time too, so re-register on locale change.
     let disposers: (() => void)[] = [];
     const reconcile = (): void => {
       for (const dispose of disposers) dispose();
@@ -222,10 +216,6 @@ export function apply(ctx: ClientContext): void {
     };
   }, 'botharness: roster load');
   ctx.effect(() => {
-    // Report the Human-owned developerMode to the Host on every client
-    // connect and on every toggle; the Host gates the operational-logs skill
-    // catalog on it (#248). Fire-and-forget: an unreachable Host just misses
-    // one report and gets the next toggle or reconnect.
     let stopped = false;
     const report = (): void => {
       if (stopped) return;
@@ -244,8 +234,6 @@ export function apply(ctx: ClientContext): void {
   ctx.inject(['configForms'], (settingsCtx) => {
     const scope = settingsCtx.configForms.get<BotModeSettings>(BOT_MODE_NAMESPACE);
     prefs.attach(scope);
-    // The shell owns the Settings nav glyph; tag our cell and wear the chosen
-    // mark instead of its gear fallback (see bot-icon-nav).
     const releaseNavIcon = installBotNavIcon({
       labels: () => [t('settings.nav')],
       markup: () => botIconMarkup(prefs.source.getSnapshot().botIcon, readBotColorScheme()),

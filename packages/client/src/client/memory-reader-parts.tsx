@@ -120,7 +120,6 @@ export function MemoryDiffFile({
   );
 }
 
-/** Git emits one "diff --git" boundary per file, including binary changes. */
 export function splitMemoryDiffFiles(diff: string): string[] {
   if (diff === '') return [];
   return diff.split(/(?=^diff --git )/m).filter(Boolean);
