@@ -694,10 +694,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const bot = deps.registry.get(slug);
       if (bot === undefined) return unknownBot(slug);
       if (bot.modelPlan === undefined) return invalidInput('Apply a Model Preset first');
+      const expectedRevision = bot.modelPlan.revision;
       try {
         await deps.modelCatalog.validate(orchestrator);
-        const result = deps.registry.customizeModelPlan(slug, orchestrator);
-        if (!result.ok || result.record.modelPlan === undefined) return unknownBot(slug);
+        const result = deps.registry.customizeModelPlan(slug, orchestrator, expectedRevision);
+        if (!result.ok)
+          return result.reason === 'not-found'
+            ? unknownBot(slug)
+            : invalidInput('Bot Model Plan changed; reopen Profile before saving');
+        if (result.record.modelPlan === undefined)
+          return invalidInput('Apply a Model Preset first');
         return { ok: true, value: { plan: result.record.modelPlan } };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));

@@ -61,6 +61,7 @@ export interface PersonaBotRegistry {
   customizeModelPlan(
     slug: string,
     orchestrator: PersonaBotModelPlan['orchestrator'],
+    expectedRevision: number,
   ): UpdatePersonaBotResult;
 }
 
@@ -355,10 +356,12 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
       write(record);
       return { ok: true, record };
     },
-    customizeModelPlan(slug, orchestrator) {
+    customizeModelPlan(slug, orchestrator, expectedRevision) {
       const record = read(slug);
       if (record === undefined) return { ok: false, reason: 'not-found' };
       if (record.modelPlan === undefined) return { ok: false, reason: 'invalid-input' };
+      if (record.modelPlan.revision !== expectedRevision)
+        return { ok: false, reason: 'invalid-input' };
       record.modelPlan = {
         ...record.modelPlan,
         revision: record.modelPlan.revision + 1,
