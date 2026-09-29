@@ -107,18 +107,15 @@ export interface PersonaBotDetail extends PersonaBotSummary {
   sessions: Record<string, SessionState>;
 }
 
-/** One local day of Profile activity; `day` is a Host-local `YYYY-MM-DD`. */
 export interface ProfileActivityDay {
   day: string;
   count: number;
 }
 
-/** Event activity keeps its Inbox Admission reason so the Profile can categorize it. */
 export interface ProfileActivityReasonDay extends ProfileActivityDay {
   reason: string;
 }
 
-/** Exact provider token buckets, summed across purposes/routes. */
 export interface ProfileTokenBuckets {
   inputTokens: number;
   outputTokens: number;
@@ -130,12 +127,11 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
-/** Bounded read model behind the PersonaBot Profile activity cards. */
 export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
-  /** Host-local current day; clients anchor activity windows to it. */
+
   today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];
@@ -143,7 +139,6 @@ export interface ProfileActivity {
   tokenTotals: ProfileTokenBuckets;
 }
 
-/** Channel list projection; latestMessage is derived from the durable message log. */
 export interface ChannelListItem extends ChannelRecord {
   latestMessage?: ChannelMessage;
 }
@@ -242,7 +237,7 @@ export interface BridgeMethods {
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-  /** Sets or clears one PersonaBot's custom avatar inside its DM scope (ADR-0086). */
+
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
@@ -265,7 +260,7 @@ export interface BridgeMethodsDeps {
   toolRules?: ToolApprovalRuleStore;
   assignmentAccess?: AssignmentAccessStore;
   developerMode?: { set(enabled: boolean): void };
-  /** Optional Computer Tool Provider hook: reconcile one PersonaBot after its access changed. */
+
   computerAccess?: { changed(slug: string): void };
   createBotId?: () => string;
 }
@@ -458,7 +453,6 @@ function createFailure(
 
 const avatarUrlCache = new Map<string, string>();
 
-/** Versioned read URL for a stored custom avatar; never inline the bytes (ADR-0086). */
 function botAvatarUrl(slug: string, avatar: string): string {
   const key = `${slug}\u0000${avatar}`;
   const cached = avatarUrlCache.get(key);
@@ -728,9 +722,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       return { ok: true, value: detailOf(result.record) };
     },
     channels() {
-      // A PersonaBot's DM is a first-class Channel, not a UI-only contact.
-      // Reconcile older profiles on read so every Bot can participate in the
-      // same durable section membership and top-level order as group Channels.
       for (const bot of deps.registry.list()) {
         deps.channels.getOrCreateDm(bot.slug, bot.displayName);
       }
@@ -1244,13 +1235,9 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         return { ok: true, value: { message: appended } };
       }
       if (channel.type === 'group') {
-        // Admission is already durable with the Channel placement. A wake
-        // notification failure must not turn a committed send into a retryable UI error.
         try {
           deps.runtime?.admitGroupMessage(channelId, appended.id);
-        } catch {
-          /* Boot recovery reschedules committed pending Admissions. */
-        }
+        } catch {}
       }
       if (channel.type === 'dm' && deps.runtime !== undefined) {
         const admission = deps.runtime.admitDmMessage({
@@ -1261,8 +1248,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             `[Attachments: ${appended.attachments?.map((ref) => ref.name).join(', ') ?? ''}]`,
         });
         if (!admission.admitted) {
-          // The Channel append already committed. Never report a durable message
-          // as an unsent failure that the Human might duplicate on retry.
           return { ok: true, value: { message: appended } };
         }
       }
@@ -1899,7 +1884,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 }
 
-/** Host-local calendar day of one instant, matching the confirmed Profile day boundary. */
 function localDay(at: string): string | undefined {
   const date = new Date(at);
   if (Number.isNaN(date.getTime())) return undefined;

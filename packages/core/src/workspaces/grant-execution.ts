@@ -8,7 +8,6 @@ import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import type { BotHarnessCore } from '../plugin.js';
 import { NATIVE_FILE_TOOL_NAMES, nativeFileToolDenial } from './grant-native-tools.js';
 
-/** One Host-owned check used before both model steps and individual tool calls. */
 export function grantExecutionDenial(
   core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry'>,
   session: Session,
@@ -95,7 +94,7 @@ const BOT_TOOL_NAMES = new Set([
   'group_leave',
   'bot_dm_send',
   'channel_send',
-  // Native DSH question transport does not access the filesystem.
+
   'ask_user_question',
   'memory_switch_branch',
   'memory_continue_from_commit',
@@ -123,8 +122,7 @@ export function isSafeMemoryDirectoryListing(
     return false;
   }
   const input = args as Record<string, unknown>;
-  // Bash is otherwise opaque. Only a literal listing of the current Memory
-  // directory is known to have no path escape or write effect.
+
   return (
     typeof input.command === 'string' &&
     /^(?:ls(?: -la)?|pwd)$/.test(input.command.trim()) &&
@@ -135,7 +133,6 @@ export function isSafeMemoryDirectoryListing(
   );
 }
 
-/** The final DSH tool gate denies every unconfined native capability for Bot-owned Sessions. */
 export function grantToolExecutionDenial(
   core: Pick<BotHarnessCore, 'ownership' | 'runtime' | 'grants' | 'registry' | 'hostTools'>,
   session: Session,
@@ -157,8 +154,7 @@ export function grantToolExecutionDenial(
   )
     return 'Assignment questions must go through the Orchestrator';
   if (BOT_TOOL_NAMES.has(name)) return undefined;
-  // Optional Host-side bundles own tools that act outside Host files; their
-  // own authorization governs (see BotHarnessCore.hostTools).
+
   if (core.hostTools.has(name)) return undefined;
   const owner = core.ownership.resolve(session.id);
   if (

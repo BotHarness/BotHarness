@@ -400,14 +400,12 @@ describe('roster flat topOrder', () => {
     const store = createRosterStore();
     await store.attach(fake.facility);
 
-    // Assigning into a section drops the channel's loose entry.
     await store.channelAssign('loose', 's2', 0);
     expect(fake.state().topOrder).toEqual([
       { kind: 'section', id: 's1' },
       { kind: 'section', id: 's2' },
     ]);
 
-    // Unassigning appends the loose entry at the end.
     await store.channelAssign('c1', undefined);
     expect(fake.state().topOrder).toEqual([
       { kind: 'section', id: 's1' },
@@ -415,7 +413,6 @@ describe('roster flat topOrder', () => {
       { kind: 'channel', id: 'c1' },
     ]);
 
-    // Removing a section splices its members in at the removed position.
     await store.sectionRemove('s2');
     expect(fake.state().topOrder).toEqual([
       { kind: 'section', id: 's1' },

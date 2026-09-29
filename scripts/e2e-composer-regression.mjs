@@ -1,4 +1,3 @@
-/** Installed DSH regression: one Shift+Enter line and stable wrapped draft. */
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';

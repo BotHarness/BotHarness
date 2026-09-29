@@ -1,27 +1,5 @@
 #!/usr/bin/env node
-/**
- * subset-og-font.mjs — regenerate the CJK subset font used by build-time OG
- * cards (`pnpm og:font`).
- *
- * `astro-og-canvas` renders cards with CanvasKit, which cannot decode the
- * WOFF2 CJK files `@fontsource` ships — so the site commits a small
- * Noto Sans SC **subset** (OTF) and this script is how it is produced.
- *
- * The glyph set is the union of every `title` / `description` in the
- * frontmatter of the content that feeds OG cards (`docs`, `docs-zh`,
- * `changelog`, `changelog-zh`), plus printable ASCII. That is exactly what
- * the cards can draw, and nothing else, which keeps the artifact well under
- * 2 MB.
- *
- * Source font: Noto Sans SC Bold, pinned to a noto-cjk commit (the face is
- * stable since 2021). The full ~8.5 MB OTF is downloaded once into
- * `node_modules/.cache/` and is never committed; only the subset is.
- *
- * Run this after editing Chinese page titles/descriptions (remember:
- * `scripts/sync-docs.mjs` regenerates `docs-zh/dev/**` on the next Astro
- * config load — run a build or `pnpm docs:dev` first if you changed repo
- * sources). CI cannot do this for you: it needs the network.
- */
+
 import { mkdirSync, readFileSync, readdirSync, statSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,7 +29,6 @@ function* walk(dir) {
   }
 }
 
-/** Characters the OG cards can render: frontmatter of every card source. */
 function corpusChars() {
   const chars = new Set(PRINTABLE_ASCII);
   for (const dir of CONTENT_DIRS) {

@@ -1,4 +1,3 @@
-// Live #146 tracer bullet: real DSH Fetch upload, Channel send, and browser rendering.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

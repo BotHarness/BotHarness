@@ -665,8 +665,6 @@ describe('DSH Bot Agent adapter', () => {
     await first;
     expect(reported).toBe(true);
 
-    // A live but settled Agent must be followed up: steering it would leave the
-    // caller without a completion signal for the new turn.
     const settled = adapter.requestAssignment(run);
     expect(settled.delivery).toBe('followup');
     if (settled.delivery === 'followup') await settled.done;

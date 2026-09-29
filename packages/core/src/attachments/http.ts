@@ -37,7 +37,6 @@ function errorResponse(error: unknown): Response {
   throw error;
 }
 
-/** DSH-authenticated exact Fetch routes; upload and download never use Typert base64. */
 export function createAttachmentHttp(
   store: AttachmentStore,
 ): (request: Request) => Promise<Response> {

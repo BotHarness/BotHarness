@@ -2,7 +2,6 @@ import { createHash } from 'node:crypto';
 
 import type { AssignmentEventTail } from './bot-runtime.js';
 
-/** The narrow, read-only portion of DSH Session Query this projection consumes. */
 export interface AssignmentSessionQuery {
   listEvents(sessionId: string): Promise<Array<{ seq: number; type: string }>>;
   filterEvents(
@@ -24,7 +23,6 @@ export interface AssignmentReportPage {
   estimatedTokens: number;
 }
 
-/** Read one bounded page from the accepted report's native tool/call event. */
 export async function readAssignmentReportPage(
   query: AssignmentSessionQuery,
   sessionId: string,
@@ -88,7 +86,6 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Keep model-visible history bounded; the full log remains DSH's authority. */
 export async function readBoundedAssignmentTail(
   query: AssignmentSessionQuery,
   sessionId: string,

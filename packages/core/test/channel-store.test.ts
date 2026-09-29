@@ -207,7 +207,6 @@ describe('channel store', () => {
     expect(JSON.parse(lines[1] ?? '{}')).toMatchObject({ replyTo: original.id });
     expect(lines[1]).not.toContain('replyToPreview');
 
-    // An old reply remains readable if its original is later removed.
     writeFileSync(join(root, channel.id, 'messages.ndjson'), (lines[1] ?? '') + '\n');
     const reopened = createChannelStore({ rootDir: root });
     expect(reopened.readTimeline(channel.id)?.entries[0]?.replyToPreview).toBeNull();

@@ -1,4 +1,3 @@
-// Live #116 rule tracer: an approval card persists an opaque-tool rule, then revocation restores asking.
 import { createRequire } from 'node:module';
 import { mkdirSync, readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

@@ -64,22 +64,6 @@ const PROJECT_QUERY = `
   }
 `;
 
-/**
- * @typedef {object} DevelopmentStatusItem
- * @property {string} artifact
- * @property {string} title
- * @property {string} url
- * @property {string | null} milestone
- * @property {string} updatedAt
- */
-
-/**
- * @typedef {object} DevelopmentStatusProjection
- * @property {1} schemaVersion
- * @property {string} syncedAt
- * @property {DevelopmentStatusItem[]} items
- */
-
 class ProjectSchemaError extends Error {}
 
 function failSchema(message) {
@@ -129,14 +113,6 @@ function isIsoTimestamp(value) {
   );
 }
 
-/**
- * Reduce a normalized private GitHub Project snapshot to the only fields that
- * are safe and useful on the public Development status surface.
- *
- * @param {any} snapshot
- * @param {string} syncedAt
- * @returns {DevelopmentStatusProjection}
- */
 export function projectDevelopmentStatus(snapshot, syncedAt) {
   if (!snapshot || typeof snapshot !== 'object') failSchema('snapshot must be an object');
   assertProjectFields(snapshot.fields);
@@ -327,13 +303,6 @@ function normalizeProjectPage(response) {
   };
 }
 
-/**
- * @param {{
- *   syncedAt: string,
- *   queryProjectPage: (options: { cursor: string | null }) => Promise<unknown>
- * }} options
- * @returns {Promise<DevelopmentStatusProjection>}
- */
 export async function githubProjectDevelopmentStatus({ syncedAt, queryProjectPage }) {
   const fields = [];
   const items = [];

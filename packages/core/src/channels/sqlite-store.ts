@@ -44,7 +44,7 @@ interface SqliteChannelStoreOptions extends ChannelStoreOptions {
   database: OperationalDatabaseModulePort;
   databaseOwnerReady?: boolean;
   sourcePolicy?: BotSourcePolicyStore;
-  /** Eligibility at the canonical Admission commit boundary. */
+
   isBotActive?: (botSlug: string) => boolean;
 }
 
@@ -151,10 +151,6 @@ function eventPayload(message: ChannelMessage): string {
   return JSON.stringify(envelope);
 }
 
-/**
- * Production Channel authority. The legacy NDJSON directory is consumed once
- * on an empty Channel schema, then never read or written by this store.
- */
 export function createSqliteChannelStore(options: SqliteChannelStoreOptions): ChannelStore {
   const { database, rootDir } = options;
   const now = options.now ?? (() => new Date());
@@ -598,8 +594,6 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     return { status: 'appended' as const, message: result };
   };
 
-  // Import is a single transaction. An existing SQL Channel row means the
-  // prior import committed; old files can never supersede that authority.
   if (
     options.databaseOwnerReady !== false &&
     database.read((db) => db.prepare('SELECT channel_id FROM channel_records LIMIT 1').get()) ===
@@ -633,9 +627,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             const parsed = parseMessage(line);
             return parsed === undefined ? [] : [parsed];
           });
-      } catch {
-        /* Empty history. */
-      }
+      } catch {}
       let readPosition: { messageId: string; revision: number; readAt: string } | undefined;
       try {
         const parsed: unknown = JSON.parse(
@@ -656,9 +648,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             };
           }
         }
-      } catch {
-        /* No read position. */
-      }
+      } catch {}
       legacy.push({ record, messages, ...(readPosition === undefined ? {} : { readPosition }) });
     }
     database.transaction(

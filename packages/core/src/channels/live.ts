@@ -66,7 +66,6 @@ function draftFrame(event: PublishedDraftEvent): string {
   return `event: ${name}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-/** Process-local fanout; the Channel log is the durable authority. */
 export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
   const subscribers = new Map<string, Set<Subscriber>>();
   const drafts = new Map<string, Map<string, PublishedDraft>>();
@@ -95,9 +94,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
             rosterSubscribers.delete(this);
             try {
               controller.close();
-            } catch {
-              // The browser may already have cancelled the stream.
-            }
+            } catch {}
           },
         };
         rosterSubscribers.add(subscriber);
@@ -215,9 +212,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
               remove(channelId, this);
               try {
                 controller.close();
-              } catch {
-                // The browser may have cancelled the stream already.
-              }
+              } catch {}
             },
           };
           let group = subscribers.get(channelId);
@@ -227,7 +222,7 @@ export function createChannelLiveHub(channels: ChannelStore): ChannelLiveHub {
           }
           group.add(subscriber);
           controller.enqueue(encoder.encode('retry: 1500\n\n'));
-          // Subscribe before replay so there is no query/subscribe gap.
+
           for (const commit of channels.messagesAfter(channelId, after) ?? []) push(commit);
           if (channels.get(channelId)?.type === 'group') {
             const position = channels.readPosition(channelId);

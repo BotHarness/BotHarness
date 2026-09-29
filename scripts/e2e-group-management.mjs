@@ -1,4 +1,3 @@
-/** Live #390 Group management check against an isolated DSH Web Host. */
 import { createRequire } from 'node:module';
 import { basename, dirname, resolve } from 'node:path';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';

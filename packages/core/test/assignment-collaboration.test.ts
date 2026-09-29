@@ -26,7 +26,6 @@ import { FIXED_NOW, createTempRoot, trackTestOwner } from './helpers.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
 import { createTestWorkspaceGrants, TEST_GRANT_ID } from './workspace-grant-fixture.js';
 
-/** Drives Assignment turns manually so tests can report and finish on demand. */
 class ManualAgents implements BotAgentAdapter {
   readonly started: Array<{ sessionId: string; purpose: string; run: AssignmentAgentRun }> = [];
   readonly resumed: Array<{ sessionId: string; text: string }> = [];
@@ -1060,7 +1059,6 @@ describe('Assignment collaboration', () => {
     await runtime.whenIdle();
     await runtime.close();
 
-    // A terminated Host may leave a persisted reservation without a live Agent.
     attachOperationalModule(owner, 'restart-capacity-seed').transaction((database) => {
       database
         .prepare("UPDATE assignments SET activity = 'working' WHERE session_id = ?")

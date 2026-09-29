@@ -1,31 +1,5 @@
 #!/usr/bin/env node
-/**
- * sync-slides.mjs — build the presentations workspace and embed the static
- * output into the docs site.
- *
- * Source of truth: `apps/presentations/slides/<id>/index.tsx` (one deck per
- * folder; authoring rules live in `apps/presentations/AGENTS.md`).
- *
- * Generated output: `apps/docs/public/slides/`, served at
- * `botharness.ai/slides/`. That directory is gitignored and rebuilt by
- * `pnpm slides:build` — never hand-edit it.
- *
- * The deck is built with `OPEN_SLIDE_BASE=/slides/` so asset URLs resolve
- * under the docs subpath. Local iteration keeps base `/`:
- * `pnpm slides:dev` → http://localhost:5173/s/<id>.
- *
- * Workers static assets rejects a self-prefix SPA fallback (`/slides/s/*` →
- * `/slides/index.html` trips its redirect-loop validator), so deep links are
- * served as static copies instead: every deck id gets `s/<id>/index.html` and
- * `s/<id>/presenter/index.html` cloned from the SPA shell. The client router
- * takes over from there; asset URLs are absolute so they resolve anywhere.
- *
- * open-slide emits a scaffold shell (`<title>open-slide</title>`, no meta), so
- * this script also injects per-route SEO: home plus one title/description per
- * deck (read from each deck's `meta.title`), with canonical URLs and the docs
- * brand favicon/OG card. Presenter copies are `noindex` to avoid duplicate
- * indexing of the same deck.
- */
+
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';

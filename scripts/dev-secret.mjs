@@ -1,15 +1,3 @@
-// Resolve the machine-local DeepSeek API key for dev instances.
-//
-// Usage:
-//   node scripts/dev-secret.mjs adopt-profile --home <DSH_HOME>  # share an existing profile key
-//   node scripts/dev-secret.mjs check      # report where the key comes from (never the value)
-//   node scripts/dev-secret.mjs --export   # print `export DEEPSEEK_API_KEY=…` for eval
-//   node scripts/dev-secret.mjs --print    # print the raw key for scripting
-//
-// Resolution order for the optional process-injected key: $DEEPSEEK_API_KEY,
-// the machine-local dev secret file, then macOS Keychain `botharness-deepseek`.
-// DSH can also resolve a key from its own $DSH_HOME/.credentials.yaml when
-// no key was injected; this helper alone cannot declare a model unavailable.
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -50,7 +38,6 @@ function fromKeychain() {
   }
 }
 
-/** Read only the DeepSeek reference from one explicit, protected DSH profile. */
 export function profileDeepSeekCredential(profileHome) {
   const path = join(resolve(profileHome), '.credentials.yaml');
   if (!existsSync(path)) return undefined;
@@ -76,7 +63,6 @@ export function profileDeepSeekCredential(profileHome) {
     : undefined;
 }
 
-/** One-time adoption: create a private shared source without changing the DSH profile. */
 export function adoptProfileCredential(profileHome, destination = DEV_ENV_PATH) {
   const credential = profileDeepSeekCredential(profileHome);
   if (credential === undefined) {
@@ -98,7 +84,6 @@ export function resolveDevSecret({ environment = process.env, devEnvPath = DEV_E
   return fromEnvironment(environment) ?? fromDevEnvFile(devEnvPath) ?? fromKeychain();
 }
 
-/** Environment patch every dev instance launch should apply. */
 export function devSecretEnvironment(options) {
   const resolved = resolveDevSecret(options);
   return resolved === undefined

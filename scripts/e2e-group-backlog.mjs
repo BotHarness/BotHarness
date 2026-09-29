@@ -1,4 +1,3 @@
-/** Live #364 backlog tracer against an already running isolated DSH Web Host. */
 import { readFileSync } from 'node:fs';
 import { basename } from 'node:path';
 

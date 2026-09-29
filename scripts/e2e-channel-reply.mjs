@@ -1,4 +1,3 @@
-// Live DSH browser tracer bullet for #145. Use an isolated profile; no model call is needed.
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -32,9 +31,7 @@ try {
       const request = JSON.parse(response.request().postData() ?? '{}');
       const args = request.payload?.args ?? {};
       calls.push(args.direction === 'newer' ? 'newer' : (args.around ?? 'latest'));
-    } catch {
-      // The DOM and authoritative RPC read below decide the verdict.
-    }
+    } catch {}
   });
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, {
     waitUntil: 'networkidle2',

@@ -14,7 +14,6 @@ export interface ChannelTimelineRequest {
   newerLimit?: number | undefined;
 }
 
-/** Chronological window over the durable Channel log. Cursors are opaque to callers. */
 export interface ChannelTimelinePage {
   entries: ChannelMessage[];
   olderCursor: string | null;
@@ -59,7 +58,6 @@ function cursorIndex(
   }
 }
 
-/** The append order, not wall-clock timestamps, is the Channel's durable timeline order. */
 export function pageChannelTimeline(
   channelId: string,
   messages: readonly ChannelMessage[],

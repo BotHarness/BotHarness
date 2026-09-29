@@ -175,8 +175,7 @@ describe('Group ordinary-message digest', () => {
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('ordinary after-switch');
       expect(runs[0]).toContain('ordinary before-switch');
-      // Same-millisecond events tie-break on the source_event_id cursor tuple,
-      // which is a random UUID, so assert membership instead of order.
+
       const switched = core.attention.list({ botSlug: 'ada' }).items;
       expect(switched).toHaveLength(2);
       expect(switched).toEqual(
@@ -573,7 +572,7 @@ describe('Group ordinary-message digest', () => {
       expect(afterRuns).toHaveLength(1);
       expect(afterRuns[0]).toContain('direct Group mention');
       expect(afterRuns[0]).not.toContain('ordinary quiet');
-      // Order is not guaranteed for same-millisecond events; assert membership.
+
       const resumedAttention = after.attention.list({ botSlug: 'ada' }).items;
       expect(resumedAttention).toHaveLength(2);
       expect(resumedAttention).toEqual(
@@ -684,9 +683,7 @@ describe('Group ordinary-message digest', () => {
     });
     try {
       core.registry.create({ slug: 'ada', displayName: 'Ada' });
-      // Names are chosen so Channel id order and chronology disagree: the
-      // chronologically earlier digest belongs to the alphabetically later
-      // Channel, and it is also admitted second.
+
       const earlier = core.channels.createGroup({ name: 'Zebra', members: ['ada'] });
       const later = core.channels.createGroup({ name: 'Alpha', members: ['ada'] });
       for (const group of [earlier, later])

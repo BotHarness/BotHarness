@@ -39,9 +39,9 @@ export interface AttachmentStore {
     name?: string,
     signal?: AbortSignal,
   ): Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>;
-  /** Incomplete upload temps can be swept after an age grace period. */
+
   sweepStaged(olderThan: Date): Promise<number>;
-  /** Synchronous mark-and-sweep seam. Caller supplies current durable Channel references. */
+
   sweepUnreferenced(olderThan: Date, readReferences: () => ReadonlySet<string>): number;
 }
 
@@ -67,9 +67,7 @@ export function sniffAttachmentMime(b: Uint8Array): string {
   try {
     const text = new TextDecoder('utf-8', { fatal: true }).decode(b);
     if (!/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/u.test(text)) return 'text/plain';
-  } catch {
-    // Unknown bytes are never rendered inline.
-  }
+  } catch {}
   return 'application/octet-stream';
 }
 
@@ -227,7 +225,6 @@ export function createAttachmentStore(options: {
       return { ref, body: streamVerified(rootDir, ref, signal) };
     },
     sweepUnreferenced(olderThan, readReferences) {
-      // No await may separate the durable mark snapshot from deletion: Channel append is synchronous.
       const referenced = readReferences();
       const objects = join(rootDir, 'objects');
       let shards;

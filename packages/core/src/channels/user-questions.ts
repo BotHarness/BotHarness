@@ -63,7 +63,6 @@ function validAnswer(questions: AskUserQuestionItem[], answer: AskUserQuestionAn
   return true;
 }
 
-/** DSH's native user-question answerer, projected into the owning PersonaBot DM. */
 export class ChannelUserQuestions {
   readonly #channels: ChannelStore;
   readonly #ownership: SessionOwnership;
@@ -112,7 +111,7 @@ export class ChannelUserQuestions {
       resolve = yes;
       reject = no;
     });
-    // An abort can arrive while the durable request append is still in flight.
+
     void answer.catch(() => undefined);
     const pending: Pending = {
       agent,
@@ -218,8 +217,7 @@ export class ChannelUserQuestions {
       replyTo: messageId,
       userQuestionResolution: { requestMessageId: messageId, state: 'cancelled' },
     };
-    // ChannelStore serializes appends per Channel, so an in-flight Human answer
-    // commits before this cancellation and the final visible state is cancelled.
+
     void this.#channels.appendMessage(pending.channelId, resolution).then(
       (saved) => {
         if (saved === undefined)

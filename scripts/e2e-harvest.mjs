@@ -1,16 +1,3 @@
-/**
- * Live harvest regression for #368 against a real Host and a real model.
- *
- * Boots an isolated DSH Web Profile from this worktree, then:
- * - creates a PersonaBot and a Group Channel with it as a member;
- * - sets the Bot's Group attention to digest (2 messages / 60s);
- * - sends two ordinary messages and expects ONE Bot reply naming both tokens
- *   (the due batch is consumed by a single harvest turn);
- * - sends one @mention and expects a reply naming its token.
- *
- * Usage: node scripts/e2e-harvest.mjs [--keep]
- * The isolated home is printed; without --keep the Host is stopped on exit.
- */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:net';

@@ -1,4 +1,3 @@
-/** Live #364 probe against an already running isolated DSH Host. */
 import { readFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 

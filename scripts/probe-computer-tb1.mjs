@@ -1,19 +1,3 @@
-// Headless regression probe for #150 (Computer use TB1: shared-Computer viewing).
-//
-// Usage:
-//   node scripts/dev-instance.mjs --home <dsh-home> --port <port> --worktree <path>
-//   node scripts/probe-computer-tb1.mjs --url '<token-url-from-dev-instance>' [--lifecycle] [--json]
-//
-// The target profile must have the optional computer bundle installed:
-//   dsh.profile.bundles includes '@botharness/computer' with a
-//   link: dependency on <worktree>/packages/computer (the ~/.dsh-m35 web-dev
-//   profile from earlier sessions already looks like this).
-//
-// Default mode is side-effect free: status route, anonymous viewer rejection,
-// stopped-viewer 503, and authorize-required refusals. --lifecycle additionally
-// starts the real Docker container, asserts the live viewer + WebSocket
-// upgrade, then stops it again (proves the named-volume lifecycle path).
-
 const VIEWER_PREFIX = '/botharness-computer/viewer';
 
 function parseArgs(argv) {
@@ -48,8 +32,6 @@ function splitBase(url) {
 }
 
 async function handshake(base, token) {
-  // Same cookie ritual as scripts/dev-instance.mjs: two manual-redirect
-  // fetches, keep the session cookie from the second response.
   await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const login = await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const setCookie = login.headers.get('set-cookie');
@@ -111,9 +93,7 @@ function tryUpgrade(url, cookie, timeoutMs) {
       done = true;
       try {
         socket.close();
-      } catch {
-        // Already gone; the verdict is recorded.
-      }
+      } catch {}
       resolve({ ok, detail });
     };
     const timer = setTimeout(() => finish(false, 'timeout'), timeoutMs);
@@ -141,7 +121,6 @@ async function main() {
 
   const cookie = await handshake(base, token);
 
-  // 1. Status route answers with the docker provider shape.
   const initial = await getStatus(base, cookie);
   check(
     'status-route',
@@ -149,7 +128,6 @@ async function main() {
     `provider=${initial?.provider ?? '?'} available=${initial?.probe?.available ?? '?'} state=${initial?.status?.state ?? '?'}`,
   );
 
-  // 2. Anonymous viewer access is rejected (DSH requestRejection → 401 on loopback).
   const anonymous = await fetch(`${base}${VIEWER_PREFIX}/`, {
     signal: AbortSignal.timeout(15_000),
     redirect: 'manual',
@@ -159,7 +137,6 @@ async function main() {
 
   const running = initial?.status?.state === 'running';
   if (!running) {
-    // 3. Authenticated viewer while stopped explains itself instead of proxying.
     const stopped = await fetch(`${base}${VIEWER_PREFIX}/`, {
       signal: AbortSignal.timeout(15_000),
       headers: { cookie },
@@ -174,7 +151,6 @@ async function main() {
     check('viewer-503-when-stopped', true, 'skipped: computer already running');
   }
 
-  // 4. Mutations refuse without explicit authorization (no side effects).
   const startRefused = await postJson(base, cookie, '/api/computer/start', {});
   check(
     'start-requires-authorize',
@@ -194,7 +170,7 @@ async function main() {
         `lifecycle requested but no container runtime: ${initial?.probe?.detail ?? 'unknown'}`,
       );
     }
-    // 5. Real container lifecycle: start (background) → poll → running.
+
     const started = await postJson(base, cookie, '/api/computer/start', { authorize: true });
     check(
       'lifecycle-start-accepted',
@@ -204,7 +180,6 @@ async function main() {
     await waitForState(base, cookie, 'running', 300_000);
     check('lifecycle-reaches-running', true, '');
 
-    // 6. Live viewer proxies with embeddable framing.
     const live = await fetch(`${base}${VIEWER_PREFIX}/`, {
       signal: AbortSignal.timeout(30_000),
       headers: { cookie },
@@ -218,7 +193,6 @@ async function main() {
       `HTTP ${live.status} content-type=${contentType || '?'}`,
     );
 
-    // 7. At least one WebSocket upgrade path reaches the upstream desktop.
     let upgrade = { ok: false, detail: 'not attempted' };
     for (const socketPath of [`${VIEWER_PREFIX}/websockets`, `${VIEWER_PREFIX}/websocket`]) {
       const wsBase = base.replace(/^http/, 'ws');
@@ -228,7 +202,6 @@ async function main() {
     }
     check('lifecycle-viewer-upgrade', upgrade.ok, upgrade.detail);
 
-    // 8. Stop returns the Computer to rest (volume stays for the next start).
     const stopped = await postJson(base, cookie, '/api/computer/stop', { authorize: true });
     check(
       'lifecycle-stop-accepted',

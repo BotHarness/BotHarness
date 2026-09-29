@@ -37,13 +37,11 @@ export function parseMemoryGitUrl(raw: string): string | undefined {
     }
   }
 
-  // Git's scp-style SSH spelling, e.g. git@github.com:owner/repo.git.
   return /^[A-Za-z_][A-Za-z0-9_.-]*@[A-Za-z0-9.-]+:[A-Za-z0-9._~/-]+$/u.test(value)
     ? value
     : undefined;
 }
 
-/** Clone into a new, empty staging directory. The Registry owns adoption and cleanup. */
 export async function cloneMemoryRepository(input: {
   url: string;
   destination: string;

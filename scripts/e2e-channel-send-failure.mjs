@@ -1,4 +1,3 @@
-// Live DSH regression for #206: a rejected send stays visible until the Human restores and resends it.
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { readdirSync } from 'node:fs';

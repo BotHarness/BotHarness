@@ -2,13 +2,8 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
-/** The two Bot-mode Session root roles. A DSH Subagent is never a root. */
 export type SessionRootRole = 'orchestrator' | 'assignment';
 
-/**
- * How a Session came to be owned. `legacy` covers rows recorded before
- * provenance existed; `repair` marks an explicit, auditable re-owning.
- */
 export type SessionOwnershipProvenance = 'created' | 'fork' | 'subagent' | 'repair' | 'legacy';
 
 export interface SessionOwnershipRecord {
@@ -16,12 +11,9 @@ export interface SessionOwnershipRecord {
   botSlug: string;
   rootRole: SessionRootRole;
   provenance: SessionOwnershipProvenance;
-  /** The owning Session a fork or Subagent inherits from; absent for roots. */
+
   parentSessionId: string | undefined;
-  /**
-   * The explicit run configuration recorded at claim time. It is evidence of
-   * what the Host resolved, never a way to derive ownership.
-   */
+
   cwdReference: string | undefined;
   createdAt: string;
 }
@@ -44,16 +36,11 @@ export interface SessionOwnershipRepair {
   at: string;
 }
 
-/**
- * The system-prompt persona frozen for one Session. The body is stored as-is;
- * an empty body is a real snapshot of a PersonaBot without a PERSONA.md.
- */
 export interface SessionPersonaSnapshot {
   body: string;
   recordedAt: string;
 }
 
-/** Base class for domain failures the ownership interface reports as-is. */
 export class SessionOwnershipError extends Error {
   constructor(message: string) {
     super(message);
@@ -61,7 +48,6 @@ export class SessionOwnershipError extends Error {
   }
 }
 
-/** Raised when a Session is already owned by another PersonaBot or role. */
 export class SessionOwnershipConflictError extends SessionOwnershipError {
   constructor(
     readonly sessionId: string,
@@ -75,45 +61,24 @@ export class SessionOwnershipConflictError extends SessionOwnershipError {
   }
 }
 
-/**
- * The single ownership interface every read model, state projection, and
- * runtime recovery resolves through. Unknown Sessions stay unowned and never
- * fall back to cwd, workspace membership, or UI selection.
- */
 export interface SessionOwnership {
   claim(input: SessionOwnershipClaim): SessionOwnershipRecord;
-  /**
-   * Compose one ownership write inside a caller-owned operational transaction
-   * (for example the Assignment Directory insert that must commit with it).
-   */
+
   claimWithin(connection: DatabaseSync, input: SessionOwnershipClaim): SessionOwnershipRecord;
   resolve(sessionId: string): SessionOwnershipRecord | undefined;
-  /** Root Sessions of one PersonaBot, newest first. */
+
   rootsFor(botSlug: string, rootRole?: SessionRootRole): SessionOwnershipRecord[];
-  /** Every owned Session that descends from one Session through lineage. */
+
   descendantsOf(sessionId: string): SessionOwnershipRecord[];
-  /** Explicit, auditable re-owning; the only way ownership may change. */
+
   repair(input: SessionOwnershipRepair): SessionOwnershipRecord;
-  /**
-   * The Session's frozen persona snapshot, or undefined when none has been
-   * recorded yet (including for an unknown Session).
-   */
+
   personaSnapshot(sessionId: string): SessionPersonaSnapshot | undefined;
-  /**
-   * Record the first persona snapshot for an owned Session and return the
-   * durable bytes. A later call never rewrites an existing snapshot, so the
-   * Session's prompt prefix stays constant for its whole life. Re-owning the
-   * Session to another PersonaBot clears the snapshot for a fresh baseline.
-   */
+
   recordPersonaSnapshot(sessionId: string, body: string, at: string): SessionPersonaSnapshot;
-  /**
-   * Compaction-boundary refresh: overwrite the recorded snapshot with the
-   * current file body. The only sanctioned rewrite of a live Session's
-   * snapshot; callers must compare first and skip identical content so the
-   * prefix is never churned for no change.
-   */
+
   refreshPersonaSnapshot(sessionId: string, body: string, at: string): SessionPersonaSnapshot;
-  /** Bounded diagnostic listing of every owned Session. */
+
   list(): SessionOwnershipRecord[];
 }
 

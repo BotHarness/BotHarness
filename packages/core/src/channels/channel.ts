@@ -6,7 +6,6 @@ import type { ChannelQuestionRequest, ChannelQuestionResolution } from './user-q
 
 export type ChannelType = 'dm' | 'group';
 
-/** Per-member notification choice for ordinary Group messages. */
 export interface GroupWakePolicy {
   mode: 'all' | 'mentions' | 'digest' | 'silent';
   count: number;
@@ -16,14 +15,11 @@ export interface GroupWakePolicy {
 
 export type GroupWakePolicyActor = { kind: 'human' } | { kind: 'bot'; botSlug: string };
 
-/** Current canonical policy plus attribution from the immutable revision audit. */
 export interface GroupWakePolicyView extends GroupWakePolicy {
-  /** Null for the unsaved default or a policy that predates the audit migration. */
   lastActor: GroupWakePolicyActor | null;
   changedAt: string | null;
 }
 
-/** Applied to Groups with no saved member preference; revision 0 is never persisted. */
 export const DEFAULT_GROUP_WAKE_POLICY: GroupWakePolicy = {
   mode: 'digest',
   count: 5,
@@ -35,16 +31,16 @@ export interface ChannelRecord {
   id: string;
   type: ChannelType;
   name: string;
-  /** Small raster data URL for a Human-selected Group avatar. */
+
   avatar?: string;
   members: string[];
   botSlug?: string;
-  /** A Bot creator may manage this Group; Human authority remains separate. */
+
   ownerBotSlug?: string;
   invitations?: GroupInvitation[];
   joinRequests?: GroupJoinRequest[];
   wakePolicies?: Record<string, GroupWakePolicy>;
-  /** Human-only logical deletion keeps operational evidence durable. */
+
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
@@ -53,11 +49,11 @@ export interface ChannelRecord {
 export interface GroupInvitation {
   id: string;
   targetBotSlug: string;
-  /** The invited Bot incarnation; a recreated Bot cannot inherit a stale invite. */
+
   targetBotCreatedAt: string;
-  /** Older and Bot-created invitations carry the Bot owner. */
+
   inviterBotSlug?: string;
-  /** Human invitations keep Human authority distinct from Bot ownership. */
+
   inviterHuman?: true;
   status: 'pending' | 'accepted' | 'declined' | 'cancelled';
   createdAt: string;
@@ -77,7 +73,6 @@ export function isGroupAvatar(value: unknown): value is string {
       : bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP';
 }
 
-/** A nonmember Bot asks to join after a Human-selected #Group reference. */
 export interface GroupJoinRequest {
   id: string;
   requesterBotSlug: string;
@@ -120,7 +115,6 @@ export interface ChannelMention {
   end: number;
 }
 
-/** Human-selected #Group identity span; typed #text carries no authority. */
 export interface ChannelReference {
   channelId: string;
   label: string;
@@ -130,7 +124,6 @@ export interface ChannelReference {
 
 export const LOCAL_HUMAN_ID = 'local-human';
 
-/** Host-derived receipt; Human identity and read state are never supplied by the browser. */
 export interface ChannelHumanReceipt {
   humanId: string;
   displayName: string;
@@ -142,23 +135,20 @@ export interface ChannelDelivery {
   state: 'pending' | 'observed' | 'running' | 'retryable' | 'needs-repair' | 'handled' | 'ignored';
 }
 
-/** The member identity captured when a Group departure is committed. */
 export interface ChannelMemberDeparture {
   memberKind: 'bot' | 'human';
   memberId: string;
   displayName: string;
-  /** Older notices have no type and retain their original "left" presentation. */
+
   departureType?: 'left' | 'removed';
 }
 
-/** One committed send shown in the sender's Human DM without copying its body. */
 export interface BotDmAction {
   channelId: string;
   messageId: string;
   recipientBotSlug: string;
 }
 
-/** Host-derived chain metadata. Never accept this from a browser or model argument. */
 export interface BotMessageCausation {
   rootSourceEventId: string;
   parentSourceEventId: string;
@@ -170,40 +160,40 @@ export interface ChannelMessage {
   at: string;
   author: ChannelMessageAuthor;
   body: string;
-  /** Exact Human-selected branch from the Memory UI; opens a coordination turn. */
+
   memorySwitchTarget?: string;
-  /** Selected identity spans; plain typed @names are never actionable. */
+
   mentions?: ChannelMention[];
   channelRefs?: ChannelReference[];
-  /** Read-only Channel placement position for bounded receipt updates. */
+
   channelRevision?: number;
-  /** Read-only projection from per-Bot Inbox Admissions. */
+
   deliveries?: ChannelDelivery[];
-  /** Group Human recipients, projected from membership and identity-keyed read positions. */
+
   humanReceipts?: ChannelHumanReceipt[];
   botDmAction?: BotDmAction;
   memberDeparture?: ChannelMemberDeparture;
   botCausation?: BotMessageCausation;
-  /** Durable Host-authored request to authorize a folder for this PersonaBot. */
+
   grantRequest?: true;
-  /** Human response to this Bot's Grant request, backed by an active Workspace Grant. */
+
   grantRequestResolution?: { requestMessageId: string; grantId: string };
-  /** One exact live DSH tool call waiting for Human approval. */
+
   toolApprovalRequest?: ToolApprovalRequestCard;
-  /** Human-facing projection of a failed DSH Session turn. */
+
   sessionFailure?: SessionFailureCard;
-  /** Human's durable decision; the DSH approval itself remains one-shot and live. */
+
   toolApprovalDecision?: ToolApprovalDecision;
-  /** Native DSH user question awaiting a Human answer in this DM. */
+
   userQuestionRequest?: ChannelQuestionRequest;
-  /** Durable answer or cancellation for one native question request. */
+
   userQuestionResolution?: ChannelQuestionResolution;
   attachments?: ChannelAttachmentRef[];
   external?: ChannelMessageExternal;
   format?: 'markdown' | 'text';
-  /** A message id in this same Channel; independent of provider threading. */
+
   replyTo?: string;
-  /** Read-only projection. Null means the original message is unavailable. */
+
   replyToPreview?: ChannelReplyPreview | null;
 }
 
@@ -220,7 +210,6 @@ export function dmChannelId(botSlug: string): string {
   return `dm-${botSlug}`;
 }
 
-/** Ordered IDs avoid a second DM when the recipient replies. */
 export function botDmChannelId(firstBotSlug: string, secondBotSlug: string): string {
   const pair = [firstBotSlug, secondBotSlug].sort();
   return `dm-bots-${createHash('sha256').update(JSON.stringify(pair)).digest('hex').slice(0, 32)}`;

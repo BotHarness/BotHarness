@@ -57,7 +57,6 @@ function inputOf(execution: ToolExecution): string | undefined {
   }
 }
 
-/** Live DSH approval answerer presented in the owning PersonaBot DM. */
 export class ChannelToolApproval {
   readonly #channels: ChannelStore;
   readonly #ownership: SessionOwnership;
@@ -185,7 +184,6 @@ export class ChannelToolApproval {
     return !tracked.automatic || this.#rules?.match(tracked) !== undefined;
   }
 
-  /** Expire requests whose Host-owned access scope changed after they were shown. */
   cancelInvalid(): void {
     for (const [messageId, pending] of this.#pending) {
       const tracked = this.#tracked.get(callKey(pending.sessionId, pending.callId));

@@ -189,7 +189,6 @@ const MEMORY_ACCEPTED_COMMIT_MIGRATION: SchemaMigration = {
   },
 };
 
-/** Reserved after #115's accepted-Memory migration (generation 10). */
 export const WORKSPACE_GRANT_MIGRATION: SchemaMigration = {
   generation: 11,
   module: 'workspace-grants',
