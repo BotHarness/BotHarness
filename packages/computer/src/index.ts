@@ -36,7 +36,7 @@ import {
   formatAudit,
   ownsComputerTool,
 } from './tool/provider.js';
-import { ViewerProxy, proxyUpgrade } from './viewer.js';
+import { ViewerProxy, proxyUpgrade, viewerUpgradePaths } from './viewer.js';
 
 export const name = 'botharness-computer';
 
@@ -818,7 +818,7 @@ export function apply(ctx: Context, config: ComputerRuntimeConfig): void {
     );
 
     if (webServer.registerUpgrade !== undefined) {
-      for (const socketPath of [`${VIEWER_PREFIX}/websockets`, `${VIEWER_PREFIX}/websocket`]) {
+      for (const socketPath of viewerUpgradePaths(VIEWER_PREFIX)) {
         ctx.effect(
           () =>
             webServer.registerUpgrade?.({

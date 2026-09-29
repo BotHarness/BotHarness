@@ -28,6 +28,10 @@ export function joinUpstream(base: URL, requestUrl: URL, prefix: string): URL {
   return target;
 }
 
+export function viewerUpgradePaths(prefix: string): readonly string[] {
+  return [`${prefix}/api/websockets`, `${prefix}/websockets`, `${prefix}/websocket`];
+}
+
 export interface ViewerProxyOptions {
   readonly upstream: () => URL | undefined;
   readonly prefix: string;

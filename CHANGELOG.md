@@ -153,6 +153,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 - The Bot Browser launches without the automation marker (`navigator.webdriver` is false), so Human sign-in on sites that reject automated browsers, such as Google and X, works ([#483](https://github.com/BotHarness/BotHarness/issues/483), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)).
 - PersonaBot activity heatmap tooltips now stay beside the hovered or focused day in wide and compact Profiles ([#478](https://github.com/BotHarness/BotHarness/issues/478)).
+- The Computer viewer now connects to current Selkies desktops through their `/api/websockets` endpoint while retaining the older paths, so a started desktop no longer stays on the connecting screen ([#451](https://github.com/BotHarness/BotHarness/issues/451)).
 - The docked Channel sidebar now stays in place while switching Channels or opening a PersonaBot DM, so the Channel body no longer shifts while the next conversation loads ([#430](https://github.com/BotHarness/BotHarness/issues/430)).
 - Previously opened Channels now show cached history and sidebar data immediately while refreshing in the background; first visits show skeleton placeholders in the Channel body, app sidebar, and Channel sidebar ([#434](https://github.com/BotHarness/BotHarness/issues/434)).
 - The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
