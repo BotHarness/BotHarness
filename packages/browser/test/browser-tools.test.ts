@@ -414,6 +414,9 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     await expect(
       tabs.execute({ action: 'select', targetId: 'tab-9' }, execution('browser_tabs')),
     ).rejects.toThrow(/not owned/);
+    h.provider.touch('bot-a');
+    await h.provider.closeIdleTabs(60_000);
+    expect(h.provider.tabCount('bot-a')).toBe(1);
     await h.provider.closeIdleTabs(0);
     expect(h.runtime.closeTab).toHaveBeenCalledWith('tab-1');
     expect(h.provider.tabCount('bot-a')).toBe(0);

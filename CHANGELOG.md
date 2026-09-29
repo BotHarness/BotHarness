@@ -152,6 +152,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- The Bot Browser no longer stops itself seconds after the Human opens it: opening, watching the live view, and taking over in the Browser entry all count as activity, so the idle sweep only stops a genuinely idle browser ([#486](https://github.com/BotHarness/BotHarness/issues/486)).
 - The Bot Browser launches without the automation marker (`navigator.webdriver` is false), so Human sign-in on sites that reject automated browsers, such as Google and X, works ([#483](https://github.com/BotHarness/BotHarness/issues/483), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)).
 - PersonaBot activity heatmap tooltips now stay beside the hovered or focused day in wide and compact Profiles ([#478](https://github.com/BotHarness/BotHarness/issues/478)).
 - The Computer viewer now connects to current Selkies desktops through their `/api/websockets` endpoint while retaining the older paths, so a started desktop no longer stays on the connecting screen ([#451](https://github.com/BotHarness/BotHarness/issues/451)).

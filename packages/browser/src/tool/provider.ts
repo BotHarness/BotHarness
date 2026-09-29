@@ -54,6 +54,7 @@ export interface BrowserToolProvider {
   setTakeover(slug: string, active: boolean): boolean;
   currentTab(slug: string): string | undefined;
   tabCount(slug: string): number;
+  touch(slug: string): void;
   closeIdleTabs(idleMs: number): Promise<void>;
   dispose(): Promise<void>;
 }
@@ -542,6 +543,11 @@ export function createBrowserToolProvider(
 
     tabCount(slug) {
       return tabsByBot.get(slug)?.owned.size ?? 0;
+    },
+
+    touch(slug) {
+      const state = tabsByBot.get(slug);
+      if (state !== undefined) state.lastActivity = Date.now();
     },
 
     async closeIdleTabs(idleMs) {
