@@ -46,6 +46,14 @@ _Avoid_: status, mood, presence
 A PersonaBot's shared visual representation across its Bindings: deterministic Blobatar media or Human-supplied image media inside one Bot-state Activity Frame. Blobatar media may animate while working or thinking; custom images remain still while the frame carries activity, and later renderers such as Live2D consume the same state.
 _Avoid_: profile picture, skin
 
+**Model Preset**:
+A reusable, deployment-local Human-authored model plan for PersonaBots: one Orchestrator provider, model, and reasoning effort, plus allowed Assignment models and efforts with a default. Applying it copies the plan to a PersonaBot; later preset edits do not update that copy.
+_Avoid_: DSH Agent preset, SoulSnapshot
+
+**PersonaBot Model Plan**:
+The PersonaBot-local snapshot of a Model Preset or Human custom choices that governs its Orchestrator route and future Assignment model selections. It is operational configuration, not Soul or Memory.
+_Avoid_: Persona, DSH Agent preset, model usage
+
 ### Support and execution
 
 **Harness**:

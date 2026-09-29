@@ -138,10 +138,6 @@ function parseDraftBaseline(
   }
 }
 
-/**
- * Own exactly one SSE connection for the selected Channel. The snapshot RPC
- * establishes the cursor; EventSource reconnects with Last-Event-ID.
- */
 export function mountChannelLive(
   store: ClientStore,
   actions: BridgeActions,
@@ -434,10 +430,6 @@ export function mountChannelLive(
   };
 }
 
-/**
- * Observe canonical roster commits across windows. The SSE frame only invalidates
- * local state; the Host roster snapshot remains the authority for final placement.
- */
 export function mountRosterLive(
   store: ClientStore,
   actions: BridgeActions,

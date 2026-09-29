@@ -84,7 +84,6 @@ export interface SessionWorkspaceGroup {
   rows: PersonaBotSessionRow[];
 }
 
-/** Group only for presentation; the already-prioritized rows keep their order within each group. */
 export function groupSessionRowsByWorkspace(
   rows: readonly PersonaBotSessionRow[],
 ): SessionWorkspaceGroup[] {

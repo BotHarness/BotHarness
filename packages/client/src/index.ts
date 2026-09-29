@@ -26,7 +26,6 @@ export interface Config {
   sortModes: Volatile<Record<string, BotModeSortMode>>;
 }
 
-/** Profile-owned live preferences projected through the official Config form. */
 export const Config: Schema<Partial<BotModeSettings>, Config> = Schema.object({
   developerMode: Schema.boolean().default(DEFAULT_BOT_MODE_DEVELOPER).volatile(),
   botIcon: Schema.union([...BOT_MODE_ICONS])
@@ -43,10 +42,6 @@ export const Config: Schema<Partial<BotModeSettings>, Config> = Schema.object({
     .volatile(),
 });
 
-/**
- * Host half of the Client Bundle. The settings page is contributed by the
- * browser plugin, so suppress the native auto-generated Config form.
- */
 export function apply(ctx: Context): void {
   ctx.inject(['settings'], (child) => {
     child.effect(() => child.settings.configure({ auto: false }, ctx.fiber));

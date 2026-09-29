@@ -34,23 +34,18 @@ try {
     } catch {}
   });
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, {
-    waitUntil: 'networkidle2',
+    waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
       .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click();
-    Array.from(document.querySelectorAll('button'))
-      .find((button) =>
-        ['BOT \\u6a21\\u5f0f', 'Bot mode'].includes(button.textContent?.trim() ?? ''),
-      )
-      ?.click();
   });
-  await page.waitForFunction(
-    () => document.querySelector('button[aria-label="\\u65b0\\u5efa"], button[aria-label="New"]'),
-    { timeout: 10000 },
-  );
+  const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
+  await page.waitForSelector(botButton);
+  if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.waitForSelector('.bh-root', { timeout: 10000 });
   const ids = await page.evaluate(
     async (channelName, original, latest) => {
       const rpc = async (method, args) => {
@@ -81,34 +76,19 @@ try {
     originalBody,
     latestBody,
   );
-  await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
   await page.evaluate(() => {
-    Array.from(document.querySelectorAll('button'))
-      .find((button) =>
-        ['BOT \\u6a21\\u5f0f', 'Bot mode'].includes(button.textContent?.trim() ?? ''),
-      )
-      ?.click();
     Array.from(document.querySelectorAll('button'))
       .find((button) => button.textContent?.trim() === 'Configure later')
       ?.click();
   });
-  await page.waitForFunction(
-    (channelName) =>
-      Array.from(document.querySelectorAll('button')).some((button) =>
-        button.textContent?.includes(channelName),
-      ),
-    { timeout: 10000 },
-    name,
-  );
-  await page.evaluate((channelName) => {
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.includes(channelName))
-      ?.click();
-  }, name);
-  await page.waitForSelector(
-    'textarea[placeholder^="\\u53d1\\u6d88\\u606f\\u7ed9"], textarea[placeholder^="Message "]',
-    { timeout: 10000 },
-  );
+  await page.waitForSelector(botButton);
+  if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.waitForSelector('.bh-root', { timeout: 10000 });
+  const channelRow = `.bh-root [data-channel-id="${ids.channelId}"]`;
+  await page.waitForSelector(channelRow, { timeout: 10000 });
+  await page.click(channelRow);
+  await page.waitForSelector('.bh-composer-input', { timeout: 10000 });
   await page.waitForFunction(
     (body) =>
       Array.from(document.querySelectorAll('.bh-bubble-wrap')).some((wrap) =>
@@ -149,8 +129,7 @@ try {
     timeout: 5000,
   });
   await selectReply();
-  const input =
-    'textarea[placeholder^="\\u53d1\\u6d88\\u606f\\u7ed9"], textarea[placeholder^="Message "]';
+  const input = '.bh-composer-input';
   await page.type(input, replyBody);
   await page.evaluate(() =>
     document

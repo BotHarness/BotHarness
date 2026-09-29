@@ -45,9 +45,7 @@ export function MessageCopyAction({
         setCopiedBody(undefined);
         resetTimer.current = undefined;
       }, COPY_SUCCESS_MS);
-    } catch {
-      // A denied clipboard write must never display success or reject the click handler.
-    }
+    } catch {}
   };
 
   const copied = copiedBody === body;

@@ -13,7 +13,6 @@ export interface MemoryDiffModel {
   binary: boolean;
 }
 
-/** Turn a single Git file patch into numbered rows; extended headers are not code. */
 export function parseMemoryDiff(diff: string): MemoryDiffModel {
   const lines: MemoryDiffLine[] = [];
   let oldLine = 0;

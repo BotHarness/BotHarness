@@ -9,7 +9,6 @@ export interface MemoryGitLaneRow {
   width: number;
 }
 
-/** Lay out the reachable DAG in the order returned by git log --topo-order. */
 export function layoutMemoryGitLanes(commits: readonly MemoryGitCommit[]): MemoryGitLaneRow[] {
   const active: (string | null)[] = [];
   const rows: MemoryGitLaneRow[] = [];
@@ -31,8 +30,6 @@ export function layoutMemoryGitLanes(commits: readonly MemoryGitCommit[]): Memor
     active[lane] = null;
     const toParents: number[] = [];
     for (const [index, parent] of commit.parents.entries()) {
-      // Keep the first-parent line in this commit's lane. A sibling line
-      // pointing at that parent will join at the parent node below.
       let parentLane = index === 0 ? lane : active.indexOf(parent);
       if (parentLane < 0) parentLane = slot();
       active[parentLane] = parent;
@@ -50,7 +47,6 @@ export function layoutMemoryGitLanes(commits: readonly MemoryGitCommit[]): Memor
   return rows;
 }
 
-/** Matches the compact rail proportions used by the DSH workbench graph. */
 export const MEMORY_GRAPH_LANE_WIDTH = 12;
 export const MEMORY_GRAPH_ROW_HEIGHT = 46;
 export const MEMORY_GRAPH_NODE_Y = 12;
@@ -59,7 +55,6 @@ export function memoryGraphLaneX(lane: number): number {
   return lane * MEMORY_GRAPH_LANE_WIDTH + MEMORY_GRAPH_LANE_WIDTH / 2;
 }
 
-/** Rounded branch/join elbows keep adjacent rows joined without a diagonal slash. */
 export function memoryGraphRailPath(
   fromLane: number,
   toLane: number,

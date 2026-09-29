@@ -111,7 +111,6 @@ describe('@botharness/ui browser bundle', () => {
   });
 
   it('uses a package ID that the RC2 Client Modules HMR path can resolve', () => {
-    // RC2 stripClientSuffix treats a trailing /client as an export subpath.
     expect(loadedEntry().id).not.toMatch(/\/client$/);
   });
 

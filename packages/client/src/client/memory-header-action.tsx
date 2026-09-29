@@ -10,7 +10,6 @@ import {
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { channelSidebarPrefs } from './channel-sidebar-prefs.js';
 
-/** The same quiet icon action used by other collapsible Channel sections. */
 export function MemoryRefreshHeaderAction({
   requestRefresh,
   t,
@@ -29,7 +28,6 @@ export function MemoryRefreshHeaderAction({
   );
 }
 
-/** Memory evolution keeps its display terminology in the same persisted sidebar preference. */
 export function MemoryEvolutionHeaderAction(props: ChannelSidebarEntryProps): ReactElement {
   const [open, setOpen] = useState(false);
   const terminology = useSyncExternalStore(

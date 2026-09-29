@@ -1,5 +1,7 @@
 # Model selection is local; the SoulSnapshot stays model-agnostic
 
+ADR-0093 extends this deployment-local choice into reusable Model Presets and per-PersonaBot applied snapshots. The single-model override described below is the original baseline, not the current target configuration shape; the export boundary remains in force.
+
 A PersonaBot's model choice is deployment-local: a global default with an optional per-PersonaBot override, resolved at activation. It is not part of the persona or memory, and it never travels in a SoulSnapshot (ADR-0020): an imported bot runs on the importer's own model, provider, and credentials. Model selection must not ride along with a shared bot because recipients have different providers, budgets, and availability, and because a frozen model string would rot faster than the identity it rides on.
 
 ## Considered Options

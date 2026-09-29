@@ -55,12 +55,10 @@ export function useNarrowChannelSidebar(): boolean {
   return useSyncExternalStore(subscribeNarrow, matchesNarrow, () => false);
 }
 
-/** Head-of-conversation control surface for the Channel sidebar. */
 export interface ChannelSidebarController {
   mode: ChannelSidebarMode;
   narrow: boolean;
   scopeKey: string | undefined;
-  /** Docked width in CSS pixels. */
   width: number;
   setWidth(width: number): void;
   isEntryExpanded(entryId: string): boolean;
@@ -76,7 +74,6 @@ export function useChannelSidebar(
   const narrow = useNarrowChannelSidebar();
   const [overlayOpen, setOverlayOpen] = useState(false);
   const selection = state.selection;
-  // Conversation data resets during navigation, but the panel follows the selected destination.
   const scopeKey =
     selection?.kind === 'bot'
       ? channelSidebarScopeKey('personabot', selection.slug, selection.slug)
@@ -217,7 +214,6 @@ export function ChannelSidebar({
   selectedMemoryWorking?: import('./bridge.js').MemoryWorkingChange | undefined;
 }): ReactElement | null {
   const selection = state.selection;
-  // Keep using roster metadata until the selected conversation finishes opening.
   const channel =
     state.conversation.channel ??
     (selection?.kind === 'channel'

@@ -9,7 +9,6 @@ import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import type { BotSummary, ChannelSummary } from './store.js';
 
-/** One hidden Channel projected with the optional PersonaBot presentation. */
 export interface HiddenChannelItem {
   channel: ChannelSummary;
   bot?: BotSummary;
@@ -26,7 +25,6 @@ export interface HiddenChannelsModalProps {
 
 export const HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS = 180;
 
-/** Keep explicit hide order independent of live Channel upserts; append implicit Bot DMs once. */
 export function hiddenChannelSequence(
   channels: readonly ChannelSummary[],
   hiddenIds: readonly string[],
@@ -48,7 +46,6 @@ export function hiddenChannelSequence(
   return ordered;
 }
 
-/** Searchable recovery surface for Channels omitted from roster navigation. */
 export function HiddenChannelsModal({
   items,
   t,

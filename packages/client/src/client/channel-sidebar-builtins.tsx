@@ -379,7 +379,6 @@ function BotInboxBadge(): ReactElement {
   );
 }
 
-/** Entries BotHarness itself contributes to the Channel sidebar. */
 export function createChannelSidebarBuiltins(
   t: BotHarnessTranslate,
   prefs?: BotModePrefs,

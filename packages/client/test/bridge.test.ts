@@ -1472,7 +1472,6 @@ describe('bridge actions', () => {
       kind: 'bot',
       slug: 'bot-generated',
     });
-    // Creation must initialize the selected DM before the Human's first send.
     await expect(actions.send('创建后第一条消息')).resolves.toBe(true);
     expect(clientStore.getSnapshot().conversation.status).toBe('ready');
     expect(clientStore.getSnapshot().conversation.channel?.id).toBe('dm-bot-generated');

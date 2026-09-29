@@ -50,7 +50,6 @@ function useSessionOwner(
   return resolved?.sessionId === sessionId ? resolved : undefined;
 }
 
-/** A Session-scoped navigation action; unknown and Subagent Sessions render no entry. */
 export function SessionReturnAction({
   sessionId,
   resolveOwner,
@@ -105,7 +104,6 @@ export function SessionReturnAction({
   );
 }
 
-/** An idle native Session row shows its PersonaBot identity before the title. */
 export function SessionOwnerLeading({
   sessionId,
   resolveOwner,
@@ -130,7 +128,6 @@ export function SessionOwnerLeading({
   );
 }
 
-/** Native Session row menu entry, visible only for owned root Sessions. */
 export function SessionReturnMenuItem({
   sessionId,
   useMenuOpenState,

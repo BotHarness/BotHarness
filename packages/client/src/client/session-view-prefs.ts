@@ -61,9 +61,7 @@ export function writeSessionViewPreference(
     const records = allPreferences(storage);
     records[botSlug] = preference;
     storage.setItem(SESSION_VIEW_PREFERENCES_KEY, JSON.stringify(records));
-  } catch {
-    // Browser storage can be denied or full. The view remains usable in this tab.
-  }
+  } catch {}
 }
 
 function storeEntry(botSlug: string): SessionViewStoreEntry {
@@ -75,7 +73,6 @@ function storeEntry(botSlug: string): SessionViewStoreEntry {
   return entry;
 }
 
-/** One in-tab source shared by the Sessions heading menu and its body. */
 export function sessionViewPreferenceSnapshot(botSlug: string): SessionViewPreference {
   return storeEntry(botSlug).snapshot;
 }

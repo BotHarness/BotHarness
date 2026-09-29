@@ -53,7 +53,6 @@ export interface ChannelSummary {
   }>;
   createdAt: string;
   updatedAt: string;
-  /** Latest durable message projected by the Channel list query for compact previews. */
   latestMessage?: ChannelMessage;
 }
 
@@ -154,7 +153,6 @@ export interface ChannelMessage {
       | 'handled'
       | 'ignored';
   }[];
-  /** Bodyless Human DM activity linking to a committed Bot-to-Bot send. */
   botDmAction?: { channelId: string; messageId: string; recipientBotSlug: string };
   memberDeparture?: {
     memberKind: 'bot' | 'human';
@@ -173,11 +171,8 @@ export interface ChannelMessage {
   format?: 'markdown' | 'text';
   replyTo?: string;
   replyToPreview?: ChannelReplyPreview | null;
-  /** Local echo awaiting the Host's committed message; never sent on the wire. */
   pending?: boolean;
-  /** Process-local rejected send. Never a committed Source Event. */
   failed?: string;
-  /** Local projection of a process-only Orchestrator tool-call draft. */
   streaming?: boolean;
 }
 
@@ -279,12 +274,9 @@ export interface ConversationState {
   status: ClientStatus;
   channel: ChannelSummary | undefined;
   messages: readonly ChannelMessage[];
-  /** Process-local, presentation-only Orchestrator channel_send previews. */
   drafts: readonly ChannelDraft[];
-  /** Process-local draft event watermark; reset on a new SSE baseline. */
   draftRevision: number;
   draftNotice: 'interrupted' | 'expired' | undefined;
-  /** Durable per-Channel live-stream watermark. */
   revision: number;
   timeline: ConversationTimeline;
   focusMessageId?: string | undefined;
@@ -341,19 +333,11 @@ export interface SessionsState {
   error: string | undefined;
 }
 
-/** Host-owned arrangement mirrored from `rosterGet`; never written locally. */
 export interface RosterState {
-  /** Pinned Channel ids in display order. */
   pins: readonly string[];
-  /** Channel ids hidden from expanded and collapsed roster navigation. */
   hidden: readonly string[];
   sections: readonly RosterSection[];
-  /**
-   * Flat top-level order, or `undefined` when the host domain predates the
-   * flat remodel (legacy fallback, converted once on load).
-   */
   topOrder: readonly TopOrderEntry[] | undefined;
-  /** True while the host reports `storage-unavailable`; the UI stays read-only. */
   readOnly: boolean;
 }
 

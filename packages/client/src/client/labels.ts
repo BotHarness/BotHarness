@@ -4,7 +4,6 @@ export type BotState = 'thinking' | 'working' | 'waiting' | 'blocked' | 'idle';
 
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 
-/** Fixed bottom bucket for Channels with no section (ADR-0031); a product term, not a folder. */
 export function ungroupedLabel(t: BotHarnessTranslate = zhTranslate): string {
   return t('roster.ungrouped');
 }
@@ -17,7 +16,6 @@ const STATE_KEYS = {
   idle: 'botState.idle',
 } as const;
 
-/** Human-readable Bot activity state. */
 export function botStateLabel(state: BotState, t: BotHarnessTranslate = zhTranslate): string {
   return t(STATE_KEYS[state]);
 }

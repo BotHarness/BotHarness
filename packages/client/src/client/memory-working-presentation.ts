@@ -3,7 +3,6 @@ import type { MemoryTerminology } from './channel-sidebar-prefs.js';
 
 export type MemoryChangeGroup = 'new' | 'updated' | 'unstaged' | 'staged' | 'untracked';
 
-/** A Human-facing row compares the checked-out file with HEAD, not one index phase. */
 export function currentMemoryChanges(
   changes: readonly MemoryWorkingChange[],
 ): MemoryWorkingChange[] {

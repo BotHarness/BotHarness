@@ -90,9 +90,7 @@ function approvalRulePath(rule: ToolApprovalRuleView): string {
   try {
     const scope = JSON.parse(rule.scopeKey) as unknown;
     if (Array.isArray(scope) && typeof scope[1] === 'string') return scope[1];
-  } catch {
-    // An older rule still remains revocable even if its scope shape changes.
-  }
+  } catch {}
   return rule.scopeKey;
 }
 
@@ -292,7 +290,6 @@ export function FolderBrowser({
   );
 }
 
-/** Human-facing file access for one PersonaBot. DSH Workspace rows are candidates, not Grants. */
 export function WorkspaceGrantsEntry({
   botSlug,
   actions,

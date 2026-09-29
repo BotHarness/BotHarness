@@ -5,15 +5,12 @@ import type { BotHarnessTranslate } from './locale.js';
 import type { ClientState } from './store.js';
 import type { MemoryWorkingChange } from './bridge.js';
 
-/** Which selection a Channel sidebar entry belongs to. */
 export type ChannelSidebarScope = 'channel' | 'personabot';
 
-/** Context the shell passes to every entry it renders. */
 export interface ChannelSidebarEntryProps {
   scope: ChannelSidebarScope;
   channelId: string;
   conversationRevision?: number;
-  /** Section-local refresh signal shared by its header action and body. */
   refreshRevision?: number;
   requestRefresh?: () => void;
   botSlug: string | undefined;
@@ -27,35 +24,22 @@ export interface ChannelSidebarEntryProps {
   expanded?: boolean;
   setExpanded?: (expanded: boolean) => void;
   setExpandable?: (expandable: boolean) => void;
-  /** Locale-bound translate of the BotHarness namespace. */
   t: BotHarnessTranslate;
 }
 
-/**
- * One Channel sidebar entry: a collapsible, ordered item that may display
- * information, offer controls, or both. Registered through
- * {@link ChannelSidebarRegistry}; the shell never imports an entry.
- */
 export interface ChannelSidebarEntry {
-  /** Stable identity; registering the same id twice is an error. */
   id: string;
   label: string;
-  /** Ascending order; ties fall back to the id so ordering is deterministic. */
   order?: number;
   scope: ChannelSidebarScope;
   component: ComponentType<ChannelSidebarEntryProps>;
-  /** Optional control rendered beside the collapsible entry heading. */
   headerAction?: ComponentType<ChannelSidebarEntryProps>;
-  /** Optional short status rendered beside the label (counts, state). */
   badge?: ComponentType<ChannelSidebarEntryProps>;
-  /** Hide an entry when this selection has no relevant read-model facts. */
   visible?: (state: ClientState) => boolean;
 }
 
-/** Ordered, disposable registry the Channel sidebar shell renders from. */
 export interface ChannelSidebarRegistry {
   register(entry: ChannelSidebarEntry): () => void;
-  /** Entries for one scope, ordered and reference-stable between changes. */
   entries(scope: ChannelSidebarScope): readonly ChannelSidebarEntry[];
   subscribe(listener: () => void): () => void;
 }
