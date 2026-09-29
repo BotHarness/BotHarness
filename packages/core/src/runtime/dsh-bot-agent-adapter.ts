@@ -1244,6 +1244,62 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       );
       registerTool(
         defineTool({
+          name: 'source_attention_get',
+          description:
+            "Read this PersonaBot's nine effective source rules, their revision and editor, and actual Orchestrator wake attempts over the last seven days. Group Channel preferences override the ordinary Group default.",
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_get: Orchestrator run is unavailable');
+            return JSON.stringify({ policies: active.run.sourcePolicy.list() });
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'source_attention_set',
+          description:
+            "Set this PersonaBot's Assignment report wake default. Conditional wakes for reply requests or meaningful states; immediate also wakes for progress. Only new Admissions use the new revision.",
+          parameters: {
+            wake: { type: 'string', required: true, enum: ['conditional', 'immediate'] },
+          },
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async (args) => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_set: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.sourcePolicy.setAssignmentReport(args.wake));
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
+          name: 'source_attention_reset',
+          description:
+            "Restore this PersonaBot's built-in Assignment report wake default. The reset gets a new audited revision and leaves previous Admissions unchanged.",
+          parameters: {},
+          output: {
+            schema: { type: 'string' },
+            render: (_args, value) => [{ type: 'text', text: value }],
+          },
+          execute: async () => {
+            const active = this.#runs.get(run.sessionId);
+            if (active?.role !== 'orchestrator' || active.run.sourcePolicy === undefined)
+              throw new Error('source_attention_reset: Orchestrator run is unavailable');
+            return JSON.stringify(active.run.sourcePolicy.resetAssignmentReport());
+          },
+        }),
+      );
+      registerTool(
+        defineTool({
           name: 'group_leave',
           description:
             'Leave a joined Group Channel. This also relinquishes Bot creator management, and repeating the call is safe.',

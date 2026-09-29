@@ -69,6 +69,14 @@ describe('DSH Bot Agent adapter', () => {
           calls.push(
             write.execute({ channel_id: 'group-team', mode: 'mentions' }, {} as ToolRunContext),
           );
+          const sourceGet = tools.find((tool) => tool.name === 'source_attention_get');
+          const sourceSet = tools.find((tool) => tool.name === 'source_attention_set');
+          const sourceReset = tools.find((tool) => tool.name === 'source_attention_reset');
+          if (!sourceGet || !sourceSet || !sourceReset)
+            throw new Error('Source attention Tools not registered');
+          calls.push(sourceGet.execute({}, {} as ToolRunContext));
+          calls.push(sourceSet.execute({ wake: 'immediate' }, {} as ToolRunContext));
+          calls.push(sourceReset.execute({}, {} as ToolRunContext));
         },
       },
     );
@@ -85,6 +93,29 @@ describe('DSH Bot Agent adapter', () => {
       message: 'Change my Group attention to mentions',
       inboundChannelId: 'dm-test',
       inbox: '',
+      sourcePolicy: {
+        list: () => [],
+        setAssignmentReport: (wake) => ({
+          sourceClass: 'assignment-report',
+          admission: 'admit',
+          wake,
+          revision: 2,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: true,
+          recentWakeCount: 0,
+        }),
+        resetAssignmentReport: () => ({
+          sourceClass: 'assignment-report',
+          admission: 'admit',
+          wake: 'conditional',
+          revision: 3,
+          lastActor: { kind: 'bot', botSlug: 'ada' },
+          changedAt: BOT.createdAt,
+          overrideActive: false,
+          recentWakeCount: 0,
+        }),
+      },
       channels: {
         ...groupTools,
         readGroupWakePolicy: () => current,
@@ -129,6 +160,9 @@ describe('DSH Bot Agent adapter', () => {
     expect((await Promise.all(calls)).map((value) => JSON.parse(String(value)))).toMatchObject([
       { channelId: 'group-team', mode: 'digest', revision: 0 },
       { channelId: 'group-team', mode: 'mentions', revision: 1 },
+      { policies: [] },
+      { sourceClass: 'assignment-report', wake: 'immediate', revision: 2 },
+      { sourceClass: 'assignment-report', wake: 'conditional', revision: 3 },
     ]);
     expect(writes).toEqual([
       {
@@ -537,6 +571,9 @@ describe('DSH Bot Agent adapter', () => {
       'group_remove_member',
       'group_attention_get',
       'group_attention_set',
+      'source_attention_get',
+      'source_attention_set',
+      'source_attention_reset',
       'group_leave',
       'bot_dm_send',
       'channel_send',

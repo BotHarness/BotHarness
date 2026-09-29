@@ -29,7 +29,11 @@ import {
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 import { sessionMentionText } from './session-mentions.js';
-import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './source-policy.js';
+import {
+  createBotSourcePolicyStore,
+  type BotSourcePolicy,
+  type BotSourcePolicyStore,
+} from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
   AssignmentPermissionSnapshot,
@@ -132,6 +136,11 @@ export interface OrchestratorAgentRun {
   inbox: string;
   inboundChannelId: string;
   channels: OrchestratorChannelAccess;
+  sourcePolicy?: {
+    list(): BotSourcePolicy[];
+    setAssignmentReport(wake: 'conditional' | 'immediate'): BotSourcePolicy;
+    resetAssignmentReport(): BotSourcePolicy;
+  };
   assignments: OrchestratorAssignmentAccess;
   memory?: {
     switchBranch(branch: string): { from: string; to: string; head: string };
@@ -1254,6 +1263,7 @@ class BotRuntimeImplementation implements BotRuntime {
         collected.eventIds.length > 0,
         () => this.#markAdmissionsSideEffect(botSlug, includedIds),
         collected.eventIds,
+        [...new Set([...includedIds, ...collected.eventIds])],
       );
       this.#markReportsHandled(collected.eventIds);
       this.#settleHarvestHandled(botSlug, includedIds);
@@ -1898,6 +1908,7 @@ class BotRuntimeImplementation implements BotRuntime {
     coordinateBranchSwitch = false,
     markAttemptSideEffect: () => void = () => this.#markSideEffectStarted(sourceEventId),
     reportEventIds: readonly string[] = [],
+    wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
     const markSideEffect = (): void => {
@@ -1917,6 +1928,28 @@ class BotRuntimeImplementation implements BotRuntime {
         ? body
         : [body, annotation].filter((part) => part.trim().length > 0).join('\n\n');
     try {
+      const ids = [...new Set(wakeEventIds)];
+      if (ids.length > 0)
+        this.#database.transaction(
+          (database) => {
+            const rows = database
+              .prepare(`
+          SELECT DISTINCT reason FROM inbox_admissions
+           WHERE bot_slug = ? AND source_event_id IN (${ids.map(() => '?').join(', ')})
+        `)
+              .all(bot.slug, ...ids) as { reason: string }[];
+            const startedAt = this.#now().toISOString();
+            for (const row of rows)
+              database
+                .prepare(`
+          INSERT INTO bot_source_wake_attempts
+            (wake_id, bot_slug, source_class, session_id, started_at)
+          VALUES (?, ?, ?, ?, ?)
+        `)
+                .run(randomUUID(), bot.slug, row.reason, orchestrator.sessionId, startedAt);
+          },
+          ['bot-inbox'],
+        );
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
@@ -1932,6 +1965,25 @@ class BotRuntimeImplementation implements BotRuntime {
           markSideEffect,
           readAdmissions,
         ),
+        sourcePolicy: {
+          list: () => this.#sourcePolicy.list(bot.slug),
+          setAssignmentReport: (wake) => {
+            markSideEffect();
+            const changed = this.#sourcePolicy.setAssignmentReport(bot.slug, wake, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+            return changed;
+          },
+          resetAssignmentReport: () => {
+            markSideEffect();
+            const changed = this.#sourcePolicy.resetAssignmentReport(bot.slug, {
+              kind: 'bot',
+              botSlug: bot.slug,
+            });
+            return changed;
+          },
+        },
         memory: {
           continueFromCommit: (sha, branch) => {
             if (this.#memory === undefined) throw new Error('Memory is unavailable');
@@ -3518,7 +3570,10 @@ class BotRuntimeImplementation implements BotRuntime {
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (reportWake === 'conditional' && this.#shouldWakeNow(input.state, expectsReply))
+    if (
+      reportWake === 'immediate' ||
+      (reportWake === 'conditional' && this.#shouldWakeNow(input.state, expectsReply))
+    )
       this.#scheduleHarvest(botSlug);
     return report;
   }

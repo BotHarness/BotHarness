@@ -197,6 +197,8 @@ export interface BridgeMethods {
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
   botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
+  botSourcePolicySet(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
+  botSourcePolicyReset(payload: unknown): BridgeResult<{ policy: BotSourcePolicy }>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -1313,6 +1315,38 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.registry.get(slug) === undefined) return unknownBot(slug);
       try {
         return { ok: true, value: { policies: deps.sourcePolicy?.list(slug) ?? [] } };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    botSourcePolicySet(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const wake = source['wake'];
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
+      if (wake !== 'conditional' && wake !== 'immediate')
+        return invalidInput('Assignment report wake must be conditional or immediate');
+      try {
+        return {
+          ok: true,
+          value: { policy: deps.sourcePolicy.setAssignmentReport(slug, wake, { kind: 'human' }) },
+        };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    botSourcePolicyReset(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.sourcePolicy === undefined) return invalidInput('Source policy is unavailable');
+      try {
+        return {
+          ok: true,
+          value: { policy: deps.sourcePolicy.resetAssignmentReport(slug, { kind: 'human' }) },
+        };
       } catch (error) {
         return invalidInput(String(error));
       }

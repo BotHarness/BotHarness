@@ -43,6 +43,8 @@ import {
   loadMemoryGitCommitDiff,
   loadProfileActivity,
   loadBotSourcePolicies,
+  setBotSourcePolicy,
+  resetBotSourcePolicy,
   loadMemoryWorkingChanges,
   loadMemoryWorkingDiff,
   saveMemoryFile,
@@ -143,6 +145,8 @@ export interface BridgeActions {
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
+  setBotSourcePolicy(slug: string, wake: 'conditional' | 'immediate'): Promise<void>;
+  resetBotSourcePolicy(slug: string): Promise<void>;
   memoryWorkingChanges(channelId: string): Promise<MemoryWorkingChange[]>;
   memoryWorkingDiff(
     channelId: string,
@@ -1005,6 +1009,8 @@ export function createActions(
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
+    setBotSourcePolicy: (slug, wake) => setBotSourcePolicy(call, slug, wake),
+    resetBotSourcePolicy: (slug) => resetBotSourcePolicy(call, slug),
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
     memoryWorkingDiff: (channelId, path, kind) =>
       loadMemoryWorkingDiff(call, channelId, path, kind),

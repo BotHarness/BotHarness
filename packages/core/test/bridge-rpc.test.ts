@@ -97,6 +97,8 @@ describe('bridge typert service', () => {
       'channelSend',
       'botAttention',
       'botSourcePolicies',
+      'botSourcePolicySet',
+      'botSourcePolicyReset',
       'humanAttention',
       'humanAttentionIgnore',
       'assignments',

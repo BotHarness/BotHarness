@@ -14,7 +14,7 @@ describe('per-PersonaBot source policy defaults', () => {
     const home = createTempRoot('botharness-source-policy-upgrade-');
     const prior = mountOperationalDatabase({
       dshHome: home,
-      schemaPlan: defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -1)),
+      schemaPlan: defineSchemaPlan(BOT_HARNESS_SCHEMA_PLAN.migrations.slice(0, -2)),
     });
     attachOperationalModule(prior, 'source-policy-prior').transaction((db) => {
       db.prepare(`
@@ -117,6 +117,9 @@ describe('per-PersonaBot source policy defaults', () => {
       expect(admitted.admitted).toBe(true);
       await core.runtime.whenIdle();
       expect(turns).toEqual(['ada']);
+      expect(
+        core.sourcePolicy.list('ada').find((rule) => rule.sourceClass === 'human-dm'),
+      ).toMatchObject({ recentWakeCount: 1 });
       const database = attachOperationalModule(core.operationalDatabase, 'source-policy-test');
       expect(
         database.read((db) =>
@@ -152,6 +155,91 @@ describe('per-PersonaBot source policy defaults', () => {
       expect(restarted.sourcePolicy.list('ada')).toHaveLength(
         Object.keys(BOT_SOURCE_DEFAULTS).length,
       );
+    } finally {
+      await restarted.runtime.close();
+      restarted.operationalDatabase.close();
+    }
+  });
+
+  it('shares one audited Assignment report rule across Bot and Human edits and reset', async () => {
+    const home = createTempRoot('botharness-source-policy-edit-');
+    const core = createCore({ dshHome: home });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const baseline = core.sourcePolicy
+        .list('ada')
+        .find((rule) => rule.sourceClass === 'assignment-report');
+      expect(baseline).toMatchObject({ wake: 'conditional', revision: 1, overrideActive: false });
+      expect(() =>
+        core.sourcePolicy.setAssignmentReport('ada', 'immediate', {
+          kind: 'bot',
+          botSlug: 'bea',
+        }),
+      ).toThrow('only its own');
+      expect(
+        core.sourcePolicy.list('ada').find((rule) => rule.sourceClass === 'assignment-report'),
+      ).toMatchObject({ revision: 1 });
+      const botEdit = core.sourcePolicy.setAssignmentReport('ada', 'immediate', {
+        kind: 'bot',
+        botSlug: 'ada',
+      });
+      expect(botEdit).toMatchObject({
+        wake: 'immediate',
+        revision: 2,
+        overrideActive: true,
+        lastActor: { kind: 'bot', botSlug: 'ada' },
+      });
+      expect(
+        core.sourcePolicy.list('bea').find((rule) => rule.sourceClass === 'assignment-report'),
+      ).toMatchObject({ wake: 'conditional', revision: 1 });
+      const methods = createBridgeMethods({ ...core });
+      expect(methods.botSourcePolicySet({ slug: 'ada', wake: 'conditional' })).toMatchObject({
+        ok: true,
+        value: { policy: { revision: 3, lastActor: { kind: 'human' } } },
+      });
+      expect(methods.botSourcePolicySet({ slug: 'ada', wake: 'digest' })).toMatchObject({
+        ok: false,
+      });
+      expect(methods.botSourcePolicyReset({ slug: 'ada' })).toMatchObject({
+        ok: true,
+        value: {
+          policy: {
+            wake: 'conditional',
+            revision: 4,
+            overrideActive: false,
+            lastActor: { kind: 'human' },
+          },
+        },
+      });
+      const rows = attachOperationalModule(
+        core.operationalDatabase,
+        'source-policy-edit-test',
+      ).read((db) =>
+        db
+          .prepare(`
+          SELECT revision, actor_kind, wake_mode, override_active
+            FROM bot_source_policy_revisions
+           WHERE bot_slug = 'ada' AND source_class = 'assignment-report'
+           ORDER BY revision
+        `)
+          .all(),
+      );
+      expect(rows).toMatchObject([
+        { revision: 1, actor_kind: 'built-in', wake_mode: 'conditional', override_active: 0 },
+        { revision: 2, actor_kind: 'bot', wake_mode: 'immediate', override_active: 1 },
+        { revision: 3, actor_kind: 'human', wake_mode: 'conditional', override_active: 1 },
+        { revision: 4, actor_kind: 'human', wake_mode: 'conditional', override_active: 0 },
+      ]);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+    const restarted = createCore({ dshHome: home });
+    try {
+      expect(
+        restarted.sourcePolicy.list('ada').find((rule) => rule.sourceClass === 'assignment-report'),
+      ).toMatchObject({ revision: 4, overrideActive: false, lastActor: { kind: 'human' } });
     } finally {
       await restarted.runtime.close();
       restarted.operationalDatabase.close();

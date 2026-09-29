@@ -832,6 +832,33 @@ const BOT_SOURCE_POLICY_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_SOURCE_POLICY_EDIT_MIGRATION: SchemaMigration = {
+  generation: 30,
+  module: 'bot-inbox',
+  description: 'Distinguish active source overrides and record actual Orchestrator wake attempts',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE bot_source_policy_revisions
+        ADD COLUMN override_active INTEGER NOT NULL DEFAULT 0 CHECK (override_active IN (0, 1));
+      CREATE TABLE bot_source_wake_attempts (
+        wake_id TEXT PRIMARY KEY,
+        bot_slug TEXT NOT NULL,
+        source_class TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        started_at TEXT NOT NULL
+      );
+      CREATE INDEX bot_source_wake_attempts_recent
+        ON bot_source_wake_attempts (bot_slug, source_class, started_at);
+      CREATE TRIGGER bot_source_wake_attempts_no_update
+      BEFORE UPDATE ON bot_source_wake_attempts
+      BEGIN SELECT RAISE(ABORT, 'Bot source wake attempt is immutable'); END;
+      CREATE TRIGGER bot_source_wake_attempts_no_delete
+      BEFORE DELETE ON bot_source_wake_attempts
+      BEGIN SELECT RAISE(ABORT, 'Bot source wake attempt is immutable'); END;
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -861,4 +888,5 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   GROUP_WAKE_POLICY_AUDIT_MIGRATION,
   USAGE_DAILY_MIGRATION,
   BOT_SOURCE_POLICY_MIGRATION,
+  BOT_SOURCE_POLICY_EDIT_MIGRATION,
 ]);

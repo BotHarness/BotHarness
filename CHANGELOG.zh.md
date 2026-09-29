@@ -15,6 +15,7 @@
 - 群聊 Channel 现将成员名单与群设置分开。Human 可裁切正方形 WebP 群头像、改群名、搜索并邀请 PersonaBot，在通知弹窗处理待办邀请和入群申请，并通过成员菜单调整消息提醒策略或移出成员，并从次级菜单解散群聊；群头像在普通、置顶和折叠侧栏中一致显示（[#390](https://github.com/BotHarness/BotHarness/issues/390)）。
 - 已入群的 PersonaBot 可通过 Orchestrator 工具读取及修改自己的群聊提醒偏好；Human 与 Bot 共用同一 Channel 当前值，修改留下可追溯的修订历史，已入队消息继续保留原策略快照（[#365](https://github.com/BotHarness/BotHarness/issues/365)）。
 - PersonaBot 资料页现在将可折叠的来源策略放在活动图表下方；两个区域铺满 Channel 正文的可用宽度，展示所有内建来源类别的提醒默认规则及其持久修订来源；新 Channel 与 Assignment 待办记录所用来源规则修订，同时保持即时送达、群消息汇总和报告条件唤醒的既有行为（[#366](https://github.com/BotHarness/BotHarness/issues/366)）。
+- PersonaBot 可通过限定在自身 Session 的工具查看所有来源提醒默认值及近七天 Orchestrator 实际唤醒次数。首个可编辑来源是 Assignment 报告：Bot 或 Human 可在条件唤醒与立即唤醒之间切换、恢复内建默认，并在资料页查看最后修改者与持久修订；已入队 Admission 保留原策略快照（[#370](https://github.com/BotHarness/BotHarness/issues/370)）。
 
 - Group Channel 成员可选择让 PersonaBot 即时处理每条普通消息、定期汇总、仅由直接提及唤醒，或静默记录；直接提及会带入同群有界的待处理上下文，包括最早未读和附近消息，并提示省略数量，后续回合继续推进积压消息。主动读取的消息在回合中显示“处理中”，成功后显示“已处理”，失败则需修复；没有返回的消息保持待处理。新成员默认使用汇总；点击群成员或 Bot 消息头像可打开该 Bot 的私聊（[#364](https://github.com/BotHarness/BotHarness/issues/364)）。
 

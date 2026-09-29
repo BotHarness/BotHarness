@@ -74,8 +74,10 @@ export interface BotSourcePolicyView {
   digestCount?: number;
   digestIntervalSeconds?: number;
   revision: number;
-  lastActor: { kind: 'built-in' };
+  lastActor: { kind: 'built-in' | 'human' | 'template' } | { kind: 'bot'; botSlug: string };
   changedAt: string;
+  overrideActive: boolean;
+  recentWakeCount: number;
 }
 
 export async function loadBotSourcePolicies(
@@ -105,8 +107,12 @@ export async function loadBotSourcePolicies(
       !['immediate', 'digest', 'conditional'].includes(String(policy['wake'])) ||
       typeof policy['revision'] !== 'number' ||
       !Number.isSafeInteger(policy['revision']) ||
-      actor?.['kind'] !== 'built-in' ||
+      !['built-in', 'human', 'bot', 'template'].includes(String(actor?.['kind'])) ||
+      (actor?.['kind'] === 'bot' && typeof actor['botSlug'] !== 'string') ||
       typeof policy['changedAt'] !== 'string' ||
+      typeof policy['overrideActive'] !== 'boolean' ||
+      !Number.isSafeInteger(policy['recentWakeCount']) ||
+      (policy['recentWakeCount'] as number) < 0 ||
       (policy['wake'] === 'digest' &&
         (!Number.isSafeInteger(policy['digestCount']) ||
           !Number.isSafeInteger(policy['digestIntervalSeconds'])))
@@ -114,6 +120,18 @@ export async function loadBotSourcePolicies(
       throw new Error('invalid Bot source policy');
     return policy as unknown as BotSourcePolicyView;
   });
+}
+
+export async function setBotSourcePolicy(
+  call: BridgeCall,
+  slug: string,
+  wake: 'conditional' | 'immediate',
+): Promise<void> {
+  await unwrap(call, 'botSourcePolicySet', { slug, wake });
+}
+
+export async function resetBotSourcePolicy(call: BridgeCall, slug: string): Promise<void> {
+  await unwrap(call, 'botSourcePolicyReset', { slug });
 }
 
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {

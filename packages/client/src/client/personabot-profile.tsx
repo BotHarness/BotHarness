@@ -6,6 +6,7 @@ import {
   IconEditOutlineRegular,
   IconPinFillRegular,
   IconPinOutlineRegular,
+  Button,
   Tag,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
@@ -13,6 +14,7 @@ import type { BridgeActions } from './actions.js';
 import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
+import { Modal } from './modal.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { PersonaBotAvatarCropModal } from './personabot-avatar-crop.js';
 import type { ProfileCardRegistry } from './profile-cards.js';
@@ -130,6 +132,12 @@ export function ProfileView({
   const [error, setError] = useState<string | undefined>(undefined);
   const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
   const [sourcePolicyError, setSourcePolicyError] = useState(false);
+  const [editingSourcePolicy, setEditingSourcePolicy] = useState(false);
+  const [sourceWakeDraft, setSourceWakeDraft] = useState<'conditional' | 'immediate'>(
+    'conditional',
+  );
+  const [sourcePolicyBusy, setSourcePolicyBusy] = useState(false);
+  const [sourcePolicySaveError, setSourcePolicySaveError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const trimmed = draft.trim();
@@ -153,6 +161,22 @@ export function ProfileView({
       active = false;
     };
   }, [actions, bot.slug]);
+
+  const changeSourcePolicy = async (reset: boolean): Promise<void> => {
+    if (sourcePolicyBusy) return;
+    setSourcePolicyBusy(true);
+    setSourcePolicySaveError(false);
+    try {
+      if (reset) await actions.resetBotSourcePolicy(bot.slug);
+      else await actions.setBotSourcePolicy(bot.slug, sourceWakeDraft);
+      setSourcePolicies(await actions.botSourcePolicies(bot.slug));
+      setEditingSourcePolicy(false);
+    } catch {
+      setSourcePolicySaveError(true);
+    } finally {
+      setSourcePolicyBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!editing) return;
@@ -353,7 +377,7 @@ export function ProfileView({
             <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
               <header className="bh-profile-card-head">
                 <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
-                <Tag tone="neutral">{t('sourcePolicy.readOnly')}</Tag>
+                <Tag tone="neutral">{t('sourcePolicy.oneEditable')}</Tag>
               </header>
               {sourcePolicyError ? (
                 <div className="bh-error" role="alert">
@@ -393,12 +417,38 @@ export function ProfileView({
                       <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
                     )}
                     <span className="bh-note">
+                      {t('sourcePolicy.recentWakes', { count: policy.recentWakeCount })}
+                    </span>
+                    <span className="bh-note">
                       {t('sourcePolicy.revision', { revision: policy.revision })}
                       {' · '}
-                      {t('sourcePolicy.builtIn')}
+                      {!policy.overrideActive &&
+                        policy.lastActor.kind !== 'built-in' &&
+                        `${t('sourcePolicy.restoredDefault')} · `}
+                      {policy.lastActor.kind === 'built-in'
+                        ? t('sourcePolicy.builtIn')
+                        : policy.lastActor.kind === 'human'
+                          ? t('sourcePolicy.human')
+                          : policy.lastActor.kind === 'bot'
+                            ? t('sourcePolicy.botActor', { slug: policy.lastActor.botSlug })
+                            : t('sourcePolicy.builtIn')}
                       {' · '}
                       {new Date(policy.changedAt).toLocaleString()}
                     </span>
+                    {policy.sourceClass === 'assignment-report' && (
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSourceWakeDraft(
+                            policy.wake === 'immediate' ? 'immediate' : 'conditional',
+                          );
+                          setSourcePolicySaveError(false);
+                          setEditingSourcePolicy(true);
+                        }}
+                      >
+                        {t('sourcePolicy.edit')}
+                      </Button>
+                    )}
                   </div>
                 ))
               )}
@@ -406,6 +456,51 @@ export function ProfileView({
           </div>
         </details>
       </section>
+      {editingSourcePolicy && (
+        <Modal
+          open
+          onClose={() => setEditingSourcePolicy(false)}
+          closeLabel={t('common.close')}
+          title={t('sourcePolicy.editTitle')}
+          description={t('sourcePolicy.editDescription')}
+          footer={
+            <>
+              <Button
+                variant="outline"
+                disabled={sourcePolicyBusy}
+                onClick={() => void changeSourcePolicy(true)}
+              >
+                {t('sourcePolicy.reset')}
+              </Button>
+              <Button
+                variant="primary"
+                disabled={sourcePolicyBusy}
+                onClick={() => void changeSourcePolicy(false)}
+              >
+                {t('profile.save')}
+              </Button>
+            </>
+          }
+        >
+          <select
+            className="bh-profile-policy-select"
+            aria-label={t('sourcePolicy.editTitle')}
+            value={sourceWakeDraft}
+            disabled={sourcePolicyBusy}
+            onChange={(event) =>
+              setSourceWakeDraft(event.target.value as 'conditional' | 'immediate')
+            }
+          >
+            <option value="conditional">{t('sourcePolicy.conditionalOption')}</option>
+            <option value="immediate">{t('sourcePolicy.immediateOption')}</option>
+          </select>
+          {sourcePolicySaveError && (
+            <div className="bh-modal-error" role="alert">
+              {t('sourcePolicy.saveFailed')}
+            </div>
+          )}
+        </Modal>
+      )}
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal
           file={avatarFile}
