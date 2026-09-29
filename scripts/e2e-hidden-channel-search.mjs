@@ -35,19 +35,23 @@ async function rpc(method, args = {}) {
   return envelope.result.value;
 }
 
-const nonce = Date.now();
-const alphaName = `AX 453 Alpha ${nonce}`;
-const betaName = `AX 453 Beta ${nonce}`;
-const alpha = (await rpc('channelCreate', { name: alphaName, members: [] })).channel;
-const beta = (await rpc('channelCreate', { name: betaName, members: [] })).channel;
-const originalHidden = (await rpc('rosterGet')).hidden;
-await rpc('hiddenSet', { hidden: [...originalHidden, alpha.id, beta.id] });
-const browser = await puppeteer.launch({
-  headless: true,
-  args: ['--no-sandbox', '--disable-dev-shm-usage'],
-});
-
+let alpha;
+let beta;
+let originalHidden;
+let browser;
+let runError;
 try {
+  const nonce = Date.now();
+  const alphaName = `AX 453 Alpha ${nonce}`;
+  const betaName = `AX 453 Beta ${nonce}`;
+  alpha = (await rpc('channelCreate', { name: alphaName, members: [] })).channel;
+  beta = (await rpc('channelCreate', { name: betaName, members: [] })).channel;
+  originalHidden = (await rpc('rosterGet')).hidden;
+  await rpc('hiddenSet', { hidden: [...originalHidden, alpha.id, beta.id] });
+  browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--disable-dev-shm-usage'],
+  });
   const page = await browser.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));
@@ -126,10 +130,38 @@ try {
   assert((await names()).includes(alphaName), 'closed modal cancels its query');
   assert((await names()).includes(betaName), 'reopened modal starts unfiltered');
   assert.deepEqual(errors, []);
-  console.log(
-    JSON.stringify({ verdict: 'PASS', delayed: true, replaced: true, cancelled: true, errors }),
-  );
+} catch (error) {
+  runError = error;
 } finally {
-  await browser.close();
-  await rpc('hiddenSet', { hidden: originalHidden });
+  const cleanupErrors = [];
+  try {
+    await browser?.close();
+  } catch (error) {
+    cleanupErrors.push(error);
+  }
+  if (originalHidden !== undefined) {
+    try {
+      await rpc('hiddenSet', { hidden: originalHidden });
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+  }
+  for (const channel of [beta, alpha]) {
+    if (channel === undefined) continue;
+    try {
+      await rpc('channelGroupDelete', { channelId: channel.id });
+    } catch (error) {
+      cleanupErrors.push(error);
+    }
+  }
+  if (cleanupErrors.length > 0) {
+    throw new AggregateError(
+      runError === undefined ? cleanupErrors : [runError, ...cleanupErrors],
+      'Hidden-Channel regression cleanup failed',
+    );
+  }
 }
+if (runError !== undefined) throw runError;
+const channelIds = new Set((await rpc('channels')).channels.map((channel) => channel.id));
+assert(!channelIds.has(alpha?.id) && !channelIds.has(beta?.id), 'test channels were deleted');
+console.log(JSON.stringify({ verdict: 'PASS', delayed: true, replaced: true, cancelled: true }));
