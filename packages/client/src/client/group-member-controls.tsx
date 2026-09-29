@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactElement } from 'react';
+import { useRef, useState, type ReactElement } from 'react';
 
 import {
   Button,
@@ -15,6 +15,7 @@ import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { useClientState } from './bot-sidebar.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
+import { useDelayedSearch } from './delayed-search.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
 import { personaBotActivity } from './persona-activity.js';
@@ -51,15 +52,12 @@ function InviteMemberModal({
   t: BotHarnessTranslate;
   onClose: () => void;
 }): ReactElement {
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const { query, delayedQuery, updateQuery, cancelOnUnmount } = useDelayedSearch(250, (value) =>
+    value.trim().toLocaleLowerCase(),
+  );
   const [selected, setSelected] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  useEffect(() => {
-    const timer = window.setTimeout(() => setDebouncedQuery(query.trim().toLocaleLowerCase()), 250);
-    return () => window.clearTimeout(timer);
-  }, [query]);
   const available = bots.filter(
     (bot) =>
       !bot.paused &&
@@ -70,8 +68,8 @@ function InviteMemberModal({
   );
   const filtered = available.filter(
     (bot) =>
-      bot.displayName.toLocaleLowerCase().includes(debouncedQuery) ||
-      bot.slug.toLocaleLowerCase().includes(debouncedQuery),
+      bot.displayName.toLocaleLowerCase().includes(delayedQuery) ||
+      bot.slug.toLocaleLowerCase().includes(delayedQuery),
   );
   const invite = async (): Promise<void> => {
     if (!selected) return;
@@ -100,13 +98,13 @@ function InviteMemberModal({
         </>
       }
     >
-      <div className="bh-group-invite-modal">
+      <div className="bh-group-invite-modal" ref={cancelOnUnmount}>
         <label htmlFor="bh-group-invite-search">{t('group.inviteSearch')}</label>
         <Input
           id="bh-group-invite-search"
           value={query}
           placeholder={t('group.inviteSearch')}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => updateQuery(event.target.value)}
         />
         <div className="bh-group-invite-results">
           {filtered.length === 0 ? (
@@ -259,7 +257,11 @@ function GroupAttentionModal({
   );
 }
 
-export function MembersHeaderAction({
+export function MembersHeaderAction(props: ChannelSidebarEntryProps): ReactElement {
+  return <MembersHeaderActionForChannel key={props.channelId} {...props} />;
+}
+
+function MembersHeaderActionForChannel({
   channelId,
   actions,
   t,
@@ -268,10 +270,6 @@ export function MembersHeaderAction({
   const group = state.conversation.channel;
   const [inviteOpen, setInviteOpen] = useState(false);
   const [attentionOpen, setAttentionOpen] = useState(false);
-  useEffect(() => {
-    setInviteOpen(false);
-    setAttentionOpen(false);
-  }, [channelId]);
   if (group?.id !== channelId || group.type !== 'group') return <></>;
   const pending =
     (group.invitations?.filter((item) => item.status === 'pending').length ?? 0) +
@@ -433,7 +431,11 @@ function MemberWakePolicyModal({
   );
 }
 
-export function MembersEntry({ actions, t, channelId }: ChannelSidebarEntryProps): ReactElement {
+export function MembersEntry(props: ChannelSidebarEntryProps): ReactElement {
+  return <MembersEntryForChannel key={props.channelId} {...props} />;
+}
+
+function MembersEntryForChannel({ actions, t, channelId }: ChannelSidebarEntryProps): ReactElement {
   const state = useClientState();
   const channel = state.conversation.channel;
   const group = channel?.type === 'group' && channel.id === channelId ? channel : undefined;
@@ -441,10 +443,6 @@ export function MembersEntry({ actions, t, channelId }: ChannelSidebarEntryProps
   const [policySlug, setPolicySlug] = useState<string | undefined>();
   const [error, setError] = useState(false);
   const proxy = useRef<HTMLSpanElement | null>(null);
-  useEffect(() => {
-    setMenu(undefined);
-    setPolicySlug(undefined);
-  }, [channelId]);
   const members = group?.members ?? [];
   const menuItems: readonly MenuEntry[] = [
     { id: 'dm', label: t('members.openDm') },

@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState, type ReactElement } from 'react';
+import { useMemo, type ReactElement } from 'react';
 
 import { Button, Input } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import { PersonaBotAvatar, type PersonaBotActivityState } from './avatar.js';
 import { isBotDmChannel } from './channel-kind.js';
+import { useDelayedSearch } from './delayed-search.js';
 import { HashIcon } from './hash-icon.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { Modal } from './modal.js';
@@ -53,17 +54,11 @@ export function HiddenChannelsModal({
   onOpen,
   onClose,
 }: HiddenChannelsModalProps): ReactElement {
-  const [query, setQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDebouncedQuery(query);
-    }, HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS);
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [query]);
-  const normalized = debouncedQuery.trim().toLowerCase();
+  const { query, delayedQuery, updateQuery, cancelOnUnmount } = useDelayedSearch(
+    HIDDEN_CHANNEL_SEARCH_DEBOUNCE_MS,
+    (value) => value,
+  );
+  const normalized = delayedQuery.trim().toLowerCase();
   const visible = useMemo(
     () =>
       [...items].reverse().filter(({ channel, bot }) => {
@@ -95,9 +90,9 @@ export function HiddenChannelsModal({
         aria-label={t('hidden.search.placeholder')}
         placeholder={t('hidden.search.placeholder')}
         value={query}
-        onChange={(event) => setQuery(event.currentTarget.value)}
+        onChange={(event) => updateQuery(event.currentTarget.value)}
       />
-      <div className="bh-hidden-list" role="list">
+      <div className="bh-hidden-list" role="list" ref={cancelOnUnmount}>
         {visible.map(({ channel, bot, activity }) => (
           <div key={channel.id} className="bh-hidden-row" role="listitem">
             {bot === undefined ? (

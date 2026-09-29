@@ -77,7 +77,10 @@ try {
     const row = (id) => `.bh-root [data-channel-id="${id}"]`;
     const select = async (id) => {
       await page.waitForSelector(row(id), { timeout: 30000 });
-      await page.click(row(id));
+      await page.evaluate(
+        (channelId) => document.querySelector(`.bh-root [data-channel-id="${channelId}"]`)?.click(),
+        id,
+      );
       await page.waitForFunction(
         (channelId) =>
           document
@@ -153,6 +156,31 @@ try {
       before,
     );
 
+    await select(first.id);
+    await page.evaluate(() => {
+      const members = [...document.querySelectorAll('.bh-channel-sidebar-entry')].find((section) =>
+        ['Members', '成员'].includes(
+          section.querySelector('.bh-channel-sidebar-entry-label')?.textContent ?? '',
+        ),
+      );
+      const head = members?.querySelector('.bh-channel-sidebar-entry-head');
+      if (head?.getAttribute('aria-expanded') === 'false') head.click();
+    });
+    await page.waitForSelector('.bh-member-menu-button');
+    await page.click('button[aria-label="Invite member"], button[aria-label="邀请新群员"]');
+    await page.waitForSelector('.bh-group-invite-modal');
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('.bh-group-invite-modal', { hidden: true });
+    await select(second.id);
+    await select(first.id);
+    assert.equal(await page.$('.bh-group-invite-modal'), null);
+    await page.waitForSelector('.bh-member-menu-button');
+    await page.click('.bh-member-menu-button');
+    await page.waitForSelector('[role="menu"]');
+    await page.keyboard.press('Escape');
+    await page.waitForSelector('[role="menu"]', { hidden: true });
+    await select(second.id);
+
     await select(dm.id);
     assert.equal(
       await page.$eval(row(dm.id), (element) => element.classList.contains('bh-selected')),
@@ -166,6 +194,7 @@ try {
         draftClearedOnSwitch: true,
         cachedMessageReturned: true,
         sidebarToggled: true,
+        groupControlsReset: true,
         dmSelected: true,
         errors,
       }),
