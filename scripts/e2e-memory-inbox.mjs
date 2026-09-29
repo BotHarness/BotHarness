@@ -26,6 +26,11 @@ const browser = await puppeteer.launch({
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 try {
   const page = await browser.newPage();
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  page.on('console', (message) => {
+    if (message.type() === 'error') pageErrors.push(message.text());
+  });
   await page.setViewport({ width: 1440, height: 960 });
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, {
     waitUntil: 'domcontentloaded',
@@ -116,7 +121,27 @@ try {
     });
   await dismissNativeDialog();
   const botMode = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
-  await page.waitForSelector(botMode, { timeout: 20_000 });
+  try {
+    await page.waitForSelector(botMode, { timeout: 20_000 });
+  } catch (error) {
+    const diagnostic = resolve(dirname(screenshot), 'memory-inbox-page-diagnostic.png');
+    await page.screenshot({ path: diagnostic, fullPage: false });
+    console.error(
+      JSON.stringify(
+        await page.evaluate(() => ({
+          text: document.body.innerText.slice(0, 1000),
+          buttons: Array.from(document.querySelectorAll('button'))
+            .map((button) => ({
+              text: button.textContent?.trim().slice(0, 40),
+              label: button.getAttribute('aria-label'),
+            }))
+            .slice(0, 20),
+        })),
+      ),
+    );
+    console.error(JSON.stringify({ pageErrors }));
+    throw error;
+  }
   if (!(await page.$('.bh-root'))) await page.click(botMode);
   await sleep(1500);
   await dismissNativeDialog();
