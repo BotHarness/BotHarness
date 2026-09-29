@@ -615,24 +615,33 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (deps.modelPresets === undefined || deps.modelCatalog === undefined) return unavailable();
       const source = asObject(payload);
       const id = source['id'];
+      const expectedRevision = source['expectedRevision'];
       const name = source['name'];
       const orchestrator = source['orchestrator'];
       const assignmentDefault = source['assignmentDefault'];
       if (
         typeof id !== 'string' ||
+        typeof expectedRevision !== 'number' ||
+        !Number.isSafeInteger(expectedRevision) ||
+        expectedRevision < 1 ||
         typeof name !== 'string' ||
         !isModelRoute(orchestrator) ||
         !isModelRoute(assignmentDefault)
       )
         return invalidInput(
-          'An id, name, and valid Orchestrator and Assignment routes are required',
+          'An id, expected revision, name, and valid Orchestrator and Assignment routes are required',
         );
       if (deps.modelPresets.get(id) === undefined)
         return invalidInput('Model Preset was not found');
       try {
         await deps.modelCatalog.validate(orchestrator);
         await deps.modelCatalog.validate(assignmentDefault);
-        const preset = deps.modelPresets.update(id, { name, orchestrator, assignmentDefault });
+        const preset = deps.modelPresets.update(id, {
+          expectedRevision,
+          name,
+          orchestrator,
+          assignmentDefault,
+        });
         if (preset === undefined) return invalidInput('Model Preset was not found');
         return { ok: true, value: { preset } };
       } catch (error) {

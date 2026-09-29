@@ -199,11 +199,25 @@ describe('bridge methods', () => {
     expect(
       await methods.modelPresetUpdate({
         id,
+        expectedRevision: 1,
         name: 'Economy',
         orchestrator: low,
         assignmentDefault: low,
       }),
     ).toMatchObject({ ok: true, value: { preset: { id, revision: 2, name: 'Economy' } } });
+    expect(
+      await methods.modelPresetUpdate({
+        id,
+        expectedRevision: 1,
+        name: 'Stale edit',
+        orchestrator: high,
+        assignmentDefault: high,
+      }),
+    ).toMatchObject({
+      ok: false,
+      error: { code: 'invalid-input', message: expect.stringContaining('changed') },
+    });
+    expect(modelPresets.get(id)).toMatchObject({ revision: 2, name: 'Economy', orchestrator: low });
     expect(registry.get('ada')?.modelPlan).toMatchObject({
       revision: 1,
       sourcePresetName: 'High intelligence',

@@ -31,6 +31,7 @@ export function ModelPresetProfile({
   const planRequest = useRef(0);
   const [selectedPreset, setSelectedPreset] = useState('');
   const [editingPresetId, setEditingPresetId] = useState('');
+  const [editingPresetRevision, setEditingPresetRevision] = useState<number>();
   const [name, setName] = useState('');
   const [orchestratorIndex, setOrchestratorIndex] = useState(0);
   const [orchestratorEffort, setOrchestratorEffort] = useState('');
@@ -113,14 +114,22 @@ export function ModelPresetProfile({
   });
 
   const createAndApply = async (): Promise<void> => {
-    if (busy || selectedOrchestrator === undefined || selectedAssignment === undefined) return;
+    if (
+      busy ||
+      selectedOrchestrator === undefined ||
+      selectedAssignment === undefined ||
+      (editingPresetId !== '' && editingPresetRevision === undefined)
+    )
+      return;
     setBusy(true);
     setError(undefined);
     setNotice(undefined);
     try {
       if (editingPresetId !== '') {
+        if (editingPresetRevision === undefined) return;
         const updated = await actions.updateModelPreset(
           editingPresetId,
+          editingPresetRevision,
           name,
           routeOf(selectedOrchestrator, orchestratorEffort),
           routeOf(selectedAssignment, assignmentEffort),
@@ -129,6 +138,7 @@ export function ModelPresetProfile({
           current.map((preset) => (preset.id === updated.id ? updated : preset)),
         );
         setEditingPresetId('');
+        setEditingPresetRevision(undefined);
         setName('');
         setNotice(t('modelPreset.futureOnly'));
         return;
@@ -145,7 +155,12 @@ export function ModelPresetProfile({
       setPlan(applied);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
     } catch (failure) {
-      setError(errorMessage(failure));
+      const message = errorMessage(failure);
+      setError(message);
+      if (editingPresetId !== '' && message.includes('Model Preset changed;')) {
+        const fresh = await actions.modelPresets().catch(() => undefined);
+        if (fresh !== undefined) setPresets(fresh);
+      }
     } finally {
       setBusy(false);
     }
@@ -177,6 +192,7 @@ export function ModelPresetProfile({
       return;
     }
     setEditingPresetId(preset.id);
+    setEditingPresetRevision(preset.revision);
     setName(preset.name);
     setOrchestratorIndex(orchestrator);
     setOrchestratorEffort(preset.orchestrator.reasoningEffort ?? '');
@@ -378,6 +394,7 @@ export function ModelPresetProfile({
                       disabled={busy}
                       onClick={() => {
                         setEditingPresetId('');
+                        setEditingPresetRevision(undefined);
                         setName('');
                       }}
                     >

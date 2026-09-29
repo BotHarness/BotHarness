@@ -119,12 +119,19 @@ export async function createModelPreset(
 export async function updateModelPreset(
   call: BridgeCall,
   id: string,
+  expectedRevision: number,
   name: string,
   orchestrator: ModelRouteView,
   assignmentDefault: ModelRouteView,
 ): Promise<ModelPresetView> {
   const value = asRecord(
-    await unwrap(call, 'modelPresetUpdate', { id, name, orchestrator, assignmentDefault }),
+    await unwrap(call, 'modelPresetUpdate', {
+      id,
+      expectedRevision,
+      name,
+      orchestrator,
+      assignmentDefault,
+    }),
   );
   if (asRecord(value?.['preset']) === undefined) throw new Error('Invalid Model Preset result');
   return value!['preset'] as ModelPresetView;

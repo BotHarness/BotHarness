@@ -123,12 +123,19 @@ export class BotharnessBridgeService extends TypertRemoteService {
 
   modelPresetUpdate(
     id: string,
+    expectedRevision: number,
     name: string,
     orchestrator: ModelRoute,
     assignmentDefault: ModelRoute,
   ): Promise<{ preset: ModelPreset }> {
     return unwrapAsync(
-      this.methods.modelPresetUpdate({ id, name, orchestrator, assignmentDefault }),
+      this.methods.modelPresetUpdate({
+        id,
+        expectedRevision,
+        name,
+        orchestrator,
+        assignmentDefault,
+      }),
     );
   }
 

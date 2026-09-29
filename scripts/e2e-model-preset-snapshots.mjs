@@ -225,6 +225,19 @@ try {
       `Template edit changed an existing snapshot: ${JSON.stringify({ edited, firstPlan })}`,
     );
   }
+  let staleEditRejected = false;
+  try {
+    await rpc('modelPresetUpdate', {
+      id: highPreset.id,
+      expectedRevision: 1,
+      name: 'Stale overwrite',
+      orchestrator: high,
+      assignmentDefault: assignment,
+    });
+  } catch (error) {
+    staleEditRejected = String(error).includes('changed');
+  }
+  if (!staleEditRejected) throw new Error('A stale template edit was not rejected');
   const templateScreenshot = await capture('.bh-model-preset-edit-preset', 'template');
 
   await openProfile(second.slug);
@@ -301,6 +314,7 @@ try {
       first: { slug: first.slug, displayName: first.displayName, plan: firstPlan },
       second: { slug: second.slug, displayName: second.displayName, switched, custom },
       template: edited,
+      staleEditRejected,
       replies: replies.map((reply) => reply.body),
       lowLastUsed,
       highLastUsed,

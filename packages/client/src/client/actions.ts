@@ -132,6 +132,7 @@ export interface BridgeActions {
   ): Promise<ModelPresetView>;
   updateModelPreset(
     id: string,
+    expectedRevision: number,
     name: string,
     orchestrator: ModelRouteView,
     assignmentDefault: ModelRouteView,
@@ -599,8 +600,8 @@ export function createActions(
     modelPlan: (slug) => loadModelPlan(call, slug),
     createModelPreset: (name, orchestrator, assignmentDefault) =>
       createModelPreset(call, name, orchestrator, assignmentDefault),
-    updateModelPreset: (id, name, orchestrator, assignmentDefault) =>
-      updateModelPreset(call, id, name, orchestrator, assignmentDefault),
+    updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>
+      updateModelPreset(call, id, expectedRevision, name, orchestrator, assignmentDefault),
     applyModelPreset: (slug, presetId) => applyModelPreset(call, slug, presetId),
     customizeModelPlan: (slug, orchestrator) => customizeModelPlan(call, slug, orchestrator),
     listHostFolders(path, signal) {

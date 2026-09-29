@@ -70,11 +70,16 @@ describe('Model Preset Profile', () => {
       };
       return plan;
     });
-    const updateModelPreset = vi.fn(async (id: string, name: string, orchestrator: typeof high) => {
-      const index = presets.findIndex((item) => item.id === id);
-      presets[index] = { ...presets[index]!, name, revision: 2, orchestrator };
-      return presets[index]!;
-    });
+    const updateModelPreset = vi.fn(
+      async (id: string, revision: number, name: string, orchestrator: typeof high) => {
+        const index = presets.findIndex((item) => item.id === id);
+        if (presets[index]?.revision !== revision) {
+          throw new Error('Model Preset changed; select Edit selected preset again before saving');
+        }
+        presets[index] = { ...presets[index]!, name, revision: revision + 1, orchestrator };
+        return presets[index]!;
+      },
+    );
     const customizeModelPlan = vi.fn(async (_slug: string, orchestrator: typeof high) => {
       plan = {
         ...plan,
@@ -146,9 +151,18 @@ describe('Model Preset Profile', () => {
         'Economy',
       );
       await act(async () => button('Save preset revision').click());
-      expect(updateModelPreset).toHaveBeenCalledWith('low', 'Economy', low, assignment);
+      expect(updateModelPreset).toHaveBeenCalledWith('low', 1, 'Economy', low, assignment);
       expect(container.querySelector('summary')?.textContent).toContain('Revision 2');
       expect(container.textContent).toContain('existing Bot snapshots are unchanged');
+
+      await act(async () => button('Edit selected preset').click());
+      presets[1] = { ...presets[1]!, name: 'Updated elsewhere', revision: 3 };
+      await act(async () => button('Save preset revision').click());
+      expect(container.textContent).toContain('Model Preset changed;');
+      await act(async () => button('Edit selected preset').click());
+      expect(container.querySelector<HTMLInputElement>('.bh-model-preset-form input')?.value).toBe(
+        'Updated elsewhere',
+      );
 
       await act(async () => button('Save custom snapshot').click());
       expect(customizeModelPlan).toHaveBeenCalledWith('ada', low);

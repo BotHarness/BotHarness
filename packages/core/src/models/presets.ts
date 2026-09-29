@@ -38,7 +38,12 @@ export interface ModelPresetStore {
   }): ModelPreset;
   update(
     id: string,
-    input: { name: string; orchestrator: ModelRoute; assignmentDefault: ModelRoute },
+    input: {
+      expectedRevision: number;
+      name: string;
+      orchestrator: ModelRoute;
+      assignmentDefault: ModelRoute;
+    },
   ): ModelPreset | undefined;
 }
 
@@ -126,6 +131,10 @@ export function createModelPresetStore(rootDir: string, now = () => new Date()):
       const presets = read();
       const index = presets.findIndex((preset) => preset.id === id);
       if (index < 0) return undefined;
+      const current = presets[index]!;
+      if (current.revision !== input.expectedRevision) {
+        throw new Error('Model Preset changed; select Edit selected preset again before saving');
+      }
       if (
         presets.some(
           (preset) => preset.id !== id && preset.name.toLowerCase() === name.toLowerCase(),
@@ -133,7 +142,6 @@ export function createModelPresetStore(rootDir: string, now = () => new Date()):
       ) {
         throw new Error('Model Preset name already exists');
       }
-      const current = presets[index]!;
       const updated: ModelPreset = {
         ...current,
         name,
