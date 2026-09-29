@@ -65,14 +65,24 @@ export function MemoryDiffFile({
   newLineLabel: string;
 }): ReactElement {
   const model = parseMemoryDiff(diff);
+  const added = model.lines.filter((line) => line.kind === 'add').length;
+  const removed = model.lines.filter((line) => line.kind === 'remove').length;
   return (
     <details className="bh-memory-diff-file" open>
       <summary className="bh-memory-diff-file-header">
         <IconChevronDownOutlineRegular size={16} />
+        <strong className="bh-memory-diff-file-name" title={path}>
+          {path}
+        </strong>
         <span className="bh-memory-change-badge" data-status={status}>
           {badge ?? status}
         </span>
-        <strong title={path}>{path}</strong>
+        {added > 0 || removed > 0 ? (
+          <span className="bh-memory-diff-stat">
+            <span className="bh-memory-diff-stat-add">+{added}</span>
+            <span className="bh-memory-diff-stat-remove">-{removed}</span>
+          </span>
+        ) : null}
       </summary>
       {binary || model.binary ? (
         <div className="bh-memory-diff-empty">{binaryLabel}</div>
