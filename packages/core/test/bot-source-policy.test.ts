@@ -34,7 +34,10 @@ describe('per-PersonaBot source policy defaults', () => {
     });
     prior.close();
 
-    const upgraded = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const upgraded = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
     try {
       expect(upgraded.mode).toBe('ready');
       const module = attachOperationalModule(upgraded, 'source-policy-upgraded');
