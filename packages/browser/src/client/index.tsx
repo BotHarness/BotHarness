@@ -63,6 +63,7 @@ interface BotInfoView {
   readonly displayName: string | undefined;
   readonly browserAccess: boolean | undefined;
   readonly browserProfile: string | undefined;
+  readonly profiles: readonly string[];
 }
 
 interface BrowserTabView {
@@ -99,6 +100,7 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
     displayName: undefined,
     browserAccess: undefined,
     browserProfile: undefined,
+    profiles: [],
   };
   const listeners = new Set<() => void>();
   let started = false;
@@ -117,8 +119,16 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
             browserProfile?: unknown;
           }[];
         };
-        const match = (value.bots ?? []).find((bot) => bot.slug === botSlug);
+        const bots = value.bots ?? [];
+        const match = bots.find((bot) => bot.slug === botSlug);
         if (match === undefined) return;
+        const profiles = [
+          ...new Set(
+            bots
+              .map((bot) => (typeof bot.browserProfile === 'string' ? bot.browserProfile : ''))
+              .filter((name) => name !== ''),
+          ),
+        ].sort();
         info = {
           displayName:
             typeof match.displayName === 'string' && match.displayName.length > 0
@@ -129,6 +139,7 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
             typeof match.browserProfile === 'string' && match.browserProfile !== ''
               ? match.browserProfile
               : undefined,
+          profiles,
         };
         for (const listener of listeners) listener();
       })
@@ -303,11 +314,15 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const focusedTab = tabs.find((tab) => tab.targetId === focused);
   const paused = observation?.takeover === true;
 
-  const invoke = (endpoint: string, init?: RequestInit): void => {
-    if (busy) return;
+  const invoke = (endpoint: string, body: Record<string, unknown> = {}): void => {
+    if (busy || botSlug === undefined) return;
     setBusy(true);
     setError(undefined);
-    void requestJson<{ ok: boolean }>(endpoint, { method: 'POST', ...init })
+    void requestJson<{ ok: boolean }>(endpoint, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ slug: botSlug, ...body }),
+    })
       .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
       .finally(() => {
         setBusy(false);
@@ -332,11 +347,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   };
 
   const onPause = (): void => {
-    if (botSlug === undefined) return;
-    invoke(TAKEOVER_ENDPOINT, {
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ slug: botSlug, active: !paused }),
-    });
+    invoke(TAKEOVER_ENDPOINT, { active: !paused });
   };
 
   const currentProfile = profileOverride ?? info.browserProfile ?? '';
@@ -344,7 +355,8 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
   const saveProfile = (): void => {
     const rpc = connectionRpc;
     if (rpc === undefined || botSlug === undefined || draft === undefined) return;
-    const next = draft.trim();
+    const trimmed = draft.trim();
+    const next = trimmed === 'default' ? '' : trimmed;
     setDraft(undefined);
     if (next === currentProfile) return;
     setError(undefined);
@@ -378,6 +390,7 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
         <input
           value={draft ?? currentProfile}
           placeholder={t('entry.profile.default')}
+          list={`browser-profiles-${botSlug ?? ''}`}
           disabled={botSlug === undefined}
           onChange={onProfileChange}
           onBlur={saveProfile}
@@ -393,6 +406,12 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
             fontSize: 12,
           }}
         />
+        <datalist id={`browser-profiles-${botSlug ?? ''}`}>
+          <option value="default" />
+          {info.profiles.map((name) => (
+            <option key={name} value={name} />
+          ))}
+        </datalist>
       </div>
       <div
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}
