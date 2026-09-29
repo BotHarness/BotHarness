@@ -151,6 +151,7 @@
 
 ### Fixed
 
+- Bot Browser 启动时不再暴露自动化标记（`navigator.webdriver` 为 false），因此在 Google、X 等拒绝自动化浏览器的站点上，Human 可以正常登录（[#483](https://github.com/BotHarness/BotHarness/issues/483)、[ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)）。
 - 切换 Channel 或打开 PersonaBot 私聊时，已展开的右侧 Channel sidebar 现在会保持原位；下一段对话加载期间，Channel 主区域不再左右跳动（[#430](https://github.com/BotHarness/BotHarness/issues/430)）。
 - 已打开过的 Channel 现在会立即显示缓存的历史消息与侧栏内容，并在后台刷新；首次打开时，Channel 主区域、应用侧栏及 Channel 侧栏会显示骨架占位（[#434](https://github.com/BotHarness/BotHarness/issues/434)）。
 - Channel 输入框现在按一次 Shift+Enter 就会显示完整空行；单行长文字达到换行临界宽度时，输入区也不再反复收缩、展开（[#393](https://github.com/BotHarness/BotHarness/issues/393)）。

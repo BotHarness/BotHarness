@@ -44,6 +44,7 @@ describe('binary discovery and launch arguments', () => {
     const args = buildLaunchArgs({ userDataDir: '/data/browser' });
     expect(args).toContain('--user-data-dir=/data/browser');
     expect(args).toContain('--remote-debugging-port=0');
+    expect(args).toContain('--disable-blink-features=AutomationControlled');
     expect(args).toContain('--new-window');
     expect(args).not.toContain('--headless=new');
     expect(buildLaunchArgs({ userDataDir: '/data/browser', headless: true })).toContain(
