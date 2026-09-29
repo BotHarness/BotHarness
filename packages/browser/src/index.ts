@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import type { Context } from '@deepseek-ai/cordis';
 import Schema from '@deepseek-ai/schemastery';
 
+import { createActivityTracker } from './activity.js';
 import { createBrowserDiagnostics, toLogEntry } from './diagnostics.js';
 import { openLogDatabase, type LogDatabase } from '../../core/src/logs/log-db.js';
 import { createBotBrowserRuntime } from './runtime/browser.js';
@@ -86,7 +87,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     },
   });
 
-  const lastActivity = { at: Date.now() };
+  const activity = createActivityTracker();
   const runtime = createBotBrowserRuntime({
     ...(config.browserPath.trim() === '' ? {} : { browserPath: config.browserPath.trim() }),
     userDataDir: profileDirectory(),
@@ -102,7 +103,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     audit: (event) => diagnostics.record('browser-action', formatAudit(event)),
     note: (detail) => diagnostics.record('lifecycle', detail),
     onActivity: () => {
-      lastActivity.at = Date.now();
+      activity.touch();
     },
     core: () => {
       const core = ctx.get('botharness') as unknown as
@@ -156,7 +157,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
     const timer = setInterval(() => {
       if (!runtime.isRunning()) return;
       void provider.closeIdleTabs(idleMs);
-      if (Date.now() - lastActivity.at < idleMs) return;
+      if (!activity.isIdle(idleMs)) return;
       diagnostics.record('lifecycle', `idle stop after ${config.idleStopMinutes}m`);
       void runtime.stop().then(() => provider.closeIdleTabs(0));
     }, 30_000);
@@ -191,6 +192,7 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       requestBody: 'buffered' as const,
       fetch: async (): Promise<Response> => {
         diagnostics.record('lifecycle', 'open requested (panel)');
+        activity.touch();
         try {
           await runtime.openWindow();
           return json({ ok: true });
@@ -209,7 +211,9 @@ export function apply(ctx: Context, config: BrowserConfig): void {
       methods: ['GET'] as const,
       requestBody: 'buffered' as const,
       fetch: async (request: Request): Promise<Response> => {
+        activity.touch();
         const slug = new URL(request.url).searchParams.get('slug') ?? '';
+        if (slug !== '') provider.touch(slug);
         const tabId = slug === '' ? undefined : provider.currentTab(slug);
         let frame: string | null = null;
         if (tabId !== undefined && runtime.isRunning()) {
@@ -245,6 +249,8 @@ export function apply(ctx: Context, config: BrowserConfig): void {
         if (slug === '' || typeof body.active !== 'boolean') {
           return json({ ok: false, error: 'slug and active are required' }, 400);
         }
+        activity.touch();
+        provider.touch(slug);
         const takeover = provider.setTakeover(slug, body.active);
         return json({ ok: true, takeover });
       },
