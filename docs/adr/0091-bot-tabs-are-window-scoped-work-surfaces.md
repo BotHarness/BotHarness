@@ -1,5 +1,5 @@
 ---
-Status: Superseded in part by ADR-0093
+Status: Superseded in part by ADR-0095
 Date: 2026-09-29
 ---
 
