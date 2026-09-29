@@ -392,6 +392,16 @@ window.__ModuleLoader__.load({
 		const COMPUTER_IDLE_STOP_FIELD = "idleStopMinutes";
 		const COMPUTER_AUTO_ALLOW_FIELD = "autoAllowActions";
 		//#endregion
+		//#region packages/computer/src/client/mounted-resource.ts
+		function useMountedResource(start, dependencies) {
+			const cleanup = (0, react.useRef)(void 0);
+			return (0, react.useCallback)((node) => {
+				cleanup.current?.();
+				cleanup.current = void 0;
+				if (node !== null) cleanup.current = start(node) || void 0;
+			}, dependencies);
+		}
+		//#endregion
 		//#region packages/computer/src/client/settings-rows.tsx
 		var ExportDirRejectedError = class extends Error {
 			constructor() {
@@ -600,7 +610,7 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function ComputerSettingsRows({ t, prefs, pickerAvailable, pickDirectory, openDirectory, exportArchive, downloadUrl, importArchive, requestUpload, sendUploadBytes, listArchives, hostExportDir }) {
-			const [snapshot, setSnapshot] = (0, react.useState)(prefs.getSnapshot);
+			const snapshot = (0, react.useSyncExternalStore)(prefs.subscribe, prefs.getSnapshot);
 			const [idleOpen, setIdleOpen] = (0, react.useState)(false);
 			const [importOpen, setImportOpen] = (0, react.useState)(false);
 			const [archives, setArchives] = (0, react.useState)(void 0);
@@ -619,35 +629,43 @@ window.__ModuleLoader__.load({
 			const [hostDir, setHostDir] = (0, react.useState)(void 0);
 			const [livePhase, setLivePhase] = (0, react.useState)(void 0);
 			const [liveElapsed, setLiveElapsed] = (0, react.useState)(0);
-			(0, react.useEffect)(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs]);
-			(0, react.useEffect)(() => {
+			const hostDirResource = useMountedResource(() => {
 				if (snapshot.status !== "unavailable" && snapshot.exportDir !== "") return;
-				hostExportDir().then((dir) => setHostDir(dir)).catch(() => void 0);
+				let active = true;
+				hostExportDir().then((dir) => {
+					if (active) setHostDir(dir);
+				}).catch(() => void 0);
+				return () => {
+					active = false;
+				};
 			}, [
 				hostExportDir,
 				snapshot.status,
 				snapshot.exportDir
 			]);
-			(0, react.useEffect)(() => {
-				if (busy === void 0) {
-					setLivePhase(void 0);
-					setLiveElapsed(0);
-					return;
-				}
+			const busyResource = useMountedResource(() => {
+				setLivePhase(void 0);
+				setLiveElapsed(0);
 				const startedAt = Date.now();
-				let cancelled = false;
+				let active = true;
+				let pending = false;
 				const tick = async () => {
-					if (cancelled) return;
+					if (!active || pending) return;
+					pending = true;
 					setLiveElapsed(Math.round((Date.now() - startedAt) / 1e3));
 					try {
 						const payload = await requestJson$1(STATUS_ENDPOINT$1);
-						if (!cancelled) setLivePhase(payload.status?.phase);
-					} catch {}
+						if (active) setLivePhase(payload.status?.phase);
+					} catch {
+						return;
+					} finally {
+						pending = false;
+					}
 				};
 				tick();
 				const timer = setInterval(() => void tick(), 1e3);
 				return () => {
-					cancelled = true;
+					active = false;
 					clearInterval(timer);
 				};
 			}, [busy]);
@@ -785,6 +803,14 @@ window.__ModuleLoader__.load({
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 				className: "bh-settings-rows",
 				children: [
+					/* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						hidden: true,
+						ref: hostDirResource
+					}),
+					busy === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+						hidden: true,
+						ref: busyResource
+					}),
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
 						className: "bh-settings-section-head",
 						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
@@ -1136,11 +1162,9 @@ window.__ModuleLoader__.load({
 		const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
-		function useStreamPhase(iframeRef, epoch) {
-			const [phase, setPhase] = (0, react.useState)("connecting");
-			(0, react.useEffect)(() => {
-				setPhase("connecting");
-				let cancelled = false;
+		function useStreamPhase(onSample) {
+			return useMountedResource((iframe) => {
+				let active = true;
 				let tracker = {
 					misses: 0,
 					busyStreak: 0,
@@ -1148,25 +1172,24 @@ window.__ModuleLoader__.load({
 				};
 				let timer;
 				const check = () => {
-					if (cancelled) return;
+					if (!active) return;
 					let doc = null;
 					try {
-						doc = iframeRef.current?.contentDocument ?? null;
+						doc = iframe.contentDocument;
 					} catch {
 						doc = null;
 					}
 					const next = nextStreamTracker(tracker, sampleSurface(doc));
 					tracker = next.tracker;
-					setPhase(next.phase);
+					onSample(next.phase);
 					timer = setTimeout(check, 1e3);
 				};
 				timer = setTimeout(check, 300);
 				return () => {
-					cancelled = true;
+					active = false;
 					if (timer !== void 0) clearTimeout(timer);
 				};
-			}, [iframeRef, epoch]);
-			return phase;
+			}, [onSample]);
 		}
 		function ScreenIndicator({ label = "连接中" }) {
 			const size = 26;
@@ -1287,14 +1310,11 @@ window.__ModuleLoader__.load({
 		function ScaledFrame({ title, design, interactive, fit = "width", iframeRef }) {
 			const DESIGN_WIDTH = design.width;
 			const DESIGN_HEIGHT = design.height;
-			const ref = (0, react.useRef)(null);
 			const [box, setBox] = (0, react.useState)({
 				width: DESIGN_WIDTH,
 				height: DESIGN_HEIGHT
 			});
-			(0, react.useEffect)(() => {
-				const element = ref.current;
-				if (element === null) return () => {};
+			const resizeResource = useMountedResource((element) => {
 				const update = () => setBox({
 					width: element.clientWidth,
 					height: element.clientHeight
@@ -1308,7 +1328,7 @@ window.__ModuleLoader__.load({
 			const offsetX = fit === "contain" ? Math.max(0, (box.width - DESIGN_WIDTH * scale) / 2) : 0;
 			const offsetY = fit === "contain" ? Math.max(0, (box.height - DESIGN_HEIGHT * scale) / 2) : 0;
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				ref,
+				ref: resizeResource,
 				style: {
 					position: "relative",
 					width: "100%",
@@ -1355,37 +1375,37 @@ window.__ModuleLoader__.load({
 			const [open, setOpen] = (0, react.useState)(false);
 			const [entries, setEntries] = (0, react.useState)(void 0);
 			const [failed, setFailed] = (0, react.useState)(false);
-			(0, react.useEffect)(() => {
-				if (!open || entries !== void 0 || failed) return () => {};
-				let cancelled = false;
-				requestJson("/api/computer/logs?limit=10").then((result) => {
-					if (!cancelled) setEntries(result.entries);
+			const loadResource = useMountedResource(() => {
+				const controller = new AbortController();
+				requestJson("/api/computer/logs?limit=10", { signal: controller.signal }).then((result) => {
+					if (!controller.signal.aborted) setEntries(result.entries);
 				}).catch(() => {
-					if (!cancelled) setFailed(true);
+					if (!controller.signal.aborted) setFailed(true);
 				});
-				return () => {
-					cancelled = true;
-				};
-			}, [
-				open,
-				entries,
-				failed
-			]);
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
-				type: "button",
-				onClick: () => setOpen(!open),
-				style: buttonStyle,
-				children: t("entry.recentLogs")
-			}), open ? failed ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: noteStyle,
-				children: t("entry.recentLogs.failed")
-			}) : entries === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: noteStyle,
-				children: "…"
-			}) : entries.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-				style: noteStyle,
-				children: t("entry.recentLogs.empty")
-			}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RecentLogsList, { entries }) : null] });
+				return () => controller.abort();
+			}, []);
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", { children: [
+				open && entries === void 0 && !failed ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					hidden: true,
+					ref: loadResource
+				}) : null,
+				/* @__PURE__ */ (0, react_jsx_runtime.jsx)("button", {
+					type: "button",
+					onClick: () => setOpen(!open),
+					style: buttonStyle,
+					children: t("entry.recentLogs")
+				}),
+				open ? failed ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					style: noteStyle,
+					children: t("entry.recentLogs.failed")
+				}) : entries === void 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					style: noteStyle,
+					children: "…"
+				}) : entries.length === 0 ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+					style: noteStyle,
+					children: t("entry.recentLogs.empty")
+				}) : /* @__PURE__ */ (0, react_jsx_runtime.jsx)(RecentLogsList, { entries }) : null
+			] });
 		}
 		function CollapseIcon() {
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("svg", {
@@ -1489,8 +1509,8 @@ window.__ModuleLoader__.load({
 			});
 		}
 		function RunningCard({ t, botSlug, busy, stopping, resolution, onStop }) {
-			const frameRef = (0, react.useRef)(null);
-			const dialogRef = (0, react.useRef)(null);
+			const entryRef = (0, react.useRef)(null);
+			const mounted = (0, react.useRef)(false);
 			const [hovered, setHovered] = (0, react.useState)(false);
 			const [expanded, setExpanded] = (0, react.useState)(false);
 			const [inputEnabled, setInputEnabled] = (0, react.useState)(false);
@@ -1499,84 +1519,95 @@ window.__ModuleLoader__.load({
 			const wasReady = (0, react.useRef)(false);
 			const autoReloads = (0, react.useRef)(0);
 			const lossStreak = (0, react.useRef)(0);
-			const prevPhase = (0, react.useRef)(void 0);
-			const prevExpanded = (0, react.useRef)(false);
+			const phaseRef = (0, react.useRef)("connecting");
 			const title = t("entry.screen.title", { name: botSlug ?? "PersonaBot" });
 			const design = designOf(resolution);
-			const rawPhase = useStreamPhase(frameRef, reloadKey);
-			const rawLive = rawPhase === "live";
 			const [smooth, setSmooth] = (0, react.useState)({
 				phase: "connecting",
 				streak: 0
 			});
-			(0, react.useEffect)(() => {
-				setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak));
-			}, [rawPhase]);
-			(0, react.useEffect)(() => {
+			const resetFrame = (0, react.useCallback)(() => {
+				phaseRef.current = "connecting";
 				setSmooth({
 					phase: "connecting",
 					streak: 0
 				});
-			}, [reloadKey]);
-			const phase = smooth.phase;
-			const reconnect = () => {
-				reportViewerEvent(void 0, viewerEventText({ type: "manual-retry" }));
-				setReconnecting(true);
 				setReloadKey((key) => key + 1);
-			};
-			(0, react.useEffect)(() => {
-				reportViewerEvent(void 0, viewerEventText({ type: "mount" }));
 			}, []);
-			(0, react.useEffect)(() => {
-				const fromPhase = prevPhase.current;
-				prevPhase.current = rawPhase;
-				if (fromPhase !== void 0 && fromPhase !== rawPhase) reportViewerEvent(void 0, viewerEventText({
-					type: "phase",
-					from: fromPhase,
-					to: rawPhase
-				}));
-				const wasExpanded = prevExpanded.current;
-				prevExpanded.current = expanded;
-				if (wasExpanded !== expanded) reportViewerEvent(void 0, viewerEventText({
-					type: "overlay",
-					open: expanded
-				}));
-			}, [rawPhase, expanded]);
-			(0, react.useEffect)(() => {
-				if (rawLive) {
+			const streamRef = useStreamPhase((0, react.useCallback)((nextPhase) => {
+				const fromPhase = phaseRef.current;
+				if (fromPhase !== nextPhase) {
+					phaseRef.current = nextPhase;
+					setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
+					reportViewerEvent(void 0, viewerEventText({
+						type: "phase",
+						from: fromPhase,
+						to: nextPhase
+					}));
+				}
+				if (nextPhase === "live") {
 					wasReady.current = true;
 					autoReloads.current = 0;
 					lossStreak.current = 0;
 					setReconnecting(false);
 					return;
 				}
-				if (!wasReady.current) return;
-				lossStreak.current += 1;
-				if (!shouldRemountLoss(lossStreak.current)) return;
-				wasReady.current = false;
-				lossStreak.current = 0;
-				reportViewerEvent(void 0, viewerEventText({
-					type: "loss-remount",
-					streak: 3
-				}));
+				if (wasReady.current) {
+					lossStreak.current += 1;
+					if (shouldRemountLoss(lossStreak.current)) {
+						wasReady.current = false;
+						lossStreak.current = 0;
+						reportViewerEvent(void 0, viewerEventText({
+							type: "loss-remount",
+							streak: 3
+						}));
+						setReconnecting(true);
+						resetFrame();
+						return;
+					}
+				}
+				if (fromPhase !== nextPhase && shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)) {
+					autoReloads.current += 1;
+					reportViewerEvent(void 0, viewerEventText({
+						type: "auto-reload",
+						attempt: autoReloads.current
+					}));
+					resetFrame();
+				}
+			}, [resetFrame]));
+			const phase = smooth.phase;
+			const reconnect = () => {
+				reportViewerEvent(void 0, viewerEventText({ type: "manual-retry" }));
 				setReconnecting(true);
-				setReloadKey((key) => key + 1);
-			}, [rawLive]);
-			(0, react.useEffect)(() => {
-				if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return;
-				autoReloads.current += 1;
+				autoReloads.current = 0;
+				lossStreak.current = 0;
+				wasReady.current = false;
+				resetFrame();
+			};
+			const openViewer = () => {
+				setExpanded(nextExpanded("open"));
 				reportViewerEvent(void 0, viewerEventText({
-					type: "auto-reload",
-					attempt: autoReloads.current
+					type: "overlay",
+					open: true
 				}));
-				setReloadKey((key) => key + 1);
-			}, [rawPhase]);
-			(0, react.useEffect)(() => {
-				if (!expanded) return () => {};
+			};
+			const collapseViewer = () => {
+				setInputEnabled(false);
+				setExpanded(nextExpanded("collapse"));
+				reportViewerEvent(void 0, viewerEventText({
+					type: "overlay",
+					open: false
+				}));
+				requestAnimationFrame(() => entryRef.current?.focus());
+			};
+			const dialogResource = useMountedResource((dialog) => {
+				if (!mounted.current) {
+					mounted.current = true;
+					reportViewerEvent(void 0, viewerEventText({ type: "mount" }));
+				}
+				if (!expanded) return;
 				const onKey = (event) => {
 					if (event.key !== "Tab") return;
-					const dialog = dialogRef.current;
-					if (dialog === null) return;
 					const focusable = [...dialog.querySelectorAll("button, [href], iframe, [tabindex]:not([tabindex=\"-1\"])")].filter((element) => element.tabIndex !== -1);
 					const first = focusable[0];
 					const last = focusable.at(-1);
@@ -1591,11 +1622,12 @@ window.__ModuleLoader__.load({
 					}
 				};
 				document.addEventListener("keydown", onKey);
+				const previousOverflow = document.body.style.overflow;
 				document.body.style.overflow = "hidden";
-				dialogRef.current?.focus();
+				dialog.focus();
 				return () => {
 					document.removeEventListener("keydown", onKey);
-					document.body.style.overflow = "";
+					document.body.style.overflow = previousOverflow;
 				};
 			}, [expanded]);
 			const statusText = t(statusKeyFor(phase, reconnecting));
@@ -1606,7 +1638,7 @@ window.__ModuleLoader__.load({
 				hovered: expanded ? false : hovered,
 				t,
 				onRetry: reconnect,
-				onOpen: () => setExpanded(nextExpanded("open"))
+				onOpen: openViewer
 			});
 			const stopLabel = t(stopKey(busy, stopping));
 			const rowButton = (disabled) => ({
@@ -1627,7 +1659,7 @@ window.__ModuleLoader__.load({
 				} : { cursor: "pointer" }
 			});
 			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-				ref: dialogRef,
+				ref: dialogResource,
 				role: expanded ? "dialog" : void 0,
 				"aria-modal": expanded ? true : void 0,
 				"aria-label": expanded ? title : void 0,
@@ -1656,25 +1688,23 @@ window.__ModuleLoader__.load({
 						interactive: inputEnabled,
 						onToggleInteractive: () => setInputEnabled((current) => !current),
 						onStop,
-						onCollapse: () => {
-							setInputEnabled(false);
-							setExpanded(nextExpanded("collapse"));
-						}
+						onCollapse: collapseViewer
 					}, "viewer-titlebar") : null,
 					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+						ref: entryRef,
 						role: openable ? "button" : void 0,
 						tabIndex: openable ? 0 : void 0,
 						"aria-label": openable ? t("entry.openFullscreen") : statusText,
 						onMouseEnter: () => setHovered(true),
 						onMouseLeave: () => setHovered(false),
 						onClick: () => {
-							if (openable) setExpanded(nextExpanded("open"));
+							if (openable) openViewer();
 						},
 						onKeyDown: (event) => {
 							if (!openable) return;
 							if (event.key !== "Enter" && event.key !== " ") return;
 							event.preventDefault();
-							setExpanded(nextExpanded("open"));
+							openViewer();
 						},
 						style: expanded ? {
 							position: "relative",
@@ -1689,7 +1719,7 @@ window.__ModuleLoader__.load({
 							design,
 							interactive: expanded && inputEnabled,
 							fit: expanded ? "contain" : "width",
-							iframeRef: frameRef
+							iframeRef: streamRef
 						}, reloadKey), overlay]
 					}, "viewer-frame"),
 					expanded ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsxs)(react.Fragment, { children: [
@@ -1982,37 +2012,42 @@ window.__ModuleLoader__.load({
 			const [busy, setBusy] = (0, react.useState)(false);
 			const [confirming, setConfirming] = (0, react.useState)(false);
 			const [approved, setApproved] = (0, react.useState)(() => globalThis.sessionStorage?.getItem(APPROVED_KEY) === "1");
-			const [busySince, setBusySince] = (0, react.useState)(void 0);
 			const [elapsed, setElapsed] = (0, react.useState)(0);
 			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
-			const refresh = (0, react.useCallback)(async () => {
+			const refresh = (0, react.useCallback)(async (signal) => {
 				try {
-					setPayload(await requestJson(STATUS_ENDPOINT));
+					const next = await requestJson(STATUS_ENDPOINT, signal === void 0 ? void 0 : { signal });
+					if (signal?.aborted) return;
+					setPayload(next);
 					setError(void 0);
 				} catch (cause) {
-					setError(String(cause));
+					if (!signal?.aborted) setError(String(cause));
 				}
 			}, []);
-			(0, react.useEffect)(() => {
-				refresh();
-				const timer = setInterval(() => void refresh(), 3e3);
-				return () => clearInterval(timer);
+			const statusResource = useMountedResource(() => {
+				const controller = new AbortController();
+				let pending = false;
+				const poll = async () => {
+					if (pending || controller.signal.aborted) return;
+					pending = true;
+					await refresh(controller.signal);
+					pending = false;
+				};
+				poll();
+				const timer = setInterval(() => void poll(), 3e3);
+				return () => {
+					controller.abort();
+					clearInterval(timer);
+				};
 			}, [refresh]);
 			const phase = payload?.status.phase;
 			const inProgress = phase === "pulling" || phase === "starting" || phase === "stopping" || phase === "exporting" || phase === "importing";
-			(0, react.useEffect)(() => {
-				if (!inProgress) {
-					setBusySince(void 0);
-					setElapsed(0);
-					return;
-				}
-				setBusySince((current) => current ?? Date.now());
+			const progressResource = useMountedResource(() => {
+				const startedAt = Date.now();
+				setElapsed(0);
 				const timer = setInterval(() => {
 					setNowTs(Date.now());
-					setBusySince((current) => {
-						if (current !== void 0) setElapsed(Math.round((Date.now() - current) / 1e3));
-						return current;
-					});
+					setElapsed(Math.round((Date.now() - startedAt) / 1e3));
 				}, 1e3);
 				return () => clearInterval(timer);
 			}, [inProgress]);
@@ -2051,13 +2086,17 @@ window.__ModuleLoader__.load({
 					setApproved(true);
 				}
 			}, []);
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+				ref: statusResource,
 				style: {
 					display: "flex",
 					flexDirection: "column",
 					gap: 8
 				},
-				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
+				children: [inProgress ? /* @__PURE__ */ (0, react_jsx_runtime.jsx)("span", {
+					hidden: true,
+					ref: progressResource
+				}) : null, /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
 					t,
 					state: payload?.status.state ?? "absent",
 					...phase === void 0 ? {} : { phase },
@@ -2077,7 +2116,7 @@ window.__ModuleLoader__.load({
 					onStop: () => void act(STOP_ENDPOINT),
 					onApprove,
 					onCancel: () => setConfirming(false)
-				})
+				})]
 			});
 		}
 		function apply(ctx) {

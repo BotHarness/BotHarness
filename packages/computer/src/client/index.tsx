@@ -1,14 +1,13 @@
 import {
   Fragment,
   useCallback,
-  useEffect,
   useRef,
   useState,
   useSyncExternalStore,
   type CSSProperties,
   type ComponentType,
   type ReactElement,
-  type RefObject,
+  type RefCallback,
 } from 'react';
 import {
   dotStateFor,
@@ -54,6 +53,7 @@ import {
   createComputerSettingsFace,
   type ComputerSettingsScope,
 } from './settings-rows.js';
+import { useMountedResource } from './mounted-resource.js';
 
 export const name = 'botharness-computer-client';
 
@@ -205,35 +205,33 @@ const SPIN_STYLE = `
 @keyframes bc-spin { to { transform: rotate(360deg); } }
 `;
 
-function useStreamPhase(iframeRef: RefObject<HTMLIFrameElement>, epoch: number): FramePhase {
-  const [phase, setPhase] = useState<FramePhase>('connecting');
-
-  useEffect(() => {
-    setPhase('connecting');
-    let cancelled = false;
-    let tracker: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const check = (): void => {
-      if (cancelled) return;
-      let doc: Document | null = null;
-      try {
-        doc = iframeRef.current?.contentDocument ?? null;
-      } catch {
-        doc = null;
-      }
-      const next = nextStreamTracker(tracker, sampleSurface(doc));
-      tracker = next.tracker;
-      setPhase(next.phase);
-      timer = setTimeout(check, 1000);
-    };
-    timer = setTimeout(check, 300);
-    return () => {
-      cancelled = true;
-      if (timer !== undefined) clearTimeout(timer);
-    };
-  }, [iframeRef, epoch]);
-
-  return phase;
+function useStreamPhase(onSample: (phase: FramePhase) => void): RefCallback<HTMLIFrameElement> {
+  return useMountedResource<HTMLIFrameElement>(
+    (iframe) => {
+      let active = true;
+      let tracker: StreamTracker = { misses: 0, busyStreak: 0, quiet: 0 };
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const check = (): void => {
+        if (!active) return;
+        let doc: Document | null = null;
+        try {
+          doc = iframe.contentDocument;
+        } catch {
+          doc = null;
+        }
+        const next = nextStreamTracker(tracker, sampleSurface(doc));
+        tracker = next.tracker;
+        onSample(next.phase);
+        timer = setTimeout(check, 1000);
+      };
+      timer = setTimeout(check, 300);
+      return () => {
+        active = false;
+        if (timer !== undefined) clearTimeout(timer);
+      };
+    },
+    [onSample],
+  );
 }
 
 export function ScreenIndicator({ label = '连接中' }: { readonly label?: string }): ReactElement {
@@ -364,7 +362,7 @@ interface ScaledFrameProps {
   readonly design: { width: number; height: number };
   readonly interactive: boolean;
   readonly fit?: 'width' | 'contain';
-  readonly iframeRef?: RefObject<HTMLIFrameElement>;
+  readonly iframeRef?: RefCallback<HTMLIFrameElement>;
 }
 
 function ScaledFrame({
@@ -376,12 +374,8 @@ function ScaledFrame({
 }: ScaledFrameProps): ReactElement {
   const DESIGN_WIDTH = design.width;
   const DESIGN_HEIGHT = design.height;
-  const ref = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState({ width: DESIGN_WIDTH, height: DESIGN_HEIGHT });
-
-  useEffect(() => {
-    const element = ref.current;
-    if (element === null) return () => {};
+  const resizeResource = useMountedResource<HTMLDivElement>((element) => {
     const update = (): void => setBox({ width: element.clientWidth, height: element.clientHeight });
     update();
     const observer = new ResizeObserver(update);
@@ -398,7 +392,7 @@ function ScaledFrame({
 
   return (
     <div
-      ref={ref}
+      ref={resizeResource}
       style={{
         position: 'relative',
         width: '100%',
@@ -463,22 +457,22 @@ export function RecentLogs({ t }: { readonly t: ComputerTranslate }): ReactEleme
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<readonly RecentLogRow[] | undefined>(undefined);
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
-    if (!open || entries !== undefined || failed) return () => {};
-    let cancelled = false;
-    requestJson<{ entries: RecentLogRow[] }>('/api/computer/logs?limit=10')
+  const loadResource = useMountedResource<HTMLSpanElement>(() => {
+    const controller = new AbortController();
+    requestJson<{ entries: RecentLogRow[] }>('/api/computer/logs?limit=10', {
+      signal: controller.signal,
+    })
       .then((result) => {
-        if (!cancelled) setEntries(result.entries);
+        if (!controller.signal.aborted) setEntries(result.entries);
       })
       .catch(() => {
-        if (!cancelled) setFailed(true);
+        if (!controller.signal.aborted) setFailed(true);
       });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, entries, failed]);
+    return () => controller.abort();
+  }, []);
   return (
     <div>
+      {open && entries === undefined && !failed ? <span hidden ref={loadResource} /> : null}
       <button type="button" onClick={() => setOpen(!open)} style={buttonStyle}>
         {t('entry.recentLogs')}
       </button>
@@ -621,8 +615,8 @@ function RunningCard({
   readonly resolution?: string;
   readonly onStop: () => void;
 }): ReactElement {
-  const frameRef = useRef<HTMLIFrameElement>(null);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const entryRef = useRef<HTMLDivElement>(null);
+  const mounted = useRef(false);
   const [hovered, setHovered] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [inputEnabled, setInputEnabled] = useState(false);
@@ -631,113 +625,123 @@ function RunningCard({
   const wasReady = useRef(false);
   const autoReloads = useRef(0);
   const lossStreak = useRef(0);
-  const prevPhase = useRef<FramePhase | undefined>(undefined);
-  const prevExpanded = useRef(false);
+  const phaseRef = useRef<FramePhase>('connecting');
   const title = t('entry.screen.title', { name: botSlug ?? 'PersonaBot' });
   const design = designOf(resolution);
 
-  const rawPhase = useStreamPhase(frameRef, reloadKey);
-  const rawLive = rawPhase === 'live';
   const [smooth, setSmooth] = useState<{ phase: FramePhase; streak: number }>({
     phase: 'connecting',
     streak: 0,
   });
-  useEffect(() => {
-    setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak));
-  }, [rawPhase]);
-  useEffect(() => {
+  const resetFrame = useCallback(() => {
+    phaseRef.current = 'connecting';
     setSmooth({ phase: 'connecting', streak: 0 });
-  }, [reloadKey]);
+    setReloadKey((key) => key + 1);
+  }, []);
+  const onSample = useCallback(
+    (nextPhase: FramePhase): void => {
+      const fromPhase = phaseRef.current;
+      if (fromPhase !== nextPhase) {
+        phaseRef.current = nextPhase;
+        setSmooth((current) => smoothPhase(current.phase, nextPhase, current.streak));
+        void reportViewerEvent(
+          undefined,
+          viewerEventText({ type: 'phase', from: fromPhase, to: nextPhase }),
+        );
+      }
+      if (nextPhase === 'live') {
+        wasReady.current = true;
+        autoReloads.current = 0;
+        lossStreak.current = 0;
+        setReconnecting(false);
+        return;
+      }
+      if (wasReady.current) {
+        lossStreak.current += 1;
+        if (shouldRemountLoss(lossStreak.current)) {
+          wasReady.current = false;
+          lossStreak.current = 0;
+          void reportViewerEvent(
+            undefined,
+            viewerEventText({ type: 'loss-remount', streak: LOSS_REMOUNT_AFTER }),
+          );
+          setReconnecting(true);
+          resetFrame();
+          return;
+        }
+      }
+      if (
+        fromPhase !== nextPhase &&
+        shouldAutoReload(nextPhase, wasReady.current, autoReloads.current)
+      ) {
+        autoReloads.current += 1;
+        void reportViewerEvent(
+          undefined,
+          viewerEventText({ type: 'auto-reload', attempt: autoReloads.current }),
+        );
+        resetFrame();
+      }
+    },
+    [resetFrame],
+  );
+  const streamRef = useStreamPhase(onSample);
   const phase = smooth.phase;
 
   const reconnect = (): void => {
     void reportViewerEvent(undefined, viewerEventText({ type: 'manual-retry' }));
     setReconnecting(true);
-    setReloadKey((key) => key + 1);
-  };
-
-  useEffect(() => {
-    void reportViewerEvent(undefined, viewerEventText({ type: 'mount' }));
-  }, []);
-
-  useEffect(() => {
-    const fromPhase = prevPhase.current;
-    prevPhase.current = rawPhase;
-    if (fromPhase !== undefined && fromPhase !== rawPhase) {
-      void reportViewerEvent(
-        undefined,
-        viewerEventText({ type: 'phase', from: fromPhase, to: rawPhase }),
-      );
-    }
-    const wasExpanded = prevExpanded.current;
-    prevExpanded.current = expanded;
-    if (wasExpanded !== expanded) {
-      void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: expanded }));
-    }
-  }, [rawPhase, expanded]);
-
-  useEffect(() => {
-    if (rawLive) {
-      wasReady.current = true;
-      autoReloads.current = 0;
-      lossStreak.current = 0;
-      setReconnecting(false);
-      return;
-    }
-    if (!wasReady.current) return;
-    lossStreak.current += 1;
-    if (!shouldRemountLoss(lossStreak.current)) return;
-    wasReady.current = false;
+    autoReloads.current = 0;
     lossStreak.current = 0;
-    void reportViewerEvent(
-      undefined,
-      viewerEventText({ type: 'loss-remount', streak: LOSS_REMOUNT_AFTER }),
-    );
-    setReconnecting(true);
-    setReloadKey((key) => key + 1);
-  }, [rawLive]);
-
-  useEffect(() => {
-    if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return;
-    autoReloads.current += 1;
-    void reportViewerEvent(
-      undefined,
-      viewerEventText({ type: 'auto-reload', attempt: autoReloads.current }),
-    );
-    setReloadKey((key) => key + 1);
-  }, [rawPhase]);
-
-  useEffect(() => {
-    if (!expanded) return () => {};
-    const onKey = (event: KeyboardEvent): void => {
-      if (event.key !== 'Tab') return;
-      const dialog = dialogRef.current;
-      if (dialog === null) return;
-      const focusable = [
-        ...dialog.querySelectorAll<HTMLElement>(
-          'button, [href], iframe, [tabindex]:not([tabindex="-1"])',
-        ),
-      ].filter((element) => element.tabIndex !== -1);
-      const first = focusable[0];
-      const last = focusable.at(-1);
-      if (first === undefined || last === undefined) return;
-      const active = document.activeElement;
-      if (event.shiftKey && (active === first || active === dialog)) {
-        event.preventDefault();
-        last.focus();
-      } else if (!event.shiftKey && active === last) {
-        event.preventDefault();
-        first.focus();
+    wasReady.current = false;
+    resetFrame();
+  };
+  const openViewer = (): void => {
+    setExpanded(nextExpanded('open'));
+    void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: true }));
+  };
+  const collapseViewer = (): void => {
+    setInputEnabled(false);
+    setExpanded(nextExpanded('collapse'));
+    void reportViewerEvent(undefined, viewerEventText({ type: 'overlay', open: false }));
+    requestAnimationFrame(() => entryRef.current?.focus());
+  };
+  const dialogResource = useMountedResource<HTMLDivElement>(
+    (dialog) => {
+      if (!mounted.current) {
+        mounted.current = true;
+        void reportViewerEvent(undefined, viewerEventText({ type: 'mount' }));
       }
-    };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    dialogRef.current?.focus();
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = '';
-    };
-  }, [expanded]);
+      if (!expanded) return;
+      const onKey = (event: KeyboardEvent): void => {
+        if (event.key !== 'Tab') return;
+        const focusable = [
+          ...dialog.querySelectorAll<HTMLElement>(
+            'button, [href], iframe, [tabindex]:not([tabindex="-1"])',
+          ),
+        ].filter((element) => element.tabIndex !== -1);
+        const first = focusable[0];
+        const last = focusable.at(-1);
+        if (first === undefined || last === undefined) return;
+        const active = document.activeElement;
+        if (event.shiftKey && (active === first || active === dialog)) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      };
+      document.addEventListener('keydown', onKey);
+      const previousOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      dialog.focus();
+      return () => {
+        document.removeEventListener('keydown', onKey);
+        document.body.style.overflow = previousOverflow;
+      };
+    },
+    [expanded],
+  );
 
   const statusText = t(statusKeyFor(phase, reconnecting));
   const openable = phase === 'live' && !expanded;
@@ -749,7 +753,7 @@ function RunningCard({
       hovered={expanded ? false : hovered}
       t={t}
       onRetry={reconnect}
-      onOpen={() => setExpanded(nextExpanded('open'))}
+      onOpen={openViewer}
     />
   );
 
@@ -771,7 +775,7 @@ function RunningCard({
 
   return (
     <div
-      ref={dialogRef}
+      ref={dialogResource}
       role={expanded ? 'dialog' : undefined}
       aria-modal={expanded ? true : undefined}
       aria-label={expanded ? title : undefined}
@@ -802,27 +806,25 @@ function RunningCard({
           interactive={inputEnabled}
           onToggleInteractive={() => setInputEnabled((current) => !current)}
           onStop={onStop}
-          onCollapse={() => {
-            setInputEnabled(false);
-            setExpanded(nextExpanded('collapse'));
-          }}
+          onCollapse={collapseViewer}
         />
       ) : null}
       <div
         key="viewer-frame"
+        ref={entryRef}
         role={openable ? 'button' : undefined}
         tabIndex={openable ? 0 : undefined}
         aria-label={openable ? t('entry.openFullscreen') : statusText}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
         onClick={() => {
-          if (openable) setExpanded(nextExpanded('open'));
+          if (openable) openViewer();
         }}
         onKeyDown={(event) => {
           if (!openable) return;
           if (event.key !== 'Enter' && event.key !== ' ') return;
           event.preventDefault();
-          setExpanded(nextExpanded('open'));
+          openViewer();
         }}
         style={
           expanded
@@ -836,7 +838,7 @@ function RunningCard({
           design={design}
           interactive={expanded && inputEnabled}
           fit={expanded ? 'contain' : 'width'}
-          iframeRef={frameRef}
+          iframeRef={streamRef}
         />
         {overlay}
       </div>
@@ -1191,22 +1193,37 @@ function ComputerEntry({
   const [approved, setApproved] = useState(
     () => globalThis.sessionStorage?.getItem(APPROVED_KEY) === '1',
   );
-  const [busySince, setBusySince] = useState<number | undefined>(undefined);
   const [elapsed, setElapsed] = useState(0);
   const [nowTs, setNowTs] = useState(() => Date.now());
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
-      setPayload(await requestJson<ComputerStatusPayload>(STATUS_ENDPOINT));
+      const next = await requestJson<ComputerStatusPayload>(
+        STATUS_ENDPOINT,
+        signal === undefined ? undefined : { signal },
+      );
+      if (signal?.aborted) return;
+      setPayload(next);
       setError(undefined);
     } catch (cause) {
-      setError(String(cause));
+      if (!signal?.aborted) setError(String(cause));
     }
   }, []);
 
-  useEffect(() => {
-    void refresh();
-    const timer = setInterval(() => void refresh(), 3000);
-    return () => clearInterval(timer);
+  const statusResource = useMountedResource<HTMLDivElement>(() => {
+    const controller = new AbortController();
+    let pending = false;
+    const poll = async (): Promise<void> => {
+      if (pending || controller.signal.aborted) return;
+      pending = true;
+      await refresh(controller.signal);
+      pending = false;
+    };
+    void poll();
+    const timer = setInterval(() => void poll(), 3000);
+    return () => {
+      controller.abort();
+      clearInterval(timer);
+    };
   }, [refresh]);
 
   const phase = payload?.status.phase;
@@ -1217,19 +1234,12 @@ function ComputerEntry({
     phase === 'exporting' ||
     phase === 'importing';
 
-  useEffect(() => {
-    if (!inProgress) {
-      setBusySince(undefined);
-      setElapsed(0);
-      return;
-    }
-    setBusySince((current) => current ?? Date.now());
+  const progressResource = useMountedResource<HTMLSpanElement>(() => {
+    const startedAt = Date.now();
+    setElapsed(0);
     const timer = setInterval(() => {
       setNowTs(Date.now());
-      setBusySince((current) => {
-        if (current !== undefined) setElapsed(Math.round((Date.now() - current) / 1000));
-        return current;
-      });
+      setElapsed(Math.round((Date.now() - startedAt) / 1000));
     }, 1000);
     return () => clearInterval(timer);
   }, [inProgress]);
@@ -1279,7 +1289,8 @@ function ComputerEntry({
   }, []);
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div ref={statusResource} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {inProgress ? <span hidden ref={progressResource} /> : null}
       <ComputerEntryView
         t={t}
         state={payload?.status.state ?? 'absent'}

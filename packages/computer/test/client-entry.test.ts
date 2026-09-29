@@ -653,3 +653,87 @@ describe('Recent operational logs', () => {
     expect(html).not.toContain('暂无运行记录');
   });
 });
+
+describe('Computer viewer mounted lifecycle', () => {
+  it('aborts status reads when the sidebar entry unmounts', async () => {
+    const view = mountEntry(async () => ({ ok: true, value: { bots: [] } }), 'ada');
+    await view.render();
+    const statusCall = vi.mocked(fetch).mock.calls.find(([url]) => url === '/api/computer/status');
+    expect(statusCall).toBeDefined();
+    const signal = statusCall?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+    await view.dispose();
+    expect(signal?.aborted).toBe(true);
+  });
+
+  it('keeps one iframe while expanding and restores focus and scroll on collapse', async () => {
+    const view = mountEntry(async () => ({ ok: true, value: { bots: [] } }), 'ada', {
+      state: 'running',
+    });
+    vi.stubGlobal('requestAnimationFrame', (callback: FrameRequestCallback) => {
+      return setTimeout(() => callback(0), 0);
+    });
+    let restoreCanvas = (): void => undefined;
+    const previousOverflow = document.body.style.overflow;
+    try {
+      await view.render();
+      const frame = view.container.querySelector('iframe');
+      expect(frame).not.toBeNull();
+      const frameDocument = frame?.contentDocument;
+      if (frameDocument === undefined || frameDocument === null) {
+        throw new Error('viewer iframe document unavailable');
+      }
+      frameDocument.open();
+      frameDocument.write('<html><body></body></html>');
+      frameDocument.close();
+      const canvas = frameDocument.createElement('canvas');
+      const canvasContext = vi
+        .spyOn(Object.getPrototypeOf(canvas) as HTMLCanvasElement, 'getContext')
+        .mockReturnValue(null);
+      restoreCanvas = () => canvasContext.mockRestore();
+      canvas.id = 'videoCanvas';
+      canvas.width = 640;
+      frameDocument.body.append(canvas);
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      });
+      const entry = view.container.querySelector<HTMLDivElement>('div[role="button"]');
+      expect(entry).not.toBeNull();
+      await act(async () => entry?.click());
+      expect(view.container.querySelector('iframe')).toBe(frame);
+      expect(document.body.style.overflow).toBe('hidden');
+      const dialog = view.container.querySelector<HTMLDivElement>('[role="dialog"]');
+      expect(dialog).not.toBeNull();
+      const focusable = [
+        ...(dialog?.querySelectorAll<HTMLElement>(
+          'button, iframe, [tabindex]:not([tabindex="-1"])',
+        ) ?? []),
+      ].filter((element) => element.tabIndex !== -1);
+      const first = focusable[0];
+      const last = focusable.at(-1);
+      last?.focus();
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true }));
+      });
+      expect(document.activeElement).toBe(first);
+      await act(async () => {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+      });
+      expect(view.container.querySelector('[role="dialog"]')).toBe(dialog);
+
+      const collapse = view.container.querySelector<HTMLButtonElement>(
+        `button[aria-label="${t('entry.collapseFullscreen')}"]`,
+      );
+      await act(async () => collapse?.click());
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      expect(view.container.querySelector('iframe')).toBe(frame);
+      expect(document.body.style.overflow).toBe(previousOverflow);
+      expect(document.activeElement).toBe(entry);
+    } finally {
+      await view.dispose();
+      restoreCanvas();
+    }
+  });
+});

@@ -1,21 +1,6 @@
 {
   "version": 1,
   "entries": [
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"4149124b16eb927b","count":1,"exampleLine":211,"preview":"useEffect(() => { setPhase('connecting'); let cancelled = false; let tracker: StreamTracker = { "},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"8dce4f86a01319ca","count":1,"exampleLine":382,"preview":"useEffect(() => { const element = ref.current; if (element === null) return () => {}; const upda"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"1f207035ef3ff628","count":1,"exampleLine":466,"preview":"useEffect(() => { if (!open || entries !== undefined || failed) return () => {}; let cancelled ="},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"10ba42d0f912830f","count":1,"exampleLine":645,"preview":"useEffect(() => { setSmooth((current) => smoothPhase(current.phase, rawPhase, current.streak)); "},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"a6ebac8db1d3eef3","count":1,"exampleLine":648,"preview":"useEffect(() => { setSmooth({ phase: 'connecting', streak: 0 }); }, [reloadKey])"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"bf4f0cf6f8d01ce5","count":1,"exampleLine":659,"preview":"useEffect(() => { void reportViewerEvent(undefined, viewerEventText({ type: 'mount' })); }, [])"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"cf9316f4000898a3","count":1,"exampleLine":663,"preview":"useEffect(() => { const fromPhase = prevPhase.current; prevPhase.current = rawPhase; if (fromPha"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"4a7148da25322754","count":1,"exampleLine":679,"preview":"useEffect(() => { if (rawLive) { wasReady.current = true; autoReloads.current = 0; lossStreak.cu"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"f355be2fdb31ca02","count":1,"exampleLine":700,"preview":"useEffect(() => { if (!shouldAutoReload(rawPhase, wasReady.current, autoReloads.current)) return"},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"f7b70aab4eae4eb3","count":1,"exampleLine":710,"preview":"useEffect(() => { if (!expanded) return () => {}; const onKey = (event: KeyboardEvent): void => "},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"fe67058fada749df","count":1,"exampleLine":1206,"preview":"useEffect(() => { void refresh(); const timer = setInterval(() => void refresh(), 3000); return "},
-    {"path":"packages/computer/src/client/index.tsx","kind":"useEffect","hash":"7df8f4ab321437be","count":1,"exampleLine":1220,"preview":"useEffect(() => { if (!inProgress) { setBusySince(undefined); setElapsed(0); return; } setBusySi"},
-    {"path":"packages/computer/src/client/settings-rows.tsx","kind":"useEffect","hash":"f1c132915f05e598","count":1,"exampleLine":334,"preview":"useEffect(() => prefs.subscribe(() => setSnapshot(prefs.getSnapshot())), [prefs])"},
-    {"path":"packages/computer/src/client/settings-rows.tsx","kind":"useEffect","hash":"adb886d4a7edcdf9","count":1,"exampleLine":336,"preview":"useEffect(() => { if (snapshot.status !== 'unavailable' && snapshot.exportDir !== '') return; vo"},
-    {"path":"packages/computer/src/client/settings-rows.tsx","kind":"useEffect","hash":"3e9a893ae3882448","count":1,"exampleLine":343,"preview":"useEffect(() => { if (busy === undefined) { setLivePhase(undefined); setLiveElapsed(0); return; "},
     {"path":"tsdown.config.ts","kind":"comment","hash":"41fe9ad260c6d641","count":1,"exampleLine":3,"preview":"/** * The browser half is a lazy-CJS closure factory served as `lib/client.js` * (DSH client-mod"},
     {"path":"vitest.config.ts","kind":"comment","hash":"a6caedba2bf6713c","count":1,"exampleLine":8,"preview":"// Git-backed fixtures and the docs build contend when test files run together."}
   ]
