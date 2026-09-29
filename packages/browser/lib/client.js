@@ -315,6 +315,12 @@ window.__ModuleLoader__.load({
 				});
 			};
 		}
+		const name = "botharness-browser-client";
+		const inject = [
+			"channelSidebar",
+			"connection",
+			"locale"
+		];
 		function apply(ctx) {
 			const t = ctx.locale.bind(LOCALE_NS);
 			ctx.effect(() => ctx.locale.register(LOCALE_NS, {
@@ -336,6 +342,8 @@ window.__ModuleLoader__.load({
 		}
 		//#endregion
 		exports.apply = apply;
+		exports.inject = inject;
+		exports.name = name;
 		return module.exports;
 	}
 });
