@@ -1874,39 +1874,109 @@ window.__ModuleLoader__.load({
 				});
 			};
 		}
-		function useBotInfo(botSlug) {
-			const [info, setInfo] = (0, react.useState)({
+		function createBotInfoStore(botSlug) {
+			let info = {
 				displayName: void 0,
 				computerAccess: void 0
-			});
-			(0, react.useEffect)(() => {
-				setInfo({
-					displayName: void 0,
-					computerAccess: void 0
-				});
+			};
+			const listeners = /* @__PURE__ */ new Set();
+			let started = false;
+			const load = () => {
 				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0) return () => {};
-				let cancelled = false;
+				if (rpc === void 0 || botSlug === void 0) return;
 				rpc.call("/api", "botharness/list", { args: {} }).then((result) => {
-					if (cancelled || !result.ok) return;
+					if (!result.ok) return;
 					const match = (result.value.bots ?? []).find((bot) => bot.slug === botSlug);
 					if (match === void 0) return;
-					setInfo({
+					info = {
 						displayName: typeof match.displayName === "string" && match.displayName.length > 0 ? match.displayName : void 0,
 						computerAccess: typeof match.computerAccess === "boolean" ? match.computerAccess : void 0
-					});
+					};
+					for (const listener of listeners) listener();
 				}).catch(() => void 0);
-				return () => {
-					cancelled = true;
-				};
-			}, [botSlug]);
+			};
+			return {
+				subscribe(listener) {
+					if (!started) {
+						started = true;
+						load();
+					}
+					listeners.add(listener);
+					return () => {
+						listeners.delete(listener);
+					};
+				},
+				getSnapshot: () => info
+			};
+		}
+		function useBotInfo(botSlug) {
+			const [store] = (0, react.useState)(() => createBotInfoStore(botSlug));
+			const info = (0, react.useSyncExternalStore)(store.subscribe, store.getSnapshot);
 			return {
 				displayName: info.displayName ?? botSlug,
 				computerAccess: info.computerAccess
 			};
 		}
+		function ComputerHeaderAction({ botSlug, t, setExpandable, setExpanded }) {
+			const [store] = (0, react.useState)(() => createBotInfoStore(botSlug));
+			const [override, setOverride] = (0, react.useState)(void 0);
+			const [busy, setBusy] = (0, react.useState)(false);
+			const subscribe = (listener) => {
+				const sync = () => {
+					const access = override ?? store.getSnapshot().computerAccess === true;
+					setExpandable?.(access);
+				};
+				const unsubscribe = store.subscribe(() => {
+					sync();
+					listener();
+				});
+				sync();
+				return unsubscribe;
+			};
+			const info = (0, react.useSyncExternalStore)(subscribe, store.getSnapshot);
+			const accessOn = override ?? info.computerAccess === true;
+			const onToggle = (next) => {
+				const rpc = connectionRpc;
+				if (rpc === void 0 || botSlug === void 0 || busy) return;
+				const previous = accessOn;
+				setOverride(next);
+				setBusy(true);
+				setExpandable?.(next);
+				if (next) setExpanded?.(true);
+				rpc.call("/api", "botharness/computerAccessSet", { args: {
+					slug: botSlug,
+					enabled: next
+				} }).then((result) => {
+					if (!result.ok) {
+						setOverride(previous);
+						setExpandable?.(previous);
+						return;
+					}
+					const applied = result.value.bot?.computerAccess === true;
+					setOverride(applied);
+					setExpandable?.(applied);
+				}).catch(() => {
+					setOverride(previous);
+					setExpandable?.(previous);
+				}).finally(() => setBusy(false));
+			};
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
+				checked: accessOn,
+				disabled: busy || botSlug === void 0,
+				onChange: onToggle,
+				label: t("entry.access.title")
+			});
+		}
+		function createComputerHeader(t) {
+			return function ComputerHeaderWithLocale(props) {
+				return /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerHeaderAction, {
+					...props,
+					t
+				});
+			};
+		}
 		function ComputerEntry({ botSlug, t }) {
-			const { displayName, computerAccess } = useBotInfo(botSlug);
+			const { displayName } = useBotInfo(botSlug);
 			const [payload, setPayload] = (0, react.useState)();
 			const [error, setError] = (0, react.useState)();
 			const [busy, setBusy] = (0, react.useState)(false);
@@ -1915,39 +1985,6 @@ window.__ModuleLoader__.load({
 			const [busySince, setBusySince] = (0, react.useState)(void 0);
 			const [elapsed, setElapsed] = (0, react.useState)(0);
 			const [nowTs, setNowTs] = (0, react.useState)(() => Date.now());
-			const [accessOverride, setAccessOverride] = (0, react.useState)(void 0);
-			const [accessBusy, setAccessBusy] = (0, react.useState)(false);
-			const [accessError, setAccessError] = (0, react.useState)(void 0);
-			const accessOn = accessOverride ?? computerAccess === true;
-			const onToggleAccess = (0, react.useCallback)((next) => {
-				const rpc = connectionRpc;
-				if (rpc === void 0 || botSlug === void 0 || accessBusy) return;
-				const previous = accessOverride ?? computerAccess === true;
-				setAccessError(void 0);
-				setAccessOverride(next);
-				setAccessBusy(true);
-				rpc.call("/api", "botharness/computerAccessSet", { args: {
-					slug: botSlug,
-					enabled: next
-				} }).then((result) => {
-					if (!result.ok) {
-						setAccessOverride(previous);
-						setAccessError(result.error.message ?? t("entry.access.failed"));
-						return;
-					}
-					const value = result.value;
-					setAccessOverride(value.bot?.computerAccess === true);
-				}).catch((cause) => {
-					setAccessOverride(previous);
-					setAccessError(cause instanceof Error ? cause.message : String(cause));
-				}).finally(() => setAccessBusy(false));
-			}, [
-				accessBusy,
-				accessOverride,
-				botSlug,
-				computerAccess,
-				t
-			]);
 			const refresh = (0, react.useCallback)(async () => {
 				try {
 					setPayload(await requestJson(STATUS_ENDPOINT));
@@ -2014,67 +2051,33 @@ window.__ModuleLoader__.load({
 					setApproved(true);
 				}
 			}, []);
-			return /* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
+			return /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
 				style: {
 					display: "flex",
 					flexDirection: "column",
 					gap: 8
 				},
-				children: [
-					/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-						style: {
-							display: "flex",
-							alignItems: "center",
-							gap: 8
-						},
-						children: [/* @__PURE__ */ (0, react_jsx_runtime.jsxs)("div", {
-							style: {
-								flex: 1,
-								minWidth: 0
-							},
-							children: [/* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-								style: {
-									fontSize: 13,
-									fontWeight: 500
-								},
-								children: t("entry.access.title")
-							}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-								style: noteStyle,
-								children: t("entry.access.description")
-							})]
-						}), /* @__PURE__ */ (0, react_jsx_runtime.jsx)(_deepseek_ai_dsh_client_ui_primitives.Switch, {
-							checked: accessOn,
-							disabled: botSlug === void 0 || accessBusy,
-							onChange: onToggleAccess,
-							label: t("entry.access.title")
-						})]
-					}),
-					accessError === void 0 ? null : /* @__PURE__ */ (0, react_jsx_runtime.jsx)("div", {
-						style: noteStyle,
-						children: accessError
-					}),
-					/* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
-						t,
-						state: payload?.status.state ?? "absent",
-						...phase === void 0 ? {} : { phase },
-						...payload?.status.detail === void 0 ? {} : { detail: payload.status.detail },
-						...payload?.status.progress === void 0 ? {} : { progress: payload.status.progress },
-						runtimeAvailable: payload?.probe.available ?? true,
-						confirming,
-						busy,
-						elapsed,
-						nowTs,
-						...error === void 0 ? {} : { error },
-						...displayName === void 0 ? {} : { botSlug: displayName },
-						...payload?.status.storage === void 0 ? {} : { storage: payload.status.storage },
-						...payload?.resolution === void 0 ? {} : { resolution: payload.resolution },
-						onStart,
-						onConfirmStart,
-						onStop: () => void act(STOP_ENDPOINT),
-						onApprove,
-						onCancel: () => setConfirming(false)
-					})
-				]
+				children: /* @__PURE__ */ (0, react_jsx_runtime.jsx)(ComputerEntryView, {
+					t,
+					state: payload?.status.state ?? "absent",
+					...phase === void 0 ? {} : { phase },
+					...payload?.status.detail === void 0 ? {} : { detail: payload.status.detail },
+					...payload?.status.progress === void 0 ? {} : { progress: payload.status.progress },
+					runtimeAvailable: payload?.probe.available ?? true,
+					confirming,
+					busy,
+					elapsed,
+					nowTs,
+					...error === void 0 ? {} : { error },
+					...displayName === void 0 ? {} : { botSlug: displayName },
+					...payload?.status.storage === void 0 ? {} : { storage: payload.status.storage },
+					...payload?.resolution === void 0 ? {} : { resolution: payload.resolution },
+					onStart,
+					onConfirmStart,
+					onStop: () => void act(STOP_ENDPOINT),
+					onApprove,
+					onCancel: () => setConfirming(false)
+				})
 			});
 		}
 		function apply(ctx) {
@@ -2124,7 +2127,8 @@ window.__ModuleLoader__.load({
 					label: t("entry.label"),
 					order: 40,
 					scope: "personabot",
-					component: createComputerEntry(t)
+					component: createComputerEntry(t),
+					headerAction: createComputerHeader(t)
 				}), "botharness-computer: channel sidebar entry");
 			});
 		}
@@ -2137,6 +2141,7 @@ window.__ModuleLoader__.load({
 		exports.ViewerTitleBar = ViewerTitleBar;
 		exports.apply = apply;
 		exports.createComputerEntry = createComputerEntry;
+		exports.createComputerHeader = createComputerHeader;
 		exports.inject = inject;
 		exports.name = name;
 		return module.exports;

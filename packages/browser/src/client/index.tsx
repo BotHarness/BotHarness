@@ -89,6 +89,7 @@ interface ReadableStore<T> {
 function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoView> {
   let info: BotInfoView = { displayName: undefined, browserAccess: undefined };
   const listeners = new Set<() => void>();
+  let started = false;
   const load = (): void => {
     const rpc = connectionRpc;
     if (rpc === undefined || botSlug === undefined) return;
@@ -114,7 +115,10 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
   };
   return {
     subscribe(listener) {
-      if (listeners.size === 0) load();
+      if (!started) {
+        started = true;
+        load();
+      }
       listeners.add(listener);
       return () => {
         listeners.delete(listener);
@@ -122,17 +126,6 @@ function createBotInfoStore(botSlug: string | undefined): ReadableStore<BotInfoV
     },
     getSnapshot: () => info,
   };
-}
-
-const botInfoStores = new Map<string, ReadableStore<BotInfoView>>();
-
-function botInfoStoreFor(botSlug: string | undefined): ReadableStore<BotInfoView> {
-  const key = botSlug ?? '';
-  const existing = botInfoStores.get(key);
-  if (existing !== undefined) return existing;
-  const created = createBotInfoStore(botSlug);
-  botInfoStores.set(key, created);
-  return created;
 }
 
 interface ObservationStore {
@@ -190,12 +183,13 @@ function BrowserHeaderAction({
   setExpandable,
   setExpanded,
 }: ChannelSidebarEntryProps): ReactElement {
-  const store = botInfoStoreFor(botSlug);
+  const [store] = useState(() => createBotInfoStore(botSlug));
   const [override, setOverride] = useState<boolean | undefined>(undefined);
   const [busy, setBusy] = useState(false);
   const subscribe = (listener: () => void): (() => void) => {
     const sync = (): void => {
-      setExpandable?.(store.getSnapshot().browserAccess === true);
+      const access = override ?? store.getSnapshot().browserAccess === true;
+      setExpandable?.(access);
     };
     const unsubscribe = store.subscribe(() => {
       sync();

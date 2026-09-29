@@ -336,10 +336,13 @@ interface EntryProps {
   readonly channelId: string;
   readonly botSlug: string | undefined;
   readonly actions: unknown;
+  readonly setExpanded?: (expanded: boolean) => void;
+  readonly setExpandable?: (expandable: boolean) => void;
 }
 
 interface EntryRegistration {
   readonly component: (props: EntryProps) => ReactElement;
+  readonly headerAction?: (props: EntryProps) => ReactElement;
 }
 
 type RpcCall = (
@@ -351,15 +354,18 @@ type RpcCall = (
   | { readonly ok: false; readonly error: { readonly message?: string } }
 >;
 
-function mountEntry(
+interface MountedView {
+  readonly container: HTMLElement;
+  render: () => Promise<void>;
+  dispose: () => Promise<void>;
+}
+
+function mountSurface(
+  which: 'body' | 'header',
   rpcCall: RpcCall,
   botSlug: string | undefined,
   status: { probeAvailable?: boolean; state?: string } = {},
-): {
-  container: HTMLElement;
-  render: () => Promise<void>;
-  dispose: () => Promise<void>;
-} {
+): MountedView & { expandableCalls: boolean[]; expandCalls: boolean[] } {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   vi.stubGlobal(
     'fetch',
@@ -427,16 +433,28 @@ function mountEntry(
   const container = document.createElement('div');
   document.body.append(container);
   const root = createRoot(container);
+  const component = which === 'header' ? registration.headerAction : registration.component;
+  if (component === undefined) throw new Error(`computer entry has no ${which}`);
+  const expandableCalls: boolean[] = [];
+  const expandCalls: boolean[] = [];
   return {
     container,
+    expandableCalls,
+    expandCalls,
     async render() {
       await act(async () => {
         root.render(
-          createElement(registration.component, {
+          createElement(component, {
             scope: 'personabot',
             channelId: 'dm-ada',
             botSlug,
             actions: undefined,
+            setExpanded: (expanded: boolean) => {
+              expandCalls.push(expanded);
+            },
+            setExpandable: (expandable: boolean) => {
+              expandableCalls.push(expandable);
+            },
           }),
         );
       });
@@ -446,6 +464,21 @@ function mountEntry(
       container.remove();
     },
   };
+}
+
+function mountEntry(
+  rpcCall: RpcCall,
+  botSlug: string | undefined,
+  status: { probeAvailable?: boolean; state?: string } = {},
+): MountedView {
+  return mountSurface('body', rpcCall, botSlug, status);
+}
+
+function mountHeader(
+  rpcCall: RpcCall,
+  botSlug: string | undefined,
+): ReturnType<typeof mountSurface> {
+  return mountSurface('header', rpcCall, botSlug);
 }
 
 afterEach(() => {
@@ -468,13 +501,13 @@ describe('Computer entry access switch', () => {
       }
       return { ok: false, error: { message: `unexpected ${endpoint}` } };
     };
-    const view = mountEntry(rpcCall, 'ada');
+    const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
       const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
       expect(toggle).not.toBeNull();
       expect(toggle?.getAttribute('aria-checked')).toBe('false');
-      expect(view.container.textContent).toContain('开启后，该 Bot 的会话可以操作这台电脑');
+      expect(view.expandableCalls).toContain(false);
 
       await act(async () => {
         toggle?.click();
@@ -485,19 +518,21 @@ describe('Computer entry access switch', () => {
         payload: { args: { slug: 'ada', enabled: true } },
       });
       expect(toggle?.getAttribute('aria-checked')).toBe('true');
+      expect(view.expandableCalls.at(-1)).toBe(true);
+      expect(view.expandCalls).toContain(true);
     } finally {
       await view.dispose();
     }
   });
 
-  it('rolls the switch back and shows the failure when the write rejects', async () => {
+  it('rolls the switch back when the write rejects', async () => {
     const rpcCall: RpcCall = async (_channel, endpoint) => {
       if (endpoint === 'botharness/list') {
         return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
       }
       throw new Error('bridge down');
     };
-    const view = mountEntry(rpcCall, 'ada');
+    const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
       const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
@@ -508,7 +543,7 @@ describe('Computer entry access switch', () => {
       });
 
       expect(toggle?.getAttribute('aria-checked')).toBe('true');
-      expect(view.container.textContent).toContain('bridge down');
+      expect(view.expandableCalls.at(-1)).toBe(true);
     } finally {
       await view.dispose();
     }
@@ -527,7 +562,7 @@ describe('Computer entry access switch', () => {
         release = resolve;
       });
     };
-    const view = mountEntry(rpcCall, 'ada');
+    const view = mountHeader(rpcCall, 'ada');
     try {
       await view.render();
       const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
@@ -547,7 +582,7 @@ describe('Computer entry access switch', () => {
 
   it('disables the switch when the sidebar entry has no PersonaBot slug', async () => {
     const rpcCall: RpcCall = async () => ({ ok: true, value: {} });
-    const view = mountEntry(rpcCall, undefined);
+    const view = mountHeader(rpcCall, undefined);
     try {
       await view.render();
       const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
@@ -557,33 +592,28 @@ describe('Computer entry access switch', () => {
     }
   });
 
-  it('keeps the switch visible above the setup guidance', async () => {
-    const rpcCall: RpcCall = async () => ({ ok: true, value: {} });
-    const view = mountEntry(rpcCall, 'ada', { probeAvailable: false });
-    try {
-      await view.render();
-      expect(view.container.querySelector('button[role="switch"]')).not.toBeNull();
-      expect(view.container.textContent).toContain('未检测到容器运行时');
-    } finally {
-      await view.dispose();
-    }
-  });
-
-  it('keeps the switch above the running viewer', async () => {
+  it('keeps the access switch out of the body while guidance and the viewer render', async () => {
     const rpcCall: RpcCall = async (_channel, endpoint) => {
       if (endpoint === 'botharness/list') {
         return { ok: true, value: { bots: [{ slug: 'ada', computerAccess: true }] } };
       }
       return { ok: true, value: {} };
     };
-    const view = mountEntry(rpcCall, 'ada', { state: 'running' });
+    const guidance = mountEntry(rpcCall, 'ada', { probeAvailable: false });
     try {
-      await view.render();
-      const toggle = view.container.querySelector<HTMLButtonElement>('button[role="switch"]');
-      expect(toggle?.getAttribute('aria-checked')).toBe('true');
-      expect(view.container.querySelector('iframe')).not.toBeNull();
+      await guidance.render();
+      expect(guidance.container.querySelector('button[role="switch"]')).toBeNull();
+      expect(guidance.container.textContent).toContain('未检测到容器运行时');
     } finally {
-      await view.dispose();
+      await guidance.dispose();
+    }
+    const running = mountEntry(rpcCall, 'ada', { state: 'running' });
+    try {
+      await running.render();
+      expect(running.container.querySelector('button[role="switch"]')).toBeNull();
+      expect(running.container.querySelector('iframe')).not.toBeNull();
+    } finally {
+      await running.dispose();
     }
   });
 });
