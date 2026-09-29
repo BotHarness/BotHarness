@@ -58,6 +58,64 @@ export interface CreatePersonaBotInput {
   gitUrl?: string;
 }
 
+export interface BotSourcePolicyView {
+  sourceClass:
+    | 'human-dm'
+    | 'bot-dm'
+    | 'group-mention'
+    | 'group-ordinary'
+    | 'group-invite'
+    | 'group-join-request'
+    | 'group-join-decision'
+    | 'assignment-report'
+    | 'assignment-lifecycle';
+  admission: 'admit';
+  wake: 'immediate' | 'digest' | 'conditional';
+  digestCount?: number;
+  digestIntervalSeconds?: number;
+  revision: number;
+  lastActor: { kind: 'built-in' };
+  changedAt: string;
+}
+
+export async function loadBotSourcePolicies(
+  call: BridgeCall,
+  slug: string,
+): Promise<BotSourcePolicyView[]> {
+  const result = asRecord(await unwrap(call, 'botSourcePolicies', { slug }));
+  const raw = result?.['policies'];
+  if (!Array.isArray(raw)) throw new Error('invalid Bot source policies');
+  return raw.map((entry): BotSourcePolicyView => {
+    const policy = asRecord(entry);
+    const actor = asRecord(policy?.['lastActor']);
+    if (
+      policy === undefined ||
+      ![
+        'human-dm',
+        'bot-dm',
+        'group-mention',
+        'group-ordinary',
+        'group-invite',
+        'group-join-request',
+        'group-join-decision',
+        'assignment-report',
+        'assignment-lifecycle',
+      ].includes(String(policy?.['sourceClass'])) ||
+      policy['admission'] !== 'admit' ||
+      !['immediate', 'digest', 'conditional'].includes(String(policy['wake'])) ||
+      typeof policy['revision'] !== 'number' ||
+      !Number.isSafeInteger(policy['revision']) ||
+      actor?.['kind'] !== 'built-in' ||
+      typeof policy['changedAt'] !== 'string' ||
+      (policy['wake'] === 'digest' &&
+        (!Number.isSafeInteger(policy['digestCount']) ||
+          !Number.isSafeInteger(policy['digestIntervalSeconds'])))
+    )
+      throw new Error('invalid Bot source policy');
+    return policy as unknown as BotSourcePolicyView;
+  });
+}
+
 export function connectionRpc(ctx: ClientContext): BridgeRpc | undefined {
   const candidate = (ctx as unknown as { connection?: { rpc?: BridgeRpc } }).connection;
   return candidate?.rpc;

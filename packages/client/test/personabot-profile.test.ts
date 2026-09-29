@@ -130,6 +130,16 @@ describe('PersonaBot Profile surface', () => {
       renameChannel,
       setBotAvatar,
       profileActivity,
+      botSourcePolicies: vi.fn(async () => [
+        {
+          sourceClass: 'human-dm',
+          admission: 'admit',
+          wake: 'immediate',
+          revision: 1,
+          lastActor: { kind: 'built-in' },
+          changedAt: '2026-09-21T00:00:00.000Z',
+        },
+      ]),
       refreshBotInbox: vi.fn(async () => undefined),
     } as unknown as BridgeActions;
     const container = document.createElement('div');
@@ -166,13 +176,25 @@ describe('PersonaBot Profile surface', () => {
       await act(async () => click(container, '.bh-profile-expand'));
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
+      const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
+      expect(sections.length).toBe(2);
+      expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
+      expect(sections[1]?.getAttribute('aria-label')).toBe('提醒策略');
+      const policyDetails = container.querySelector<HTMLDetailsElement>(
+        '.bh-profile-policy-details',
+      );
+      expect(policyDetails?.open).toBe(false);
+      await act(async () => click(container, '.bh-profile-policy-summary'));
+      expect(policyDetails?.open).toBe(true);
+      expect(container.querySelector('.bh-profile-view')?.textContent).toContain('Human 私聊');
+      expect(container.querySelector('.bh-profile-view')?.textContent).toContain('修订 1');
       expect(container.querySelector('.bh-chat-body')).toBeNull();
       expect(container.querySelector('.bh-memory-chat-composer')).toBeNull();
       expect(container.querySelector('.bh-profile-view-name')?.textContent).toBe('Ada');
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
       expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(1);
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(4);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(5);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));

@@ -10,7 +10,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
 import type { BridgeActions } from './actions.js';
-import type { ProfileActivity } from './bridge.js';
+import type { BotSourcePolicyView, ProfileActivity } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { NameInput } from './name-input.js';
 import type { BotHarnessTranslate } from './locale.js';
@@ -128,11 +128,31 @@ export function ProfileView({
   const [avatarFile, setAvatarFile] = useState<File | undefined>(undefined);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [error, setError] = useState<string | undefined>(undefined);
+  const [sourcePolicies, setSourcePolicies] = useState<BotSourcePolicyView[]>();
+  const [sourcePolicyError, setSourcePolicyError] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const avatarInputRef = useRef<HTMLInputElement | null>(null);
   const trimmed = draft.trim();
   const blank = trimmed.length === 0;
   const unchanged = trimmed === bot.displayName.trim();
+  const visibleCards = cards.list().filter((card) => card.visible?.(bot) ?? true);
+
+  useEffect(() => {
+    let active = true;
+    setSourcePolicies(undefined);
+    setSourcePolicyError(false);
+    void actions.botSourcePolicies(bot.slug).then(
+      (policies) => {
+        if (active) setSourcePolicies(policies);
+      },
+      () => {
+        if (active) setSourcePolicyError(true);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [actions, bot.slug]);
 
   useEffect(() => {
     if (!editing) return;
@@ -290,12 +310,11 @@ export function ProfileView({
           )}
         </div>
       </div>
-      {cards.list().filter((card) => card.visible?.(bot) ?? true).length === 0 ? null : (
-        <div className="bh-profile-cards">
-          {cards
-            .list()
-            .filter((card) => card.visible?.(bot) ?? true)
-            .map((card) => {
+      {visibleCards.length === 0 ? null : (
+        <section className="bh-profile-section" aria-label={t('profile.activitySection')}>
+          <h2 className="bh-profile-section-title">{t('profile.activitySection')}</h2>
+          <div className="bh-profile-cards">
+            {visibleCards.map((card) => {
               const isPinned = pinned.includes(card.id);
               return (
                 <section key={card.id} className="bh-profile-card">
@@ -315,8 +334,78 @@ export function ProfileView({
                 </section>
               );
             })}
-        </div>
+          </div>
+        </section>
       )}
+      <section
+        className="bh-profile-section bh-profile-policy-section"
+        aria-label={t('sourcePolicy.title')}
+      >
+        <details className="bh-profile-policy-details">
+          <summary className="bh-profile-policy-summary">
+            <span className="bh-profile-policy-summary-text">
+              <strong>{t('sourcePolicy.title')}</strong>
+              <span>{t('sourcePolicy.summary')}</span>
+            </span>
+            <IconChevronRightOutlineRegular />
+          </summary>
+          <div className="bh-profile-cards">
+            <section className="bh-profile-card" aria-label={t('sourcePolicy.defaults')}>
+              <header className="bh-profile-card-head">
+                <span className="bh-profile-card-label">{t('sourcePolicy.defaults')}</span>
+                <Tag tone="neutral">{t('sourcePolicy.readOnly')}</Tag>
+              </header>
+              {sourcePolicyError ? (
+                <div className="bh-error" role="alert">
+                  {t('sourcePolicy.error')}
+                </div>
+              ) : sourcePolicies === undefined ? (
+                <div className="bh-note">{t('sourcePolicy.loading')}</div>
+              ) : (
+                sourcePolicies.map((policy) => (
+                  <div key={policy.sourceClass} className="bh-source-policy-row">
+                    <strong>
+                      {
+                        {
+                          'human-dm': t('sourcePolicy.humanDm'),
+                          'bot-dm': t('sourcePolicy.botDm'),
+                          'group-mention': t('sourcePolicy.groupMention'),
+                          'group-ordinary': t('sourcePolicy.groupOrdinary'),
+                          'group-invite': t('sourcePolicy.groupInvite'),
+                          'group-join-request': t('sourcePolicy.groupJoinRequest'),
+                          'group-join-decision': t('sourcePolicy.groupJoinDecision'),
+                          'assignment-report': t('sourcePolicy.assignmentReport'),
+                          'assignment-lifecycle': t('sourcePolicy.assignmentLifecycle'),
+                        }[policy.sourceClass]
+                      }
+                    </strong>
+                    <span>
+                      {policy.wake === 'digest'
+                        ? t('sourcePolicy.admitDigest', {
+                            count: policy.digestCount ?? 0,
+                            seconds: policy.digestIntervalSeconds ?? 0,
+                          })
+                        : policy.wake === 'conditional'
+                          ? t('sourcePolicy.admitConditional')
+                          : t('sourcePolicy.admitImmediate')}
+                    </span>
+                    {policy.sourceClass === 'group-ordinary' && (
+                      <span className="bh-note">{t('sourcePolicy.groupOverride')}</span>
+                    )}
+                    <span className="bh-note">
+                      {t('sourcePolicy.revision', { revision: policy.revision })}
+                      {' · '}
+                      {t('sourcePolicy.builtIn')}
+                      {' · '}
+                      {new Date(policy.changedAt).toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              )}
+            </section>
+          </div>
+        </details>
+      </section>
       {avatarFile === undefined ? null : (
         <PersonaBotAvatarCropModal
           file={avatarFile}

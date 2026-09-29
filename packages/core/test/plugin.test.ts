@@ -263,6 +263,7 @@ describe('plugin entry', () => {
       'channelMarkRead',
       'channelSend',
       'botAttention',
+      'botSourcePolicies',
       'humanAttention',
       'humanAttentionIgnore',
       'assignments',

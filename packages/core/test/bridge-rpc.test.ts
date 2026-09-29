@@ -96,6 +96,7 @@ describe('bridge typert service', () => {
       'channelMarkRead',
       'channelSend',
       'botAttention',
+      'botSourcePolicies',
       'humanAttention',
       'humanAttentionIgnore',
       'assignments',

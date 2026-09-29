@@ -42,6 +42,7 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadBotSourcePolicies,
   loadMemoryWorkingChanges,
   loadMemoryWorkingDiff,
   saveMemoryFile,
@@ -70,6 +71,7 @@ import {
   type MemoryWorkingKind,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type BotSourcePolicyView,
   type CreatePersonaBotInput,
   type RosterBatchInput,
 } from './bridge.js';
@@ -140,6 +142,7 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
   memoryWorkingChanges(channelId: string): Promise<MemoryWorkingChange[]>;
   memoryWorkingDiff(
     channelId: string,
@@ -1001,6 +1004,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
     memoryWorkingChanges: (channelId) => loadMemoryWorkingChanges(call, channelId),
     memoryWorkingDiff: (channelId, path, kind) =>
       loadMemoryWorkingDiff(call, channelId, path, kind),

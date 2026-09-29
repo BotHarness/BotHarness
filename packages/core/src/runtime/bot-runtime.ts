@@ -29,6 +29,7 @@ import {
 } from '../database/owner.js';
 import { createSessionOwnership, type SessionOwnership } from '../sessions/ownership.js';
 import { sessionMentionText } from './session-mentions.js';
+import { createBotSourcePolicyStore, type BotSourcePolicyStore } from './source-policy.js';
 import type { AssignmentReportPage } from './assignment-tail.js';
 import type {
   AssignmentPermissionSnapshot,
@@ -306,6 +307,7 @@ export interface BotRuntime {
 
 export interface BotRuntimeOptions {
   database: OperationalDatabaseOwner;
+  sourcePolicy?: BotSourcePolicyStore;
   registry: PersonaBotRegistry;
   channels: ChannelStore;
   agents: BotAgentAdapter;
@@ -602,6 +604,7 @@ class BotRuntimeImplementation implements BotRuntime {
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #registry: PersonaBotRegistry;
   readonly #channels: ChannelStore;
+  readonly #sourcePolicy: BotSourcePolicyStore;
   readonly #agents: BotAgentAdapter;
   readonly #memory: BotRuntimeOptions['memory'];
   readonly #attachments: AttachmentStore | undefined;
@@ -637,6 +640,8 @@ class BotRuntimeImplementation implements BotRuntime {
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#registry = options.registry;
     this.#channels = options.channels;
+    this.#sourcePolicy =
+      options.sourcePolicy ?? createBotSourcePolicyStore(this.#database, options.now);
     this.#agents = options.agents;
     this.#memory = options.memory;
     this.#attachments = options.attachments;
@@ -774,7 +779,8 @@ class BotRuntimeImplementation implements BotRuntime {
     const rows = this.#database.read((database) =>
       database
         .prepare(`
-        SELECT a.source_event_id, a.bot_slug, a.attempt_state, a.wake_count
+        SELECT a.source_event_id, a.bot_slug, a.attempt_state, a.wake_count,
+               a.source_policy_wake_mode
           FROM inbox_admissions a
           JOIN source_events e ON e.source_event_id = a.source_event_id
          WHERE e.channel_id = ? AND e.message_id = ? AND a.reason = ?
@@ -785,6 +791,7 @@ class BotRuntimeImplementation implements BotRuntime {
       bot_slug: string;
       attempt_state: SourceEventAttemptState;
       wake_count: number | null;
+      source_policy_wake_mode: string | null;
     }>;
     for (const row of rows) {
       if (row.attempt_state !== 'pending' && row.attempt_state !== 'retryable') continue;
@@ -793,6 +800,8 @@ class BotRuntimeImplementation implements BotRuntime {
         this.#scheduleDigest(row.bot_slug, channelId);
         continue;
       }
+      if (row.source_policy_wake_mode !== null && row.source_policy_wake_mode !== 'immediate')
+        continue;
       if (
         reason === 'group-mention' &&
         this.#steerGroupMention(row.source_event_id, row.bot_slug, channelId, messageId)
@@ -956,10 +965,13 @@ class BotRuntimeImplementation implements BotRuntime {
            WHERE a.reason IN ('assignment-report', 'assignment-lifecycle')
              AND a.attempt_state IN ('pending', 'retryable')
              AND e.observed_at IS NULL
-             AND (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR
-                  e.payload_json IS NULL OR
-                  json_extract(e.payload_json, '$.assignmentReport.state')
-                    IN ('completed', 'blocked', 'waiting-human', 'failed'))
+             AND (a.source_policy_wake_mode = 'immediate' OR
+                  ((a.source_policy_wake_mode = 'conditional' OR
+                    a.source_policy_wake_mode IS NULL) AND
+                   (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR
+                    e.payload_json IS NULL OR
+                    json_extract(e.payload_json, '$.assignmentReport.state')
+                      IN ('completed', 'blocked', 'waiting-human', 'failed'))))
            ORDER BY a.bot_slug
         `)
           .all() as { bot_slug: string }[],
@@ -1131,9 +1143,13 @@ class BotRuntimeImplementation implements BotRuntime {
            JOIN source_events e ON e.source_event_id = a.source_event_id
           WHERE a.bot_slug = ? AND a.reason IN ('assignment-report', 'assignment-lifecycle')
             AND a.attempt_state = 'pending' AND e.observed_at IS NULL
-            AND (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR e.payload_json IS NULL
-                 OR json_extract(e.payload_json, '$.assignmentReport.state')
-                      IN ('completed', 'blocked', 'waiting-human', 'failed'))
+            AND (a.source_policy_wake_mode = 'immediate' OR
+                 ((a.source_policy_wake_mode = 'conditional' OR
+                   a.source_policy_wake_mode IS NULL) AND
+                  (a.reason = 'assignment-lifecycle' OR e.expects_reply = 1 OR
+                   e.payload_json IS NULL OR
+                   json_extract(e.payload_json, '$.assignmentReport.state')
+                     IN ('completed', 'blocked', 'waiting-human', 'failed'))))
           LIMIT 1
         `)
           .get(botSlug),
@@ -2047,6 +2063,7 @@ class BotRuntimeImplementation implements BotRuntime {
   ): SourceEventClaim {
     return this.#database.transaction(
       (database) => {
+        const sourcePolicy = this.#sourcePolicy.resolveIn(database, botSlug, 'human-dm');
         const existing = database
           .prepare(
             `SELECT source_event_id, bot_slug, body, handled_at, attempt_state
@@ -2061,10 +2078,18 @@ class BotRuntimeImplementation implements BotRuntime {
           database
             .prepare(`
             INSERT OR IGNORE INTO inbox_admissions (
-              source_event_id, bot_slug, reason, attempt_state, handled_at
-            ) VALUES (?, ?, 'human-dm', ?, ?)
+              source_event_id, bot_slug, reason, attempt_state, handled_at,
+              source_policy_revision, source_policy_wake_mode
+            ) VALUES (?, ?, 'human-dm', ?, ?, ?, ?)
           `)
-            .run(existing.source_event_id, botSlug, existing.attempt_state, existing.handled_at);
+            .run(
+              existing.source_event_id,
+              botSlug,
+              existing.attempt_state,
+              existing.handled_at,
+              sourcePolicy.revision,
+              sourcePolicy.wake,
+            );
           if (existing.handled_at !== null || existing.attempt_state === 'handled') {
             return { sourceEventId: existing.source_event_id, shouldRun: false };
           }
@@ -2101,10 +2126,12 @@ class BotRuntimeImplementation implements BotRuntime {
           .run(sourceEventId, botSlug, channelId, messageId, body, createdAt);
         database
           .prepare(`
-          INSERT INTO inbox_admissions (source_event_id, bot_slug, reason, attempt_state)
-          VALUES (?, ?, 'human-dm', 'running')
+          INSERT INTO inbox_admissions
+            (source_event_id, bot_slug, reason, attempt_state,
+             source_policy_revision, source_policy_wake_mode)
+          VALUES (?, ?, 'human-dm', 'running', ?, ?)
         `)
-          .run(sourceEventId, botSlug);
+          .run(sourceEventId, botSlug, sourcePolicy.revision, sourcePolicy.wake);
         return { sourceEventId, shouldRun: true };
       },
       ['source-event', 'bot-inbox'],
@@ -3297,6 +3324,7 @@ class BotRuntimeImplementation implements BotRuntime {
          WHERE bot_slug = ? AND session_id = ? AND stop_state = 'requested'`)
           .run(at, bot.slug, sessionId);
         if (changed.changes !== 1) return false;
+        const sourceRule = this.#sourcePolicy.resolveIn(database, bot.slug, 'assignment-lifecycle');
         database
           .prepare(`INSERT INTO source_events (
             source_event_id, source_kind, bot_slug, assignment_session_id,
@@ -3314,10 +3342,12 @@ class BotRuntimeImplementation implements BotRuntime {
             }),
           );
         database
-          .prepare(`INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-                    VALUES (?, ?, 'assignment-lifecycle')`)
-          .run(sourceEventId, bot.slug);
-        return true;
+          .prepare(`INSERT INTO inbox_admissions
+                    (source_event_id, bot_slug, reason,
+                     source_policy_revision, source_policy_wake_mode)
+                    VALUES (?, ?, 'assignment-lifecycle', ?, ?)`)
+          .run(sourceEventId, bot.slug, sourceRule.revision, sourceRule.wake);
+        return sourceRule.wake === 'immediate';
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
@@ -3433,7 +3463,7 @@ class BotRuntimeImplementation implements BotRuntime {
       ...(expectsReply ? { expectsReply: true } : {}),
     };
     const sourceEventId = this.#createEventId();
-    this.#database.transaction(
+    const reportWake = this.#database.transaction(
       (database) => {
         const changed = database
           .prepare(
@@ -3458,6 +3488,7 @@ class BotRuntimeImplementation implements BotRuntime {
           );
         if (changed.changes !== 1)
           throw new Error(`Assignment Session ${sessionId} is unavailable or stopping`);
+        const sourceRule = this.#sourcePolicy.resolveIn(database, botSlug, 'assignment-report');
         database
           .prepare(
             `INSERT INTO source_events (
@@ -3477,14 +3508,18 @@ class BotRuntimeImplementation implements BotRuntime {
           );
         database
           .prepare(`
-            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
-            VALUES (?, ?, 'assignment-report')
+            INSERT INTO inbox_admissions
+              (source_event_id, bot_slug, reason,
+               source_policy_revision, source_policy_wake_mode)
+            VALUES (?, ?, 'assignment-report', ?, ?)
           `)
-          .run(sourceEventId, botSlug);
+          .run(sourceEventId, botSlug, sourceRule.revision, sourceRule.wake);
+        return sourceRule.wake;
       },
       ['assignments', 'source-event', 'bot-inbox'],
     );
-    if (this.#shouldWakeNow(input.state, expectsReply)) this.#scheduleHarvest(botSlug);
+    if (reportWake === 'conditional' && this.#shouldWakeNow(input.state, expectsReply))
+      this.#scheduleHarvest(botSlug);
     return report;
   }
 

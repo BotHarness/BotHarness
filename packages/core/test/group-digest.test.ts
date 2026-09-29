@@ -69,7 +69,7 @@ describe('Group ordinary-message digest', () => {
         attachOperationalModule(core.operationalDatabase, 'default-digest').read((db) =>
           db
             .prepare(
-              "SELECT bot_slug, wake_count, wake_interval_ms, wake_policy_revision, wake_mode FROM inbox_admissions WHERE reason = 'group-ordinary' ORDER BY bot_slug",
+              "SELECT bot_slug, wake_count, wake_interval_ms, wake_policy_revision, wake_mode, source_policy_revision, source_policy_wake_mode FROM inbox_admissions WHERE reason = 'group-ordinary' ORDER BY bot_slug",
             )
             .all(),
         ),
@@ -80,6 +80,8 @@ describe('Group ordinary-message digest', () => {
           wake_interval_ms: 30000,
           wake_policy_revision: 0,
           wake_mode: 'digest',
+          source_policy_revision: 1,
+          source_policy_wake_mode: 'digest',
         },
         {
           bot_slug: 'bea',
@@ -87,6 +89,8 @@ describe('Group ordinary-message digest', () => {
           wake_interval_ms: null,
           wake_policy_revision: 1,
           wake_mode: 'mentions',
+          source_policy_revision: 1,
+          source_policy_wake_mode: 'digest',
         },
       ]);
     } finally {

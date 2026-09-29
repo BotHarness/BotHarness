@@ -67,6 +67,7 @@ import type {
   BotAttentionPage,
   BotAttentionState,
 } from '../runtime/attention.js';
+import type { BotSourcePolicy, BotSourcePolicyStore } from '../runtime/source-policy.js';
 import type {
   HumanAttentionQuery,
   HumanAttentionDecisions,
@@ -195,6 +196,7 @@ export interface BridgeMethods {
   channelMessages(payload: unknown): BridgeResult<{ messages: ChannelMessage[]; revision: number }>;
   channelSend(payload: unknown): Promise<BridgeResult<{ message: ChannelMessage }>>;
   botAttention(payload: unknown): BridgeResult<BotAttentionPage>;
+  botSourcePolicies(payload: unknown): BridgeResult<{ policies: BotSourcePolicy[] }>;
   humanAttention(payload: unknown): BridgeResult<HumanAttentionPage>;
   humanAttentionIgnore(payload: unknown): BridgeResult<{ accepted: boolean }>;
   assignments(payload: unknown): BridgeResult<{ assignments: AssignmentSummary[] }>;
@@ -254,6 +256,7 @@ export interface BridgeMethodsDeps {
   roster: RosterStore;
   runtime?: BotRuntime;
   attention?: BotAttentionQuery;
+  sourcePolicy?: BotSourcePolicyStore;
   humanAttention?: HumanAttentionQuery;
   humanAttentionDecisions?: HumanAttentionDecisions;
   grants?: WorkspaceGrantStore;
@@ -1300,6 +1303,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             ...(state === undefined ? {} : { state: state as BotAttentionState }),
           }) ?? { items: [] },
         };
+      } catch (error) {
+        return invalidInput(String(error));
+      }
+    },
+    botSourcePolicies(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined) return invalidInput('slug is required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      try {
+        return { ok: true, value: { policies: deps.sourcePolicy?.list(slug) ?? [] } };
       } catch (error) {
         return invalidInput(String(error));
       }
