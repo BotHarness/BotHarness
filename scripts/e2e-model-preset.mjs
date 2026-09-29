@@ -104,10 +104,23 @@ try {
   const selects = await page.$$('.bh-model-preset-form select');
   if (selects.length !== 4) throw new Error(`Expected four route selectors, got ${selects.length}`);
   await selects[0].select(String(catalog.indexOf(orchestrator)));
+  await page.waitForFunction(() =>
+    document
+      .querySelectorAll('.bh-model-preset-form select')[1]
+      ?.querySelector('option[value="low"]'),
+  );
   await selects[1].select('low');
   await selects[2].select(String(catalog.indexOf(assignment)));
   const desiredAssignmentEffort =
     assignment.efforts.find((effort) => effort.id === 'off')?.id ?? '';
+  await page.waitForFunction(
+    (effort) =>
+      Array.from(document.querySelectorAll('.bh-model-preset-form select')[3]?.options ?? []).some(
+        (option) => option.value === effort,
+      ),
+    {},
+    desiredAssignmentEffort,
+  );
   await selects[3].select(desiredAssignmentEffort);
   await page.evaluate(() => document.querySelector('.bh-model-preset-form button')?.click());
   await page.waitForFunction(
