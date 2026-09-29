@@ -35,6 +35,7 @@ export function MemoryEvolutionHeaderAction(props: ChannelSidebarEntryProps): Re
   const terminology = useSyncExternalStore(
     channelSidebarPrefs.subscribe,
     () => channelSidebarPrefs.getSnapshot().memoryTerminology,
+    () => channelSidebarPrefs.getSnapshot().memoryTerminology,
   );
   const items: MenuEntry[] = [
     { type: 'label', id: 'terminology-label', text: props.t('memory.terminology') },
