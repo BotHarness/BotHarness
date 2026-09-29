@@ -114,9 +114,12 @@ export function createMemoryService(options: MemoryServiceOptions): MemoryServic
     switchBranch: (input) => requireAcceptance().switchBranch(input),
     prepareTurn: (botSlug, sessionId, options) =>
       requireAcceptance().prepareTurn(botSlug, sessionId, options),
+    scanChanges: (botSlug) => requireAcceptance().scanChanges(botSlug),
+    preparedObservation: (botSlug, sessionId) =>
+      requireAcceptance().preparedObservation(botSlug, sessionId),
     reconcileTurn: (input) => requireAcceptance().reconcileTurn(input),
-    takeTurnAnnotation: (input) => requireAcceptance().takeTurnAnnotation(input),
-    abortTurn: (botSlug, sessionId) => requireAcceptance().abortTurn(botSlug, sessionId),
+    abortTurn: (botSlug, sessionId, preserveObservation) =>
+      requireAcceptance().abortTurn(botSlug, sessionId, preserveObservation),
     snapshot: (botSlug) => requireAcceptance().snapshot(botSlug),
     readAccepted: (botSlug, path) => requireAcceptance().readAccepted(botSlug, path),
     history: (botSlug, limit) => requireAcceptance().history(botSlug, limit),

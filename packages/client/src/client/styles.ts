@@ -3013,8 +3013,11 @@ html[data-botharness-motion='reduce'] .bh-composer-footer {
   text-align: left;
   cursor: pointer;
 }
-.bh-inbox-item:hover:not(:disabled) {
+.bh-inbox-item:hover:not(:disabled):not(.bh-inbox-item-info) {
   background: var(--dsw-alias-interactive-bg-hover);
+}
+.bh-inbox-item-info {
+  cursor: default;
 }
 .bh-inbox-item:disabled {
   cursor: default;

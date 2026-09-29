@@ -410,7 +410,7 @@ describe('current Git working tree is Memory', () => {
   });
 });
 
-describe('turn-annotation for out-of-band worktree changes', () => {
+describe('worktree delta for out-of-band Memory changes', () => {
   function agentTurn(
     memory: ReturnType<typeof fixture>['memory'],
     addSource: (id: string) => void,
@@ -418,10 +418,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
     edit?: () => void,
   ) {
     addSource(id);
-    memory.prepareTurn('atlas', 'session-atlas');
-    expect(
-      memory.takeTurnAnnotation({ botSlug: 'atlas', sessionId: 'session-atlas' }),
-    ).toBeUndefined();
+    expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
     edit?.();
     return memory.reconcileTurn({
       botSlug: 'atlas',
@@ -435,10 +432,6 @@ describe('turn-annotation for out-of-band worktree changes', () => {
     git(root, 'config', 'user.email', 'oob@example.com');
   }
 
-  function takeNote(memory: ReturnType<typeof fixture>['memory']) {
-    return memory.takeTurnAnnotation({ botSlug: 'atlas', sessionId: 'session-atlas' });
-  }
-
   it('stays silent on the first turn and for the agent’s own committed turn', () => {
     const { database, memory, root, addSource } = fixture();
     try {
@@ -449,8 +442,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
         git(root, 'commit', '-m', 'agent note');
       });
       addSource('turn-two');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toBeUndefined();
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
     } finally {
       database.close();
     }
@@ -462,11 +454,32 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       agentTurn(memory, addSource, 'baseline');
       writeFileSync(join(root, 'human-note.md'), 'Human wrote this\n');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain('Memory changed since your last turn');
       expect(note).toContain('human-note.md');
-      expect(takeNote(memory)).toBeUndefined();
+    } finally {
+      database.close();
+    }
+  });
+
+  it('notices later edits to the same dirty path and changes in the Git index', () => {
+    const { database, memory, root, addSource } = fixture();
+    try {
+      agentTurn(memory, addSource, 'baseline');
+      writeFileSync(join(root, 'human-note.md'), 'First edit\n');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.workingPaths).toEqual(['human-note.md']);
+      memory.abortTurn('atlas', 'session-atlas');
+
+      writeFileSync(join(root, 'human-note.md'), 'Second edit\n');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.workingPaths).toEqual(['human-note.md']);
+      memory.abortTurn('atlas', 'session-atlas');
+
+      git(root, 'add', 'human-note.md');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.workingPaths).toEqual(['human-note.md']);
+      memory.abortTurn('atlas', 'session-atlas');
+
+      writeFileSync(join(root, 'human-note.md'), 'Third edit\n');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.workingPaths).toEqual(['human-note.md']);
     } finally {
       database.close();
     }
@@ -481,8 +494,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       git(root, 'add', 'human-note.md');
       git(root, 'commit', '-m', 'human note');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain('Memory changed since your last turn');
       expect(note).toContain('human-note.md');
     } finally {
@@ -496,8 +508,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       agentTurn(memory, addSource, 'baseline');
       git(root, 'switch', '-c', 'detour');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain("Memory branch is now 'detour'");
     } finally {
       database.close();
@@ -510,8 +521,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       agentTurn(memory, addSource, 'baseline');
       writeFileSync(join(root, 'PERSONA.md'), 'You are now someone else.\n');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain('PERSONA.md');
       expect(note).toContain('frozen');
     } finally {
@@ -534,8 +544,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       });
       expect(saved.actorKind).toBe('human');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toContain('ui-note.md');
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.summary).toContain('ui-note.md');
     } finally {
       database.close();
     }
@@ -552,8 +561,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       });
       git(root, 'mv', 'alpha-note.md', 'beta-note.md');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain('beta-note.md');
       expect(note).not.toContain('alpha-note.md');
     } finally {
@@ -572,8 +580,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       git(root, 'add', '-A');
       git(root, 'commit', '-m', 'side work');
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain("Memory branch is now 'side'");
       expect(note).not.toContain('side-file-1.md');
       expect(note).not.toContain('frozen');
@@ -592,16 +599,16 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       git(root, 'add', 'side-note.md');
       git(root, 'commit', '-m', 'side note');
       addSource('adopt-side');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toContain("Memory branch is now 'side'");
+      expect(memory.prepareTurn('atlas', 'session-atlas')?.summary).toContain(
+        "Memory branch is now 'side'",
+      );
       memory.reconcileTurn({
         botSlug: 'atlas',
         sessionId: 'session-atlas',
         sourceEventId: 'adopt-side',
       });
       addSource('switch-back');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toBeUndefined();
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
       const switched = memory.switchBranch({
         botSlug: 'atlas',
         sessionId: 'session-atlas',
@@ -614,8 +621,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
         sourceEventId: 'switch-back',
       });
       addSource('after');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toBeUndefined();
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
     } finally {
       database.close();
     }
@@ -630,8 +636,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
       expect(() => memory.prepareTurn('atlas', 'session-atlas')).toThrow(/local branch/);
       git(root, 'switch', 'main');
       addSource('recovered');
-      memory.prepareTurn('atlas', 'session-atlas');
-      expect(takeNote(memory)).toBeUndefined();
+      expect(memory.prepareTurn('atlas', 'session-atlas')).toBeUndefined();
       memory.reconcileTurn({
         botSlug: 'atlas',
         sessionId: 'session-atlas',
@@ -650,8 +655,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
         writeFileSync(join(root, `overflow-${String(index).padStart(2, '0')}.md`), 'x\n');
       }
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note).toContain('(+10 more)');
       expect(note?.endsWith('…(truncated)')).toBe(false);
     } finally {
@@ -668,8 +672,7 @@ describe('turn-annotation for out-of-band worktree changes', () => {
         writeFileSync(join(root, name), 'x\n');
       }
       addSource('next');
-      memory.prepareTurn('atlas', 'session-atlas');
-      const note = takeNote(memory);
+      const note = memory.prepareTurn('atlas', 'session-atlas')?.summary;
       expect(note?.endsWith('…(truncated)')).toBe(true);
       const kept = note?.split('\n…(truncated)')[0] ?? '';
       expect(Buffer.byteLength(kept, 'utf8')).toBeLessThanOrEqual(4096);

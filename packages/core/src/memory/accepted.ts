@@ -1,11 +1,17 @@
 import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
+  closeSync,
+  constants,
   cpSync,
   existsSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
+  openSync,
   readFileSync,
+  readlinkSync,
+  readSync,
   readdirSync,
   statSync,
   renameSync,
@@ -67,6 +73,25 @@ export interface MemoryAcceptedSnapshot {
   provisional: boolean;
 }
 
+export interface MemoryChangeDelta {
+  summary: string;
+  fromBranch: string;
+  toBranch: string;
+  fromHead: string;
+  toHead: string;
+  committedPaths: string[];
+  workingPaths: string[];
+  clearedPaths: string[];
+  personaChanged: boolean;
+}
+
+export interface MemoryChangeScan {
+  change: MemoryChangeDelta | undefined;
+  repositoryRoot: string;
+  repositoryIdentity: string;
+  observationJson: string;
+}
+
 export interface MemoryGitCommit {
   sha: string;
   parents: string[];
@@ -119,14 +144,15 @@ export interface MemoryAcceptance {
     botSlug: string,
     sessionId: string,
     options?: { coordinateBranchSwitch?: boolean },
-  ): void;
+  ): MemoryChangeDelta | undefined;
+  scanChanges(botSlug: string): MemoryChangeScan;
+  preparedObservation(botSlug: string, sessionId: string): MemoryChangeScan;
   reconcileTurn(input: {
     botSlug: string;
     sessionId: string;
     sourceEventId: string;
   }): MemoryAcceptedCommit[];
-  abortTurn(botSlug: string, sessionId: string): void;
-  takeTurnAnnotation(input: { botSlug: string; sessionId: string }): string | undefined;
+  abortTurn(botSlug: string, sessionId: string, preserveObservation?: boolean): void;
   snapshot(botSlug: string): MemoryAcceptedSnapshot;
   readAccepted(
     botSlug: string,
@@ -266,28 +292,114 @@ function dirty(root: string): boolean {
 }
 
 interface TurnWorktreeObservation {
-  sessionId: string;
   branch: string;
   head: string;
-  porcelain: string[];
+  files: TurnWorktreeFile[];
+}
+
+interface TurnWorktreeFile {
+  path: string;
+  status: string;
+  version: string;
 }
 
 const MAX_ANNOTATION_PATHS = 30;
 const MAX_ANNOTATION_BYTES = 4096;
+const MAX_OBSERVED_PATHS = 500;
+const MAX_HASHED_FILE_BYTES = 8 * 1024 * 1024;
 
-function porcelainPaths(root: string): string[] {
+function indexVersions(root: string, paths: string[]): Map<string, string> {
+  if (paths.length === 0) return new Map();
+  const versions = new Map<string, string>();
+  const raw = run(root, ['ls-files', '--stage', '-z', '--', ...paths]).toString('utf8');
+  for (const entry of raw.split('\0')) {
+    const separator = entry.indexOf('\t');
+    if (separator < 0) continue;
+    const path = entry.slice(separator + 1);
+    versions.set(path, `${versions.get(path) ?? ''}${entry.slice(0, separator)};`);
+  }
+  return versions;
+}
+
+function worktreeVersion(root: string, path: string): string {
+  const target = join(root, toMemoryRelativePath(path));
+  let stat;
+  try {
+    stat = lstatSync(target);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'absent';
+    throw error;
+  }
+  if (stat.isSymbolicLink()) return `link:${readlinkSync(target)}`;
+  if (!stat.isFile()) return `mode:${stat.mode}:size:${stat.size}:mtime:${stat.mtimeMs}`;
+  resolveMemoryPath(root, path);
+  const hash = createHash('sha256');
+  const fd = openSync(target, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+  try {
+    const buffer = Buffer.allocUnsafe(64 * 1024);
+    if (stat.size > MAX_HASHED_FILE_BYTES) {
+      for (const offset of [0, Math.max(0, stat.size - buffer.length)]) {
+        const length = readSync(fd, buffer, 0, buffer.length, offset);
+        hash.update(buffer.subarray(0, length));
+      }
+      hash.update(`${stat.size}:${stat.mtimeMs}:${stat.ctimeMs}`);
+    } else {
+      for (;;) {
+        const length = readSync(fd, buffer, 0, buffer.length, null);
+        if (length === 0) break;
+        hash.update(buffer.subarray(0, length));
+      }
+    }
+  } finally {
+    closeSync(fd);
+  }
+  const after = lstatSync(target);
+  if (!after.isFile() || after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
+    throw new MemoryAcceptError(
+      'memory-conflict',
+      `Memory file changed during observation: ${path}`,
+    );
+  }
+  return `file:${hash.digest('hex')}`;
+}
+
+function porcelainFiles(root: string): TurnWorktreeFile[] {
   const raw = run(root, ['status', '--porcelain', '-z', '--untracked-files=all']).toString('utf8');
   if (raw.length === 0) return [];
-  const paths: string[] = [];
+  const changes: Array<{ path: string; status: string; oldPath?: string }> = [];
   const entries = raw.split('\0');
   for (let index = 0; index < entries.length; index += 1) {
     const entry = entries[index] ?? '';
     if (entry.length < 4) continue;
-    paths.push(entry.slice(3));
-
-    if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') index += 1;
+    const change: { path: string; status: string; oldPath?: string } = {
+      path: entry.slice(3),
+      status: entry.slice(0, 2),
+    };
+    if (entry[0] === 'R' || entry[0] === 'C' || entry[1] === 'R' || entry[1] === 'C') {
+      const oldPath = entries[++index];
+      if (oldPath !== undefined) change.oldPath = oldPath;
+    }
+    changes.push(change);
+    if (changes.length > MAX_OBSERVED_PATHS) {
+      throw new MemoryAcceptError('memory-invalid', 'Too many Memory working changes');
+    }
   }
-  return paths;
+  const index = indexVersions(
+    root,
+    changes.map((change) => change.path),
+  );
+  return changes
+    .map((change) => ({
+      path: change.path,
+      status: change.status,
+      version: [
+        change.status,
+        change.oldPath ?? '',
+        index.get(change.path) ?? '',
+        worktreeVersion(root, change.path),
+      ].join('\0'),
+    }))
+    .sort((left, right) => left.path.localeCompare(right.path));
 }
 
 function currentWorkingChanges(root: string): MemoryWorkingChange[] {
@@ -316,8 +428,8 @@ function currentWorkingChanges(root: string): MemoryWorkingChange[] {
   return changes;
 }
 
-function observeWorktree(root: string): { branch: string; head: string; porcelain: string[] } {
-  return { branch: branchOf(root), head: head(root), porcelain: porcelainPaths(root) };
+function observeWorktree(root: string): Omit<TurnWorktreeObservation, 'sessionId'> {
+  return { branch: branchOf(root), head: head(root), files: porcelainFiles(root) };
 }
 
 function safeGit(root: string, args: string[]): string {
@@ -361,17 +473,28 @@ function personaDiffersAcrossHeads(root: string, oldHead: string, newHead: strin
   );
 }
 
-function buildTurnAnnotation(
+function buildTurnChange(
   root: string,
   previous: TurnWorktreeObservation,
-  current: { branch: string; head: string; porcelain: string[] },
-): string | undefined {
+  current: Omit<TurnWorktreeObservation, 'sessionId'>,
+): MemoryChangeDelta | undefined {
   if (current.branch !== previous.branch) {
     const details = [`Memory branch is now '${current.branch}' (was '${previous.branch}').`];
-    if (personaDiffersAcrossHeads(root, previous.head, current.head)) {
+    const personaChanged = personaDiffersAcrossHeads(root, previous.head, current.head);
+    if (personaChanged) {
       details.push(PERSONA_FROZEN_SENTENCE);
     }
-    return finishAnnotation(details);
+    return {
+      summary: finishAnnotation(details)!,
+      fromBranch: previous.branch,
+      toBranch: current.branch,
+      fromHead: previous.head,
+      toHead: current.head,
+      committedPaths: [],
+      workingPaths: [],
+      clearedPaths: [],
+      personaChanged,
+    };
   }
   const details: string[] = [];
   const committedNames: string[] = [];
@@ -394,18 +517,41 @@ function buildTurnAnnotation(
       details.push('Memory commits changed since your last turn; inspect them with git commands.');
     }
   }
-  const added = current.porcelain.filter((path) => !previous.porcelain.includes(path));
-  if (added.length > 0) {
-    const shown = added.slice(0, MAX_ANNOTATION_PATHS);
+  const previousFiles = new Map(previous.files.map((file) => [file.path, file.version]));
+  const currentPaths = new Set(current.files.map((file) => file.path));
+  const changed = current.files.filter((file) => previousFiles.get(file.path) !== file.version);
+  const cleared = previous.files.filter((file) => !currentPaths.has(file.path));
+  if (changed.length > 0) {
+    const shown = changed.slice(0, MAX_ANNOTATION_PATHS);
     details.push(
-      `Uncommitted Memory changes since your last turn: ${shown.join(', ')}${added.length > shown.length ? ` (+${added.length - shown.length} more)` : ''}`,
+      `Working Memory changes since your last turn: ${shown.map((file) => `${file.status} ${file.path}`).join(', ')}${changed.length > shown.length ? ` (+${changed.length - shown.length} more)` : ''}`,
+    );
+  }
+  if (cleared.length > 0) {
+    const shown = cleared.slice(0, MAX_ANNOTATION_PATHS);
+    details.push(
+      `Previously uncommitted paths now clean: ${shown.map((file) => file.path).join(', ')}${cleared.length > shown.length ? ` (+${cleared.length - shown.length} more)` : ''}`,
     );
   }
   if (details.length === 0) return undefined;
-  if (committedNames.includes('PERSONA.md') || added.includes('PERSONA.md')) {
+  const personaChanged =
+    committedNames.includes('PERSONA.md') ||
+    changed.some((file) => file.path === 'PERSONA.md') ||
+    cleared.some((file) => file.path === 'PERSONA.md');
+  if (personaChanged) {
     details.push(PERSONA_FROZEN_SENTENCE);
   }
-  return finishAnnotation(details);
+  return {
+    summary: finishAnnotation(details)!,
+    fromBranch: previous.branch,
+    toBranch: current.branch,
+    fromHead: previous.head,
+    toHead: current.head,
+    committedPaths: committedNames.slice(0, MAX_ANNOTATION_PATHS),
+    workingPaths: changed.slice(0, MAX_ANNOTATION_PATHS).map((file) => file.path),
+    clearedPaths: cleared.slice(0, MAX_ANNOTATION_PATHS).map((file) => file.path),
+    personaChanged,
+  };
 }
 
 function validateCommit(root: string, sha: string): string {
@@ -474,20 +620,96 @@ export function createMemoryAcceptance(options: {
   const now = options.now ?? (() => new Date());
   const inFlight = new Map<
     string,
-    { sessionId: string; branch: string; preservePending?: boolean }
+    { sessionId: string; branch: string; preservePending?: boolean; observation?: MemoryChangeScan }
   >();
 
-  const observed = new Map<string, TurnWorktreeObservation>();
+  const repositoryIdentity = (root: string): string => {
+    const stat = statSync(join(root, '.git'));
+    return `${stat.dev}:${stat.ino}`;
+  };
 
-  const pendingAnnotation = new Map<string, { sessionId: string; text: string }>();
+  const readObservation = (botSlug: string, root: string): TurnWorktreeObservation | undefined => {
+    const row = database.read(
+      (db) =>
+        db
+          .prepare(
+            'SELECT repository_root, repository_identity, observation_json FROM memory_change_checkpoints WHERE bot_slug = ?',
+          )
+          .get(botSlug) as
+          | { repository_root: string; repository_identity: string; observation_json: string }
+          | undefined,
+    );
+    if (
+      row === undefined ||
+      row.repository_root !== root ||
+      row.repository_identity !== repositoryIdentity(root)
+    )
+      return undefined;
+    const value: unknown = JSON.parse(row.observation_json);
+    if (typeof value !== 'object' || value === null) {
+      throw new MemoryAcceptError('memory-invalid', 'Invalid Memory observation checkpoint');
+    }
+    const observation = value as TurnWorktreeObservation;
+    if (
+      typeof observation.branch !== 'string' ||
+      typeof observation.head !== 'string' ||
+      !Array.isArray(observation.files) ||
+      observation.files.length > MAX_OBSERVED_PATHS ||
+      observation.files.some(
+        (file) =>
+          typeof file.path !== 'string' ||
+          typeof file.status !== 'string' ||
+          typeof file.version !== 'string',
+      )
+    ) {
+      throw new MemoryAcceptError('memory-invalid', 'Invalid Memory observation checkpoint');
+    }
+    return observation;
+  };
+
+  const saveObservation = (botSlug: string, root: string, current: TurnWorktreeObservation) => {
+    database.transaction((db) => {
+      db.prepare(`
+        INSERT INTO memory_change_checkpoints
+          (bot_slug, repository_root, repository_identity, observation_json, observed_at)
+        VALUES (?, ?, ?, ?, ?)
+        ON CONFLICT(bot_slug) DO UPDATE SET
+          repository_root = excluded.repository_root,
+          repository_identity = excluded.repository_identity,
+          observation_json = excluded.observation_json,
+          observed_at = excluded.observed_at
+      `).run(botSlug, root, repositoryIdentity(root), JSON.stringify(current), now().toISOString());
+    });
+  };
 
   const refreshObservation = (botSlug: string, sessionId: string): boolean => {
     try {
-      observed.set(botSlug, { ...observeWorktree(repository(registry, botSlug)), sessionId });
+      void sessionId;
+      const root = repository(registry, botSlug);
+      saveObservation(botSlug, root, observeWorktree(root));
       return true;
     } catch {
       return false;
     }
+  };
+
+  const scanChanges = (botSlug: string): MemoryChangeScan => {
+    const root = repository(registry, botSlug);
+    bootstrap(botSlug, root);
+    if (pendingRepair(botSlug) !== undefined) {
+      throw new MemoryAcceptError(
+        'memory-conflict',
+        'Memory repair must finish before observation',
+      );
+    }
+    const current = observeWorktree(root);
+    const previous = readObservation(botSlug, root);
+    return {
+      change: previous === undefined ? undefined : buildTurnChange(root, previous, current),
+      repositoryRoot: root,
+      repositoryIdentity: repositoryIdentity(root),
+      observationJson: JSON.stringify(current),
+    };
   };
 
   const pendingRepair = (botSlug: string): RepairRow | undefined =>
@@ -653,7 +875,7 @@ export function createMemoryAcceptance(options: {
     botSlug: string,
     sessionId: string,
     options?: { coordinateBranchSwitch?: boolean },
-  ): void => {
+  ): MemoryChangeDelta | undefined => {
     requireOwned(botSlug, sessionId);
     if (pendingRepair(botSlug) !== undefined) {
       throw new MemoryAcceptError('memory-conflict', 'Memory repair must finish before turn');
@@ -664,16 +886,13 @@ export function createMemoryAcceptance(options: {
       throw new MemoryAcceptError('memory-conflict', 'Another Memory turn is active');
     }
     void options;
-
-    const current = observeWorktree(root);
-    inFlight.set(botSlug, { sessionId, branch: current.branch });
-    const previous = observed.get(botSlug);
-    if (previous === undefined) {
-      observed.set(botSlug, { ...current, sessionId });
-    } else {
-      const text = buildTurnAnnotation(root, previous, current);
-      if (text !== undefined) pendingAnnotation.set(botSlug, { sessionId, text });
-    }
+    const observation = scanChanges(botSlug);
+    inFlight.set(botSlug, {
+      sessionId,
+      branch: JSON.parse(observation.observationJson).branch as string,
+      observation,
+    });
+    return observation.change;
   };
 
   const reconcileTurn = (input: {
@@ -840,19 +1059,19 @@ export function createMemoryAcceptance(options: {
       return { from, to: branch, head: targetHead };
     },
     prepareTurn,
+    scanChanges,
+    preparedObservation(botSlug, sessionId) {
+      const flight = inFlight.get(botSlug);
+      if (flight?.sessionId !== sessionId || flight.observation === undefined) {
+        throw new MemoryAcceptError('memory-conflict', 'Memory turn was not prepared');
+      }
+      return flight.observation;
+    },
     reconcileTurn,
-    abortTurn(botSlug, sessionId) {
+    abortTurn(botSlug, sessionId, preserveObservation = false) {
       if (inFlight.get(botSlug)?.sessionId !== sessionId) return;
       inFlight.delete(botSlug);
-
-      refreshObservation(botSlug, sessionId);
-    },
-    takeTurnAnnotation(input: { botSlug: string; sessionId: string }): string | undefined {
-      if (inFlight.get(input.botSlug)?.sessionId !== input.sessionId) return undefined;
-      const pending = pendingAnnotation.get(input.botSlug);
-      if (pending === undefined || pending.sessionId !== input.sessionId) return undefined;
-      pendingAnnotation.delete(input.botSlug);
-      return pending.text;
+      if (!preserveObservation) refreshObservation(botSlug, sessionId);
     },
     snapshot(botSlug) {
       const { root, repairing } = readRepository(botSlug);
