@@ -1,10 +1,4 @@
 ---
-/**
- * NotFound — one language block of the 404 page. Both trees mount both
- * blocks and the client script reveals the visitor's language (Workers
- * static assets serves the nearest `404.html`, so the root page is the
- * safety net for `/zh/**` misses if a nested 404 is ever absent).
- */
 import { notFoundStrings, type Locale } from "@/lib/language";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 
@@ -15,9 +9,6 @@ interface Props {
 const { locale } = Astro.props;
 const t = notFoundStrings(locale);
 const isZh = locale === "zh-Hans";
-// Hidden only when this block does not match the page's own route: both 404
-// pages render both languages, and the script swaps to the requested path's
-// language (`/zh/404.html` is the `/zh/**` fallback).
 const pageIsZh = /^\/zh(\/|$)/.test(Astro.url.pathname);
 const homeHref = withBase(isZh ? "/zh" : "/", import.meta.env.BASE_URL);
 const docsHref = withBase(isZh ? "/zh/docs/overview" : "/docs/overview", import.meta.env.BASE_URL);

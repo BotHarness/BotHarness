@@ -19,11 +19,6 @@ import NimbusHead from "@cloudflare/nimbus-docs/components/NimbusHead.astro";
 import type { BasePageProps, HeadElement } from "@cloudflare/nimbus-docs/types";
 
 type Props = BasePageProps & {
-  /**
-   * Set on language-variant pages (e.g. `/zh/**`). The collection is a
-   * translation of the primary docs, not an older snapshot, so Nimbus must not
-   * canonicalize it to the English sibling or emit cross-version alternates.
-   */
   suppressVersionAlternates?: boolean;
 };
 
@@ -41,18 +36,9 @@ const {
   coordinate,
   suppressVersionAlternates = false,
 } = Astro.props;
-// Route-aware language. Nimbus has no i18n, so the site derives `<html lang>`
-// (and Pagefind's per-language index) from the URL: `/zh/**` is Simplified
-// Chinese, everything else is English.
 const pathname = stripBase(Astro.url.pathname, import.meta.env.BASE_URL);
 const lang = pathname === "/zh" || pathname.startsWith("/zh/") ? "zh-Hans" : "en";
 const chrome = siteChrome(lang);
-// Per-page agent-index pointer. For pages in non-primary or version
-// collections, this resolves to `/<prefix>/llms.txt` (e.g. `/v0/llms.txt`
-// for a v0 docs page, `/blog/llms.txt` for a blog post). Falls back to
-// the root `/llms.txt` when no collection is provided.
-// Hidden-version pages don't advertise an agent index (the per-version
-// llms.txt isn't emitted for them); suppress the AgentDirective entirely.
 const versionStatusKey =
   apiVersion && collection ? `${collection}@${apiVersion}` : collection;
 const versionStatus = versionStatusKey
@@ -73,16 +59,6 @@ const resolvedMarkdownUrl =
     ? new URL(basedMarkdownUrl, Astro.site).href
     : basedMarkdownUrl;
 
-// hreflang: Nimbus has no i18n, so the tree derives alternates from the
-// route: the counterpart tree in both directions plus an English
-// `x-default` (the root tree is primary). noindex pages (404s, drafts) are
-// skipped — search engines ignore hreflang there.
-//
-// Known limitation: NimbusHead hardcodes `og:locale` (and JSON-LD
-// `inLanguage`) to `config.locale` ("en"), so `/zh/**` pages advertise the
-// primary locale there. A per-page override would duplicate the tag in
-// `<head>`, which is worse than the stale value; leave it until the
-// framework parameterizes it.
 const languageHead: HeadElement[] = noindex
   ? []
   : localeAlternates(pathname).map(({ hreflang, path }) => ({

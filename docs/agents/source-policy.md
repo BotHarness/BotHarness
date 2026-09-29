@@ -12,3 +12,5 @@ The necessary exceptions are deliberately narrow:
 - The existing ISC notice at the start of `packages/client/src/client/hash-icon.tsx`; the license requires the notice to accompany the vendored glyph.
 
 Every non-exempt baseline entry records a path, kind, content fingerprint, count, example line, and preview. The checker fails on a new fingerprint or an increased count, and also fails when an entry becomes stale. After removing violations, run `node scripts/check-source-policy.mjs --prune-baseline` and include the reduced baseline in the same change. The initializer refuses to overwrite an existing baseline. A policy failure prints the exact source location; review the exception list before requesting a new one.
+
+Docs-site contracts formerly held in code comments are in [Docs site maintenance contracts](docs-site-maintenance.md).

@@ -1,9 +1,3 @@
-/**
- * Per-entry `/zh/changelog/<slug>/index.md` — clean-markdown alternate of the
- * Chinese changelog permalink. Mirrors the English route at
- * `src/pages/changelog/[...slug]/index.md.ts`, with every advertised URL kept
- * inside the `/zh` tree.
- */
 import { entryRouteKey, withBase } from "@cloudflare/nimbus-docs";
 import { getEntry } from "astro:content";
 import {

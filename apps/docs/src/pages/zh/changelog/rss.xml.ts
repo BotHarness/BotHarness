@@ -1,7 +1,3 @@
-/**
- * `/zh/changelog/rss.xml` — Chinese release feed generated from the
- * canonical Chinese Release Ledger.
- */
 import { getCollection } from "astro:content";
 import { withBase } from "@cloudflare/nimbus-docs/runtime";
 import { config } from "virtual:nimbus/config";

@@ -1,8 +1,3 @@
-/**
- * Per-page `/zh/<slug>/index.mdx` — expanded source alternate of every
- * indexable entry of the `docs-zh` collection. Mirrors the primary source
- * route at `src/pages/[...slug]/index.mdx.ts`.
- */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,

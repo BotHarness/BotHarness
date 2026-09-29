@@ -1,8 +1,3 @@
-/* Unprocessed diagrams sit at a compact skeleton height instead of
- * reserving the raw source text's full vertical space, so a page with
- * many diagrams doesn't show towers of empty mermaid source while the
- * runtime is still loading. We hide the text via clip-path and give the
- * box a modest min-height so the layout stays calm. */
 pre.mermaid:not([data-processed]) {
 	min-height: 4rem;
 	max-height: 4rem;
@@ -40,7 +35,6 @@ pre.mermaid:not([data-processed])::after {
 	}
 }
 
-/* Container wrapper for diagram + annotation */
 .mermaid-container {
 	position: relative;
 	background: transparent;
@@ -51,7 +45,6 @@ pre.mermaid:not([data-processed])::after {
 	box-shadow: none;
 }
 
-/* Expand button */
 .mermaid-expand {
 	position: absolute;
 	top: 0.5rem;
@@ -103,7 +96,6 @@ pre.mermaid:not([data-processed])::after {
 	color: var(--nb-foreground);
 }
 
-/* Full-screen dialog */
 .mermaid-dialog {
 	border: none;
 	background: transparent;
@@ -185,7 +177,6 @@ pre.mermaid:not([data-processed])::after {
 	box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
 }
 
-/* The cloned container inside the dialog — give it a proper background */
 .mermaid-dialog-body .mermaid-container {
 	margin: 0;
 	background: var(--nb-card);
@@ -193,7 +184,6 @@ pre.mermaid:not([data-processed])::after {
 	overflow: hidden;
 }
 
-/* Scale the SVG larger in the dialog */
 .mermaid-dialog-body pre.mermaid[data-processed] {
 	padding: 3rem;
 }
@@ -228,7 +218,6 @@ pre.mermaid:not([data-processed])::after {
 	color: #ffffff;
 }
 
-/* The diagram itself */
 pre.mermaid[data-processed]:not([data-error]) {
 	padding: 1.5rem;
 	margin: 0;
@@ -251,7 +240,6 @@ pre.mermaid[data-error] {
 	color: var(--nb-danger, #dc2626);
 }
 
-/* Ensure SVG fills the width nicely */
 pre.mermaid[data-processed] svg {
 	max-width: 100%;
 	height: auto;
@@ -261,7 +249,6 @@ pre.mermaid[data-processed] svg {
 	vertical-align: top;
 }
 
-/* Remove any box shadow from SVG elements (excluding edge labels) */
 pre.mermaid[data-processed] svg :not(foreignObject *) {
 	box-shadow: none !important;
 }

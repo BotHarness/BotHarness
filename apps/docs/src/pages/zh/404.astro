@@ -4,9 +4,6 @@ import Header from "../../components/Header.astro";
 import NotFound from "../../components/NotFound.astro";
 import { notFoundStrings } from "../../lib/language";
 
-// `/zh/404.html` — served for unmatched `/zh/**` paths (Workers static
-// assets serves the nearest 404.html). Carries both language blocks so the
-// same client-side locale detection as the root 404 applies.
 export const prerender = true;
 const t = notFoundStrings("zh-Hans");
 ---

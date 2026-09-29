@@ -1,11 +1,3 @@
-/**
- * `/zh/docs/llms.txt`, `/zh/dev/llms.txt`, `/zh/changelog/llms.txt` — the
- * Chinese per-section agent indexes. Nimbus only emits per-section `llms.txt`
- * for the root tree, so this route mirrors the shape from the indexed `docs-zh`
- * entries (and from the `changelog-zh` tree, the Chinese side of the changelog
- * pairs, with `/zh`-prefixed markdown URLs). Keeps the `/zh` endpoints
- * symmetric with the root instead of serving English fallbacks.
- */
 import { getCollection } from "astro:content";
 import {
   entryRouteKey,

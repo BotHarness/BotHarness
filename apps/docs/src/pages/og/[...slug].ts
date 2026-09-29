@@ -5,17 +5,8 @@ import {
 import { OGImageRoute } from "astro-og-canvas";
 import { ogCardConfigFor } from "./_og-card-config";
 
-// Prerender every OG card as a static asset so `output: "server"` doesn't
-// turn image generation into an on-demand route.
 export const prerender = true;
 
-// Enumerate via the framework projection (not a raw `getCollection`) so draft
-// entries are excluded uniformly — a draft page emits no route, so its
-// `/og/<id>.png` shouldn't either.
-//
-// `changelog-zh` is the Chinese changelog tree, hand-mounted at `/zh/changelog`;
-// its pages share the English cards (`/og/changelog/<slug>.png`), so it gets no
-// `/og/changelog-zh/**` cards of its own.
 const entries = (await getIndexedEntries()).filter(
   (entry) =>
     entry.entry.collection !== "changelog-zh" && isDiscoverable(entry.entry),

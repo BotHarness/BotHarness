@@ -1,32 +1,11 @@
 @import "tailwindcss";
 
-/* Nimbus toggles dark mode via `[data-mode="dark"]` (BaseLayout), so make
- * Tailwind's `dark:` variant follow that attribute instead of the OS setting. */
 @custom-variant dark (&:where([data-mode="dark"], [data-mode="dark"] *));
 
-/* ============================================================
- * Nimbus Theme — THE file you edit to customize your site.
- *
- * Architecture:
- *   1. CSS custom properties (--nb-*) define the design tokens
- *   2. `@theme` block exposes them to Tailwind so utilities like
- *      `bg-card`, `text-foreground`, `border-border` work
- *   3. Dark mode uses the `[data-mode="dark"]` attribute
- *   4. All colors use oklch for perceptual uniformity
- *
- * Naming convention:
- *   - Surfaces paired with foregrounds: `card` / `card-foreground`
- *   - Functional names: `primary` (action), `accent` (hover surface),
- *     `muted` (de-emphasized), not visual relationships
- *   - Reserved Tailwind keywords avoided (no `text-base`, `font-sans`,
- *     `shadow-lg`, etc. as color names — they collide with built-ins)
- * ============================================================ */
 
-/* ---- Light mode (default) ---- */
 :root {
 	color-scheme: light;
 
-	/* Surfaces (paired with foregrounds for contrast) */
 	--nb-background: oklch(0.99 0 0);
 	--nb-foreground: oklch(0.21 0 0);
 
@@ -39,18 +18,15 @@
 	--nb-accent: oklch(0.967 0 0);
 	--nb-accent-foreground: var(--nb-foreground);
 
-	/* Primary action / brand */
 	--nb-primary: oklch(0.145 0 0);
 	--nb-primary-foreground: oklch(0.97 0 0);
 	--nb-primary-hover: oklch(0.371 0 0);
 
-	/* Borders / focus */
 	--nb-border: oklch(0.935 0 0);
 	--nb-border-strong: oklch(0.87 0 0);
 	--nb-selected: oklch(0.89 0 0);
 	--nb-ring: oklch(0.145 0 0 / 0.35);
 
-	/* Status colors — paired (saturated for text/border + muted for bg) */
 	--nb-info: oklch(0.45 0.18 255);
 	--nb-info-foreground: oklch(0.45 0.18 255);
 	--nb-info-muted: oklch(0.965 0.015 255);
@@ -67,24 +43,17 @@
  	--nb-danger-foreground: oklch(0.47 0.18 25);
  	--nb-danger-muted: oklch(0.965 0.015 25);
  
- 	/* API method palette — shared source of truth for the method chip across the
- 	   sidebar, endpoint card, and code rail (api-sidebar / api-layout /
- 	   api-code-rail); harmless elsewhere. Calibrated OKLCH duotone: each value is
- 	   legible as chip text over its own 14%-tinted background in both themes. */
  	--nb-m-get: oklch(0.48 0.12 156);
  	--nb-m-post: oklch(0.48 0.15 262);
  	--nb-m-put: oklch(0.5 0.13 60);
  	--nb-m-delete: oklch(0.5 0.18 24);
  	--nb-m-other: oklch(0.5 0 0);
  
- 	/* Layout */
 	--nb-sidebar-width: 18.75rem;
 	--nb-toc-width: 18rem;
 	--nb-content-max: 43.5rem;
-	/* Used only by the API reference (registry: api-layout); harmless elsewhere. */
 	--nb-code-rail-width: 34rem;
 
-	/* Typography — self-hosted via @fontsource-variable in BaseLayout.astro */
 	--nb-font-sans:
 		"Inter Variable", "Inter", system-ui, -apple-system, "Segoe UI", Roboto,
 		sans-serif;
@@ -102,20 +71,17 @@
 	--nb-h3-tracking: -0.01em;
 	--nb-h4-weight: 600;
 
-	/* Shadows */
 	--nb-shadow-sm: 0 1px 2px oklch(0 0 0 / 0.04);
 	--nb-shadow: 0 1px 3px oklch(0 0 0 / 0.06), 0 1px 2px oklch(0 0 0 / 0.04);
 	--nb-shadow-lg: 0 4px 12px oklch(0 0 0 / 0.08), 0 2px 4px oklch(0 0 0 / 0.04);
 }
 
-/* Wider content area on large displays (e.g. MacBook Pro 16″) */
 @media (min-width: 1536px) {
 	:root {
 		--nb-content-max: 52rem;
 	}
 }
 
-/* ---- Dark mode ---- */
 [data-mode="dark"] {
 	color-scheme: dark;
 
@@ -156,7 +122,6 @@
  	--nb-danger-foreground: oklch(0.72 0.14 25);
  	--nb-danger-muted: oklch(0.17 0.03 25);
  
- 	/* API method palette — dark overrides. */
  	--nb-m-get: oklch(0.82 0.14 162);
  	--nb-m-post: oklch(0.8 0.13 266);
  	--nb-m-put: oklch(0.85 0.13 78);
@@ -168,10 +133,6 @@
 	--nb-shadow-lg: 0 4px 12px oklch(0 0 0 / 0.4), 0 2px 4px oklch(0 0 0 / 0.2);
 }
 
-/* ---- Tailwind theme mapping ----
- * These generate Tailwind utility classes:
- *   bg-card, text-foreground, border-border, ring-ring, etc.
- */
 @theme {
 	--color-background: var(--nb-background);
 	--color-foreground: var(--nb-foreground);
@@ -218,11 +179,6 @@
 	--shadow-lg: var(--nb-shadow-lg);
 }
 
-/* ---- coss/ui token bridges (additive) ----
- * Aliases only: coss primitives consume the shadcn-style semantic names
- * below; each one points at an existing --nb-* token, so no Nimbus value
- * is redefined. `--font-heading` follows the coss font contract (sans).
- */
 @theme {
 	--font-heading: var(--nb-font-sans);
 
@@ -235,7 +191,6 @@
 	--color-destructive-foreground: var(--nb-danger-foreground);
 }
 
-/* ---- Minimal overrides the plugin doesn't cover ---- */
 html {
 	font-family: var(--nb-font-sans);
 	font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -256,11 +211,7 @@ body {
 	color: var(--nb-foreground);
 }
 
-/* ---- Focus indicators ---- */
 @layer base {
-	/* Default the outline to the focus ring's resting values so turning the
-	   ring on (outline-style: none → solid) changes nothing a transition can
-	   animate — no color/width/offset flash under transition-colors/-all. */
 	*,
 	::before,
 	::after {
@@ -274,7 +225,6 @@ body {
 	}
 }
 
-/* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
 	*,
 	*::before,
@@ -286,12 +236,10 @@ body {
 	}
 }
 
-/* ---- Scroll lock (used by native <dialog> overlays) ---- */
 [data-scroll-locked] {
 	overflow: hidden;
 }
 
-/* ---- Scrollbar ---- */
 ::-webkit-scrollbar {
 	width: 6px;
 	height: 6px;
@@ -307,7 +255,6 @@ body {
 	background: var(--nb-muted-foreground);
 }
 
-/* ---- Shiki code-block styling + copy button ---- */
 
 pre.astro-code {
 	position: relative;
@@ -325,7 +272,6 @@ pre.astro-code > code {
 	background: transparent;
 }
 
-/* Classed Shiki tokens set --shiki-light/--shiki-dark once in _nimbus/shiki.css. */
 pre.astro-code span {
 	color: var(--shiki-light, inherit);
 }
@@ -333,7 +279,6 @@ pre.astro-code span {
 	color: var(--shiki-dark, inherit);
 }
 
-/* Copy button injected by initCodeCopy. */
 .nb-code-copy {
 	position: absolute;
 	top: 0.5rem;
@@ -373,12 +318,7 @@ pre.astro-code span {
 	color: var(--nb-success);
 }
 
-/* ---- Premium code chrome ---- */
 
-/* Every Shiki block is wrapped in a .nb-code-figure (titled or not).
-   Chrome lives on the figure so the language badge + copy button can sit
-   on a non-scrolling ancestor — iOS Safari slides absolutely-positioned
-   children of overflow:auto containers. */
 .nb-code-figure {
 	position: relative;
 	margin: 1rem 0;
@@ -423,9 +363,6 @@ pre.astro-code span {
 	text-transform: uppercase;
 }
 
-/* Language badge — pinned to the figure (which doesn't scroll), so it
-   stays at top-right even when the pre overflows horizontally. Hidden
-   when a figcaption is already showing the language (titled blocks). */
 .nb-code-figure[data-nb-lang]:not(.nb-code-figure-titled)::before {
 	content: attr(data-nb-lang);
 	position: absolute;
@@ -447,7 +384,6 @@ pre.astro-code span {
 .nb-code-figure:hover::before {
 	opacity: 0;
 }
-/* Hide plaintext/text "language" — it's noise. */
 .nb-code-figure[data-nb-lang="text"]::before,
 .nb-code-figure[data-nb-lang="plaintext"]::before,
 .nb-code-figure[data-nb-lang="plain"]::before,
@@ -455,7 +391,6 @@ pre.astro-code span {
 	display: none;
 }
 
-/* Block-level lines so tints + gutters paint across the full row. */
 pre.astro-code code {
 	display: block;
 	width: max-content;
@@ -469,13 +404,11 @@ pre.astro-code .line {
 	box-sizing: content-box;
 }
 
-/* Highlighted lines (`{1,3-5}` meta or `// [!code highlight]`). */
 pre.astro-code .line.highlighted {
 	background: color-mix(in oklch, var(--nb-info) 12%, transparent);
 	box-shadow: inset 2px 0 0 var(--nb-info);
 }
 
-/* Diff lines (`// [!code ++]` / `// [!code --]`). */
 pre.astro-code .line.diff {
 	position: relative;
 }
@@ -503,7 +436,6 @@ pre.astro-code .line.diff.remove::before {
 	color: var(--nb-danger);
 }
 
-/* Focus mode — dim non-focused lines; clears on hover. */
 pre.astro-code.has-focused .line:not(.focused) {
 	opacity: 0.45;
 	filter: blur(0.25px);
@@ -514,7 +446,6 @@ pre.astro-code.has-focused:hover .line:not(.focused) {
 	filter: none;
 }
 
-/* Error / warning lines — use muted tokens for theme-tuned tints. */
 pre.astro-code .line.highlighted.error {
 	background: var(--nb-danger-muted);
 	box-shadow: inset 2px 0 0 var(--nb-danger);
@@ -524,7 +455,6 @@ pre.astro-code .line.highlighted.warning {
 	box-shadow: inset 2px 0 0 var(--nb-warning);
 }
 
-/* Word highlight (`// [!code word:foo]` and meta `/foo/`). */
 pre.astro-code .highlighted-word {
 	padding: 0.0625rem 0.25rem;
 	margin: -0.0625rem -0.125rem;
@@ -533,17 +463,12 @@ pre.astro-code .highlighted-word {
 	box-shadow: 0 0 0 1px color-mix(in oklch, var(--nb-info) 30%, transparent);
 }
 
-/* ---- Mobile sidebar toggle ---- */
 
-/* Hide hamburger on pages without a sidebar dialog. */
 body:not(:has([data-mobile-sidebar])) [data-menu-btn] {
 	display: none;
 }
 
-/* ---- View transitions ---- */
 
-/* Scoped to <main transition:name="nb-content"> only — chrome snap-swaps
-   via the root rule below so the visual field doesn't shift on nav. */
 @media (prefers-reduced-motion: no-preference) {
 	::view-transition-old(nb-content) {
 		animation: nb-content-out 100ms cubic-bezier(0.32, 0.72, 0, 1) both;

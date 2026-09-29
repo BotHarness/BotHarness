@@ -1,8 +1,3 @@
-/**
- * Per-entry `/changelog/<slug>/index.md` — the clean-markdown alternate.
- * Mirrors the primary docs alternate, scoped to the `changelog` collection,
- * adding the entry's date + tags to the frontmatter.
- */
 import { entryRouteKey, withBase } from "@cloudflare/nimbus-docs";
 import { getEntry } from "astro:content";
 import {

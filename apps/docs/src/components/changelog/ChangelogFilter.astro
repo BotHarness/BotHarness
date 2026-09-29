@@ -1,19 +1,10 @@
 ---
-/**
- * ChangelogFilter — tag chips that filter the feed client-side. One toggle
- * per tag plus an "All" reset. The controller reads `data-filter-tag`,
- * toggles visibility, and syncs the selection to the URL (`?tag=`). Inert
- * with no JS (every entry stays visible).
- */
 interface Props {
   tags: string[];
 }
 
 const { tags } = Astro.props;
 
-// Tailwind v4 auto-gates `hover:` to `@media (hover: hover)`. `aria-pressed:`
-// drives the selected state; `active:` gives press feedback (dropped under
-// `motion-reduce:`).
 const chip = [
   "inline-flex items-center min-h-8 cursor-pointer rounded-full border border-border",
   "px-3 py-1 text-[0.8125rem] font-medium leading-tight text-muted-foreground",

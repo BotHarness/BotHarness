@@ -4,10 +4,6 @@ import Header from "../components/Header.astro";
 import NotFound from "../components/NotFound.astro";
 import { notFoundStrings } from "../lib/language";
 
-// Prerender the 404 so it stays a static route under `output: "static"`.
-// Workers static assets serves it via `not_found_handling: "404-page"`; the
-// nearest `404.html` wins, so `zh/404.astro` covers `/zh/**` misses and this
-// root page is the English tree's (and the fallback) locale-detecting copy.
 export const prerender = true;
 const t = notFoundStrings("en");
 ---

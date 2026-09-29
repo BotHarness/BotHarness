@@ -149,7 +149,6 @@ function markdownArtifact(
   return lines;
 }
 
-/** Agent-readable counterpart of the bilingual Development status page. */
 export function developmentStatusMarkdown(
   status: DevelopmentStatusModel,
   locale: StatusLocale,

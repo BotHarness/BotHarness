@@ -3,10 +3,6 @@ import { agentEndpointResponse } from "../utils/agent-endpoint-response";
 
 export const prerender = true;
 
-// `changelog-zh` is the Chinese side of the changelog pairs, hand-mounted at
-// `/zh/changelog` (its agent index is `/zh/changelog/llms.txt`). Nimbus would
-// otherwise include its entries here under `/changelog-zh/**` URLs that don't
-// exist, so drop those blocks from the full export.
 const ZH_CHANGELOG_URL = "/changelog-zh/";
 
 function withoutZhChangelogBlocks(body: string): string {

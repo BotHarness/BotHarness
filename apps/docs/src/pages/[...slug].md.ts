@@ -1,7 +1,3 @@
-/**
- * Per-page `/<slug>.md` — the canonical clean-Markdown alternate. The older
- * `/<slug>/index.md` route remains available for compatibility.
- */
 import {
   getMarkdownPayload,
   getMarkdownStaticPaths,
