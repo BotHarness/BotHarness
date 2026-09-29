@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useState, useSyncExternalStore, type ReactElement } from 'react';
 
 import {
   Button,
@@ -28,23 +28,29 @@ import {
   type NativeSessionCatalog,
 } from './sessions-entry.js';
 import type { BotHarnessTranslate } from './locale.js';
-import type { BotAttentionItem } from './store.js';
+import type { BotAttentionItem, ChannelSummary } from './store.js';
 
 const inactiveSubscribe = (): (() => void) => () => {};
 
-function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactElement {
-  const state = useClientState();
-  const group = state.conversation.channel;
-  const [name, setName] = useState(group?.name ?? '');
+function GroupManagementEntry(props: ChannelSidebarEntryProps): ReactElement {
+  const group = useClientState().conversation.channel;
+  if (group?.type !== 'group') return <></>;
+  return <GroupManagementForChannel key={group.id} {...props} group={group} />;
+}
+
+function GroupManagementForChannel({
+  actions,
+  t,
+  group,
+}: ChannelSidebarEntryProps & { group: ChannelSummary }): ReactElement {
+  const [nameState, setNameState] = useState({ source: group.name, draft: group.name });
+  if (nameState.source !== group.name) {
+    setNameState({ source: group.name, draft: group.name });
+  }
+  const name = nameState.source === group.name ? nameState.draft : group.name;
   const [cropFile, setCropFile] = useState<File>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  useEffect(() => setName(group?.name ?? ''), [group?.id, group?.name]);
-  useEffect(() => {
-    setCropFile(undefined);
-    setError(false);
-  }, [group?.id]);
-  if (group?.type !== 'group') return <></>;
   const apply = async (result: Promise<boolean>): Promise<boolean> => {
     setBusy(true);
     try {
@@ -99,7 +105,7 @@ function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactEl
             id="bh-group-name"
             value={name}
             maxLength={120}
-            onChange={(event) => setName(event.target.value)}
+            onChange={(event) => setNameState({ source: group.name, draft: event.target.value })}
           />
           <button
             type="submit"
@@ -127,7 +133,11 @@ function GroupManagementEntry({ actions, t }: ChannelSidebarEntryProps): ReactEl
   );
 }
 
-function GroupManagementHeaderAction({
+function GroupManagementHeaderAction(props: ChannelSidebarEntryProps): ReactElement {
+  return <GroupManagementHeaderForChannel key={props.channelId} {...props} />;
+}
+
+function GroupManagementHeaderForChannel({
   actions,
   t,
   channelId,
@@ -137,10 +147,6 @@ function GroupManagementHeaderAction({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  useEffect(() => {
-    setMenuOpen(false);
-    setConfirmOpen(false);
-  }, [channelId]);
   if (group?.type !== 'group' || group.id !== channelId) return <></>;
   const items: readonly MenuEntry[] = [{ id: 'disband', label: t('members.delete') }];
   const disband = async (): Promise<void> => {
@@ -293,19 +299,19 @@ function BotInboxGroup({
     .map((item) => item.id + ':' + item.state)
     .sort()
     .join('|');
-  const previousActiveSignature = useRef(activeSignature);
-  const [expanded, setExpanded] = useState(active.length > 0);
-  useEffect(() => {
-    if (activeSignature !== previousActiveSignature.current) {
-      if (active.length > 0) setExpanded(true);
-      previousActiveSignature.current = activeSignature;
-    }
-  }, [activeSignature, active.length]);
+  const [expansion, setExpansion] = useState({
+    signature: activeSignature,
+    expanded: active.length > 0,
+  });
+  const expanded =
+    activeSignature !== expansion.signature && active.length > 0 ? true : expansion.expanded;
   return (
     <details
       className="bh-inbox-group"
       open={expanded}
-      onToggle={(event) => setExpanded(event.currentTarget.open)}
+      onToggle={(event) =>
+        setExpansion({ signature: activeSignature, expanded: event.currentTarget.open })
+      }
     >
       <summary className="bh-inbox-group-head">
         <span title={name}>{name}</span>

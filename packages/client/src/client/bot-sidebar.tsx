@@ -841,19 +841,19 @@ export function BotSidebar({
         : block.channels.map((channel) => channel.id),
     ),
   ];
-  const visibleIdsRef = useRef<readonly string[]>(visibleChannelIds);
-  visibleIdsRef.current = visibleChannelIds;
   const visibleIdsKey = visibleChannelIds.join('|');
-  useEffect(() => {
-    setChannelSelection((current) => {
-      const next = reconcileChannelSelection(current, visibleIdsRef.current);
-      return next.ids.length === current.ids.length &&
-        next.ids.every((id, index) => id === current.ids[index]) &&
-        next.anchorId === current.anchorId
-        ? current
-        : next;
-    });
-  }, [visibleIdsKey]);
+  const [previousVisibleIdsKey, setPreviousVisibleIdsKey] = useState(visibleIdsKey);
+  if (previousVisibleIdsKey !== visibleIdsKey) {
+    setPreviousVisibleIdsKey(visibleIdsKey);
+    const next = reconcileChannelSelection(channelSelection, visibleChannelIds);
+    if (
+      next.ids.length !== channelSelection.ids.length ||
+      next.ids.some((id, index) => id !== channelSelection.ids[index]) ||
+      next.anchorId !== channelSelection.anchorId
+    ) {
+      setChannelSelection(next);
+    }
+  }
   const selectedChannelIds = reconcileChannelSelection(channelSelection, visibleChannelIds).ids;
   const selectedChannelSet = new Set(selectedChannelIds);
   const selectedChannels = visibleChannelIds

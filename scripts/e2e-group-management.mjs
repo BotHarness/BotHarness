@@ -86,7 +86,7 @@ if (process.argv[2] === '--remove-member') {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 960 });
     await page.setExtraHTTPHeaders({ cookie });
-    await page.goto(origin, { waitUntil: 'networkidle2' });
+    await page.goto(origin, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() =>
       Array.from(document.querySelectorAll('button'))
         .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
@@ -233,7 +233,7 @@ if (process.argv[2] === '--join-requests' || process.argv[2] === '--seed-join-re
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 960 });
     await page.setExtraHTTPHeaders({ cookie });
-    await page.goto(origin, { waitUntil: 'networkidle2' });
+    await page.goto(origin, { waitUntil: 'domcontentloaded' });
     await page.evaluate(() =>
       Array.from(document.querySelectorAll('button'))
         .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
@@ -332,7 +332,7 @@ try {
   });
   await page.setViewport({ width: 1440, height: 960 });
   await page.setExtraHTTPHeaders({ cookie });
-  await page.goto(origin, { waitUntil: 'networkidle2' });
+  await page.goto(origin, { waitUntil: 'domcontentloaded' });
   await page.evaluate(() =>
     Array.from(document.querySelectorAll('button'))
       .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))

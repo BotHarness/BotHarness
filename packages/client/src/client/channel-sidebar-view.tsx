@@ -72,7 +72,6 @@ export function useChannelSidebar(
   prefs: ChannelSidebarPrefs = channelSidebarPrefs,
 ): ChannelSidebarController {
   const narrow = useNarrowChannelSidebar();
-  const [overlayOpen, setOverlayOpen] = useState(false);
   const selection = state.selection;
   const scopeKey =
     selection?.kind === 'bot'
@@ -80,16 +79,15 @@ export function useChannelSidebar(
       : selection?.kind === 'channel'
         ? channelSidebarScopeKey('channel', selection.channelId, undefined)
         : undefined;
+  const [overlay, setOverlay] = useState({ scopeKey, open: false });
+  if (overlay.scopeKey !== scopeKey) setOverlay({ scopeKey, open: false });
+  const overlayOpen = overlay.scopeKey === scopeKey && overlay.open;
   const snapshot = useSyncExternalStore(prefs.subscribe, prefs.getSnapshot, prefs.getSnapshot);
   const docked = scopeKey !== undefined && !snapshot.collapsedSidebars.includes(scopeKey);
 
-  useEffect(() => {
-    setOverlayOpen(false);
-  }, [scopeKey]);
-
   const close = useCallback(() => {
     if (narrow) {
-      setOverlayOpen(false);
+      setOverlay({ scopeKey, open: false });
       return;
     }
     if (scopeKey === undefined) return;
@@ -110,7 +108,7 @@ export function useChannelSidebar(
     },
     toggle: () => {
       if (narrow) {
-        setOverlayOpen((open) => !open);
+        setOverlay({ scopeKey, open: !overlayOpen });
         return;
       }
       if (scopeKey === undefined) return;
