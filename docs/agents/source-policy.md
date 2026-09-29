@@ -16,3 +16,5 @@ Every non-exempt baseline entry records a path, kind, content fingerprint, count
 Docs-site contracts formerly held in code comments are in [Docs site maintenance contracts](docs-site-maintenance.md).
 
 Computer runtime and interaction contracts formerly held in code comments are in [Computer runtime contracts](../architecture/computer-runtime-contracts.md).
+
+In-harness Client lifecycle and interaction contracts formerly held in code comments are in [Client interaction contracts](../architecture/client-interaction-contracts.md).

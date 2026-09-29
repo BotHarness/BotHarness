@@ -112,22 +112,11 @@ export function useClientState(): ClientState {
 export interface BotPanelEntryProps {
   size: number;
   active: boolean;
-  /** Live preference hook injected by the panellist registration. */
   useBotModePrefs: SnapshotSelectorHook<BotModePrefsSnapshot>;
-  /** Open Settings on the Bot section; injected by the panellist registration. */
   openSettings: () => void;
-  /** Slot-provided translator for the BotHarness namespace. */
   t: BotHarnessTranslate;
 }
 
-/**
- * Sidebar panel glyph for the selected panel. While the panel is active the
- * whole shell row becomes the exit target (a hit layer portaled into the row
- * button) and, in the wide sidebar, a settings gear fades in on hover that
- * opens the Bot section of the Settings dialog. The shell's row is a button,
- * so the overlay is a span with a button role — nesting a real button inside
- * it would be invalid.
- */
 export function BotPanelIcon({
   size,
   active,
@@ -144,13 +133,9 @@ export function BotPanelIcon({
   useEffect(() => {
     const button = glyph.current?.closest('button') ?? null;
     setRow(button);
-    // The switch's texture layer is the chosen variant's transparent artwork.
     button?.style.setProperty('--bh-bot-texture', `url("${botBackdropUri(icon)}")`);
   }, [size, icon]);
 
-  // The shell row is a button, so keyboard activation would re-select the
-  // panel; while Bot mode is on, Enter and Space leave it instead. The gear
-  // handles its own keys, so events originating there are left alone.
   useEffect(() => {
     if (row === null || !active) return () => {};
     const onKeyDown = (event: KeyboardEvent): void => {
@@ -235,7 +220,6 @@ interface SidebarProps {
   t: BotHarnessTranslate;
 }
 
-/** One row/card's request to open its context menu at a viewport point. */
 interface ChannelMenuRequest {
   channelId: string;
   channelIds?: readonly string[];
@@ -244,14 +228,12 @@ interface ChannelMenuRequest {
   y: number;
 }
 
-/** One section header's request to open the same menu at a viewport point. */
 interface SectionMenuRequest {
   sectionId: string;
   x: number;
   y: number;
 }
 
-/** One Channel moving between the ordinary roster and the pinned grid. */
 interface PinDragState {
   channelId: string;
   source: 'roster' | 'pinned';
@@ -632,7 +614,6 @@ function RailChannel({
   );
 }
 
-/** Open creation dialog for one production-backed Bot, Channel, or section. */
 type CreateRequest =
   | { kind: 'bot'; sectionId?: string }
   | {
@@ -643,7 +624,6 @@ type CreateRequest =
     }
   | { kind: 'channel'; sectionId?: string };
 
-/** One rendered flat block: a section with its visible rows, or a loose channel run. */
 type FlatBlockView =
   | { kind: 'section'; section: RosterSection; channels: ChannelSummary[] }
   | { kind: 'loose'; channels: ChannelSummary[] };
@@ -794,24 +774,12 @@ export function BotSidebar({
   });
   const sectionedIds = new Set(state.roster.sections.flatMap((section) => section.channelIds));
   const rosterChannelIds = flatRosterChannelIds(state.channels, allPinnedChannelSet);
-  /**
-   * Flat top-level entries in display order: the host `topOrder` completed
-   * with channels the flat list does not know yet (appended at the end), or —
-   * for a pre-flat host — the legacy projection (sections, then every
-   * unsectioned channel loose at the end). The bottom-fixed 未分组 bucket is
-   * retired: unsectioned channels render as loose runs between the blocks.
-   */
   const flatEntries = completeFlatEntries(
     state.roster.topOrder,
     state.roster.sections.map((section) => section.id),
     rosterChannelIds,
     sectionedIds,
   );
-  /**
-   * Resolve one section's order from a channel source. Rendering passes the
-   * query-filtered list; the drag commit passes the unfiltered list so a
-   * filtered view can never change membership semantics.
-   */
   const sectionOrder = (
     section: RosterSection,
     source: readonly ChannelSummary[],
@@ -820,11 +788,6 @@ export function BotSidebar({
     const mode = resolvedSortMode(prefs.sortModes[section.id], prefs.sortMode);
     return orderScopeChannels(visible, mode, section.channelIds);
   };
-  /**
-   * One scope's full displayed order from the unfiltered roster and the live
-   * host snapshot, so a search filter can never change membership or drop
-   * position. `undefined` resolves the 未分组 bucket.
-   */
   const scopeChannelsOf = (scopeId: ScopeId): ChannelSummary[] => {
     if (scopeId === undefined) {
       const snapshot = store.getSnapshot();
@@ -843,12 +806,6 @@ export function BotSidebar({
     store.getSnapshot().roster.sections.find((section) => section.channelIds.includes(channelId))
       ?.id;
   const channelById = new Map(channels.map((channel) => [channel.id, channel]));
-  /**
-   * Partition the flat entries into render blocks, resolving loose entries to
-   * their channels and grouping consecutive loose channels into one run.
-   * Loose runs keep their flat positions in every sort mode (explicit
-   * placements — auto never yanks them); only section members auto-sort.
-   */
   const flatBlocks: FlatBlockView[] = (() => {
     const blocks: FlatBlockView[] = [];
     let run: ChannelSummary[] = [];
@@ -1043,10 +1000,6 @@ export function BotSidebar({
     persistConfig(toggleSectionCollapsed(store.getSnapshot().config, sectionId));
   };
 
-  /**
-   * Callbacks that apply one planned move: the settings-store unlock, the
-   * positioned section writes, and the single ungrouped assign.
-   */
   const moveSink: ChannelMoveSink = {
     assignToUngrouped: (channelId) => {
       void actions.assignChannel(channelId, undefined);
@@ -1059,12 +1012,6 @@ export function BotSidebar({
     },
   };
 
-  /**
-   * Resolve and commit one move: the target's full displayed order drives the
-   * plan, so a search filter can never change membership or drop position and
-   * members hidden by the filter keep their place. The source scope is never
-   * touched.
-   */
   const runChannelMove = (
     channelId: string,
     sourceScopeId: ScopeId,
@@ -1105,7 +1052,6 @@ export function BotSidebar({
   ): void => {
     if (target.channelId === drag.channelId) return;
     if (sectionOfChannel(target.channelId) === undefined) {
-      // Loose row anchor: same flat position as a gap beside its entry.
       runFlatInsert(drag.channelId, drag.scopeId, {
         kind: 'channel',
         id: target.channelId,
@@ -1120,7 +1066,6 @@ export function BotSidebar({
     });
   };
 
-  /** A row-less section body uses its top prediction line as index zero. */
   const commitChannelScopeDrop = (
     drag: { scopeId: ScopeId; channelId: string },
     scopeId: ScopeId,
@@ -1128,12 +1073,6 @@ export function BotSidebar({
     runChannelMove(drag.channelId, drag.scopeId, scopeId, { kind: 'scope', position: 'first' });
   };
 
-  /**
-   * Resolve and commit one loose flat placement: the unfiltered flat entries
-   * drive the plan, so a search filter can never move hidden channels. A
-   * sectioned source is unassigned first (single ownership); no scope mode
-   * changes anywhere — loose positions are explicit in every sort mode.
-   */
   const runFlatInsert = (channelId: string, sourceScopeId: ScopeId, anchor: FlatAnchor): void => {
     const snapshot = store.getSnapshot();
     const sectioned = new Set(snapshot.roster.sections.flatMap((section) => section.channelIds));
@@ -1165,7 +1104,6 @@ export function BotSidebar({
     }
   };
 
-  /** A flat gap beside a section block: loose placement, no mode changes. */
   const commitChannelGapDrop = (
     drag: { scopeId: ScopeId; channelId: string },
     target: { sectionId: string; half: 'before' | 'after' },
@@ -1177,7 +1115,6 @@ export function BotSidebar({
     });
   };
 
-  /** A context-menu pick targets a whole scope; the move appends to a section. */
   const commitChannelMenuMove = (
     channelId: string,
     targetSectionId: string | undefined,
@@ -1212,7 +1149,6 @@ export function BotSidebar({
     void actions.movePinnedChannelToFlat(channelId, [...flat, { kind: 'channel', id: channelId }]);
   };
 
-  /** Reorder the section headers with the same in-scope insert math as rows. */
   const commitSectionDrag = (sectionId: string, target: SectionDropTarget): void => {
     const order = moveWithinOrder(
       store.getSnapshot().roster.sections.map((section) => section.id),
@@ -1235,9 +1171,6 @@ export function BotSidebar({
     }
     setBatchBusy(true);
     setBatchError(undefined);
-    // A roster SSE invalidation may arrive before the RPC response. Freeze the
-    // target's display order first so that snapshot never auto-sorts a partial
-    // visual placement; restore the prior preference if the Host rejects it.
     const previousSortMode =
       input.action === 'move' && input.sectionId !== undefined
         ? prefs.sortModes[input.sectionId]
@@ -1309,10 +1242,6 @@ export function BotSidebar({
     setChannelMenu({ ...request, channelIds });
   };
 
-  /**
-   * Start one pin gesture. A layout-taking target opens on the next task so
-   * its height transition cannot invalidate Chromium's native `dragstart`.
-   */
   const startPinDrag = (channelId: string, source: PinDragState['source']): void => {
     if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
     setPinDrag({ channelId, source });
@@ -1324,7 +1253,6 @@ export function BotSidebar({
     }, 0);
   };
 
-  /** End either pin gesture and clear every transient drop affordance. */
   const endPinDrag = (): void => {
     if (pinZoneArmTimer.current !== undefined) window.clearTimeout(pinZoneArmTimer.current);
     pinZoneArmTimer.current = undefined;
@@ -1468,12 +1396,6 @@ export function BotSidebar({
       ? undefined
       : state.roster.sections.find((section) => section.id === createSectionId);
 
-  /**
-   * Resolve a channel drag over the sidebar root (outside every section
-   * block and row) to a flat gap beside a section: the 12px margin bands
-   * above/below each block. Anything else (bots, header, search) clears a
-   * stale gap hover instead of committing.
-   */
   const resolveGapTarget = (
     root: HTMLElement,
     clientY: number,
@@ -1974,12 +1896,6 @@ export function BotSidebar({
           const before = sectionDrag.marker === 'before' || channelGap.marker === 'before';
           const after = sectionDrag.marker === 'after' || channelGap.marker === 'after';
           const blockMarkerClass = `${before ? ' bh-drop-before' : ''}${after ? ' bh-drop-after' : ''}${channelScope.hovered ? ' bh-drop-scope' : ''}`;
-          /**
-           * Resolve a channel drag anywhere inside this block that is not on a
-           * row — header area, body padding, inter-row gaps — to a row anchor
-           * (header inserts at the first index). Row-less bodies (empty,
-           * collapsed, filtered out) resolve to the scope itself at index 0.
-           */
           const resolveBlockTarget = (element: HTMLElement, clientY: number) => {
             const rows = [...element.querySelectorAll('[data-channel-id]')].map((row, index) => {
               const rect = row.getBoundingClientRect();
@@ -2008,9 +1924,6 @@ export function BotSidebar({
               className={`bh-section${blockMarkerClass}`}
               onContextMenu={(event) => {
                 const target = event.target as HTMLElement | null;
-                // Channel rows own their own menu. Every other visible point
-                // in the section block, including the name label and gaps,
-                // opens the section menu.
                 if (target !== null && target.closest('[data-channel-id]') !== null) return;
                 event.preventDefault();
                 event.stopPropagation();
@@ -2351,7 +2264,6 @@ export function BotSidebar({
   );
 }
 
-/** Cursor-positioned section menu shared by right-click and keyboard access. */
 export function SectionContextMenu({
   menu,
   index,
@@ -2391,14 +2303,6 @@ export function SectionContextMenu({
   );
 }
 
-/**
- * A channel row's `移动到 ▸ [sections + 未分组]` menu. A zero-size fixed proxy
- * carries the cursor point; `Menu` reads it through `getAnchorRect` and portals
- * the list there (the JsonTree proxy-rect recipe), clamping it to the viewport.
- * `autoFocus` keeps the submenu reachable from the keyboard, which is the
- * move path ADR-0031 requires.
- */
-/** Context actions shared by all selected Bot DMs and group channels. */
 export function BulkChannelMenu({
   menu,
   sections,
@@ -2500,10 +2404,6 @@ export function ChannelMoveMenu({
 }): ReactElement {
   const proxy = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {
-    // `Menu`'s own autoFocus focuses the first row while the portaled list is
-    // still `visibility: hidden` (its placement re-render lands after passive
-    // effects), so the focus is dropped. Focus the placed list once more to
-    // keep the keyboard path: focus opens the submenu, arrows navigate it.
     const timer = window.setTimeout(() => {
       const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
       lists
@@ -2585,7 +2485,6 @@ function menuItems(t: BotHarnessTranslate): MenuEntry[] {
   ];
 }
 
-/** Creation choices available from one section header. */
 function sectionCreateMenuItems(t: BotHarnessTranslate): MenuEntry[] {
   return menuItems(t).filter((item) => item.id === 'bot' || item.id === 'channel');
 }

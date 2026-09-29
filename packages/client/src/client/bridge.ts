@@ -25,7 +25,6 @@ import {
   type TopOrderEntry,
 } from './roster.js';
 
-/** Failure carrying the Host's stable bridge error code. */
 export class BridgeCallError extends Error {
   constructor(
     readonly code: string,
@@ -162,13 +161,6 @@ function remoteArgs(payload: Record<string, unknown>): Record<string, unknown> {
   return args;
 }
 
-/**
- * Call the Host bridge through the shared `/api` channel.
- *
- * The api-gateway owns `/api` and reads Typert payloads as `{ args: { …named
- * arguments } }`; `undefined` fields are dropped because the wire decoder
- * rejects them.
- */
 export function createBridgeCall(ctx: ClientContext): BridgeCall {
   return async (endpoint, payload, signal) => {
     const rpc = connectionRpc(ctx);
@@ -1119,7 +1111,6 @@ export async function loadTimelinePage(
   };
 }
 
-/** The Host owns the profile-wide read anchor; the browser only renders it. */
 export async function loadReadPosition(
   call: BridgeCall,
   channelId: string,
@@ -1559,7 +1550,6 @@ export async function loadRoster(call: BridgeCall, signal?: AbortSignal): Promis
   return parseRosterSnapshot(await unwrap(call, 'rosterGet', {}, signal));
 }
 
-/** One bounded, final-state roster mutation; the Host publishes one result. */
 export interface RosterBatchInput {
   action: 'pin' | 'unpin' | 'hide' | 'move';
   channelIds: readonly string[];
@@ -1729,7 +1719,6 @@ export interface ProfileActivity {
   slug: string;
   weeks: number;
   since: string;
-  /** Host-local current day; anchors activity windows across time zones. */
   today: string;
   events: ProfileActivityReasonDay[];
   memoryCommits: ProfileActivityDay[];

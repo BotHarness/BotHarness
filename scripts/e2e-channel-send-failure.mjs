@@ -24,54 +24,45 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1440, height: 900 });
   await page.goto(`${origin}/?token=${encodeURIComponent(token)}`, {
-    waitUntil: 'networkidle2',
+    waitUntil: 'domcontentloaded',
     timeout: 60000,
   });
   await page.evaluate(() => {
     Array.from(document.querySelectorAll('button'))
       .find((button) => ['Continue', '继续'].includes(button.textContent?.trim() ?? ''))
       ?.click();
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => ['BOT 模式', 'Bot mode'].includes(button.textContent?.trim() ?? ''))
-      ?.click();
   });
-  await page.waitForSelector('button[aria-label="新建"], button[aria-label="New"]', {
-    timeout: 10000,
-  });
-  await page.evaluate(async (channelName) => {
-    const response = await fetch('/api/botharness/channelCreate', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        type: 'client-request',
-        rpcId: `failure-e2e-${Math.random()}`,
-        method: 'botharness/channelCreate',
-        payload: { args: { name: channelName, members: [] } },
-      }),
-    });
-    const envelope = await response.json();
-    if (envelope.result?.ok !== true) throw new Error(JSON.stringify(envelope.result));
+  const botButton = 'button[aria-label="Bot mode"], button[aria-label="Bot 模式"]';
+  await page.waitForSelector(botButton);
+  if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.waitForSelector('.bh-root', { timeout: 10000 });
+  const channelId = await page.evaluate(async (channelName) => {
+    const rpc = async (method, args) => {
+      const response = await fetch(`/api/botharness/${method}`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client-request',
+          rpcId: `failure-e2e-${Math.random()}`,
+          method: `botharness/${method}`,
+          payload: { args },
+        }),
+      });
+      const envelope = await response.json();
+      if (envelope.result?.ok !== true) throw new Error(JSON.stringify(envelope.result));
+      return envelope.result.value;
+    };
+    const bot = (await rpc('create', { displayName: `Failure fixture ${channelName}` })).bot;
+    return (await rpc('channelCreate', { name: channelName, members: [bot.slug] })).channel.id;
   }, name);
-  await page.reload({ waitUntil: 'networkidle2', timeout: 60000 });
-  await page.evaluate(() => {
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => ['BOT 模式', 'Bot mode'].includes(button.textContent?.trim() ?? ''))
-      ?.click();
-  });
-  await page.waitForFunction(
-    (channelName) =>
-      Array.from(document.querySelectorAll('button')).some((button) =>
-        button.textContent?.includes(channelName),
-      ),
-    { timeout: 10000 },
-    name,
-  );
-  await page.evaluate((channelName) => {
-    Array.from(document.querySelectorAll('button'))
-      .find((button) => button.textContent?.includes(channelName))
-      ?.click();
-  }, name);
-  const input = 'textarea[placeholder^="发消息给"], textarea[placeholder^="Message "]';
+  await page.reload({ waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.waitForSelector(botButton);
+  if (!(await page.$('.bh-root'))) await page.click(botButton);
+  await page.waitForSelector('.bh-root', { timeout: 10000 });
+  const channelRow = `.bh-root [data-channel-id="${channelId}"]`;
+  await page.waitForSelector(channelRow, { timeout: 10000 });
+  await page.click(channelRow);
+  const input = '.bh-composer-rich-input';
   await page.waitForSelector(input, { timeout: 10000 });
 
   let sendAttempts = 0;
@@ -91,33 +82,35 @@ try {
   await page.type(input, body);
   await page.keyboard.press('Enter');
   await page.waitForSelector('.bh-bubble-failed-action', { timeout: 10000 });
-  assert.equal(await page.$eval(input, (element) => element.value), '');
+  assert.equal(await page.$eval(input, (element) => element.textContent), '');
   assert.equal(sendAttempts, 1);
   assert.equal((await page.$$('.bh-bubble-failed')).length, 1);
 
   await page.type(input, 'existing draft');
   await page.click('.bh-bubble-failed-action');
-  assert.equal(await page.$eval(input, (element) => element.value), 'existing draft');
+  assert.equal(await page.$eval(input, (element) => element.textContent), 'existing draft');
   assert.equal((await page.$$('.bh-bubble-failed')).length, 1);
   await page.waitForSelector('[role="alert"]', { timeout: 3000 });
   await page.$eval(input, (element) => {
-    const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')?.set;
-    setter?.call(element, '');
+    element.textContent = '';
     element.dispatchEvent(new Event('input', { bubbles: true }));
   });
-  await page.waitForFunction(() => document.querySelector('textarea')?.value === '', {
-    timeout: 3000,
-  });
+  await page.waitForFunction(
+    () => document.querySelector('.bh-composer-rich-input')?.textContent === '',
+    {
+      timeout: 3000,
+    },
+  );
   await page.click('.bh-bubble-failed-action');
-  assert.equal(await page.$eval(input, (element) => element.value), body);
+  assert.equal(await page.$eval(input, (element) => element.textContent), body);
   assert.equal((await page.$$('.bh-bubble-failed')).length, 0);
   assert.equal(sendAttempts, 1);
 
   rejectSend = false;
   await page.waitForFunction(
     (expected) => {
-      const textarea = document.querySelector('textarea');
-      return document.activeElement === textarea && textarea?.value === expected;
+      const editor = document.querySelector('.bh-composer-rich-input');
+      return document.activeElement === editor && editor?.textContent === expected;
     },
     { timeout: 3000 },
     body,

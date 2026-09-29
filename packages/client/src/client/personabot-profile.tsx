@@ -47,10 +47,6 @@ export interface ProfilePopoverProps {
   onExpand(): void;
 }
 
-/**
- * The avatar-anchored compact form of a PersonaBot Profile (ADR-0085): identity,
- * the pinned Profile Cards, and the entry into the Profile view.
- */
 export function ProfilePopover({
   bot,
   activity,
@@ -109,10 +105,6 @@ export interface ProfileViewProps {
   onClose(): void;
 }
 
-/**
- * The expanded form of a PersonaBot Profile (ADR-0085): it occupies the
- * Channel body, replacing the Chat and the composer until the Human exits.
- */
 export function ProfileView({
   bot,
   channel,

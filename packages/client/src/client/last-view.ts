@@ -1,7 +1,6 @@
 import type { ConfigStorage } from './roster-config.js';
 import type { ConversationSelection } from './store.js';
 
-/** Last visible shell mode and Bot destination, private to this browser. */
 export interface LastView {
   mode: 'bot' | 'dsh';
   selection: ConversationSelection | undefined;
@@ -37,7 +36,6 @@ export function readLastView(storage: ConfigStorage | undefined): LastView | und
   }
 }
 
-/** One fresh-document read. A Client HMR replacement must not restart navigation. */
 export function consumeLastView(
   target: Record<string, unknown>,
   storage: ConfigStorage | undefined,
@@ -50,7 +48,5 @@ export function consumeLastView(
 export function writeLastView(storage: ConfigStorage | undefined, view: LastView): void {
   try {
     storage?.setItem(LAST_VIEW_KEY, JSON.stringify(view));
-  } catch {
-    // Private browsing or storage policy can deny writes; navigation still works.
-  }
+  } catch {}
 }

@@ -5,7 +5,6 @@ export interface MemoryFileNode {
   children: MemoryFileNode[];
 }
 
-/** Build a directory tree from the Memory Service's bounded current-file paths. */
 export function memoryFileTree(paths: readonly string[]): MemoryFileNode[] {
   const roots: MemoryFileNode[] = [];
   const directories = new Map<string, MemoryFileNode>();

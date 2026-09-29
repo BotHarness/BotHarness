@@ -14,7 +14,6 @@ import type {
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
 
-/** Activity windows follow the Profile decision: 26 weeks in the Host-local calendar. */
 export const PROFILE_ACTIVITY_WEEKS = 26;
 
 const HEAT_LEVEL_THRESHOLDS = [1, 3, 6, 11] as const;
@@ -26,7 +25,6 @@ function localDayKey(date: Date): string {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-/** Host-local day anchors activity windows; a missing key falls back to the browser. */
 function anchorDate(todayKey: string | undefined): Date {
   if (todayKey !== undefined && /^\d{4}-\d{2}-\d{2}$/u.test(todayKey)) {
     const [year, month, day] = todayKey.split('-').map(Number);
@@ -35,7 +33,6 @@ function anchorDate(todayKey: string | undefined): Date {
   return new Date();
 }
 
-/** Last `count` Host-local days, oldest first, ending on the activity anchor. */
 export function trailingProfileDays(todayKey: string | undefined, count: number): string[] {
   const today = anchorDate(todayKey);
   const days: string[] = [];
@@ -47,7 +44,6 @@ export function trailingProfileDays(todayKey: string | undefined, count: number)
   return days;
 }
 
-/** Monday-aligned columns; days after the anchor render as blank future cells. */
 function heatWindow(todayKey: string | undefined): { days: string[]; todayKey: string } {
   const today = anchorDate(todayKey);
   const start = new Date(today);
@@ -234,7 +230,6 @@ function MemoryActivityCard({
   );
 }
 
-/** Deterministic compact token count; no locale surprises in cards or tests. */
 export function formatTokenCount(value: number): string {
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
   if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
@@ -257,7 +252,6 @@ interface TokenDayTotals {
   output: number;
 }
 
-/** Read = cached + uncached input; cache writes count as uncached prompt work. */
 function tokenDayTotals(tokens: readonly ProfileActivityTokensDay[]): Map<string, TokenDayTotals> {
   const days = new Map<string, TokenDayTotals>();
   for (const entry of tokens) {
@@ -287,7 +281,6 @@ export interface TokenShares {
   outputPercent: number;
 }
 
-/** Cached share of read and output share of all input + output tokens. */
 export function tokenShares(totals: {
   cached: number;
   uncached: number;
@@ -311,7 +304,6 @@ interface ChartTokens {
   grid: string;
 }
 
-/** Tokens resolve from the live `.bh-root` surface so charts follow the theme. */
 function resolveChartTokens(): ChartTokens {
   const fallback: ChartTokens = {
     cached: 'currentColor',
@@ -507,7 +499,6 @@ function totalText(count: number, weeks: number, t: BotHarnessTranslate): string
   return t('profile.window.total', { weeks, count });
 }
 
-/** Built-ins register through the shared registry; labels re-resolve on locale change. */
 export function createProfileCardBuiltins(
   t: BotHarnessTranslate,
 ): readonly ProfileCardDescriptor[] {

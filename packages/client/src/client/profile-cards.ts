@@ -14,10 +14,6 @@ export interface ProfileCardViewProps extends ProfileCardProps {
   compact: boolean;
 }
 
-/**
- * One registered Profile Card (ADR-0085): the shell owns pinning and layout,
- * the descriptor renders the body in its compact or full form.
- */
 export interface ProfileCardDescriptor {
   id: string;
   label: string;
@@ -26,7 +22,6 @@ export interface ProfileCardDescriptor {
   render(props: ProfileCardViewProps): ReactElement;
 }
 
-/** Ordered, additive, removable registry with the Channel sidebar's semantics. */
 export interface ProfileCardRegistry {
   list(): readonly ProfileCardDescriptor[];
   subscribe(listener: () => void): () => void;
@@ -74,14 +69,12 @@ export function createProfileCardRegistry(): ProfileCardRegistry {
   };
 }
 
-/** Registry used when a caller (or a test) renders without the client service. */
 export const EMPTY_PROFILE_CARDS: ProfileCardRegistry = createProfileCardRegistry();
 
 function profileCardStorage(): Storage | undefined {
   return typeof window === 'undefined' ? undefined : window.localStorage;
 }
 
-/** Client-local, global across PersonaBots; unknown ids are ignored by renderers. */
 export function loadPinnedProfileCards(): string[] {
   const raw = profileCardStorage()?.getItem(PROFILE_CARDS_STORAGE_KEY);
   if (raw === null || raw === undefined) return [...DEFAULT_PINNED_PROFILE_CARDS];

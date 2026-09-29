@@ -224,48 +224,23 @@ export interface BridgeActions {
   createSection(name: string): Promise<RosterSection | undefined>;
   renameSection(sectionId: string, name: string): Promise<boolean>;
   removeSection(sectionId: string): Promise<boolean>;
-  /** Add or remove one Channel from the durable pinned-grid order. */
   setChannelPinned(channelId: string, pinned: boolean): Promise<boolean>;
-  /** Reorder exactly the currently pinned Channels, preserving pin membership. */
   reorderPinnedChannels(order: readonly string[], beforePublish: () => void): Promise<boolean>;
-  /** Hide or restore one Channel without changing its pin, section, or order. */
   setChannelHidden(channelId: string, hidden: boolean): Promise<boolean>;
-  /** Apply one bounded multi-select operation and publish only its final roster snapshot. */
   batchRoster(input: RosterBatchInput): Promise<boolean>;
-  /** Unpin one Channel and place it at an exact position inside a section. */
   movePinnedChannel(
     channelId: string,
     sectionId: string,
     order: readonly string[],
   ): Promise<boolean>;
-  /** Unpin one Channel and place it at an exact loose top-level position. */
   movePinnedChannelToFlat(channelId: string, order: readonly TopOrderEntry[]): Promise<boolean>;
   assignChannel(channelId: string, sectionId: string | undefined, index?: number): Promise<boolean>;
-  /** Freeze a section's channel order through positioned channelAssign writes. */
   setSectionChannelOrder(sectionId: string, order: readonly string[]): Promise<boolean>;
-  /**
-   * Move a Channel into a section, writing the full target order positionally
-   * so the frozen order matches the drop. The moved Channel is one of those
-   * writes, which is also the single ownership transfer.
-   */
   moveChannel(channelId: string, sectionId: string, order: readonly string[]): Promise<boolean>;
-  /** Replace the section display order. */
   reorderSections(order: readonly string[]): Promise<boolean>;
-  /** Replace the flat top-level order outright (loose placements, migration). */
   reorderFlat(order: readonly TopOrderEntry[]): Promise<boolean>;
-  /**
-   * Move a Channel out of its section into a loose flat slot: unassign first
-   * (single ownership; the host appends the loose entry), then position the
-   * absolute flat order. No scope mode changes.
-   */
   moveToFlat(channelId: string, order: readonly TopOrderEntry[]): Promise<boolean>;
-  /** Convert legacy PersonaBot-slug pins into canonical Channel ids once. */
   ensureChannelPins(): Promise<boolean>;
-  /**
-   * Convert a pre-flat host arrangement once: sections in snapshot order,
-   * then every unsectioned channel loose at the end. Skips when the host
-   * already carries a flat order, is read-only, or holds nothing to convert.
-   */
   ensureFlatTopOrder(): Promise<boolean>;
 }
 
@@ -291,7 +266,6 @@ function reconcileCommittedMessage(
   return messages.map((message) => (message.id === localId ? committed : message));
 }
 
-/** Preserve an already visible prefix only when it overlaps the fresh latest window. */
 function mergeLatestWindow(
   previous: readonly ChannelMessage[],
   incoming: readonly ChannelMessage[],
@@ -390,7 +364,6 @@ export function createActions(
     console.warn('botharness: roster write failed', error);
   };
 
-  /** Run one durable arrangement mutation, then re-read `rosterGet`. */
   const rosterMutate = async (operation: () => Promise<void>): Promise<boolean> => {
     try {
       await operation();
@@ -402,7 +375,6 @@ export function createActions(
     }
   };
 
-  /** Place a newly created Channel first in its requested roster scope. */
   const placeCreatedChannelFirst = async (
     channelId: string,
     sectionId: string | undefined,
@@ -534,7 +506,6 @@ export function createActions(
           focusMessageId: anchor,
         };
       } catch (error) {
-        // The message may have disappeared between reading the marker and paging.
         if (!(error instanceof BridgeCallError) || error.code !== 'invalid-input') throw error;
       }
     }
@@ -659,7 +630,6 @@ export function createActions(
       if (bot === undefined) return;
       const selection: ConversationSelection = { kind: 'bot', slug };
       clientStore.select(selection);
-      // `select` may retain its existing object; compare the active request token.
       const active = currentSelection();
       if (active === undefined) return;
       let cached = clientStore.getSnapshot().conversation.status === 'ready';
@@ -797,8 +767,6 @@ export function createActions(
     },
     async ignoreHumanReport(sourceEventId) {
       await ignoreHumanAssignmentReport(call, sourceEventId);
-      // Older loaded pages are retained on refresh; remove this decision from
-      // that cache before the fresh head can merge with it.
       humanInboxScopeVersion += 1;
       humanInboxHeadSeq += 1;
       humanInboxPageSeq += 1;
@@ -972,8 +940,6 @@ export function createActions(
       if (snapshot.conversation.channel?.id !== channelId) return;
       if (revision < snapshot.conversation.revision) return;
       if (snapshot.conversation.timeline.hasNewer) {
-        // This window is intentionally away from the tail; a reconnect must
-        // not stitch a latest page across an unobserved gap.
         clientStore.setConversation({ revision });
         return;
       }

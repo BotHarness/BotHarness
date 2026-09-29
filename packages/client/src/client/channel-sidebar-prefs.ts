@@ -2,7 +2,6 @@ import { defaultStorage, type ConfigStorage } from './roster-config.js';
 
 const STORAGE_KEY = 'botharness.channel-sidebar';
 
-/** Docked Channel sidebar width, in CSS pixels. */
 export const DEFAULT_CHANNEL_SIDEBAR_WIDTH = 320;
 export const MIN_CHANNEL_SIDEBAR_WIDTH = 260;
 export const MAX_CHANNEL_SIDEBAR_WIDTH = 560;
@@ -16,19 +15,10 @@ export function clampChannelSidebarWidth(width: number): number {
   );
 }
 
-/**
- * Per-scope presentation preferences for the Channel sidebar. Expanded and
- * collapsed state is client-local, exactly like the left roster's section
- * collapse; it never enters Host authority.
- */
 export interface ChannelSidebarPrefsSnapshot {
-  /** Scope keys whose whole sidebar is collapsed. */
   collapsedSidebars: readonly string[];
-  /** `scopeKey/entryId` keys expanded by the Human. */
   expandedEntries: readonly string[];
-  /** Docked panel width in CSS pixels. */
   width: number;
-  /** Human-facing labels by default; Git labels are an explicit preference. */
   memoryTerminology: MemoryTerminology;
 }
 
@@ -39,7 +29,6 @@ export interface ChannelSidebarPrefs {
   setSidebarCollapsed(scopeKey: string, collapsed: boolean): void;
   isEntryExpanded(scopeKey: string, entryId: string): boolean;
   setEntryExpanded(scopeKey: string, entryId: string, expanded: boolean): void;
-  /** Sets the docked width, clamped to the supported range. */
   setWidth(width: number): void;
   setMemoryTerminology(terminology: MemoryTerminology): void;
 }
@@ -57,7 +46,6 @@ function stringList(value: unknown): readonly string[] {
     : [];
 }
 
-/** Stable key for one selection: a PersonaBot DM or a group Channel. */
 export function channelSidebarScopeKey(
   scope: 'channel' | 'personabot',
   channelId: string,
@@ -109,9 +97,7 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
             memoryTerminology: next.memoryTerminology,
           }),
         );
-      } catch {
-        // A full or blocked storage still leaves this session's state live.
-      }
+      } catch {}
     }
     for (const listener of listeners) listener();
   };
@@ -164,5 +150,4 @@ export function createChannelSidebarPrefs(storage: ConfigStorage | undefined): C
   };
 }
 
-/** Client-local singleton; tests construct their own instance with a fake storage. */
 export const channelSidebarPrefs = createChannelSidebarPrefs(defaultStorage());

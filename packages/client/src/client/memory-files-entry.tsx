@@ -3,7 +3,6 @@ import type { MemorySnapshot } from './bridge.js';
 import type { ChannelSidebarEntryProps } from './channel-sidebar.js';
 import { MemoryFileTree } from './memory-file-tree.js';
 
-/** Current checked-out files; content opens in the Channel body. */
 export function MemoryFilesEntry({
   actions,
   channelId,

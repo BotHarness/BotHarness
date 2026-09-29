@@ -2,21 +2,17 @@ import type { SnapshotStore } from '@deepseek-ai/dsh-client-store';
 
 import type { BotModeMotionPreference } from '../bot-mode-settings.js';
 
-/** Effective presentation consumed by every BotHarness animation. */
 export type EffectiveMotion = 'reduce' | 'full';
 
-/** Minimal media-query seam used by the shared policy and its tests. */
 export interface SystemMotionSource {
   readonly reduced: boolean;
   subscribe(listener: (reduced: boolean) => void): () => void;
 }
 
-/** Snapshot shape required by the document-level motion boundary. */
 export interface MotionPolicySnapshot {
   effectiveMotion: EffectiveMotion;
 }
 
-/** Resolve the product preference without leaking media queries into components. */
 export function resolveEffectiveMotion(
   preference: BotModeMotionPreference,
   systemReduced: boolean,
@@ -26,10 +22,6 @@ export function resolveEffectiveMotion(
   return systemReduced ? 'reduce' : 'full';
 }
 
-/**
- * Build the one browser media-query adapter. Components consume the policy
- * snapshot instead of calling matchMedia themselves.
- */
 export function browserSystemMotionSource(): SystemMotionSource | undefined {
   if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return undefined;
   const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -49,10 +41,6 @@ export function browserSystemMotionSource(): SystemMotionSource | undefined {
   };
 }
 
-/**
- * Publish the effective policy once on the document root. This keeps CSS-only
- * consumers and portaled primitives on the same authority as hook consumers.
- */
 export function mountMotionPolicyAttribute(
   source: SnapshotStore<MotionPolicySnapshot>,
   root: Pick<HTMLElement, 'dataset'>,

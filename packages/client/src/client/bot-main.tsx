@@ -59,7 +59,6 @@ import {
 } from './store.js';
 const useClientLayoutEffect = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
-/** Only Host-committed messages may advance the Human's durable read position. */
 export function committedMessageIds(messages: readonly ChannelMessage[]): Set<string> {
   return new Set(
     messages
@@ -71,7 +70,6 @@ export function committedMessageIds(messages: readonly ChannelMessage[]): Set<st
   );
 }
 
-/** A request card is resolved only by a committed Human reply. */
 export function resolvedGrantRequestIds(messages: readonly ChannelMessage[]): Set<string> {
   const committed = committedMessageIds(messages);
   return new Set(
@@ -363,8 +361,6 @@ function MessageActionMenu({
 }): ReactElement {
   const proxy = useRef<HTMLSpanElement | null>(null);
   useEffect(() => {
-    // The portaled Menu initially focuses while its placement is hidden.
-    // Re-focus after placement, matching the roster context-menu behavior.
     const timer = window.setTimeout(() => {
       const lists = document.querySelectorAll<HTMLElement>('div[role="menu"]');
       lists

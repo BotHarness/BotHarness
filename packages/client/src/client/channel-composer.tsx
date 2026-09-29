@@ -41,10 +41,6 @@ import {
 } from './channel-refs.js';
 import type { ChannelAttachmentRef } from './store.js';
 
-/**
- * Activity projection consumed by the composer. It carries no Session payload
- * and owns no activity state; callers provide one accepted projection snapshot.
- */
 export interface ChannelComposerActivity {
   items: readonly PersonaBotFacepileItem[];
   summary: string;
@@ -65,7 +61,6 @@ export interface ChannelComposerProps {
   value: string;
   placeholder: string;
   sending: boolean;
-  /** Increment to focus the input after restoring a failed local message. */
   focusSignal?: number;
   attachments?: readonly ChannelComposerUpload[] | undefined;
   onAddFiles?(files: File[]): void;
@@ -77,14 +72,12 @@ export interface ChannelComposerProps {
   channelCandidates?: readonly ChannelSummary[] | undefined;
   channelRefs?: readonly SelectedChannelRef[] | undefined;
   reply?: { id: string; author: string; body: string } | undefined;
-  /** Locale-bound translate; falls back to Chinese when rendered in isolation. */
   t?: BotHarnessTranslate | undefined;
   onChange(value: string, mentions?: SelectedMention[], channelRefs?: SelectedChannelRef[]): void;
   onCancelReply?(): void;
   onSubmit(): void | Promise<void>;
 }
 
-/** Submit on plain Enter while preserving Shift+Enter and IME composition. */
 export function shouldSubmitComposerKey(
   event: Pick<KeyboardEvent<HTMLElement>, 'key' | 'shiftKey' | 'nativeEvent'>,
 ): boolean {
@@ -101,11 +94,6 @@ export interface ComposerTextareaFit {
   height: number;
 }
 
-/**
- * An expanded composer gives the editor more horizontal room. Measure the
- * compact width before collapsing, or a borderline line will wrap and unwrap
- * forever as the layout changes.
- */
 function compactComposerScrollHeight(element: HTMLElement, currentHeight: number): number {
   const composer = element.closest<HTMLElement>('.bh-composer');
   if (!composer?.classList.contains('bh-composer-with-footer')) return currentHeight;
@@ -134,7 +122,6 @@ function compactComposerScrollHeight(element: HTMLElement, currentHeight: number
   return compactHeight;
 }
 
-/** Keep the draft compact until content needs the bounded scrolling region. */
 export function fitComposerTextarea(
   element: Pick<HTMLElement, 'scrollHeight' | 'style'>,
   maxHeight = 144,
@@ -181,10 +168,6 @@ function PersonaBotActivityStatus({
   );
 }
 
-/**
- * DSH-native channel composer island. Draft and send authority remain with the
- * owning conversation; this component only renders and forwards interaction.
- */
 export function ChannelComposer({
   value,
   placeholder,

@@ -16,13 +16,10 @@ import { Modal } from './modal.js';
 import { NameInput } from './name-input.js';
 import type { RosterSection } from './roster.js';
 
-/** Narrow translate seat consumed by pure menu builders (the slot `t` seat is a superset). */
 export type BotMenuTranslate = BotHarnessTranslate;
 
-/** Caller class that paints the delete confirm's outline button in the error colour. */
 export const DANGER_ACTION_CLASS = 'bh-danger-action';
 
-/** The global message-list menu: sort modes plus roster management actions. */
 export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   return [
     { type: 'label', id: 'sort-label', text: t('sort.menu.label') },
@@ -33,7 +30,6 @@ export function globalSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   ];
 }
 
-/** Pinned-grid scope: inherit the global default or choose an independent mode. */
 export function pinnedSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   return [
     { type: 'label', id: 'pinned-sort-label', text: t('pin.sort') },
@@ -43,7 +39,6 @@ export function pinnedSortMenuItems(t: BotMenuTranslate): readonly MenuEntry[] {
   ];
 }
 
-/** One section's menu: sort, positional actions, rename, then safe section removal. */
 export function sectionMenuItems(
   t: BotMenuTranslate,
   options: { canMoveUp?: boolean; canMoveDown?: boolean } = {},
@@ -63,15 +58,9 @@ export function sectionMenuItems(
   ];
 }
 
-/**
- * Menu id for the 未分组 move target. Section ids are host-generated UUIDs,
- * so this sentinel can never collide with one.
- */
 export const UNGROUPED_MOVE_TARGET = 'ungrouped';
 
-/** Menu id that opens section creation and moves this channel into it. */
 export const NEW_SECTION_MOVE_TARGET = 'new-section';
-/** Submenu label with the trailing check the current location carries. */
 function checkedTargetLabel(text: string): ReactElement {
   return (
     <span className="bh-move-checked">
@@ -81,15 +70,6 @@ function checkedTargetLabel(text: string): ReactElement {
   );
 }
 
-/**
- * A channel row's context menu: one `移动到` submenu listing every section
- * plus 未分组. The primitives' submenu rows have no selection slot of their
- * own, so the trailing check for the channel's current scope rides the label.
- * @param t - Locale seat for the menu heading.
- * @param sections - Sections in display order.
- * @param currentSectionId - Scope the channel lives in; `undefined` = 未分组.
- * @returns The single submenu-parent entry.
- */
 export function channelMoveMenuItems(
   t: BotMenuTranslate,
   sections: readonly RosterSection[],
@@ -114,7 +94,6 @@ export function channelMoveMenuItems(
   ];
 }
 
-/** Modal body input: autofocus/select, IME-safe Enter submit, blank-aware disabled state. */
 function NameField({
   label,
   placeholder,
@@ -165,7 +144,6 @@ export interface SectionRenameModalProps {
   onRename: (name: string) => void;
 }
 
-/** Native Modal+input rename; Enter submits, Escape/mask/cancel close without a change. */
 export function SectionRenameModal({
   section,
   t,
@@ -220,7 +198,6 @@ export interface ChannelRenameModalProps {
   onRename: (name: string) => void;
 }
 
-/** One rename surface for group Channels and PersonaBot-backed DM Channels. */
 export function ChannelRenameModal({
   name,
   bot,
@@ -276,7 +253,6 @@ export interface SectionDeleteModalProps {
   onDelete: () => void;
 }
 
-/** Native destructive confirm: outline button in the error colour, focus parked on cancel. */
 export function SectionDeleteModal({
   section,
   t,
@@ -310,7 +286,6 @@ export interface CreateSectionModalProps {
   onCreate: (name: string) => void;
 }
 
-/** Native Modal+input creation for a Channel section. */
 export function CreateSectionModal({
   t,
   onCancel,
@@ -358,15 +333,12 @@ export function CreateSectionModal({
 }
 
 export interface CreateChannelModalProps {
-  /** Section the new Channel is assigned to; absent creates an ungrouped Channel. */
   sectionName?: string | undefined;
   t: BotHarnessTranslate;
   onCancel: () => void;
-  /** Resolve to close the dialog; reject to show the error in place. */
   onCreate: (name: string) => Promise<void>;
 }
 
-/** Native Modal+input creation for a Channel, optionally scoped to a section. */
 export function CreateChannelModal({
   sectionName,
   t,

@@ -10,14 +10,12 @@ const OUTPUT_SIZE = 512;
 const MAX_AVATAR_BYTES = 131_072;
 const MAX_SOURCE_BYTES = 5_000_000;
 
-/** Decoded byte length of a base64 data URL, without allocating the buffer. */
 function decodedBase64Bytes(dataUrl: string): number {
   const base64 = dataUrl.slice(dataUrl.indexOf(',') + 1);
   const padding = base64.endsWith('==') ? 2 : base64.endsWith('=') ? 1 : 0;
   return Math.floor((base64.length * 3) / 4) - padding;
 }
 
-/** WebP with adaptive quality, so a detailed 512px crop still fits the budget. */
 function encodeAvatar(canvas: HTMLCanvasElement): string {
   for (let quality = 0.85; quality >= 0.5; quality -= 0.05) {
     const dataUrl = canvas.toDataURL('image/webp', quality);

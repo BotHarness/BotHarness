@@ -1,9 +1,7 @@
 import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots';
 
-/** Locale namespace owning the BotHarness client's copy. */
 export const LOCALE_NS = 'botharness';
 
-/** Simplified Chinese dictionary and the key-set source of truth. */
 export const zh = {
   'settings.nav': 'Bot 设置',
   'panel.label': 'Bot 模式',
@@ -617,14 +615,8 @@ export const zh = {
   'roster.readOnly': '名册存储不可用，陈列只读',
 } as const satisfies Record<string, string>;
 
-/** BotHarness dictionary key union. */
 export type BotHarnessKey = keyof typeof zh;
 
-/**
- * Fallback translate bound to the Chinese dictionary, used when a component is
- * rendered without the locale share (tests, isolated previews). Production
- * always passes the framework `t`.
- */
 export function zhTranslate(key: BotHarnessKey | string, params?: Record<string, unknown>): string {
   let text: string = (zh as Record<string, string>)[key] ?? key;
   if (params === undefined) return text;
@@ -634,7 +626,6 @@ export function zhTranslate(key: BotHarnessKey | string, params?: Record<string,
   return text;
 }
 
-/** English dictionary, checked against the Chinese key set. */
 export const en = {
   'settings.nav': 'Bot settings',
   'panel.label': 'Bot mode',
@@ -1267,12 +1258,10 @@ export const en = {
   'roster.readOnly': 'Roster storage unavailable; the arrangement is read-only',
 } satisfies Record<BotHarnessKey, string>;
 
-/** Namespace-bound translate function carried by both surfaces. */
 export type BotHarnessTranslate = TranslateNS<typeof LOCALE_NS>;
 
 declare module '@deepseek-ai/dsh-client-ui-slots' {
   interface LocaleNamespaceMap {
-    /** BotHarness client copy. */
     botharness: BotHarnessKey;
   }
 }

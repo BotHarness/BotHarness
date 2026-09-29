@@ -21,7 +21,6 @@ import { BotIcon } from './bot-icon.js';
 import type { BotModePrefsFace } from './bot-mode-prefs.js';
 import type { BotHarnessKey } from './locale.js';
 
-/** Full Settings-section props. */
 export type BotSettingsSectionProps = PropsRuntime<'settings.section'> &
   PropsRenderSlots<'botharness.settings.item'> &
   PropsLocale<'botharness'> &
@@ -45,11 +44,6 @@ const MOTION_OPTIONS: readonly { id: BotModeMotionPreference; label: BotHarnessK
   { id: 'full', label: 'motion.full' },
 ];
 
-/**
- * One Bot mark card: the whole card selects the mark, and the selected card is
- * outlined. Hook-free on purpose, so tests can invoke its `onClick` directly
- * without a DOM.
- */
 export function BotIconCard({
   option,
   label,
@@ -78,13 +72,6 @@ export function BotIconCard({
   );
 }
 
-/**
- * The BotHarness settings page: the shared motion and BOT-mode sorting
- * preferences, rendered as their own section instead of inside the native
- * General page.
- * @param props - composed Settings section props.
- * @returns the BotHarness settings page.
- */
 export function BotSettingsSection({
   t,
   renderSlot,
@@ -221,9 +208,6 @@ export function BotSettingsSection({
           label={t('developer.row.title')}
         />
       </div>
-      {/* The slot contract types its ReactNode against the DSH client's React
-          types, which can differ from this package's pinned @types/react; the
-          cast keeps the boundary from failing on a duplicated ReactNode. */}
       {renderSlot('botharness.settings.item', {}) as unknown as ReactNode}
     </div>
   );

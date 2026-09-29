@@ -91,8 +91,6 @@ export function CreatePersonaBotModal({
   const [description, setDescription] = useState('');
   const [roles, setRoles] = useState<string[]>([]);
   const [creating, setCreating] = useState(false);
-  // The raw cause is stored and translated at render time, so a locale change
-  // while the modal is open updates the message instead of freezing it.
   const [cause, setCause] = useState<unknown | undefined>(undefined);
   const invalid =
     displayName.trim().length === 0 || (source === 'git' && gitUrl.trim().length === 0);
