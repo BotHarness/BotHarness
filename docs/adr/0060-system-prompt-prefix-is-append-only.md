@@ -1,6 +1,7 @@
 ---
 Status: Accepted
 Date: 2026-09-22
+Amended by: ADR-0092 (Memory change Inbox events)
 ---
 
 # The system prompt prefix is append-only
@@ -13,8 +14,8 @@ For BotHarness this decides six things:
 2. **Append, never rewrite.** Prompt context grows by appending new turns and tool results. No component splices fresh facts into, or re-renders, an earlier prefix.
 3. **No Memory Tree.** There is no tree, index, or listing prompt section. The Agent is told where its Memory Repository is and explores it with ordinary file tools (`read`, `grep`, `glob`, Shell, `git`).
 4. **No generated `MEMORY.md` and no Pinned Memory.** Nothing auto-generates an index or injects selected file bodies. The Agent may maintain an index of its own as an ordinary file, and it reads what it decides to read.
-5. **Persona is a Session snapshot.** The first prompt assembly for an owned Session durably records the current `PERSONA.md` body (or its emptiness) on the Session's ownership row; every later assembly — including after a Host restart or a cold resume — returns those exact bytes. A Human edit reaches Sessions that have not snapshotted yet; it never patches a Session that has, and no notice announces the change.
-6. **No memory-update events or notices.** A Memory write through a tool already returns its own output. A second notification channel would be derived state delivered for its own sake, and would either change the prompt prefix or duplicate the tool result.
+5. **Persona is a Session snapshot.** The first prompt assembly for an owned Session durably records the current `PERSONA.md` body (or its emptiness) on the Session's ownership row; every later assembly — including after a Host restart or a cold resume — returns those exact bytes. A Human edit reaches Sessions that have not snapshotted yet; it never patches a Session that has. ADR-0092 permits a bottom-of-context Inbox notice about the file change without changing this snapshot.
+6. **Memory changes use Bot Inbox.** ADR-0092 supersedes the original blanket rejection below: net repository changes observed between turns, including after Host restart, enter the existing durable Bot Inbox without modifying the prompt prefix or duplicating a tool result for a Bot-owned write.
 
 ## Cost reasoning
 
@@ -29,7 +30,7 @@ The snapshot is stored on the `session_ownership` row (`persona_snapshot`, `pers
 - **A Memory Tree prompt section** (even date-only and memoized): any listing is derived state whose change re-renders the prefix; the Agent can list files itself when it actually needs to.
 - **A generated `MEMORY.md` index**: a second authority that must be kept in sync with the files, and reading it still requires reading the files.
 - **A pin budget and pinned full-body injection**: pins reward pre-loading bodies the turn may not need and tie prompt content to repository byte accounting; file reads are already bounded and on demand.
-- **Memory-update notices or Inbox events**: they duplicate tool output, add a wake path, and invite prompt patches.
+- **Per-tool Memory-update notices or prompt patches**: they duplicate tool output or change the fixed prompt prefix. ADR-0092 instead observes net repository changes and uses an existing Inbox Admission without an independent wake.
 - **Re-reading the persona file per request, or caching it only in runtime memory**: a file edit or a Host restart would change or lose the Session's prefix; the snapshot must be durable and first-write-wins.
 - **Patching a running Session with a "persona changed" line**: it rewrites the head for a fact the Session does not need mid-life; an edit applies to new Sessions instead.
 

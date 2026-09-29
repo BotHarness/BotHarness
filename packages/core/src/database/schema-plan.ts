@@ -858,6 +858,77 @@ const BOT_SOURCE_POLICY_EDIT_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_CHANGE_INBOX_MIGRATION: SchemaMigration = {
+  generation: 32,
+  module: 'bot-inbox',
+  description: 'Admit observed Memory changes as durable Source Events',
+  rebuildsReferencedTables: true,
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE source_events_next (
+        source_event_id TEXT PRIMARY KEY,
+        source_kind TEXT NOT NULL CHECK (source_kind IN
+          ('human-message', 'bot-message', 'system-message', 'assignment-report',
+           'assignment-lifecycle', 'memory-change')),
+        bot_slug TEXT,
+        channel_id TEXT,
+        message_id TEXT,
+        assignment_session_id TEXT,
+        body TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        handled_at TEXT,
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        expects_reply INTEGER NOT NULL DEFAULT 0 CHECK (expects_reply IN (0, 1)),
+        observed_at TEXT,
+        payload_json TEXT,
+        UNIQUE (channel_id, message_id)
+      );
+      INSERT INTO source_events_next
+      SELECT * FROM source_events;
+      DROP TABLE source_events;
+      ALTER TABLE source_events_next RENAME TO source_events;
+      CREATE INDEX source_events_bot_created
+        ON source_events (bot_slug, created_at, source_event_id);
+      CREATE INDEX source_events_assignment_kind
+        ON source_events (assignment_session_id, source_kind);
+
+      CREATE TABLE inbox_admissions_next (
+        source_event_id TEXT NOT NULL REFERENCES source_events(source_event_id),
+        bot_slug TEXT NOT NULL,
+        reason TEXT NOT NULL CHECK (reason IN
+          ('human-dm', 'group-mention', 'bot-dm', 'group-invite', 'group-ordinary',
+           'group-join-request', 'group-join-decision', 'assignment-report',
+           'assignment-lifecycle', 'memory-change')),
+        attempt_state TEXT NOT NULL DEFAULT 'pending'
+          CHECK (attempt_state IN ('pending', 'running', 'retryable', 'needs-repair', 'handled')),
+        side_effect_started_at TEXT,
+        handled_at TEXT,
+        last_error TEXT,
+        wake_count INTEGER,
+        wake_interval_ms INTEGER,
+        wake_policy_revision INTEGER,
+        observed_at TEXT,
+        ignored_at TEXT,
+        ignored_by_session_id TEXT,
+        wake_mode TEXT CHECK (wake_mode IN ('all', 'digest', 'mentions', 'silent')),
+        source_policy_revision INTEGER,
+        source_policy_wake_mode TEXT,
+        PRIMARY KEY (source_event_id, bot_slug)
+      );
+      INSERT INTO inbox_admissions_next
+      SELECT * FROM inbox_admissions;
+      DROP TABLE inbox_admissions;
+      ALTER TABLE inbox_admissions_next RENAME TO inbox_admissions;
+      CREATE INDEX inbox_admissions_bot_pending
+        ON inbox_admissions (bot_slug, attempt_state, source_event_id);
+      CREATE INDEX inbox_admissions_digest_pending
+        ON inbox_admissions (bot_slug, reason, attempt_state, wake_policy_revision);
+    `);
+  },
+};
+
 const BOT_SOURCE_GROUP_MODES_MIGRATION: SchemaMigration = {
   generation: 31,
   module: 'bot-inbox',
@@ -905,6 +976,23 @@ const BOT_SOURCE_GROUP_MODES_MIGRATION: SchemaMigration = {
   },
 };
 
+const MEMORY_CHANGE_CHECKPOINT_MIGRATION: SchemaMigration = {
+  generation: 33,
+  module: 'memory',
+  description: 'Keep per-Bot Memory observations across Host restarts',
+  migrate(database) {
+    database.exec(`
+      CREATE TABLE memory_change_checkpoints (
+        bot_slug TEXT PRIMARY KEY,
+        repository_root TEXT NOT NULL,
+        repository_identity TEXT NOT NULL,
+        observation_json TEXT NOT NULL,
+        observed_at TEXT NOT NULL
+      );
+    `);
+  },
+};
+
 export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   SESSION_OWNERSHIP_MIGRATION,
   MESSAGING_TRACER_MIGRATION,
@@ -936,4 +1024,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   BOT_SOURCE_POLICY_MIGRATION,
   BOT_SOURCE_POLICY_EDIT_MIGRATION,
   BOT_SOURCE_GROUP_MODES_MIGRATION,
+  MEMORY_CHANGE_INBOX_MIGRATION,
+  MEMORY_CHANGE_CHECKPOINT_MIGRATION,
 ]);

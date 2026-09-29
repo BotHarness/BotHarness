@@ -347,6 +347,7 @@ export function createCore(
     orchestratorCwd,
     ...(options.warn === undefined ? {} : { warn: options.warn }),
   });
+  if (operationalDatabase.mode === 'ready') runtime.reconcileMemoryChangesOnStartup?.();
   return {
     rootDir,
     operationalDatabase,

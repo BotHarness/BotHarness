@@ -123,7 +123,7 @@ describe('Human DM selected contact context', () => {
     }
   });
 
-  it('appends out-of-band Memory edits to the next turn message only', async () => {
+  it('admits repeated external Memory edits to the Bot Inbox in the same turn', async () => {
     const runs: OrchestratorAgentRun[] = [];
     const agents: BotAgentAdapter = {
       async runOrchestrator(run) {
@@ -156,12 +156,169 @@ describe('Human DM selected contact context', () => {
       };
       await send('m1', 'hello');
       expect(runs).toHaveLength(1);
-      expect(runs[0]!.message).not.toContain('Memory changed since your last turn');
+      expect(runs[0]!.inbox).not.toContain('Memory change');
       writeFileSync(join(memoryDir, 'human-note.md'), 'Human wrote this\n');
       await send('m2', 'anything new?');
       expect(runs).toHaveLength(2);
-      expect(runs[1]!.message).toContain('Memory changed since your last turn');
-      expect(runs[1]!.message).toContain('human-note.md');
+      expect(runs[1]!.message).not.toContain('Memory changed since your last turn');
+      expect(runs[1]!.inbox).toContain('Memory change');
+      expect(runs[1]!.inbox).toContain('human-note.md');
+      writeFileSync(join(memoryDir, 'human-note.md'), 'Human wrote something newer\n');
+      await send('m3', 'and now?');
+      expect(runs[2]!.inbox).toContain('human-note.md');
+      const memoryEvents = attachOperationalModule(
+        core.operationalDatabase,
+        'human-contact-test',
+      ).read(
+        (db) =>
+          db
+            .prepare(`SELECT e.source_event_id, a.reason, a.attempt_state
+            FROM source_events e JOIN inbox_admissions a
+              ON a.source_event_id = e.source_event_id
+           WHERE e.source_kind = 'memory-change' ORDER BY e.rowid`)
+            .all() as Array<{
+            source_event_id: string;
+            reason: string;
+            attempt_state: string;
+          }>,
+      );
+      expect(memoryEvents).toHaveLength(2);
+      expect(memoryEvents.every((event) => event.reason === 'memory-change')).toBe(true);
+      expect(memoryEvents.every((event) => event.attempt_state === 'handled')).toBe(true);
+      expect(
+        core.attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.reason === 'memory-change'),
+      ).toHaveLength(2);
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('recovers an offline Memory edit into Inbox before the next turn, once', async () => {
+    const home = createTempRoot('botharness-memory-restart-');
+    const runs: OrchestratorAgentRun[] = [];
+    const agents: BotAgentAdapter = {
+      async runOrchestrator(run) {
+        runs.push(run);
+      },
+      async runAssignment() {},
+      requestAssignment() {
+        throw new Error('No Assignment expected');
+      },
+      async close() {},
+    };
+    let core = createCore({ dshHome: home, agents });
+    const send = async (id: string) => {
+      const dm = core.channels.getOrCreateDm('ada', 'Ada')!;
+      await core.channels.appendMessage(dm.id, {
+        id,
+        at: '2026-09-26T00:00:00.000Z',
+        author: { kind: 'human' },
+        body: 'hello',
+      });
+      core.runtime.admitDmMessage({ channelId: dm.id, messageId: id, body: 'hello' });
+      await core.runtime.whenIdle();
+    };
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      await send('initial');
+      const memoryDir = core.registry.memoryDirFor('ada')!;
+      await core.runtime.close();
+      core.operationalDatabase.close();
+
+      writeFileSync(join(memoryDir, 'offline.md'), 'Edited while Host was closed\n');
+      core = createCore({ dshHome: home, agents });
+      const pending = core.attention
+        .list({ botSlug: 'ada' })
+        .items.filter((item) => item.reason === 'memory-change');
+      expect(pending).toHaveLength(1);
+      expect(runs).toHaveLength(1);
+      attachOperationalModule(core.operationalDatabase, 'memory-restart-test').transaction((db) => {
+        db.prepare(
+          "UPDATE source_events SET observed_at = '2026-09-26T00:00:00.000Z' WHERE source_kind = 'memory-change'",
+        ).run();
+        db.prepare(
+          "UPDATE inbox_admissions SET observed_at = '2026-09-26T00:00:00.000Z', attempt_state = 'running' WHERE reason = 'memory-change'",
+        ).run();
+      });
+      await core.runtime.close();
+      core.operationalDatabase.close();
+
+      core = createCore({ dshHome: home, agents });
+      const recovered = attachOperationalModule(
+        core.operationalDatabase,
+        'memory-restart-test',
+      ).read(
+        (db) =>
+          db
+            .prepare(`SELECT e.observed_at AS event_observed, a.observed_at AS admission_observed,
+                a.attempt_state FROM source_events e JOIN inbox_admissions a
+                ON a.source_event_id = e.source_event_id WHERE e.source_kind = 'memory-change'`)
+            .get() as {
+            event_observed: string | null;
+            admission_observed: string | null;
+            attempt_state: string;
+          },
+      );
+      expect(recovered).toEqual({
+        event_observed: null,
+        admission_observed: null,
+        attempt_state: 'retryable',
+      });
+      expect(
+        core.attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.reason === 'memory-change'),
+      ).toHaveLength(1);
+      await send('after-restart');
+      expect(runs).toHaveLength(2);
+      expect(runs[1]!.inbox).toContain('offline.md');
+    } finally {
+      await core.runtime.close();
+      core.operationalDatabase.close();
+    }
+  });
+
+  it('keeps the old checkpoint when Memory Inbox admission fails', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-memory-atomic-') });
+    try {
+      core.registry.create({ slug: 'ada', displayName: 'Ada' });
+      core.runtime.reconcileMemoryChangesOnStartup?.();
+      const memoryDir = core.registry.memoryDirFor('ada')!;
+      const port = attachOperationalModule(core.operationalDatabase, 'memory-atomic-test');
+      const checkpoint = () =>
+        port.read(
+          (db) =>
+            db
+              .prepare('SELECT observation_json FROM memory_change_checkpoints WHERE bot_slug = ?')
+              .get('ada') as { observation_json: string },
+        );
+      const before = checkpoint().observation_json;
+      writeFileSync(join(memoryDir, 'later.md'), 'Later edit\n');
+      port.transaction((db) =>
+        db.exec(`
+        CREATE TRIGGER reject_memory_admission BEFORE INSERT ON inbox_admissions
+        WHEN NEW.reason = 'memory-change'
+        BEGIN SELECT RAISE(ABORT, 'simulated admission failure'); END;
+      `),
+      );
+      core.runtime.reconcileMemoryChangesOnStartup?.();
+      expect(checkpoint().observation_json).toBe(before);
+      expect(
+        core.attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.reason === 'memory-change'),
+      ).toHaveLength(0);
+      port.transaction((db) => db.exec('DROP TRIGGER reject_memory_admission'));
+      core.runtime.reconcileMemoryChangesOnStartup?.();
+      expect(checkpoint().observation_json).not.toBe(before);
+      expect(
+        core.attention
+          .list({ botSlug: 'ada' })
+          .items.filter((item) => item.reason === 'memory-change'),
+      ).toHaveLength(1);
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();

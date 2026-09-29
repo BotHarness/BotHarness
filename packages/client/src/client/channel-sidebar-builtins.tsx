@@ -221,8 +221,16 @@ function BotInboxItemRow({
   actions: ChannelSidebarEntryProps['actions'];
   t: BotHarnessTranslate;
 }): ReactElement {
-  const author =
-    item.sourceKind === 'assignment-report'
+  const memoryChange = item.sourceKind === 'memory-change';
+  const summary = memoryChange
+    ? item.summary
+        .replace(/^Memory changed since your last turn:\s*/u, '')
+        .replace(/^Working Memory changes since your last turn:\s*/u, '')
+        .replace(/^\?\? /u, '')
+    : item.summary;
+  const author = memoryChange
+    ? t('inbox.memoryChange')
+    : item.sourceKind === 'assignment-report'
       ? t('inbox.assignment')
       : item.authorKind === 'human'
         ? t('main.author.human')
@@ -239,13 +247,8 @@ function BotInboxItemRow({
     await actions.openChannel(item.sourceChannelId);
     await actions.openAround(item.sourceChannelId, item.sourceMessageId);
   };
-  return (
-    <button
-      type="button"
-      className="bh-inbox-item"
-      disabled={!item.sourceAvailable}
-      onClick={() => void open()}
-    >
+  const content = (
+    <>
       <span className="bh-inbox-item-top">
         <span>{author}</span>
         {item.assignmentReportState === undefined ? null : (
@@ -253,11 +256,22 @@ function BotInboxItemRow({
         )}
         <Tag tone="neutral">{t(`inbox.state.${item.state}`)}</Tag>
       </span>
-      <span className="bh-inbox-item-summary">{item.summary || t('inbox.system')}</span>
+      <span className="bh-inbox-item-summary">{summary || t('inbox.system')}</span>
       <span className="bh-inbox-item-meta">
         {formatRelativeTime(Date.parse(item.createdAt), Date.now(), t)}
-        {!item.sourceAvailable ? ` · ${t('inbox.sourceUnavailable')}` : ''}
+        {!memoryChange && !item.sourceAvailable ? ` · ${t('inbox.sourceUnavailable')}` : ''}
       </span>
+    </>
+  );
+  if (memoryChange) return <div className="bh-inbox-item bh-inbox-item-info">{content}</div>;
+  return (
+    <button
+      type="button"
+      className="bh-inbox-item"
+      disabled={!item.sourceAvailable}
+      onClick={() => void open()}
+    >
+      {content}
     </button>
   );
 }

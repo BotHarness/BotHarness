@@ -6,6 +6,7 @@ import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import { isValidSlug } from '../bots/slug.js';
 import type { AssignmentAccessStore } from '../workspaces/assignment-access.js';
 import type { PersonaBotRegistry } from '../bots/registry.js';
+import type { MemoryChangeDelta, MemoryChangeScan } from '../memory/accepted.js';
 import type { MemoryService } from '../memory/service.js';
 import {
   isBotDmChannel,
@@ -291,6 +292,7 @@ export type DmMessageAdmission =
   | { admitted: false; reason: DmAdmissionFailure };
 
 export interface BotRuntime {
+  reconcileMemoryChangesOnStartup?(): void;
   admitDmMessage(input: HandleDmMessageInput): DmMessageAdmission;
 
   admitGroupMessage(channelId: string, messageId: string): void;
@@ -319,14 +321,9 @@ export interface BotRuntimeOptions {
   agents: BotAgentAdapter;
   memory?: Pick<
     MemoryService,
-    | 'prepareTurn'
-    | 'reconcileTurn'
-    | 'abortTurn'
-    | 'switchBranch'
-    | 'continueFromCommit'
-    | 'takeTurnAnnotation'
-  >;
-
+    'prepareTurn' | 'reconcileTurn' | 'abortTurn' | 'switchBranch' | 'continueFromCommit'
+  > &
+    Partial<Pick<MemoryService, 'scanChanges' | 'preparedObservation'>>;
   attachments?: AttachmentStore;
 
   ownership?: SessionOwnership;
@@ -384,7 +381,7 @@ interface AssignmentRow {
 
 interface InboxReportRow {
   source_event_id: string;
-  source_kind: 'assignment-report' | 'assignment-lifecycle';
+  source_kind: 'assignment-report' | 'assignment-lifecycle' | 'memory-change';
   assignment_session_id: string | null;
   body: string;
   created_at: string;
@@ -544,6 +541,9 @@ function coalesceInbox(rows: InboxReportRow[]): InboxUnit[] {
 
 function renderInbox(units: InboxUnit[]): string {
   const lines = units.map((unit) => {
+    if (unit.sourceKind === 'memory-change') {
+      return `- Memory change (event ${unit.sourceEventId}): ${unit.summary} Inspect the named paths in the current Memory Repository and decide what, if anything, needs attention.`;
+    }
     const target = unit.assignmentSessionId ?? 'unknown Assignment';
     const facts = [
       `key ${unit.continuityKey}`,
@@ -559,7 +559,7 @@ function renderInbox(units: InboxUnit[]): string {
     return `- ${target} (${facts}) reported: ${unit.summary}`;
   });
   return [
-    '[Bot Inbox] New Assignment reports and Host lifecycle notices since your last turn.',
+    '[Bot Inbox] Actionable Memory changes, Assignment reports, and Host lifecycle notices since your last turn.',
     'Answer an item that waits for',
     'your answer with send_assignment_request using its answer_to value; otherwise use them as',
     'context. Do not repeat these summaries back verbatim.',
@@ -1905,20 +1905,12 @@ class BotRuntimeImplementation implements BotRuntime {
     wakeEventIds: readonly string[] = [sourceEventId],
   ): Promise<void> {
     const readAdmissions = new Set<string>();
+    let memoryEventIds: string[] = [];
+    let preserveObservation = false;
     const markSideEffect = (): void => {
-      this.#markReportSideEffects(reportEventIds, bot.slug);
+      this.#markReportSideEffects([...reportEventIds, ...memoryEventIds], bot.slug);
       markAttemptSideEffect();
     };
-    this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, { coordinateBranchSwitch });
-    const inbox = inboxUnits.length === 0 ? '' : renderInbox(inboxUnits);
-    const annotation = this.#memory?.takeTurnAnnotation({
-      botSlug: bot.slug,
-      sessionId: orchestrator.sessionId,
-    });
-    const text =
-      annotation === undefined
-        ? body
-        : [body, annotation].filter((part) => part.trim().length > 0).join('\n\n');
     try {
       const ids = [...new Set(wakeEventIds)];
       if (ids.length > 0)
@@ -1942,11 +1934,29 @@ class BotRuntimeImplementation implements BotRuntime {
           },
           ['bot-inbox'],
         );
+      const change = this.#memory?.prepareTurn(bot.slug, orchestrator.sessionId, {
+        coordinateBranchSwitch,
+      });
+      const observation = this.#memory?.preparedObservation?.(bot.slug, orchestrator.sessionId);
+      if (observation !== undefined) {
+        preserveObservation = true;
+        this.#recordMemoryObservation(bot.slug, observation);
+        preserveObservation = false;
+      } else if (change !== undefined) {
+        preserveObservation = true;
+        this.#admitMemoryChange(bot.slug, change);
+        preserveObservation = false;
+      }
+      const memoryInbox = this.#collectMemoryInbox(bot.slug);
+      memoryEventIds = memoryInbox.eventIds;
+      const units = [...inboxUnits, ...memoryInbox.units];
+      const inbox = units.length === 0 ? '' : renderInbox(units);
+      this.#setObserved(memoryEventIds, this.#now().toISOString());
       await this.#agents.runOrchestrator({
         sessionId: orchestrator.sessionId,
         resume: orchestrator.resume,
         bot,
-        message: text,
+        message: body,
         inbox,
         inboundChannelId: channelId,
         channels: this.#channelAccess(
@@ -2023,12 +2033,14 @@ class BotRuntimeImplementation implements BotRuntime {
         sessionId: orchestrator.sessionId,
         sourceEventId,
       });
+      this.#markReportsHandled(memoryEventIds);
       this.#settleHarvestHandled(bot.slug, [...readAdmissions]);
       this.#notifyReadAdmissions(readAdmissions);
     } catch (error) {
+      this.#setObserved(memoryEventIds, null);
       this.#settleHarvestFailure(bot.slug, [...readAdmissions], String(error));
       this.#notifyReadAdmissions(readAdmissions);
-      this.#memory?.abortTurn(bot.slug, orchestrator.sessionId);
+      this.#memory?.abortTurn(bot.slug, orchestrator.sessionId, preserveObservation);
       throw error;
     }
   }
@@ -2298,8 +2310,26 @@ class BotRuntimeImplementation implements BotRuntime {
                AND attempt_state = 'retryable'
           `)
           .run();
+        database
+          .prepare(`
+            UPDATE source_events SET observed_at = NULL
+             WHERE source_kind = 'memory-change'
+               AND source_event_id IN (
+                 SELECT source_event_id FROM inbox_admissions
+                  WHERE reason = 'memory-change' AND attempt_state = 'retryable'
+                    AND side_effect_started_at IS NULL
+               )
+          `)
+          .run();
+        database
+          .prepare(`
+            UPDATE inbox_admissions SET observed_at = NULL
+             WHERE reason = 'memory-change' AND attempt_state = 'retryable'
+               AND side_effect_started_at IS NULL
+          `)
+          .run();
       },
-      ['bot-inbox'],
+      ['source-event', 'bot-inbox'],
     );
   }
 
@@ -3656,6 +3686,117 @@ class BotRuntimeImplementation implements BotRuntime {
     };
   }
 
+  reconcileMemoryChangesOnStartup(): void {
+    if (this.#closed || this.#memory?.scanChanges === undefined) return;
+    for (const bot of this.#registry.list()) {
+      try {
+        this.#recordMemoryObservation(bot.slug, this.#memory.scanChanges(bot.slug));
+      } catch (error) {
+        this.#warn?.(`Memory observation failed for ${bot.slug}: ${String(error)}`);
+      }
+    }
+  }
+
+  #admitMemoryChange(botSlug: string, change: MemoryChangeDelta): string {
+    const sourceEventId = this.#createEventId();
+    this.#database.transaction(
+      (database) => {
+        database
+          .prepare(`
+            INSERT INTO source_events (
+              source_event_id, source_kind, bot_slug, body, created_at, payload_json
+            ) VALUES (?, 'memory-change', ?, ?, ?, ?)
+          `)
+          .run(
+            sourceEventId,
+            botSlug,
+            change.summary,
+            this.#now().toISOString(),
+            JSON.stringify({ memoryChange: change }),
+          );
+        database
+          .prepare(`
+            INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+            VALUES (?, ?, 'memory-change')
+          `)
+          .run(sourceEventId, botSlug);
+      },
+      ['source-event', 'bot-inbox'],
+    );
+    return sourceEventId;
+  }
+
+  #recordMemoryObservation(botSlug: string, scan: MemoryChangeScan): void {
+    const sourceEventId = scan.change === undefined ? undefined : this.#createEventId();
+    this.#database.transaction(
+      (database) => {
+        if (scan.change !== undefined && sourceEventId !== undefined) {
+          database
+            .prepare(`
+              INSERT INTO source_events (
+                source_event_id, source_kind, bot_slug, body, created_at, payload_json
+              ) VALUES (?, 'memory-change', ?, ?, ?, ?)
+            `)
+            .run(
+              sourceEventId,
+              botSlug,
+              scan.change.summary,
+              this.#now().toISOString(),
+              JSON.stringify({ memoryChange: scan.change }),
+            );
+          database
+            .prepare(`
+              INSERT INTO inbox_admissions (source_event_id, bot_slug, reason)
+              VALUES (?, ?, 'memory-change')
+            `)
+            .run(sourceEventId, botSlug);
+        }
+        database
+          .prepare(`
+            INSERT INTO memory_change_checkpoints
+              (bot_slug, repository_root, repository_identity, observation_json, observed_at)
+            VALUES (?, ?, ?, ?, ?)
+            ON CONFLICT(bot_slug) DO UPDATE SET
+              repository_root = excluded.repository_root,
+              repository_identity = excluded.repository_identity,
+              observation_json = excluded.observation_json,
+              observed_at = excluded.observed_at
+          `)
+          .run(
+            botSlug,
+            scan.repositoryRoot,
+            scan.repositoryIdentity,
+            scan.observationJson,
+            this.#now().toISOString(),
+          );
+      },
+      ['source-event', 'bot-inbox', 'memory'],
+    );
+  }
+
+  #collectMemoryInbox(botSlug: string): { units: InboxUnit[]; eventIds: string[] } {
+    const rows = this.#database.read(
+      (database) =>
+        database
+          .prepare(`
+          SELECT e.source_event_id, e.source_kind, e.assignment_session_id,
+                 e.body, e.created_at, e.expects_reply,
+                 NULL AS continuity_key, NULL AS activity
+            FROM source_events e
+            JOIN inbox_admissions a ON a.source_event_id = e.source_event_id
+           WHERE e.bot_slug = ? AND a.bot_slug = ?
+             AND e.source_kind = 'memory-change'
+             AND a.reason = 'memory-change'
+             AND a.attempt_state IN ('pending', 'retryable')
+             AND e.observed_at IS NULL
+           ORDER BY e.rowid ASC
+           LIMIT 20
+        `)
+          .all(botSlug, botSlug) as unknown as InboxReportRow[],
+    );
+    return { units: coalesceInbox(rows), eventIds: rows.map((row) => row.source_event_id) };
+  }
+
   #dmChannel(botSlug: string): ChannelRecord | undefined {
     return this.#channels
       .list()
@@ -3734,7 +3875,7 @@ class BotRuntimeImplementation implements BotRuntime {
           .prepare(`
             UPDATE inbox_admissions
                SET side_effect_started_at = COALESCE(side_effect_started_at, ?)
-             WHERE bot_slug = ? AND reason IN ('assignment-report', 'assignment-lifecycle')
+             WHERE bot_slug = ? AND reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change')
                AND attempt_state = 'running'
                AND source_event_id IN (${placeholders})
           `)
@@ -3763,7 +3904,7 @@ class BotRuntimeImplementation implements BotRuntime {
                      WHEN side_effect_started_at IS NULL THEN 'retryable'
                      ELSE 'needs-repair'
                    END
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change')
                AND attempt_state IN ('pending', 'retryable', 'running')
                AND source_event_id IN (${placeholders})
           `)
@@ -3781,7 +3922,7 @@ class BotRuntimeImplementation implements BotRuntime {
         database
           .prepare(`
             UPDATE inbox_admissions SET attempt_state = 'handled', handled_at = ?
-             WHERE reason IN ('assignment-report', 'assignment-lifecycle')
+             WHERE reason IN ('assignment-report', 'assignment-lifecycle', 'memory-change')
                AND attempt_state = 'running'
                AND source_event_id IN (${placeholders})
           `)

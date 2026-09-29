@@ -1,6 +1,6 @@
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -10,6 +10,7 @@ import {
   profileDeepSeekCredential,
   resolveDevSecret,
 } from './dev-secret.mjs';
+import { pnpmCommand } from './dev-package-manager.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 function dshCommand(worktree) {
@@ -142,16 +143,18 @@ function ensureProfile(options) {
     },
   };
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
-  run('pnpm', ['install'], { cwd: profileDir });
+  const [pnpmExecutable, pnpmArgs] = pnpmCommand(['install']);
+  run(pnpmExecutable, pnpmArgs, { cwd: profileDir });
   return profileDir;
 }
 
 function launch(options) {
   if (options.build) {
-    run('pnpm', ['build'], { cwd: options.worktree });
+    const [command, args] = pnpmCommand(['build']);
+    run(command, args, { cwd: options.worktree });
   }
   const logPath = join(
-    '/tmp',
+    tmpdir(),
     `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}-${options.port}.log`,
   );
   const env = { ...process.env, DSH_HOME: options.home, ...devSecretEnvironment() };
@@ -167,7 +170,7 @@ function launch(options) {
   return { child, logPath };
 }
 
-async function waitForToken(logPath, timeoutMs = 45_000) {
+async function waitForToken(logPath, timeoutMs = 120_000) {
   const deadline = Date.now() + timeoutMs;
   const pattern = /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9._-]+/u;
   while (Date.now() < deadline) {
@@ -182,7 +185,10 @@ async function waitForToken(logPath, timeoutMs = 45_000) {
 
 async function verifyPluginLayer(url, options) {
   const [base, token] = url.split('/?token=');
-  const jar = join('/tmp', `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`);
+  const jar = join(
+    tmpdir(),
+    `dsh-${basename(options.home).replace(/[^a-zA-Z0-9-]/gu, '-')}.cookies`,
+  );
   await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const login = await fetch(`${base}/?token=${token}`, { redirect: 'manual' });
   const setCookie = login.headers.get('set-cookie');
@@ -251,10 +257,10 @@ async function main() {
     console.log(`  log      : ${summary.log}`);
     console.log(`  stop     : ${summary.stop}`);
   }
-  process.exit(0);
+  process.exitCode = 0;
 }
 
 main().catch((error) => {
   console.error(String(error instanceof Error ? error.message : error));
-  process.exit(1);
+  process.exitCode = 1;
 });
