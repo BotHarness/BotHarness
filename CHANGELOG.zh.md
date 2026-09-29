@@ -9,6 +9,7 @@
 
 ### Added
 
+- PersonaBot 在 Bot Browser 里现在不止能读、还能操作：`browser_click`、`browser_type`、`browser_press_key`、`browser_scroll` 与 `browser_wait` 使用最近一次观察的 ref；ref 过期会以明确的"重新观察"错误失败；输入文本进入审计时只记字符数（[#462](https://github.com/BotHarness/BotHarness/issues/462)）。
 - Browser entry 现在显示该 Bot 当前标签的实时画面，并提供 Human **接管**：接管期间该 Bot 的浏览器动作与模型截图暂停，结束接管后恢复；Bot 新增 `browser_screenshot` 工具，截图只作为 model attachment 送达模型，绝不进入审计（[#461](https://github.com/BotHarness/BotHarness/issues/461)、[ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)）。
 - Human 开启某个 PersonaBot 的 Browser Access 后，该 Bot 即可在 profile 共享的 Bot Browser 里浏览网页：只读的 `browser_open` 与 `browser_observe` 工具及其指引只注入这个 Bot 的会话，每个会话的首次动作向 Human 询问一次（profile 开关可自动允许），每次观察与动作都以脱敏的 Browser Audit 记录；机器上没有可用浏览器时按需安装 version-pinned Chrome for Testing（[#460](https://github.com/BotHarness/BotHarness/issues/460)、[ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)、[ADR-0090](docs/adr/0090-browser-access-is-per-personabot-authorization-is-session-scoped.md)）。
 - PersonaBot 现在可用 `group_leave` 自行退出已加入的群聊；离群后立即失去 Channel 访问权，群内留下一条区分“自行退出”和“被移出”的成员变动提示，并按其他成员各自的 Channel 唤醒策略投递独立 Inbox Admission；离群成员未处理的 Group Inbox Admission 会被结算，原消息历史保留且不会在 Human Inbox 产生虚假的修复事项；若它是创建者，其他成员继续留在由 Human 管理的群聊中；提交后的唤醒通知失败时，Host 运行期间会重试（[#372](https://github.com/BotHarness/BotHarness/issues/372)、[ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)）。

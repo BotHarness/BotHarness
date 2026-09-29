@@ -89,6 +89,17 @@ export function formatAudit(event: BrowserAuditEvent): string {
   return `bot=${event.botSlug} session=${event.sessionId} role=${event.rootRole} ${event.tool} ${event.summary} -> ${outcome} (${event.durationMs}ms)`;
 }
 
+function requiredString(args: Record<string, unknown>, key: string, message: string): string {
+  const value = args[key];
+  if (typeof value !== 'string' || value.trim() === '') throw new Error(message);
+  return value;
+}
+
+function boundedNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || Number.isNaN(value)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(value)));
+}
+
 export function createBrowserToolProvider(
   options: BrowserToolProviderOptions,
 ): BrowserToolProvider {
@@ -235,6 +246,42 @@ export function createBrowserToolProvider(
         };
       }
       return { content: [{ type: 'image', data: shot.data, mimeType: shot.mimeType }] };
+    }
+    if (raw === 'click' || raw === 'type' || raw === 'press_key' || raw === 'scroll') {
+      const tabId = tabs.get(slug);
+      if (tabId === undefined) {
+        throw new Error(
+          'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
+        );
+      }
+      const page =
+        raw === 'click'
+          ? await runtime.click(
+              tabId,
+              requiredString(args, 'ref', 'browser_click needs a ref from browser_observe'),
+            )
+          : raw === 'type'
+            ? await runtime.type(
+                tabId,
+                requiredString(args, 'ref', 'browser_type needs a ref from browser_observe'),
+                requiredString(args, 'text', 'browser_type needs text to enter'),
+              )
+            : raw === 'press_key'
+              ? await runtime.pressKey(
+                  tabId,
+                  requiredString(args, 'key', 'browser_press_key needs a key'),
+                )
+              : await runtime.scroll(
+                  tabId,
+                  args['direction'] === 'up' ? 'up' : 'down',
+                  boundedNumber(args['amount'], 100, 2000, 600),
+                );
+      return { content: [{ type: 'text', text: `${raw} done — ${page.url}` }] };
+    }
+    if (raw === 'wait') {
+      const ms = boundedNumber(args['ms'], 0, 10_000, 1000);
+      await new Promise((resolve) => setTimeout(resolve, ms));
+      return { content: [{ type: 'text', text: `waited ${ms}ms` }] };
     }
     throw new Error(`Unknown Bot Browser operation: ${raw}`);
   };

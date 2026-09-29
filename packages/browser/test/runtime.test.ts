@@ -163,6 +163,9 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
         if (expression.startsWith('({ url:')) {
           return { result: { value: { url: 'https://example.com/', title: 'Example' } } };
         }
+        if (expression.includes('const el = document.querySelector(')) {
+          return { result: { value: { ok: true } } };
+        }
         return {
           result: {
             value: {
@@ -252,6 +255,45 @@ describe('runtime lifecycle', () => {
     await ensuring;
     const window = await runtime.openWindow();
     expect(window.tabId).toBe('tab-1');
+  });
+
+  it('acts on observed refs and surfaces a stale ref readably', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const expressions: string[] = [];
+    let stale = false;
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => {
+        if (method === 'Runtime.evaluate') {
+          const expression = String(params?.['expression'] ?? '');
+          expressions.push(expression);
+          if (expression.includes('const el = document.querySelector(')) {
+            return { result: { value: stale ? { ok: false, reason: 'stale-ref' } : { ok: true } } };
+          }
+        }
+        return base.send(method, params, sessionId);
+      },
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    const page = await runtime.click('tab-1', 'e3');
+    expect(page.url).toBe('https://example.com/');
+    expect(expressions.some((expression) => expression.includes('data-botharness-ref'))).toBe(true);
+    await runtime.type('tab-1', 'e2', 'hello');
+    expect(expressions.some((expression) => expression.includes('hello'))).toBe(true);
+    stale = true;
+    await expect(runtime.click('tab-1', 'e9')).rejects.toThrow(/stale/);
   });
 
   it('captures a JPEG frame and retries with focus emulation when the first take fails', async () => {
