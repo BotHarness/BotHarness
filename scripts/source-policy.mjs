@@ -127,6 +127,26 @@ function reactBindings(file) {
   for (let changed = true; changed;) {
     changed = false;
     function visit(node) {
+      if (
+        ts.isVariableDeclaration(node) &&
+        ts.isObjectBindingPattern(node.name) &&
+        node.initializer &&
+        ts.isIdentifier(node.initializer) &&
+        namespaces.has(node.initializer.text)
+      ) {
+        for (const element of node.name.elements) {
+          const key = element.propertyName ?? element.name;
+          if (
+            (ts.isIdentifier(key) || ts.isStringLiteral(key)) &&
+            key.text === 'useEffect' &&
+            ts.isIdentifier(element.name) &&
+            !functions.has(element.name.text)
+          ) {
+            functions.add(element.name.text);
+            changed = true;
+          }
+        }
+      }
       if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer) {
         const name = node.name.text;
         if (effectValue(node.initializer, functions, namespaces)) {
@@ -168,9 +188,12 @@ function scanScript(path, fragment, source, baseOffset) {
     ts.forEachChild(node, visit);
   }
   visit(file);
+  const plugins = /\.[mc]?ts$/.test(path)
+    ? ['typescript', 'decorators-legacy']
+    : ['typescript', 'jsx', 'decorators-legacy'];
   const parsed = parseJavaScript(fragment, {
     sourceType: 'unambiguous',
-    plugins: ['typescript', 'jsx', 'decorators-legacy'],
+    plugins,
     allowReturnOutsideFunction: true,
     errorRecovery: true,
   });

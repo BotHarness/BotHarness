@@ -39,11 +39,21 @@ describe('source policy', () => {
       "import * as R from 'react';",
       'const alias = effect;',
       'const fallback = typeof window === "undefined" ? effect : useLayoutEffect;',
-      'effect(() => {}); alias(() => {}); fallback(() => {}); React.useEffect(() => {}); R["useEffect"](() => {});',
+      'const { useEffect: destructured } = R;',
+      'const { useEffect } = React;',
+      'effect(() => {}); alias(() => {}); fallback(() => {}); destructured(() => {}); useEffect(() => {}); React.useEffect(() => {}); R["useEffect"](() => {});',
       'other.useEffect(() => {}); unrelatedEffect(() => {});',
     ].join('\n');
     const result = await scanSource('packages/client/src/sample.tsx', source);
-    expect(result.filter((item) => item.kind === 'useEffect')).toHaveLength(5);
+    expect(result.filter((item) => item.kind === 'useEffect')).toHaveLength(7);
+  });
+
+  it('parses TypeScript angle assertions without treating them as JSX', async () => {
+    const result = await scanSource(
+      'packages/core/src/sample.ts',
+      'type Box = { value: number }; const boxed = <Box>{ value: 1 }; // real',
+    );
+    expect(result.map((item) => item.token)).toEqual(['// real']);
   });
 
   it('parses Astro frontmatter, HTML, attributes, scripts, and styles', async () => {
