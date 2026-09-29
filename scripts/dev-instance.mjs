@@ -124,6 +124,7 @@ function ensureProfile(options) {
     '@botharness/ui': `link:${join(packages, 'client')}`,
     '@botharness/core': `link:${join(packages, 'core')}`,
     '@botharness/computer': `link:${join(packages, 'computer')}`,
+    '@botharness/browser': `link:${join(packages, 'browser')}`,
     deepseekbot: `link:${join(packages, 'deepseekbot')}`,
   };
   manifest.dsh = {
@@ -136,6 +137,7 @@ function ensureProfile(options) {
         '@deepseek-ai/dsh-web-app',
         'deepseekbot',
         '@botharness/computer',
+        '@botharness/browser',
       ],
     },
   };

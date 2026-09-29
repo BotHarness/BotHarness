@@ -159,6 +159,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.computerAccessSet({ slug, enabled }));
   }
 
+  browserAccessSet(slug: string, enabled: boolean): { bot: PersonaBotDetail } {
+    return unwrap(this.methods.browserAccessSet({ slug, enabled }));
+  }
+
   botAvatarSet(channelId: string, avatar: string | null): { bot: PersonaBotDetail } {
     return unwrap(this.methods.botAvatarSet({ channelId, avatar }));
   }
@@ -571,6 +575,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'rosterBatch',
   'developerModeSet',
   'computerAccessSet',
+  'browserAccessSet',
   'botAvatarSet',
 ]);
 

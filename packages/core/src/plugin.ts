@@ -540,6 +540,40 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           untrackComputer();
         }
       }
+      const browserTools = ctx.get('botharnessBrowserTools') as
+        | {
+            ownsTool?(name: string): boolean;
+            needsAuthorization?(sessionId: string): boolean;
+            markAuthorized?(sessionId: string): void;
+          }
+        | undefined;
+      if (browserTools?.ownsTool?.(execution.name) === true) {
+        if (browserTools.needsAuthorization?.(agent.session.id) !== true) return next();
+        const browserApproval = ctx.get('approval') as ApprovalService | undefined;
+        const untrackBrowser = toolApproval.track(execution);
+        if (browserApproval === undefined || untrackBrowser === undefined) {
+          return { kind: 'deny', reason: 'The tool call cannot be presented for Human approval' };
+        }
+        try {
+          const outcome = await browserApproval.request({
+            agent,
+            toolName: execution.name,
+            callId: execution.callId,
+            reason: "This PersonaBot wants to act in the profile's shared Bot Browser.",
+            signal: execution.signal,
+          });
+          if (outcome !== 'allowed-once') {
+            return { kind: 'deny', reason: 'Human approval was ' + outcome };
+          }
+          browserTools.markAuthorized?.(agent.session.id);
+          approvedCalls.add(execution.token);
+          return await next();
+        } catch {
+          return { kind: 'deny', reason: 'Human approval is unavailable' };
+        } finally {
+          untrackBrowser();
+        }
+      }
       const denial = permissionDenial(agent.session);
       if (denial !== undefined) return { kind: 'deny', reason: denial };
       if (
@@ -650,6 +684,19 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
           void pending?.catch((error: unknown) => {
             ctx.logger.warn(
               `botharness: Computer tool reconcile failed for ${slug}: ${String(error)}`,
+            );
+          });
+        },
+      },
+      browserAccess: {
+        changed: (slug: string) => {
+          const provider = ctx.get('botharnessBrowserTools') as unknown as
+            | { reconcileBot?: (slug: string) => Promise<void> }
+            | undefined;
+          const pending = provider?.reconcileBot?.(slug);
+          void pending?.catch((error: unknown) => {
+            ctx.logger.warn(
+              `botharness: Browser tool reconcile failed for ${slug}: ${String(error)}`,
             );
           });
         },

@@ -17,5 +17,19 @@
     "forceConsistentCasingInFileNames": true,
     "noEmit": true
   },
-  "include": ["packages/*/src", "packages/*/test", "*.config.ts"]
+  // Ordered on purpose: the client's session-store declaration must be
+  // processed before host packages that import `@deepseek-ai/dsh-agent`.
+  // Both augment `ctx.sessions` with different `list` types; the first
+  // declaration in program order wins, and an alphabetical `packages/*/src`
+  // put `packages/browser` first, which made `ctx.sessions.list` lose its
+  // store methods in `packages/client`.
+  "include": [
+    "packages/client/src",
+    "packages/computer/src",
+    "packages/core/src",
+    "packages/deepseekbot/src",
+    "packages/browser/src",
+    "packages/*/test",
+    "*.config.ts"
+  ]
 }

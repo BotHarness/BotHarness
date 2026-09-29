@@ -237,7 +237,7 @@ export interface BridgeMethods {
   rosterBatch(payload: unknown): Promise<BridgeResult<RosterSnapshot>>;
   developerModeSet(payload: unknown): BridgeResult<{ accepted: boolean }>;
   computerAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
-
+  browserAccessSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   botAvatarSet(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
 }
 
@@ -260,8 +260,8 @@ export interface BridgeMethodsDeps {
   toolRules?: ToolApprovalRuleStore;
   assignmentAccess?: AssignmentAccessStore;
   developerMode?: { set(enabled: boolean): void };
-
   computerAccess?: { changed(slug: string): void };
+  browserAccess?: { changed(slug: string): void };
   createBotId?: () => string;
 }
 
@@ -482,6 +482,7 @@ function summarize(record: PersonaBotRecord, snapshot: BotStateSnapshot): Person
         }),
     ...(record.paused === undefined ? {} : { paused: record.paused }),
     ...(record.computerAccess === undefined ? {} : { computerAccess: record.computerAccess }),
+    ...(record.browserAccess === undefined ? {} : { browserAccess: record.browserAccess }),
   };
 }
 
@@ -704,6 +705,17 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const result = deps.registry.setComputerAccess(slug, enabled);
       if (!result.ok) return unknownBot(slug);
       deps.computerAccess?.changed(slug);
+      return { ok: true, value: detailOf(result.record) };
+    },
+    browserAccessSet(payload) {
+      const slug = asSlug(payload);
+      const enabled = asObject(payload)['enabled'];
+      if (slug === undefined || typeof enabled !== 'boolean') {
+        return invalidInput('slug and enabled are required');
+      }
+      const result = deps.registry.setBrowserAccess(slug, enabled);
+      if (!result.ok) return unknownBot(slug);
+      deps.browserAccess?.changed(slug);
       return { ok: true, value: detailOf(result.record) };
     },
     botAvatarSet(payload) {

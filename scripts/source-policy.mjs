@@ -9,7 +9,12 @@ import { findReactEffects } from './react-effect-policy.mjs';
 
 const codeExtensions = new Set(['.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs', '.mts', '.cts']);
 const sourceExtensions = new Set([...codeExtensions, '.astro', '.css']);
-const generatedPrefixes = ['packages/computer/lib/', 'apps/docs/dist/', 'apps/docs/.astro/'];
+const generatedPrefixes = [
+  'packages/computer/lib/',
+  'packages/browser/lib/',
+  'apps/docs/dist/',
+  'apps/docs/.astro/',
+];
 const firstPartyPrefixes = ['packages/', 'scripts/', 'apps/docs/', 'design/'];
 
 export function isPolicySource(path) {
