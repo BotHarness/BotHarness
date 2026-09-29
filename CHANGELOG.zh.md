@@ -177,6 +177,8 @@
 
 ### Documentation
 
+- 记录 Browser use 设计：profile 级托管的 Bot Browser，配 per-PersonaBot 的 Browser Access、按会话的 Browser Authorization、脱敏 Browser Audit 与窗口级 Bot Tab；运行时行为由 tracer 交付（[#459](https://github.com/BotHarness/BotHarness/issues/459)、[ADR-0088](docs/adr/0088-browser-use-is-a-profile-scoped-managed-bot-browser.md)、[ADR-0089](docs/adr/0089-browser-access-is-per-personabot-authorization-is-session-scoped.md)、[ADR-0090](docs/adr/0090-bot-tabs-are-window-scoped-work-surfaces.md)）。
+
 - 记录跨设备 Memory 延续由 agent 原生 Git 与 Portability 承担；不新增第一方同步 Skill、Host 持有的远端或凭据处理，运行时行为不变（[ADR-0084](docs/adr/0084-memory-continuity-is-agent-git-plus-portability.md)、[#398](https://github.com/BotHarness/BotHarness/issues/398)）。
 
 - 记录 Computer Target 设计：共享 Computer 由 profile 级选择位置，默认 `local`（运行 DSH 的本机），headless 宿主（如 VPS）用 `container`；该项在 Bot 设置里一次设定，per-PersonaBot 的 Computer Access 仍在 Channel sidebar。Bot Screen 先是窗口级工作界面（每 Bot 一个工作区；实测为顺序语义），每 Bot 独立显示作为实验性开启项，其成本压缩手册收录于多显示 research（[#386](https://github.com/BotHarness/BotHarness/issues/386)、[ADR-0081](docs/adr/0082-computer-target-is-profile-scoped-local-by-default.md)、[ADR-0082](docs/adr/0083-bot-screens-are-window-scoped-first-displays-experimental.md)）。

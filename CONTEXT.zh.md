@@ -196,6 +196,32 @@ _避免使用_：takeover、consent dialog、per-action approval
 按 PersonaBot 与会话归因的、脱敏的 Computer 观察与动作持久记录；绝不包含输入的原文或截图。
 _避免使用_：logs、history、screenshot trail
 
+### Browser
+
+**Bot Browser**：
+profile 为其 PersonaBot 运行并驱动的专用浏览器——单实例，拥有自己的持久 profile（Cookie 与登录态），以按 Bot 归属的窗口与标签共享。它的隔离边界是 profile，绝不是某个 PersonaBot。
+_避免使用_：user browser、personal browser、headless browser、Chromium
+
+**Bot Tab**：
+某个 PersonaBot 在 Bot Browser 上拥有的窗口与标签——Human 观看时它的可见工作界面。观察与操作限定在它拥有的标签内；它是可见性作用域，不是安全边界。
+_避免使用_：agent window、session tab、borrowed tab、tab group
+
+**Browser Access**：
+PersonaBot 级的开启项（默认关闭）：开启后，该 PersonaBot 的 Orchestrator 与 Assignment 会话才能获得 Bot Browser 工具及其指引；它绝不为其他 PersonaBot 或 Human 会话开权限。
+_避免使用_：permission、grant、feature flag、extension toggle
+
+**Browser Authorization**：
+PersonaBot 在 Bot Browser 上首次行动前、由 Human 按会话给予的一次授权；profile 级「自动允许」可跳过询问。Access 决定工具是否存在，Authorization 决定它们能否运行。
+_避免使用_：Browser Access、consent dialog、per-action approval
+
+**Browser Takeover**：
+Human 对某一个 PersonaBot 标签的接管会话：暂停该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 的任何输入都会使该 PersonaBot 更早的观察失效。
+_避免使用_：Computer Takeover、handoff、screen sharing
+
+**Browser Audit**：
+按 PersonaBot 与会话归因的、脱敏的 Bot Browser 观察与动作持久记录；绝不包含输入的原文、页面内容或截图。
+_避免使用_：logs、history、browser history
+
 ### Memory（记忆）
 
 **Memory**：

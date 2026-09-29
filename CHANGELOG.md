@@ -177,6 +177,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Recorded the Browser use design: a profile-scoped managed Bot Browser with per-PersonaBot Browser Access, session-scoped Browser Authorization, a redacted Browser Audit, and window-scoped Bot Tabs; runtime behavior lands in the tracer ([#459](https://github.com/BotHarness/BotHarness/issues/459), [ADR-0088](docs/adr/0088-browser-use-is-a-profile-scoped-managed-bot-browser.md), [ADR-0089](docs/adr/0089-browser-access-is-per-personabot-authorization-is-session-scoped.md), [ADR-0090](docs/adr/0090-bot-tabs-are-window-scoped-work-surfaces.md)).
+
 - Documented that cross-device Memory continuity is agent-mediated Git plus Portability; no first-party sync Skill, Host-owned remote, or credential handling is added, and runtime behavior is unchanged ([ADR-0084](docs/adr/0084-memory-continuity-is-agent-git-plus-portability.md), [#398](https://github.com/BotHarness/BotHarness/issues/398)).
 
 - Recorded the Computer Target design: the shared Computer is profile-scoped with `local` (the machine running DSH) as the default and `container` for headless hosts such as a VPS, set once in Bot settings while per-PersonaBot Computer Access stays in the Channel sidebar; Bot Screens are window-scoped surfaces first (per-PersonaBot workspaces, sequential by measurement) with per-PersonaBot displays as an experimental opt-in whose cost playbook lives in the multi-display research ([#386](https://github.com/BotHarness/BotHarness/issues/386), [ADR-0081](docs/adr/0082-computer-target-is-profile-scoped-local-by-default.md), [ADR-0082](docs/adr/0083-bot-screens-are-window-scoped-first-displays-experimental.md)).
