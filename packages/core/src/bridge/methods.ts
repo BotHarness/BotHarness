@@ -142,6 +142,18 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
+export interface ProfileModelUsageRow {
+  day: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  totalTokens: number | null;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
@@ -152,6 +164,8 @@ export interface ProfileActivity {
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
   tokenTotals: ProfileTokenBuckets;
+  modelUsageRows: ProfileModelUsageRow[];
+  modelUsageStatus: 'ready' | 'unavailable';
 }
 
 export interface ChannelListItem extends ChannelRecord {
@@ -2215,6 +2229,23 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             left.day.localeCompare(right.day),
           ),
           tokenTotals,
+          modelUsageRows: usageRows.map((row) => ({
+            day: row.day,
+            purpose: row.purpose,
+            provider: row.provider,
+            model: row.model,
+            inputTokens: (row.unknownBuckets?.inputTokens ?? 0) > 0 ? null : row.inputTokens,
+            outputTokens: (row.unknownBuckets?.outputTokens ?? 0) > 0 ? null : row.outputTokens,
+            cacheReadTokens:
+              (row.unknownBuckets?.cacheReadTokens ?? 0) > 0 ? null : row.cacheReadTokens,
+            cacheWriteTokens:
+              (row.unknownBuckets?.cacheWriteTokens ?? 0) > 0 ? null : row.cacheWriteTokens,
+            totalTokens:
+              row.totalTokens === undefined
+                ? row.inputTokens + row.outputTokens + row.cacheReadTokens + row.cacheWriteTokens
+                : row.totalTokens,
+          })),
+          modelUsageStatus: deps.usage === undefined ? 'unavailable' : 'ready',
         },
       };
     },

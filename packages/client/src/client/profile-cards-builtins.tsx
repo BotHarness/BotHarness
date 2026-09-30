@@ -13,6 +13,7 @@ import type {
 } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
+import { ModelUsageBreakdown } from './model-usage-breakdown.js';
 
 export const PROFILE_ACTIVITY_WEEKS = 26;
 
@@ -407,6 +408,7 @@ function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslat
 function TokenUsageCard({
   activity,
   t,
+  compact,
 }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const tokens = activity?.tokens ?? [];
   const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
@@ -481,6 +483,15 @@ function TokenUsageCard({
       <div className="bh-profile-card-total">
         {t('profile.tokens.window', { weeks, count: formatTokenCount(total) })}
       </div>
+      {activity?.modelUsageRows?.some(
+        (row) =>
+          row.inputTokens === null ||
+          row.outputTokens === null ||
+          row.cacheReadTokens === null ||
+          row.cacheWriteTokens === null,
+      ) ? (
+        <p className="bh-note">{t('profile.usage.partial')}</p>
+      ) : null}
       <Chart
         definition={definition}
         ariaLabel={t('profile.tokens.sparkline')}
@@ -501,6 +512,15 @@ function TokenUsageCard({
         })}
       </div>
       {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
+      {compact ? null : (
+        <ModelUsageBreakdown
+          rows={activity?.modelUsageRows ?? []}
+          status={activity?.modelUsageStatus ?? 'unavailable'}
+          today={activity?.today ?? localDayKey(new Date())}
+          firstDay={trailingProfileDays(activity?.today, weeks * 7)[0]!}
+          t={t}
+        />
+      )}
     </div>
   );
 }
@@ -527,6 +547,15 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
         <div>
           <dt>{t('profile.stat.tokens')}</dt>
           <dd>{formatTokenCount(tokens)}</dd>
+          {activity?.modelUsageRows?.some(
+            (row) =>
+              row.inputTokens === null ||
+              row.outputTokens === null ||
+              row.cacheReadTokens === null ||
+              row.cacheWriteTokens === null,
+          ) ? (
+            <dd className="bh-note">{t('profile.usage.partial')}</dd>
+          ) : null}
         </div>
       </dl>
     </div>
