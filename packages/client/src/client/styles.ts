@@ -2406,8 +2406,12 @@ button.bh-profile-heat-cell:focus-visible {
 .bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
 .bh-message-image-link { display: block; max-width: min(100%, 360px); }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }
-.bh-message-file { display: inline-flex; align-items: center; gap: 5px; min-width: 0; width: fit-content; max-width: 100%; padding: 7px 10px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; color: inherit; overflow-wrap: anywhere; }
+.bh-message-file { display: inline-flex; align-items: center; gap: 8px; min-width: 0; width: fit-content; max-width: min(100%, 320px); min-height: 42px; padding: 5px 8px; border: 1px solid var(--dsw-alias-border-l2); border-radius: 10px; background: color-mix(in srgb, currentColor 6%, transparent); color: inherit; text-decoration: none; }
 .bh-bubble-me .bh-message-file { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.bh-message-file-icon { display: grid; place-items: center; flex: none; width: 28px; height: 28px; }
+.bh-message-file-copy { display: flex; align-items: baseline; flex: 1; gap: 4px; min-width: 0; }
+.bh-message-file-name { display: block; overflow: hidden; min-width: 0; white-space: nowrap; text-overflow: ellipsis; }
+.bh-message-file-size { flex: none; color: color-mix(in srgb, currentColor 72%, transparent); font-size: 11px; white-space: nowrap; }
 .bh-bubble-body {
   white-space: pre-wrap;
   word-break: break-word;
