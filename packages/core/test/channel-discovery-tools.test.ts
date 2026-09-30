@@ -129,6 +129,22 @@ async function call(tools: readonly ToolDefinition[], name: string, args: unknow
 }
 
 describe('registered Channel discovery/read contracts', () => {
+  it('sends trusted Human targets discovered through the registered tools', async () => {
+    await withTools(async (tools, { core, team }) => {
+      const listed = await call(tools, 'channel_list', { channel_id: team });
+      expect(listed.channels[0].humanMembers).toEqual([
+        { humanId: 'local-human', displayName: 'Human' },
+      ]);
+      const send = tools.find((tool) => tool.name === 'channel_send')!;
+      await send.execute(
+        { channel_id: team, body: 'Ready?', mention_human_ids: ['local-human'] },
+        {} as ToolRunContext,
+      );
+      expect(
+        core.humanAttention.list({ category: 'replies', channelId: team }).items,
+      ).toMatchObject([{ kind: 'channel-mention', summary: '@Human Ready?' }]);
+    });
+  });
   it('enforces the existing enum choices in converted schemas without tightening numeric compatibility', async () => {
     await withTools(async (tools) => {
       const list = tools.find((tool) => tool.name === 'channel_list')!.parameters;

@@ -2,6 +2,7 @@ import { useRef, useState, type ReactElement } from 'react';
 
 import type { BridgeActions } from './actions.js';
 import { PersonaBotAvatar } from './avatar.js';
+import { referenceRuns } from './channel-refs.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { useMountedResource } from './mounted-resource.js';
 import type { BotSummary, ChannelAuthor, ChannelMessage, HumanAttentionItem } from './store.js';
@@ -190,7 +191,22 @@ export function HumanInboxReply({
                       <p>{message.replyToPreview.body}</p>
                     </blockquote>
                   ) : null}
-                  <p>{message.body}</p>
+                  <p>
+                    {referenceRuns(message.body, [], [], message.humanMentions ?? []).map(
+                      (run, index) =>
+                        run.humanMention === undefined ? (
+                          <span key={index}>{run.text}</span>
+                        ) : (
+                          <span
+                            key={index}
+                            className="bh-inline-mention bh-inline-mention-sent"
+                            data-human-id={run.humanMention.humanId}
+                          >
+                            {run.text}
+                          </span>
+                        ),
+                    )}
+                  </p>
                   {message.attachments?.map((attachment) => (
                     <p key={attachment.hash}>{attachment.name}</p>
                   ))}

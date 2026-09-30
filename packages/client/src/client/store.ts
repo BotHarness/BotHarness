@@ -135,6 +135,7 @@ export interface ChannelMessage {
   body: string;
   memorySwitchTarget?: string;
   mentions?: { botSlug: string; label: string; start: number; end: number }[];
+  humanMentions?: { humanId: string; label: string; start: number; end: number }[];
   channelRefs?: { channelId: string; label: string; start: number; end: number }[];
   humanReceipts?: {
     humanId: string;
@@ -217,7 +218,8 @@ export interface HumanAttentionItem {
     | 'assignment-report'
     | 'bot-message-needs-repair'
     | 'channel-unread'
-    | 'channel-reply';
+    | 'channel-reply'
+    | 'channel-mention';
   createdAt: string;
   channelId?: string;
   channelName?: string;

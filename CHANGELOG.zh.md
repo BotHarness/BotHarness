@@ -9,6 +9,8 @@
 
 ### Added
 
+- PersonaBot 可通过群聊中有效的成员身份明确提及本地 Human；Human Inbox 将可信提及与直接回复合并到个人视图，支持展开上下文和原位回复，普通 `@Human` 文本不会生成个人提醒（[#549](https://github.com/BotHarness/BotHarness/issues/549)）。
+
 - Human Inbox 在个人视图中展示群聊 Bot 对本地 Human 的直接回复，可按 Bot／Channel 过滤、准确定位来源并原位回复；附近消息按时间排列，显示作者、头像和时间，个人回复与其他未读消息共用去重后的权威未读总数（[#548](https://github.com/BotHarness/BotHarness/issues/548)）。
 - PersonaBot 资料页新增 IM 账号绑定、明确目标授权、持久发送记录和未知结果提示；外部发送要求兼容的公开 dsh-im 契约，旧接口保持禁用（[#117](https://github.com/BotHarness/BotHarness/issues/117)、[ADR-0101](docs/adr/0101-external-grants-require-authenticated-accounts-and-checked-targets.md)）。
 - Human 可在收件箱内查看群聊或 PersonaBot 私聊未读消息及附近上下文，并直接回复；来源不可用时拒绝提交，失败时保留草稿（[#547](https://github.com/BotHarness/BotHarness/issues/547)）。

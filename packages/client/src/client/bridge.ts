@@ -875,6 +875,30 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
   )
     return undefined;
   const channelRefs = record['channelRefs'];
+  const humanMentions = record['humanMentions'];
+  if (
+    humanMentions !== undefined &&
+    (!Array.isArray(humanMentions) ||
+      author.kind !== 'bot' ||
+      humanMentions.some((entry) => {
+        const mention = asRecord(entry);
+        return (
+          mention === undefined ||
+          typeof mention['humanId'] !== 'string' ||
+          mention['humanId'].length === 0 ||
+          typeof mention['label'] !== 'string' ||
+          mention['label'].length === 0 ||
+          typeof mention['start'] !== 'number' ||
+          typeof mention['end'] !== 'number' ||
+          !Number.isSafeInteger(mention['start']) ||
+          !Number.isSafeInteger(mention['end']) ||
+          mention['start'] < 0 ||
+          mention['end'] <= mention['start'] ||
+          body.slice(mention['start'], mention['end']) !== '@' + mention['label']
+        );
+      }))
+  )
+    return undefined;
   if (
     channelRefs !== undefined &&
     (!Array.isArray(channelRefs) ||
@@ -944,6 +968,9 @@ export function parseChannelMessage(value: unknown): ChannelMessage | undefined 
     ...(mentions === undefined
       ? {}
       : { mentions: mentions as NonNullable<ChannelMessage['mentions']> }),
+    ...(humanMentions === undefined
+      ? {}
+      : { humanMentions: humanMentions as NonNullable<ChannelMessage['humanMentions']> }),
     ...(channelRefs === undefined
       ? {}
       : { channelRefs: channelRefs as NonNullable<ChannelMessage['channelRefs']> }),
@@ -1636,7 +1663,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'assignment-report' &&
       item['kind'] !== 'bot-message-needs-repair' &&
       item['kind'] !== 'channel-unread' &&
-      item['kind'] !== 'channel-reply'
+      item['kind'] !== 'channel-reply' &&
+      item['kind'] !== 'channel-mention'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
@@ -1672,8 +1700,10 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     )
       return undefined;
     if (
-      (item['kind'] === 'channel-reply' || item['category'] === 'replies') &&
-      (item['kind'] !== 'channel-reply' ||
+      (item['kind'] === 'channel-reply' ||
+        item['kind'] === 'channel-mention' ||
+        item['category'] === 'replies') &&
+      ((item['kind'] !== 'channel-reply' && item['kind'] !== 'channel-mention') ||
         item['category'] !== 'replies' ||
         typeof item['messageId'] !== 'string' ||
         typeof item['sourceEventId'] !== 'string' ||

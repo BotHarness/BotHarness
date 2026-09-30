@@ -1,4 +1,5 @@
 import type { SelectedMention } from './mentions.js';
+import type { ChannelMessage } from './store.js';
 
 export interface SelectedChannelRef {
   channelId: string;
@@ -98,18 +99,30 @@ export function deleteSelectedChannelRef(
 }
 
 export type ReferenceRun =
-  | { text: string; mention?: never; channelRef?: never }
-  | { text: string; mention: SelectedMention; channelRef?: never }
-  | { text: string; mention?: never; channelRef: SelectedChannelRef };
+  | { text: string; mention?: never; channelRef?: never; humanMention?: never }
+  | { text: string; mention: SelectedMention; channelRef?: never; humanMention?: never }
+  | { text: string; mention?: never; channelRef: SelectedChannelRef; humanMention?: never }
+  | {
+      text: string;
+      mention?: never;
+      channelRef?: never;
+      humanMention: NonNullable<ChannelMessage['humanMentions']>[number];
+    };
 
 export function referenceRuns(
   value: string,
   mentions: readonly SelectedMention[],
   refs: readonly SelectedChannelRef[],
+  humanMentions: readonly NonNullable<ChannelMessage['humanMentions']>[number][] = [],
 ): ReferenceRun[] {
   const tokens = [
     ...mentions.map((mention) => ({ start: mention.start, end: mention.end, mention })),
     ...refs.map((channelRef) => ({ start: channelRef.start, end: channelRef.end, channelRef })),
+    ...humanMentions.map((humanMention) => ({
+      start: humanMention.start,
+      end: humanMention.end,
+      humanMention,
+    })),
   ].sort((a, b) => a.start - b.start);
   const runs: ReferenceRun[] = [];
   let cursor = 0;
@@ -117,10 +130,14 @@ export function referenceRuns(
     if (token.start < cursor) continue;
     if ('mention' in token) {
       if (value.slice(token.start, token.end) !== '@' + token.mention.label) continue;
+    } else if ('humanMention' in token) {
+      if (value.slice(token.start, token.end) !== '@' + token.humanMention.label) continue;
     } else if (value.slice(token.start, token.end) !== '#' + token.channelRef.label) continue;
     if (token.start > cursor) runs.push({ text: value.slice(cursor, token.start) });
     if ('mention' in token)
       runs.push({ text: value.slice(token.start, token.end), mention: token.mention });
+    else if ('humanMention' in token)
+      runs.push({ text: value.slice(token.start, token.end), humanMention: token.humanMention });
     else runs.push({ text: value.slice(token.start, token.end), channelRef: token.channelRef });
     cursor = token.end;
   }

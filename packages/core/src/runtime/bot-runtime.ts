@@ -205,6 +205,7 @@ export interface ChannelListEntry {
   type: 'group' | 'dm';
   kind: 'group' | 'human-dm' | 'bot-dm';
   members: Array<{ botId: string; displayName: string; active: boolean }>;
+  humanMembers: Array<{ humanId: string; displayName: string }>;
   ownerBotId?: string;
   pendingJoinRequests?: Array<{ requestId: string; requesterBotId: string; createdAt: string }>;
 }
@@ -277,6 +278,7 @@ export interface OrchestratorChannelAccess {
     replyTo?: string;
     attachments?: ChannelAttachmentRef[];
     mentionBotIds?: string[];
+    mentionHumanIds?: string[];
     deliveryKey?: string;
   }): Promise<ChannelMessage>;
 }
@@ -2765,6 +2767,7 @@ class BotRuntimeImplementation implements BotRuntime {
               active: member !== undefined && member.paused !== true,
             };
           }),
+          humanMembers: this.#channels.listHumanMembers(channel.id),
           ...(channel.ownerBotSlug === undefined ? {} : { ownerBotId: channel.ownerBotSlug }),
           ...(channel.type === 'group' && channel.ownerBotSlug === botSlug
             ? {
@@ -3172,6 +3175,8 @@ class BotRuntimeImplementation implements BotRuntime {
         const channel = resolve(input.channelId);
         if (input.mentionBotIds?.length && channel.type !== 'group')
           throw new Error('Bot mentions require a Group Channel');
+        if (input.mentionHumanIds?.length && channel.type !== 'group')
+          throw new Error('Human mentions require a Group Channel');
         if (isBotDmChannel(channel)) {
           const recipientBotSlug = channel.members.find((slug) => slug !== botSlug);
           if (recipientBotSlug === undefined) throw new Error('Bot DM has no recipient');
@@ -3202,6 +3207,7 @@ class BotRuntimeImplementation implements BotRuntime {
             replyTo: input.replyTo,
             attachments: input.attachments,
             mentionBotIds: input.mentionBotIds,
+            mentionHumanIds: input.mentionHumanIds,
             deliveryKey: input.deliveryKey,
           });
         }
@@ -3239,6 +3245,7 @@ class BotRuntimeImplementation implements BotRuntime {
     replyTo?: string | undefined;
     attachments?: ChannelAttachmentRef[] | undefined;
     mentionBotIds?: string[] | undefined;
+    mentionHumanIds?: string[] | undefined;
     deliveryKey?: string | undefined;
   }): Promise<ChannelMessage> {
     const { botSlug, channel } = input;
@@ -3271,6 +3278,24 @@ class BotRuntimeImplementation implements BotRuntime {
       });
       prefix += token + ' ';
     }
+    const humanIds = input.mentionHumanIds ?? [];
+    if (humanIds.length > 20 || humanIds.some((id) => typeof id !== 'string' || !id.trim()))
+      throw new Error('Human mentions require at most 20 valid Human IDs');
+    const humanMembers = this.#channels.listHumanMembers(channel.id);
+    const humanMentions: NonNullable<ChannelMessage['humanMentions']> = [];
+    for (const humanId of new Set(humanIds)) {
+      const target = humanMembers.find((member) => member.humanId === humanId);
+      if (target === undefined) throw new Error('Mentioned Human must be a current Group member');
+      const label = target.displayName.replace(/\s+/gu, ' ').trim().slice(0, 80);
+      const token = '@' + label;
+      humanMentions.push({
+        humanId,
+        label,
+        start: prefix.length,
+        end: prefix.length + token.length,
+      });
+      prefix += token + ' ';
+    }
     const body = prefix + input.body;
     if (!body.trim() && !input.attachments?.length)
       throw new Error('Group message requires a body or attachment');
@@ -3284,6 +3309,7 @@ class BotRuntimeImplementation implements BotRuntime {
       body,
       botCausation: this.#botCausation(input.sourceEventId),
       ...(mentions.length === 0 ? {} : { mentions }),
+      ...(humanMentions.length === 0 ? {} : { humanMentions }),
       ...(input.replyTo === undefined ? {} : { replyTo: input.replyTo }),
       ...(input.attachments === undefined ? {} : { attachments: input.attachments }),
     };

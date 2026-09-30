@@ -1651,7 +1651,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_send',
           description:
-            'Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them.',
+            'Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them. Use mention_human_ids from channel_list humanMembers to explicitly address a Human; plain @ names do not create personal mentions.',
           parameters: {
             body: {
               type: 'string',
@@ -1686,6 +1686,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 'Stable IDs of joined PersonaBots to mention in a Group Channel; do not repeat their names in body.',
               items: { type: 'string' },
             },
+            mention_human_ids: {
+              type: 'array',
+              description:
+                'Stable Human IDs from channel_list humanMembers in this Group; do not repeat their names in body.',
+              items: { type: 'string' },
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -1705,6 +1711,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               ...(args.mention_bot_ids === undefined
                 ? {}
                 : { mentionBotIds: args.mention_bot_ids }),
+              ...(args.mention_human_ids === undefined
+                ? {}
+                : { mentionHumanIds: args.mention_human_ids }),
             });
             this.#drafts.settle(
               run.sessionId,
