@@ -47,6 +47,7 @@ await rpc('channelSend', {
   body: 'Call channel_send in this DM with exactly USAGE_ROUTE_CONFIRMED. Do not do anything else.',
 });
 let activity;
+let confirmed = false;
 for (let index = 0; index < 180; index += 1) {
   const messages = (await rpc('channelMessages', { channelId })).messages;
   const failed = messages.find((message) => message.sessionFailure);
@@ -59,10 +60,13 @@ for (let index = 0; index < 180; index += 1) {
     activity.modelUsageRows?.some(
       (row) => row.provider === route.provider && row.model === route.model && row.totalTokens > 0,
     )
-  )
+  ) {
+    confirmed = true;
     break;
+  }
   await new Promise((done) => setTimeout(done, 1000));
 }
+if (!confirmed) throw new Error('Real reply and observed usage were not confirmed before timeout');
 const row = activity?.modelUsageRows?.find(
   (entry) => entry.provider === route.provider && entry.model === route.model,
 );

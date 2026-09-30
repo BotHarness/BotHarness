@@ -144,6 +144,25 @@ function reportedBuckets(event: DshSessionEvent): {
   return buckets;
 }
 
+function reportedTurnBuckets(
+  events: readonly DshSessionEvent[],
+): ReturnType<typeof reportedBuckets> {
+  const reports = events.map(reportedBuckets);
+  const combined: ReturnType<typeof reportedBuckets> = {};
+  for (const key of [
+    'uncachedInputTokens',
+    'outputTokens',
+    'cacheReadTokens',
+    'cacheWriteTokens',
+    'totalTokens',
+  ] as const) {
+    if (reports.some((report) => report[key] === undefined)) continue;
+    const sum = reports.reduce((total, report) => total + report[key]!, 0);
+    if (Number.isSafeInteger(sum)) combined[key] = sum;
+  }
+  return combined;
+}
+
 function routeOf(routes: readonly { provider: string; model: string }[] | undefined): {
   provider: string;
   model: string;
@@ -280,7 +299,11 @@ export function createUsageProjection(options: {
       return [{ provider: source.provider, model: source.model }];
     });
     const route = routeOf(usage?.routes ?? observedRoutes);
-    const reported = usage ?? (settlements.length === 1 ? reportedBuckets(settlements[0]!) : {});
+    const sameObservedRoute =
+      observedRoutes.length === settlements.length && route.provider !== 'mixed';
+    const reported =
+      usage ??
+      (settlements.length === 1 || sameObservedRoute ? reportedTurnBuckets(settlements) : {});
     const purpose = purposeOf(owner);
     if (connection === undefined) {
       record(owner.botSlug, day, purpose, route.provider, route.model, reported);

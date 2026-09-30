@@ -35,7 +35,11 @@ function setup() {
     roster: createRosterStore(),
   });
   const time = Date.now();
-  const fold = (reported?: Record<string, number>): void => {
+  const fold = (
+    reported?: Record<string, number>,
+    next?: Record<string, number>,
+    nextModel = 'actual-model',
+  ): void => {
     const events: DshSessionEvent[] = [
       { type: 'turn/start', time, data: { turn: 1 } },
       { type: 'step/start', time, data: { turn: 1, step: 1 } },
@@ -53,6 +57,24 @@ function setup() {
       { type: 'step/end', time, data: { turn: 1, step: 1 } },
       { type: 'turn/end', time, data: { turn: 1 } },
     ];
+    if (next)
+      events.splice(
+        events.length - 1,
+        0,
+        { type: 'step/start', time, data: { turn: 1, step: 2 } },
+        {
+          type: 'assistant/message',
+          time,
+          data: {
+            turn: 1,
+            step: 2,
+            message: { source: { provider: 'actual-provider', model: nextModel } },
+            stream: [],
+            usage: next,
+          },
+        },
+        { type: 'step/end', time, data: { turn: 1, step: 2 } },
+      );
     for (const event of events) usage.handleSessionEvent('actual-session', event);
   };
   return { methods, channels, dm, fold, time };
@@ -110,6 +132,57 @@ describe('observed model usage through the Profile query', () => {
       inputTokens: 100,
       outputTokens: 40,
       cacheReadTokens: 10,
+      cacheWriteTokens: null,
+      totalTokens: null,
+    });
+  });
+
+  it('preserves reported buckets across same-route settlements with incomplete usage', () => {
+    const { methods, dm, fold } = setup();
+    fold(
+      {
+        inputTokens: 100,
+        outputTokens: 40,
+        cacheReadTokens: 10,
+        cacheWriteTokens: 5,
+        totalTokens: 155,
+      },
+      { outputTokens: 40, cacheReadTokens: 10, cacheWriteTokens: 5, totalTokens: 155 },
+    );
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows[0]).toMatchObject({
+      provider: 'actual-provider',
+      model: 'actual-model',
+      inputTokens: null,
+      outputTokens: 80,
+      cacheReadTokens: 20,
+      cacheWriteTokens: 10,
+      totalTokens: 310,
+    });
+  });
+
+  it('does not assign incomplete multi-route usage to one successful route', () => {
+    const { methods, dm, fold } = setup();
+    fold(
+      {
+        inputTokens: 100,
+        outputTokens: 40,
+        cacheReadTokens: 10,
+        cacheWriteTokens: 5,
+        totalTokens: 155,
+      },
+      { outputTokens: 40, cacheReadTokens: 10, cacheWriteTokens: 5, totalTokens: 155 },
+      'other-model',
+    );
+    const result = methods.profileActivity({ channelId: dm.id });
+    if (!result.ok) throw new Error(result.error.message);
+    expect(result.value.modelUsageRows[0]).toMatchObject({
+      provider: 'mixed',
+      model: 'mixed',
+      inputTokens: null,
+      outputTokens: null,
+      cacheReadTokens: null,
       cacheWriteTokens: null,
       totalTokens: null,
     });

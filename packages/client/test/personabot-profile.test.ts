@@ -392,6 +392,70 @@ describe('Profile activity windows', () => {
       expect(container.querySelector('.bh-profile-empty')).toBeNull();
       expect(container.querySelector('.bh-profile-token-shares')).toBeNull();
       expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：未知');
+      const partial = {
+        ...props,
+        activity: {
+          ...props.activity,
+          tokens: [
+            {
+              day: '2026-09-30',
+              inputTokens: 100,
+              outputTokens: 40,
+              cacheReadTokens: 10,
+              cacheWriteTokens: 0,
+            },
+          ],
+          modelUsageRows: [
+            {
+              ...props.activity.modelUsageRows[0]!,
+              inputTokens: 100,
+              outputTokens: 40,
+              cacheReadTokens: 10,
+              totalTokens: 155,
+            },
+          ],
+        },
+      };
+      await act(async () =>
+        root.render(
+          createElement(
+            'div',
+            null,
+            cards.find((card) => card.id === 'token-usage')!.render(partial),
+            cards.find((card) => card.id === 'totals')!.render(partial),
+          ),
+        ),
+      );
+      expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
+        '155 tokens',
+      );
+      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
+        '155',
+      );
+      const totalOnly = {
+        ...props,
+        activity: {
+          ...props.activity,
+          modelUsageRows: [{ ...props.activity.modelUsageRows[0]!, totalTokens: 155 }],
+        },
+      };
+      await act(async () =>
+        root.render(
+          createElement(
+            'div',
+            null,
+            cards.find((card) => card.id === 'token-usage')!.render(totalOnly),
+            cards.find((card) => card.id === 'totals')!.render(totalOnly),
+          ),
+        ),
+      );
+      expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
+        '155 tokens',
+      );
+      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
+        '155',
+      );
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：155');
     } finally {
       await act(async () => root.unmount());
       container.remove();

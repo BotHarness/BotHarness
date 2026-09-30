@@ -389,7 +389,7 @@ export const zh = {
   'profile.usage.dayTotal': '当日总计：{count} tokens',
   'profile.usage.empty': '当天尚无模型调用记录。',
   'profile.usage.partial':
-    '部分用量未由 provider 报告；未知不代表零。图表与摘要仅汇总已报告的 token。',
+    '部分用量未由 provider 报告；未知不代表零。图表仅汇总已报告的分项，总计优先使用准确报告值。',
   'profile.usage.unavailable': '模型用量暂不可用，请刷新后重试。',
   'profile.reason.humanDm': '私聊消息',
   'profile.reason.groupMention': '群内提及',
@@ -1116,7 +1116,7 @@ export const en = {
   'profile.usage.dayTotal': 'Day total: {count} tokens',
   'profile.usage.empty': 'No model calls recorded for this day.',
   'profile.usage.partial':
-    'Some usage was not reported by the provider; unknown does not mean zero. Charts and summaries include reported tokens only.',
+    'Some usage was not reported by the provider; unknown does not mean zero. Charts include reported buckets only; totals use exact reports when available.',
   'profile.usage.unavailable': 'Model usage is temporarily unavailable. Refresh to retry.',
   'profile.reason.humanDm': 'Direct messages',
   'profile.reason.groupMention': 'Group mentions',

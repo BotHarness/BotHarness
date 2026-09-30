@@ -480,12 +480,14 @@ function TokenUsageCard({
     [colors, rows],
   );
   const total = windowTotals.cached + windowTotals.uncached + windowTotals.output;
+  const reportedTotal = profileUsageTotal(activity, total);
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">
         {t('profile.tokens.window', {
           weeks,
-          count: entirelyUnknown ? t('profile.usage.unknown') : formatTokenCount(total),
+          count:
+            reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal),
         })}
       </div>
       {activity?.modelUsageRows?.some(
@@ -548,6 +550,15 @@ function usageIsEntirelyUnknown(activity: ProfileActivity | undefined): boolean 
   );
 }
 
+function profileUsageTotal(activity: ProfileActivity | undefined, fallback: number): number | null {
+  const rows = activity?.modelUsageRows ?? [];
+  if (rows.length === 0) return fallback;
+  return rows.reduce<number | null>(
+    (sum, row) => (sum === null || row.totalTokens === null ? null : sum + row.totalTokens),
+    0,
+  );
+}
+
 function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const events = sumCounts(activity?.events ?? []);
   const commits = sumCounts(activity?.memoryCommits ?? []);
@@ -556,6 +567,7 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
       sum + entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens,
     0,
   );
+  const reportedTotal = profileUsageTotal(activity, tokens);
   return (
     <div className="bh-profile-card-body">
       <dl className="bh-profile-stats">
@@ -570,9 +582,7 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
         <div>
           <dt>{t('profile.stat.tokens')}</dt>
           <dd>
-            {usageIsEntirelyUnknown(activity)
-              ? t('profile.usage.unknown')
-              : formatTokenCount(tokens)}
+            {reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal)}
           </dd>
           {activity?.modelUsageRows?.some(
             (row) =>
