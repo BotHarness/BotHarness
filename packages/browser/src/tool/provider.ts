@@ -603,7 +603,6 @@ export function createBrowserToolProvider(
         }
       }
       if (!access) {
-        tabsByBot.delete(slug);
         takeovers.delete(slug);
       }
     },

@@ -237,6 +237,8 @@ Browser is likewise a profile-scoped shared resource (ADR-0089): the optional `@
 
 The authenticated Human Open Bot Browser action goes through the same process-local per-Bot tab Provider: it reveals the live owned preview (or current tab), restores a minimized window, and preserves the Bot’s current pointer when the Human previews another tab. Closed owned targets are pruned; a live owned fallback is preferred, otherwise one blank Human tab is created and adopted. Repeated Human opens share the per-Bot operation queue and reuse that tab; foreign tabs in a shared browser profile are never revealed or adopted. Human foreground focus remains separate from background Agent operations.
 
+Temporarily disabling Browser Access revokes the Agent-scope tool registrations and refuses queued actions while preserving the Provider’s process-local owned/current tabs; re-enabling restores tools against the same work page. Explicit stop/reset clears this bookkeeping; this continuity applies within the same browser profile, and no ownership is persisted across Host restarts.
+
 ```mermaid
 flowchart LR
   Inbox["Bot Inbox / Attention"] --> O["One active Orchestrator Session"]
