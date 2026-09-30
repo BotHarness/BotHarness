@@ -1696,7 +1696,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_send',
           description:
-            'Send one message as this PersonaBot to a joined Channel. Omit channel_id to use the inbound Channel. In a Group, mention_bot_ids identifies joined Bot recipients; the Host prepends their @ badges and independently wakes them.',
+            'Send one message as this PersonaBot to a joined Channel; omit channel_id for the inbound Channel. Forward trusted attachment references copied from channel_read (or completed channel_read_content); this Tool set has no local-file upload Tool. Returns committed {channelId,messageId}. In a Group, the Host prepends @ badges and wakes mentioned Bots.',
           parameters: {
             body: {
               type: 'string',
@@ -1705,7 +1705,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             },
             attachments: {
               type: 'array',
-              description: 'Optional references returned by Channel attachment uploads or reads.',
+              description:
+                'At most 10 trusted references. Copy all four fields unchanged: fileId (or legacy hash), name, mime, size; never guess them. Exactly one identity per reference. Size is a safe nonnegative integer byte count (0–9007199254740991).',
               items: {
                 type: 'object',
                 additionalProperties: false,
@@ -1714,7 +1715,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                   fileId: { type: 'string' },
                   name: { type: 'string', required: true },
                   mime: { type: 'string', required: true },
-                  size: { type: 'number', required: true },
+                  size: { type: 'integer', required: true },
                 },
               },
             },
@@ -1729,7 +1730,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             mention_bot_ids: {
               type: 'array',
               description:
-                'Stable IDs of joined PersonaBots to mention in a Group Channel; do not repeat their names in body.',
+                'At most 20 stable IDs of other active PersonaBots currently joined to the target Group. Do not repeat their names in body.',
               items: { type: 'string' },
             },
           },
@@ -1742,8 +1743,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_send: Orchestrator run is unavailable');
             }
-            if (args.attachments !== undefined && !args.attachments.every(isChannelAttachmentRef))
-              throw new Error('channel_send: invalid attachment references');
+            if (
+              args.attachments !== undefined &&
+              (args.attachments.length > 10 || !args.attachments.every(isChannelAttachmentRef))
+            )
+              throw new Error('channel_send: requires at most 10 trusted attachment references');
+            if (args.mention_bot_ids !== undefined && args.mention_bot_ids.length > 20)
+              throw new Error('channel_send: requires at most 20 mention Bot IDs');
             const message = await active.run.channels.send({
               body: args.body,
               ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),
@@ -1759,7 +1765,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               args.channel_id ?? run.inboundChannelId,
               message.body,
             );
-            return `Sent Channel message ${message.id}.`;
+            return JSON.stringify({
+              channelId: args.channel_id ?? active.run.inboundChannelId,
+              messageId: message.id,
+            });
           },
         }),
       );

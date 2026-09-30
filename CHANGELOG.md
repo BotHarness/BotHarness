@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
+- `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; both real-file and legacy-hash four-field references remain accepted ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
+
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 ### Added
@@ -116,6 +118,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- `channel_send` now confirms the committed Channel and message IDs as JSON, describes forwarding exact trusted attachment references from reads, and exposes the existing 10-attachment / 20-mention limits and safe integer byte sizes ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
 
 - Contact discovery now searches names and full descriptions, returns bounded cursor pages and optional detail, and preserves stable colleague IDs for real Bot DMs and Group collaboration ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
