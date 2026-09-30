@@ -176,6 +176,14 @@ function stubActions(): BridgeActions {
       tokens: [],
       tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     })),
+    groupProfileActivity: vi.fn(async (channelId) => ({
+      channelId,
+      weeks: 26,
+      since: '',
+      today: '2026-09-29',
+      days: [],
+      authors: [],
+    })),
     memoryWorkingChanges: vi.fn(async () => []),
     memoryWorkingDiff: vi.fn(async (_channelId, path, kind) => ({
       path,

@@ -284,7 +284,7 @@ describe('PersonaBot Profile surface', () => {
     }
   });
 
-  it('keeps the group header island as the single sidebar toggle', async () => {
+  it('keeps the group header island as the Group Profile trigger', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const previous = store.getSnapshot();
     const channel = {
@@ -315,7 +315,8 @@ describe('PersonaBot Profile surface', () => {
       });
       const island = container.querySelector('.bh-channel-island');
       expect(island?.tagName).toBe('BUTTON');
-      expect(island?.getAttribute('aria-label')).toBe('设计组 — 收起 Channel sidebar');
+      expect(island?.getAttribute('aria-label')).toBe('打开 设计组 的群聊 Profile');
+      expect(island?.getAttribute('aria-haspopup')).toBe('dialog');
     } finally {
       await act(async () => root.unmount());
       container.remove();

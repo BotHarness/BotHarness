@@ -42,6 +42,7 @@ import {
   loadMemoryGitGraph,
   loadMemoryGitCommitDiff,
   loadProfileActivity,
+  loadGroupProfileActivity,
   loadModelCatalog,
   loadModelPresets,
   loadModelPlan,
@@ -90,6 +91,7 @@ import {
   type MemoryRecoveryCheckpoint,
   type MemoryRepairEvent,
   type ProfileActivity,
+  type GroupProfileActivity,
   type BotSourcePolicyView,
   type CreatePersonaBotInput,
   type RosterBatchInput,
@@ -184,6 +186,7 @@ export interface BridgeActions {
   memoryGitGraph(channelId: string, offset: number): Promise<MemoryGitGraph>;
   memoryGitCommitDiff(channelId: string, sha: string): Promise<MemoryGitCommitDiff>;
   profileActivity(channelId: string): Promise<ProfileActivity>;
+  groupProfileActivity(channelId: string): Promise<GroupProfileActivity>;
   botSourcePolicies(slug: string): Promise<BotSourcePolicyView[]>;
   setBotSourcePolicy(slug: string, edit: BotSourcePolicyEdit): Promise<void>;
   resetBotSourcePolicy(
@@ -1034,6 +1037,7 @@ export function createActions(
     memoryGitGraph: (channelId, offset) => loadMemoryGitGraph(call, channelId, offset),
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
+    groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),

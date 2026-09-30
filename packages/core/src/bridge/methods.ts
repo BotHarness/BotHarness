@@ -15,6 +15,7 @@ import { ChannelMentionTargetError, ChannelReplyTargetError } from '../channels/
 import { ChannelAttachmentError } from '../attachments/store.js';
 import { isChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition, ChannelStore } from '../channels/store.js';
+import { groupProfileActivity, type GroupProfileActivity } from '../channels/profile-activity.js';
 import type { ChannelTimelinePage } from '../channels/timeline.js';
 import type {
   CreatePersonaBotResult,
@@ -254,6 +255,7 @@ export interface BridgeMethods {
   memorySave(payload: unknown): BridgeResult<{ commit: MemoryAcceptedCommit }>;
   memoryRepair(payload: unknown): BridgeResult<{ repair: MemoryRepairEvent }>;
   profileActivity(payload: unknown): BridgeResult<ProfileActivity>;
+  groupProfileActivity(payload: unknown): BridgeResult<GroupProfileActivity>;
   rosterGet(payload: unknown): BridgeResult<RosterSnapshot>;
   sectionCreate(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
   sectionRename(payload: unknown): Promise<BridgeResult<{ section: RosterSection }>>;
@@ -2160,6 +2162,12 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           tokenTotals,
         },
       };
+    },
+    groupProfileActivity(payload) {
+      const channelId = asNonBlank(asObject(payload), 'channelId');
+      if (channelId === undefined || deps.channels.get(channelId)?.type !== 'group')
+        return invalidInput('group channelId is required');
+      return { ok: true, value: groupProfileActivity(deps.channels, channelId) };
     },
     rosterGet() {
       try {

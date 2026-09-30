@@ -20,6 +20,7 @@ import type {
   OwnedSessionBot,
   ProfileActivity,
 } from './methods.js';
+import type { GroupProfileActivity } from '../channels/profile-activity.js';
 import type { ChannelMessage, ChannelRecord } from '../channels/channel.js';
 import type { ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelReadPosition } from '../channels/store.js';
@@ -572,6 +573,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.profileActivity({ channelId }));
   }
 
+  groupProfileActivity(channelId: string): GroupProfileActivity {
+    return unwrap(this.methods.groupProfileActivity({ channelId }));
+  }
+
   rosterGet(): RosterSnapshot {
     return unwrap(this.methods.rosterGet({}));
   }
@@ -692,6 +697,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'memorySave',
   'memoryRepair',
   'profileActivity',
+  'groupProfileActivity',
   'rosterGet',
   'sectionCreate',
   'sectionRename',

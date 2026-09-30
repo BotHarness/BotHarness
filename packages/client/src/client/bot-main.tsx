@@ -14,6 +14,7 @@ import {
   uploadChannelAttachment,
   type MemoryWorkingChange,
   type ProfileActivity,
+  type GroupProfileActivity,
 } from './bridge.js';
 import {
   PersonaBotAvatar,
@@ -42,11 +43,14 @@ import { MemoryFileView, MemoryWorkingView } from './memory-current-view.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { groupChannelMessages, type MessageGroup } from './message-groups.js';
 import { ProfilePopover, ProfileView } from './personabot-profile.js';
+import { GroupProfilePopover, GroupProfileView } from './group-profile.js';
 import { personaBotActivity } from './persona-activity.js';
 import {
   EMPTY_PROFILE_CARDS,
   loadPinnedProfileCards,
+  loadPinnedGroupProfileCards,
   savePinnedProfileCards,
+  savePinnedGroupProfileCards,
   togglePinnedProfileCard,
   type ProfileCardRegistry,
 } from './profile-cards.js';
@@ -496,12 +500,17 @@ function ConversationView({
   const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
   const [profileViewOpen, setProfileViewOpen] = useState(false);
   const [profileActivity, setProfileActivity] = useState<ProfileActivity | undefined>(undefined);
+  const [groupProfileActivity, setGroupProfileActivity] = useState<GroupProfileActivity>();
   const [pinnedProfileCards, setPinnedProfileCards] = useState<readonly string[]>(() =>
     loadPinnedProfileCards(),
+  );
+  const [pinnedGroupProfileCards, setPinnedGroupProfileCards] = useState<readonly string[]>(() =>
+    loadPinnedGroupProfileCards(),
   );
   const profileTriggerRef = useRef<HTMLSpanElement | null>(null);
   const conversation = state.conversation;
   const channel = conversation.channel;
+  const botNames = new Map(state.bots.map((member) => [member.slug, member.displayName]));
   const messages = conversation.messages;
   const displayMessages: ChannelMessage[] = [
     ...messages,
@@ -632,15 +641,26 @@ function ConversationView({
   const profileMount = useMountedResource<HTMLDivElement>(() => {
     if (!profilePopoverOpen && !profileViewOpen) return;
     let cancelled = false;
-    if (channelId !== undefined)
-      void actions.profileActivity(channelId).then(
-        (activity) => {
-          if (!cancelled) setProfileActivity(activity);
-        },
-        (error: unknown) => {
-          console.warn('botharness: Profile activity failed', error);
-        },
-      );
+    if (channelId !== undefined) {
+      if (channel?.type === 'group')
+        void actions.groupProfileActivity(channelId).then(
+          (activity) => {
+            if (!cancelled) setGroupProfileActivity(activity);
+          },
+          (error: unknown) => {
+            console.warn('botharness: Group Profile activity failed', error);
+          },
+        );
+      else
+        void actions.profileActivity(channelId).then(
+          (activity) => {
+            if (!cancelled) setProfileActivity(activity);
+          },
+          (error: unknown) => {
+            console.warn('botharness: Profile activity failed', error);
+          },
+        );
+    }
     const onKeyDown = (event: KeyboardEvent): void => {
       if (event.key !== 'Escape') return;
       event.preventDefault();
@@ -659,12 +679,19 @@ function ConversationView({
       document.removeEventListener('keydown', onKeyDown);
       document.removeEventListener('pointerdown', onPointerDown);
     };
-  }, [actions, channelId, profilePopoverOpen, profileViewOpen]);
+  }, [actions, channel?.type, channelId, profilePopoverOpen, profileViewOpen]);
 
   const togglePinnedCard = (id: string): void => {
     setPinnedProfileCards((current) => {
       const next = togglePinnedProfileCard(current, id);
       savePinnedProfileCards(next);
+      return next;
+    });
+  };
+  const togglePinnedGroupCard = (id: string): void => {
+    setPinnedGroupProfileCards((current) => {
+      const next = togglePinnedProfileCard(current, id);
+      savePinnedGroupProfileCards(next);
       return next;
     });
   };
@@ -917,7 +944,52 @@ function ConversationView({
       <div className="bh-chat-layout">
         <section className="bh-chat-pane">
           <div ref={profileMount} className="bh-topbar">
-            {profileBot === undefined ? (
+            {channel?.type === 'group' ? (
+              <span className="bh-channel-island-wrap" ref={profileTriggerRef}>
+                <button
+                  type="button"
+                  className="bh-channel-island"
+                  aria-haspopup="dialog"
+                  aria-expanded={profilePopoverOpen}
+                  aria-label={t('groupProfile.openAvatar', { name: channel.name })}
+                  onClick={() => setProfilePopoverOpen((open) => !open)}
+                >
+                  {channel.avatar ? (
+                    <img
+                      className="bh-group-avatar-image bh-group-avatar-topbar"
+                      src={channel.avatar}
+                      alt=""
+                    />
+                  ) : channelFacepile.length > 0 ? (
+                    <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
+                  ) : (
+                    <span className="bh-channel-mark bh-channel-mark-sm" aria-hidden="true">
+                      #
+                    </span>
+                  )}
+                  <span className="bh-title">{title}</span>
+                </button>
+                {profilePopoverOpen ? (
+                  <GroupProfilePopover
+                    channel={channel}
+                    activity={
+                      groupProfileActivity?.channelId === channel.id
+                        ? groupProfileActivity
+                        : undefined
+                    }
+                    cards={profileCards}
+                    pinned={pinnedGroupProfileCards}
+                    botNames={botNames}
+                    t={t}
+                    onExpand={() => {
+                      setProfilePopoverOpen(false);
+                      setSelectedMemoryView(undefined);
+                      setProfileViewOpen(true);
+                    }}
+                  />
+                ) : null}
+              </span>
+            ) : profileBot === undefined ? (
               <button
                 type="button"
                 className="bh-channel-island"
@@ -934,12 +1006,6 @@ function ConversationView({
                     src={bot.avatar}
                     state={botActivity}
                     size={22}
-                  />
-                ) : channel?.type === 'group' && channel.avatar ? (
-                  <img
-                    className="bh-group-avatar-image bh-group-avatar-topbar"
-                    src={channel.avatar}
-                    alt=""
                   />
                 ) : channelFacepile.length > 0 ? (
                   <PersonaBotFacepile items={channelFacepile} size={22} t={t} />
@@ -1010,7 +1076,20 @@ function ConversationView({
             aria-hidden="true"
             style={{ display: activeMemoryView === undefined ? undefined : 'none' }}
           />
-          {profileViewOpen && profileBot !== undefined && channel !== undefined ? (
+          {profileViewOpen && channel?.type === 'group' ? (
+            <GroupProfileView
+              channel={channel}
+              activity={
+                groupProfileActivity?.channelId === channel.id ? groupProfileActivity : undefined
+              }
+              cards={profileCards}
+              pinned={pinnedGroupProfileCards}
+              botNames={botNames}
+              t={t}
+              onTogglePin={togglePinnedGroupCard}
+              onClose={() => setProfileViewOpen(false)}
+            />
+          ) : profileViewOpen && profileBot !== undefined && channel !== undefined ? (
             <ProfileView
               bot={profileBot}
               channel={channel}

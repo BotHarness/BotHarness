@@ -213,7 +213,7 @@ describe('Bot main Sessions pane', () => {
     store.setSessions(previous.sessions);
   });
 
-  it('shows a group Channel name in the same sidebar-opening island', () => {
+  it('opens Group Profile from the group Channel header', () => {
     const previous = store.getSnapshot();
     const channel = {
       id: 'group-design',
@@ -239,8 +239,9 @@ describe('Bot main Sessions pane', () => {
     );
 
     expect(markup).toContain('class="bh-channel-island"');
-    expect(markup).toContain('aria-label="设计组 — 收起 Channel sidebar"');
-    expect(markup).toContain('aria-controls="bh-channel-sidebar"');
+    expect(markup).toContain('aria-label="打开 设计组 的群聊 Profile"');
+    expect(markup).toContain('aria-haspopup="dialog"');
+    expect(markup).toContain('<span class="bh-title">设计组</span>');
 
     store.setRoster(previous.bots, previous.channels);
     store.select(previous.selection);
