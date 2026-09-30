@@ -7,6 +7,10 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 Advances the first PersonaBot workflow with Assignment delivery, shared motion controls, and a channel composer island.
 
+### Breaking Changes
+
+- Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
+
 ### Added
 
 - PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
@@ -112,6 +116,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Added a Computer export & migration guide covering the one-file move between machines, the durable `~/workspace` convention for files that must survive a move, and size/time expectations ([#154](https://github.com/BotHarness/BotHarness/issues/154)).
 
 ### Changed
+
+- Contact discovery now searches names and full descriptions, returns bounded cursor pages and optional detail, and preserves stable colleague IDs for real Bot DMs and Group collaboration ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 
 - Attention Tools now expose the complete Assignment-report and ordinary-Group parameter matrix, use integer digest schemas, and reject digest parameters outside Group digest mode without changing policy revisions; Human overrides and prospective Inbox snapshots still share the same authority ([#567](https://github.com/BotHarness/BotHarness/issues/567)).
 

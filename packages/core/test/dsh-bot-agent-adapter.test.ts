@@ -212,7 +212,7 @@ describe('DSH Bot Agent adapter', () => {
             lastActor: { kind: 'bot', botSlug: 'ada' },
           };
         },
-        contacts: () => [],
+        contacts: () => ({ outputLimit: 12_000, contacts: [] }),
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
@@ -325,7 +325,7 @@ describe('DSH Bot Agent adapter', () => {
       inbox: '',
       channels: {
         ...groupTools,
-        contacts: () => [],
+        contacts: () => ({ outputLimit: 12_000, contacts: [] }),
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
@@ -401,7 +401,7 @@ describe('DSH Bot Agent adapter', () => {
       message: '你好',
       channels: {
         ...groupTools,
-        contacts: () => [],
+        contacts: () => ({ outputLimit: 12_000, contacts: [] }),
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
@@ -493,7 +493,7 @@ describe('DSH Bot Agent adapter', () => {
         message: '你好',
         channels: {
           ...groupTools,
-          contacts: () => [],
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
           },
@@ -594,7 +594,7 @@ describe('DSH Bot Agent adapter', () => {
       inboundChannelId: 'dm-test',
       channels: {
         ...groupTools,
-        contacts: () => [],
+        contacts: () => ({ outputLimit: 12_000, contacts: [] }),
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
@@ -668,7 +668,7 @@ describe('DSH Bot Agent adapter', () => {
         message: '请核对发布状态',
         channels: {
           ...groupTools,
-          contacts: () => [],
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
           },
@@ -723,7 +723,7 @@ describe('DSH Bot Agent adapter', () => {
       message: '请核对发布状态',
       channels: {
         ...groupTools,
-        contacts: () => [],
+        contacts: () => ({ outputLimit: 12_000, contacts: [] }),
         sendToBot: async () => {
           throw new Error('unexpected Bot DM');
         },
@@ -1071,7 +1071,7 @@ describe('DSH Bot Agent adapter', () => {
                     ],
             };
           },
-          contacts: () => [],
+          contacts: () => ({ outputLimit: 12_000, contacts: [] }),
           sendToBot: async () => {
             throw new Error('unexpected Bot DM');
           },
