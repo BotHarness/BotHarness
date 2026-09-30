@@ -21,7 +21,7 @@ Run: **2026-10-01, Asia/Tokyo**. This is real-platform E2E evidence for the **pu
 - The probe is a task-owned test Plugin, absent from the production Bundle. Its atomic file is qualification evidence, not the BotHarness Messaging database. `committedBeforeAcceptance` means that file was flushed before the consumer Promise resolved, not that an Inbox Admission committed.
 - Platform success means **accepted**. Independent GET and desktop observation verified these particular ACK messages exist; no delivered/read-status guarantee is asserted.
 
-Pins: DSH `0.2.0-rc.1`, Node `v24.21.0`, installed SDK `1.73.0`, BotHarness base `a3d88bbab25d2479ae435c9a8c1441c747cea20e`, inbound provider fork [`19d88f14bf85d74d4abf035a0c749d0b4a640257`](https://github.com/DoodleBears/dsh-im/tree/19d88f14bf85d74d4abf035a0c749d0b4a640257). `public-result.json` records the exact probe SHA-256 loaded by the final Host. The fork is not an accepted/released upstream capability.
+Pins: DSH `0.2.0-rc.1`, Node `v24.21.0`, installed SDK `1.73.0`, BotHarness base `a3d88bbab25d2479ae435c9a8c1441c747cea20e`, inbound provider fork [`19d88f14bf85d74d4abf035a0c749d0b4a640257`](https://github.com/DoodleBears/dsh-im/tree/19d88f14bf85d74d4abf035a0c749d0b4a640257). `public-result.json` records the exact probe SHA-256 loaded by the recorded E2E Host, before the later asynchronous cleanup correction. The recorded JSON and screenshot remain unchanged; two regression tests separately verify that disposal during account lookup or lease acquisition prevents retained ownership. This correction does not claim a new real-platform run. The fork is not an accepted/released upstream capability.
 
 ## Repeat in a fresh isolated Profile
 

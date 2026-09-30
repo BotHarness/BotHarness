@@ -56,6 +56,7 @@ function fixture({ existing, failure } = {}) {
   return {
     start: () => apply(ctx, { testConfigPath: configPath }),
     calls,
+    service,
     settings,
     receive: (event, options) => receive(event, options),
     privateReport: () => JSON.parse(readFileSync(settings.reportPath, 'utf8')),
@@ -168,6 +169,38 @@ describe('task-owned public provider qualification probe', () => {
     await vi.advanceTimersByTimeAsync(1);
     expect(f.disposed()).toBe(true);
     expect(f.calls).toHaveLength(0);
+  });
+
+  it('does not acquire after a pending account lookup finishes following disposal', async () => {
+    const f = fixture();
+    const pending = Promise.withResolvers();
+    const account = await f.service.describeBot();
+    f.service.describeBot = () => pending.promise;
+    const acquire = vi.spyOn(f.service, 'consumeInbound');
+    f.start();
+    disposers.pop()();
+    pending.resolve(account);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(acquire).not.toHaveBeenCalled();
+    expect(f.publicReport().checks.consumerDisposed).toBe(true);
+    expect(f.publicReport().checks.publicExclusiveConsumer).toBe(false);
+  });
+
+  it('releases a lease that arrives after disposal instead of retaining ownership', async () => {
+    const f = fixture();
+    const pending = Promise.withResolvers();
+    const release = vi.fn();
+    f.service.consumeInbound = vi.fn(() => pending.promise);
+    await ready(f);
+    expect(f.service.consumeInbound).toHaveBeenCalledTimes(1);
+    disposers.pop()();
+    pending.resolve(release);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(release).toHaveBeenCalledTimes(1);
+    expect(f.publicReport().checks.consumerDisposed).toBe(true);
+    expect(f.publicReport().checks.publicExclusiveConsumer).toBe(false);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(f.service.consumeInbound).toHaveBeenCalledTimes(1);
   });
 
   it('records an unknown reply and never automatically retries it', async () => {

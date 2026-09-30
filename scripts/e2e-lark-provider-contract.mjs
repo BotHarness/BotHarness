@@ -204,7 +204,7 @@ export function apply(ctx, { testConfigPath } = {}) {
       Object.assign(settings, config());
       if (!settings.providerBotId) return;
       const account = await ctx.dshIm.describeBot(settings.providerBotId);
-      if (!account.connected) return;
+      if (!active || !account.connected) return;
       if (
         ctx.dshIm.inboundVersion !== 1 ||
         !account.capabilities.includes('exclusive-text-consumer')
@@ -214,11 +214,16 @@ export function apply(ctx, { testConfigPath } = {}) {
         });
       fingerprint = account.account.fingerprint;
       state.checks.authenticatedAccount = /^[a-f0-9]{64}$/.test(fingerprint);
-      lease = await ctx.dshIm.consumeInbound(settings.providerBotId, {
+      const acquired = await ctx.dshIm.consumeInbound(settings.providerBotId, {
         expectedFingerprint: fingerprint,
         onEvent: accept,
         signal: cancel.signal,
       });
+      if (!active) {
+        acquired?.();
+        return;
+      }
+      lease = acquired;
       state.checks.publicExclusiveConsumer = true;
       persist();
     } catch (error) {
