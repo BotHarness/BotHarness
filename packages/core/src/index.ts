@@ -189,3 +189,15 @@ export type {
   SchemaMigration,
   SchemaPlan,
 } from './database/schema.js';
+
+export { createOutboundMessaging } from './messaging/outbound.js';
+export type {
+  OutboundMessaging,
+  MessagingGrant,
+  MessagingSnapshot,
+  OutboxIntent,
+} from './messaging/outbound.js';
+export { createDshImProvider } from './messaging/dsh-im.js';
+export type { DshImOutboundService } from './messaging/dsh-im.js';
+export { MessagingError, MessagingProviderError } from './messaging/provider.js';
+export type { MessagingProvider, MessagingAccount, MessagingTarget } from './messaging/provider.js';

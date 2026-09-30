@@ -1,3 +1,16 @@
+import type {
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../../../core/src/messaging/outbound.js';
+import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
+import {
+  loadMessagingSnapshot,
+  loadMessagingTargets,
+  authorizeMessaging,
+  revokeMessaging,
+  sendMessaging,
+} from './bridge.js';
 import {
   applyRosterBatch,
   assignRosterChannel,
@@ -130,6 +143,24 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
+  messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
+  messagingAuthorize(input: {
+    botSlug: string;
+    providerId: string;
+    accountRef: string;
+    targetRef: string;
+    fingerprint: string;
+    targetDigest: string;
+  }): Promise<MessagingGrant>;
+  messagingRevoke(slug: string, grantId: string): Promise<void>;
+  messagingSend(
+    slug: string,
+    grantId: string,
+    requestId: string,
+    text: string,
+  ): Promise<OutboxIntent>;
+
   modelCatalog(): Promise<ModelCatalogEntryView[]>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
@@ -1068,6 +1099,13 @@ export function createActions(
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
+    messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
+    messagingTargets: (providerId, accountRef) =>
+      loadMessagingTargets(call, providerId, accountRef),
+    messagingAuthorize: (input) => authorizeMessaging(call, input),
+    messagingRevoke: (slug, grantId) => revokeMessaging(call, slug, grantId),
+    messagingSend: (slug, grantId, requestId, text) =>
+      sendMessaging(call, slug, grantId, requestId, text),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),

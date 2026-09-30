@@ -9,6 +9,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Added a PersonaBot Profile IM connection flow for explicit account and destination grants, durable send records and honest unknown outcomes; external sends require the compatible public dsh-im contract and remain disabled with legacy services ([#117](https://github.com/BotHarness/BotHarness/issues/117), [ADR-0100](docs/adr/0100-external-grants-require-authenticated-accounts-and-checked-targets.md)).
+
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Group Channels now open a Group Profile from the chat header, with a daily heatmap of committed messages and a per-author breakdown; pinned Group cards appear in its popover ([#424](https://github.com/BotHarness/BotHarness/issues/424), [ADR-0085](docs/adr/0085-personabot-profile-is-a-popover-and-a-channel-body-view.md)).
