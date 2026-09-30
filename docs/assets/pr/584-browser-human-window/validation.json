@@ -1,0 +1,28 @@
+{
+  "baseline": {
+    "revision": "ca3162e96aca4347b9e26937dcc8e69f62c55f93",
+    "regressionsFailed": 7,
+    "existingTestsPassed": 45,
+    "realE2E": "One new unowned about:blank target appeared when the Human opened the preview."
+  },
+  "fixedFocused": {
+    "passed": 52
+  },
+  "fullFirstRun": {
+    "passed": 1387,
+    "failed": 1,
+    "skipped": 1,
+    "failure": "packages/core/test/human-dm-steer.test.ts: folds many short pending Human DM messages up to the character budget; 15000ms test timeout"
+  },
+  "isolatedRetest": {
+    "passed": 22,
+    "files": ["packages/core/test/human-dm-steer.test.ts", "packages/browser/test/runtime.test.ts"]
+  },
+  "fullRetest": {
+    "passed": 1388,
+    "skipped": 1,
+    "timeoutsAndAssertionsUnchanged": true,
+    "firstTimeoutCause": "unproven; do not treat the retry as a fix"
+  },
+  "staticChecks": ["lint", "format:check", "typecheck", "changelog:check", "build"]
+}

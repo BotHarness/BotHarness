@@ -1,0 +1,33 @@
+{
+  "mode": "before",
+  "ownedCurrent": "E62D058667F90C40CAA3AD3AEA2A90AF",
+  "ownedPreview": "B99AFF878246E09EC9D67E9FD85A83AD",
+  "initialTargets": [
+    {
+      "targetId": "D763CEDD9EF6E6443B89C2536F498547",
+      "url": "about:blank"
+    },
+    {
+      "targetId": "B99AFF878246E09EC9D67E9FD85A83AD",
+      "url": "http://127.0.0.1:31999/preview"
+    },
+    {
+      "targetId": "E62D058667F90C40CAA3AD3AEA2A90AF",
+      "url": "http://127.0.0.1:31999/"
+    }
+  ],
+  "addedTargets": [
+    {
+      "targetId": "F014D46D12C606B83A0ED74BFA801FF3",
+      "url": "about:blank"
+    }
+  ],
+  "open": {
+    "request": "{\"slug\":\"bot-933a922038fd463188d85ab63d07eab1\"}",
+    "response": {
+      "ok": true
+    }
+  },
+  "visibility": "visible",
+  "pointerPreserved": true
+}

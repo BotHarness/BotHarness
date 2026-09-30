@@ -106,6 +106,8 @@
 
 ### Changed
 
+- Channel 发现与历史查询工具现在枚举支持的过滤值，并说明跨已加入 Channel 搜索、作者、日期及既有页大小行为；精确查找无可访问匹配时会明确提示，不泄露隐藏 Channel（[#564](https://github.com/BotHarness/BotHarness/issues/564)）。
+
 - Group 入群申请和决定工具现在仅返回简短的 Channel、申请及申请者引用和实际状态；仍须批准后才能访问群，不再把完整群记录或内部身份时间戳复制进模型上下文（[#563](https://github.com/BotHarness/BotHarness/issues/563)）。
 
 - Group 创建与邀请工具现在仅返回简短的 Channel、邀请及目标 Bot 引用和实际决定状态；接受或拒绝时不再把完整群记录复制进模型上下文，拒绝仍不授予群访问权限（[#562](https://github.com/BotHarness/BotHarness/issues/562)）。
@@ -180,6 +182,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- 修复打开 Bot 浏览器：唤起归属此 Bot 的预览标签页并恢复最小化窗口，无存活工作页时创建并复用一个归属此 Bot 的空白页 ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
 
 - Browser 每次重新观察都会以独立的 ref 替换上一次标记，旧 ref 不再因页面变化而误点另一个控件；role-less 点击目标在重复观察时仍会出现，旧 ref 返回可读的重新观察提示（[#579](https://github.com/BotHarness/BotHarness/issues/579)）。
 

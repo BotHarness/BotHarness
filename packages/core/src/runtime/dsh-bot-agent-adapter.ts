@@ -911,16 +911,24 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           description:
             'List Channels this PersonaBot currently belongs to, including Group, Human DM, and Bot DM Channels and their current Bot members. Filter by name, type, or stable member Bot IDs; use channel_id for one exact Channel.',
           parameters: {
-            channel_id: { type: 'string', description: 'Exact Channel id to inspect.' },
+            channel_id: {
+              type: 'string',
+              description:
+                'Exact Channel ID; an empty lookup reports no-accessible-match without revealing hidden existence.',
+            },
             name: { type: 'string', description: 'Case-insensitive Channel name substring.' },
-            type: { type: 'string', description: 'Channel type: group or dm.' },
+            type: { type: 'string', enum: ['group', 'dm'], description: 'Channel type.' },
             member_bot_ids: {
               type: 'array',
               items: { type: 'string' },
               description: 'Require all of these stable PersonaBot IDs as current members.',
             },
-            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
-            limit: { type: 'number', description: 'Page size from 1 to 100.' },
+            cursor: { type: 'string', description: 'Opaque nextCursor; reuse the same filters.' },
+            limit: {
+              type: 'number',
+              description:
+                'Default 20; floor and clamp to 1–100. Fractions and out-of-range numbers remain valid.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -931,15 +939,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_list: Orchestrator run is unavailable');
             }
+            const result = active.run.channels.list({
+              ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              ...(args.name === undefined ? {} : { name: args.name }),
+              ...(args.type === undefined ? {} : { type: args.type }),
+              ...(args.member_bot_ids === undefined ? {} : { memberBotIds: args.member_bot_ids }),
+              ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+              ...(args.limit === undefined ? {} : { limit: args.limit }),
+            });
             return JSON.stringify(
-              active.run.channels.list({
-                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.name === undefined ? {} : { name: args.name }),
-                ...(args.type === undefined ? {} : { type: args.type as 'group' | 'dm' }),
-                ...(args.member_bot_ids === undefined ? {} : { memberBotIds: args.member_bot_ids }),
-                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-                ...(args.limit === undefined ? {} : { limit: args.limit }),
-              }),
+              args.channel_id !== undefined && result.channels.length === 0
+                ? { ...result, outcome: 'no-accessible-match' }
+                : result,
             );
           },
         }),
@@ -948,7 +959,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_read',
           description:
-            'Query the full history of a joined Channel. Filter by text, author, or date; follow nextCursor for older results. Omit channel_id to use the Channel that triggered this turn.',
+            'Query joined Channel history or search across joined Channels; follow nextCursor with unchanged filters.',
           parameters: {
             channel_id: {
               type: 'string',
@@ -956,19 +967,38 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             },
             scope: {
               type: 'string',
-              description:
-                'Use joined with text to search all currently joined Channels; otherwise query one Channel.',
+              enum: ['channel', 'joined'],
+              description: 'Default channel. Joined requires nonblank text and forbids channel_id.',
             },
-            text: { type: 'string', description: 'Case-insensitive body substring.' },
-            author_bot_id: { type: 'string', description: 'Stable author PersonaBot ID.' },
+            text: {
+              type: 'string',
+              description: 'Trimmed, case-insensitive body substring.',
+            },
+            author_bot_id: {
+              type: 'string',
+              description: 'Stable Bot author ID; author_kind must be bot or omitted.',
+            },
             author_kind: {
               type: 'string',
-              description: 'Author kind: human, bot, bridged, or system.',
+              enum: ['human', 'bot', 'bridged', 'system'],
+              description: 'Author kind; only bot is compatible with author_bot_id.',
             },
-            from: { type: 'string', description: 'Inclusive ISO timestamp lower bound.' },
-            to: { type: 'string', description: 'Inclusive ISO timestamp upper bound.' },
-            cursor: { type: 'string', description: 'Opaque nextCursor from the prior page.' },
-            limit: { type: 'number', description: 'Page size from 1 to 200.' },
+            from: {
+              type: 'string',
+              description:
+                'Inclusive timestamp lower bound; YYYY-MM-DD starts at UTC midnight. Invalid or reversed ranges fail.',
+            },
+            to: {
+              type: 'string',
+              description:
+                'Inclusive timestamp upper bound; YYYY-MM-DD includes the whole UTC day.',
+            },
+            cursor: { type: 'string', description: 'Opaque nextCursor; reuse the same filters.' },
+            limit: {
+              type: 'number',
+              description:
+                'Default 20; floor and clamp to 1–200. Fractions and out-of-range numbers remain valid.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -982,12 +1012,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             return JSON.stringify(
               active.run.channels.query({
                 ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.scope === undefined ? {} : { scope: args.scope as 'channel' | 'joined' }),
+                ...(args.scope === undefined ? {} : { scope: args.scope }),
                 ...(args.text === undefined ? {} : { text: args.text }),
                 ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
-                ...(args.author_kind === undefined
-                  ? {}
-                  : { authorKind: args.author_kind as 'human' | 'bot' | 'bridged' | 'system' }),
+                ...(args.author_kind === undefined ? {} : { authorKind: args.author_kind }),
                 ...(args.from === undefined ? {} : { from: args.from }),
                 ...(args.to === undefined ? {} : { to: args.to }),
                 ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
