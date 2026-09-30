@@ -464,9 +464,13 @@ _避免使用_：wake policy、inferred step state、message priority
 一次 Orchestrator turn 消费整个就绪 attention 集合——所有未处理的即时项、达到阈值的 digest 批次与被动 notice——而不是一事件一回合。steer 的直达地址改为加入正在运行的回合。
 _避免使用_：per-event queue、wake storm、batch（单独使用）
 
+**Activity Center**：
+「活动中心」是 Bot 模式中面向 Human 的跨 PersonaBot、跨 Channel 入口，包含运行总览与个人 Human Inbox。它汇总已有权威事实，不成为消息、用量或 Session 活动的另一份权威。
+_避免使用_：Human Inbox（指整个入口时）、dashboard list
+
 **Human Inbox**：
-面向 Human 的 attention projection，把 Channel Attention 与 PersonaBot Attention 分类为 action-required 或 informational。它引用各自的权威事实，不复制 Channel 内容，也不会把每一条 Bot Inbox item 都摊平成 Human 工作。
-_避免使用_：notifications、dashboard list
+Activity Center 内的个人 attention 视图：未解决的 Human 行动、提及与回复、未读 Channel 活动、信息更新及已处理历史。它引用所属权威事实，不复制 Channel 内容，也不会把每条 Bot Inbox 事件都摊成 Human 工作。
+_避免使用_：notifications、Bot Inbox、dashboard list
 
 **Channel Attention**：
 由 Channel activity 产生的 Human Inbox item，例如未读消息、mention 或 reply；它引用所属 Source Event，除非被归类为 action-required，否则 Human 可以忽略。

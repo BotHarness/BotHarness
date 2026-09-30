@@ -209,6 +209,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Defined Activity Center as an operational Overview plus a personal Human Inbox for Channel unread, mentions, and inline actions; a Human's all-Bot Group mention reuses ordinary direct-mention delivery. Runtime behavior is unchanged ([#126](https://github.com/BotHarness/BotHarness/issues/126), [#541](https://github.com/BotHarness/BotHarness/issues/541), [#542](https://github.com/BotHarness/BotHarness/issues/542), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md), [ADR-0099](docs/adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)).
 - Defined deployment-local Model Presets as per-PersonaBot snapshots and retained per-model token statistics across ordinary Session deletion; implementation follows in separate runtime slices ([#488](https://github.com/BotHarness/BotHarness/issues/488), [#39](https://github.com/BotHarness/BotHarness/issues/39), [ADR-0093](docs/adr/0093-model-presets-are-local-snapshots.md), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 - Documented the in-harness Client interaction contracts for Channel continuity, roster moves, DSH shell integration, and HMR; runtime behavior is unchanged ([guide](docs/architecture/client-interaction-contracts.md), [#452](https://github.com/BotHarness/BotHarness/issues/452)).
 
