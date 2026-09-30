@@ -11,9 +11,11 @@
 
 - PersonaBot 模型用量现在按实际 provider/model 分别展示 Orchestrator、Assignment 和 DSH 子代理调用，计入失败和重试调用已报告的 token；未报告的用量仍显示未知（[#503](https://github.com/BotHarness/BotHarness/issues/503)、[ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)）。
 
+- PersonaBot 资料页新增 IM 账号绑定、明确目标授权、持久发送记录和未知结果提示；外部发送要求兼容的公开 dsh-im 契约，旧接口保持禁用（[#117](https://github.com/BotHarness/BotHarness/issues/117)、[ADR-0101](docs/adr/0101-external-grants-require-authenticated-accounts-and-checked-targets.md)）。
 - Human 可在收件箱内查看群聊或 PersonaBot 私聊未读消息及附近上下文，并直接回复；来源不可用时拒绝提交，失败时保留草稿（[#547](https://github.com/BotHarness/BotHarness/issues/547)）。
 - PersonaBot Profile 现在按实际调用的 provider/model 显示每日用量，分别展示输入、输出、缓存读写 token 和 provider 报告的总数；未报告的分项明确显示未知（[#499](https://github.com/BotHarness/BotHarness/issues/499)）。
 - Human 可通过 DSH 应用菜单在 Host 上打开当前 Memory Repository、子目录及文件，显示文件位置、复制 Host 路径，或将完整当前文件下载到浏览器设备；普通文件选择仍使用内置阅读器（[#574](https://github.com/BotHarness/BotHarness/issues/574)、[ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)）。
+- Human 可点击或右键已授权 Workspace 的路径，用 Host 探测到的应用打开当前目录或复制路径；Host 校验当前 Workspace Grant 与注册身份，不改变 Grant、Session cwd 或访问权限（[#575](https://github.com/BotHarness/BotHarness/issues/575)、[ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)）。
 
 - Human 收件箱现在按 Channel 汇总群聊和 PersonaBot 私聊未读消息，在侧栏入口显示去重后的消息数；只有打开具体消息或主动标记时才推进已读位置，待处理事项另有提示（[#546](https://github.com/BotHarness/BotHarness/issues/546)、[ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)）。
 - PersonaBot 的消息投递方式现在可按来源在 Profile 中设置：Human 私聊、Bot 私聊、群内提及规则可选择消息在活动回合中**并入正在运行的回合**（`steer`，默认不变）或**排为独立回合**（`turn`）；已入队的消息保留原修订（[#528](https://github.com/BotHarness/BotHarness/issues/528)）。
@@ -186,6 +188,8 @@
 - section header 现在可直接在该 section 内创建 group Channel 或 PersonaBot DM；新建 section、未分组 Channel 与 section 成员均默认出现在所属 scope 的第一位（[#10](https://github.com/BotHarness/BotHarness/issues/10)）。
 
 ### Fixed
+
+- 关闭再开启 Browser Access 后，PersonaBot 保留原有工作标签页与当前页；Access 关闭期间浏览器工具仍不可用（[#591](https://github.com/BotHarness/BotHarness/issues/591)）。
 
 - 修复打开 Bot 浏览器：唤起归属此 Bot 的预览标签页并恢复最小化窗口，无存活工作页时创建并复用一个归属此 Bot 的空白页 ([#584](https://github.com/BotHarness/BotHarness/issues/584)).
 

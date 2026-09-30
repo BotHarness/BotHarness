@@ -67,6 +67,11 @@ describe('bridge typert service', () => {
     const { service } = setup();
 
     expect(remoteMethods(service).map((marker) => marker.exportName ?? marker.method)).toEqual([
+      'messagingSnapshot',
+      'messagingTargets',
+      'messagingAuthorize',
+      'messagingRevoke',
+      'messagingSend',
       'modelCatalog',
       'modelPresets',
       'modelPresetCreate',
@@ -108,6 +113,7 @@ describe('bridge typert service', () => {
       'assignments',
       'assignment',
       'workspaceOptions',
+      'workspaceFileTarget',
       'grants',
       'grantCreate',
       'grantRevoke',

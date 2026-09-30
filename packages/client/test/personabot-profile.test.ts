@@ -196,15 +196,16 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(3);
+      expect(sections.length).toBe(4);
       expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
       expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
-      expect(sections[2]?.getAttribute('aria-label')).toBe('提醒策略');
+      expect(sections[2]?.getAttribute('aria-label')).toBe('IM 连接');
+      expect(sections[3]?.getAttribute('aria-label')).toBe('提醒策略');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('节省成本');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('修订 3');
-      const policyDetails = container.querySelectorAll<HTMLDetailsElement>(
+      const policyDetails = sections[3]?.querySelector<HTMLDetailsElement>(
         '.bh-profile-policy-details',
-      )[1];
+      );
       expect(policyDetails?.open).toBe(false);
       await act(async () =>
         policyDetails?.querySelector<HTMLElement>('.bh-profile-policy-summary')?.click(),
@@ -218,7 +219,7 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
       expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(1);
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(6);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(7);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));

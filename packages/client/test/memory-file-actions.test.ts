@@ -51,6 +51,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
 });
 import { writeClipboard } from '@deepseek-ai/dsh-client-ui-primitives';
 import { MemoryFileTree } from '../src/client/memory-file-tree.js';
+import { WorkspaceFileActionButton } from '../src/client/workspace-file-actions.js';
 import { MemoryFileActionButton } from '../src/client/memory-file-actions.js';
 import type { HostFileTarget } from '../src/client/host-file-actions.js';
 import { zhTranslate } from '../src/client/locale.js';
@@ -199,5 +200,88 @@ describe('Memory file menus', () => {
     expect(document.body.textContent).toContain('file is missing');
     expect(document.querySelector('[role="menuitem"]')).toBeNull();
     expect(a.memoryFileOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe('Workspace path menus', () => {
+  it('uses Grant identity for click/context/keyboard menus, native directory open and copy; offers no download', async () => {
+    const a = {
+      workspaceFileTarget: vi.fn(async () => ({
+        path: '/host/工程 project',
+        relativePath: '',
+        kind: 'directory' as const,
+      })),
+      workspaceFileApplications: vi.fn(async () => ({
+        available: true,
+        applications: [{ id: 'finder', name: 'Finder', default: false, icon: null }],
+      })),
+      workspaceFileOpen: vi.fn(async () => {}),
+    };
+    await act(async () =>
+      root.render(
+        createElement(WorkspaceFileActionButton, {
+          actions: a,
+          slug: 'ada',
+          grantId: 'grant-1',
+          text: '/cached/display/path',
+          t: zhTranslate,
+        }),
+      ),
+    );
+    const trigger = button('/cached/display/path');
+    await click(trigger);
+    expect(a.workspaceFileTarget).toHaveBeenCalledWith('ada', 'grant-1');
+    expect(trigger.getAttribute('aria-expanded')).toBe('true');
+    expect(document.body.textContent).not.toContain('下载到此设备');
+    await click(button('用 Finder 打开'));
+    expect(a.workspaceFileOpen).toHaveBeenCalledWith('ada', 'grant-1', { application: 'finder' });
+    await act(async () =>
+      trigger.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })),
+    );
+    await click(button('复制 Host 路径'));
+    expect(writeClipboard).toHaveBeenLastCalledWith('/host/工程 project');
+    expect(trigger.getAttribute('aria-expanded')).toBe('false');
+    await act(async () =>
+      trigger.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'F10',
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    expect(button('用 Finder 打开')).toBeDefined();
+  });
+  it('unavailable directory explains copy-only fallback; revoked targets have no executable action', async () => {
+    const a = {
+      workspaceFileTarget: vi.fn(async () => ({
+        path: '/host/project',
+        relativePath: '',
+        kind: 'directory' as const,
+      })),
+      workspaceFileApplications: vi.fn(async () => ({ available: false, applications: [] })),
+      workspaceFileOpen: vi.fn(async () => {}),
+    };
+    await act(async () =>
+      root.render(
+        createElement(WorkspaceFileActionButton, {
+          actions: a,
+          slug: 'ada',
+          grantId: 'grant-1',
+          text: 'project',
+          t: zhTranslate,
+        }),
+      ),
+    );
+    await click(button('project'));
+    expect(document.body.textContent).toContain('Host 无法原生打开；可复制路径');
+    expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(1);
+    await click(button('复制 Host 路径'));
+    a.workspaceFileTarget.mockRejectedValue(new Error('Workspace Grant is missing or revoked'));
+    await click(button('project'));
+    expect(document.body.textContent).toContain('Workspace Grant is missing or revoked');
+    expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
+    expect(a.workspaceFileOpen).not.toHaveBeenCalled();
   });
 });

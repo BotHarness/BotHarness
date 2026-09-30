@@ -1,0 +1,14 @@
+{
+  "result": "PASS",
+  "platform": "darwin",
+  "viewport": "1440x960",
+  "locale": "zh",
+  "mode": "copy-only",
+  "menuLabels": ["复制 Host 路径"],
+  "ownerTargetVerified": true,
+  "grantsUnchanged": true,
+  "sessionsAndCwdUnchanged": true,
+  "assignmentAccessUnchanged": true,
+  "sessionCount": 0,
+  "pageErrors": []
+}

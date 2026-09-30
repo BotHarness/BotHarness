@@ -1,3 +1,16 @@
+import type {
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../../../core/src/messaging/outbound.js';
+import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
+import {
+  loadMessagingSnapshot,
+  loadMessagingTargets,
+  authorizeMessaging,
+  revokeMessaging,
+  sendMessaging,
+} from './bridge.js';
 import {
   applyRosterBatch,
   assignRosterChannel,
@@ -39,6 +52,7 @@ import {
   loadMemorySnapshot,
   loadMemoryFile,
   loadMemoryFileTarget,
+  loadWorkspaceFileTarget,
   loadMemoryHistory,
   loadMemoryDiff,
   loadMemoryGitGraph,
@@ -141,6 +155,24 @@ export interface HostDirectoryListing {
 }
 
 export interface BridgeActions {
+  messagingSnapshot(slug: string): Promise<MessagingSnapshot>;
+  messagingTargets(providerId: string, accountRef: string): Promise<MessagingTarget[]>;
+  messagingAuthorize(input: {
+    botSlug: string;
+    providerId: string;
+    accountRef: string;
+    targetRef: string;
+    fingerprint: string;
+    targetDigest: string;
+  }): Promise<MessagingGrant>;
+  messagingRevoke(slug: string, grantId: string): Promise<void>;
+  messagingSend(
+    slug: string,
+    grantId: string,
+    requestId: string,
+    text: string,
+  ): Promise<OutboxIntent>;
+
   modelCatalog(): Promise<ModelCatalogEntryView[]>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
@@ -202,6 +234,9 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  workspaceFileTarget(slug: string, grantId: string): Promise<HostFileTarget>;
+  workspaceFileApplications(slug: string, grantId: string): Promise<HostFileOptions>;
+  workspaceFileOpen(slug: string, grantId: string, choice: HostFileOpen): Promise<void>;
   memoryFileTarget(slug: string, path: string): Promise<HostFileTarget>;
   memoryFileApplications(slug: string, path: string): Promise<HostFileOptions>;
   memoryFileOpen(slug: string, path: string, choice: HostFileOpen): Promise<void>;
@@ -1135,6 +1170,25 @@ export function createActions(
         },
       });
     },
+    workspaceFileTarget: (slug, grantId) => loadWorkspaceFileTarget(call, slug, grantId),
+    async workspaceFileApplications(slug, grantId) {
+      const target = await loadWorkspaceFileTarget(call, slug, grantId);
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async workspaceFileOpen(slug, grantId, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadWorkspaceFileTarget(call, slug, grantId);
+        if (folderAccess?.nativeFiles === undefined)
+          throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
+    },
     memoryFileTarget: (slug, path) => loadMemoryFileTarget(call, slug, path),
     async memoryFileApplications(slug, path) {
       const target = await loadMemoryFileTarget(call, slug, path);
@@ -1172,6 +1226,13 @@ export function createActions(
     memoryGitCommitDiff: (channelId, sha) => loadMemoryGitCommitDiff(call, channelId, sha),
     profileActivity: (channelId) => loadProfileActivity(call, channelId),
     groupProfileActivity: (channelId) => loadGroupProfileActivity(call, channelId),
+    messagingSnapshot: (slug) => loadMessagingSnapshot(call, slug),
+    messagingTargets: (providerId, accountRef) =>
+      loadMessagingTargets(call, providerId, accountRef),
+    messagingAuthorize: (input) => authorizeMessaging(call, input),
+    messagingRevoke: (slug, grantId) => revokeMessaging(call, slug, grantId),
+    messagingSend: (slug, grantId, requestId, text) =>
+      sendMessaging(call, slug, grantId, requestId, text),
     botSourcePolicies: (slug) => loadBotSourcePolicies(call, slug),
     setBotSourcePolicy: (slug, edit) => setBotSourcePolicy(call, slug, edit),
     resetBotSourcePolicy: (slug, sourceClass) => resetBotSourcePolicy(call, slug, sourceClass),

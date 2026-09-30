@@ -1,3 +1,4 @@
+import { developmentProfileManifest } from './dev-profile.mjs';
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, openSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -120,29 +121,8 @@ function ensureProfile(options) {
     );
   }
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
-  const packages = join(options.worktree, 'packages');
-  manifest.dependencies = {
-    '@botharness/ui': `link:${join(packages, 'client')}`,
-    '@botharness/core': `link:${join(packages, 'core')}`,
-    '@botharness/computer': `link:${join(packages, 'computer')}`,
-    '@botharness/browser': `link:${join(packages, 'browser')}`,
-    deepseekbot: `link:${join(packages, 'deepseekbot')}`,
-  };
-  manifest.dsh = {
-    ...manifest.dsh,
-    profile: {
-      ...manifest.dsh?.profile,
-
-      bundles: [
-        '@deepseek-ai/dsh-base',
-        '@deepseek-ai/dsh-web-app',
-        'deepseekbot',
-        '@botharness/computer',
-        '@botharness/browser',
-      ],
-    },
-  };
-  writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+  const composed = developmentProfileManifest(manifest, options.worktree);
+  writeFileSync(manifestPath, `${JSON.stringify(composed, null, 2)}\n`);
   const [pnpmExecutable, pnpmArgs] = pnpmCommand(['install']);
   run(pnpmExecutable, pnpmArgs, { cwd: profileDir });
   return profileDir;

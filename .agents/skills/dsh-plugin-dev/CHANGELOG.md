@@ -12,6 +12,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 
 - Clarified native token projection totals and dispatch-route attribution for failed attempts in the [local development guide](../dsh-dev/SKILL.md), verified against DSH 0.2.0 RC1 with real Assignment and Subagent calls ([#503](https://github.com/BotHarness/BotHarness/issues/503)).
 
+- Documented optional Bundle preservation when restarting an isolated development Profile ([#117](https://github.com/BotHarness/BotHarness/issues/117)).
 - Recorded optional provider token buckets and actual Assistant source-route attribution in the [local development guide](../dsh-dev/SKILL.md), preventing missing reports from being treated as zero or estimated consumption ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Recorded the distinction between an application-reserved Session ID and a persisted DSH Session in the [local development guide](../dsh-dev/SKILL.md), so pre-execution refusals can be retried after repair ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
 
