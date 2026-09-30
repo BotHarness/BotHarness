@@ -1918,6 +1918,18 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
+export interface ProfileModelUsageRow {
+  day: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  totalTokens: number | null;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
@@ -1927,6 +1939,8 @@ export interface ProfileActivity {
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
   tokenTotals: ProfileTokenBuckets;
+  modelUsageRows?: ProfileModelUsageRow[];
+  modelUsageStatus?: 'ready' | 'unavailable';
 }
 
 export interface GroupProfileAuthorActivity {
@@ -2141,7 +2155,31 @@ export async function loadProfileActivity(
       const entry = asRecord(value);
       return typeof entry?.['day'] === 'string' && isTokenBuckets(entry);
     }) ||
-    !isTokenBuckets(response['tokenTotals'])
+    !isTokenBuckets(response['tokenTotals']) ||
+    (response['modelUsageRows'] !== undefined &&
+      (!Array.isArray(response['modelUsageRows']) ||
+        !response['modelUsageRows'].every((value) => {
+          const row = asRecord(value);
+          return (
+            row !== undefined &&
+            typeof row['day'] === 'string' &&
+            typeof row['purpose'] === 'string' &&
+            typeof row['provider'] === 'string' &&
+            typeof row['model'] === 'string' &&
+            [
+              'inputTokens',
+              'outputTokens',
+              'cacheReadTokens',
+              'cacheWriteTokens',
+              'totalTokens',
+            ].every(
+              (key) =>
+                row[key] === null || (Number.isSafeInteger(row[key]) && (row[key] as number) >= 0),
+            )
+          );
+        }))) ||
+    (response['modelUsageStatus'] !== undefined &&
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;

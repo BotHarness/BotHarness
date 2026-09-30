@@ -27,7 +27,7 @@ Each explicit Human send has a stable request identity and payload hash. The dis
 - Provider absence and incompatibility leave historical Binding/Outbox facts readable and external execution disabled.
 - Route or account changes require explicit revocation and a new Human authorization, without name-based fallback.
 - This outbound slice does not add inbound ownership, trusted Reply Routes or Orchestrator execution; #12 still requires an exclusive authenticated consumer contract.
-- Schema generation 37 adds outbound facts without replacing local Source Events or Inbox authority. Downgrading requires a profile backup or forward-compatible build; a code revert does not unsend accepted messages.
+- Schema generation 38 adds outbound facts without replacing local Source Events or Inbox authority. Downgrading requires a profile backup or forward-compatible build; a code revert does not unsend accepted messages.
 
 ## References
 

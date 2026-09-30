@@ -7,12 +7,14 @@ import { tooltip } from '@tanstack/charts/tooltip';
 import { Chart } from '@tanstack/charts/react/tooltip';
 
 import type {
+  ProfileActivity,
   ProfileActivityDay,
   ProfileActivityReasonDay,
   ProfileActivityTokensDay,
 } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
 import type { ProfileCardDescriptor } from './profile-cards.js';
+import { ModelUsageBreakdown } from './model-usage-breakdown.js';
 
 export const PROFILE_ACTIVITY_WEEKS = 26;
 
@@ -407,8 +409,10 @@ function TokenTip({ totals, t }: { totals: TokenDayTotals; t: BotHarnessTranslat
 function TokenUsageCard({
   activity,
   t,
+  compact,
 }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const tokens = activity?.tokens ?? [];
+  const entirelyUnknown = usageIsEntirelyUnknown(activity);
   const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
   const days = useMemo(
     () => trailingProfileDays(activity?.today, TOKEN_SERIES_STORAGE_DAYS),
@@ -476,11 +480,25 @@ function TokenUsageCard({
     [colors, rows],
   );
   const total = windowTotals.cached + windowTotals.uncached + windowTotals.output;
+  const reportedTotal = profileUsageTotal(activity, total);
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">
-        {t('profile.tokens.window', { weeks, count: formatTokenCount(total) })}
+        {t('profile.tokens.window', {
+          weeks,
+          count:
+            reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal),
+        })}
       </div>
+      {activity?.modelUsageRows?.some(
+        (row) =>
+          row.inputTokens === null ||
+          row.outputTokens === null ||
+          row.cacheReadTokens === null ||
+          row.cacheWriteTokens === null,
+      ) ? (
+        <p className="bh-note">{t('profile.usage.partial')}</p>
+      ) : null}
       <Chart
         definition={definition}
         ariaLabel={t('profile.tokens.sparkline')}
@@ -494,14 +512,50 @@ function TokenUsageCard({
           return <TokenTip totals={totals} t={t} />;
         }}
       />
-      <div className="bh-profile-token-shares">
-        {t('profile.tokens.shares', {
-          cached: shares.cachedPercent,
-          output: shares.outputPercent,
-        })}
-      </div>
-      {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
+      {entirelyUnknown ? null : (
+        <div className="bh-profile-token-shares">
+          {t('profile.tokens.shares', {
+            cached: shares.cachedPercent,
+            output: shares.outputPercent,
+          })}
+        </div>
+      )}
+      {total === 0 && !activity?.modelUsageRows?.length ? (
+        <div className="bh-profile-empty">{t('profile.empty')}</div>
+      ) : null}
+      {compact ? null : (
+        <ModelUsageBreakdown
+          rows={activity?.modelUsageRows ?? []}
+          status={activity?.modelUsageStatus ?? 'unavailable'}
+          today={activity?.today ?? localDayKey(new Date())}
+          firstDay={trailingProfileDays(activity?.today, weeks * 7)[0]!}
+          t={t}
+        />
+      )}
     </div>
+  );
+}
+
+function usageIsEntirelyUnknown(activity: ProfileActivity | undefined): boolean {
+  const rows = activity?.modelUsageRows ?? [];
+  return (
+    rows.length > 0 &&
+    rows.every(
+      (row) =>
+        row.inputTokens === null &&
+        row.outputTokens === null &&
+        row.cacheReadTokens === null &&
+        row.cacheWriteTokens === null,
+    )
+  );
+}
+
+function profileUsageTotal(activity: ProfileActivity | undefined, fallback: number): number | null {
+  const rows = activity?.modelUsageRows ?? [];
+  if (rows.length === 0) return fallback;
+  return rows.reduce<number | null>(
+    (sum, row) => (sum === null || row.totalTokens === null ? null : sum + row.totalTokens),
+    0,
   );
 }
 
@@ -513,6 +567,7 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
       sum + entry.inputTokens + entry.outputTokens + entry.cacheReadTokens + entry.cacheWriteTokens,
     0,
   );
+  const reportedTotal = profileUsageTotal(activity, tokens);
   return (
     <div className="bh-profile-card-body">
       <dl className="bh-profile-stats">
@@ -526,7 +581,18 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
         </div>
         <div>
           <dt>{t('profile.stat.tokens')}</dt>
-          <dd>{formatTokenCount(tokens)}</dd>
+          <dd>
+            {reportedTotal === null ? t('profile.usage.unknown') : formatTokenCount(reportedTotal)}
+          </dd>
+          {activity?.modelUsageRows?.some(
+            (row) =>
+              row.inputTokens === null ||
+              row.outputTokens === null ||
+              row.cacheReadTokens === null ||
+              row.cacheWriteTokens === null,
+          ) ? (
+            <dd className="bh-note">{t('profile.usage.partial')}</dd>
+          ) : null}
         </div>
       </dl>
     </div>

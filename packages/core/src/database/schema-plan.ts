@@ -1040,8 +1040,25 @@ const ASSIGNMENT_MODEL_ROUTE_MIGRATION: SchemaMigration = {
   },
 };
 
-const MESSAGING_OUTBOUND_MIGRATION: SchemaMigration = {
+const USAGE_REPORT_COMPLETENESS_MIGRATION: SchemaMigration = {
   generation: 37,
+  module: 'usage',
+  description: 'Distinguish unreported provider token buckets from reported zero',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE usage_daily ADD COLUMN unknown_input INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE usage_daily ADD COLUMN unknown_output INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE usage_daily ADD COLUMN unknown_cache_read INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE usage_daily ADD COLUMN unknown_cache_write INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE usage_daily ADD COLUMN total_tokens INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE usage_daily ADD COLUMN unknown_total INTEGER NOT NULL DEFAULT 0;
+      UPDATE usage_daily SET unknown_cache_read = 1, unknown_cache_write = 1, unknown_total = 1;
+    `);
+  },
+};
+
+const MESSAGING_OUTBOUND_MIGRATION: SchemaMigration = {
+  generation: 38,
   module: 'messaging',
   description: 'Persist external account bindings, proactive grants and one-attempt Outbox facts',
   migrate(database) {
@@ -1108,5 +1125,6 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   MEMORY_CHANGE_CHECKPOINT_MIGRATION,
   MEMORY_RECOVERY_CHECKPOINT_MIGRATION,
   ASSIGNMENT_MODEL_ROUTE_MIGRATION,
+  USAGE_REPORT_COMPLETENESS_MIGRATION,
   MESSAGING_OUTBOUND_MIGRATION,
 ]);

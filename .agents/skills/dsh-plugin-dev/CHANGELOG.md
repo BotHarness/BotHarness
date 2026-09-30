@@ -11,6 +11,7 @@ Preparing the next DSH Skill release independently from downstream product relea
 ### Documentation
 
 - Documented optional Bundle preservation when restarting an isolated development Profile ([#117](https://github.com/BotHarness/BotHarness/issues/117)).
+- Recorded optional provider token buckets and actual Assistant source-route attribution in the [local development guide](../dsh-dev/SKILL.md), preventing missing reports from being treated as zero or estimated consumption ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Recorded the distinction between an application-reserved Session ID and a persisted DSH Session in the [local development guide](../dsh-dev/SKILL.md), so pre-execution refusals can be retried after repair ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
 
 - Established an independent bilingual Release Ledger for the DSH Skill ([#102](https://github.com/BotHarness/BotHarness/issues/102)).

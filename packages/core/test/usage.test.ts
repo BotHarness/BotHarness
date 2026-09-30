@@ -7,7 +7,7 @@ vi.mock('@deepseek-ai/dsh-token-meter/client', () => ({
     return {
       uncachedInputTokens: 100,
       outputTokens: 40,
-      totalTokens: 140,
+      totalTokens: 155,
       cacheReadTokens: 10,
       cacheWriteTokens: 5,
       routes: [{ provider: 'deepseek', model: 'deepseek-chat' }],
@@ -64,6 +64,7 @@ describe('Usage projection', () => {
         outputTokens: 40,
         cacheReadTokens: 10,
         cacheWriteTokens: 5,
+        totalTokens: 155,
       },
     ]);
     expect(usageLocalDay(TURN_END)).toBe(expectedDay(TURN_END));
@@ -100,6 +101,7 @@ describe('Usage projection', () => {
         outputTokens: 40,
         cacheReadTokens: 10,
         cacheWriteTokens: 5,
+        totalTokens: 155,
       },
     ]);
   });
@@ -151,6 +153,7 @@ describe('Usage projection', () => {
         outputTokens: 40,
         cacheReadTokens: 10,
         cacheWriteTokens: 5,
+        totalTokens: 155,
       },
       {
         day: expectedDay(TURN_END),
@@ -161,6 +164,7 @@ describe('Usage projection', () => {
         outputTokens: 40,
         cacheReadTokens: 10,
         cacheWriteTokens: 5,
+        totalTokens: 155,
       },
     ]);
 
