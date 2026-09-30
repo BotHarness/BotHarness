@@ -959,11 +959,21 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_read',
           description:
-            'Query joined Channel history or search across joined Channels; follow nextCursor with unchanged filters.',
+            'Read actionable joined Channel messages as bounded JSON (at most 12000 characters). Follow nextCursor with unchanged filters. For an oversized message, use message_id alone and follow contentCursor; concatenate JSON fragments to retrieve complete content. Omitted or partially read messages remain pending.',
           parameters: {
             channel_id: {
               type: 'string',
               description: 'Channel id; defaults to the inbound Channel.',
+            },
+            message_id: {
+              type: 'string',
+              description:
+                'Read one complete message in bounded JSON fragments; use only channel_id and content_cursor with it.',
+            },
+            content_cursor: {
+              type: 'string',
+              description:
+                'Opaque contentCursor for the same message_id; read all fragments in order in this turn.',
             },
             scope: {
               type: 'string',
@@ -1009,19 +1019,19 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_read: Orchestrator run is unavailable');
             }
-            return JSON.stringify(
-              active.run.channels.query({
-                ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
-                ...(args.scope === undefined ? {} : { scope: args.scope }),
-                ...(args.text === undefined ? {} : { text: args.text }),
-                ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
-                ...(args.author_kind === undefined ? {} : { authorKind: args.author_kind }),
-                ...(args.from === undefined ? {} : { from: args.from }),
-                ...(args.to === undefined ? {} : { to: args.to }),
-                ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
-                ...(args.limit === undefined ? {} : { limit: args.limit }),
-              }),
-            );
+            return active.run.channels.readModel({
+              ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
+              ...(args.scope === undefined ? {} : { scope: args.scope }),
+              ...(args.message_id === undefined ? {} : { messageId: args.message_id }),
+              ...(args.content_cursor === undefined ? {} : { contentCursor: args.content_cursor }),
+              ...(args.text === undefined ? {} : { text: args.text }),
+              ...(args.author_bot_id === undefined ? {} : { authorBotId: args.author_bot_id }),
+              ...(args.author_kind === undefined ? {} : { authorKind: args.author_kind }),
+              ...(args.from === undefined ? {} : { from: args.from }),
+              ...(args.to === undefined ? {} : { to: args.to }),
+              ...(args.cursor === undefined ? {} : { cursor: args.cursor }),
+              ...(args.limit === undefined ? {} : { limit: args.limit }),
+            });
           },
         }),
       );

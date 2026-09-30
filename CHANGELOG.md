@@ -105,6 +105,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Channel reads now return bounded actionable content with explicit continuation, preserving replies, trusted attachments and action references while leaving omitted or partially read messages pending in Bot Inbox ([#565](https://github.com/BotHarness/BotHarness/issues/565)).
+
 - Channel discovery and history Tools now enumerate supported filters and explain joined-search, author, date and legacy page-size behavior; exact lookups with no accessible match report it explicitly without revealing hidden Channels ([#564](https://github.com/BotHarness/BotHarness/issues/564)).
 
 - Group join request and decision Tools now return compact Channel, request and requester references with the actual state, preserving approval-only access without copying full Group records or internal identity timestamps into model context ([#563](https://github.com/BotHarness/BotHarness/issues/563)).
