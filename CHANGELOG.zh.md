@@ -9,6 +9,8 @@
 
 ### Breaking Changes
 
+- `channel_send` Tool 的成功确认从文本改为 `{channelId,messageId}` JSON，消费者须读取这两个字段。附件 `size` schema 改为 `integer`，与既有的安全非负整数校验一致；新发送使用当前 fileId 四字段引用；#577 迁移后的过期 hash 结果须重新读取所属消息（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
+
 - 自定义 `BotAgentAdapter` 需让 Orchestrator 的 `channels.contacts(input?)` 返回 `{ outputLimit, contacts, nextCursor? }`，稳定 ID 字段从 `slug` 改为 `botId`；`list_bot_contacts` Tool 也返回该有界页，消费方需处理续页（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
 ### Added
@@ -118,6 +120,8 @@
 - 新增 Computer 导出与迁移指南，覆盖跨机器单文件迁移、必须随迁移保留的文件所遵循的持久 `~/workspace` 约定，以及体积/耗时预期（[#154](https://github.com/BotHarness/BotHarness/issues/154)）。
 
 ### Changed
+
+- `channel_send` 现在用 JSON 确认已提交的 Channel 与消息 ID，明确复制读取到的完整可信附件引用进行转发，并公开既有的 10 个附件／20 个提及上限及安全整数字节大小（[#570](https://github.com/BotHarness/BotHarness/issues/570)）。
 
 - 联系人发现现在可搜索名称及完整简介，返回有界续页和按需详情，保留稳定同事 ID 以发送真实 Bot 私信及进行群协作（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
 
