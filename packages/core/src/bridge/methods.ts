@@ -240,6 +240,9 @@ export interface BridgeMethods {
   workspaceOptions(
     payload: unknown,
   ): BridgeResult<{ workspaces: { id: string; path: string; title: string }[] }>;
+  workspaceFileTarget(
+    payload: unknown,
+  ): BridgeResult<{ target: { path: string; relativePath: ''; kind: 'directory' } }>;
   grants(payload: unknown): BridgeResult<{ grants: WorkspaceGrant[] }>;
   grantCreate(payload: unknown): Promise<BridgeResult<{ grant: WorkspaceGrant }>>;
   grantRevoke(payload: unknown): BridgeResult<{ grant: WorkspaceGrant }>;
@@ -1823,6 +1826,30 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };
         }
+        throw error;
+      }
+    },
+    workspaceFileTarget(payload) {
+      const source = asObject(payload);
+      const slug = asNonBlank(source, 'slug');
+      const grantId = asNonBlank(source, 'grantId');
+      if (slug === undefined || grantId === undefined)
+        return invalidInput('slug and grantId are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      if (deps.grants === undefined)
+        return {
+          ok: false,
+          error: { code: 'unavailable', message: 'Workspace Grants are unavailable' },
+        };
+      try {
+        const grant = deps.grants.requireActive(slug, grantId);
+        return {
+          ok: true,
+          value: { target: { path: grant.workspacePath, relativePath: '', kind: 'directory' } },
+        };
+      } catch (error) {
+        if (error instanceof WorkspaceGrantError)
+          return { ok: false, error: { code: error.code, message: error.message } };
         throw error;
       }
     },

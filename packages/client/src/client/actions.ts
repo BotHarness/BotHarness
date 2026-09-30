@@ -39,6 +39,7 @@ import {
   loadMemorySnapshot,
   loadMemoryFile,
   loadMemoryFileTarget,
+  loadWorkspaceFileTarget,
   loadMemoryHistory,
   loadMemoryDiff,
   loadMemoryGitGraph,
@@ -202,6 +203,9 @@ export interface BridgeActions {
   dismissFailedMessage(channelId: string, messageId: string): boolean;
   openSession(sessionId: string): void;
   refreshSessions(slug: string): Promise<void>;
+  workspaceFileTarget(slug: string, grantId: string): Promise<HostFileTarget>;
+  workspaceFileApplications(slug: string, grantId: string): Promise<HostFileOptions>;
+  workspaceFileOpen(slug: string, grantId: string, choice: HostFileOpen): Promise<void>;
   memoryFileTarget(slug: string, path: string): Promise<HostFileTarget>;
   memoryFileApplications(slug: string, path: string): Promise<HostFileOptions>;
   memoryFileOpen(slug: string, path: string, choice: HostFileOpen): Promise<void>;
@@ -1134,6 +1138,25 @@ export function createActions(
           hasNewer: page.hasNewer,
         },
       });
+    },
+    workspaceFileTarget: (slug, grantId) => loadWorkspaceFileTarget(call, slug, grantId),
+    async workspaceFileApplications(slug, grantId) {
+      const target = await loadWorkspaceFileTarget(call, slug, grantId);
+      return (
+        folderAccess?.nativeFiles?.applications(target) ?? { available: false, applications: [] }
+      );
+    },
+    async workspaceFileOpen(slug, grantId, choice) {
+      if (openingFile) throw new Error('A Host file open is already in progress');
+      openingFile = true;
+      try {
+        const target = await loadWorkspaceFileTarget(call, slug, grantId);
+        if (folderAccess?.nativeFiles === undefined)
+          throw new Error('DSH Host opening is unavailable');
+        await folderAccess.nativeFiles.open(target, choice);
+      } finally {
+        openingFile = false;
+      }
     },
     memoryFileTarget: (slug, path) => loadMemoryFileTarget(call, slug, path),
     async memoryFileApplications(slug, path) {
