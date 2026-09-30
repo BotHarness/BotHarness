@@ -8,7 +8,14 @@ import {
   type ReactElement,
 } from 'react';
 
-import { Button, IconSendOutlineRegular } from '@deepseek-ai/dsh-client-ui-primitives';
+import {
+  Button,
+  FileTypeIcon,
+  IconCloseOutlineRegular,
+  IconPaperclipOutlineRegular,
+  IconSendOutlineRegular,
+  ImageLightbox,
+} from '@deepseek-ai/dsh-client-ui-primitives';
 import { createPortal } from 'react-dom';
 
 import { PersonaBotAvatar, PersonaBotFacepile, type PersonaBotFacepileItem } from './avatar.js';
@@ -75,6 +82,137 @@ export interface ChannelComposerProps {
   onChange(value: string, mentions?: SelectedMention[], channelRefs?: SelectedChannelRef[]): void;
   onCancelReply?(): void;
   onSubmit(): void | Promise<void>;
+}
+
+const IMAGE_ATTACHMENT_EXTENSION = /\.(?:avif|bmp|gif|jpe?g|png|svg|webp)$/iu;
+
+function isImageAttachment(file: File): boolean {
+  return (
+    file.type.toLocaleLowerCase().startsWith('image/') || IMAGE_ATTACHMENT_EXTENSION.test(file.name)
+  );
+}
+
+function AttachmentUploadStatus({
+  item,
+  t,
+  onRetry,
+}: {
+  item: ChannelComposerUpload;
+  t: BotHarnessTranslate;
+  onRetry: () => void;
+}): ReactElement | null {
+  if (item.status === 'uploading') {
+    return <span className="bh-composer-upload-status">{t('composer.uploading')}</span>;
+  }
+  if (item.status !== 'error') return null;
+  return (
+    <button type="button" className="bh-composer-upload-retry" onClick={onRetry} title={item.error}>
+      {t('composer.retryAttachment')}
+    </button>
+  );
+}
+
+function ComposerImageAttachment({
+  item,
+  t,
+  onRetry,
+  onRemove,
+}: {
+  item: ChannelComposerUpload;
+  t: BotHarnessTranslate;
+  onRetry: () => void;
+  onRemove: () => void;
+}): ReactElement {
+  const [source, setSource] = useState<string>();
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const sourceMount = useMountedResource<HTMLDivElement>(() => {
+    if (typeof URL.createObjectURL !== 'function') return;
+    const nextSource = URL.createObjectURL(item.file);
+    setSource(nextSource);
+    return () => URL.revokeObjectURL(nextSource);
+  }, [item.file]);
+  const previewLabel = t('composer.previewAttachment', { name: item.file.name });
+
+  return (
+    <>
+      <div
+        ref={sourceMount}
+        className="bh-composer-image-attachment"
+        data-status={item.status}
+        aria-busy={item.status === 'uploading'}
+      >
+        <button
+          type="button"
+          className="bh-composer-image-preview"
+          aria-label={previewLabel}
+          aria-haspopup="dialog"
+          disabled={source === undefined}
+          onClick={() => setPreviewOpen(true)}
+        >
+          {source === undefined ? null : (
+            <img src={source} alt={item.file.name} draggable={false} />
+          )}
+        </button>
+        <div className="bh-composer-image-status">
+          <AttachmentUploadStatus item={item} t={t} onRetry={onRetry} />
+        </div>
+        <button
+          type="button"
+          className="bh-composer-attachment-remove bh-composer-image-remove"
+          aria-label={t('composer.removeAttachment', { name: item.file.name })}
+          onClick={onRemove}
+        >
+          <IconCloseOutlineRegular size={14} />
+        </button>
+      </div>
+      {previewOpen && source !== undefined ? (
+        <ImageLightbox
+          src={source}
+          alt={item.file.name}
+          labels={{ dialog: previewLabel, close: t('common.close') }}
+          onClose={() => setPreviewOpen(false)}
+        />
+      ) : null}
+    </>
+  );
+}
+
+function ComposerFileAttachment({
+  item,
+  t,
+  onRetry,
+  onRemove,
+}: {
+  item: ChannelComposerUpload;
+  t: BotHarnessTranslate;
+  onRetry: () => void;
+  onRemove: () => void;
+}): ReactElement {
+  return (
+    <div
+      className="bh-composer-file-attachment"
+      data-status={item.status}
+      aria-busy={item.status === 'uploading'}
+    >
+      <span className="bh-composer-file-icon" aria-hidden="true">
+        <FileTypeIcon path={item.file.name} size={28} />
+      </span>
+      <span className="bh-composer-file-copy">
+        <span className="bh-composer-attachment-name" title={item.file.name}>
+          {item.file.name}
+        </span>
+        <AttachmentUploadStatus item={item} t={t} onRetry={onRetry} />
+      </span>
+      <button
+        type="button"
+        className="bh-composer-attachment-remove"
+        aria-label={t('composer.removeAttachment', { name: item.file.name })}
+        onClick={onRemove}
+      >
+        <IconCloseOutlineRegular size={14} />
+      </button>
+    </div>
+  );
 }
 
 export function shouldSubmitComposerKey(
@@ -566,30 +704,25 @@ export function ChannelComposer({
         )}
         {attachments.length > 0 ? (
           <div className="bh-composer-attachments" aria-live="polite">
-            {attachments.map((item) => (
-              <div className="bh-composer-attachment" key={item.id}>
-                <span className="bh-composer-attachment-name" title={item.file.name}>
-                  {item.file.name}
-                </span>
-                {item.status === 'uploading' ? <span>{t('composer.uploading')}</span> : null}
-                {item.status === 'error' ? (
-                  <button
-                    type="button"
-                    onClick={() => onRetryAttachment?.(item.id)}
-                    title={item.error}
-                  >
-                    {t('composer.retryAttachment')}
-                  </button>
-                ) : null}
-                <button
-                  type="button"
-                  aria-label={t('composer.removeAttachment', { name: item.file.name })}
-                  onClick={() => onRemoveAttachment?.(item.id)}
-                >
-                  ×
-                </button>
-              </div>
-            ))}
+            {attachments.map((item) =>
+              isImageAttachment(item.file) ? (
+                <ComposerImageAttachment
+                  key={item.id}
+                  item={item}
+                  t={t}
+                  onRetry={() => onRetryAttachment?.(item.id)}
+                  onRemove={() => onRemoveAttachment?.(item.id)}
+                />
+              ) : (
+                <ComposerFileAttachment
+                  key={item.id}
+                  item={item}
+                  t={t}
+                  onRetry={() => onRetryAttachment?.(item.id)}
+                  onRemove={() => onRemoveAttachment?.(item.id)}
+                />
+              ),
+            )}
           </div>
         ) : null}
         <div ref={bodyMount} className="bh-composer-body">
@@ -686,7 +819,7 @@ export function ChannelComposer({
           disabled={sending || attachments.length >= 10}
           onClick={() => fileInputRef.current?.click()}
         >
-          +
+          <IconPaperclipOutlineRegular size={16} />
         </button>
         <div className="bh-composer-footer">
           <Button

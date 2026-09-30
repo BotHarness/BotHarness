@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { act, createElement, type ButtonHTMLAttributes, type PropsWithChildren } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
   Button: ({
@@ -10,7 +10,28 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     ...props
   }: PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & { icon?: unknown }>) =>
     createElement('button', props, children),
+  FileTypeIcon: ({ path }: { path: string }) =>
+    createElement('span', { 'data-file-type-icon': path }),
+  IconCloseOutlineRegular: () => null,
+  IconPaperclipOutlineRegular: () => null,
   IconSendOutlineRegular: () => null,
+  ImageLightbox: ({
+    src,
+    alt,
+    labels,
+    onClose,
+  }: {
+    src: string;
+    alt: string;
+    labels: { dialog: string; close: string };
+    onClose: () => void;
+  }) =>
+    createElement(
+      'div',
+      { role: 'dialog', 'aria-label': labels.dialog },
+      createElement('img', { src, alt }),
+      createElement('button', { type: 'button', 'aria-label': labels.close, onClick: onClose }),
+    ),
 }));
 
 import { ChannelComposer } from '../src/client/channel-composer.js';
@@ -18,9 +39,19 @@ import { ChannelComposer } from '../src/client/channel-composer.js';
 let container: HTMLDivElement;
 let root: Root;
 const empty = [] as const;
+const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
+let createObjectURL: Mock<(value: Blob | MediaSource) => string>;
+let revokeObjectURL: Mock<(url: string) => void>;
 
 beforeEach(() => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+  createObjectURL = vi.fn((value: Blob | MediaSource) =>
+    value instanceof File ? `blob:${value.name}` : 'blob:media',
+  );
+  revokeObjectURL = vi.fn();
+  URL.createObjectURL = createObjectURL;
+  URL.revokeObjectURL = revokeObjectURL;
   container = document.createElement('div');
   document.body.append(container);
   root = createRoot(container);
@@ -29,6 +60,8 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  URL.createObjectURL = originalCreateObjectURL;
+  URL.revokeObjectURL = originalRevokeObjectURL;
 });
 
 function paste(target: Element, files: File[], text = '', itemsOnly = false): Event {
@@ -117,6 +150,92 @@ describe('Channel composer clipboard attachments', () => {
     const event = paste(container.querySelector('textarea')!, [file], '', true);
     expect(event.defaultPrevented).toBe(true);
     expect(onAddFiles).toHaveBeenCalledWith([file]);
+  });
+
+  it('queues the same clipboard file again on a repeated paste', async () => {
+    const onAddFiles = vi.fn();
+    await act(async () =>
+      root.render(
+        createElement(ChannelComposer, {
+          value: '',
+          placeholder: 'Message',
+          sending: false,
+          mentionCandidates: empty,
+          mentions: empty,
+          channelCandidates: empty,
+          channelRefs: empty,
+          onAddFiles,
+          onChange: vi.fn(),
+          onSubmit: vi.fn(),
+        }),
+      ),
+    );
+    const file = new File(['image'], 'capture.png', { type: 'image/png' });
+    const target = container.querySelector('textarea')!;
+    paste(target, [file]);
+    paste(target, [file]);
+    expect(onAddFiles).toHaveBeenNthCalledWith(1, [file]);
+    expect(onAddFiles).toHaveBeenNthCalledWith(2, [file]);
+  });
+
+  it('opens and closes a full image preview while mixed files stay independent', async () => {
+    const onRemoveAttachment = vi.fn();
+    const image = new File(['image'], 'capture.png', { type: 'image/png' });
+    const document = new File(['document'], 'a-very-long-project-report-name.docx', {
+      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    });
+    const render = async (includeImage: boolean): Promise<void> => {
+      await act(async () =>
+        root.render(
+          createElement(ChannelComposer, {
+            value: '',
+            placeholder: 'Message',
+            sending: false,
+            mentionCandidates: empty,
+            mentions: empty,
+            channelCandidates: empty,
+            channelRefs: empty,
+            attachments: [
+              ...(includeImage ? [{ id: 'image-1', file: image, status: 'ready' as const }] : []),
+              { id: 'document-1', file: document, status: 'ready' as const },
+            ],
+            onRemoveAttachment,
+            onChange: vi.fn(),
+            onSubmit: vi.fn(),
+          }),
+        ),
+      );
+    };
+
+    await render(true);
+    expect(createObjectURL).toHaveBeenCalledWith(image);
+    expect(container.querySelector('.bh-composer-image-attachment')).not.toBeNull();
+    expect(container.querySelector('.bh-composer-file-attachment')).not.toBeNull();
+    expect(container.querySelector('[data-file-type-icon$=".docx"]')).not.toBeNull();
+
+    await act(async () => {
+      (container.querySelector('.bh-composer-image-preview') as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[role="dialog"]')?.getAttribute('aria-label')).toBe(
+      '预览 capture.png',
+    );
+    expect(container.querySelector('[role="dialog"] img')?.getAttribute('src')).toBe(
+      'blob:capture.png',
+    );
+
+    await act(async () => {
+      (container.querySelector('[role="dialog"] button') as HTMLButtonElement).click();
+    });
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+
+    const removeDocument = container.querySelector(
+      '[aria-label="移除 a-very-long-project-report-name.docx"]',
+    ) as HTMLButtonElement;
+    removeDocument.click();
+    expect(onRemoveAttachment).toHaveBeenCalledWith('document-1');
+
+    await render(false);
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:capture.png');
   });
 
   it('leaves ordinary text paste to the plain editor', async () => {
