@@ -15,6 +15,8 @@ Verified against DSH **0.2.0-rc.1**, macOS, Chrome, Chinese locale, **1440 × 96
 
 [e2e-result.json](e2e-result.json) and [unavailable-result.json](unavailable-result.json) record the assertions. The shared Memory menu also passed its existing real DSH E2E: reader selection, native directory/file open/reveal, clipboard, keyboard/context semantics, byte-for-byte Unicode/binary/large downloads, authenticated owner routes and unchanged Git state ([memory-regression-result.json](memory-regression-result.json)). No additional external editor save was claimed for this Workspace slice.
 
+Final rebased validation: **1432 tests passed**, one existing optional Browser controls E2E skipped (`BROWSER_E2E=1`), and lint, format, typecheck, build, bilingual ledger and Chinese OG font checks passed. The rebuilt Host also passed the Workspace driver again. [validation.json](validation.json) records the tested source revision and limits.
+
 ## Regression coverage and Human QA
 
 The Workspace owner tests exercise the real Operational Database, Grant Store and current DSH Workspace Registry adapter: active/wrong-owner/revoked/missing Grants, replacement registry paths, unregistered and vanished directories. Client coverage checks the opaque Grant ID, fresh resolution before dispatch, unchanged Store state, no directory download, copy-only fallback and refused executable actions for revoked targets. The existing Memory menu tests remain in place.
