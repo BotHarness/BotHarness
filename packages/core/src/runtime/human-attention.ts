@@ -141,18 +141,20 @@ export function createHumanAttentionQuery(
           (db) =>
             db
               .prepare(`${UNREAD_CTE},
+          filtered_unread AS (
+            SELECT * FROM visible_unread WHERE (? IS NULL OR bot_slug = ?)
+          ),
           unread_channels AS (
             SELECT channel_id, count(*) AS unread_count, max(revision) AS last_revision
-              FROM visible_unread GROUP BY channel_id
+              FROM filtered_unread GROUP BY channel_id
           )
           SELECT 'unread:' || v.channel_id AS id, v.channel_id, v.channel_name,
                  v.created_at, v.message_id, v.source_event_id, v.body AS summary,
                  coalesce(v.bot_slug, '') AS bot_slug, u.unread_count
             FROM unread_channels u
-            JOIN visible_unread v
+            JOIN filtered_unread v
               ON v.channel_id = u.channel_id AND v.revision = u.last_revision
-           WHERE (? IS NULL OR v.bot_slug = ?)
-             AND (? IS NULL OR v.channel_id = ?)
+           WHERE (? IS NULL OR v.channel_id = ?)
              AND (? IS NULL OR v.created_at ${cursorComparison} ? OR
                   (v.created_at = ? AND v.channel_id ${cursorComparison} ?))
            ORDER BY v.created_at ${direction}, v.channel_id ${direction}
