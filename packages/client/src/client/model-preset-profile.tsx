@@ -243,6 +243,12 @@ export function ModelPresetProfile({
     setNotice(undefined);
   };
 
+  const refreshRepair = async (): Promise<void> => {
+    const request = planRequest.current;
+    const state = await actions.modelPlanState(slug);
+    if (planRequest.current === request) setRepair(state.repair);
+  };
+
   const customize = async (): Promise<void> => {
     if (busy || selectedCustom === undefined || plan === undefined) return;
     setBusy(true);
@@ -252,8 +258,8 @@ export function ModelPresetProfile({
       const applied = await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort));
       planRequest.current += 1;
       setPlan(applied);
-      setRepair(undefined);
       setSelectedPreset('');
+      await refreshRepair();
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
@@ -282,10 +288,10 @@ export function ModelPresetProfile({
       );
       planRequest.current += 1;
       setPlan(applied);
-      setRepair(undefined);
       setSelectedPreset('');
       setAssignmentModels(assignmentDraftOf(applied));
       setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
+      await refreshRepair();
     } catch (failure) {
       setError(errorMessage(failure));
     } finally {
