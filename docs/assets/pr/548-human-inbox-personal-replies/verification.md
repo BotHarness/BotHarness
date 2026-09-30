@@ -2,6 +2,8 @@
 
 Baseline: main `595469cd022bbd98c9ff2a6fe2847ceaa578d543` (includes #547).
 
+Compatibility was rechecked after integrating main `a3d88bbab25d2479ae435c9a8c1441c747cea20e`: 93 focused Host/Bridge/Client tests passed and the same live-model browser path passed again. Linux CI run [36764193475](https://github.com/BotHarness/BotHarness/actions/runs/36764193475) passed lint, repository formatting, typecheck, the full test suite, build, generated-artifact checks and docs build.
+
 The baseline screenshot shows the earlier Channel unread summary. The final screenshots use a fresh isolated DSH Profile with two live DeepSeek PersonaBots: Launch Planner QA in Launch review QA, and Release Reviewer QA in Release checks QA. Human asks each Bot for one remaining readiness check; each Bot commits its answer through `channel_send` with a real reply reference to that Human message.
 
 ## Verified in the running app
