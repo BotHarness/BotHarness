@@ -172,6 +172,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
+
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
 
 - Browser observation now finds role-less toolbar controls inside editor containers and gives unlabelled ones position-tagged names (`div @x,y`); coordinate clicks outside the viewport fail with a re-screenshot instruction, and screenshots report their viewport size so coordinates map 1:1 ([#530](https://github.com/BotHarness/BotHarness/issues/530)).

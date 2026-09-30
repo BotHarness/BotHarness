@@ -204,6 +204,17 @@ export function createBrowserToolProvider(
     throw new Error('Browser action is not authorized for this session');
   };
 
+  const assertExecutionAllowed = (raw: string, slug: string): void => {
+    if (core().registry?.get(slug)?.browserAccess !== true) {
+      throw new Error('Browser Access is off for this PersonaBot');
+    }
+    if (raw !== 'observe' && takeovers.has(slug)) {
+      throw new Error(
+        'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
+      );
+    }
+  };
+
   const runTool = async (
     raw: string,
     args: Record<string, unknown>,
@@ -491,17 +502,13 @@ export function createBrowserToolProvider(
           call: async (args, execution) => {
             await authorize(execution, sessionId);
             onActivity(slug);
-            if (core().registry?.get(slug)?.browserAccess !== true) {
-              throw new Error('Browser Access is off for this PersonaBot');
-            }
-            if (spec.raw !== 'observe' && takeovers.has(slug)) {
-              throw new Error(
-                'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
-              );
-            }
+            assertExecutionAllowed(spec.raw, slug);
             const started = Date.now();
             try {
-              const result = await serialize(slug, () => runTool(spec.raw, args, slug));
+              const result = await serialize(slug, () => {
+                assertExecutionAllowed(spec.raw, slug);
+                return runTool(spec.raw, args, slug);
+              });
               record(
                 slug,
                 sessionId,
