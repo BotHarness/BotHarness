@@ -18,6 +18,7 @@ import { defineTool } from '@deepseek-ai/dsh-tools';
 import { setSandboxMode } from '@deepseek-ai/dsh-sandbox-policy';
 import { setApprovalPolicy } from '@deepseek-ai/dsh-user-approval';
 
+import type { GroupInvitation } from '../channels/channel.js';
 import type { PersonaBotRecord } from '../bots/persona-bot.js';
 import {
   assignmentModelsOf,
@@ -36,9 +37,21 @@ import type {
 
 function groupCommandResult(
   channel: { id: string; name: string },
-  outcome: 'renamed' | 'member-removed',
+  outcome: 'created' | 'renamed' | 'member-removed',
 ) {
   return { channelId: channel.id, name: channel.name, outcome };
+}
+
+function groupInvitationResult(
+  channelId: string,
+  invitation: Pick<GroupInvitation, 'id' | 'targetBotSlug' | 'status'>,
+) {
+  return {
+    channelId,
+    inviteId: invitation.id,
+    inviteeBotId: invitation.targetBotSlug,
+    outcome: invitation.status,
+  };
 }
 
 const ROLE_PROMPT_ORDER = 10_350;
@@ -1138,7 +1151,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_create: Orchestrator run is unavailable');
-            return JSON.stringify(active.run.channels.createGroup(args.name));
+            return JSON.stringify(
+              groupCommandResult(active.run.channels.createGroup(args.name), 'created'),
+            );
           },
         }),
       );
@@ -1159,12 +1174,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_bot: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.inviteGroup({
-                channelId: args.channel_id,
-                targetBotSlug: args.bot_id,
-              }),
-            );
+            const invitation = active.run.channels.inviteGroup({
+              channelId: args.channel_id,
+              targetBotSlug: args.bot_id,
+            });
+            return JSON.stringify(groupInvitationResult(args.channel_id, invitation));
           },
         }),
       );
@@ -1192,12 +1206,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_invite_respond: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.respondToGroupInvite({
-                invitationId: args.invite_id,
-                accept: args.accept,
-              }),
-            );
+            const result = active.run.channels.respondToGroupInvite({
+              invitationId: args.invite_id,
+              accept: args.accept,
+            });
+            return JSON.stringify({
+              ...groupInvitationResult(result.channel.id, result.invitation),
+              name: result.channel.name,
+            });
           },
         }),
       );
