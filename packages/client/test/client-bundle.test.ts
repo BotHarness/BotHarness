@@ -89,6 +89,7 @@ beforeAll(async () => {
         },
       },
     },
+    fetch: globalThis.fetch,
     TextEncoder,
     TextDecoder,
     AbortController,
@@ -137,6 +138,8 @@ describe('@botharness/ui browser bundle', () => {
       'sessions',
       'uiWorkspace',
       'workspaces',
+      'remote',
+      'remote.session',
     ]);
 
     const registered: {
@@ -161,6 +164,7 @@ describe('@botharness/ui browser bundle', () => {
           return () => undefined;
         },
       },
+      remote: { session: {} },
       connection: {
         rpc: {
           call: async () => ({ ok: true, value: { bots: [] } }),

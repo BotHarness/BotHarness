@@ -10,6 +10,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Added
 
 - PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
+- Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
+
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Group Channels now open a Group Profile from the chat header, with a daily heatmap of committed messages and a per-author breakdown; pinned Group cards appear in its popover ([#424](https://github.com/BotHarness/BotHarness/issues/424), [ADR-0085](docs/adr/0085-personabot-profile-is-a-popover-and-a-channel-body-view.md)).
@@ -229,6 +231,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
+- Defined native file-open menus for Memory, later Workspaces and message attachments, with truthful Host targets and ordinary editable destination files without attachment version retention or edit-triggered Bot wakes; attachment migration remains subsequent work ([ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md), [#572](https://github.com/BotHarness/BotHarness/issues/572)).
 - Defined Activity Center as an operational Overview plus a personal Human Inbox for Channel unread, mentions, and inline actions; a Human's all-Bot Group mention reuses ordinary direct-mention delivery. Runtime behavior is unchanged ([#126](https://github.com/BotHarness/BotHarness/issues/126), [#541](https://github.com/BotHarness/BotHarness/issues/541), [#542](https://github.com/BotHarness/BotHarness/issues/542), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md), [ADR-0099](docs/adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)).
 - Defined deployment-local Model Presets as per-PersonaBot snapshots and retained per-model token statistics across ordinary Session deletion; implementation follows in separate runtime slices ([#488](https://github.com/BotHarness/BotHarness/issues/488), [#39](https://github.com/BotHarness/BotHarness/issues/39), [ADR-0093](docs/adr/0093-model-presets-are-local-snapshots.md), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 - Documented the in-harness Client interaction contracts for Channel continuity, roster moves, DSH shell integration, and HMR; runtime behavior is unchanged ([guide](docs/architecture/client-interaction-contracts.md), [#452](https://github.com/BotHarness/BotHarness/issues/452)).
@@ -260,6 +263,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 Consolidated the implemented foundation and public documentation that preceded DeepSeekBot's first release; this is development history, not a released or installable version.
 
 ### Added
+
+- Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
 
 - PersonaBot creation now offers an empty Memory Repository or an HTTPS/SSH Git import. The Host checks Git, clones into staging with its existing credentials, and only creates the Bot after a successful clone; failed imports leave no Bot ([#298](https://github.com/BotHarness/BotHarness/issues/298)).
 - Added durable PersonaBot identity, file-based Memory tools, and the BOT-mode creation flow ([#22](https://github.com/BotHarness/BotHarness/pull/22), [#98](https://github.com/BotHarness/BotHarness/pull/98)).

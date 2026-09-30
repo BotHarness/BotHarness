@@ -1119,6 +1119,7 @@ function ConversationView({
                   actions={actions}
                   channelId={channelId}
                   path={activeMemoryView.path}
+                  botSlug={channel?.botSlug}
                   t={t}
                   onClose={closeMemoryView}
                 />

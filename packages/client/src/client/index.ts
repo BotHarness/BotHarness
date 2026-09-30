@@ -12,6 +12,7 @@ import type {} from '@deepseek-ai/dsh-api-session-controller/client';
 import type { SessionId } from '@deepseek-ai/dsh-session/types';
 
 import { BOT_MODE_NAMESPACE, type BotModeSettings } from '../bot-mode-settings.js';
+import { createNativeHostFiles } from './host-file-actions.js';
 import { createActions, type BridgeActions } from './actions.js';
 import { BotModePrefs, botModePrefsFace } from './bot-mode-prefs.js';
 import { subscribeBotColorScheme, readBotColorScheme } from './bot-color-scheme.js';
@@ -58,6 +59,8 @@ export const inject = [
   'sessions',
   'uiWorkspace',
   'workspaces',
+  'remote',
+  'remote.session',
 ];
 
 export const PANEL_ID = 'botharness' as MainPanelId;
@@ -92,6 +95,7 @@ export function apply(ctx: ClientContext): void {
   const nativeChatT = ctx.locale.bind('chat');
   const call = createBridgeCall(ctx);
   const actions: BridgeActions = createActions(call, store, {
+    nativeFiles: createNativeHostFiles(ctx.remote.session),
     pickDirectory: () => {
       const picker = ctx.get('uiWorkspace');
       if (picker === undefined) throw new Error('DSH folder picker is unavailable');

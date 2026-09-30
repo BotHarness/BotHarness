@@ -4456,6 +4456,19 @@ html[data-botharness-motion='full'] .bh-motion-preview-sample i:nth-child(3) {
 .bh-memory-change-badge[data-status='deleted'], .bh-memory-change-badge[data-status='D'] { color: var(--dsw-alias-state-error-primary); }
 .bh-memory-change-path { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-memory-file-tree { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.bh-memory-tree-item { display: flex; align-items: center; min-width: 0; border-radius: 8px; }
+.bh-memory-tree-item:hover { background: var(--bh-hover); }
+.bh-memory-tree-item > .bh-memory-tree-row { flex: 1; }
+.bh-memory-tree-more { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; padding: 0; margin-right: 4px; border: 0; border-radius: 6px; background: transparent; color: var(--dsw-alias-label-secondary); cursor: pointer; opacity: 0; }
+.bh-memory-tree-item:hover .bh-memory-tree-more, .bh-memory-tree-item:focus-within .bh-memory-tree-more { opacity: 1; }
+.bh-memory-tree-more:hover { background: var(--bh-hover); }
+@media (hover: none) { .bh-memory-tree-more { opacity: 1; } }
+.bh-file-path-button { padding: 0; border: 0; border-radius: 4px; background: transparent; text-align: left; cursor: pointer; font: inherit; }
+.bh-file-path-button:hover { text-decoration: underline; }
+.bh-file-path-button:focus-visible { outline: 2px solid var(--dsw-alias-label-primary); outline-offset: 2px; }
+.bh-file-path-button.bh-workspace-folder-path { font-size: 12px; }
+.bh-file-app-icon { width: 16px; height: 16px; object-fit: contain; }
+.bh-file-action-feedback { font-size: 12px; }
 .bh-memory-tree-directory { min-width: 0; }
 .bh-memory-tree-group { margin-left: 9px; padding-left: 8px; border-left: 1px solid var(--dsw-alias-border-l2); }
 .bh-memory-tree-row { display: flex; align-items: center; gap: 6px; width: 100%; min-width: 0; border: 0; border-radius: 8px; padding: 5px 6px; background: transparent; color: var(--dsw-alias-label-primary); font-size: 12px; text-align: left; cursor: pointer; }

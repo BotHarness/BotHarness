@@ -1,3 +1,4 @@
+import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
 
@@ -505,6 +506,10 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrap(this.methods.sessionOwner({ sessionId }));
   }
 
+  memoryFileTarget(slug: string, path: string): { target: MemoryFileTarget } {
+    return unwrap(this.methods.memoryFileTarget({ slug, path }));
+  }
+
   memorySnapshot(channelId: string): { snapshot: MemoryAcceptedSnapshot } {
     return unwrap(this.methods.memorySnapshot({ channelId }));
   }
@@ -689,6 +694,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'userQuestionAnswer',
   'sessions',
   'sessionOwner',
+  'memoryFileTarget',
   'memorySnapshot',
   'memoryFile',
   'memoryHistory',
