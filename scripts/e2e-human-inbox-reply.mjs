@@ -248,7 +248,7 @@ try {
         },
         null,
         2,
-      ),
+      ) + '\n',
     );
     console.log('E2E VERIFIED: Group + DM canonical inline replies and exact navigation');
   } else if (mode === 'light') {
