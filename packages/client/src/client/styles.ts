@@ -4752,6 +4752,11 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   padding: 12px 8px;
   border-bottom: 1px solid var(--dsw-alias-border-l3);
 }
+.bh-human-inbox-message-flow {
+  max-height: min(42vh, 380px);
+  overflow: auto;
+  margin-bottom: 12px;
+}
 .bh-human-inbox-message-content {
   min-width: 0;
   flex: 1;

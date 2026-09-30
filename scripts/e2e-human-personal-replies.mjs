@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const home = resolve(tmpdir(), 'bh-548-personal-replies');
+const home = resolve(tmpdir(), 'bh-548-human-qa');
 const port = 31988;
 const url = readFileSync(resolve(tmpdir(), `dsh-${basename(home)}-${port}.log`), 'utf8').match(
   /http:\/\/127\.0\.0\.1:\d+\/\?token=[A-Za-z0-9._-]+/u,
@@ -112,7 +112,7 @@ try {
       await rpc('channelSend', {
         channelId: group.id,
         messageId: humanId,
-        body: `${mention} Review today's ${role} readiness. Use channel_send with reply_to "${humanId}" and report one concrete remaining check.`,
+        body: `${mention} Review today's ${role} readiness and report one concrete remaining check.`,
         mentions: [{ botSlug: bot.slug, label: name, start: 0, end: mention.length }],
       });
       const reply = await waitReply(group.id, humanId);
@@ -121,9 +121,9 @@ try {
     }
     save('scene', scenes);
     await inbox();
-    await clickText('.bh-human-inbox-tabs button', '未读');
+    await clickText('.bh-human-inbox-tabs button', '回复我');
     await delay(700);
-    await capture('before');
+    await capture('qa-seeded');
   } else {
     const scenes = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
     const scene = scenes[0];
