@@ -1,3 +1,4 @@
+import { isChannelAttachmentRef } from '../attachments/ref.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { mkdirSync } from 'node:fs';
 
@@ -80,7 +81,7 @@ Call list_workspace_grants to find a Human-authorized DSH Workspace Grant, then 
 When the Human explicitly asks to stop an Assignment, inspect it and call stop_assignment with its Session id; wait for the tool to confirm stopped before reporting that fact in the Channel. Do not use a follow-up instruction as a substitute for stopping.
 Assignment reports and questions arrive in the [Bot Inbox] block of your next turn. An item marked WAITING needs your answer: reply with send_assignment_request and its answer_to value, and the Assignment resumes from your answer. Progress items need no reply; use list_assignments and inspect_assignment when you need current facts, and never poll for reports. An oversized report gives a DSH Spill locator and retrieval hint. If your workspace cannot read the locator, inspect_assignment with report_offset=0 reads the accepted report through DSH Session Query in bounded pages; continue from nextOffset when needed. include_recent_events reads a separate bounded Session tail and reports its cost. Keep Assignment purposes concise and self-contained.
 An item marked Host lifecycle notice is a runtime fact, not a report authored by the Assignment Agent. Use it to verify settlement and inform the Human when relevant; never attribute its wording to the Assignment Agent.
-Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; call channel_list to discover joined Channels and current members, then channel_read to inspect one Channel or search across joined Channels with scope joined and a text filter. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, use channel_send in that same Channel only when a reply is useful. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. Use group_leave to leave any joined Group, including one you created; you then lose read and send access. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. A Human-selected #Group reference in your Human DM gives you only the current Group ID and name. If you need to collaborate there, call group_join_request in that same turn; it does not grant access. A Human or the Bot Group creator may approve. You receive a separate Inbox decision, and only then can you read or send in that Group. If you created a Group, group_join_decide can accept or decline its pending join requests. Use channel_read_image with the message id and opaque attachment hash from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
+Your ordinary assistant final text stays inside the Orchestrator Session and is never a Human-facing Channel message. To speak in a Channel, explicitly call channel_send. The current inbound Channel is the default; call channel_list to discover joined Channels and current members, then channel_read to inspect one Channel or search across joined Channels with scope joined and a text filter. To contact a PersonaBot colleague privately, call list_bot_contacts for a stable ID, then bot_dm_send with that bot_id; the recipient is notified in a real two-Bot DM and the Human sees a linked action notice in your Human DM. In a Bot-to-Bot DM, use channel_send in that same Channel only when a reply is useful. In a Group Channel, channel_send can mention joined Bot colleagues through mention_bot_ids; use list_bot_contacts for stable IDs, and the Host validates current membership and prepends the visible @ badges. You may create a Group with group_create, invite a colleague with group_invite_bot, and manage the Group you created with group_rename or group_remove_member. Use group_leave to leave any joined Group, including one you created; you then lose read and send access. An invitation arriving in your Inbox does not grant Group access; call group_invite_respond with accept true or false to decide, then use channel_send in that Group only after acceptance. A Human-selected #Group reference in your Human DM gives you only the current Group ID and name. If you need to collaborate there, call group_join_request in that same turn; it does not grant access. A Human or the Bot Group creator may approve. You receive a separate Inbox decision, and only then can you read or send in that Group. If you created a Group, group_join_decide can accept or decline its pending join requests. Use channel_read_image with the message id and opaque fileId (or legacy hash) from channel_read when the Human asks about an image; never search the Host filesystem for Channel uploads.`;
 const ASSIGNMENT_PROMPT = `You are an Assignment Agent executing one bounded item for an Orchestrator.
 Use DSH's native read, write, edit, glob, and grep tools in your selected Workspace Grant. Never access another workspace or the PersonaBot's Memory Repository — only the Orchestrator owns memory. Shell and other tools that cannot be checked by file path require Human approval in the Bot Channel unless the Human has saved a matching automatic rule. Wait when an approval card is shown.
 Report progress at meaningful milestones with report_to_orchestrator state progress, and report one terminal state before finishing: completed, blocked, waiting-human, or failed, including anything worth remembering so the Orchestrator can persist it.
@@ -1072,7 +1073,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'channel_read_image',
           description:
-            'Inspect one image attached to a Channel message this PersonaBot has joined. Pass channel_id, message_id, and the opaque sha256 hash returned by channel_read. This returns the image itself without exposing a Host filesystem path.',
+            'Inspect one image attached to a Channel message this PersonaBot has joined. Pass channel_id, message_id, and attachment_id using the opaque fileId returned by channel_read, or hash for a legacy attachment. This returns the image itself without exposing a Host filesystem path.',
           parameters: {
             channel_id: {
               type: 'string',
@@ -1083,10 +1084,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               required: true,
               description: 'Owning Channel message id returned by channel_read.',
             },
+            attachment_id: {
+              type: 'string',
+              description:
+                'Opaque fileId returned by channel_read; use exactly one of attachment_id or legacy hash.',
+            },
             hash: {
               type: 'string',
-              required: true,
-              description: 'Opaque sha256 attachment hash returned by channel_read.',
+              description: 'Legacy sha256 attachment hash returned by channel_read.',
             },
           },
           output: {
@@ -1096,7 +1101,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               properties: {
                 channelId: { type: 'string', required: true },
                 messageId: { type: 'string', required: true },
-                hash: { type: 'string', required: true },
+                hash: { type: 'string' },
+                fileId: { type: 'string' },
                 image: {
                   type: 'object',
                   additionalProperties: false,
@@ -1129,7 +1135,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               return [
                 {
                   type: 'text',
-                  text: `Channel image ${value.hash} from message ${value.messageId}`,
+                  text: `Channel image ${value.fileId ?? value.hash} from message ${value.messageId}`,
                 },
                 {
                   type: 'image',
@@ -1168,7 +1174,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const result = await access({
               ...(args.channel_id === undefined ? {} : { channelId: args.channel_id }),
               messageId: args.message_id,
-              hash: args.hash,
+              ...(args.hash === undefined ? {} : { hash: args.hash }),
+              ...(args.attachment_id === undefined ? {} : { attachmentId: args.attachment_id }),
               maxBytes,
               signal: exec.signal,
             });
@@ -1185,7 +1192,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             return {
               channelId: args.channel_id ?? active.run.inboundChannelId,
               messageId: args.message_id,
-              hash: result.ref.hash,
+              ...(result.ref.fileId === undefined
+                ? { hash: result.ref.hash }
+                : { fileId: result.ref.fileId }),
               image,
             };
           },
@@ -1411,7 +1420,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'group_attention_get',
           description:
-            "Read this PersonaBot's current attention preference for a joined Group Channel, including revision and last editor. Use channel_list to find the Group ID.",
+            "Read only this PersonaBot's effective joined-Group override: mode, count, intervalSeconds, revision, lastActor and changedAt. Without an override the ordinary-Group source default applies. Use channel_list for its ID.",
           parameters: {
             channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
           },
@@ -1434,7 +1443,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'group_attention_set',
           description:
-            "Change only this PersonaBot's attention preference in a joined Group Channel. Modes: all (every message), digest (batch), mentions (direct @), silent (no ordinary-message wake). Count and interval are optional; omitted values keep the current setting.",
+            "Set only this PersonaBot's joined-Group override: all=immediate ordinary wake, digest=batch, mentions=no ordinary wake but pending context may join a direct mention, silent=ordinary context requires explicit read. Direct addresses still arrive. In every mode optional integer count 1–100 and interval_seconds 1–3600 tune stored digest settings; omission preserves effective values. Overrides beat the source default; only future Admissions change. Returns effective values, revision and last actor/time.",
           parameters: {
             channel_id: { type: 'string', required: true, description: 'Joined Group Channel ID.' },
             mode: {
@@ -1474,7 +1483,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_get',
           description:
-            "Read this PersonaBot's nine effective source rules, their revision and editor, and actual Orchestrator wake attempts over the last seven days. Group Channel preferences override the ordinary Group default.",
+            "Read only this PersonaBot's nine effective source rules, revisions, lastActor/changedAt and recentWakeCount (actual wake attempts in the last seven days). Per-Channel overrides beat the group-ordinary default; membership and protected admission gates remain Host-owned.",
           parameters: {},
           output: {
             schema: { type: 'string' },
@@ -1492,12 +1501,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_set',
           description:
-            "Set this PersonaBot's source default for Assignment reports or ordinary Group messages. Group options are immediate (all), digest, mentions, and silent; per-Channel Group preferences still take priority. Only new Admissions use the new revision.",
+            "Set only this PersonaBot's source default. Matrix: omitted sourceClass or assignment-report → conditional or immediate, no digest parameters; conditional wakes for non-progress reports or expected replies. group-ordinary → immediate, digest, mentions or silent; only digest accepts optional integer digestCount 1–100 and digestIntervalSeconds 1–3600 (omit to preserve effective values; built-in 5/30). All other combinations fail without a policy write. Per-Channel overrides win, direct addresses still arrive, and only future Admissions change. Returns effective rule, revision, last actor/time and seven-day wake count.",
           parameters: {
             sourceClass: {
               type: 'string',
               enum: ['assignment-report', 'group-ordinary'],
-              description: 'Defaults to assignment-report for compatibility.',
+              description:
+                'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
             wake: {
               type: 'string',
@@ -1505,12 +1515,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               enum: ['conditional', 'immediate', 'digest', 'mentions', 'silent'],
             },
             digestCount: {
-              type: 'number',
-              description: 'Group digest count, 1 to 100; used only with digest wake.',
+              type: 'integer',
+              description:
+                'Only group-ordinary + digest: 1–100; omission preserves effective count.',
             },
             digestIntervalSeconds: {
-              type: 'number',
-              description: 'Group digest interval, 1 to 3600 seconds; used only with digest wake.',
+              type: 'integer',
+              description:
+                'Only group-ordinary + digest: 1–3600 seconds; omission preserves effective interval.',
             },
           },
           output: {
@@ -1537,6 +1549,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               args.wake !== 'silent'
             )
               throw new Error('Group ordinary wake mode is invalid');
+            if (
+              args.wake !== 'digest' &&
+              (args.digestCount !== undefined || args.digestIntervalSeconds !== undefined)
+            )
+              throw new Error('Only Group digest wake accepts digest parameters');
             const current = active.run.sourcePolicy
               .list()
               .find((policy) => policy.sourceClass === 'group-ordinary');
@@ -1561,12 +1578,13 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'source_attention_reset',
           description:
-            "Restore this PersonaBot's built-in Assignment report or ordinary Group default. The reset gets a new audited revision and leaves previous Admissions unchanged.",
+            "Reset only this PersonaBot's source default: omitted sourceClass or assignment-report → conditional, no digest; group-ordinary → digest, count 5, interval 30 seconds. Returns the effective rule with a new audited revision, last actor/time and seven-day wake count. Existing Channel overrides and previous Admissions stay intact; other source classes cannot be reset here.",
           parameters: {
             sourceClass: {
               type: 'string',
               enum: ['assignment-report', 'group-ordinary'],
-              description: 'Defaults to assignment-report for compatibility.',
+              description:
+                'Omit for assignment-report; group-ordinary changes its source default, not a Channel override.',
             },
           },
           output: {
@@ -1665,7 +1683,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
                 type: 'object',
                 additionalProperties: false,
                 properties: {
-                  hash: { type: 'string', required: true },
+                  hash: { type: 'string' },
+                  fileId: { type: 'string' },
                   name: { type: 'string', required: true },
                   mime: { type: 'string', required: true },
                   size: { type: 'number', required: true },
@@ -1696,6 +1715,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (active?.role !== 'orchestrator') {
               throw new Error('channel_send: Orchestrator run is unavailable');
             }
+            if (args.attachments !== undefined && !args.attachments.every(isChannelAttachmentRef))
+              throw new Error('channel_send: invalid attachment references');
             const message = await active.run.channels.send({
               body: args.body,
               ...(exec.callId === undefined ? {} : { deliveryKey: String(exec.callId) }),

@@ -289,6 +289,7 @@ describe('plugin entry', () => {
       'assignments',
       'assignment',
       'workspaceOptions',
+      'messageAttachmentTarget',
       'workspaceFileTarget',
       'grants',
       'grantCreate',

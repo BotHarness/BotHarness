@@ -1,3 +1,4 @@
+import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
@@ -244,16 +245,53 @@ it('reads only a joined Channel image by durable message and attachment referenc
         const result = await access!({
           channelId: joined.id,
           messageId: 'image-message',
-          hash: image.hash,
+          attachmentId: image.fileId!,
           maxBytes: 1024,
         });
         expect(result.ref).toEqual(image);
         expect(result.data).toEqual(bytes);
+        const path = attachments.fileTarget(image.fileId!).path;
+        const edited = Uint8Array.from([...bytes, 4, 5]);
+        writeFileSync(path, edited);
+        const current = await access!({
+          channelId: joined.id,
+          messageId: 'image-message',
+          attachmentId: image.fileId!,
+          maxBytes: 1024,
+        });
+        expect(current.data).toEqual(edited);
+        expect(current.ref.size).toBe(edited.length);
+        await expect(
+          access!({
+            channelId: joined.id,
+            messageId: 'image-message',
+            attachmentId: image.fileId!,
+            maxBytes: bytes.length,
+          }),
+        ).rejects.toThrow('read limit');
+        await expect(
+          access!({
+            channelId: joined.id,
+            messageId: 'image-message',
+            attachmentId: image.fileId!,
+            hash: 'sha256:' + 'a'.repeat(64),
+            maxBytes: 1024,
+          }),
+        ).rejects.toThrow('Exactly one');
+        writeFileSync(path, 'now plain text');
+        await expect(
+          access!({
+            channelId: joined.id,
+            messageId: 'image-message',
+            attachmentId: image.fileId!,
+            maxBytes: 1024,
+          }),
+        ).rejects.toThrow('supported Channel image');
         await expect(
           access!({
             channelId: privateChannel.id,
             messageId: 'private-image',
-            hash: image.hash,
+            attachmentId: image.fileId!,
             maxBytes: 1024,
           }),
         ).rejects.toThrow(/not a member/);
@@ -261,7 +299,7 @@ it('reads only a joined Channel image by durable message and attachment referenc
           access!({
             channelId: joined.id,
             messageId: 'missing',
-            hash: image.hash,
+            attachmentId: image.fileId!,
             maxBytes: 1024,
           }),
         ).rejects.toThrow(/not found/);

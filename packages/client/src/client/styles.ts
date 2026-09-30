@@ -2494,6 +2494,10 @@ button.bh-profile-heat-cell:focus-visible {
 
 /* Files stay part of the same message grouping as their text. */
 .bh-bubble-content { min-width: 0; }
+.bh-message-attachment { position: relative; display: flex; align-items: center; gap: 4px; min-width: 0; }
+.bh-message-file-more { flex: none; color: inherit; }
+button.bh-message-file { font: inherit; text-align: left; cursor: pointer; }
+.bh-message-file:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .bh-message-attachments { display: grid; gap: 6px; margin-top: 6px; }
 .bh-message-image-link { display: block; max-width: min(100%, 360px); }
 .bh-message-image { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; object-fit: contain; }

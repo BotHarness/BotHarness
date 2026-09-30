@@ -19,6 +19,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
 - Humans can click or right-click an authorized Workspace path to open its current Host directory with a detected application or copy its path; the Host checks the current Workspace Grant and registry identity without changing Grants, Session cwd, or access ([#575](https://github.com/BotHarness/BotHarness/issues/575), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
+- New message attachments open their actual Host destination through the file menu; external saves appear in subsequent message reads and downloads, independent uploads stay separate, and explicit reference reuse shares the current file without notifications or Bot wake ([#576](https://github.com/BotHarness/BotHarness/issues/576), [file guide](docs/file-open.md)).
 
 - Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
@@ -114,6 +115,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Attention Tools now expose the complete Assignment-report and ordinary-Group parameter matrix, use integer digest schemas, and reject digest parameters outside Group digest mode without changing policy revisions; Human overrides and prospective Inbox snapshots still share the same authority ([#567](https://github.com/BotHarness/BotHarness/issues/567)).
+
 - Channel reads now return bounded actionable content with explicit continuation, preserving replies, trusted attachments and action references while leaving omitted or partially read messages pending in Bot Inbox ([#565](https://github.com/BotHarness/BotHarness/issues/565)).
 
 - Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
@@ -193,6 +196,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
 
 - Changing a PersonaBot’s Browser Profile clears its previous tab selection and Pause state, so work can start in the newly assigned profile without resuming unrelated old-profile work ([#595](https://github.com/BotHarness/BotHarness/issues/595)).
 
