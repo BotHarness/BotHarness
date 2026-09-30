@@ -262,7 +262,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Documentation
 
-- Documented the local Human naming target: a plugin-wide default, per-Channel roleplay nicknames, and stable-ID mentions displaying current Human or PersonaBot names; runtime implementation remains subsequent work ([#126](https://github.com/BotHarness/BotHarness/issues/126), [design](docs/architecture/botharness-architecture.md)).
+- Documented the local Human naming target: a plugin-wide default, per-Channel roleplay nicknames, and stable-ID mentions displaying current Human or PersonaBot names; runtime implementation remains subsequent work ([ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md), [#126](https://github.com/BotHarness/BotHarness/issues/126), [design](docs/architecture/botharness-architecture.md)).
 
 - Documented the verified Lark work-group mention and checked topic-reply contract, separate Feishu/Lark permission limits, and a repeatable sandbox with public E2E evidence; PersonaBot ingress remains subsequent work ([#78](https://github.com/BotHarness/BotHarness/issues/78), [research](docs/research/2026-09-20-feishu-message-edit-recall-events.md)).
 

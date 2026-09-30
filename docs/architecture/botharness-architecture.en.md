@@ -197,7 +197,7 @@ A Source Event is the sole authority for content; Channels and Inboxes hold rela
 
 Wake Policy decides when an Orchestrator observes new attention: at the safe boundary after the current step, after the current turn, or by starting a new turn while idle. Ordinary external messages do not interrupt a running model/tool step. Only a DSH-supported and policy-authorized control path may steer execution. Ready attention is consumed by turn, not by event: while a turn runs, arrivals mark a ready set, and one harvest turn consumes it when the turn ends or the Bot is idle; only direct mentions and DMs steer into the running turn (ADR-0077). Wake handling follows the Source class rather than the platform: external providers normalize into Source Events at the Bridge, and the runtime branches only on Source class and admission reason (ADR-0075).
 
-### Local Human names — target design
+### Local Human names — target design (ADR-0103)
 
 The local Human has one optional default display name within the DSH Profile, edited in BotHarness plugin settings and falling back to `Human`. Every Human-participating DM or Group Channel may override it with **Human Channel nickname**, edited through “My nickname” in the Channel header menu. Clearing an override restores inheritance; changing the default affects only Channels without an override. These names support roleplay with different partners without adding saved roleplay backgrounds, another Human account, or another Human Inbox.
 
