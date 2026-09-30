@@ -25,6 +25,7 @@ import type {
   AssignmentAccessPresetView,
 } from './bridge.js';
 import { errorMessage } from './bridge.js';
+import { MemoryFileActionButton } from './memory-file-actions.js';
 import { Modal } from './modal.js';
 import { LoadingSkeleton } from './loading-skeleton.js';
 import { useMountedResource } from './mounted-resource.js';
@@ -115,6 +116,7 @@ function FolderRow({
   removeLabel,
   disabled,
   detail,
+  pathAction,
 }: {
   name: string;
   path: string;
@@ -122,6 +124,7 @@ function FolderRow({
   removeLabel?: string;
   disabled?: boolean;
   detail?: ReactNode;
+  pathAction?: ReactNode;
 }): ReactElement {
   const [expanded, setExpanded] = useState(false);
   const detailId = useId();
@@ -160,9 +163,11 @@ function FolderRow({
       </div>
       {expanded ? (
         <div id={detailId} className="bh-workspace-folder-detail">
-          <div className="bh-workspace-folder-path" title={path}>
-            {path}
-          </div>
+          {pathAction ?? (
+            <div className="bh-workspace-folder-path" title={path}>
+              {path}
+            </div>
+          )}
           {detail}
         </div>
       ) : null}
@@ -476,7 +481,22 @@ export function WorkspaceGrantsEntry({
         </div>
       )}
       <div className="bh-workspace-folder-table">
-        <FolderRow name={t('grant.memory')} path={memoryDir ?? ''} />
+        <FolderRow
+          name={t('grant.memory')}
+          path={memoryDir ?? ''}
+          pathAction={
+            memoryDir === undefined ? undefined : (
+              <MemoryFileActionButton
+                actions={actions}
+                slug={botSlug}
+                path=""
+                text={memoryDir}
+                className="bh-workspace-folder-path"
+                t={t}
+              />
+            )
+          }
+        />
         {active.map((grant) => (
           <FolderRow
             key={grant.id}

@@ -4,6 +4,7 @@ import type {
   OutboxIntent,
 } from '../../../core/src/messaging/outbound.js';
 import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
+import type { HostFileTarget } from './host-file-actions.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
 
@@ -1982,6 +1983,22 @@ export async function loadMemorySnapshot(
   )
     throw new Error('invalid Memory snapshot');
   return snapshot as unknown as MemorySnapshot;
+}
+
+export async function loadMemoryFileTarget(
+  call: BridgeCall,
+  slug: string,
+  path: string,
+): Promise<HostFileTarget> {
+  const response = asRecord(await unwrap(call, 'memoryFileTarget', { slug, path }));
+  const target = asRecord(response?.['target']);
+  if (
+    typeof target?.['path'] !== 'string' ||
+    typeof target['relativePath'] !== 'string' ||
+    !['file', 'directory'].includes(String(target['kind']))
+  )
+    throw new Error('Invalid Memory file target');
+  return target as unknown as HostFileTarget;
 }
 
 export async function loadMemoryFile(

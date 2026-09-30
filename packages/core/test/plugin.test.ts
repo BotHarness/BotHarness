@@ -302,6 +302,7 @@ describe('plugin entry', () => {
       'userQuestionAnswer',
       'sessions',
       'sessionOwner',
+      'memoryFileTarget',
       'memorySnapshot',
       'memoryFile',
       'memoryHistory',

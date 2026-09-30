@@ -11,6 +11,7 @@ import type { ApprovalService } from '@deepseek-ai/dsh-user-approval';
 import Schema from '@deepseek-ai/schemastery';
 
 import { createAttachmentStore, type AttachmentStore } from './attachments/store.js';
+import { createMemoryFileHttp, MEMORY_FILE_DOWNLOAD_PATH } from './memory/file-http.js';
 import {
   createAttachmentHttp,
   CHANNEL_ATTACHMENT_PATH,
@@ -822,6 +823,16 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         },
       });
     }, 'botharness: Channel live stream');
+    connectionCtx.effect(
+      () =>
+        connection.fetch.register({
+          path: MEMORY_FILE_DOWNLOAD_PATH,
+          methods: ['GET'],
+          requestBody: 'buffered',
+          fetch: createMemoryFileHttp(core.memory),
+        }),
+      'botharness: current Memory file download',
+    );
     const attachmentHttp = createAttachmentHttp(core.attachments);
     connectionCtx.effect(
       () =>

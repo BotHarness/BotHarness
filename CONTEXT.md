@@ -267,7 +267,7 @@ A recoverable record of one observed Memory Repository branch, HEAD, index, and 
 _Avoid_: accepted commit, auto-save, Git author, ordinary Inbox observation
 
 **Attachment**:
-A content-addressed file received with a Source Event and retained once for every Channel or PersonaBot that references it. A PersonaBot owns a separate copy only when it deliberately preserves the file into its Memory or Workspace.
+A Host-managed real file received with a Source Event, with identity independent of its current bytes and the sender's upload-source file. Referencing messages show its current contents after external edits; independent uploads remain independent, and a PersonaBot owns a Memory or Workspace copy only after explicitly preserving it.
 _Avoid_: upload, provider URL, per-Bot inbox copy, database blob
 
 ### Soul and sharing
