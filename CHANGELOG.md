@@ -207,6 +207,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Group departure now reports a committed change or an idempotent `not-member` no-change; missing Channels and non-Group targets fail explicitly, so repeated or rejected requests cannot fabricate a new departure ([#571](https://github.com/BotHarness/BotHarness/issues/571)).
+
 - After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
 - Refused Browser tool attempts now produce one attributed Browser Audit error entry, including authorization, Access, Pause and post-Resume observation checks; typed text and upload paths keep their existing redacted summaries ([#604](https://github.com/BotHarness/BotHarness/issues/604)).
 

@@ -1,0 +1,86 @@
+{
+  "stage": "before",
+  "dshVersion": "0.2.0-rc.1",
+  "model": {
+    "provider": "deepseek-official",
+    "model": "deepseek-flash"
+  },
+  "measurements": {
+    "compiledParameterCharacters": 123,
+    "compiledToolMetadataCharacters": 284,
+    "leaveResultCharacters": [60, 61, 68, 48, 70]
+  },
+  "actualLeaveResults": [
+    {
+      "channelId": "group-qa571-creator-group-before",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-creator-group-before\",\"left\":true}"
+    },
+    {
+      "channelId": "group-qa571-creator-group-before",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-creator-group-before\",\"left\":false}"
+    },
+    {
+      "channelId": "dm-bot-cc2551ec03f74fafa77c57952da413f0",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"dm-bot-cc2551ec03f74fafa77c57952da413f0\",\"left\":false}"
+    },
+    {
+      "channelId": "qa571-missing-group",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"qa571-missing-group\",\"left\":false}"
+    },
+    {
+      "channelId": "group-qa571-hidden-nonmember-group-before",
+      "nativeFailure": false,
+      "result": "{\"channelId\":\"group-qa571-hidden-nonmember-group-before\",\"left\":false}"
+    }
+  ],
+  "verified": {
+    "realBotCreator": true,
+    "autoAcceptedPeerInvitation": true,
+    "oneCommittedDeparture": true,
+    "creatorAuthorityHandedToHuman": true,
+    "repeatCreatesNoSecondNotice": true,
+    "readSendRevoked": true,
+    "noLeaverDepartureAdmission": true,
+    "noHiddenNameOrRoster": true,
+    "noShellOrAssignment": true,
+    "baselineInvalidTargetsReturnSuccess": true,
+    "pendingLeaverAdmissionRevoked": true,
+    "remainingPeerDepartureHandled": true
+  },
+  "canonical": {
+    "groupId": "group-qa571-creator-group-before",
+    "members": ["bot-eea6c6f79d3644778a3dcb92fc859354"],
+    "ownerBotSlug": null,
+    "departureId": "member-left-b1d932a1-38d7-4288-a70a-c390fde9caf9",
+    "deliveries": [
+      {
+        "botSlug": "bot-eea6c6f79d3644778a3dcb92fc859354",
+        "state": "handled"
+      }
+    ],
+    "pendingLeaverAdmission": {
+      "botSlug": "bot-cc2551ec03f74fafa77c57952da413f0",
+      "state": "handled",
+      "reason": "Group membership revoked"
+    }
+  },
+  "compiledSchema": {
+    "name": "group_leave",
+    "description": "Leave a joined Group Channel. This also relinquishes Bot creator management, and repeating the call is safe.",
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "channel_id": {
+          "type": "string",
+          "description": "Group Channel ID."
+        }
+      },
+      "required": ["channel_id"]
+    }
+  },
+  "testData": "Fresh isolated Profile; synthetic Bot creator, peer, Group, pending ordinary message, missing ID and Human DM. Actual model Tool calls; no private user data."
+}

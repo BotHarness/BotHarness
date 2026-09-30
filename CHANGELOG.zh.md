@@ -207,6 +207,8 @@
 
 ### Fixed
 
+- 群聊退出现在明确返回已提交变更或 `not-member` 幂等无变更；缺失 Channel 和非群聊目标明确失败，重复或被拒绝的请求不再被描述为一次新退出（[#571](https://github.com/BotHarness/BotHarness/issues/571)）。
+
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
 - 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
 
