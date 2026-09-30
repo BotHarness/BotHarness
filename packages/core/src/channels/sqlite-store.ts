@@ -1726,6 +1726,19 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
             entries: page.entries.map((message) => project(messages, message)),
           };
     },
+    readHumanTimeline(id, request) {
+      const channel = readRecord(id);
+      if (channel === undefined) return undefined;
+      const member = humanMembers(id).find((entry) => entry.human_id === LOCAL_HUMAN_ID);
+      if (channel.type === 'group' && member === undefined) return undefined;
+      const messages = allMessages(id).filter(
+        (message) => (message.channelRevision ?? 0) >= (member?.visible_from_revision ?? 0),
+      );
+      const page = pageChannelTimeline(id, messages, request);
+      return page === undefined
+        ? undefined
+        : { ...page, entries: page.entries.map((message) => project(messages, message)) };
+    },
     revision: revisionOf,
     admissionChanged(channelId, messageId) {
       const message = this.message(channelId, messageId);

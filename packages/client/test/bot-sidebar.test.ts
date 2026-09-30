@@ -145,6 +145,10 @@ function stubActions(): BridgeActions {
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
+    humanInboxContext: vi.fn(async () => []),
+    replyFromHumanInbox: vi.fn(async () => {
+      throw new Error('No reply expected');
+    }),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),

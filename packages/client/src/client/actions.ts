@@ -170,6 +170,17 @@ export interface BridgeActions {
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
   openChannelAtMessage(channelId: string, messageId: string): Promise<void>;
+  humanInboxContext(
+    channelId: string,
+    messageId: string,
+    signal?: AbortSignal,
+  ): Promise<ChannelMessage[]>;
+  replyFromHumanInbox(
+    channelId: string,
+    messageId: string,
+    body: string,
+    clientMessageId: string,
+  ): Promise<ChannelMessage>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
@@ -864,6 +875,45 @@ export function createActions(
     },
     openChannelAtMessage(channelId, messageId) {
       return openChannelById(channelId, messageId);
+    },
+    async humanInboxContext(channelId, messageId, signal) {
+      const { page } = await loadTimelinePage(
+        call,
+        channelId,
+        {
+          direction: 'around',
+          around: messageId,
+          olderLimit: 2,
+          newerLimit: 2,
+        },
+        signal,
+      );
+      if (
+        !page.entries.some(
+          (message) => message.id === messageId && !message.pending && !message.failed,
+        )
+      )
+        throw new Error('Source message is no longer available');
+      return page.entries;
+    },
+    async replyFromHumanInbox(channelId, messageId, body, clientMessageId) {
+      const text = body.trim();
+      const message = await sendChannelMessage(
+        call,
+        channelId,
+        text,
+        messageId,
+        undefined,
+        clientMessageId,
+      );
+      if (
+        message.id !== clientMessageId ||
+        message.replyTo !== messageId ||
+        message.body !== text ||
+        message.author.kind !== 'human'
+      )
+        throw new Error('Channel reply could not be confirmed');
+      return message;
     },
     async markRead(channelId, messageId) {
       await markReadPosition(call, channelId, messageId);
