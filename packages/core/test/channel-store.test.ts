@@ -313,7 +313,7 @@ describe('channel store', () => {
     expect(store.readPosition('dm-ada')).toBeUndefined();
   });
 
-  it('accepts only refs present in the profile CAS before durable append', async () => {
+  it('accepts only refs present in the profile before durable append', async () => {
     const root = createRoot();
     const attachments = createAttachmentStore({ rootDir: join(root, 'attachments') });
     const ref = await attachments.upload({
@@ -327,7 +327,7 @@ describe('channel store', () => {
     const sent = await store.appendMessage('dm-ada', { ...message(''), attachments: [ref] });
     expect(sent?.attachments).toEqual([ref]);
     expect(store.readMessages('dm-ada')[0]?.attachments).toEqual([ref]);
-    const forged = { ...ref, size: ref.size + 1 };
+    const forged = { ...ref, name: 'another.txt' };
     expect(() => store.assertAttachmentRefs([forged])).toThrow('does not belong');
     await expect(
       store.appendMessage('dm-ada', { ...message('bad'), attachments: [forged] }),

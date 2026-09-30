@@ -168,6 +168,14 @@ function stubActions(): BridgeActions {
     dismissFailedMessage: vi.fn(() => false),
     openSession: vi.fn(() => undefined),
     refreshSessions: vi.fn(async () => undefined),
+    messageAttachmentTarget: vi.fn(async () => ({
+      path: '/attachment',
+      relativePath: 'attachment',
+      kind: 'file' as const,
+    })),
+    messageAttachmentApplications: vi.fn(async () => ({ available: false, applications: [] })),
+    messageAttachmentOpen: vi.fn(async () => undefined),
+    messageAttachmentDownload: vi.fn(async () => undefined),
     workspaceFileTarget: async () => ({
       path: '/workspace',
       relativePath: '',

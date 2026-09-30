@@ -2108,3 +2108,55 @@ describe('Workspace native action bridge', () => {
     );
   });
 });
+
+describe('message attachment native action bridge', () => {
+  it('resolves current ownership again before launch and refuses a removed message without mutating UI authority', async () => {
+    const call = vi.fn<BridgeCall>(async (method, payload) => {
+      expect(method).toBe('messageAttachmentTarget');
+      expect(payload).toEqual({
+        channelId: 'group-owner',
+        messageId: 'message-owner',
+        fileId: 'file-id',
+      });
+      return {
+        ok: true,
+        value: {
+          target: { path: '/host/files/notes.txt', relativePath: 'notes.txt', kind: 'file' },
+        },
+      };
+    });
+    const nativeFiles = {
+      applications: vi.fn(async () => ({ available: true, applications: [] })),
+      open: vi.fn(async () => undefined),
+    };
+    const store = createStore();
+    const before = store.getSnapshot();
+    const actions = createActions(call, store, {
+      nativeFiles,
+      pickDirectory: async () => null,
+      createWorkspace: async () => {
+        throw new Error('not used');
+      },
+    });
+    await actions.messageAttachmentApplications('group-owner', 'message-owner', 'file-id');
+    await actions.messageAttachmentOpen('group-owner', 'message-owner', 'file-id', {
+      application: 'editor',
+    });
+    expect(call).toHaveBeenCalledTimes(2);
+    expect(nativeFiles.open).toHaveBeenCalledWith(
+      { path: '/host/files/notes.txt', relativePath: 'notes.txt', kind: 'file' },
+      { application: 'editor' },
+    );
+    call.mockResolvedValueOnce({
+      ok: false,
+      error: { code: 'not-found', message: 'message is unavailable', details: {} },
+    });
+    await expect(
+      actions.messageAttachmentOpen('group-owner', 'message-owner', 'file-id', {
+        action: 'reveal',
+      }),
+    ).rejects.toThrow('message is unavailable');
+    expect(nativeFiles.open).toHaveBeenCalledTimes(1);
+    expect(store.getSnapshot()).toEqual(before);
+  });
+});

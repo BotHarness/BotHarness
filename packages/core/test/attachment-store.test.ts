@@ -33,25 +33,26 @@ async function* chunks(...values: Uint8Array[]): AsyncIterable<Uint8Array> {
   for (const value of values) yield value;
 }
 
-describe('profile attachment CAS', () => {
-  it('streams bytes, sniffs MIME, deduplicates by hash, and verifies downloads', async () => {
+describe('profile attachment storage', () => {
+  it('keeps legacy objects readable and still verifies their bytes', async () => {
     const home = root();
     const store = createAttachmentStore({ rootDir: home });
-    const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+    const bytes = Buffer.from('legacy bytes');
     const hash = `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
-    const first = await store.upload({
-      data: chunks(bytes.subarray(0, 5), bytes.subarray(5)),
-      name: '/private/first.png',
-    });
-    const second = await store.upload({ data: chunks(bytes), name: 'second.png' });
-    expect(first).toEqual({ hash, name: 'first.png', mime: 'image/png', size: bytes.length });
-    expect(second).toEqual({ ...first, name: 'second.png' });
-    expect(readdirSync(join(home, 'objects', hash.slice(7, 9)))).toEqual([hash.slice(7)]);
-    expect(store.has(first)).toBe(true);
-    expect(store.has({ ...first, mime: 'text/html' })).toBe(false);
-    const result = await store.download(hash, second.name);
-    expect(result.ref).toEqual(second);
-    expect(new Uint8Array(await new Response(result.body).arrayBuffer())).toEqual(bytes);
+    const path = join(home, 'objects', hash.slice(7, 9), hash.slice(7));
+    mkdirSync(join(home, 'objects', hash.slice(7, 9)), { recursive: true });
+    writeFileSync(path, bytes);
+    const legacy = { hash, name: 'legacy.txt', mime: 'text/plain', size: bytes.length };
+    expect(store.has(legacy)).toBe(true);
+    expect(store.has({ ...legacy, mime: 'text/html' })).toBe(false);
+    expect(await new Response((await store.download(hash, legacy.name)).body).text()).toBe(
+      'legacy bytes',
+    );
+    expect(() => store.fileTarget(hash)).toThrow('Invalid attachment identity');
+    writeFileSync(path, 'changed bytes');
+    await expect(
+      new Response((await store.download(hash, legacy.name)).body).text(),
+    ).rejects.toMatchObject({ code: 'corrupt' });
   });
 
   it('rejects oversized streams without publishing a ref or leaving a staged part', async () => {

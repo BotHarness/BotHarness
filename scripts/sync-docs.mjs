@@ -96,6 +96,20 @@ const DSH_CONTEXT_DIAGRAMS_EN = [
 
 export const PAGES = [
   {
+    slug: 'docs/file-open',
+    order: 21,
+    en: {
+      source: 'docs/file-open.md',
+      title: 'Open files on the Host',
+      description: 'Open Memory, Workspace and message files in native applications.',
+    },
+    zh: {
+      source: 'docs/file-open.zh.md',
+      title: '在 Host 上打开文件',
+      description: '在系统软件中打开 Memory、Workspace 和消息文件。',
+    },
+  },
+  {
     slug: 'dev/index',
     order: 0,
     en: {
@@ -202,6 +216,8 @@ export const PAGES = [
 ];
 
 const LINK_REWRITES = [
+  [/\]\((?:\.\.\/|\.?\/?docs\/)?file-open(?:\.zh)?\.md\)/g, '](/docs/file-open)'],
+  [/\]\(adr\/([0-9]{4}-[a-z0-9-]+)\.md\)/g, '](/dev/adr/$1)'],
   [
     /\]\(\.?\/?docs\/architecture\/botharness-architecture\.(?:md|html)\)/g,
     '](/dev/design/architecture)',

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { MessageAttachment } from '../src/client/message-attachment.js';
 import { act, createElement, type ReactNode } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -283,5 +284,107 @@ describe('Workspace path menus', () => {
     expect(document.body.textContent).toContain('Workspace Grant is missing or revoked');
     expect(document.querySelectorAll('[role="menuitem"]')).toHaveLength(0);
     expect(a.workspaceFileOpen).not.toHaveBeenCalled();
+  });
+});
+
+describe('message attachment menus', () => {
+  it('uses the captured message owner for file click, context menu and keyboard without opening the bubble menu', async () => {
+    const a = {
+      messageAttachmentTarget: vi.fn(async () => ({
+        path: '/host/files/notes.txt',
+        relativePath: 'notes.txt',
+        kind: 'file' as const,
+      })),
+      messageAttachmentApplications: vi.fn(async () => ({
+        available: true,
+        applications: [{ id: 'editor', name: 'Editor', default: true, icon: null }],
+      })),
+      messageAttachmentOpen: vi.fn(async () => undefined),
+      messageAttachmentDownload: vi.fn(async () => undefined),
+    };
+    const bubble = vi.fn();
+    const attachment = {
+      fileId: 'file:00000000-0000-4000-8000-000000000000',
+      name: 'notes.txt',
+      mime: 'text/plain',
+      size: 1,
+    };
+    await act(async () =>
+      root.render(
+        createElement(
+          'div',
+          { onContextMenu: bubble },
+          createElement(MessageAttachment, {
+            attachment,
+            channelId: 'group-owner',
+            messageId: 'message-owner',
+            actions: a,
+            t: zhTranslate,
+          }),
+        ),
+      ),
+    );
+    const file = container.querySelector('button.bh-message-file')!;
+    await act(async () =>
+      file.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })),
+    );
+    expect(bubble).not.toHaveBeenCalled();
+    expect(a.messageAttachmentTarget).toHaveBeenCalledWith(
+      'group-owner',
+      'message-owner',
+      attachment.fileId,
+    );
+    await click(button('用 Editor 打开'));
+    expect(a.messageAttachmentOpen).toHaveBeenCalledWith(
+      'group-owner',
+      'message-owner',
+      attachment.fileId,
+      { application: 'editor' },
+    );
+    await act(async () =>
+      file.dispatchEvent(
+        new KeyboardEvent('keydown', {
+          key: 'F10',
+          shiftKey: true,
+          bubbles: true,
+          cancelable: true,
+        }),
+      ),
+    );
+    await click(button('下载'));
+    expect(a.messageAttachmentDownload).toHaveBeenCalledWith(
+      'group-owner',
+      'message-owner',
+      attachment.fileId,
+    );
+    await click(file);
+    expect(container.querySelector('[role="menu"]')).not.toBeNull();
+    expect(container.querySelector('button[aria-label="文件操作: notes.txt"]')).not.toBeNull();
+  });
+
+  it('keeps image preview independent of its accessible actions and uses message-owned URLs', async () => {
+    const attachment = {
+      fileId: 'file:00000000-0000-4000-8000-000000000000',
+      name: 'photo.png',
+      mime: 'image/png',
+      size: 1,
+    };
+    await act(async () =>
+      root.render(
+        createElement(MessageAttachment, {
+          attachment,
+          channelId: 'group-owner',
+          messageId: 'message-owner',
+          t: zhTranslate,
+        }),
+      ),
+    );
+    const image = container.querySelector('a.bh-message-image-link')!;
+    expect(image.getAttribute('href')).toContain(
+      'channelId=group-owner&messageId=message-owner&fileId=file%3A',
+    );
+    expect(image.getAttribute('target')).toBe('_blank');
+    expect(container.querySelector('button[aria-label="文件操作: photo.png"]')).not.toBeNull();
+    expect(container.querySelector('[role="menu"]')).toBeNull();
   });
 });

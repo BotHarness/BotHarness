@@ -1,3 +1,4 @@
+import { createChannelStore } from '../src/channels/store.js';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,7 +13,26 @@ const roots: string[] = [];
 function setup(maxBytes = 1024) {
   const rootDir = mkdtempSync(join(tmpdir(), 'botharness-attachment-http-'));
   roots.push(rootDir);
-  return createAttachmentHttp(createAttachmentStore({ rootDir, maxBytes }));
+  const store = createAttachmentStore({ rootDir, maxBytes });
+  const channels = createChannelStore({ rootDir: join(rootDir, 'channels'), attachments: store });
+  const channel = channels.createGroup({ name: 'Files', members: [] });
+  const http = createAttachmentHttp(store, channels);
+  return async (request: Request) => {
+    const response = await http(request);
+    if (request.method === 'POST' && response.ok) {
+      const { attachment } = (await response.clone().json()) as {
+        attachment: ChannelAttachmentRef;
+      };
+      await channels.appendMessage(channel.id, {
+        id: attachment.fileId!,
+        at: new Date().toISOString(),
+        author: { kind: 'human' },
+        body: '',
+        attachments: [attachment],
+      });
+    }
+    return response;
+  };
 }
 afterEach(() => {
   for (const root of roots.splice(0)) rmSync(root, { recursive: true, force: true });
@@ -42,7 +62,11 @@ describe('exact attachment Fetch route', () => {
     const ref = ((await upload.json()) as { attachment: ChannelAttachmentRef }).attachment;
     expect(ref).toMatchObject({ name: 'cat.png', mime: 'image/png', size: bytes.length });
     const download = await handle(
-      new Request(url(`?hash=${encodeURIComponent(ref.hash)}&name=cat.png`)),
+      new Request(
+        url(
+          `?fileId=${encodeURIComponent(ref.fileId!)}&channelId=group-files&messageId=${encodeURIComponent(ref.fileId!)}`,
+        ),
+      ),
     );
     expect(download.status).toBe(200);
     expect(download.headers.get('content-type')).toBe('image/png');
@@ -81,7 +105,11 @@ describe('exact attachment Fetch route', () => {
     );
     const ref = ((await upload.json()) as { attachment: ChannelAttachmentRef }).attachment;
     const download = await handle(
-      new Request(url(`?hash=${encodeURIComponent(ref.hash)}&name=notes.pdf`)),
+      new Request(
+        url(
+          `?fileId=${encodeURIComponent(ref.fileId!)}&channelId=group-files&messageId=${encodeURIComponent(ref.fileId!)}`,
+        ),
+      ),
     );
     expect(download.headers.get('content-type')).toBe('application/pdf');
     expect(download.headers.get('content-disposition')).toMatch(/^attachment;/u);
