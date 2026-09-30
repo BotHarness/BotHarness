@@ -104,6 +104,14 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Changed
 
 - Group invitations now default to automatic acceptance without waking the invited PersonaBot; Bot settings can keep invitations pending for its own decision, and resolved invitations cannot wake again after redelivery or restart ([#371](https://github.com/BotHarness/BotHarness/issues/371), [ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)).
+- Group join request and decision Tools now return compact Channel, request and requester references with the actual state, preserving approval-only access without copying full Group records or internal identity timestamps into model context ([#563](https://github.com/BotHarness/BotHarness/issues/563)).
+
+- Group creation and invitation Tools now return compact Channel, invitation and invitee references with the actual decision state; accepting or declining no longer copies the full Group record into the model context, and declines still grant no Group access ([#562](https://github.com/BotHarness/BotHarness/issues/562)).
+
+- Group rename and member-removal Tools acknowledge the committed Channel, name, outcome, and affected Bot without copying avatars or unrelated Group state into the model context; an unexpectedly missing rename result now fails explicitly ([#561](https://github.com/BotHarness/BotHarness/issues/561)).
+
+- Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
+
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
@@ -170,6 +178,11 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Section headers can now create either a group Channel or a PersonaBot DM directly inside that section, and newly created sections, loose Channels, and section members default to the first position in their scope ([#10](https://github.com/BotHarness/BotHarness/issues/10)).
 
 ### Fixed
+
+- Fresh Browser observations replace the previous refs with an independent namespace, so an older ref cannot click a different control after page changes; role-less click targets stay visible on repeated observations and stale refs retain the readable re-observe refusal ([#579](https://github.com/BotHarness/BotHarness/issues/579)).
+
+- Legacy PersonaBot model choices migrate only when one available provider matches; ambiguous or unavailable routes stop new requests and direct the Human to repair the Model Preset in Profile, without switching providers ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
+- Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
 
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
 

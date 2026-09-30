@@ -1,0 +1,26 @@
+{
+  "nativeScopedExecutor": true,
+  "realChrome": true,
+  "humanChromeInputWhilePaused": true,
+  "oldRef": "e1",
+  "freshRef": "e2",
+  "clickableVisible": false,
+  "staleAction": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "click done — http://127.0.0.1:31998/"
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "click done — http://127.0.0.1:31998/"
+        }
+      ]
+    }
+  },
+  "state": "Intended: 0 | Wrong: 1"
+}

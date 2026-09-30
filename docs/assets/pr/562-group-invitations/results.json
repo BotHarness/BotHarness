@@ -1,0 +1,156 @@
+{
+  "baselineRevision": "26a9972df2dd748ca08ca1d2d2a1e21d129b1c6c",
+  "dshVersion": "0.2.0-rc.1",
+  "measurement": "Actual rendered Tool text length in JavaScript UTF-16 code units; not token counts.",
+  "fixture": "Separate fresh Profiles; same two synthetic Bot names, two Group names, padded valid PNG avatars and creator silent policy. Bot and invitation IDs are generated per Profile.",
+  "before": [
+    {
+      "tool": "group_create",
+      "outcome": "created",
+      "characters": 249,
+      "keys": ["id", "type", "name", "members", "ownerBotSlug", "createdAt", "updatedAt"]
+    },
+    {
+      "tool": "group_create",
+      "outcome": "created",
+      "characters": 251,
+      "keys": ["id", "type", "name", "members", "ownerBotSlug", "createdAt", "updatedAt"]
+    },
+    {
+      "tool": "group_invite_bot",
+      "outcome": "pending",
+      "characters": 275,
+      "keys": ["id", "targetBotSlug", "targetBotCreatedAt", "inviterBotSlug", "status", "createdAt"]
+    },
+    {
+      "tool": "group_invite_bot",
+      "outcome": "pending",
+      "characters": 275,
+      "keys": ["id", "targetBotSlug", "targetBotCreatedAt", "inviterBotSlug", "status", "createdAt"]
+    },
+    {
+      "tool": "group_invite_respond",
+      "outcome": "accepted",
+      "characters": 9209,
+      "keys": ["channel", "invitation"]
+    },
+    {
+      "tool": "group_invite_respond",
+      "outcome": "declined",
+      "characters": 9172,
+      "keys": ["channel", "invitation"]
+    }
+  ],
+  "after": [
+    {
+      "tool": "group_invite_respond",
+      "outcome": "accepted",
+      "characters": 196,
+      "keys": ["channelId", "inviteId", "inviteeBotId", "outcome", "name"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-accept",
+        "inviteId": "group-invite-a551e5bb-65fa-4e8a-a5e6-67441535c526",
+        "inviteeBotId": "bot-4f764f391a504405bd5d95376e9cab09",
+        "outcome": "accepted",
+        "name": "QA 562 accept"
+      }
+    },
+    {
+      "tool": "group_invite_respond",
+      "outcome": "declined",
+      "characters": 198,
+      "keys": ["channelId", "inviteId", "inviteeBotId", "outcome", "name"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-decline",
+        "inviteId": "group-invite-c8a007cf-68ac-401b-ae50-03d5baa019f0",
+        "inviteeBotId": "bot-4f764f391a504405bd5d95376e9cab09",
+        "outcome": "declined",
+        "name": "QA 562 decline"
+      }
+    },
+    {
+      "tool": "group_create",
+      "outcome": "created",
+      "characters": 78,
+      "keys": ["channelId", "name", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-accept",
+        "name": "QA 562 accept",
+        "outcome": "created"
+      }
+    },
+    {
+      "tool": "group_create",
+      "outcome": "created",
+      "characters": 80,
+      "keys": ["channelId", "name", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-decline",
+        "name": "QA 562 decline",
+        "outcome": "created"
+      }
+    },
+    {
+      "tool": "group_invite_bot",
+      "outcome": "pending",
+      "characters": 172,
+      "keys": ["channelId", "inviteId", "inviteeBotId", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-accept",
+        "inviteId": "group-invite-a551e5bb-65fa-4e8a-a5e6-67441535c526",
+        "inviteeBotId": "bot-4f764f391a504405bd5d95376e9cab09",
+        "outcome": "pending"
+      }
+    },
+    {
+      "tool": "group_invite_bot",
+      "outcome": "pending",
+      "characters": 173,
+      "keys": ["channelId", "inviteId", "inviteeBotId", "outcome"],
+      "acknowledgement": {
+        "channelId": "group-qa-562-decline",
+        "inviteId": "group-invite-c8a007cf-68ac-401b-ae50-03d5baa019f0",
+        "inviteeBotId": "bot-4f764f391a504405bd5d95376e9cab09",
+        "outcome": "pending"
+      }
+    }
+  ],
+  "completedRoundTrip": {
+    "stage": "after",
+    "owner": "bot-ee13722f553b480da31bf41c0cbe2866",
+    "peer": "bot-4f764f391a504405bd5d95376e9cab09",
+    "ownerDm": "dm-bot-ee13722f553b480da31bf41c0cbe2866",
+    "peerDm": "dm-bot-4f764f391a504405bd5d95376e9cab09",
+    "acceptGroup": "group-qa-562-accept",
+    "declineGroup": "group-qa-562-decline",
+    "acceptedMembers": [
+      "bot-ee13722f553b480da31bf41c0cbe2866",
+      "bot-4f764f391a504405bd5d95376e9cab09"
+    ],
+    "declinedMembers": ["bot-ee13722f553b480da31bf41c0cbe2866"],
+    "acceptedStatus": "accepted",
+    "declinedStatus": "declined",
+    "groupExchange": true
+  },
+  "restart": {
+    "restartVerified": true,
+    "acceptedStatus": "accepted",
+    "declinedStatus": "declined",
+    "acceptedMembers": [
+      "bot-ee13722f553b480da31bf41c0cbe2866",
+      "bot-4f764f391a504405bd5d95376e9cab09"
+    ],
+    "declinedMembers": ["bot-ee13722f553b480da31bf41c0cbe2866"],
+    "avatarsPreserved": true
+  },
+  "verification": {
+    "focusedPassed": 28,
+    "fullPassed": 1368,
+    "fullSkipped": 1,
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed"
+  },
+  "captureNote": "An initial Peer DM capture was empty and a candidate mount wait timed out; these failures were retained locally. Published captures were inspected after the Channel view loaded; no product fix is claimed."
+}

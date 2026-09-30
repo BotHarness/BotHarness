@@ -295,6 +295,12 @@ export const zh = {
   'modelPreset.saveTemplate': '保存预设修订',
   'modelPreset.futureOnly': '预设已更新；现有 Bot 快照不变。',
   'modelPreset.routeUnavailable': '当前模型不可用',
+  'modelPreset.repairNeeded': '需要选择可用模型后才能继续',
+  'modelPreset.legacyAmbiguous':
+    '旧模型 {model} 对应多个 provider。请在此选择明确的模型预设后重试。',
+  'modelPreset.legacyMissing': '旧模型 {model} 没有可用 provider。请在此选择可用模型预设后重试。',
+  'modelPreset.routeRepair':
+    '当前模型无法调用。请在此选择可用预设，或修复 DSH provider 和凭据后重试。',
   'modelPreset.customize': '仅为此 Bot 修改 Orchestrator',
   'modelPreset.customizeHint': '保存后成为独立的自定义快照，不会修改预设。',
   'modelPreset.saveCustom': '保存自定义快照',
@@ -1003,6 +1009,13 @@ export const en = {
   'modelPreset.saveTemplate': 'Save preset revision',
   'modelPreset.futureOnly': 'Preset updated; existing Bot snapshots are unchanged.',
   'modelPreset.routeUnavailable': 'Current model unavailable',
+  'modelPreset.repairNeeded': 'Select an available model to continue',
+  'modelPreset.legacyAmbiguous':
+    'Legacy model {model} matches multiple providers. Choose an exact Model Preset here before retrying.',
+  'modelPreset.legacyMissing':
+    'Legacy model {model} has no available provider. Choose an available Model Preset here before retrying.',
+  'modelPreset.routeRepair':
+    'The current model cannot run. Choose an available preset here, or repair the DSH provider and credentials before retrying.',
   'modelPreset.customize': 'Customize this Bot’s Orchestrator',
   'modelPreset.customizeHint':
     'Saving creates an independent custom snapshot without changing the preset.',

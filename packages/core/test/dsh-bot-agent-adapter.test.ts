@@ -446,88 +446,113 @@ describe('DSH Bot Agent adapter', () => {
     await adapter.close();
   });
 
-  it('uses the applied Model Plan route without changing the DSH Agent preset', async () => {
-    const host = new FakeAgentHost();
-    const adapter = createDshBotAgentAdapter({
-      agents: host,
-      defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
-      orchestratorCwd: () => '/memory/ada',
-      defaultAgentPreset: 'standard',
-      ensureWorkspace: () => undefined,
-    });
+  it.each([undefined, 'MISSING_CREDENTIAL', 'INVALID_CREDENTIAL'])(
+    'uses the exact Model Plan route and keeps credential failures repairable: %s',
+    async (code) => {
+      const host = new FakeAgentHost(
+        code === undefined
+          ? { kind: 'completed' }
+          : {
+              kind: 'error',
+              error: { code, message: 'selected provider credential unavailable' },
+            },
+      );
+      let available = false;
+      const adapter = createDshBotAgentAdapter({
+        agents: host,
+        hasSession: async () => false,
+        prepareModelRoute: async () => {
+          if (!available) throw new Error('Model route unavailable; select a Model Preset');
+        },
+        defaultModel: { currentSelection: () => ({ provider: 'test', model: 'test' }) },
+        orchestratorCwd: () => '/memory/ada',
+        defaultAgentPreset: 'standard',
+        ensureWorkspace: () => undefined,
+      });
 
-    await adapter.runOrchestrator({
-      sessionId: 'orchestrator-ada',
-      resume: false,
-      bot: {
-        ...BOT,
-        preset: 'cordis',
-        modelPlan: {
-          revision: 1,
-          sourcePresetId: 'preset-1',
-          sourcePresetName: 'High intelligence',
-          orchestrator: {
-            provider: 'deepseek',
-            model: 'deepseek-reasoner',
-            reasoningEffort: 'high',
+      const run: OrchestratorAgentRun = {
+        sessionId: 'orchestrator-ada',
+        resume: false,
+        bot: {
+          ...BOT,
+          preset: 'cordis',
+          modelPlan: {
+            revision: 1,
+            sourcePresetId: 'preset-1',
+            sourcePresetName: 'High intelligence',
+            orchestrator: {
+              provider: 'deepseek',
+              model: 'deepseek-reasoner',
+              reasoningEffort: 'high',
+            },
+            assignmentDefault: { provider: 'deepseek', model: 'deepseek-chat' },
+            appliedAt: BOT.createdAt,
           },
-          assignmentDefault: { provider: 'deepseek', model: 'deepseek-chat' },
-          appliedAt: BOT.createdAt,
         },
-      },
-      message: '你好',
-      channels: {
-        ...groupTools,
-        contacts: () => [],
-        sendToBot: async () => {
-          throw new Error('unexpected Bot DM');
+        message: '你好',
+        channels: {
+          ...groupTools,
+          contacts: () => [],
+          sendToBot: async () => {
+            throw new Error('unexpected Bot DM');
+          },
+          ignore: () => ({
+            sourceEventId: 'source-1',
+            ignoredAt: BOT.createdAt,
+            alreadyIgnored: false,
+          }),
+          read: () => [],
+          requestGrant: async (reason) => ({
+            id: 'grant-request-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: reason,
+            grantRequest: true,
+          }),
+          send: async (input) => ({
+            id: 'bot-1',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: BOT.slug },
+            body: input.body,
+          }),
         },
-        ignore: () => ({
-          sourceEventId: 'source-1',
-          ignoredAt: BOT.createdAt,
-          alreadyIgnored: false,
-        }),
-        read: () => [],
-        requestGrant: async (reason) => ({
-          id: 'grant-request-1',
-          at: BOT.createdAt,
-          author: { kind: 'bot', slug: BOT.slug },
-          body: reason,
-          grantRequest: true,
-        }),
-        send: async (input) => ({
-          id: 'bot-1',
-          at: BOT.createdAt,
-          author: { kind: 'bot', slug: BOT.slug },
-          body: input.body,
-        }),
-      },
-      inboundChannelId: 'dm-test',
-      inbox: '',
-      assignments: {
-        create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
-        grants: () => [],
-        list: () => [],
-        inspect: () => undefined,
-        stop: async () => ({
-          sessionId: 'test',
-          purpose: 'test',
-          activity: 'stopped',
-          createdAt: '',
-          updatedAt: '',
-        }),
-        request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
-      },
-    });
+        inboundChannelId: 'dm-test',
+        inbox: '',
+        assignments: {
+          create: () => ({ outcome: 'created', assignment: ASSIGNMENT }),
+          grants: () => [],
+          list: () => [],
+          inspect: () => undefined,
+          stop: async () => ({
+            sessionId: 'test',
+            purpose: 'test',
+            activity: 'stopped',
+            createdAt: '',
+            updatedAt: '',
+          }),
+          request: () => ({ assignment: ASSIGNMENT, delivery: 'followup' }),
+        },
+      };
 
-    expect(host.createOptions[0]?.meta?.agentPreset).toBe('cordis');
-    expect(host.createOptions[0]?.agentOptions).toEqual({
-      provider: 'deepseek',
-      model: 'deepseek-reasoner',
-      reasoningEffort: 'high',
-    });
-    await adapter.close();
-  });
+      await expect(adapter.runOrchestrator(run)).rejects.toThrow('select a Model Preset');
+      expect(host.createOptions).toHaveLength(0);
+      available = true;
+      if (code === undefined) await adapter.runOrchestrator({ ...run, resume: true });
+      else
+        await expect(adapter.runOrchestrator({ ...run, resume: true })).rejects.toThrow(
+          'Open PersonaBot Profile',
+        );
+      expect(host.createOptions).toHaveLength(1);
+      expect(host.resumeOptions).toHaveLength(0);
+      expect(host.createOptions[0]?.meta?.agentPreset).toBe('cordis');
+      expect(host.createOptions[0]?.agentOptions).toEqual({
+        provider: 'deepseek',
+        model: 'deepseek-reasoner',
+        reasoningEffort: 'high',
+      });
+      await adapter.close();
+    },
+  );
 
   it('keeps a running Turn on its selected route and uses an edited snapshot on the next Turn', async () => {
     const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };

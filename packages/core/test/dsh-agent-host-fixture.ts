@@ -29,6 +29,7 @@ export interface FakeSession {
 }
 
 export interface FakeAgentHostHooks {
+  onTurn?(session: FakeSession, tools: readonly ToolDefinition[]): Promise<void>;
   onAgentCreated?(agent: unknown): void;
 
   onSessionEvent?(
@@ -128,16 +129,20 @@ export class FakeAgentHost implements DshAgentHost {
         messages.push(message);
         const isOrchestrator = scope.tools.some((tool) => tool.name === 'create_assignment');
         const reason = isOrchestrator ? this.orchestratorTurnEnd : { kind: 'completed' as const };
-        pending = (reason.kind === 'error' ? Promise.resolve() : this.#drive(scope, messages)).then(
-          () => {
-            this.#emit(session, events, {
-              type: 'turn/end',
-              seq: events.length,
-              time: session.header.createdAt,
-              data: { turn: events.length + 1, reason },
-            });
-          },
-        );
+        pending = (
+          reason.kind === 'error'
+            ? Promise.resolve()
+            : this.hooks.onTurn === undefined
+              ? this.#drive(scope, messages)
+              : this.hooks.onTurn(session, scope.tools)
+        ).then(() => {
+          this.#emit(session, events, {
+            type: 'turn/end',
+            seq: events.length,
+            time: session.header.createdAt,
+            data: { turn: events.length + 1, reason },
+          });
+        });
       },
       whenIdle: () => pending,
     };

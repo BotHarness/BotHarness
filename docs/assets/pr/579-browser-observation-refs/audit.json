@@ -1,0 +1,6 @@
+[
+  {
+    "kind": "browser-action",
+    "detail": "bot=bot-19d78fcd900e4c9d813abed069d84d79 session=botharness-0d0047c9-c13a-43f2-a00d-abdedd9b7276 role=orchestrator browser_click ref=e08d80zw0rz5wux1l7knx11mkad7w_1 -> error: The element ref is stale; call browser_observe again before acting (1ms)"
+  }
+]

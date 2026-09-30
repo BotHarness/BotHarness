@@ -1,0 +1,11 @@
+{
+  "viewport": "1440x960",
+  "themes": ["light", "dark"],
+  "hostUI": "PASS",
+  "modelOpenObserve": "PASS",
+  "pausedObserve": "PASS",
+  "pausedClick": "REFUSED",
+  "pausedScreenshot": "REFUSED",
+  "resumedClick": "PASS",
+  "resumedScreenshot": "PASS"
+}
