@@ -3,6 +3,7 @@ import {
   readFileSync,
   readdirSync,
   mkdirSync,
+  mkdtempSync,
   writeFileSync,
   existsSync,
   renameSync,
@@ -383,8 +384,7 @@ try {
         'PASS native external save changed original and owner-qualified legacy reads; independent equal upload/source unchanged, explicit canonical reuse shared current bytes, old ownerless hash refused, no database changes from save.',
       );
     } else if (phase === 'download') {
-      const directory = join(local, 'downloads-migrated');
-      mkdirSync(directory, { recursive: true });
+      const directory = mkdtempSync(join(local, 'downloads-migrated-'));
       const client = await page.createCDPSession();
       await client.send('Page.setDownloadBehavior', { behavior: 'allow', downloadPath: directory });
       await selectChannel();
@@ -400,6 +400,10 @@ try {
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
       assert.ok(existsSync(path), 'Browser menu download timed out');
+      assert.ok(
+        !readdirSync(directory).some((name) => name.endsWith('.crdownload')),
+        'Browser download did not complete',
+      );
       assert.equal(readFileSync(path, 'utf8'), saved);
       console.log(
         'PASS actual original-message menu download retains Unicode/spaced filename and saved current bytes.',
