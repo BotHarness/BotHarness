@@ -103,6 +103,8 @@
 
 ### Changed
 
+- Group 入群申请和决定工具现在仅返回简短的 Channel、申请及申请者引用和实际状态；仍须批准后才能访问群，不再把完整群记录或内部身份时间戳复制进模型上下文（[#563](https://github.com/BotHarness/BotHarness/issues/563)）。
+
 - Group 创建与邀请工具现在仅返回简短的 Channel、邀请及目标 Bot 引用和实际决定状态；接受或拒绝时不再把完整群记录复制进模型上下文，拒绝仍不授予群访问权限（[#562](https://github.com/BotHarness/BotHarness/issues/562)）。
 
 - Group 改名与移除成员工具现在仅确认已提交的 Channel、群名、结果和受影响的 Bot，不再把头像或无关群状态复制进模型上下文；改名持久化意外未返回记录时会明确失败（[#561](https://github.com/BotHarness/BotHarness/issues/561)）。
