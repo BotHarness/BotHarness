@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "verifiedAt": "2026-09-30T19:56:47.701Z",
+  "kind": "real Lark provider qualification; not PersonaBot integration",
+  "baseRevision": "a3d88bbab25d2479ae435c9a8c1441c747cea20e",
+  "provider": {
+    "dsh": "0.2.0-rc.1",
+    "providerSource": "19d88f14bf85d74d4abf035a0c749d0b4a640257",
+    "sdk": "1.73.0"
+  },
+  "probeSha256": "3d5037d264a22d97bbe63fdee3b2d4d628749ecca4c7f34b7b9f550e4926ea7d",
+  "realSources": 3,
+  "independentReceiptReads": 3,
+  "restart": {
+    "beforeSources": 2,
+    "afterSources": 3,
+    "preservedEarlierReceipts": true,
+    "newSourceAcceptedInCurrentRun": true,
+    "transientStartupObservations": [
+      {
+        "phase": "acquire",
+        "code": "unknown-bot"
+      },
+      {
+        "phase": "acquire",
+        "code": "unknown-bot"
+      }
+    ],
+    "exclusiveConsumerRecovered": true
+  },
+  "desktopObservation": "ROOT ACK visible in group stream and TOPIC ACK visible inside its original topic; verified through Lark accessibility state",
+  "fixtureTests": {
+    "passed": 8,
+    "liveRedeliveryClaimed": false
+  },
+  "unverified": [
+    "PersonaBot Source Event/Inbox/Orchestrator/Outbox integration",
+    "Feishu tenant and other-Bot delivery",
+    "Live redelivery, mid-send crash and offline gap recovery",
+    "Recall, edit propagation, reactions, cards and attachments"
+  ]
+}
