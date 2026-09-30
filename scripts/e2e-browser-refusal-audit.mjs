@@ -4,8 +4,25 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
 import { tmpdir } from 'node:os';
 
+const flags = process.argv.slice(2);
+const modes = ['--serve', '--prepare', '--paused', '--resumed', '--complete'];
+assert.ok(
+  flags.every((flag) => modes.includes(flag) || flag === '--before'),
+  'Unknown QA flag',
+);
+const selected = flags.filter((flag) => modes.includes(flag));
+assert.equal(
+  selected.length,
+  1,
+  'Pass exactly one QA mode: --serve, --prepare, --paused, --resumed or --complete',
+);
+const mode = selected[0];
+assert.ok(
+  !flags.includes('--before') || ['--paused', '--resumed'].includes(mode),
+  '--before requires --paused or --resumed',
+);
 const fixture = 'http://127.0.0.1:32004';
-if (process.argv.includes('--serve')) {
+if (mode === '--serve') {
   let item = 'Original item';
   let count = 0;
   let confirmed = '';
@@ -105,7 +122,7 @@ if (process.argv.includes('--serve')) {
     return (await response.json()).entries;
   }
   const counter = async () => (await fetch(`${fixture}/state`)).json();
-  if (process.argv.includes('--prepare')) {
+  if (mode === '--prepare') {
     await fetch(`${fixture}/reset`);
     const bots = (await api('list')).bots;
     const bot =
@@ -172,12 +189,8 @@ if (process.argv.includes('--serve')) {
     );
   } else {
     const state = JSON.parse(readFileSync(statePath, 'utf8'));
-    const before = process.argv.includes('--before');
-    const phase = process.argv.includes('--paused')
-      ? 'paused'
-      : process.argv.includes('--resumed')
-        ? 'resumed'
-        : 'completed';
+    const before = flags.includes('--before');
+    const phase = mode === '--complete' ? 'completed' : mode.slice(2);
     const call = (name, args = {}) => tool(state.sessionId, name, args);
     const actions = async () =>
       (await auditRows(state.since)).filter(
