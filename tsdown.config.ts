@@ -1,14 +1,5 @@
 import { defineConfig, type UserConfig } from 'tsdown';
 
-/**
- * The browser half is a lazy-CJS closure factory served as `lib/client.js`
- * (DSH client-module contract): it self-registers on `window.__ModuleLoader__`,
- * externalizes the shell module baseline, and inlines everything else.
- *
- * The official `clientBundle()` preset is unpublished (ADR-0023); this config
- * reproduces the output contract with stock tsdown/rolldown. Keep it in sync
- * with `docs/client-bridge.md` §6.
- */
 const CLIENT_ID = '@botharness/ui';
 
 const PLATFORM_MODULES = [

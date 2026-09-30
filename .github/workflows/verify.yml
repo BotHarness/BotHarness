@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   verify:
-    name: lint, format, typecheck, test, build
+    name: lint, format, typecheck, test, build, docs
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -32,3 +32,5 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      - run: git diff --exit-code -- packages/computer/lib/client.js packages/computer/lib/client.js.map packages/browser/lib/client.js packages/browser/lib/client.js.map
+      - run: pnpm docs:build

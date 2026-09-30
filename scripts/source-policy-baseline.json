@@ -1,7 +1,0 @@
-{
-  "version": 1,
-  "entries": [
-    {"path":"tsdown.config.ts","kind":"comment","hash":"41fe9ad260c6d641","count":1,"exampleLine":3,"preview":"/** * The browser half is a lazy-CJS closure factory served as `lib/client.js` * (DSH client-mod"},
-    {"path":"vitest.config.ts","kind":"comment","hash":"a6caedba2bf6713c","count":1,"exampleLine":8,"preview":"// Git-backed fixtures and the docs build contend when test files run together."}
-  ]
-}

@@ -1,6 +1,11 @@
-import { readFileSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
-import { baselineOf, compareBaseline, isPolicySource, scanSource } from '../source-policy.mjs';
+import { isPolicySource, scanSource } from '../source-policy.mjs';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 
 describe('source policy', () => {
   it('keeps document and generated boundaries explicit', () => {
@@ -130,14 +135,27 @@ describe('source policy', () => {
     expect(altered.some((item) => item.token.includes('ISC License'))).toBe(true);
   });
 
-  it('rejects new fingerprints and counts and reveals stale entries', async () => {
-    const initial = await scanSource('scripts/sample.mjs', 'const x = 1; // existing');
-    const baseline = baselineOf(initial);
-    expect(compareBaseline(initial, baseline)).toEqual({ unexpected: [], stale: [] });
-    const added = await scanSource('scripts/sample.mjs', 'const x = 1; // existing\n// added');
-    expect(compareBaseline(added, baseline).unexpected).toHaveLength(1);
-    const duplicate = await scanSource('scripts/sample.mjs', '// existing\n// existing');
-    expect(compareBaseline(duplicate, baseline).unexpected).toHaveLength(1);
-    expect(compareBaseline([], baseline).stale).toHaveLength(1);
+  it('rejects real non-ignored comment and aliased React effect files with locations', () => {
+    const directory = mkdtempSync(join(root, 'scripts', 'source-policy-probe-'));
+    const path = join(directory, 'violation.ts');
+    const relativePath = relative(root, path).replaceAll('\\', '/');
+    const check = () =>
+      spawnSync(process.execPath, ['scripts/check-source-policy.mjs'], {
+        cwd: root,
+        encoding: 'utf8',
+      });
+    try {
+      writeFileSync(path, 'const value = 1; // forbidden\n');
+      const comment = check();
+      expect(comment.status).toBe(1);
+      expect(comment.stderr).toContain(`${relativePath}:1:18 comment`);
+
+      writeFileSync(path, "import { useEffect as effect } from 'react';\neffect(() => {});\n");
+      const effect = check();
+      expect(effect.status).toBe(1);
+      expect(effect.stderr).toContain(`${relativePath}:2:1 useEffect`);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 });
