@@ -1,0 +1,46 @@
+{
+  "testedSourceRevision": "c21db99151e0aedcf830c96489962ed36c37677c",
+  "evidenceOnlyFinalCommit": true,
+  "checks": {
+    "lint": "PASS (existing warnings)",
+    "format": "PASS",
+    "typecheck": "PASS",
+    "build": "PASS (existing toolchain warnings)",
+    "releaseLedgers": "PASS",
+    "docsBuild": {
+      "status": "PASS",
+      "pages": 260
+    },
+    "ogFont": {
+      "status": "PASS",
+      "bytes": 100444,
+      "changed": false
+    },
+    "focusedProductionSeams": {
+      "status": "PASS",
+      "tests": 52
+    },
+    "finalSuite": {
+      "status": "PASS",
+      "passedTests": 1540,
+      "skippedTests": 1,
+      "passedFiles": 191,
+      "skippedFiles": 1,
+      "seconds": 174.61,
+      "maxWorkers": 2
+    }
+  },
+  "firstFailure": {
+    "suitePassedTests": 1529,
+    "suiteSkippedTests": 1,
+    "failedTest": "memory-file-actions.test.ts: streams binary and oversized current bytes with a safe Unicode filename",
+    "failure": "15000ms timeout",
+    "isolatedRecheck": {
+      "passedTests": 4,
+      "seconds": 6.91
+    },
+    "assertionsChanged": false,
+    "timeoutChanged": false,
+    "memoryFixClaimed": false
+  }
+}
