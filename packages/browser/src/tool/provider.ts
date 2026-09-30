@@ -264,7 +264,7 @@ export function createBrowserToolProvider(
     if (raw === 'screenshot') {
       if (takeovers.has(slug)) {
         throw new Error(
-          'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
+          'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
         );
       }
       const state = botTabs(slug);
@@ -496,7 +496,7 @@ export function createBrowserToolProvider(
             }
             if (spec.raw !== 'observe' && takeovers.has(slug)) {
               throw new Error(
-                'Browser Takeover is active for this PersonaBot; the Human is driving the Bot Browser',
+                'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
               );
             }
             const started = Date.now();

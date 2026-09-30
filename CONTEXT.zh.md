@@ -223,8 +223,8 @@ PersonaBot 在 Bot Browser 上首次行动前、由 Human 按会话给予的一�
 _避免使用_：Browser Access、consent dialog、per-action approval
 
 **Browser Pause**：
-Human 对某一个 PersonaBot 标签的暂停：停止该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 始终可以直接操作 Bot Browser 窗口。
-_避免使用_：Computer Takeover、handoff、screen sharing、access gate
+Human 对某一个 PersonaBot 标签的暂停：停止该 PersonaBot 的浏览器动作，并在其持续期间关闭面向模型的截图；Human 始终可以直接操作本地 Bot Browser 窗口。暂停期间仍可读取页面；「继续」恢复动作与模型截图，Bot 行动前需要重新观察。这与 Browser Access、Browser Authorization 相互独立。
+_避免使用_：Browser Takeover、Computer Takeover、handoff、screen sharing、access gate
 
 **Browser Audit**：
 按 PersonaBot 与会话归因的、脱敏的 Bot Browser 观察与动作持久记录；绝不包含输入的原文、页面内容或截图。
