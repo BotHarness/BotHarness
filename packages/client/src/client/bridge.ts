@@ -1615,7 +1615,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     if (
       item['category'] !== 'action' &&
       item['category'] !== 'info' &&
-      item['category'] !== 'unread'
+      item['category'] !== 'unread' &&
+      item['category'] !== 'replies'
     )
       return undefined;
     if (
@@ -1628,7 +1629,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'assignment-blocked' &&
       item['kind'] !== 'assignment-report' &&
       item['kind'] !== 'bot-message-needs-repair' &&
-      item['kind'] !== 'channel-unread'
+      item['kind'] !== 'channel-unread' &&
+      item['kind'] !== 'channel-reply'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
@@ -1661,6 +1663,15 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       (!Number.isSafeInteger(item['unreadCount']) ||
         (item['unreadCount'] as number) < 1 ||
         typeof item['messageId'] !== 'string')
+    )
+      return undefined;
+    if (
+      (item['kind'] === 'channel-reply' || item['category'] === 'replies') &&
+      (item['kind'] !== 'channel-reply' ||
+        item['category'] !== 'replies' ||
+        typeof item['messageId'] !== 'string' ||
+        typeof item['sourceEventId'] !== 'string' ||
+        typeof item['isUnread'] !== 'boolean')
     )
       return undefined;
     return item as unknown as HumanAttentionItem;

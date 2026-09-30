@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Human Inbox shows direct Group replies to the local Human in a personal view, with Bot/Channel filters, exact source navigation and inline replies. Nearby messages appear chronologically with author, avatar and time; personal replies and other unread messages share one canonical unread count ([#548](https://github.com/BotHarness/BotHarness/issues/548)).
 - Human Inbox lets a Human inspect an unread Group or PersonaBot DM message with nearby context and reply inline; unavailable sources are rejected and failed attempts retain the draft ([#547](https://github.com/BotHarness/BotHarness/issues/547)).
 - PersonaBot Profile shows daily usage by the provider/model actually called, with separate input, output, cache-read and cache-write tokens, provider-reported totals, and explicit unknown buckets when a provider omits usage ([#499](https://github.com/BotHarness/BotHarness/issues/499)).
 - Humans can open the current Memory Repository, nested directories and files on the Host through DSH application menus, reveal a file, copy its Host path, or download its full current bytes to the browser device; ordinary file selection still uses the reader ([#574](https://github.com/BotHarness/BotHarness/issues/574), [ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)).
