@@ -7,6 +7,7 @@ import { tooltip } from '@tanstack/charts/tooltip';
 import { Chart } from '@tanstack/charts/react/tooltip';
 
 import type {
+  ProfileActivity,
   ProfileActivityDay,
   ProfileActivityReasonDay,
   ProfileActivityTokensDay,
@@ -411,6 +412,7 @@ function TokenUsageCard({
   compact,
 }: Parameters<ProfileCardDescriptor['render']>[0]): ReactElement {
   const tokens = activity?.tokens ?? [];
+  const entirelyUnknown = usageIsEntirelyUnknown(activity);
   const weeks = activity?.weeks ?? PROFILE_ACTIVITY_WEEKS;
   const days = useMemo(
     () => trailingProfileDays(activity?.today, TOKEN_SERIES_STORAGE_DAYS),
@@ -481,7 +483,10 @@ function TokenUsageCard({
   return (
     <div className="bh-profile-card-body">
       <div className="bh-profile-card-total">
-        {t('profile.tokens.window', { weeks, count: formatTokenCount(total) })}
+        {t('profile.tokens.window', {
+          weeks,
+          count: entirelyUnknown ? t('profile.usage.unknown') : formatTokenCount(total),
+        })}
       </div>
       {activity?.modelUsageRows?.some(
         (row) =>
@@ -505,13 +510,17 @@ function TokenUsageCard({
           return <TokenTip totals={totals} t={t} />;
         }}
       />
-      <div className="bh-profile-token-shares">
-        {t('profile.tokens.shares', {
-          cached: shares.cachedPercent,
-          output: shares.outputPercent,
-        })}
-      </div>
-      {total === 0 ? <div className="bh-profile-empty">{t('profile.empty')}</div> : null}
+      {entirelyUnknown ? null : (
+        <div className="bh-profile-token-shares">
+          {t('profile.tokens.shares', {
+            cached: shares.cachedPercent,
+            output: shares.outputPercent,
+          })}
+        </div>
+      )}
+      {total === 0 && !activity?.modelUsageRows?.length ? (
+        <div className="bh-profile-empty">{t('profile.empty')}</div>
+      ) : null}
       {compact ? null : (
         <ModelUsageBreakdown
           rows={activity?.modelUsageRows ?? []}
@@ -522,6 +531,20 @@ function TokenUsageCard({
         />
       )}
     </div>
+  );
+}
+
+function usageIsEntirelyUnknown(activity: ProfileActivity | undefined): boolean {
+  const rows = activity?.modelUsageRows ?? [];
+  return (
+    rows.length > 0 &&
+    rows.every(
+      (row) =>
+        row.inputTokens === null &&
+        row.outputTokens === null &&
+        row.cacheReadTokens === null &&
+        row.cacheWriteTokens === null,
+    )
   );
 }
 
@@ -546,7 +569,11 @@ function TotalsCard({ activity, t }: Parameters<ProfileCardDescriptor['render']>
         </div>
         <div>
           <dt>{t('profile.stat.tokens')}</dt>
-          <dd>{formatTokenCount(tokens)}</dd>
+          <dd>
+            {usageIsEntirelyUnknown(activity)
+              ? t('profile.usage.unknown')
+              : formatTokenCount(tokens)}
+          </dd>
           {activity?.modelUsageRows?.some(
             (row) =>
               row.inputTokens === null ||
