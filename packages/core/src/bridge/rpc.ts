@@ -1,3 +1,5 @@
+import type { MessagingSnapshot, MessagingGrant, OutboxIntent } from '../messaging/outbound.js';
+import type { MessagingTarget } from '../messaging/provider.js';
 import type { MemoryFileTarget } from '../memory/file-actions.js';
 import type { Context } from '@deepseek-ai/cordis';
 import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protocol';
@@ -112,6 +114,46 @@ export class BotharnessBridgeService extends TypertRemoteService {
   constructor(ctx: Context, methods: BridgeMethods) {
     super(ctx, BRIDGE_SERVICE_KEY, { namespace: BRIDGE_NAMESPACE });
     this.methods = methods;
+  }
+
+  messagingSnapshot(slug: string): Promise<MessagingSnapshot> {
+    return unwrapAsync(this.methods.messagingSnapshot({ slug }));
+  }
+  messagingTargets(
+    providerId: string,
+    accountRef: string,
+  ): Promise<{ targets: MessagingTarget[] }> {
+    return unwrapAsync(this.methods.messagingTargets({ providerId, accountRef }));
+  }
+  messagingAuthorize(
+    botSlug: string,
+    providerId: string,
+    accountRef: string,
+    targetRef: string,
+    fingerprint: string,
+    targetDigest: string,
+  ): Promise<{ grant: MessagingGrant }> {
+    return unwrapAsync(
+      this.methods.messagingAuthorize({
+        botSlug,
+        providerId,
+        accountRef,
+        targetRef,
+        fingerprint,
+        targetDigest,
+      }),
+    );
+  }
+  messagingRevoke(slug: string, grantId: string): Promise<{ revoked: true }> {
+    return unwrapAsync(this.methods.messagingRevoke({ slug, grantId }));
+  }
+  messagingSend(
+    slug: string,
+    grantId: string,
+    requestId: string,
+    text: string,
+  ): Promise<{ intent: OutboxIntent }> {
+    return unwrapAsync(this.methods.messagingSend({ slug, grantId, requestId, text }));
   }
 
   modelCatalog(): Promise<{ models: ModelCatalogEntry[] }> {
@@ -647,6 +689,11 @@ export class BotharnessBridgeService extends TypertRemoteService {
 }
 
 markRemoteMethods(BotharnessBridgeService.prototype, [
+  'messagingSnapshot',
+  'messagingTargets',
+  'messagingAuthorize',
+  'messagingRevoke',
+  'messagingSend',
   'modelCatalog',
   'modelPresets',
   'modelPresetCreate',

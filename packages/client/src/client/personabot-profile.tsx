@@ -1,3 +1,4 @@
+import { MessagingProfile } from './messaging-profile.js';
 import { useRef, useState, type FormEvent, type ReactElement } from 'react';
 
 import {
@@ -415,6 +416,7 @@ export function ProfileView({
         </section>
       )}
       <ModelPresetProfile key={bot.slug} slug={bot.slug} actions={actions} t={t} />
+      <MessagingProfile key={`im-${bot.slug}`} slug={bot.slug} actions={actions} t={t} />
       <section
         className="bh-profile-section bh-profile-policy-section"
         aria-label={t('sourcePolicy.title')}

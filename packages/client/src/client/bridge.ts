@@ -1,3 +1,9 @@
+import type {
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../../../core/src/messaging/outbound.js';
+import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import type { HostFileTarget } from './host-file-actions.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
@@ -2331,4 +2337,65 @@ export async function repairMemory(
   )
     throw new Error('invalid Memory repair result');
   return repair as unknown as MemoryRepairEvent;
+}
+
+export async function loadMessagingSnapshot(
+  call: BridgeCall,
+  slug: string,
+): Promise<MessagingSnapshot> {
+  const value = await unwrap(call, 'messagingSnapshot', { slug });
+  const record = asRecord(value);
+  if (
+    !record ||
+    !Array.isArray(record['accounts']) ||
+    !Array.isArray(record['grants']) ||
+    !Array.isArray(record['intents'])
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid messaging snapshot');
+  return value as MessagingSnapshot;
+}
+export async function loadMessagingTargets(
+  call: BridgeCall,
+  providerId: string,
+  accountRef: string,
+): Promise<MessagingTarget[]> {
+  const record = asRecord(await unwrap(call, 'messagingTargets', { providerId, accountRef }));
+  if (!record || !Array.isArray(record['targets']))
+    throw new BridgeCallError('invalid-response', 'Invalid targets');
+  return record['targets'] as MessagingTarget[];
+}
+export async function authorizeMessaging(
+  call: BridgeCall,
+  input: {
+    botSlug: string;
+    providerId: string;
+    accountRef: string;
+    targetRef: string;
+    fingerprint: string;
+    targetDigest: string;
+  },
+): Promise<MessagingGrant> {
+  const record = asRecord(await unwrap(call, 'messagingAuthorize', input));
+  if (!record || !asRecord(record['grant']))
+    throw new BridgeCallError('invalid-response', 'Invalid grant');
+  return record['grant'] as MessagingGrant;
+}
+export async function revokeMessaging(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<void> {
+  await unwrap(call, 'messagingRevoke', { slug, grantId });
+}
+export async function sendMessaging(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  requestId: string,
+  text: string,
+): Promise<OutboxIntent> {
+  const record = asRecord(await unwrap(call, 'messagingSend', { slug, grantId, requestId, text }));
+  if (!record || !asRecord(record['intent']))
+    throw new BridgeCallError('invalid-response', 'Invalid intent');
+  return record['intent'] as OutboxIntent;
 }

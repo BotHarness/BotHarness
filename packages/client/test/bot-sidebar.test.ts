@@ -102,6 +102,15 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
+    messagingTargets: vi.fn(async () => []),
+    messagingAuthorize: vi.fn(async () => {
+      throw new Error('unexpected IM authorization');
+    }),
+    messagingRevoke: vi.fn(async () => undefined),
+    messagingSend: vi.fn(async () => {
+      throw new Error('unexpected IM send');
+    }),
     modelCatalog: vi.fn(async () => []),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),

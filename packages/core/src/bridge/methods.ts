@@ -1,3 +1,11 @@
+import type {
+  OutboundMessaging,
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../messaging/outbound.js';
+import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
+import { OperationalDatabaseError } from '../database/owner.js';
 import { randomUUID, createHash } from 'node:crypto';
 
 import { z } from 'zod';
@@ -197,6 +205,12 @@ export interface BridgeError {
 export type BridgeResult<T> = { ok: true; value: T } | { ok: false; error: BridgeError };
 
 export interface BridgeMethods {
+  messagingSnapshot(payload: unknown): Promise<BridgeResult<MessagingSnapshot>>;
+  messagingTargets(payload: unknown): Promise<BridgeResult<{ targets: MessagingTarget[] }>>;
+  messagingAuthorize(payload: unknown): Promise<BridgeResult<{ grant: MessagingGrant }>>;
+  messagingRevoke(payload: unknown): Promise<BridgeResult<{ revoked: true }>>;
+  messagingSend(payload: unknown): Promise<BridgeResult<{ intent: OutboxIntent }>>;
+
   modelCatalog(payload: unknown): Promise<BridgeResult<{ models: ModelCatalogEntry[] }>>;
   modelPresets(payload: unknown): BridgeResult<{ presets: ModelPreset[] }>;
   modelPresetCreate(payload: unknown): Promise<BridgeResult<{ preset: ModelPreset }>>;
@@ -295,6 +309,7 @@ export interface BridgeMethods {
 }
 
 export interface BridgeMethodsDeps {
+  warn?: (message: string) => void;
   registry: PersonaBotRegistry;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
@@ -311,6 +326,7 @@ export interface BridgeMethodsDeps {
   humanAttention?: HumanAttentionQuery;
   humanAttentionDecisions?: HumanAttentionDecisions;
   grants?: WorkspaceGrantStore;
+  externalMessaging?: OutboundMessaging;
   toolApproval?: ChannelToolApproval;
   userQuestions?: ChannelUserQuestions;
   toolRules?: ToolApprovalRuleStore;
@@ -556,6 +572,39 @@ function detail(record: PersonaBotRecord, snapshot: BotStateSnapshot): PersonaBo
 }
 
 export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
+  const messagingCall = async <T>(
+    operation: (service: OutboundMessaging) => Promise<T>,
+  ): Promise<BridgeResult<T>> => {
+    if (deps.externalMessaging === undefined)
+      return {
+        ok: false,
+        error: { code: 'messaging-unavailable', message: 'External messaging is unavailable' },
+      };
+    try {
+      return { ok: true, value: await operation(deps.externalMessaging) };
+    } catch (error) {
+      if (error instanceof MessagingError)
+        return { ok: false, error: { code: error.code, message: error.code } };
+      const storage = error instanceof OperationalDatabaseError;
+      deps.warn?.(
+        JSON.stringify({
+          module: 'messaging',
+          initiator: 'client',
+          phase: 'rpc-failed',
+          reason: storage ? 'operational-storage-unavailable' : 'unexpected-error',
+        }),
+      );
+      return {
+        ok: false,
+        error: {
+          code: storage ? 'messaging-storage-unavailable' : 'messaging-unavailable',
+          message: storage
+            ? 'External messaging storage is unavailable'
+            : 'External messaging is unavailable',
+        },
+      };
+    }
+  };
   const createBotId = deps.createBotId ?? (() => 'bot-' + randomUUID().replaceAll('-', ''));
   const detailOf = (record: PersonaBotRecord): { bot: PersonaBotDetail } => ({
     bot: detail(record, deps.states.snapshot(record.slug)),
@@ -635,6 +684,68 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   };
 
   return {
+    messagingSnapshot(payload) {
+      const slug = asSlug(payload);
+      if (slug === undefined || deps.registry.get(slug) === undefined)
+        return Promise.resolve(invalidInput('Known bot required'));
+      return messagingCall((service) => service.snapshot(slug));
+    },
+    messagingTargets(payload) {
+      const input = z
+        .object({ providerId: z.string().min(1), accountRef: z.string().min(1) })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid target query'));
+      return messagingCall(async (service) => ({
+        targets: await service.targets(input.data.providerId, input.data.accountRef),
+      }));
+    },
+    messagingAuthorize(payload) {
+      const input = z
+        .object({
+          botSlug: z.string().min(1),
+          providerId: z.string().min(1),
+          accountRef: z.string().min(1),
+          targetRef: z.string().min(1),
+          fingerprint: z.string().regex(/^[a-f0-9]{64}$/),
+          targetDigest: z.string().regex(/^[a-f0-9]{64}$/),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid authorization'));
+      return messagingCall(async (service) => ({ grant: await service.authorize(input.data) }));
+    },
+    messagingRevoke(payload) {
+      const input = z
+        .object({ slug: z.string().min(1), grantId: z.string().uuid() })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid grant'));
+      return messagingCall(async (service) => {
+        service.revoke(input.data.slug, input.data.grantId);
+        return { revoked: true as const };
+      });
+    },
+    messagingSend(payload) {
+      const input = z
+        .object({
+          slug: z.string().min(1),
+          grantId: z.string().uuid(),
+          requestId: z.string().min(8).max(128),
+          text: z.string().min(1).max(4000),
+        })
+        .strict()
+        .safeParse(payload);
+      if (!input.success) return Promise.resolve(invalidInput('Invalid send'));
+      return messagingCall(async (service) => ({
+        intent: await service.send(
+          input.data.slug,
+          input.data.grantId,
+          input.data.requestId,
+          input.data.text,
+        ),
+      }));
+    },
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
       try {

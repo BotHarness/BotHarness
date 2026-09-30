@@ -243,6 +243,11 @@ describe('plugin entry', () => {
     expect(
       remoteMethods(bridge as object).map((marker) => marker.exportName ?? marker.method),
     ).toEqual([
+      'messagingSnapshot',
+      'messagingTargets',
+      'messagingAuthorize',
+      'messagingRevoke',
+      'messagingSend',
       'modelCatalog',
       'modelPresets',
       'modelPresetCreate',
