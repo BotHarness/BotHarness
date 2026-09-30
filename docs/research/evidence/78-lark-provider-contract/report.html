@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+  <meta charset="utf-8" /><meta
+    name="viewport"
+    content="width=device-width,initial-scale=1"
+  /><title>#78 · Recorded Lark E2E evidence</title
+  ><style>
+    body {
+      margin: 0;
+      background: #f3f5f7;
+      color: #1c2938;
+      font:
+        16px/1.5 system-ui,
+        sans-serif;
+    }
+    main {
+      max-width: 1080px;
+      margin: 24px auto;
+      padding: 28px;
+      background: white;
+      border: 1px solid #d6dde5;
+      border-radius: 16px;
+    }
+    h1 {
+      font-size: 30px;
+      margin: 8px 0;
+    }
+    h2 {
+      font-size: 19px;
+      margin: 24px 0 8px;
+    }
+    p {
+      margin: 8px 0;
+    }
+    .label {
+      color: #536270;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+    }
+    .ok {
+      display: inline-block;
+      background: #e2f4e8;
+      color: #126337;
+      border-radius: 6px;
+      padding: 4px 9px;
+      font-weight: 650;
+    }
+    .scope {
+      padding: 14px 18px;
+      border-left: 4px solid #566b87;
+      background: #eef3f9;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    td,
+    th {
+      padding: 13px 9px;
+      text-align: left;
+      border-bottom: 1px solid #e0e5eb;
+    }
+    th {
+      color: #586676;
+    }
+    ul {
+      padding-left: 22px;
+    }
+    code {
+      font-size: 12px;
+      overflow-wrap: anywhere;
+    }
+    .muted {
+      color: #5d6875;
+      font-size: 13px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+    }
+    .panel {
+      background: #f5f7fa;
+      padding: 16px;
+      border-radius: 10px;
+    }
+    .panel h2 {
+      margin-top: 0;
+    }
+    @media (max-width: 700px) {
+      main {
+        margin: 10px;
+        padding: 18px;
+      }
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      table {
+        font-size: 12px;
+      }
+      td,
+      th {
+        padding: 9px 5px;
+      }
+      h1 {
+        font-size: 24px;
+      }
+    }
+  </style>
+  <main>
+    <div class="label">BOTHARNESS · ISSUE #78 · REAL PLATFORM E2E</div>
+    <h1>Lark work-group provider qualification</h1>
+    <p><span class="ok">3 real sources · 3 receipt reads verified</span></p>
+    <p class="muted">Recorded 2026-09-30T19:56:47.701Z · DSH 0.2.0-rc.1 · SDK 1.73.0</p>
+    <p class="scope">
+      <strong>Public dshIm provider contract</strong><br />Real Human @mentions, exclusive consumer
+      and checked replies. PersonaBot Inbox / Orchestrator / Outbox integration remains #12.
+    </p>
+    <h2>Observed end-to-end paths</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Real Lark input</th>
+          <th>Source route</th>
+          <th>Account / group / actor</th>
+          <th>Consumer acceptance</th>
+          <th>Platform GET</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Ordinary group @Bot</td>
+          <td>group root</td>
+          <td>Verified</td>
+          <td>Flushed before ACK</td>
+          <td>Exact receipt verified</td>
+        </tr>
+        <tr>
+          <td>Existing topic @Bot</td>
+          <td>thread / root / parent</td>
+          <td>Verified</td>
+          <td>Flushed before ACK</td>
+          <td>Exact receipt verified</td>
+        </tr>
+        <tr>
+          <td>New @Bot after restart</td>
+          <td>group root</td>
+          <td>Verified</td>
+          <td>Flushed before ACK</td>
+          <td>Exact receipt verified</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="grid">
+      <section class="panel">
+        <h2>Route and lifecycle checks</h2>
+        <ul>
+          <li>Authenticated account + one exclusive consumer</li>
+          <li>Substituted group and topic refused before send</li>
+          <li>2 earlier sources preserved across cold restart</li>
+          <li>New source accepted in the current Host run</li>
+          <li>ROOT / TOPIC ACKs observed in Lark</li>
+        </ul>
+      </section>
+      <section class="panel">
+        <h2>Limits and startup evidence</h2>
+        <p>8 fixture regressions passed; no live redelivery claimed.</p>
+        <p>
+          2 transient acquire / unknown-bot observations during provider startup. Lease recovered;
+          post-restart message passed.
+        </p>
+        <p>
+          No Feishu / other-Bot / recall / edit / gap-recovery proof. Provider accepted ≠ delivered
+          or read.
+        </p>
+      </section>
+    </div>
+    <h2>Recorded provenance</h2>
+    <p class="muted">
+      Provider fork (not an upstream release):<br /><code
+        >19d88f14bf85d74d4abf035a0c749d0b4a640257</code
+      ><br />Exact final probe SHA-256:<br /><code
+        >3d5037d264a22d97bbe63fdee3b2d4d628749ecca4c7f34b7b9f550e4926ea7d</code
+      >
+    </p>
+    <p class="muted">
+      This screenshot shows a report rendered from real event and receipt records. Native IDs,
+      credentials, identities and unrelated chats remain private. It is not a PersonaBot product
+      screenshot.
+    </p>
+  </main>
+</html>
