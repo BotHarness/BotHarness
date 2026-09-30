@@ -389,7 +389,9 @@ describe('runtime lifecycle', () => {
     await ensuring;
     await runtime.open('https://example.com');
     await expect(runtime.clickAt('tab-1', 2000, 10)).rejects.toThrow(/outside the viewport/);
-    await expect(runtime.clickAt('tab-1', 100, 100)).resolves.toMatchObject({ tabId: 'tab-1' });
+    await expect(runtime.clickAt('tab-1', 1280, 0)).rejects.toThrow(/outside the viewport/);
+    await expect(runtime.clickAt('tab-1', 0, 800)).rejects.toThrow(/outside the viewport/);
+    await expect(runtime.clickAt('tab-1', 1279, 799)).resolves.toMatchObject({ tabId: 'tab-1' });
     expect(base.calls.map((call) => call.method)).toContain('Input.dispatchMouseEvent');
   });
 

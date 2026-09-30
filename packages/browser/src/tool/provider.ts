@@ -312,7 +312,9 @@ export function createBrowserToolProvider(
               (saved === undefined ? 'Screenshot captured.' : `Screenshot saved to ${saved}`) +
               (shot.viewport === undefined
                 ? ''
-                : ` (viewport ${shot.viewport.width}x${shot.viewport.height}; image coordinates map 1:1 to browser_click x/y)`),
+                : shot.image !== undefined && shot.image.width !== shot.viewport.width
+                  ? ` (image ${shot.image.width}x${shot.image.height} vs viewport ${shot.viewport.width}x${shot.viewport.height}; divide image coordinates by ${(shot.image.width / shot.viewport.width).toFixed(2)} before browser_click x/y)`
+                  : ` (viewport ${shot.viewport.width}x${shot.viewport.height}; image coordinates map 1:1 to browser_click x/y)`),
           },
         ],
       };

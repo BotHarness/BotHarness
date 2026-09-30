@@ -1,4 +1,6 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+
+import { jpegDimensions } from '../jpeg.js';
 import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 
@@ -67,10 +69,14 @@ export interface BotBrowserRuntime {
   listTabs(): Promise<readonly { targetId: string; url: string; title: string }[]>;
   tabInfo(targetId: string): Promise<{ url: string; title: string }>;
   closeTab(targetId: string): Promise<void>;
-  captureScreenshot(
-    tabId: string,
-  ): Promise<
-    { data: string; mimeType: string; viewport?: { width: number; height: number } } | undefined
+  captureScreenshot(tabId: string): Promise<
+    | {
+        data: string;
+        mimeType: string;
+        viewport?: { width: number; height: number };
+        image?: { width: number; height: number };
+      }
+    | undefined
   >;
   openWindow(): Promise<BrowserTab>;
   currentUrl(): string | undefined;
@@ -502,7 +508,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     if (
       width !== undefined &&
       height !== undefined &&
-      (x < 0 || y < 0 || x > width || y > height)
+      (x < 0 || y < 0 || x >= width || y >= height)
     ) {
       throw new Error(
         `The coordinates ${Math.round(x)},${Math.round(y)} are outside the viewport (${width}x${height}); take a fresh browser_screenshot and use its coordinates`,
@@ -716,10 +722,25 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
         ? result['data']
         : undefined;
     };
+    const withMeta = (
+      data: string,
+    ): {
+      data: string;
+      mimeType: string;
+      viewport?: { width: number; height: number };
+      image?: { width: number; height: number };
+    } => {
+      const image = jpegDimensions(data);
+      return {
+        data,
+        mimeType: 'image/jpeg',
+        ...(viewport === undefined ? {} : { viewport }),
+        ...(image === undefined ? {} : { image }),
+      };
+    };
     try {
       const data = await capture();
-      if (data !== undefined)
-        return { data, mimeType: 'image/jpeg', ...(viewport === undefined ? {} : { viewport }) };
+      if (data !== undefined) return withMeta(data);
     } catch {
       void 0;
     }
@@ -730,9 +751,7 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       focusEmulated.add(sessionId);
     }
     const data = await capture().catch(() => undefined);
-    return data === undefined
-      ? undefined
-      : { data, mimeType: 'image/jpeg', ...(viewport === undefined ? {} : { viewport }) };
+    return data === undefined ? undefined : withMeta(data);
   };
 
   const openWindow = async (): Promise<BrowserTab> => {
