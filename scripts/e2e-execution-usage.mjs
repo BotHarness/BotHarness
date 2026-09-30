@@ -263,7 +263,7 @@ mkdirSync(dirname(screenshot), { recursive: true });
 const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
 try {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1500, height: 1050 });
+  await page.setViewport({ width: 1500, height: 1280 });
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'light' }]);
   await page.setExtraHTTPHeaders({ cookie });
   for (let attempt = 0; attempt < 3; attempt += 1) {
@@ -324,12 +324,19 @@ try {
   let presentation;
   if (coordinated) {
     const modelTotals = new Map();
+    const modelBuckets = new Map();
     const [year, month, day] = activity.today.split('-').map(Number);
     const weekStartDate = new Date(year, month - 1, day - 6);
     const weekStart = `${weekStartDate.getFullYear()}-${`${weekStartDate.getMonth() + 1}`.padStart(2, '0')}-${`${weekStartDate.getDate()}`.padStart(2, '0')}`;
     for (const row of rows.filter((row) => row.day >= weekStart && row.day <= activity.today)) {
       const name = `${row.provider} / ${row.model}`;
       modelTotals.set(name, (modelTotals.get(name) ?? 0) + row.totalTokens);
+      const aggregate = modelBuckets.get(name) ?? { input: 0, cache: 0, output: 0, total: 0 };
+      aggregate.input += row.inputTokens + row.cacheReadTokens + row.cacheWriteTokens;
+      aggregate.cache += row.cacheReadTokens;
+      aggregate.output += row.outputTokens;
+      aggregate.total += row.totalTokens;
+      modelBuckets.set(name, aggregate);
     }
     presentation = await page.$eval('.bh-model-usage', (element) => ({
       collapsed: !element.querySelector('details').open,
@@ -338,12 +345,19 @@ try {
       models: [...element.querySelectorAll('.bh-usage-model-label')].map((row) => ({
         label: row.querySelector('span').getAttribute('title'),
         total: row.querySelector('strong').textContent,
+        measures: [...row.querySelectorAll('.bh-usage-measures dd')].map(
+          (value) => value.textContent,
+        ),
+      })),
+      caches: [...element.querySelectorAll('.bh-usage-cache-label')].map((row) => ({
+        label: row.querySelector('span').getAttribute('title'),
+        ratio: row.querySelector('strong').textContent,
       })),
       hasRoles: /Orchestrator|Assignment|DSH (子代理|Subagent)/u.test(element.textContent),
     }));
     if (
       !presentation.collapsed ||
-      presentation.charts !== 2 ||
+      presentation.charts !== 3 ||
       presentation.preset !== '7' ||
       presentation.hasRoles
     )
@@ -355,6 +369,26 @@ try {
       )
     )
       throw new Error('Overview model totals do not merge execution roles correctly');
+    for (const row of presentation.models) {
+      const reported = modelBuckets.get(row.label);
+      const percent = (part, total) =>
+        `${((part / total) * 100).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+      const expected = [
+        reported.input.toLocaleString(),
+        `${reported.cache.toLocaleString()} · ${percent(reported.cache, reported.input)}`,
+        `${reported.output.toLocaleString()} · ${percent(reported.output, reported.total)}`,
+      ];
+      if (JSON.stringify(row.measures) !== JSON.stringify(expected))
+        throw new Error(
+          'Per-model input/cache/output counts or percentages differ from actual usage',
+        );
+      if (
+        presentation.caches.find((entry) => entry.label === row.label)?.ratio !==
+        percent(reported.cache, reported.input)
+      )
+        throw new Error('Cache ratio does not agree with the model usage chart');
+    }
+    presentation.perModelShares = true;
     await page.$eval('.bh-usage-details summary', (element) => element.focus());
     await page.keyboard.press('Enter');
     await page.waitForSelector('.bh-model-usage-route');
@@ -386,6 +420,30 @@ try {
       ?.scrollIntoView({ block: 'center' });
   });
   await page.screenshot({ path: screenshot });
+  if (coordinated) {
+    await page.evaluate(() =>
+      document.querySelector('.bh-usage-cache')?.scrollIntoView({ block: 'center' }),
+    );
+    const point = await page.$('.bh-usage-cache svg circle');
+    if (!point) throw new Error('Cache-ratio point not rendered');
+    await point.hover();
+    await page.waitForSelector('.bh-profile-chart-tip');
+    const tip = await page.$eval('.bh-profile-chart-tip', (element) => element.textContent);
+    const firstModel = presentation.models[0];
+    const [cacheCount, cacheShare] = firstModel.measures[1].split(' · ');
+    const outputShare = firstModel.measures[2].split(' · ')[1];
+    if (!tip.includes(cacheShare) || !tip.includes(outputShare) || !tip.includes(cacheCount))
+      throw new Error('Real cache hover did not expose the first model token shares');
+    await page.screenshot({ path: screenshot.replace(/\.png$/u, '-cache.png') });
+    await page.mouse.move(0, 0);
+    await page.evaluate(() =>
+      document
+        .querySelector('.bh-model-usage')
+        ?.closest('.bh-profile-card')
+        ?.scrollIntoView({ block: 'center' }),
+    );
+    presentation.cacheTooltip = true;
+  }
   const measured = await page.$eval('.bh-profile-view', (element) => ({
     width: element.getBoundingClientRect().width,
     padding: getComputedStyle(element).paddingInline,
@@ -459,7 +517,7 @@ try {
     await page.select('.bh-model-usage select', '182');
     await page.waitForSelector('.bh-usage-model-label');
     await page.select('.bh-model-usage select', '7');
-    await page.setViewport({ width: 1040, height: 1050 });
+    await page.setViewport({ width: 1040, height: 1280 });
     await page.evaluate(() =>
       document
         .querySelector('.bh-model-usage')

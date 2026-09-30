@@ -12,13 +12,24 @@ Verified against the pinned DSH 0.2.0-rc.1 in a new isolated Profile. **Executio
 | Assignment   | deepseek-v4-pro                  |  7,298 |    324 |     17,792 |           0 | 25,414 |
 | DSH Subagent | deepseek-flash                   |  6,675 |      7 |      1,152 |           0 |  7,834 |
 
-Default model totals merge execution roles: **Flash 95,950**, **V4 Pro 25,414**, overall **121,364 tokens**. The two TanStack Charts use the same selected range, defaulting to the most recent 7 calendar days including today. Execution labels are absent from the default view; native Details is closed. Keyboard Enter opens it and exposes all three execution rows plus daily bucket data.
+Default model totals merge execution roles: **Flash 95,950**, **V4 Pro 25,414**, overall **121,364 tokens**. The three TanStack Charts (daily usage, model composition and cache ratio) use the same selected range, defaulting to the most recent 7 calendar days including today. Execution labels are absent from the default view; native Details is closed. Keyboard Enter opens it and exposes all three execution rows plus daily bucket data.
 
-The real script verified Today keeps the same fixture total, a custom unused day clears both charts and displays the empty state, and restoring 26 weeks returns the model rows. Refresh preserves the public aggregates. The full Profile measures 900px wide with 18px normal inset at a 1500px viewport; the 1040px viewport has no usage-section horizontal overflow. Both themes were inspected, including proportional model bars aligned to their labels. Narrow labels prioritize model names, with provider beneath and full titles available.
+The real script verified Today keeps the same fixture total, a custom unused day clears both charts and displays the empty state, and restoring 26 weeks returns the model rows. Refresh preserves the public aggregates. The 1500px and 1040px captures use a 1280px viewport height to show the full coordinated card. The full Profile measures 900px wide with 18px normal inset at a 1500px viewport; the 1040px viewport has no usage-section horizontal overflow. Both themes were inspected, including stacked model bars aligned to their labels and cache markers on a fixed 0–100% scale. Narrow labels prioritize model names, with provider beneath and full titles available.
+
+Per-model default counts and weighted ratios:
+
+| Actual model    | Total input | Cache reads | Cache / input | Output | Output / total |
+| --------------- | ----------: | ----------: | ------------: | -----: | -------------: |
+| deepseek-flash  |      95,086 |      74,112 |         77.9% |    864 |           0.9% |
+| deepseek-v4-pro |      25,090 |      17,792 |         70.9% |    324 |           1.3% |
+
+Input includes uncached input, cache reads and cache writes. Ratios use summed counts across the selected period, never an average of per-call percentages. Missing denominators and zero input retain Unknown; exact reported totals with incomplete buckets receive a neutral bar rather than a fabricated stack. The screenshot composition borrows [OpenCode Data](https://opencode.ai/data/)'s per-model comparison and cache-ratio tracks, expressed using native DSH tokens. A real hover verifies the cache marker tooltip exposes the same counts and percentages.
 
 ![Default overview, light theme](coordinated-model-usage.png)
 
 ![Default overview, dark theme](coordinated-model-usage-dark.png)
+
+![Cache marker hover](coordinated-model-usage-cache.png)
 
 ![Expanded execution and daily details](coordinated-model-usage-details.png)
 
@@ -31,8 +42,9 @@ The real script verified Today keeps the same fixture total, a custom unused day
 Launch an isolated Host with `scripts/dev-instance.mjs`. Set `BH_E2E_ORIGIN`, `BH_E2E_HOME`, `BH_E2E_SCREENSHOT`, and `BH_E2E_EXPECT_COORDINATED=1`, then run `node scripts/e2e-execution-usage.mjs`. An optional `BH_E2E_BOT_SLUG` rechecks an existing fixture without extra provider calls. The script waits for the Bot's public aggregate state to become idle, compares reported settlements within the same date window, and captures the default, expanded, empty and narrow presentations.
 
 1. Open Bot mode, select the fixture above, and open its complete Profile.
-2. Default Token usage should show Last 7 days, daily usage and two model totals, with Details collapsed.
-3. Select Today: both charts and the overall total describe that range. Choose Custom and set both dates to an unused day: no stale bars remain. Try Last 26 weeks, then return to Last 7 days.
-4. Focus Details and press Enter. Orchestrator, Assignment and DSH Subagent appear with input/output/cache buckets and reported totals. Close it to return to the model overview.
+2. Default Token usage should show Last 7 days, daily usage, stacked model totals with input/cache/output and percentages, and a cache-ratio chart; Details stays collapsed.
+3. Select Today: all charts and the overall total describe that range. Choose Custom and set both dates to an unused day: no stale bars remain. Try Last 26 weeks, then return to Last 7 days.
+4. Hover the Flash cache marker: input 95,086, cache reads 74,112 / 77.9%, output 864 / 0.9% should agree with the model row.
+5. Focus Details and press Enter. Orchestrator, Assignment and DSH Subagent appear with input/output/cache buckets and reported totals. Close it to return to the model overview.
 
-Focused public Host-query and Client tests verify exact provider/model distinction, combined execution roles, range synchronization, known totals with missing buckets, unknown totals, invalid ranges and unavailable versus empty results. No Client reads private Session logs and no second statistics store is introduced.
+Focused public Host-query and Client tests verify exact provider/model distinction, combined execution roles, range synchronization, known totals with missing buckets, unknown totals, invalid ranges, unavailable versus empty results, cache-write-inclusive input, weighted shares, range changes and zero denominators. No Client reads private Session logs and no second statistics store is introduced.

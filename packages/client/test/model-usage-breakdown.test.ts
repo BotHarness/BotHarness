@@ -101,7 +101,7 @@ describe('coordinated actual-model usage', () => {
       expect(container.querySelector('.bh-usage-axis-labels')?.textContent).toBe(
         '2026-09-242026-09-30',
       );
-      expect(container.querySelectorAll('.bh-profile-bar-chart')).toHaveLength(2);
+      expect(container.querySelectorAll('.bh-profile-bar-chart')).toHaveLength(3);
       expect(container.querySelectorAll('.bh-usage-model-label')).toHaveLength(2);
       expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
         '405 tokens',
@@ -184,6 +184,79 @@ describe('coordinated actual-model usage', () => {
       );
     } finally {
       await missing.cleanup();
+    }
+  });
+  it('shows inclusive input and weighted cache/output shares by model and updates them with the range', async () => {
+    const { container, cleanup } = await renderUsage([
+      base,
+      {
+        ...base,
+        day: '2026-09-29',
+        purpose: 'assignment',
+        inputTokens: 0,
+        cacheReadTokens: 90,
+        cacheWriteTokens: 5,
+        outputTokens: 5,
+        totalTokens: 100,
+      },
+      { ...base, provider: 'provider-b' },
+    ]);
+    try {
+      const model = container.querySelector('.bh-usage-model-label')!;
+      const measures = model.querySelectorAll('.bh-usage-measures dd');
+      expect(model.textContent).toContain('255 tokens');
+      expect(measures[0]?.textContent).toBe('210');
+      expect(measures[1]?.textContent).toBe('100 · 47.6%');
+      expect(measures[2]?.textContent).toBe('45 · 17.6%');
+      expect(container.querySelector('.bh-usage-cache-label')?.textContent).toContain('47.6%');
+      expect(container.querySelectorAll('.bh-usage-cache-label')).toHaveLength(2);
+      expect(container.querySelector('details')?.open).toBe(false);
+      await choose(container, '1');
+      const today = container.querySelectorAll('.bh-usage-model-label .bh-usage-measures dd');
+      expect(today[0]?.textContent).toBe('115');
+      expect(today[1]?.textContent).toBe('10 · 8.7%');
+      expect(today[2]?.textContent).toBe('40 · 25.8%');
+      expect(container.querySelector('.bh-usage-cache-label')?.textContent).toContain('8.7%');
+    } finally {
+      await cleanup();
+    }
+  });
+  it('keeps unavailable and zero-denominator ratios unknown while showing independently known counts', async () => {
+    const { container, cleanup } = await renderUsage([
+      { ...base, inputTokens: null },
+      {
+        ...base,
+        model: 'output-only',
+        inputTokens: 0,
+        cacheReadTokens: 0,
+        cacheWriteTokens: 0,
+        outputTokens: 10,
+        totalTokens: 10,
+      },
+    ]);
+    try {
+      const models = [...container.querySelectorAll('.bh-usage-model-label')];
+      const partial = models.find((row) => row.textContent?.includes('shared-name'))!;
+      const measures = partial.querySelectorAll('.bh-usage-measures dd');
+      expect(measures[0]?.textContent).toBe('Unknown');
+      expect(measures[1]?.textContent).toBe('10 · Unknown');
+      expect(measures[2]?.textContent).toBe('40 · 25.8%');
+      expect(container.querySelector('.bh-usage-legend')?.textContent).toContain(
+        'Total (breakdown unavailable)',
+      );
+      const output = models.find((row) => row.textContent?.includes('output-only'))!;
+      const outputMeasures = output.querySelectorAll('.bh-usage-measures dd');
+      expect(outputMeasures[0]?.textContent).toBe('0');
+      expect(outputMeasures[1]?.textContent).toBe('0 · Unknown');
+      expect(outputMeasures[2]?.textContent).toBe('10 · 100%');
+      expect(container.querySelectorAll('.bh-usage-cache-label strong')).toHaveLength(2);
+      expect(
+        [...container.querySelectorAll('.bh-usage-cache-label strong')].map(
+          (row) => row.textContent,
+        ),
+      ).toEqual(['Unknown', 'Unknown']);
+    } finally {
+      await cleanup();
     }
   });
   it('distinguishes unavailable usage from an empty ready range', async () => {

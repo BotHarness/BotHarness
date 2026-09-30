@@ -1,14 +1,14 @@
-import { useMemo, useState, type ReactElement } from 'react';
-
-import { barX, barY, defineChart } from '@tanstack/charts';
-import { scaleLinear } from '@tanstack/charts/scales/linear';
-import { scalePoint } from '@tanstack/charts/scales/point';
-import { tooltip } from '@tanstack/charts/tooltip';
-import { Chart } from '@tanstack/charts/react/tooltip';
+import { useState, type ReactElement } from 'react';
 
 import type { ProfileModelUsageRow } from './bridge.js';
 import type { BotHarnessTranslate } from './locale.js';
-import { useProfileChartTokens } from './profile-chart-theme.js';
+import {
+  CacheRatio,
+  UsageChart,
+  UsageLegend,
+  UsageMeasures,
+  type UsageSummary,
+} from './model-usage-charts.js';
 
 const bucketKeys = [
   'inputTokens',
@@ -24,13 +24,6 @@ const bucketLabels = [
   'profile.usage.cacheWrite',
   'profile.usage.total',
 ] as const;
-type UsageSummary = Pick<ProfileModelUsageRow, (typeof bucketKeys)[number]> & {
-  key: string;
-  label: string;
-  model?: string;
-  provider?: string;
-};
-
 function sumBucket(left: number | null, right: number | null): number | null {
   return left === null || right === null ? null : left + right;
 }
@@ -74,87 +67,6 @@ function Buckets({ row, t }: { row: UsageSummary; t: BotHarnessTranslate }): Rea
         </div>
       ))}
     </dl>
-  );
-}
-
-function UsageChart({
-  rows,
-  horizontal,
-  t,
-  label,
-}: {
-  rows: UsageSummary[];
-  horizontal?: boolean;
-  t: BotHarnessTranslate;
-  label: string;
-}): ReactElement {
-  const colors = useProfileChartTokens();
-  const theme = {
-    foreground: colors.foreground,
-    muted: colors.muted,
-    grid: colors.grid,
-    background: 'transparent',
-    palette: [colors.cached],
-  };
-  const definition = useMemo(
-    () =>
-      horizontal
-        ? defineChart({
-            marks: [
-              barX<UsageSummary>(rows, {
-                x: 'totalTokens',
-                y: 'key',
-                fill: colors.cached,
-                radius: 3,
-                maxThickness: 16,
-              }),
-            ],
-            scales: {
-              x: { scale: scaleLinear, nice: true },
-              y: { scale: () => scalePoint<string>().padding(0.5) },
-            },
-            guides: false,
-            margin: 0,
-            tooltip,
-            theme,
-          })
-        : defineChart({
-            marks: [
-              barY<UsageSummary>(rows, {
-                x: 'key',
-                y: 'totalTokens',
-                fill: colors.cached,
-                radius: 2,
-                maxThickness: 18,
-              }),
-            ],
-            scales: {
-              x: { scale: () => scalePoint<string>().padding(0.5) },
-              y: { scale: scaleLinear, nice: true },
-            },
-            guides: false,
-            margin: { top: 4, right: 0, bottom: 0, left: 0 },
-            tooltip,
-            theme,
-          }),
-    [colors, rows, horizontal],
-  );
-  return (
-    <Chart
-      definition={definition}
-      ariaLabel={label}
-      height={horizontal ? Math.max(64, rows.length * 64) : 128}
-      className="bh-profile-bar-chart"
-      renderTooltipBody={({ points }) => {
-        const row = points[0]?.datum as UsageSummary | undefined;
-        return row === undefined ? null : (
-          <div className="bh-profile-chart-tip">
-            <strong>{row.label}</strong>
-            <Buckets row={row} t={t} />
-          </div>
-        );
-      }}
-    />
   );
 }
 
@@ -304,7 +216,7 @@ export function ModelUsageBreakdown({
               ) : null}
               <div className="bh-usage-daily">
                 <strong>{t('profile.usage.daily')}</strong>
-                <UsageChart rows={series} label={t('profile.usage.daily')} t={t} />
+                <UsageChart rows={series} kind="daily" label={t('profile.usage.daily')} t={t} />
                 <div className="bh-usage-axis-labels">
                   <span>{start}</span>
                   <span>{end}</span>
@@ -312,6 +224,7 @@ export function ModelUsageBreakdown({
               </div>
               <div className="bh-usage-models">
                 <strong>{t('profile.usage.byModel')}</strong>
+                <UsageLegend rows={models} t={t} />
                 <div className="bh-usage-model-plot">
                   <div className="bh-usage-model-labels">
                     {models.map((row) => (
@@ -321,10 +234,40 @@ export function ModelUsageBreakdown({
                           {row.provider}
                         </span>
                         <strong>{count(row.totalTokens)} tokens</strong>
+                        <UsageMeasures row={row} t={t} />
                       </div>
                     ))}
                   </div>
-                  <UsageChart rows={models} horizontal label={t('profile.usage.byModel')} t={t} />
+                  <UsageChart rows={models} kind="model" label={t('profile.usage.byModel')} t={t} />
+                </div>
+              </div>
+              <div className="bh-usage-cache">
+                <strong>{t('profile.usage.cacheRatio')}</strong>
+                <p className="bh-note">{t('profile.usage.ratioDescription')}</p>
+                <div className="bh-usage-model-plot">
+                  <div>
+                    {models.map((row) => (
+                      <div className="bh-usage-cache-label" key={row.key}>
+                        <span title={row.label}>{row.model}</span>
+                        <span className="bh-note" title={row.provider}>
+                          {row.provider}
+                        </span>
+                        <CacheRatio row={row} t={t} />
+                      </div>
+                    ))}
+                  </div>
+                  <div>
+                    <UsageChart
+                      rows={models}
+                      kind="cache"
+                      label={t('profile.usage.cacheRatio')}
+                      t={t}
+                    />
+                    <div className="bh-usage-axis-labels">
+                      <span>0%</span>
+                      <span>100%</span>
+                    </div>
+                  </div>
                 </div>
               </div>
               <details

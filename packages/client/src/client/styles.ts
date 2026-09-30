@@ -2105,12 +2105,25 @@ button.bh-profile-heat-cell:focus-visible {
   gap: 8px;
 }
 .bh-model-usage-range input { width: auto; }
-.bh-usage-daily, .bh-usage-models { display: grid; gap: 12px; }
+.bh-usage-daily, .bh-usage-models, .bh-usage-cache { display: grid; gap: 12px; }
 .bh-usage-axis-labels { display: flex; justify-content: space-between; font-size: 12px; color: var(--dsw-alias-label-secondary); }
-.bh-usage-model-plot { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 16px; }
-.bh-usage-model-label { height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
-.bh-usage-model-label span { line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bh-usage-model-plot { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 16px; }
+.bh-usage-model-label { height: 128px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
+.bh-usage-model-label > span,.bh-usage-cache-label > span { line-height: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bh-usage-model-label strong { font-variant-numeric: tabular-nums; }
+.bh-usage-cache-label { height: 64px; display: flex; flex-direction: column; justify-content: center; gap: 2px; font-size: 12px; }
+.bh-usage-measures { display: grid; gap: 2px; margin: 4px 0 0; font-size: 12px; font-variant-numeric: tabular-nums; }
+.bh-usage-measures > div { display: flex; flex-wrap: wrap; gap: 4px; }
+.bh-usage-measures dt { color: var(--dsw-alias-label-secondary); }
+.bh-usage-measures dd { margin: 0; }
+.bh-usage-cached-measure { padding-left: 8px; }
+.bh-usage-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--dsw-alias-label-secondary); }
+.bh-usage-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.bh-usage-legend i { width: 8px; height: 8px; border-radius: 2px; }
+.bh-usage-legend i[data-series="cached"] { background: var(--bh-accent); }
+.bh-usage-legend i[data-series="uncached"] { background: var(--bh-chart-read-dim); }
+.bh-usage-legend i[data-series="output"] { background: var(--bh-chart-output); }
+.bh-usage-legend i[data-series="unclassified"] { background: var(--dsw-alias-label-tertiary); }
 .bh-usage-details summary { cursor: pointer; padding: 12px 0; color: var(--dsw-alias-label-secondary); }
 .bh-usage-details summary:hover, .bh-usage-details summary:focus-visible { color: var(--dsw-alias-label-primary); }
 .bh-usage-details > div { display: grid; gap: 12px; }
