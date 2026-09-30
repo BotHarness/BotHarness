@@ -1,8 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite';
 
-import { deriveTurnTokenUsage } from '@deepseek-ai/dsh-token-meter/client';
-import type { SessionEvent } from '@deepseek-ai/dsh-session/types';
-
 import {
   attachOperationalModule,
   type OperationalDatabaseModulePort,
@@ -47,6 +44,8 @@ export type DshUsageSessionLogReader = (
 export interface UsageProjection {
   handleSessionEvent(sessionId: string, event: DshSessionEvent): void;
 
+  primeSession(sessionId: string, events: readonly DshSessionEvent[]): void;
+
   rebuild(
     sessionIds: readonly string[],
     readLog: DshUsageSessionLogReader,
@@ -80,7 +79,7 @@ export function usageLocalDay(timeMs: number): string {
 }
 
 function purposeOf(owner: { rootRole: string; provenance: string }): string {
-  return owner.provenance === 'created' ? owner.rootRole : owner.provenance;
+  return owner.provenance === 'subagent' ? 'subagent' : owner.rootRole;
 }
 
 function recordOf(value: unknown): Record<string, unknown> | undefined {
@@ -141,40 +140,35 @@ function reportedBuckets(event: DshSessionEvent): {
       (known.every((value) => value !== undefined) && buckets.totalTokens !== sum))
   )
     delete buckets.totalTokens;
+  if (
+    sample?.['totalTokens'] === undefined &&
+    known.every((value) => value !== undefined) &&
+    Number.isSafeInteger(sum)
+  )
+    buckets.totalTokens = sum;
   return buckets;
 }
 
-function reportedTurnBuckets(
-  events: readonly DshSessionEvent[],
-): ReturnType<typeof reportedBuckets> {
-  const reports = events.map(reportedBuckets);
-  const combined: ReturnType<typeof reportedBuckets> = {};
-  for (const key of [
-    'uncachedInputTokens',
-    'outputTokens',
-    'cacheReadTokens',
-    'cacheWriteTokens',
-    'totalTokens',
-  ] as const) {
-    if (reports.some((report) => report[key] === undefined)) continue;
-    const sum = reports.reduce((total, report) => total + report[key]!, 0);
-    if (Number.isSafeInteger(sum)) combined[key] = sum;
-  }
-  return combined;
-}
-
-function routeOf(routes: readonly { provider: string; model: string }[] | undefined): {
+interface UsageRoute {
   provider: string;
   model: string;
-} {
-  if (routes === undefined || routes.length === 0) return { provider: 'unknown', model: 'unknown' };
-  if (
-    routes.some(
-      (route) => route.provider !== routes[0]!.provider || route.model !== routes[0]!.model,
-    )
-  )
-    return { provider: 'mixed', model: 'mixed' };
-  return { provider: routes[0]!.provider, model: routes[0]!.model };
+}
+
+function routeOf(value: unknown): UsageRoute | undefined {
+  const record = recordOf(value);
+  return typeof record?.['provider'] === 'string' &&
+    record['provider'].length > 0 &&
+    typeof record['model'] === 'string' &&
+    record['model'].length > 0
+    ? { provider: record['provider'], model: record['model'] }
+    : undefined;
+}
+
+function requestRoute(event: DshSessionEvent): UsageRoute | undefined {
+  if (event.type === 'request/context') return routeOf(event.data);
+  if (event.type === 'request/header')
+    return routeOf(recordOf(recordOf(event.data)?.['header'])?.['config']);
+  return undefined;
 }
 
 export function createUsageProjection(options: {
@@ -187,11 +181,10 @@ export function createUsageProjection(options: {
     'usage',
   );
   const { ownership } = options;
-
-  const buffers = new Map<string, DshSessionEvent[]>();
-
+  const routes = new Map<string, Map<number, UsageRoute>>();
+  let seen = new Set<string>();
   let rebuilding = false;
-  const queuedTurns: Array<{ sessionId: string; events: DshSessionEvent[] }> = [];
+  const queuedEvents: Array<{ sessionId: string; event: DshSessionEvent; route?: UsageRoute }> = [];
 
   const upsert = (
     connection: DatabaseSync,
@@ -246,160 +239,126 @@ export function createUsageProjection(options: {
       );
   };
 
-  const record = (
-    botSlug: string,
-    day: string,
-    purpose: string,
-    provider: string,
-    model: string,
-    usage: {
-      uncachedInputTokens?: number;
-      outputTokens?: number;
-      cacheReadTokens?: number;
-      cacheWriteTokens?: number;
-      totalTokens?: number;
-    },
-  ): void => {
-    database.transaction(
-      (connection) => {
-        upsert(connection, botSlug, day, purpose, provider, model, usage);
-      },
-      ['usage'],
-    );
-  };
-
-  const foldTurn = (
+  const foldEvent = (
     sessionId: string,
-    events: readonly DshSessionEvent[],
-    connection?: DatabaseSync,
+    event: DshSessionEvent,
+    route: UsageRoute | undefined,
+    connection: DatabaseSync,
+    processed: Set<string>,
   ): boolean => {
-    const usage = deriveTurnTokenUsage(events as unknown as readonly SessionEvent[]);
-    const settlements = events.filter(
-      (event) => event.type === 'assistant/message' || event.type === 'assistant/attempt',
-    );
-    if (usage === undefined && settlements.length === 0) return false;
+    if (event.type !== 'assistant/message' && event.type !== 'assistant/attempt') return false;
+    if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') return false;
+    if (event.seq === undefined || !Number.isSafeInteger(event.seq) || event.seq < 0) return false;
+    const key = JSON.stringify([sessionId, event.seq]);
+    if (processed.has(key)) return false;
     const owner = ownership.resolve(sessionId);
     if (owner === undefined) return false;
-    const end = events[events.length - 1];
-    const day = usageLocalDay(end?.time ?? Date.now());
-    const observedRoutes = settlements.flatMap((event) => {
-      if (typeof event.data !== 'object' || event.data === null || !('message' in event.data))
-        return [];
-      const message = event.data.message;
-      if (typeof message !== 'object' || message === null || !('source' in message)) return [];
-      const source = message.source;
-      if (
-        typeof source !== 'object' ||
-        source === null ||
-        !('provider' in source) ||
-        !('model' in source)
-      )
-        return [];
-      if (typeof source.provider !== 'string' || typeof source.model !== 'string') return [];
-      return [{ provider: source.provider, model: source.model }];
-    });
-    const route = routeOf(usage?.routes ?? observedRoutes);
-    const sameObservedRoute =
-      observedRoutes.length === settlements.length && route.provider !== 'mixed';
-    const reported =
-      usage ??
-      (settlements.length === 1 || sameObservedRoute ? reportedTurnBuckets(settlements) : {});
-    const purpose = purposeOf(owner);
-    if (connection === undefined) {
-      record(owner.botSlug, day, purpose, route.provider, route.model, reported);
-    } else {
-      upsert(connection, owner.botSlug, day, purpose, route.provider, route.model, reported);
-    }
+    const source = routeOf(recordOf(recordOf(event.data)?.['message'])?.['source']);
+    const actual = source ?? route ?? { provider: 'unknown', model: 'unknown' };
+    upsert(
+      connection,
+      owner.botSlug,
+      usageLocalDay(event.time),
+      purposeOf(owner),
+      actual.provider,
+      actual.model,
+      reportedBuckets(event),
+    );
+    processed.add(key);
     return true;
   };
 
-  const foldLog = (
-    sessionId: string,
-    events: readonly DshSessionEvent[],
-    connection: DatabaseSync,
-  ): number => {
-    let folded = 0;
-    let current: DshSessionEvent[] | undefined;
-    for (const event of events) {
-      if (event.type === 'turn/start') {
-        current = [event];
-        continue;
+  const observe = (sessionId: string, event: DshSessionEvent): UsageRoute | undefined => {
+    if (event.seq === undefined || !Number.isSafeInteger(event.seq) || event.seq < 0)
+      return undefined;
+    const route = requestRoute(event);
+    let history = routes.get(sessionId);
+    if (route !== undefined) {
+      if (history === undefined) {
+        history = new Map();
+        routes.set(sessionId, history);
       }
-      if (current === undefined) continue;
-      current.push(event);
-      if (event.type === 'turn/end') {
-        if (foldTurn(sessionId, current, connection)) folded += 1;
-        current = undefined;
+      history.set(event.seq, route);
+    }
+    let latest = -1;
+    let resolved: UsageRoute | undefined;
+    for (const [seq, candidate] of history ?? []) {
+      if (seq <= event.seq && seq > latest) {
+        latest = seq;
+        resolved = candidate;
       }
     }
-    return folded;
+    return resolved;
+  };
+
+  const writeLive = (
+    sessionId: string,
+    event: DshSessionEvent,
+    route: UsageRoute | undefined,
+  ): void => {
+    if (seen.has(JSON.stringify([sessionId, event.seq]))) return;
+    const processed = new Set<string>();
+    database.transaction(
+      (connection) => foldEvent(sessionId, event, route, connection, processed),
+      ['usage'],
+    );
+    for (const key of processed) seen.add(key);
   };
 
   return {
+    primeSession(sessionId, events) {
+      for (const event of events) observe(sessionId, event);
+    },
     handleSessionEvent(sessionId, event) {
-      if (event.type === 'turn/start') {
-        buffers.set(sessionId, [event]);
+      const route = observe(sessionId, event);
+      if (event.type !== 'assistant/message' && event.type !== 'assistant/attempt') return;
+      if (rebuilding) {
+        queuedEvents.push({ sessionId, event, ...(route === undefined ? {} : { route }) });
         return;
       }
-      const buffer = buffers.get(sessionId);
-      if (buffer === undefined) return;
-      buffer.push(event);
-      if (event.type !== 'turn/end') return;
-      buffers.delete(sessionId);
-      if (rebuilding) queuedTurns.push({ sessionId, events: buffer });
-      else foldTurn(sessionId, buffer);
+      writeLive(sessionId, event, route);
     },
     async rebuild(sessionIds, readLog) {
+      if (rebuilding) throw new Error('Usage reconciliation already running');
       rebuilding = true;
-      queuedTurns.length = 0;
       let folded = 0;
       let failed = 0;
-      const logs = new Map<string, DshUsageSessionLog>();
-      for (const sessionId of sessionIds) {
-        if (ownership.resolve(sessionId) === undefined) continue;
-        try {
-          const log = await readLog(sessionId);
-          if (log === undefined) {
-            failed += 1;
-            continue;
-          }
-          logs.set(sessionId, log);
-        } catch {
-          failed += 1;
-        }
-      }
-      const snapshotHasTurn = (
-        log: DshUsageSessionLog | undefined,
-        events: readonly DshSessionEvent[],
-      ): boolean => {
-        if (log === undefined) return false;
-        const endTime = events.at(-1)?.time;
-        return log.events.some((event) => event.type === 'turn/end' && event.time === endTime);
-      };
       try {
+        const logs = new Map<string, DshUsageSessionLog>();
+        for (const sessionId of sessionIds) {
+          if (ownership.resolve(sessionId) === undefined) continue;
+          try {
+            const log = await readLog(sessionId);
+            if (log === undefined) failed += 1;
+            else logs.set(sessionId, log);
+          } catch {
+            failed += 1;
+          }
+        }
+        const processed = new Set<string>();
         database.transaction(
           (connection) => {
             connection.prepare('DELETE FROM usage_daily').run();
             for (const [sessionId, log] of logs) {
-              folded += foldLog(
-                sessionId,
-                log.inheritedEventCount > 0
-                  ? log.events.slice(log.inheritedEventCount)
-                  : log.events,
-                connection,
-              );
+              let route: UsageRoute | undefined;
+              for (let index = 0; index < log.events.length; index += 1) {
+                const event = log.events[index]!;
+                route = requestRoute(event) ?? route;
+                if (index < log.inheritedEventCount) continue;
+                if (foldEvent(sessionId, event, route, connection, processed)) folded += 1;
+              }
             }
-
-            for (const turn of queuedTurns) {
-              if (snapshotHasTurn(logs.get(turn.sessionId), turn.events)) continue;
-              if (foldTurn(turn.sessionId, turn.events, connection)) folded += 1;
-            }
+            for (const queued of queuedEvents)
+              if (foldEvent(queued.sessionId, queued.event, queued.route, connection, processed))
+                folded += 1;
           },
           ['usage'],
         );
+        seen = processed;
       } finally {
-        queuedTurns.length = 0;
         rebuilding = false;
+        const pending = queuedEvents.splice(0);
+        for (const queued of pending) writeLive(queued.sessionId, queued.event, queued.route);
       }
       return { folded, failed };
     },

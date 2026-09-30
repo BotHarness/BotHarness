@@ -9,6 +9,8 @@
 
 ### Added
 
+- PersonaBot 模型用量现在按实际 provider/model 分别展示 Orchestrator、Assignment 和 DSH 子代理调用，计入失败和重试调用已报告的 token；未报告的用量仍显示未知（[#503](https://github.com/BotHarness/BotHarness/issues/503)、[ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)）。
+
 - Human 可在收件箱内查看群聊或 PersonaBot 私聊未读消息及附近上下文，并直接回复；来源不可用时拒绝提交，失败时保留草稿（[#547](https://github.com/BotHarness/BotHarness/issues/547)）。
 - PersonaBot Profile 现在按实际调用的 provider/model 显示每日用量，分别展示输入、输出、缓存读写 token 和 provider 报告的总数；未报告的分项明确显示未知（[#499](https://github.com/BotHarness/BotHarness/issues/499)）。
 - Human 可通过 DSH 应用菜单在 Host 上打开当前 Memory Repository、子目录及文件，显示文件位置、复制 Host 路径，或将完整当前文件下载到浏览器设备；普通文件选择仍使用内置阅读器（[#574](https://github.com/BotHarness/BotHarness/issues/574)、[ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)）。
