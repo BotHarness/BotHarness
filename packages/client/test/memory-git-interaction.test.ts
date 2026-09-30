@@ -40,6 +40,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconNewChatOutline16: stub,
     IconPanelLeftOutline16: stub,
     IconPanelLeftOutlineRegular: stub,
+    IconPaperclipOutlineRegular: stub,
     IconPlusOutline16: stub,
     IconRefreshOutlineRegular: stub,
     IconSearchOutline16: stub,
@@ -47,6 +48,7 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => {
     IconSendOutlineRegular: stub,
     IconTrashOutline16: stub,
     FileTypeIcon: stub,
+    ImageLightbox: stub,
     Input: (props: InputHTMLAttributes<HTMLInputElement>) => createElement('input', props),
     Menu: ({
       anchor,

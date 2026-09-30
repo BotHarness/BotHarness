@@ -13,6 +13,8 @@ import { WORKSPACE_GRANTS_CHANGED } from '../src/client/workspace-grants-entry.j
 import { store, type ChannelMessage } from '../src/client/store.js';
 
 vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
+  FileTypeIcon: ({ path }: { path: string }) =>
+    createElement('span', { 'data-file-type-icon': path }),
   MarkdownText: vi.fn(() => null),
   Modal: () => null,
   StateDot: () => createElement('span', { 'data-state-dot': 'error' }),
@@ -279,6 +281,9 @@ describe('Channel message body', () => {
     expect(markup).toContain('<img');
     expect(markup).toContain('alt="photo.png"');
     expect(markup).toContain('download="report.pdf"');
+    expect(markup).toContain('data-file-type-icon="report.pdf"');
+    expect(markup).toContain('class="bh-message-file-name" title="report.pdf"');
+    expect(markup).not.toContain('▤');
     expect(markup).toContain('/api/botharness/attachment?hash=');
   });
 
