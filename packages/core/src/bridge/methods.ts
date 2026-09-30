@@ -1095,7 +1095,6 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const channel = deps.channels.get(channelId);
       if (bot === undefined || bot.paused === true) return unknownBot(botSlug);
       if (channel?.type !== 'group') return unknownChannel(channelId);
-      if (channel.members.includes(botSlug)) return invalidInput('PersonaBot is already a member');
       const dm = deps.channels.getOrCreateDm(bot.slug, bot.displayName);
       if (dm === undefined) return invalidInput('Invitee DM is unavailable');
       try {
