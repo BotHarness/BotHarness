@@ -733,6 +733,7 @@ describe('Bot runtime tracer bullet', () => {
           await run.report({ state: 'completed', summary: 'Done' });
         },
         requestAssignment: (run) => {
+          if (run.purpose === 'Delivery failure') throw new Error('Delivery unavailable');
           resumedRoutes.push(run.modelRoute);
           return { delivery: 'followup' as const, done: Promise.resolve() };
         },
@@ -795,6 +796,19 @@ describe('Bot runtime tracer bullet', () => {
         model: { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
       }),
     ).toThrow(/not allowed/);
+    expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    expect(() =>
+      assignmentAccess!.request({
+        sessionId: 'assignment-low',
+        mode: 'next-turn',
+        text: 'Delivery failure',
+        model: { provider: 'deepseek', model: 'pro' },
+      }),
+    ).toThrow(/Delivery unavailable/);
     expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
       provider: 'deepseek',
       model: 'flash',

@@ -3613,6 +3613,16 @@ class BotRuntimeImplementation implements BotRuntime {
         ['assignments'],
       );
     }
+    const run: AssignmentAgentRun = {
+      sessionId: input.sessionId,
+      bot,
+      purpose: text,
+      resume: true,
+      permission,
+      ...(modelRoute === undefined ? {} : { modelRoute }),
+      report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
+    };
+    const delivery = this.#agents.requestAssignment(run);
     if (input.model !== undefined) {
       this.#database.transaction(
         (database) => {
@@ -3627,16 +3637,6 @@ class BotRuntimeImplementation implements BotRuntime {
         ['assignments'],
       );
     }
-    const run: AssignmentAgentRun = {
-      sessionId: input.sessionId,
-      bot,
-      purpose: text,
-      resume: true,
-      permission,
-      ...(modelRoute === undefined ? {} : { modelRoute }),
-      report: async (report) => this.#recordReport(bot.slug, input.sessionId, report),
-    };
-    const delivery = this.#agents.requestAssignment(run);
     if (delivery.delivery === 'followup') {
       this.#trackAssignmentRun(input.sessionId, () => delivery.done);
     } else {
