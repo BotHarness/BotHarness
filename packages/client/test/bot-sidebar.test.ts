@@ -144,6 +144,7 @@ function stubActions(): BridgeActions {
     ignoreHumanReport: vi.fn(async () => undefined),
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
+    openChannelAtMessage: vi.fn(async () => undefined),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),

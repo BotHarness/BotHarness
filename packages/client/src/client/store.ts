@@ -372,7 +372,10 @@ export interface ClientStore {
   upsertBot(bot: BotSummary): void;
   setRosterState(patch: Partial<RosterState>): void;
   upsertChannel(channel: ChannelSummary): void;
-  select(selection: ConversationSelection | undefined): void;
+  select(
+    selection: ConversationSelection | undefined,
+    options?: { deferConversation?: boolean },
+  ): void;
   setConversation(patch: Partial<ConversationState>): void;
   updateCachedConversation(
     channelId: string,
@@ -548,7 +551,7 @@ export function createStore(): ClientStore {
       const existing = state.channels.filter((candidate) => candidate.id !== channel.id);
       update({ channels: [{ ...previous, ...channel }, ...existing] });
     },
-    select(selection) {
+    select(selection, options) {
       if (sameSelection(state.selection, selection)) return;
       rememberConversation();
       const previousBot = botSlugForSelection(state.selection);
@@ -565,7 +568,7 @@ export function createStore(): ClientStore {
       update({
         selection,
         conversation:
-          cached === undefined
+          cached === undefined || options?.deferConversation === true
             ? selection?.kind === 'channel' || selection?.kind === 'bot'
               ? { ...initialConversation(), status: 'loading', channel }
               : initialConversation()

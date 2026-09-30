@@ -442,6 +442,91 @@ describe('bridge actions', () => {
     expect(clientStore.getSnapshot().sessions.items).toEqual([]);
   });
 
+  it('opens an Inbox source at its captured message without exposing a cached latest window', async () => {
+    let resolveAround: ((value: unknown) => void) | undefined;
+    const groupRequests: Record<string, unknown>[] = [];
+    const { clientStore, actions } = setup({
+      channelTimeline: (payload) => {
+        if (payload['channelId'] !== 'group-team')
+          return {
+            revision: 1,
+            page: {
+              entries: [],
+              olderCursor: null,
+              newerCursor: null,
+              hasOlder: false,
+              hasNewer: false,
+            },
+          };
+        groupRequests.push(payload);
+        if (payload['direction'] === 'around')
+          return new Promise((resolve) => {
+            resolveAround = resolve;
+          });
+        return {
+          revision: 2,
+          page: {
+            entries: [
+              {
+                id: 'm-new',
+                at: BOT.createdAt,
+                author: { kind: 'bot', slug: 'ada' },
+                body: 'newer unread',
+              },
+            ],
+            olderCursor: null,
+            newerCursor: null,
+            hasOlder: false,
+            hasNewer: false,
+          },
+        };
+      },
+    });
+    await actions.load();
+    await actions.openChannel('group-team');
+    await actions.openChannel('dm-ada');
+    const frames: Array<{ status: string; messageIds: string[] }> = [];
+    const unsubscribe = clientStore.subscribe(() => {
+      const snapshot = clientStore.getSnapshot();
+      if (snapshot.selection?.kind !== 'channel' || snapshot.selection.channelId !== 'group-team')
+        return;
+      frames.push({
+        status: snapshot.conversation.status,
+        messageIds: snapshot.conversation.messages.map((message) => message.id),
+      });
+    });
+    const opening = actions.openChannelAtMessage('group-team', 'm-captured');
+    await vi.waitFor(() => expect(resolveAround).toBeDefined());
+    expect(frames).not.toContainEqual({ status: 'ready', messageIds: ['m-new'] });
+    expect(clientStore.getSnapshot().conversation.status).toBe('loading');
+    resolveAround!({
+      revision: 3,
+      page: {
+        entries: [
+          {
+            id: 'm-captured',
+            at: BOT.createdAt,
+            author: { kind: 'bot', slug: 'ada' },
+            body: 'captured unread',
+          },
+        ],
+        olderCursor: null,
+        newerCursor: 'm-captured',
+        hasOlder: false,
+        hasNewer: true,
+      },
+    });
+    await opening;
+    unsubscribe();
+    expect(groupRequests).toHaveLength(2);
+    expect(groupRequests[1]).toMatchObject({ direction: 'around', around: 'm-captured' });
+    expect(clientStore.getSnapshot().conversation).toMatchObject({
+      status: 'ready',
+      focusMessageId: 'm-captured',
+      messages: [{ id: 'm-captured' }],
+    });
+  });
+
   it('shows a previously opened Channel immediately while its timeline refreshes', async () => {
     let resolveRefresh: ((value: unknown) => void) | undefined;
     let groupReads = 0;

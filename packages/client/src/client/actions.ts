@@ -169,6 +169,7 @@ export interface BridgeActions {
   ignoreHumanReport(sourceEventId: string): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
+  openChannelAtMessage(channelId: string, messageId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
@@ -572,15 +573,15 @@ export function createActions(
     return { ...(await loadTimelinePage(call, channelId)), focusMessageId: undefined };
   };
 
-  const openChannelById = async (channelId: string): Promise<void> => {
+  const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
     const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
     if (channel === undefined) return;
     const selection: ConversationSelection = { kind: 'channel', channelId };
-    clientStore.select(selection);
+    clientStore.select(selection, { deferConversation: messageId !== undefined });
     const active = currentSelection();
     if (active === undefined) return;
-    if (clientStore.getSnapshot().conversation.status === 'ready') {
+    if (messageId === undefined && clientStore.getSnapshot().conversation.status === 'ready') {
       clientStore.setConversation({ channel, error: undefined });
       try {
         await actions.refreshChannelMessages(channelId);
@@ -603,7 +604,16 @@ export function createActions(
       sending: false,
     });
     try {
-      const { page, revision, focusMessageId } = await loadOpeningTimeline(channelId);
+      const { page, revision, focusMessageId } =
+        messageId === undefined
+          ? await loadOpeningTimeline(channelId)
+          : {
+              ...(await loadTimelinePage(call, channelId, {
+                direction: 'around',
+                around: messageId,
+              })),
+              focusMessageId: messageId,
+            };
       const failures = remainingFailures(channelId, page.entries);
       const messages = page.hasNewer ? page.entries : [...page.entries, ...failures];
       if (currentSelection() !== active) return;
@@ -851,6 +861,9 @@ export function createActions(
     },
     openChannel(channelId) {
       return openChannelById(channelId);
+    },
+    openChannelAtMessage(channelId, messageId) {
+      return openChannelById(channelId, messageId);
     },
     async markRead(channelId, messageId) {
       await markReadPosition(call, channelId, messageId);

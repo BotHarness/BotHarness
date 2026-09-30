@@ -50,8 +50,7 @@ export function HumanInboxView({
 
   const openSource = async (item: HumanAttentionItem): Promise<void> => {
     if (item.kind === 'channel-unread') {
-      await actions.openChannel(item.channelId!);
-      await actions.openAround(item.channelId!, item.messageId!);
+      await actions.openChannelAtMessage(item.channelId!, item.messageId!);
     } else if (item.kind === 'bot-message-needs-repair') {
       if (item.channelName && item.channelId && item.messageId) {
         await actions.openChannel(item.channelId);

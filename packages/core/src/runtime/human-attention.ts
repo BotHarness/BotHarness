@@ -1,3 +1,4 @@
+import { LOCAL_HUMAN_ID } from '../channels/channel.js';
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
 export type HumanAttentionCategory = 'action' | 'info' | 'unread';
@@ -77,9 +78,9 @@ const UNREAD_CTE = `
       JOIN source_events e ON e.source_event_id = p.source_event_id
       JOIN channel_records c ON c.channel_id = p.channel_id
       LEFT JOIN channel_read_positions r
-        ON r.channel_id = p.channel_id AND r.human_id = 'local-human'
+        ON r.channel_id = p.channel_id AND r.human_id = ?
       LEFT JOIN channel_human_members m
-        ON m.channel_id = p.channel_id AND m.human_id = 'local-human'
+        ON m.channel_id = p.channel_id AND m.human_id = ?
      WHERE json_extract(c.record_json, '$.deletedAt') IS NULL
        AND ((json_extract(c.record_json, '$.type') = 'dm'
              AND json_extract(c.record_json, '$.botSlug') IS NOT NULL)
@@ -158,6 +159,8 @@ export function createHumanAttentionQuery(
            LIMIT ?
         `)
               .all(
+                LOCAL_HUMAN_ID,
+                LOCAL_HUMAN_ID,
                 input.botSlug ?? null,
                 input.botSlug ?? null,
                 input.channelId ?? null,
@@ -424,7 +427,7 @@ export function createHumanAttentionQuery(
               .prepare(`${UNREAD_CTE}
         SELECT count(*) AS unread_count FROM visible_unread
       `)
-              .get() as { unread_count: number }
+              .get(LOCAL_HUMAN_ID, LOCAL_HUMAN_ID) as { unread_count: number }
           ).unread_count,
       );
       return {
