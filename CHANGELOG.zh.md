@@ -7,6 +7,10 @@
 
 推进首个 PersonaBot 工作流，交付 Assignment、共享动效控制与 Channel composer island。
 
+### Breaking Changes
+
+- 自定义 `BotAgentAdapter` 需让 Orchestrator 的 `channels.contacts(input?)` 返回 `{ outputLimit, contacts, nextCursor? }`，稳定 ID 字段从 `slug` 改为 `botId`；`list_bot_contacts` Tool 也返回该有界页，消费方需处理续页（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
+
 ### Added
 
 - 旧消息附件在 Host 启动时迁移到可恢复的独立真实文件身份，原消息菜单可打开当前目标；相同 hash 不会意外联动，带归属的旧读取跟随保存后的内容，不改写消息或唤醒 Bot（[#577](https://github.com/BotHarness/BotHarness/issues/577)，[迁移指南](docs/file-open.md)）。
@@ -115,6 +119,8 @@
 
 ### Changed
 
+- 联系人发现现在可搜索名称及完整简介，返回有界续页和按需详情，保留稳定同事 ID 以发送真实 Bot 私信及进行群协作（[#568](https://github.com/BotHarness/BotHarness/issues/568)）。
+
 - Attention Tools 现在明确列出 Assignment 报告与普通群消息的完整参数组合，digest 参数使用整数 schema，并在非群 digest 模式下明确拒绝这些参数且不改变策略修订；Human 覆盖与后续 Inbox 快照继续共用同一权威（[#567](https://github.com/BotHarness/BotHarness/issues/567)）。
 
 - Channel 读取现在返回有界的可行动内容并明确提供继续读取路径，保留回复、可信附件和行动引用；未返回或仅读取部分内容的消息仍在 Bot Inbox 中保持待处理（[#565](https://github.com/BotHarness/BotHarness/issues/565)）。
@@ -198,6 +204,7 @@
 ### Fixed
 
 - Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
+- 被拒绝的 Browser 工具尝试现在也会生成一条带 Bot、Session 与角色归属的 Browser Audit 错误记录，覆盖授权、Access、Pause 与 Resume 后重新观察检查；输入文本和上传路径仍使用既有脱敏摘要（[#604](https://github.com/BotHarness/BotHarness/issues/604)）。
 
 - 修改 PersonaBot 的 Browser Profile 后，会清空旧标签页选择与 Pause 状态，让 Bot 可以在新分配的 profile 中开始工作，不必恢复旧 profile 的操作（[#595](https://github.com/BotHarness/BotHarness/issues/595)）。
 
@@ -254,6 +261,8 @@
 - 修复 Computer 的 Chromium 在停止→启动后丢失标签页：桌面启动时自动打开浏览器并恢复上次会话，标签页在重启后与导出→导入后一样回来（[#150](https://github.com/BotHarness/BotHarness/issues/150)）。
 
 ### Documentation
+
+- 记录了已实测的 Lark 工作群提及与受校验话题回复契约、飞书/Lark 权限差异，并提供可复测沙盒和公开 E2E 证据；PersonaBot 入站接入仍属后续工作（[#78](https://github.com/BotHarness/BotHarness/issues/78)、[研究](docs/research/2026-09-20-feishu-message-edit-recall-events.md)）。
 
 - 确定 Memory 及后续 Workspace／消息附件的原生文件打开菜单设计：明确操作所在 Host，附件作为可直接编辑的真实目标文件，不保留附件版本或因修改唤醒 Bot；附件迁移仍属后续切片（[ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)、[#572](https://github.com/BotHarness/BotHarness/issues/572)）。
 - 明确活动中心由运行总览与个人 Human Inbox 组成，后者覆盖 Channel 未读、提及及卡片内回应；Human 在群聊中的「@所有 Bot」沿用普通直接提及的投递语义。运行时行为未改变（[#126](https://github.com/BotHarness/BotHarness/issues/126)、[#541](https://github.com/BotHarness/BotHarness/issues/541)、[#542](https://github.com/BotHarness/BotHarness/issues/542)、[ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)、[ADR-0099](docs/adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)）。

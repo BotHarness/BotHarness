@@ -7,6 +7,10 @@ Notable changes to DeepSeekBot are recorded here. See the
 
 Advances the first PersonaBot workflow with Assignment delivery, shared motion controls, and a channel composer island.
 
+### Breaking Changes
+
+- Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
+
 ### Added
 
 - Existing message attachments migrate at Host startup to resumable independent real-file identities; their original menus open the current destination, equal hashes remain independent, and owner-qualified old reads follow saved contents without rewriting messages or waking Bots ([#577](https://github.com/BotHarness/BotHarness/issues/577), [migration guide](docs/file-open.md)).
@@ -115,6 +119,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Contact discovery now searches names and full descriptions, returns bounded cursor pages and optional detail, and preserves stable colleague IDs for real Bot DMs and Group collaboration ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
+
 - Attention Tools now expose the complete Assignment-report and ordinary-Group parameter matrix, use integer digest schemas, and reject digest parameters outside Group digest mode without changing policy revisions; Human overrides and prospective Inbox snapshots still share the same authority ([#567](https://github.com/BotHarness/BotHarness/issues/567)).
 
 - Channel reads now return bounded actionable content with explicit continuation, preserving replies, trusted attachments and action references while leaving omitted or partially read messages pending in Bot Inbox ([#565](https://github.com/BotHarness/BotHarness/issues/565)).
@@ -198,6 +204,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
+- Refused Browser tool attempts now produce one attributed Browser Audit error entry, including authorization, Access, Pause and post-Resume observation checks; typed text and upload paths keep their existing redacted summaries ([#604](https://github.com/BotHarness/BotHarness/issues/604)).
 
 - Changing a PersonaBot’s Browser Profile clears its previous tab selection and Pause state, so work can start in the newly assigned profile without resuming unrelated old-profile work ([#595](https://github.com/BotHarness/BotHarness/issues/595)).
 
@@ -254,6 +261,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - Fixed the Computer's Chromium losing its open tabs across stop → start: the desktop now launches Chromium on boot and restores the previous session, so tabs survive a restart the same way they survive export → import ([#150](https://github.com/BotHarness/BotHarness/issues/150)).
 
 ### Documentation
+
+- Documented the verified Lark work-group mention and checked topic-reply contract, separate Feishu/Lark permission limits, and a repeatable sandbox with public E2E evidence; PersonaBot ingress remains subsequent work ([#78](https://github.com/BotHarness/BotHarness/issues/78), [research](docs/research/2026-09-20-feishu-message-edit-recall-events.md)).
 
 - Defined native file-open menus for Memory, later Workspaces and message attachments, with truthful Host targets and ordinary editable destination files without attachment version retention or edit-triggered Bot wakes; attachment migration remains subsequent work ([ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md), [#572](https://github.com/BotHarness/BotHarness/issues/572)).
 - Defined Activity Center as an operational Overview plus a personal Human Inbox for Channel unread, mentions, and inline actions; a Human's all-Bot Group mention reuses ordinary direct-mention delivery. Runtime behavior is unchanged ([#126](https://github.com/BotHarness/BotHarness/issues/126), [#541](https://github.com/BotHarness/BotHarness/issues/541), [#542](https://github.com/BotHarness/BotHarness/issues/542), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md), [ADR-0099](docs/adr/0099-human-all-bot-mention-expands-to-direct-mentions.md)).

@@ -30,6 +30,11 @@ import { ChannelReplyTargetError, MAX_MESSAGE_PAGE } from '../channels/store.js'
 import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelMessageQueryOptions, ChannelStore } from '../channels/store.js';
 import { boundModelPage, readModelContent } from './channel-model-read.js';
+import {
+  discoverBotContacts,
+  type BotContactQuery,
+  type BotContactPage,
+} from './bot-contact-discovery.js';
 import type { AttachmentStore } from '../attachments/store.js';
 import {
   attachOperationalModule,
@@ -245,7 +250,7 @@ export interface OrchestratorChannelAccess {
     signal?: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
   requestGrant(reason: string): Promise<ChannelMessage>;
-  contacts(): Array<{ slug: string; displayName: string; description?: string }>;
+  contacts(input?: BotContactQuery): BotContactPage;
   createGroup(name: string): ChannelRecord;
   inviteGroup(input: { channelId: string; targetBotSlug: string }): GroupInvitation;
   requestGroupJoin?(input: { channelId: string }): GroupJoinRequest;
@@ -2792,17 +2797,7 @@ class BotRuntimeImplementation implements BotRuntime {
               }),
         };
       },
-      contacts: () =>
-        this.#registry
-          .list()
-          .filter((candidate) => candidate.slug !== botSlug && candidate.paused !== true)
-          .map((candidate) => ({
-            slug: candidate.slug,
-            displayName: candidate.displayName,
-            ...(candidate.description === undefined
-              ? {}
-              : { description: candidate.description.slice(0, 400) }),
-          })),
+      contacts: (input) => discoverBotContacts(this.#registry, botSlug, input),
       createGroup: (name) => {
         const sender = this.#registry.get(botSlug);
         if (sender === undefined || sender.paused === true)
