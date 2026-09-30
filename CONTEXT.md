@@ -225,8 +225,8 @@ The once-per-session Human approval before a PersonaBot's first action on the Bo
 _Avoid_: Browser Access, consent dialog, per-action approval
 
 **Browser Pause**:
-A Human pause on one PersonaBot's tabs that stops that PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the Bot Browser window directly.
-_Avoid_: Computer Takeover, handoff, screen sharing, access gate
+A Human pause on one PersonaBot's tabs that stops that PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the local Bot Browser window directly. Page observation stays available while paused; Resume restores actions and model screenshots, and the Bot re-observes before acting. This is independent of Browser Access and Browser Authorization.
+_Avoid_: Browser Takeover, Computer Takeover, handoff, screen sharing, access gate
 
 **Browser Audit**:
 The durable, redacted record of Bot Browser observations and actions attributed to the PersonaBot and session that performed them; it never contains typed text, page contents, or screenshots.

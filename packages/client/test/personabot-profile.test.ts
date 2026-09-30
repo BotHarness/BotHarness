@@ -132,17 +132,19 @@ describe('PersonaBot Profile surface', () => {
     const actions = {
       modelCatalog: vi.fn(async () => []),
       modelPresets: vi.fn(async () => []),
-      modelPlan: vi.fn(async () => ({
-        revision: 3,
-        sourcePresetId: 'preset-1',
-        sourcePresetName: '节省成本',
-        orchestrator: {
-          provider: 'deepseek-official',
-          model: 'deepseek-flash',
-          reasoningEffort: 'low',
+      modelPlanState: vi.fn(async () => ({
+        plan: {
+          revision: 3,
+          sourcePresetId: 'preset-1',
+          sourcePresetName: '节省成本',
+          orchestrator: {
+            provider: 'deepseek-official',
+            model: 'deepseek-flash',
+            reasoningEffort: 'low',
+          },
+          assignmentDefault: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
+          appliedAt: '2026-09-21T00:00:00.000Z',
         },
-        assignmentDefault: { provider: 'deepseek-official', model: 'deepseek-v4-pro' },
-        appliedAt: '2026-09-21T00:00:00.000Z',
       })),
       renameChannel,
       setBotAvatar,

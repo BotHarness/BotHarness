@@ -5,6 +5,7 @@ import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protoc
 
 import type { PersonaBotPatch } from '../bots/persona-bot.js';
 import type { ModelCatalogEntry } from '../models/catalog.js';
+import type { ModelPlanState } from '../models/readiness.js';
 import type {
   AssignmentModelOption,
   ModelPreset,
@@ -192,8 +193,8 @@ export class BotharnessBridgeService extends TypertRemoteService {
     return unwrapAsync(this.methods.modelPresetApply({ slug, presetId }));
   }
 
-  modelPlan(slug: string): { plan?: PersonaBotModelPlan } {
-    return unwrap(this.methods.modelPlan({ slug }));
+  modelPlan(slug: string): Promise<ModelPlanState> {
+    return unwrapAsync(this.methods.modelPlan({ slug }));
   }
 
   modelPlanCustomize(

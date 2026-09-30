@@ -12,6 +12,7 @@ import type { MemoryService } from '../src/memory/service.js';
 import type { UsageProjection } from '../src/usage/usage.js';
 import { createModelPresetStore } from '../src/models/presets.js';
 import type { ModelCatalog } from '../src/models/catalog.js';
+import { createModelRouteReadiness } from '../src/models/readiness.js';
 import { createRosterStore } from '../src/roster/store.js';
 import type { BotRuntime } from '../src/runtime/bot-runtime.js';
 import type { WorkspaceGrantStore } from '../src/workspaces/grants.js';
@@ -62,6 +63,9 @@ function setup(
       registry,
       modelPresets,
       ...(modelCatalog === undefined ? {} : { modelCatalog }),
+      ...(modelCatalog === undefined
+        ? {}
+        : { modelReadiness: createModelRouteReadiness(registry, modelCatalog) }),
       states,
       channels,
       ownership,
@@ -81,6 +85,201 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('shows Assignment-default failure in Profile while the Orchestrator route still works', async () => {
+    const working = { provider: 'selected-provider', model: 'working' };
+    const missing = { provider: 'selected-provider', model: 'missing' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (route.model === 'missing') throw new Error('Assignment model is unavailable');
+      },
+    };
+    const { registry, methods, modelPresets } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.applyModelPreset(
+      'ada',
+      modelPresets.create({
+        name: 'Broken Assignment default',
+        orchestrator: working,
+        assignmentDefault: missing,
+      }),
+    );
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: {
+        plan: { orchestrator: working, assignmentDefault: missing },
+        repair: {
+          code: 'route-unavailable',
+          message: expect.stringContaining('Assignment model is unavailable'),
+        },
+      },
+    });
+    const readiness = createModelRouteReadiness(registry, catalog);
+    await expect(readiness.prepare('ada', 'orchestrator')).resolves.toBeUndefined();
+    await expect(readiness.prepare('ada', 'assignment')).rejects.toThrow(
+      'select an available Model Preset',
+    );
+    const preset = modelPresets.create({
+      name: 'Repaired',
+      orchestrator: working,
+      assignmentDefault: working,
+    });
+    await methods.modelPresetApply({ slug: 'ada', presetId: preset.id });
+    const repaired = await methods.modelPlan({ slug: 'ada' });
+    if (!repaired.ok) throw new Error('Profile repair query failed');
+    expect(repaired.value.repair).toBeUndefined();
+    await expect(readiness.prepare('ada', 'assignment')).resolves.toBeUndefined();
+  });
+  it('migrates an unambiguous legacy model through the public Profile query and preserves its Agent preset', async () => {
+    const catalog: ModelCatalog = {
+      list: async () => [
+        {
+          provider: 'only-provider',
+          providerName: 'Only',
+          model: 'legacy',
+          modelName: 'Legacy',
+          efforts: [],
+        },
+      ],
+      validate: async () => undefined,
+    };
+    const { root, registry, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada', model: 'legacy', preset: 'standard' });
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: {
+        plan: {
+          revision: 1,
+          orchestrator: { provider: 'only-provider', model: 'legacy' },
+          assignmentDefault: { provider: 'only-provider', model: 'legacy' },
+        },
+      },
+    });
+    const reopened = createPersonaBotRegistry({ rootDir: root }).get('ada');
+    expect(reopened?.preset).toBe('standard');
+    expect(reopened?.model).toBeUndefined();
+    expect(reopened?.modelPlan?.revision).toBe(1);
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 1 } },
+    });
+  });
+
+  it.each([
+    ['legacy-ambiguous', ['one', 'two']],
+    ['legacy-missing', []],
+  ] as const)('keeps unresolved legacy models repairable: %s', async (code, providers) => {
+    const catalog: ModelCatalog = {
+      list: async () =>
+        providers.map((provider) => ({
+          provider,
+          providerName: provider,
+          model: 'legacy',
+          modelName: 'Legacy',
+          efforts: [],
+        })),
+      validate: async () => {
+        throw new Error('A guessed provider must not be validated');
+      },
+    };
+    const { registry, methods } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada', model: 'legacy', preset: 'standard' });
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: { repair: { code, legacyModel: 'legacy' } },
+    });
+    expect(registry.get('ada')?.model).toBe('legacy');
+    expect(registry.get('ada')?.modelPlan).toBeUndefined();
+    await expect(
+      createModelRouteReadiness(registry, catalog).prepare('ada', 'orchestrator'),
+    ).rejects.toThrow('select a Model Preset');
+  });
+
+  it('keeps an unavailable selected route until Human applies a working preset', async () => {
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (route.model === 'missing') throw new Error('Credential is unavailable');
+      },
+    };
+    const { registry, methods, modelPresets } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const missing = { provider: 'selected-provider', model: 'missing' };
+    registry.applyModelPreset(
+      'ada',
+      modelPresets.create({
+        name: 'Unavailable',
+        orchestrator: missing,
+        assignmentDefault: missing,
+      }),
+    );
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: { plan: { orchestrator: missing }, repair: { code: 'route-unavailable' } },
+    });
+    await expect(
+      createModelRouteReadiness(registry, catalog).prepare('ada', 'orchestrator'),
+    ).rejects.toThrow('Credential is unavailable');
+    const working = { provider: 'selected-provider', model: 'working' };
+    const preset = modelPresets.create({
+      name: 'Repaired',
+      orchestrator: working,
+      assignmentDefault: working,
+    });
+    expect(await methods.modelPresetApply({ slug: 'ada', presetId: preset.id })).toMatchObject({
+      ok: true,
+      value: { plan: { revision: 2, orchestrator: working } },
+    });
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: { plan: { orchestrator: working } },
+    });
+    expect((await methods.modelPlan({ slug: 'ada' })).ok).toBe(true);
+    await expect(
+      createModelRouteReadiness(registry, catalog).prepare('ada', 'orchestrator'),
+    ).resolves.toBeUndefined();
+  });
+
   it('saves a Bot-specific Assignment model set and rejects stale or unsupported choices', async () => {
     const flash = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
     const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
@@ -297,7 +496,7 @@ describe('bridge methods', () => {
       await methods.modelPresetApply({ slug: 'ada', presetId: created.value.preset.id }),
     ).toMatchObject({ ok: true, value: { plan: { revision: 2 } } });
     expect(registry.get('bea')?.modelPlan?.revision).toBe(1);
-    expect(methods.modelPlan({ slug: 'ada' })).toMatchObject({
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
       ok: true,
       value: { plan: { revision: 2, sourcePresetName: 'Deep thinking' } },
     });

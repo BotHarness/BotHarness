@@ -114,8 +114,24 @@ export async function loadModelPlan(
   call: BridgeCall,
   slug: string,
 ): Promise<ModelPlanView | undefined> {
+  return (await loadModelPlanState(call, slug)).plan;
+}
+
+export interface ModelPlanStateView {
+  plan?: ModelPlanView;
+  repair?: {
+    code: 'legacy-ambiguous' | 'legacy-missing' | 'route-unavailable';
+    message: string;
+    legacyModel?: string;
+  };
+}
+
+export async function loadModelPlanState(
+  call: BridgeCall,
+  slug: string,
+): Promise<ModelPlanStateView> {
   const value = asRecord(await unwrap(call, 'modelPlan', { slug }));
-  return value?.['plan'] as ModelPlanView | undefined;
+  return value === undefined ? {} : (value as ModelPlanStateView);
 }
 
 export async function createModelPreset(

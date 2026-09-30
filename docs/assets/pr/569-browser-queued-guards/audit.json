@@ -1,0 +1,10 @@
+[
+  {
+    "kind": "browser-action",
+    "detail": "bot=bot-5bd0b281b31c428fb3bc262064f065e8 session=botharness-f23311f0-debd-4d18-947d-8cee5ff256b3 role=orchestrator browser_open url=http://127.0.0.1:31997/ -> error: Browser Access is off for this PersonaBot (3704ms)"
+  },
+  {
+    "kind": "browser-action",
+    "detail": "bot=bot-5bd0b281b31c428fb3bc262064f065e8 session=botharness-f23311f0-debd-4d18-947d-8cee5ff256b3 role=orchestrator browser_click x=90 y=275 -> error: Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting (3701ms)"
+  }
+]
