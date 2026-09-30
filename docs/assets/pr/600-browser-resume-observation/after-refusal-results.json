@@ -1,0 +1,7 @@
+{
+  "baseline": false,
+  "modelPassed": true,
+  "staleClickError": true,
+  "staleClickText": "Error: Browser Resume requires a fresh browser_observe of the current page before acting",
+  "countAfterStaleClick": 0
+}

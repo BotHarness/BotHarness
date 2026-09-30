@@ -389,6 +389,96 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
   });
 
+  it.each([
+    ['browser_click', { ref: 'e1' }],
+    ['browser_click', { x: 10, y: 10 }],
+    ['browser_type', { ref: 'e1', text: 'changed' }],
+    ['browser_press_key', { key: 'Enter' }],
+    ['browser_scroll', { direction: 'down' }],
+    ['browser_upload', { path: '/tmp/qa.txt' }],
+  ])('requires a new observation after Resume before %s', async (name, args) => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const call = (tool: string, input = {}) =>
+      h.state.definitions.get(tool)!.execute(input, execution(tool));
+    await call('browser_open', { url: 'https://example.com' });
+    await call('browser_observe');
+    h.provider.setTakeover('bot-a', true);
+    await call('browser_observe');
+    h.provider.setTakeover('bot-a', false);
+    await call('browser_screenshot');
+    await expect(call(name, args)).rejects.toThrow(/Resume.*browser_observe/);
+    await call('browser_observe');
+    await expect(call(name, args)).resolves.toBeDefined();
+  });
+
+  it.each(['before Pause', 'during Pause', 'during Access cycling'])(
+    'does not let a read %s or a failed read satisfy the fresh-read requirement',
+    async (phase) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      const call = (name: string, args = {}) =>
+        h.state.definitions.get(name)!.execute(args, execution(name));
+      await call('browser_open', { url: 'https://example.com' });
+      const observe = h.runtime.observe;
+      let release!: () => void;
+      let started!: () => void;
+      const entered = new Promise<void>((resolve) => {
+        started = resolve;
+      });
+      const pending = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      h.runtime.observe = vi.fn(async (tabId: string) => {
+        started();
+        await pending;
+        return observe(tabId);
+      });
+      if (phase !== 'before Pause') h.provider.setTakeover('bot-a', true);
+      const oldRead = call('browser_observe');
+      await entered;
+      if (phase === 'during Access cycling') {
+        h.setAccess(false);
+        await h.provider.reconcileBot('bot-a');
+        h.setAccess(true);
+        await h.provider.reconcileBot('bot-a');
+      } else {
+        h.provider.setTakeover('bot-a', true);
+        h.provider.setTakeover('bot-a', false);
+      }
+      release();
+      await oldRead;
+      await expect(call('browser_click', { ref: 'e1' })).rejects.toThrow(/Resume.*browser_observe/);
+      h.runtime.observe = vi.fn(async () => {
+        throw new Error('temporary read failure');
+      });
+      await expect(call('browser_observe')).rejects.toThrow('temporary read failure');
+      await expect(call('browser_click', { ref: 'e1' })).rejects.toThrow(/Resume.*browser_observe/);
+      h.runtime.observe = observe;
+      await call('browser_observe');
+      await call('browser_click', { ref: 'e1' });
+    },
+  );
+
+  it('retains the Resume requirement across Access cycling but allows navigation to recover a page', async () => {
+    const h = harness({ access: true, auto: true });
+    h.created();
+    const call = (name: string, args = {}) =>
+      h.state.definitions.get(name)!.execute(args, execution(name));
+    await call('browser_open', { url: 'https://example.com' });
+    h.provider.setTakeover('bot-a', true);
+    h.provider.setTakeover('bot-a', false);
+    h.setAccess(false);
+    await h.provider.reconcileBot('bot-a');
+    h.setAccess(true);
+    await h.provider.reconcileBot('bot-a');
+    await call('browser_open', { url: 'https://example.org' });
+    await call('browser_tabs', { action: 'list' });
+    await expect(call('browser_click', { ref: 'e1' })).rejects.toThrow(/Resume.*browser_observe/);
+    await call('browser_observe');
+    await call('browser_click', { ref: 'e1' });
+  });
+
   it.each(['pause', 'access'] as const)(
     'refuses a queued action when %s changes before execution',
     async (guard) => {

@@ -136,6 +136,8 @@ export function createBrowserToolProvider(
     current: string | undefined;
     readonly owned: Set<string>;
     lastActivity: number;
+    controlRevision: number;
+    observedControlRevision: number;
   }
 
   const tabsByBot = new Map<string, BotTabs>();
@@ -143,7 +145,13 @@ export function createBrowserToolProvider(
   const botTabs = (slug: string): BotTabs => {
     const existing = tabsByBot.get(slug);
     if (existing !== undefined) return existing;
-    const created: BotTabs = { current: undefined, owned: new Set(), lastActivity: Date.now() };
+    const created: BotTabs = {
+      current: undefined,
+      owned: new Set(),
+      lastActivity: Date.now(),
+      controlRevision: 0,
+      observedControlRevision: 0,
+    };
     tabsByBot.set(slug, created);
     return created;
   };
@@ -215,6 +223,14 @@ export function createBrowserToolProvider(
         'Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting',
       );
     }
+    if (['click', 'type', 'press_key', 'scroll', 'upload'].includes(raw)) {
+      const state = botTabs(slug);
+      if (state.observedControlRevision !== state.controlRevision) {
+        throw new Error(
+          'Browser Resume requires a fresh browser_observe of the current page before acting',
+        );
+      }
+    }
   };
 
   const runTool = async (
@@ -253,6 +269,8 @@ export function createBrowserToolProvider(
           'This PersonaBot has no Bot Browser tab yet; call browser_open with a URL first',
         );
       }
+      const revision = state.controlRevision;
+      const actionable = !takeovers.has(slug);
       let observation;
       try {
         observation = await runtime.observe(tabId);
@@ -263,6 +281,14 @@ export function createBrowserToolProvider(
         throw new Error(
           `The Bot Browser tab is gone (${message}); call browser_tabs action list to pick another tab, or browser_open`,
         );
+      }
+      if (
+        actionable &&
+        !takeovers.has(slug) &&
+        state.controlRevision === revision &&
+        tabsByBot.get(slug) === state
+      ) {
+        state.observedControlRevision = revision;
       }
       const elementLines = observation.elements.map(
         (element) => `${element.ref} ${element.role} ${element.name}`,
@@ -612,6 +638,11 @@ export function createBrowserToolProvider(
     },
 
     setTakeover(slug, active) {
+      if (takeovers.has(slug) !== active) {
+        const state = botTabs(slug);
+        state.controlRevision += 1;
+        note(`observation invalidated slug=${slug} revision=${state.controlRevision}`);
+      }
       if (active) takeovers.add(slug);
       else takeovers.delete(slug);
       note(`takeover ${active ? 'on' : 'off'} slug=${slug}`);

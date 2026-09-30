@@ -192,6 +192,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- After Human Resume, Browser page interactions require a successful fresh observation; reads made during Pause or before a Pause/Resume transition cannot authorize actions on Human-modified content ([#600](https://github.com/BotHarness/BotHarness/issues/600)).
+
 - Changing a PersonaBot’s Browser Profile clears its previous tab selection and Pause state, so work can start in the newly assigned profile without resuming unrelated old-profile work ([#595](https://github.com/BotHarness/BotHarness/issues/595)).
 
 - Browser Access can be disabled and re-enabled without losing a PersonaBot’s existing work tabs or current page; tools remain unavailable while Access is off ([#591](https://github.com/BotHarness/BotHarness/issues/591)).

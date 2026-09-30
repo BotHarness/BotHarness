@@ -192,6 +192,8 @@
 
 ### Fixed
 
+- Human 点击 Resume 后，Browser 页面操作必须先完成一次新的观察；Pause 期间或 Pause/Resume 切换前的读取不能让 Bot 继续操作 Human 已修改的内容（[#600](https://github.com/BotHarness/BotHarness/issues/600)）。
+
 - 修改 PersonaBot 的 Browser Profile 后，会清空旧标签页选择与 Pause 状态，让 Bot 可以在新分配的 profile 中开始工作，不必恢复旧 profile 的操作（[#595](https://github.com/BotHarness/BotHarness/issues/595)）。
 
 - 关闭再开启 Browser Access 后，PersonaBot 保留原有工作标签页与当前页；Access 关闭期间浏览器工具仍不可用（[#591](https://github.com/BotHarness/BotHarness/issues/591)）。
