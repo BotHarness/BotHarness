@@ -133,6 +133,7 @@ describe('bridge typert service', () => {
       'memorySave',
       'memoryRepair',
       'profileActivity',
+      'groupProfileActivity',
       'rosterGet',
       'sectionCreate',
       'sectionRename',

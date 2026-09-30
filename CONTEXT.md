@@ -638,16 +638,20 @@ _Avoid_: widget, card, tab, destination, Channel section
 The per-PersonaBot surface for identity and activity: the Display name and Avatar, token usage and activity charts derived from its owned Sessions, and its Memory commit activity. It appears compactly as a Profile popover from the PersonaBot's avatar in a DM header, and expands into a Profile view in the Channel body.
 _Avoid_: account, dashboard, bot page, profile (bare)
 
+**Group Profile**:
+The per-Group Channel surface for activity from committed Channel messages. It shows message counts by day and by author, distinguishing Human and PersonaBot authors. The Group header opens its popover and expanded Channel-body view; DM Channels have only their PersonaBot Profile.
+_Avoid_: PersonaBot token usage, Group management sidebar, DM Channel Profile
+
 **Profile popover**:
-The compact form of a PersonaBot Profile, anchored to the PersonaBot avatar in the Channel body header. It shows only the Profile Cards the Human pinned and offers entry into the Profile view.
+The compact form of a PersonaBot or Group Profile, anchored to the avatar in the Channel body header. It shows only the Profile Cards the Human pinned for that scope and offers entry into the Profile view.
 _Avoid_: menu, dropdown, tooltip, card stack
 
 **Profile view**:
-The expanded form of a PersonaBot Profile. It occupies the Channel body and temporarily replaces the Chat's history and composer; leaving it returns the Channel body to the Chat, and it changes nothing in the Channel sidebar.
+The expanded form of a PersonaBot or Group Profile. It occupies the Channel body and temporarily replaces the Chat's history and composer; leaving it returns the Channel body to the Chat, and it changes nothing in the Channel sidebar.
 _Avoid_: panel, page, tab, inspector, settings
 
 **Profile Card**:
-One registered component of a PersonaBot Profile: a stable id, label, order, scope, visibility rule, and compact and full renderers that may display information, offer controls, or both. A Human may pin a Profile Card to the Profile popover.
+One registered component of a PersonaBot or Group Profile: a stable id, label, order, scope, visibility rule, and compact and full renderers that may display information, offer controls, or both. A Human may pin a Profile Card to the corresponding Profile popover.
 _Avoid_: widget, tile, gadget, Channel sidebar entry
 
 **Client bridge**:

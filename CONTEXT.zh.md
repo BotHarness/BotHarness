@@ -636,16 +636,20 @@ _避免使用_：widget、card、tab、destination、Channel section
 单个 PersonaBot 的身份与活动 surface：Display name 与 Avatar、由其 owned Session 派生出的 token 用量与活动图表，以及 Memory commit 活跃度。它以 Profile popover 的紧凑形态出现在 DM header 的头像旁，并展开为 Channel body 中的 Profile view。
 _避免使用_：account、dashboard、bot page、裸用 profile
 
+**Group Profile**：
+单个 Group Channel 基于已提交 Channel 消息的活动 surface，按天和作者展示消息数量，并区分 Human 与 PersonaBot 作者。群聊 header 打开弹层及 Channel body 详情；DM Channel 只有对应的 PersonaBot Profile。
+_避免使用_：PersonaBot token 用量、群管理侧栏、DM Channel Profile
+
 **Profile popover**：
-PersonaBot Profile 的紧凑形态，锚定在 Channel body header 的 PersonaBot 头像旁。它只显示 Human 已 pin 的 Profile Card，并提供进入 Profile view 的入口。
+PersonaBot 或 Group Profile 的紧凑形态，锚定在 Channel body header 的头像旁。它只显示 Human 为相应 scope 固定的 Profile Card，并提供进入 Profile view 的入口。
 _避免使用_：menu、dropdown、tooltip、card stack
 
 **Profile view**：
-PersonaBot Profile 的展开形态。它占据 Channel body，暂时替换 Chat 的历史与 composer；离开后 Channel body 回到 Chat，且不改变 Channel sidebar 中的任何内容。
+PersonaBot 或 Group Profile 的展开形态。它占据 Channel body，暂时替换 Chat 的历史与 composer；离开后 Channel body 回到 Chat，且不改变 Channel sidebar 中的任何内容。
 _避免使用_：panel、page、tab、inspector、settings
 
 **Profile Card**：
-PersonaBot Profile 中一个已注册的 component，具有稳定 id、label、order、scope、visibility rule，以及 compact 与 full 两种 renderer，可用于展示信息、提供 control，或同时承担两者。Human 可以把 Profile Card pin 到 Profile popover。
+PersonaBot 或 Group Profile 中一个已注册的 component，具有稳定 id、label、order、scope、visibility rule，以及 compact 与 full 两种 renderer，可用于展示信息、提供 control，或同时承担两者。Human 可以把 Profile Card pin 到相应的 Profile popover。
 _避免使用_：widget、tile、gadget、Channel sidebar entry
 
 **Client bridge**：
