@@ -1,3 +1,4 @@
+import { projectAttachmentFiles } from '../attachments/message-files.js';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -12,7 +13,12 @@ import {
 } from '../runtime/source-policy.js';
 import { isValidSlug } from '../bots/slug.js';
 import { ChannelAttachmentError } from '../attachments/store.js';
-import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
+import {
+  attachmentIdentity,
+  attachmentIntent,
+  isChannelAttachmentRef,
+  type ChannelAttachmentRef,
+} from '../attachments/ref.js';
 import {
   botDmChannelId,
   dmChannelId,
@@ -106,7 +112,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
     JSON.stringify({
       author: left.author,
       body: left.body,
-      attachments: left.attachments ?? [],
+      attachments: attachmentIntent(left.attachments ?? []),
       replyTo: left.replyTo,
       memorySwitchTarget: left.memorySwitchTarget,
       mentions: left.mentions ?? [],
@@ -118,7 +124,7 @@ function sameIntent(left: ChannelMessage, right: ChannelMessage): boolean {
     JSON.stringify({
       author: right.author,
       body: right.body,
-      attachments: right.attachments ?? [],
+      attachments: attachmentIntent(right.attachments ?? []),
       replyTo: right.replyTo,
       memorySwitchTarget: right.memorySwitchTarget,
       mentions: right.mentions ?? [],
@@ -326,7 +332,10 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
   };
 
   const project = (messages: ChannelMessage[], message: ChannelMessage): ChannelMessage =>
-    replyProjection(message, new Map(messages.map((item) => [item.id, item])));
+    projectAttachmentFiles(
+      replyProjection(message, new Map(messages.map((item) => [item.id, item]))),
+      options.attachments,
+    );
 
   const revisionOf = (id: string): number => {
     if (!isValidChannelId(id)) return 0;
@@ -1577,9 +1586,13 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     assertAttachmentRefs,
     referencedAttachmentHashes() {
       const hashes = new Set<string>();
-      for (const channel of this.list())
-        for (const message of allMessages(channel.id))
-          for (const ref of message.attachments ?? []) hashes.add(ref.hash);
+      const rows = database.read((db) =>
+        db.prepare('SELECT payload_json, body FROM source_events').all(),
+      ) as Array<{ payload_json: string; body: string }>;
+      for (const row of rows) {
+        const message = parseMessage(row.payload_json, row.body);
+        for (const ref of message?.attachments ?? []) hashes.add(attachmentIdentity(ref));
+      }
       return hashes;
     },
     readPosition(id) {
@@ -1759,7 +1772,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }
       const last = selected.at(-1);
       return {
-        messages: selected.map((message) => replyProjection(message, byId)),
+        messages: selected.map((message) =>
+          projectAttachmentFiles(replyProjection(message, byId), options.attachments),
+        ),
         ...(rows.length <= query.limit || last === undefined
           ? {}
           : {

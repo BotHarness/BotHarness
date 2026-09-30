@@ -1,3 +1,4 @@
+import { sniffAttachmentMime } from '../attachments/store.js';
 import { createHash, randomUUID } from 'node:crypto';
 import { join } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
@@ -26,7 +27,7 @@ import {
   type ChannelRecord,
 } from '../channels/channel.js';
 import { ChannelReplyTargetError, MAX_MESSAGE_PAGE } from '../channels/store.js';
-import type { ChannelAttachmentRef } from '../attachments/ref.js';
+import { attachmentIdentity, type ChannelAttachmentRef } from '../attachments/ref.js';
 import type { ChannelMessageQueryOptions, ChannelStore } from '../channels/store.js';
 import { boundModelPage, readModelContent } from './channel-model-read.js';
 import type { AttachmentStore } from '../attachments/store.js';
@@ -238,7 +239,8 @@ export interface OrchestratorChannelAccess {
   readAttachment?(input: {
     channelId?: string;
     messageId: string;
-    hash: string;
+    hash?: string;
+    attachmentId?: string;
     maxBytes: number;
     signal?: AbortSignal;
   }): Promise<{ ref: ChannelAttachmentRef; data: Uint8Array }>;
@@ -3127,10 +3129,19 @@ class BotRuntimeImplementation implements BotRuntime {
         const channel = resolve(input.channelId);
         const message = this.#channels.message(channel.id, input.messageId);
         if (message === undefined) throw new Error(`Channel message not found: ${input.messageId}`);
-        const ref = message.attachments?.find((candidate) => candidate.hash === input.hash);
+        const identity = input.attachmentId ?? input.hash;
+        if (
+          identity === undefined ||
+          (input.attachmentId !== undefined && input.hash !== undefined)
+        )
+          throw new Error('Exactly one attachment identity is required');
+        const owned = message.attachments?.find(
+          (candidate) => attachmentIdentity(candidate) === identity,
+        );
+        const ref = owned === undefined ? undefined : this.#attachments?.current(owned);
         if (ref === undefined) {
           throw new Error(
-            `Attachment ${input.hash} is not attached to Channel message ${input.messageId}`,
+            `Attachment ${identity} is not attached to Channel message ${input.messageId}`,
           );
         }
         if (!ref.mime.startsWith('image/')) {
@@ -3143,9 +3154,42 @@ class BotRuntimeImplementation implements BotRuntime {
         }
         if (this.#attachments === undefined)
           throw new Error('Channel attachment store unavailable');
-        const downloaded = await this.#attachments.download(ref.hash, ref.name, input.signal);
-        const data = new Uint8Array(await new Response(downloaded.body).arrayBuffer());
-        if (data.byteLength !== ref.size) {
+        const downloaded = await this.#attachments.download(
+          attachmentIdentity(ref),
+          ref.name,
+          input.signal,
+        );
+        if (downloaded.ref.size > input.maxBytes || !downloaded.ref.mime.startsWith('image/')) {
+          await downloaded.body.cancel();
+          throw new Error('Attachment changed while opening; retry');
+        }
+        const reader = downloaded.body.getReader();
+        const parts: Uint8Array[] = [];
+        let length = 0;
+        try {
+          while (true) {
+            const next = await reader.read();
+            if (next.done) break;
+            length += next.value.byteLength;
+            if (length > input.maxBytes) {
+              await reader.cancel();
+              throw new Error('Attachment exceeds model read limit');
+            }
+            parts.push(next.value);
+          }
+        } finally {
+          reader.releaseLock();
+        }
+        const data = new Uint8Array(length);
+        let offset = 0;
+        for (const part of parts) {
+          data.set(part, offset);
+          offset += part.byteLength;
+        }
+        if (
+          data.byteLength !== downloaded.ref.size ||
+          sniffAttachmentMime(data.subarray(0, 512)) !== downloaded.ref.mime
+        ) {
           throw new Error(`Attachment ${ref.name} changed while being read`);
         }
         return { ref: downloaded.ref, data };

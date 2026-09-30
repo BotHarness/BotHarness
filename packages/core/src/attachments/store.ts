@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import {
   closeSync,
   createReadStream,
@@ -8,9 +8,10 @@ import {
   readdirSync,
   unlinkSync,
 } from 'node:fs';
-import { link, mkdir, open, readdir, stat, unlink } from 'node:fs/promises';
+import { readdir, stat, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { ATTACHMENT_HASH_PATTERN, type ChannelAttachmentRef } from './ref.js';
+import { createRealAttachments } from './real-files.js';
 
 export const MAX_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const STAGED = /^[0-9a-f-]{36}\.part$/u;
@@ -32,10 +33,13 @@ export interface AttachmentStore {
     data: AsyncIterable<Uint8Array>;
     name?: string;
     signal?: AbortSignal;
+    uploadId?: string;
   }): Promise<ChannelAttachmentRef>;
+  current(ref: ChannelAttachmentRef): ChannelAttachmentRef;
+  fileTarget(fileId: string): { path: string; relativePath: string; kind: 'file' };
   has(ref: ChannelAttachmentRef): boolean;
   download(
-    hash: string,
+    identity: string,
     name?: string,
     signal?: AbortSignal,
   ): Promise<{ ref: ChannelAttachmentRef; body: ReadableStream<Uint8Array> }>;
@@ -78,7 +82,11 @@ function pathFor(root: string, hash: string): string {
   return join(root, 'objects', hex.slice(0, 2), hex);
 }
 
-function inspect(root: string, hash: string, name?: string): ChannelAttachmentRef {
+function inspect(
+  root: string,
+  hash: string,
+  name?: string,
+): ChannelAttachmentRef & { hash: string } {
   const path = pathFor(root, hash);
   let size: number;
   try {
@@ -108,7 +116,7 @@ function inspect(root: string, hash: string, name?: string): ChannelAttachmentRe
 
 function streamVerified(
   root: string,
-  ref: ChannelAttachmentRef,
+  ref: ChannelAttachmentRef & { hash: string },
   signal?: AbortSignal,
 ): ReadableStream<Uint8Array> {
   const source = createReadStream(pathFor(root, ref.hash), { highWaterMark: 64 * 1024 });
@@ -157,84 +165,44 @@ export function createAttachmentStore(options: {
   const maxBytes = options.maxBytes ?? MAX_ATTACHMENT_BYTES;
   if (!Number.isSafeInteger(maxBytes) || maxBytes < 1)
     throw new Error('Attachment maxBytes must be a positive integer');
+  const real = createRealAttachments(rootDir, maxBytes);
   return {
     rootDir,
     maxBytes,
-    async upload({ data, name, signal }) {
-      signal?.throwIfAborted();
-      const staging = join(rootDir, 'staging');
-      await mkdir(staging, { recursive: true });
-      const temp = join(staging, `${randomUUID()}.part`);
-      const file = await open(temp, 'wx', 0o600);
-      const digest = createHash('sha256');
-      const head = Buffer.alloc(512);
-      let headSize = 0;
-      let size = 0;
-      let closed = false;
-      try {
-        for await (const chunk of data) {
-          signal?.throwIfAborted();
-          size += chunk.byteLength;
-          if (size > maxBytes)
-            throw new ChannelAttachmentError('Attachment exceeds upload limit', 'too-large');
-          digest.update(chunk);
-          const count = Math.min(head.length - headSize, chunk.byteLength);
-          head.set(chunk.subarray(0, count), headSize);
-          headSize += count;
-          let offset = 0;
-          while (offset < chunk.byteLength) {
-            const result = await file.write(chunk, offset, chunk.byteLength - offset);
-            if (result.bytesWritten < 1) throw new Error('Attachment write made no progress');
-            offset += result.bytesWritten;
-          }
-        }
-        signal?.throwIfAborted();
-        await file.sync();
-        await file.close();
-        closed = true;
-        const hash = `sha256:${digest.digest('hex')}`;
-        const target = pathFor(rootDir, hash);
-        await mkdir(join(rootDir, 'objects', hash.slice(7, 9)), { recursive: true });
-        try {
-          await link(temp, target);
-        } catch (error) {
-          if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-        }
-        const ref = inspect(rootDir, hash, name);
-        if (ref.size !== size || ref.mime !== sniffAttachmentMime(head.subarray(0, headSize)))
-          throw new ChannelAttachmentError('Attachment integrity check failed', 'corrupt');
-        return ref;
-      } finally {
-        if (!closed) await file.close();
-        await unlink(temp).catch((error: unknown) => {
-          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
-        });
-      }
+    upload: (input) => real.upload(input),
+    fileTarget: (id) => real.target(id),
+    current(ref) {
+      return ref.fileId === undefined
+        ? inspect(rootDir, ref.hash, ref.name)
+        : real.current(ref.fileId);
     },
     has(ref) {
       try {
+        if (ref.fileId !== undefined) return real.current(ref.fileId).name === ref.name;
         const actual = inspect(rootDir, ref.hash, ref.name);
         return actual.name === ref.name && actual.size === ref.size && actual.mime === ref.mime;
       } catch {
         return false;
       }
     },
-    async download(hash, name, signal) {
+    async download(identity, name, signal) {
       signal?.throwIfAborted();
-      const ref = inspect(rootDir, hash, name);
+      if (identity.startsWith('file:')) return real.download(identity, signal);
+      const ref = inspect(rootDir, identity, name);
       return { ref, body: streamVerified(rootDir, ref, signal) };
     },
     sweepUnreferenced(olderThan, readReferences) {
       const referenced = readReferences();
+      const filesRemoved = real.sweep(olderThan, referenced);
       const objects = join(rootDir, 'objects');
       let shards;
       try {
         shards = readdirSync(objects, { withFileTypes: true });
       } catch (error) {
-        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 0;
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') return filesRemoved;
         throw error;
       }
-      let removed = 0;
+      let removed = filesRemoved;
       for (const shard of shards) {
         if (!shard.isDirectory() || !/^[0-9a-f]{2}$/u.test(shard.name)) continue;
         for (const object of readdirSync(join(objects, shard.name), { withFileTypes: true })) {

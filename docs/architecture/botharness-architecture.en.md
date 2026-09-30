@@ -18,7 +18,7 @@ Hidden Channel is application-defined reversible roster presentation state: it d
 
 Current Channel Chat live delivery follows ADR-0054: each committed message is written to the current durable authority before a process-local notification carrying that Channel's monotonic revision. The Host's opaque-cursor timeline exposes latest, older, newer, and around windows; after a reply quote locates old history, ordinary downward scrolling continues through newer pages to the latest committed message. The Client receives committed messages for the selected Channel over authenticated `/api/botharness/stream` SSE. Reconnects replay from the log; a gap re-reads the snapshot. The same connection carries process-only `channel/draft` previews of the Orchestrator's explicit `channel_send` arguments; drafts have no Channel revision, never replay from history, and disappear on commit or abandonment. Human sends use a Client-generated idempotency key: a failed local bubble remains available for restoring its text and attachments to the composer, while a response-loss retry with the same id can produce only one durable append. Ordinary Orchestrator finals and Assignment output are not Channel messages. When #46 migrates Messaging, a database transaction commit replaces the current NDJSON append as the publication boundary.
 
-Channel attachment bytes live in a profile-scoped content-addressed store while messages persist only `{hash,name,mime,size}` references. Upload, inline display, and download use authenticated exact Fetch routes. An Orchestrator reads an image on demand through `channel_read_image` with `channel_id + message_id + hash`; trusted Host code first verifies PersonaBot membership, that the message references the exact hash, a supported image MIME, and the size limit, then commits the verified bytes to the DSH attachment service for model input. Historical images are not injected into every prompt, and the model never receives internal profile paths.
+New Channel attachments (#576, ADR-0100) are independent profile-managed real files referenced as `{fileId,name,mime,size}`. Message queries project current MIME/size without changing the immutable Source Event envelope. Legacy `{hash,name,mime,size}` still reads integrity-checked CAS bytes and has no direct editor action. Composer upload keys and Human message IDs make transfer/send retries idempotent. Authenticated upload retains its exact Fetch route; current downloads validate `channelId + messageId + fileId` and use `no-store`. Human chips reuse DSH-native actions. `channel_read_image` accepts `attachment_id` (fileId) or legacy `hash`; trusted Host code checks current membership, message ownership, current MIME and size before passing image bytes to DSH, with no model-visible Host paths. Reference-aware cleanup protects identities in every retained Source Event; no automatic retention is enabled. See the [file guide](../file-open.md).
 
 The root [`CONTEXT.md`](/dev/design/context) is the single product glossary. [BotHarness Runtime Architecture](/dev/design/bot-runtime) focuses on how PersonaBot, Bot Inbox, Orchestrator, Assignment, and DSH execution relate. DSH/Cordis terminology and Plugin-development decisions live under `/dsh` and are not redefined here.
 
@@ -141,7 +141,7 @@ Authorized ordinary Workspace paths reuse the same Client menu (#575). The Clien
 
 Native actions operate on the serving Host computer; Tailscale and Cloudflare Tunnel provide connectivity without proving browser co-location. Menus identify the Host, explain unavailable capability, and offer Copy Host path. Current files also offer authenticated full-byte download to the browser device, including binary and oversized files whose internal preview is bounded; downloaded edits do not automatically return to the Host. This slice excludes directory downloads and historical exports. Workspace and message-file owners remain subsequent slices, not generic arbitrary-path callers.
 
-The current attachment paragraphs above describe the hash-addressed implementation. ADR-0100's accepted target makes each independent upload a real Host destination file with its safe filename and extension, independent identity and current mutable bytes. Explicit reuse of one identity shares edits; equal-byte independent uploads do not. Source Event envelopes and file references remain immutable while future reads use the file's current content. External saves do not create attachment revisions, archives, Inbox admissions or Bot wakes. Migration must establish those independent files before in-place editor actions are offered; directly editing a shared CAS object does not implement the target. Memory Git history and other CAS data retain their own semantics.
+New attachments implement ADR-0100's real destination semantics: independent equal-byte uploads stay independent, explicit identity reuse shares edits, and later message reads/previews/downloads use current bytes. External saves produce no attachment versions, Source Revisions, notifications, Inbox admissions or Bot wakes. Missing files are unavailable and never reconstructed. Legacy CAS migration remains #577; Memory Git behavior and other CAS data retain their own semantics.
 
 ## 3 · Host boot, migration, and recovery
 
@@ -287,7 +287,8 @@ flowchart TB
   subgraph Profile["One DSH profile"]
     DB[("botharness.db<br/>operational authority")]
     Files["Optional Memory repositories<br/>Markdown · Git authority"]
-    CAS["Attachment / Soul CAS bytes"]
+    Attachments["Attachment files + identity records"]
+    CAS["Legacy attachment / Soul CAS bytes"]
     DSHS["DSH SessionPersistence<br/>transcripts · execution"]
     Creds["DSH credentials / settings"]
   end
@@ -299,6 +300,7 @@ flowchart TB
 
   DB --> Barrier
   Files --> Barrier
+  Attachments --> Barrier
   CAS --> Barrier
   DSHS -.->|"adapter-supported facets"| Barrier
   Creds -.->|"declarations only; never secrets"| Barrier
@@ -307,13 +309,16 @@ flowchart TB
   Stage --> Target
 ```
 
-| Data                           | Authority                            | Portability                                                              |
-| ------------------------------ | ------------------------------------ | ------------------------------------------------------------------------ |
-| operational facts              | `$DSH_HOME/botharness/botharness.db` | consistent SQLite snapshot in a manual profile backup                    |
-| optional Memory repositories   | Git-backed Memory Provider           | selected SoulSnapshot / PersonaBot Export / profile backup               |
-| attachments / Soul bytes       | content-addressed files              | dependency-closed selected bytes                                         |
-| Session transcript / execution | DSH SessionPersistence               | only through a verified DSH export adapter; otherwise explicitly omitted |
-| credentials and DSH settings   | DSH services                         | never copied; restore creates suspended rebind requests                  |
+| Data                           | Authority                                               | Portability                                                              |
+| ------------------------------ | ------------------------------------------------------- | ------------------------------------------------------------------------ |
+| operational facts              | `$DSH_HOME/botharness/botharness.db`                    | consistent SQLite snapshot in a manual profile backup                    |
+| optional Memory repositories   | Git-backed Memory Provider                              | selected SoulSnapshot / PersonaBot Export / profile backup               |
+| attachments                    | real files plus identity records; legacy CAS until #577 | current referenced files and records                                     |
+| Soul bytes                     | content-addressed files                                 | dependency-closed selected bytes                                         |
+| Session transcript / execution | DSH SessionPersistence                                  | only through a verified DSH export adapter; otherwise explicitly omitted |
+| credentials and DSH settings   | DSH services                                            | never copied; restore creates suspended rebind requests                  |
+
+The diagram includes current attachment destinations and their identity records; legacy CAS still serves old references. Future Backup/Export and explicit Purge must include current referenced files and mappings, preserve shared identities and protect retained references. An explicit export captures current bytes without continuous attachment history.
 
 v1 has only two backup actions: Export Profile produces one self-contained `.botharness-backup`, and Import Profile selects one file. There is no automatic backup, scheduler, catalog, retention, or incremental chain. Restore always validates in isolated staging. A restored PersonaBot stays cold, provider authorities stay suspended, and Workspace/model/plugin dependencies must be resolved on the target before a Human explicitly activates it.
 

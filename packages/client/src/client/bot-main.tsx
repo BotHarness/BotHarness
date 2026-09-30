@@ -193,6 +193,7 @@ function ReplyIcon(): ReactElement {
 
 function MessageGroupView({
   group,
+  channelId,
   bots,
   focusMessageId,
   currentDmBotSlug,
@@ -208,6 +209,7 @@ function MessageGroupView({
   t,
 }: {
   group: MessageGroup;
+  channelId?: string | undefined;
   focusMessageId?: string | undefined;
   currentDmBotSlug?: string | undefined;
   bots: readonly BotSummary[];
@@ -300,6 +302,7 @@ function MessageGroupView({
                   <ReplyQuote message={message} bots={bots} onJump={onJumpReply} t={t} />
                   <ChannelMessageBody
                     message={message}
+                    channelId={channelId}
                     t={t}
                     nativeChatT={nativeChatT}
                     actions={actions}
@@ -834,7 +837,7 @@ function ConversationView({
         entry.id === item.id ? { ...entry, status: 'uploading', error: undefined } : entry,
       ),
     );
-    void uploadChannelAttachment(item.file, controller.signal)
+    void uploadChannelAttachment(item.file, controller.signal, item.id)
       .then((ref) => {
         if (controller.signal.aborted) return;
         setUploadItems((current) =>
@@ -1208,6 +1211,7 @@ function ConversationView({
                       ) : first.botDmAction === undefined ? (
                         <MessageGroupView
                           group={group}
+                          channelId={channelId}
                           actions={actions}
                           nativeChatT={nativeChatT}
                           resolvedGrantRequests={resolvedGrantRequestIds(displayMessages)}
