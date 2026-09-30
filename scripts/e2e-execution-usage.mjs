@@ -2,6 +2,7 @@ import { createRequire } from 'node:module';
 import { readFileSync, readdirSync, mkdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
+import { zstdDecompressSync } from 'node:zlib';
 import { DatabaseSync } from 'node:sqlite';
 
 const origin = process.env.BH_E2E_ORIGIN;
@@ -127,72 +128,130 @@ for (const [purpose, expected] of [
   ['assignment', assignmentRoute],
   ['subagent', route],
 ]) {
-  const row = rows.find((item) => item.purpose === purpose);
   if (
-    !row ||
-    row.provider !== expected.provider ||
-    row.model !== expected.model ||
-    !(row.totalTokens > 0)
+    !rows.some(
+      (row) =>
+        row.purpose === purpose &&
+        row.provider === expected.provider &&
+        row.model === expected.model &&
+        row.totalTokens > 0,
+    )
   )
     throw new Error(`Wrong actual route for ${purpose}`);
 }
 if (rows.some((row) => row.provider === 'mixed' || row.model === 'mixed'))
   throw new Error('Mixed route bucket remains');
-const database = new DatabaseSync(resolve(home, 'botharness/botharness.db'), { readOnly: true });
-let native;
-try {
-  const owned = database
-    .prepare('SELECT session_id, root_role, provenance FROM session_ownership WHERE bot_slug = ?')
-    .all(bot.slug);
-  for (let attempt = 0; attempt < 30; attempt += 1) {
-    try {
-      native = owned.map((item) => {
-        const record = JSON.parse(
-          readFileSync(
-            resolve(home, 'storages/session_projcache/sessions', `${item.session_id}.json`),
-            'utf8',
-          ),
-        ).record;
-        return {
-          purpose: item.provenance === 'subagent' ? 'subagent' : item.root_role,
-          actual: record.rows.modelSelection.val.lastUsed,
-          totals: record.rows.tokenUsage.val.totals,
-        };
-      });
-      if (
-        native.every((item) => item.actual && Object.values(item.totals).some((count) => count > 0))
-      )
-        break;
-    } catch {}
-    await new Promise((done) => setTimeout(done, 1000));
+const localDay = (time) => {
+  const date = new Date(time);
+  return `${date.getFullYear()}-${`${date.getMonth() + 1}`.padStart(2, '0')}-${`${date.getDate()}`.padStart(2, '0')}`;
+};
+const sinceDay = localDay(activity.since);
+const groupKey = (row) => JSON.stringify([row.day, row.purpose, row.provider, row.model]);
+const tokenKeys = ['inputTokens', 'outputTokens', 'cacheReadTokens', 'cacheWriteTokens'];
+function aggregate(target, row) {
+  const key = groupKey(row);
+  const total = target.get(key) ?? {
+    day: row.day,
+    purpose: row.purpose,
+    provider: row.provider,
+    model: row.model,
+    ...Object.fromEntries([...tokenKeys, 'totalTokens'].map((key) => [key, 0])),
+  };
+  for (const key of [...tokenKeys, 'totalTokens']) {
+    if (!Number.isSafeInteger(row[key]) || row[key] < 0)
+      throw new Error('The live fixture has an unknown token bucket');
+    total[key] += row[key];
   }
+  target.set(key, total);
+}
+const expected = new Map();
+for (const row of rows) aggregate(expected, row);
+const database = new DatabaseSync(resolve(home, 'botharness/botharness.db'), { readOnly: true });
+let owned;
+try {
+  owned = new Map(
+    database
+      .prepare('SELECT session_id, root_role, provenance FROM session_ownership WHERE bot_slug = ?')
+      .all(bot.slug)
+      .map((item) => [
+        item.session_id,
+        item.provenance === 'subagent' ? 'subagent' : item.root_role,
+      ]),
+  );
 } finally {
   database.close();
 }
-for (const row of rows) {
-  const proof = native.find((item) => item.purpose === row.purpose);
-  if (proof?.actual.provider !== row.provider || proof?.actual.model !== row.model)
-    throw new Error('Native route differs from Profile');
-  for (const [key, source] of [
-    ['inputTokens', 'uncachedInputTokens'],
-    ['outputTokens', 'outputTokens'],
-    ['cacheReadTokens', 'cacheReadTokens'],
-    ['cacheWriteTokens', 'cacheWriteTokens'],
-  ])
-    if (row[key] !== null && row[key] !== proof.totals[source])
-      throw new Error(`Native ${row.purpose} ${key} differs from Profile`);
-  const buckets = [
-    'uncachedInputTokens',
-    'outputTokens',
-    'cacheReadTokens',
-    'cacheWriteTokens',
-  ].map((key) => proof.totals[key]);
-  if (!buckets.every((value) => Number.isSafeInteger(value) && value >= 0))
-    throw new Error('Native fixture usage has an unknown bucket');
-  const total = buckets.reduce((sum, count) => sum + count, 0);
-  if (row.totalTokens !== total)
-    throw new Error(`Native ${row.purpose} bucket sum differs from Profile total`);
+function sessionFiles(path) {
+  return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    const child = resolve(path, entry.name);
+    return entry.isDirectory()
+      ? sessionFiles(child)
+      : entry.name === 'session.v4.jsonl.zstd'
+        ? [child]
+        : [];
+  });
 }
+function nativeGroups() {
+  const groups = new Map();
+  for (const file of sessionFiles(resolve(home, 'sessions'))) {
+    let bytes = readFileSync(file);
+    const chunks = [];
+    while (bytes.length > 0) {
+      const frame = zstdDecompressSync(bytes, { info: true });
+      if (!(frame.engine.bytesWritten > 0)) throw new Error('Invalid native Session log frame');
+      chunks.push(frame.buffer);
+      bytes = bytes.subarray(frame.engine.bytesWritten);
+    }
+    const events = Buffer.concat(chunks).toString('utf8').trim().split('\n').map(JSON.parse);
+    const purpose = owned.get(events[0]?.id);
+    if (!purpose) continue;
+    const seen = new Set();
+    let dispatch;
+    for (const event of events.slice(1)) {
+      if (event.type === 'request/header') dispatch = event.data.header.config;
+      if (event.type === 'request/context') dispatch = event.data;
+      if (!['assistant/message', 'assistant/attempt'].includes(event.type)) continue;
+      if (event.surfaceOp !== undefined && event.surfaceOp !== 'append') continue;
+      if (seen.has(event.seq)) continue;
+      seen.add(event.seq);
+      const day = localDay(event.time);
+      if (day < sinceDay) continue;
+      const actual = event.data.message?.source ?? dispatch;
+      const report =
+        event.data.usage ??
+        event.data.stream?.findLast((entry) => entry.chunk?.type === 'usage')?.chunk.usage;
+      if (!actual?.provider || !actual.model || !report)
+        throw new Error('The live fixture has an unknown native route or usage');
+      const buckets = Object.fromEntries(tokenKeys.map((key) => [key, report[key]]));
+      aggregate(groups, {
+        day,
+        purpose,
+        provider: actual.provider,
+        model: actual.model,
+        ...buckets,
+        totalTokens: report.totalTokens ?? tokenKeys.reduce((sum, key) => sum + buckets[key], 0),
+      });
+    }
+  }
+  return groups;
+}
+let native;
+let matched = false;
+for (let attempt = 0; attempt < 30; attempt += 1) {
+  const actual = nativeGroups();
+  native = [...actual.values()];
+  if (
+    actual.size === expected.size &&
+    [...expected].every(([key, row]) =>
+      [...tokenKeys, 'totalTokens'].every((bucket) => actual.get(key)?.[bucket] === row[bucket]),
+    )
+  ) {
+    matched = true;
+    break;
+  }
+  await new Promise((done) => setTimeout(done, 1000));
+}
+if (!matched) throw new Error('Native daily role/provider/model usage differs from Profile');
 const pnpm = resolve('node_modules/.pnpm');
 const pdir = readdirSync(pnpm).find((entry) => entry.startsWith('puppeteer@'));
 if (!pdir) throw new Error('Puppeteer unavailable');
@@ -304,7 +363,6 @@ try {
   const page = (await browser.pages()).at(-1);
   if (page) {
     await page.screenshot({ path: screenshot.replace(/\.png$/u, '-failure.png') });
-    console.error((await page.evaluate(() => document.body.innerText)).slice(-6000));
   }
   throw error;
 } finally {

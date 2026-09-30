@@ -14,7 +14,7 @@ The public `botharness/profileActivity` query for **Execution usage QA 179079271
 | Assignment   | deepseek-v4-pro |  7,251 |    254 |     17,792 |           0 |  25,297 |
 | DSH Subagent | deepseek-flash  |  6,675 |      7 |      1,152 |           0 |   7,834 |
 
-The day's total is **135,491**. A read-only comparison against native Session projections independently matched the four reported token buckets and actual dispatch routes. Native `tokenUsage.totals` has no `totalTokens` field, so the verification adds the four buckets only after checking they are all known. The Client receives daily aggregates, without Session IDs or private logs.
+The day's total is **135,491**. A read-only comparison against native Session projections independently matched the four reported token buckets and actual dispatch routes. Native `tokenUsage.totals` has no `totalTokens` field, so the verification adds the four buckets only after checking they are all known. The Client receives daily aggregates, without Session IDs or private logs. The reusable verifier also reads the native persisted settlements locally and groups all owned Sessions by the same day, execution role, provider and model within the public query's date range; it does not assign a Session's lifetime total to its last-used route.
 
 The same rows survived a browser refresh and a cold restart of the latest Host build without duplicate counting. The full Profile measures 900px wide with 18px normal inset at the captured 1500px viewport.
 
