@@ -111,6 +111,11 @@ describe('Memory file menus', () => {
       folder.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true })),
     );
     expect(folder.getAttribute('aria-expanded')).toBe('false');
+    expect(
+      container
+        .querySelector('button[aria-label="文件操作: nested"]')
+        ?.getAttribute('aria-expanded'),
+    ).toBe('true');
     expect(select).not.toHaveBeenCalled();
     expect(button('用 Editor 打开')).toBeDefined();
     await click(button('用 Editor 打开'));
@@ -128,6 +133,16 @@ describe('Memory file menus', () => {
       ),
     );
     expect(select).not.toHaveBeenCalled();
+    expect(
+      container
+        .querySelector('button[aria-label="文件操作: nested/file.txt"]')
+        ?.getAttribute('aria-expanded'),
+    ).toBe('true');
+    expect(
+      container
+        .querySelector('button[aria-label="文件操作: nested"]')
+        ?.getAttribute('aria-expanded'),
+    ).toBe('false');
     await click(button('下载到此设备'));
     expect(a.memoryFileDownload).toHaveBeenCalledWith('ada', 'nested/file.txt');
     expect(
@@ -154,12 +169,14 @@ describe('Memory file menus', () => {
     expect(document.body.textContent).not.toContain('用 Editor 打开');
     expect(button('下载到此设备')).toBeDefined();
     expect(button('复制 Host 路径')).toBeDefined();
+    const targetCalls = a.memoryFileTarget.mock.calls.length;
     vi.mocked(writeClipboard).mockResolvedValueOnce(false);
     await click(button('复制 Host 路径'));
     expect(document.body.textContent).toContain('无法复制路径');
     expect(document.querySelector('[role="menu"]')).not.toBeNull();
     await click(button('复制 Host 路径'));
     expect(writeClipboard).toHaveBeenLastCalledWith('/host/memory/file.txt');
+    expect(a.memoryFileTarget).toHaveBeenCalledTimes(targetCalls);
     expect(document.body.textContent).toContain('已复制 Host 路径');
     await click(button('file.txt'));
     await click(button('下载到此设备'));

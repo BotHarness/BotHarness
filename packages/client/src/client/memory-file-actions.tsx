@@ -116,8 +116,8 @@ function MemoryFileMenu({
     setError(undefined);
     try {
       if (id === 'copy') {
-        const current = await actions.memoryFileTarget(slug, request.path);
-        if (!(await writeClipboard(current.path))) throw new Error(t('fileAction.copyFailed'));
+        if (target === undefined || !(await writeClipboard(target.path)))
+          throw new Error(t('fileAction.copyFailed'));
         onClose(t('fileAction.copied'));
       } else if (id === 'download') {
         await actions.memoryFileDownload(slug, request.path);
@@ -198,6 +198,7 @@ export function useMemoryFileMenu(
     open,
     onKey,
     isOpen: request !== undefined,
+    openPath: request?.path,
     menu:
       request === undefined || actions === undefined || slug === undefined ? null : (
         <MemoryFileMenu

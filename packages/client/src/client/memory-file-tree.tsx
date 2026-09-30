@@ -93,6 +93,7 @@ export function MemoryFileTree({
           className="bh-memory-tree-more"
           aria-label={t('fileAction.menu') + ': ' + path}
           aria-haspopup="menu"
+          aria-expanded={menu.openPath === path}
           onClick={(event) => menu.open(path, event)}
         >
           <IconEllipsisOutlineRegular size={16} />

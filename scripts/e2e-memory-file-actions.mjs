@@ -1,5 +1,5 @@
 import { createRequire } from 'node:module';
-import { readFileSync, readdirSync, mkdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { dirname, resolve, sep } from 'node:path';
@@ -203,6 +203,27 @@ try {
   console.log(
     'PASS registered file editor launch acknowledged (OS window and save proof captured separately)',
   );
+  await page
+    .browserContext()
+    .overridePermissions(new URL(instance.url).origin, [
+      'clipboard-read',
+      'clipboard-sanitized-write',
+    ]);
+  await page.bringToFront();
+  await page
+    .locator('.bh-memory-commit-header .bh-memory-view-icon-button[aria-haspopup="menu"]')
+    .click();
+  await menuReady();
+  await page
+    .locator('[role="menuitem"]')
+    .filter((element) => element.textContent?.includes('复制 Host 路径'))
+    .click();
+  await page.waitForSelector('[role="menu"]', { hidden: true });
+  assert.equal(
+    await page.evaluate(() => navigator.clipboard.readText()),
+    join(fixture.memoryDir, 'Project notes/你好 world.txt'),
+  );
+
   await page.locator('[data-path="Project notes/binary sample.bin"]').click({ button: 'right' });
   await menuReady();
   assert.match(await page.$eval('.bh-memory-commit-code', (e) => e.textContent), /Memory file QA/);
@@ -263,8 +284,7 @@ try {
     assert.ok(downloaded.disposition.includes("filename*=UTF-8''"));
     results.push({ path, ...observed });
   }
-  const downloadPath = join(dir, 'downloads');
-  mkdirSync(downloadPath, { recursive: true });
+  const downloadPath = mkdtempSync(join(dir, 'downloads-'));
   const cdp = await page.createCDPSession();
   await cdp.send('Browser.setDownloadBehavior', {
     behavior: 'allow',
@@ -302,7 +322,7 @@ try {
       '?' +
       new URLSearchParams({ slug: fixture.slug, path: 'Project notes/你好 world.txt' }),
   );
-  assert.notEqual(anonymous.status, 200);
+  assert.equal(anonymous.status, 401);
   assert.deepEqual(gitState(), beforeGit);
   assert.deepEqual(errors, []);
   writeFileSync(

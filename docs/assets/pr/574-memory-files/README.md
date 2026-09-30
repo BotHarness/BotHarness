@@ -37,3 +37,7 @@ The driver creates its own Bot/DM and fixtures beneath that isolated DSH home. I
 7. When checking an unavailable Host, apply the task-only Patch described above and restart that same isolated Profile. Confirm unavailable native actions are absent while download/copy remain available; restore the Patch afterwards. Do not infer that network access allows an application on the browser device to open a Host path.
 
 Automated checks: integrated full suite **1389 passed, 1 existing skipped**; format, lint, typecheck and build passed. The existing optional Browser control test is skipped without its live-browser flag. The E2E driver uses waiting locators across live sidebar redraws; an initial post-integration replay hit a stale-node click before that driver correction. This slice awaits Human QA before the next ticket.
+
+## Review follow-up
+
+The menu copies its already-resolved Host path directly from the user gesture, without an intervening RPC that can consume transient clipboard activation. Each tree More trigger exposes its own expanded state. The browser driver uses a fresh download directory on every run and requires an anonymous response of exactly 401. Focused regression checks passed (14 tests), and real DSH replay passed twice against the same output location with independent downloads, then passed again including a trusted clipboard click and exact path comparison.
