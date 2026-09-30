@@ -1,3 +1,5 @@
+import { createOutboundMessaging, type OutboundMessaging } from './messaging/outbound.js';
+import { createDshImProvider } from './messaging/dsh-im.js';
 import { join } from 'node:path';
 
 import type { Context } from '@deepseek-ai/cordis';
@@ -151,6 +153,8 @@ export interface BotHarnessCore {
 
   contributeBotAgentSetup(contribute: BotAgentSetup): () => void;
 
+  configureGroupInvitations(autoAccept: () => boolean): () => void;
+
   hostTools: Set<string>;
 
   runBotAgentSetups(
@@ -173,6 +177,7 @@ export interface BotHarnessCore {
   humanAttention: HumanAttentionQuery;
   humanAttentionDecisions: HumanAttentionDecisions;
   grants: WorkspaceGrantStore;
+  externalMessaging: OutboundMessaging;
   toolRules: ToolApprovalRuleStore;
   assignmentAccess: AssignmentAccessStore;
 }
@@ -212,6 +217,7 @@ export function createCore(
       offset: number,
     ) => Promise<AssignmentReportPage>;
     workspaces?: () => DshWorkspaceLookup | undefined;
+    autoAcceptGroupInvitations?: () => boolean;
     activeQuestionMessageIds?: () => readonly string[];
     activeToolApprovalMessageIds?: () => readonly string[];
   } = {},
@@ -243,10 +249,23 @@ export function createCore(
     dshHome,
     schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
   });
+  const externalMessaging = createOutboundMessaging({
+    database: attachOperationalModule(operationalDatabase, 'messaging'),
+    recover: operationalDatabase.mode === 'ready',
+    isBotActive: (slug) => {
+      const bot = registry.get(slug);
+      return operationalDatabase.mode === 'ready' && bot !== undefined && bot.paused !== true;
+    },
+    ...(options.warn === undefined ? {} : { warn: options.warn }),
+  });
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
+  const initialGroupInvitationPolicy = options.autoAcceptGroupInvitations ?? (() => true);
+  const groupInvitationPolicies: { policy: () => boolean }[] = [];
   const channels = createSqliteChannelStore({
+    autoAcceptGroupInvitations: () =>
+      (groupInvitationPolicies.at(-1)?.policy ?? initialGroupInvitationPolicy)(),
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
     databaseOwnerReady: operationalDatabase.mode === 'ready',
@@ -363,8 +382,17 @@ export function createCore(
   return {
     rootDir,
     operationalDatabase,
+    externalMessaging,
     registry,
     modelPresets,
+    configureGroupInvitations: (autoAccept) => {
+      const registration = { policy: autoAccept };
+      groupInvitationPolicies.push(registration);
+      return () => {
+        const index = groupInvitationPolicies.indexOf(registration);
+        if (index !== -1) groupInvitationPolicies.splice(index, 1);
+      };
+    },
     contributeBotAgentSetup,
     runBotAgentSetups,
     hostTools,
@@ -477,6 +505,11 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   ctx.effect(() => () => core.runtime.close(), 'botharness: bot runtime');
   ctx.effect(() => () => core.live.close(), 'botharness: Channel live hub');
   ctx.provide('botharness', core);
+  ctx.effect(() => () => core.externalMessaging.close(), 'botharness: external messaging');
+  ctx.inject(['dshIm'], (child) => {
+    const provider = createDshImProvider(child.get('dshIm'));
+    if (provider !== undefined) child.effect(() => core.externalMessaging.register(provider));
+  });
 
   const permissionDenial = (session: import('@deepseek-ai/dsh-session').Session) =>
     grantExecutionDenial(core, session, ctx.get('sandboxPolicy'), ctx.get('approval'));
@@ -688,6 +721,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   registerBridge(
     ctx,
     createBridgeMethods({
+      warn: (message) => ctx.logger.warn(message),
       registry: core.registry,
       modelPresets: core.modelPresets,
       modelCatalog,
@@ -704,6 +738,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       humanAttention: core.humanAttention,
       humanAttentionDecisions: core.humanAttentionDecisions,
       grants: core.grants,
+      externalMessaging: core.externalMessaging,
       toolApproval,
       userQuestions,
       toolRules: core.toolRules,

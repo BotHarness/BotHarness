@@ -102,6 +102,15 @@ const DM_CHANNEL: ChannelSummary = {
 
 function stubActions(): BridgeActions {
   return {
+    messagingSnapshot: vi.fn(async () => ({ accounts: [], grants: [], intents: [] })),
+    messagingTargets: vi.fn(async () => []),
+    messagingAuthorize: vi.fn(async () => {
+      throw new Error('unexpected IM authorization');
+    }),
+    messagingRevoke: vi.fn(async () => undefined),
+    messagingSend: vi.fn(async () => {
+      throw new Error('unexpected IM send');
+    }),
     modelCatalog: vi.fn(async () => []),
     modelPresets: vi.fn(async () => []),
     modelPlan: vi.fn(async () => undefined),
@@ -146,6 +155,10 @@ function stubActions(): BridgeActions {
     loadMoreBotInbox: vi.fn(async () => undefined),
     openChannel: vi.fn(async () => undefined),
     openChannelAtMessage: vi.fn(async () => undefined),
+    humanInboxContext: vi.fn(async () => []),
+    replyFromHumanInbox: vi.fn(async () => {
+      throw new Error('No reply expected');
+    }),
     loadOlder: vi.fn(async () => undefined),
     loadNewer: vi.fn(async () => undefined),
     openLatest: vi.fn(async () => undefined),
@@ -155,6 +168,13 @@ function stubActions(): BridgeActions {
     dismissFailedMessage: vi.fn(() => false),
     openSession: vi.fn(() => undefined),
     refreshSessions: vi.fn(async () => undefined),
+    workspaceFileTarget: async () => ({
+      path: '/workspace',
+      relativePath: '',
+      kind: 'directory' as const,
+    }),
+    workspaceFileApplications: async () => ({ available: false, applications: [] }),
+    workspaceFileOpen: async () => {},
     memoryFileTarget: vi.fn(),
     memoryFileApplications: vi.fn(),
     memoryFileOpen: vi.fn(),
@@ -302,6 +322,7 @@ function setRoster(patch?: Partial<RosterSnapshot>): void {
 let prefs: BotModePrefsSnapshot = {
   motionPreference: 'system',
   botIcon: 'mascot' as const,
+  autoAcceptGroupInvites: true,
   developerMode: false,
   effectiveMotion: 'full',
   sortMode: 'updated',
@@ -361,6 +382,7 @@ beforeEach(() => {
   prefs = {
     motionPreference: 'system',
     botIcon: 'mascot' as const,
+    autoAcceptGroupInvites: true,
     developerMode: false,
     effectiveMotion: 'full',
     sortMode: 'updated',
@@ -778,6 +800,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -820,6 +843,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -903,6 +927,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -916,6 +941,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',
@@ -945,6 +971,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'updated',
@@ -959,6 +986,7 @@ describe('bot sidebar rows', () => {
     prefs = {
       motionPreference: 'system',
       botIcon: 'mascot' as const,
+      autoAcceptGroupInvites: true,
       developerMode: false,
       effectiveMotion: 'full',
       sortMode: 'manual',

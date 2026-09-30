@@ -1,3 +1,9 @@
+import type {
+  MessagingSnapshot,
+  MessagingGrant,
+  OutboxIntent,
+} from '../../../core/src/messaging/outbound.js';
+import type { MessagingTarget } from '../../../core/src/messaging/provider.js';
 import type { HostFileTarget } from './host-file-actions.js';
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { ConnectionRpcResult } from '@deepseek-ai/dsh-client-connection/client';
@@ -1912,6 +1918,18 @@ export interface ProfileActivityTokensDay extends ProfileTokenBuckets {
   day: string;
 }
 
+export interface ProfileModelUsageRow {
+  day: string;
+  purpose: string;
+  provider: string;
+  model: string;
+  inputTokens: number | null;
+  outputTokens: number | null;
+  cacheReadTokens: number | null;
+  cacheWriteTokens: number | null;
+  totalTokens: number | null;
+}
+
 export interface ProfileActivity {
   slug: string;
   weeks: number;
@@ -1921,6 +1939,8 @@ export interface ProfileActivity {
   memoryCommits: ProfileActivityDay[];
   tokens: ProfileActivityTokensDay[];
   tokenTotals: ProfileTokenBuckets;
+  modelUsageRows?: ProfileModelUsageRow[];
+  modelUsageStatus?: 'ready' | 'unavailable';
 }
 
 export interface GroupProfileAuthorActivity {
@@ -1977,6 +1997,22 @@ export async function loadMemorySnapshot(
   )
     throw new Error('invalid Memory snapshot');
   return snapshot as unknown as MemorySnapshot;
+}
+
+export async function loadWorkspaceFileTarget(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<HostFileTarget> {
+  const response = asRecord(await unwrap(call, 'workspaceFileTarget', { slug, grantId }));
+  const target = asRecord(response?.['target']);
+  if (
+    typeof target?.['path'] !== 'string' ||
+    target['relativePath'] !== '' ||
+    target['kind'] !== 'directory'
+  )
+    throw new Error('Invalid Workspace directory target');
+  return { path: target['path'], relativePath: '', kind: 'directory' };
 }
 
 export async function loadMemoryFileTarget(
@@ -2135,7 +2171,31 @@ export async function loadProfileActivity(
       const entry = asRecord(value);
       return typeof entry?.['day'] === 'string' && isTokenBuckets(entry);
     }) ||
-    !isTokenBuckets(response['tokenTotals'])
+    !isTokenBuckets(response['tokenTotals']) ||
+    (response['modelUsageRows'] !== undefined &&
+      (!Array.isArray(response['modelUsageRows']) ||
+        !response['modelUsageRows'].every((value) => {
+          const row = asRecord(value);
+          return (
+            row !== undefined &&
+            typeof row['day'] === 'string' &&
+            typeof row['purpose'] === 'string' &&
+            typeof row['provider'] === 'string' &&
+            typeof row['model'] === 'string' &&
+            [
+              'inputTokens',
+              'outputTokens',
+              'cacheReadTokens',
+              'cacheWriteTokens',
+              'totalTokens',
+            ].every(
+              (key) =>
+                row[key] === null || (Number.isSafeInteger(row[key]) && (row[key] as number) >= 0),
+            )
+          );
+        }))) ||
+    (response['modelUsageStatus'] !== undefined &&
+      !['ready', 'unavailable'].includes(String(response['modelUsageStatus'])))
   )
     throw new Error('invalid Profile activity');
   return response as unknown as ProfileActivity;
@@ -2277,4 +2337,65 @@ export async function repairMemory(
   )
     throw new Error('invalid Memory repair result');
   return repair as unknown as MemoryRepairEvent;
+}
+
+export async function loadMessagingSnapshot(
+  call: BridgeCall,
+  slug: string,
+): Promise<MessagingSnapshot> {
+  const value = await unwrap(call, 'messagingSnapshot', { slug });
+  const record = asRecord(value);
+  if (
+    !record ||
+    !Array.isArray(record['accounts']) ||
+    !Array.isArray(record['grants']) ||
+    !Array.isArray(record['intents'])
+  )
+    throw new BridgeCallError('invalid-response', 'Invalid messaging snapshot');
+  return value as MessagingSnapshot;
+}
+export async function loadMessagingTargets(
+  call: BridgeCall,
+  providerId: string,
+  accountRef: string,
+): Promise<MessagingTarget[]> {
+  const record = asRecord(await unwrap(call, 'messagingTargets', { providerId, accountRef }));
+  if (!record || !Array.isArray(record['targets']))
+    throw new BridgeCallError('invalid-response', 'Invalid targets');
+  return record['targets'] as MessagingTarget[];
+}
+export async function authorizeMessaging(
+  call: BridgeCall,
+  input: {
+    botSlug: string;
+    providerId: string;
+    accountRef: string;
+    targetRef: string;
+    fingerprint: string;
+    targetDigest: string;
+  },
+): Promise<MessagingGrant> {
+  const record = asRecord(await unwrap(call, 'messagingAuthorize', input));
+  if (!record || !asRecord(record['grant']))
+    throw new BridgeCallError('invalid-response', 'Invalid grant');
+  return record['grant'] as MessagingGrant;
+}
+export async function revokeMessaging(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+): Promise<void> {
+  await unwrap(call, 'messagingRevoke', { slug, grantId });
+}
+export async function sendMessaging(
+  call: BridgeCall,
+  slug: string,
+  grantId: string,
+  requestId: string,
+  text: string,
+): Promise<OutboxIntent> {
+  const record = asRecord(await unwrap(call, 'messagingSend', { slug, grantId, requestId, text }));
+  if (!record || !asRecord(record['intent']))
+    throw new BridgeCallError('invalid-response', 'Invalid intent');
+  return record['intent'] as OutboxIntent;
 }

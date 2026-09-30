@@ -1,0 +1,25 @@
+{
+  "base": "478adf53b6b068ae68203a420de2d168cf162085",
+  "regressionBefore": {
+    "failed": 2,
+    "passed": 34
+  },
+  "regressionAfter": {
+    "passed": 36
+  },
+  "fullSuite": {
+    "passed": 1417,
+    "skipped": 1
+  },
+  "checks": ["lint", "typecheck", "format:check", "changelog:check", "build"],
+  "e2e": {
+    "before": "before-results.json",
+    "after": "after-results.json",
+    "environment": "DSH 0.2.0-rc.1, real DeepSeek DM, headed managed Chrome, native Browser Access switch"
+  },
+  "viewports": {
+    "sidebar": "1440x960",
+    "window": "1200x736 at deviceScaleFactor 1"
+  },
+  "theme": "dark, Chinese shell, shared default browser profile"
+}

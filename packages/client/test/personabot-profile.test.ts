@@ -196,15 +196,16 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelector('.bh-profile-popover')).toBeNull();
       expect(container.querySelector('.bh-profile-view')).not.toBeNull();
       const sections = container.querySelectorAll('.bh-profile-view > .bh-profile-section');
-      expect(sections.length).toBe(3);
+      expect(sections.length).toBe(4);
       expect(sections[0]?.getAttribute('aria-label')).toBe('活动概览');
       expect(sections[1]?.getAttribute('aria-label')).toBe('模型预设');
-      expect(sections[2]?.getAttribute('aria-label')).toBe('提醒策略');
+      expect(sections[2]?.getAttribute('aria-label')).toBe('IM 连接');
+      expect(sections[3]?.getAttribute('aria-label')).toBe('提醒策略');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('节省成本');
       expect(sections[1]?.querySelector('summary')?.textContent).toContain('修订 3');
-      const policyDetails = container.querySelectorAll<HTMLDetailsElement>(
+      const policyDetails = sections[3]?.querySelector<HTMLDetailsElement>(
         '.bh-profile-policy-details',
-      )[1];
+      );
       expect(policyDetails?.open).toBe(false);
       await act(async () =>
         policyDetails?.querySelector<HTMLElement>('.bh-profile-policy-summary')?.click(),
@@ -218,7 +219,7 @@ describe('PersonaBot Profile surface', () => {
       expect(container.querySelectorAll('.bh-profile-heat-grid').length).toBe(2);
       expect(container.querySelectorAll('.bh-profile-bar-chart').length).toBe(1);
       expect(container.querySelectorAll('.bh-profile-avatar-button').length).toBe(1);
-      expect(container.querySelectorAll('.bh-profile-card').length).toBe(6);
+      expect(container.querySelectorAll('.bh-profile-card').length).toBe(7);
       expect(container.querySelectorAll('.bh-profile-pin[aria-pressed="true"]').length).toBe(2);
 
       await act(async () => click(container, '.bh-profile-edit'));
@@ -334,6 +335,134 @@ describe('PersonaBot Profile surface', () => {
 });
 
 describe('Profile activity windows', () => {
+  it('keeps entirely unreported usage unknown in the chart and summary', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    const props = {
+      bot: {
+        slug: 'ada',
+        displayName: 'Ada',
+        roles: [],
+        aggregateState: 'idle',
+        createdAt: '2026-09-30T00:00:00Z',
+        workspaces: [],
+      },
+      activity: {
+        slug: 'ada',
+        weeks: 26,
+        since: '2026-04-01T00:00:00Z',
+        today: '2026-09-30',
+        events: [],
+        memoryCommits: [],
+        tokens: [],
+        tokenTotals: { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        modelUsageStatus: 'ready' as const,
+        modelUsageRows: [
+          {
+            day: '2026-09-30',
+            purpose: 'orchestrator',
+            provider: 'actual',
+            model: 'unknown-report',
+            inputTokens: null,
+            outputTokens: null,
+            cacheReadTokens: null,
+            cacheWriteTokens: null,
+            totalTokens: null,
+          },
+        ],
+      },
+      compact: false,
+      t: zhTranslate,
+    };
+    try {
+      const cards = createProfileCardBuiltins(zhTranslate);
+      await act(async () =>
+        root.render(
+          createElement(
+            'div',
+            null,
+            cards.find((card) => card.id === 'token-usage')!.render(props),
+            cards.find((card) => card.id === 'totals')!.render(props),
+          ),
+        ),
+      );
+      expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain('未知');
+      expect(container.querySelector('.bh-profile-stats')?.textContent).toContain('未知');
+      expect(container.querySelector('.bh-profile-empty')).toBeNull();
+      expect(container.querySelector('.bh-profile-token-shares')).toBeNull();
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：未知');
+      const partial = {
+        ...props,
+        activity: {
+          ...props.activity,
+          tokens: [
+            {
+              day: '2026-09-30',
+              inputTokens: 100,
+              outputTokens: 40,
+              cacheReadTokens: 10,
+              cacheWriteTokens: 0,
+            },
+          ],
+          modelUsageRows: [
+            {
+              ...props.activity.modelUsageRows[0]!,
+              inputTokens: 100,
+              outputTokens: 40,
+              cacheReadTokens: 10,
+              totalTokens: 155,
+            },
+          ],
+        },
+      };
+      await act(async () =>
+        root.render(
+          createElement(
+            'div',
+            null,
+            cards.find((card) => card.id === 'token-usage')!.render(partial),
+            cards.find((card) => card.id === 'totals')!.render(partial),
+          ),
+        ),
+      );
+      expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
+        '155 tokens',
+      );
+      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
+        '155',
+      );
+      const totalOnly = {
+        ...props,
+        activity: {
+          ...props.activity,
+          modelUsageRows: [{ ...props.activity.modelUsageRows[0]!, totalTokens: 155 }],
+        },
+      };
+      await act(async () =>
+        root.render(
+          createElement(
+            'div',
+            null,
+            cards.find((card) => card.id === 'token-usage')!.render(totalOnly),
+            cards.find((card) => card.id === 'totals')!.render(totalOnly),
+          ),
+        ),
+      );
+      expect(container.querySelector('.bh-profile-card-total')?.textContent).toContain(
+        '155 tokens',
+      );
+      expect(container.querySelector('.bh-profile-stats > div:last-child dd')?.textContent).toBe(
+        '155',
+      );
+      expect(container.querySelector('.bh-model-usage')?.textContent).toContain('当日总计：155');
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('anchors the token sparkline and heatmaps to the Host calendar day', async () => {
     const { trailingProfileDays } = await import('../src/client/profile-cards-builtins.js');
     expect(trailingProfileDays('2026-09-29', 3)).toEqual([

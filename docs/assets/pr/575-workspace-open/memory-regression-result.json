@@ -1,0 +1,41 @@
+{
+  "result": "PASS",
+  "viewport": "1440x960",
+  "locale": "zh",
+  "downloadRoundTrips": [
+    {
+      "path": "Project notes/你好 world.txt",
+      "status": 200,
+      "size": 36,
+      "sha256": "86ac171a918dcc1eb07bd6bcf6b4bb9316bb50b121c46adb519da8a537055638"
+    },
+    {
+      "path": "Project notes/binary sample.bin",
+      "status": 200,
+      "size": 6,
+      "sha256": "450efbb65b66f605354f8e3e7759fec277ecb7c7ad243c0ea71f0bdbeeeb2ec6"
+    },
+    {
+      "path": "Project notes/large file.bin",
+      "status": 200,
+      "size": 5242880,
+      "sha256": "97c7107777f8faa2c897d476ed4f81ee74a7795e22487c91ca98473c14f1636d"
+    }
+  ],
+  "rejected": [
+    {
+      "path": ".git/config",
+      "status": 400
+    },
+    {
+      "path": "../outside",
+      "status": 400
+    },
+    {
+      "path": "missing-file",
+      "status": 404
+    }
+  ],
+  "anonymousStatus": 401,
+  "pageErrors": []
+}

@@ -2822,12 +2822,7 @@ class BotRuntimeImplementation implements BotRuntime {
           !channel.members.includes(botSlug)
         )
           throw new Error('Only the Bot Group owner may invite');
-        if (
-          target === undefined ||
-          target.paused === true ||
-          target.slug === botSlug ||
-          channel.members.includes(target.slug)
-        )
+        if (target === undefined || target.paused === true || target.slug === botSlug)
           throw new Error('Invitee must be another active nonmember PersonaBot');
         const botCausation = this.#botCausation(sourceEventId);
         if (botCausation.hop > MAX_BOT_HOPS) throw new Error('Bot collaboration hop limit reached');

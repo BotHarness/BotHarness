@@ -319,6 +319,7 @@ export interface ChannelStore {
   readMessages(id: string, options?: ChannelReadOptions): ChannelMessage[];
   queryMessages(id: string, options?: ChannelMessageQueryOptions): ChannelMessageQueryPage;
   readTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
+  readHumanTimeline(id: string, request?: ChannelTimelineRequest): ChannelTimelinePage | undefined;
   revision(id: string): number;
   messagesAfter(id: string, revision: number): ChannelMessageCommit[] | undefined;
   admissionChanged?(channelId: string, messageId: string): void;
@@ -782,6 +783,11 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       if (page === undefined) return undefined;
       const byId = messageIndex(messages);
       return { ...page, entries: page.entries.map((message) => projectReply(message, byId)) };
+    },
+    readHumanTimeline(id, request) {
+      const channel = this.get(id);
+      if (channel === undefined) return undefined;
+      return this.readTimeline(id, request);
     },
     revision: revisionOf,
     messagesAfter(id, revision) {

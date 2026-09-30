@@ -3,6 +3,8 @@ import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client
 import {
   BOT_MODE_ICON_FIELD,
   BOT_MODE_DEVELOPER_FIELD,
+  BOT_MODE_GROUP_AUTO_ACCEPT_FIELD,
+  DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
   BOT_MODE_MOTION_FIELD,
   BOT_MODE_SORT_FIELD,
   BOT_MODE_SORT_MODES_FIELD,
@@ -49,6 +51,7 @@ export interface BotModeScope {
 }
 
 export interface BotModePrefsSnapshot {
+  autoAcceptGroupInvites: boolean;
   developerMode: boolean;
   motionPreference: BotModeMotionPreference;
   botIcon: BotModeIcon;
@@ -75,6 +78,7 @@ export interface BotModePrefsFace {
   setMotionPreference: (preference: BotModeMotionPreference) => void;
   setBotIcon: (icon: BotModeIcon) => void;
   setDeveloperMode: (enabled: boolean) => void;
+  setAutoAcceptGroupInvites: (enabled: boolean) => void;
   setSortMode: (mode: BotModeSortMode) => void;
   setSectionSortMode: (sectionId: string, mode: BotModeSortMode | undefined) => void;
 }
@@ -82,6 +86,7 @@ export interface BotModePrefsFace {
 export function botModePrefsFace(prefs: BotModePrefs): BotModePrefsFace {
   return {
     hooks: { botModePrefs: prefs.source },
+    setAutoAcceptGroupInvites: (enabled) => prefs.setAutoAcceptGroupInvites(enabled),
     setMotionPreference: (preference) => {
       prefs.setMotionPreference(preference);
     },
@@ -144,6 +149,7 @@ export class BotModePrefs {
   constructor(storage?: ConfigStorage | undefined) {
     this.storage = storage;
     this.source = createSnapshotStore<BotModePrefsSnapshot>({
+      autoAcceptGroupInvites: DEFAULT_BOT_MODE_GROUP_AUTO_ACCEPT,
       motionPreference: DEFAULT_BOT_MODE_MOTION,
       botIcon: DEFAULT_BOT_MODE_ICON,
       developerMode: DEFAULT_BOT_MODE_DEVELOPER,
@@ -214,6 +220,25 @@ export class BotModePrefs {
       draft.botIcon = icon;
     });
     if (this.host !== undefined) this.persist(this.host.set(BOT_MODE_ICON_FIELD, icon));
+  }
+
+  setAutoAcceptGroupInvites(enabled: boolean): void {
+    const host = this.host;
+    const scope = host?.getSnapshot();
+    if (host === undefined || scope?.status !== 'ready' || !scope.writable) return;
+    if (this.source.getSnapshot().autoAcceptGroupInvites === enabled) return;
+    this.source.update((draft) => {
+      draft.autoAcceptGroupInvites = enabled;
+    });
+    void host
+      .set(BOT_MODE_GROUP_AUTO_ACCEPT_FIELD, enabled)
+      .then((accepted) => {
+        if (accepted === false) this.sync();
+      })
+      .catch((error: unknown) => {
+        this.sync();
+        console.warn('botharness: failed to persist Group invitation policy', error);
+      });
   }
 
   setDeveloperMode(enabled: boolean): void {
@@ -302,6 +327,7 @@ export class BotModePrefs {
         draft.sortModes = { ...section.sortModes };
         draft.botIcon = isBotModeIcon(section.botIcon) ? section.botIcon : DEFAULT_BOT_MODE_ICON;
         draft.developerMode = section.developerMode === true;
+        draft.autoAcceptGroupInvites = section.autoAcceptGroupInvites !== false;
       }
     });
     this.migrate(scope);

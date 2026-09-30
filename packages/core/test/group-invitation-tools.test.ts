@@ -117,6 +117,7 @@ async function roundTrip(accept: boolean, resolveOnInvite = false) {
     },
   );
   core = createCore({
+    autoAcceptGroupInvitations: () => false,
     dshHome: createTempRoot('botharness-invitation-tools-'),
     agents: createDshBotAgentAdapter({
       agents: host,
@@ -232,6 +233,7 @@ it.each(['archived', 'stale', 'cancelled', 'wrong-invitee'] as const)(
       },
     );
     core = createCore({
+      autoAcceptGroupInvitations: () => false,
       dshHome: createTempRoot('botharness-invitation-identity-'),
       agents: createDshBotAgentAdapter({
         agents: host,
