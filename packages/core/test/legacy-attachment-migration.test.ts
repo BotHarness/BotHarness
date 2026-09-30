@@ -194,6 +194,26 @@ describe('retained legacy attachment migration', () => {
     );
   });
 
+  it('keeps duplicate hashes readable while every occurrence still resolves to the same legacy object', async () => {
+    const f = fixture();
+    f.seed('pending-duplicates', [f.ref, f.ref]);
+    const hook = vi
+      .spyOn(f.files, 'upload')
+      .mockRejectedValue(new Error('destination unavailable'));
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 0, failed: 2, resumed: 0 });
+    expect(f.channels.attachmentReference!(f.channel.id, 'pending-duplicates', f.hash)).toEqual(
+      f.ref,
+    );
+    const response = await f.get(f.hash, 'pending-duplicates');
+    expect(response.status).toBe(200);
+    expect(await response.text()).toBe(f.body);
+    hook.mockRestore();
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 2, failed: 0, resumed: 2 });
+    expect((await f.get(f.hash, 'pending-duplicates')).status).toBe(400);
+    const canonical = f.channels.message(f.channel.id, 'pending-duplicates')!.attachments![0]!;
+    expect(await (await f.get(canonical.fileId!, 'pending-duplicates')).text()).toBe(f.body);
+  });
+
   it('resumes the reserved identity after interruption between file publication and reference activation', async () => {
     const f = fixture();
     f.seed('interrupted');

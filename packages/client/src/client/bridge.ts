@@ -579,10 +579,10 @@ export function parseChannelAttachment(value: unknown): ChannelAttachmentRef | u
 
 export function channelAttachmentUrl(
   ref: ChannelAttachmentRef,
-  owner?: { channelId: string; messageId: string },
+  owner: { channelId: string; messageId: string },
 ): string {
+  if (owner === undefined) throw new Error('Message ownership is required for attachments');
   if (ref.fileId !== undefined) {
-    if (owner === undefined) throw new Error('Message ownership is required for real attachments');
     return '/api/botharness/attachment?' + new URLSearchParams({ ...owner, fileId: ref.fileId });
   }
   return (

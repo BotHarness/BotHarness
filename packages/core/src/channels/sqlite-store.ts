@@ -1635,7 +1635,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
           ? [resolved]
           : [];
       });
-      if (matches.length > 1)
+      if (new Set(matches.map(attachmentIdentity)).size > 1)
         throw new ChannelAttachmentError(
           'Ambiguous legacy attachment reference; refresh the owning message',
           'invalid-ref',

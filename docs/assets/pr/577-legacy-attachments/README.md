@@ -26,7 +26,7 @@ All screenshots use synthetic files and Human-only Channels. The isolated Profil
 | Migrated PNG context and More menus expose native file actions                                   | PASS   | `before-image-menu-dark.png`, `after-image-menu-dark.png`                                   |
 | Restart retains identities, saved bytes and independent destinations                             | PASS   | Same isolated Profile restart                                                               |
 | Missing migrated target refuses canonical and owner-qualified old-hash reads                     | PASS   | HTTP 404; no CAS substitution or destination reconstruction                                 |
-| Interruption, concurrent startup, source/destination corruption and mixed cleanup                | PASS   | Eight migration regression tests at production ownership seams                              |
+| Interruption, concurrent startup, source/destination corruption and mixed cleanup                | PASS   | Nine migration regression tests at production ownership seams                               |
 | Model cached legacy/canonical image references read current bounded bytes with membership checks | PASS   | Integrated runtime regression; full/compact reads expose canonical refs without Host paths  |
 
 A Human-only fixture establishes absence of save-triggered durable attention, not live provider inference. Windows native applications and remote Tailscale/Cloudflare Tunnel access are not exercised on this macOS fixture. Backup/Export/Purge products are not implemented or claimed verified here; their integration requirements are documented under the owning architecture.
@@ -43,4 +43,6 @@ Use private launcher JSON for `BH_E2E_INSTANCE` and a private `BH_E2E_FIXTURE` p
 4. Save the expected synthetic text through the actual native editor; run `verify` and `download`.
 5. Restart that exact isolated Host/Profile, then run `restart` and `image`.
 
-Unit coverage verifies restart from pending transfer, idempotency, no overwrite of edited ready/pending destinations, ambiguous old hashes, preserved immutable facts, obsolete-send rejection, current full/compact/model-image reads and reference-aware CAS release. The local full suite passed 1520 tests with one pre-existing opt-in test/file skipped; the subsequently added integrated model-image test passed in the eight-test migration suite. Final PR-head CI provides the complete final-revision result.
+Unit coverage verifies restart from pending transfer, idempotency, no overwrite of edited ready/pending destinations, ambiguous old hashes, preserved immutable facts, obsolete-send rejection, current full/compact/model-image reads and reference-aware CAS release. The local full suite passed 1520 tests with one pre-existing opt-in test/file skipped; the subsequently added integrated model-image test passed in the nine-test migration suite. Final PR-head CI provides the complete final-revision result.
+
+Human-QA merge preparation verified and fixed two automatic review findings: pending duplicate occurrences of one CAS object remain readable until conversion separates their destinations, and Client download URLs require the owning Channel/message for both identity forms. The focused migration/Client regression suite passed 93 tests; final integrated CI covers current main.

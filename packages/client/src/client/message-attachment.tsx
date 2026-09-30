@@ -48,9 +48,7 @@ export function MessageAttachment({
   const menu = useHostFileMenu(commands, channelId, t);
   const id = ref.fileId;
   const url =
-    id === undefined || channelId !== undefined
-      ? channelAttachmentUrl(ref, channelId === undefined ? undefined : { channelId, messageId })
-      : undefined;
+    channelId !== undefined ? channelAttachmentUrl(ref, { channelId, messageId }) : undefined;
   const image = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(ref.mime);
   const contents = (
     <>
