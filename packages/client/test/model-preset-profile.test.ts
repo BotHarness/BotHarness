@@ -28,6 +28,38 @@ function translate(key: string, params?: Record<string, unknown>): string {
 }
 
 describe('Model Preset Profile', () => {
+  it('explains an ambiguous legacy model before the settings are expanded', async () => {
+    Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
+    const actions = {
+      modelPlanState: vi.fn(async () => ({
+        repair: {
+          code: 'legacy-ambiguous',
+          legacyModel: 'shared-model',
+          message: 'Choose a provider',
+        },
+      })),
+      modelPresets: vi.fn(async () => []),
+    } as unknown as BridgeActions;
+    const container = document.createElement('div');
+    document.body.append(container);
+    const root = createRoot(container);
+    try {
+      await act(async () =>
+        root.render(createElement(ModelPresetProfile, { slug: 'ada', actions, t: translate })),
+      );
+      expect(container.querySelector('details')?.open).toBe(false);
+      expect(container.querySelector('summary')?.textContent).toContain(
+        'Select an available model',
+      );
+      expect(container.querySelector('[role="alert"]')?.textContent).toContain(
+        'shared-model matches multiple providers',
+      );
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+    }
+  });
+
   it('keeps a switched plan and its custom draft when an older detail load finishes later', async () => {
     Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
     const high = { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' };
@@ -52,7 +84,7 @@ describe('Model Preset Profile', () => {
     });
     let planReads = 0;
     const actions = {
-      modelPlan: vi.fn(async () => (++planReads === 2 ? staleLoad : plan)),
+      modelPlanState: vi.fn(async () => ({ plan: await (++planReads === 2 ? staleLoad : plan) })),
       modelPresets: vi.fn(async () => presets),
       modelCatalog: vi.fn(async () => [
         {
@@ -201,6 +233,7 @@ describe('Model Preset Profile', () => {
     const modelPlan = vi.fn(async () => plan);
     const actions = {
       modelPlan,
+      modelPlanState: vi.fn(async () => ({ plan: await modelPlan() })),
       modelPresets: vi.fn(async () => presets),
       modelCatalog: vi.fn(async () => [
         {

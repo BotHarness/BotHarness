@@ -169,6 +169,8 @@
 
 ### Fixed
 
+- PersonaBot 的旧模型选择仅在匹配唯一可用 provider 时迁移；有歧义或不可用的路由会停止新请求，并引导 Human 在 Profile 修复模型预设，不会自动切换 provider（[#500](https://github.com/BotHarness/BotHarness/issues/500)）。
+
 - 截图现在同时报告图片尺寸与视口，设备缩放不为 1（例如 Retina 的 2x）时坐标点击会给出精确换算；视口校验改为半开区间（[#538](https://github.com/BotHarness/BotHarness/issues/538)）。
 
 - 浏览器观察现在能找到编辑器容器内的无角色工具栏控件，并为没有标签的控件生成带位置的名称（`div @x,y`）；视口外的坐标点击会以"重新截图"错误失败；截图会报告视口尺寸，坐标与图 1:1 对应（[#530](https://github.com/BotHarness/BotHarness/issues/530)）。

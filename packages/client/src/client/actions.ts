@@ -46,6 +46,8 @@ import {
   loadModelCatalog,
   loadModelPresets,
   loadModelPlan,
+  loadModelPlanState,
+  type ModelPlanStateView,
   createModelPreset,
   updateModelPreset,
   applyModelPreset,
@@ -132,6 +134,7 @@ export interface BridgeActions {
   modelCatalog(): Promise<ModelCatalogEntryView[]>;
   modelPresets(): Promise<ModelPresetView[]>;
   modelPlan(slug: string): Promise<ModelPlanView | undefined>;
+  modelPlanState(slug: string): Promise<ModelPlanStateView>;
   createModelPreset(
     name: string,
     orchestrator: ModelRouteView,
@@ -618,6 +621,7 @@ export function createActions(
     modelCatalog: () => loadModelCatalog(call),
     modelPresets: () => loadModelPresets(call),
     modelPlan: (slug) => loadModelPlan(call, slug),
+    modelPlanState: (slug) => loadModelPlanState(call, slug),
     createModelPreset: (name, orchestrator, assignmentDefault) =>
       createModelPreset(call, name, orchestrator, assignmentDefault),
     updateModelPreset: (id, expectedRevision, name, orchestrator, assignmentDefault) =>

@@ -6,6 +6,7 @@ import type {
   AssignmentModelOptionView,
   ModelCatalogEntryView,
   ModelPlanView,
+  ModelPlanStateView,
   ModelPresetView,
   ModelRouteView,
 } from './bridge.js';
@@ -44,6 +45,7 @@ export function ModelPresetProfile({
   const [catalog, setCatalog] = useState<ModelCatalogEntryView[]>();
   const [presets, setPresets] = useState<ModelPresetView[]>([]);
   const [plan, setPlan] = useState<ModelPlanView>();
+  const [repair, setRepair] = useState<ModelPlanStateView['repair']>();
   const [planLoadError, setPlanLoadError] = useState(false);
   const planRequest = useRef(0);
   const [selectedPreset, setSelectedPreset] = useState('');
@@ -74,9 +76,11 @@ export function ModelPresetProfile({
     (element: HTMLElement | null): void => {
       const request = ++planRequest.current;
       if (element === null) return;
-      void Promise.all([actions.modelPlan(slug), actions.modelPresets()]).then(
-        ([current, saved]) => {
+      void Promise.all([actions.modelPlanState(slug), actions.modelPresets()]).then(
+        ([state, saved]) => {
           if (planRequest.current !== request) return;
+          const current = state.plan;
+          setRepair(state.repair);
           setPlan((previous) =>
             (previous?.revision ?? 0) > (current?.revision ?? 0) ? previous : current,
           );
@@ -101,12 +105,14 @@ export function ModelPresetProfile({
     const request = planRequest.current;
     setError(undefined);
     try {
-      const [models, saved, current] = await Promise.all([
+      const [models, saved, state] = await Promise.all([
         actions.modelCatalog(),
         actions.modelPresets(),
-        actions.modelPlan(slug),
+        actions.modelPlanState(slug),
       ]);
       if (planRequest.current !== request) return;
+      const current = state.plan;
+      setRepair(state.repair);
       setCatalog(models);
       setPresets(saved);
       setSelectedPreset(
@@ -180,6 +186,7 @@ export function ModelPresetProfile({
       const applied = await actions.applyModelPreset(slug, preset.id);
       planRequest.current += 1;
       setPlan(applied);
+      setRepair(undefined);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
       setAssignmentModels(assignmentDraftOf(applied));
       setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
@@ -204,6 +211,7 @@ export function ModelPresetProfile({
       const applied = await actions.applyModelPreset(slug, selectedPreset);
       planRequest.current += 1;
       setPlan(applied);
+      setRepair(undefined);
       if (catalog !== undefined) setCustomDraft(catalog, applied.orchestrator);
       else void load();
       setAssignmentModels(assignmentDraftOf(applied));
@@ -244,6 +252,7 @@ export function ModelPresetProfile({
       const applied = await actions.customizeModelPlan(slug, routeOf(selectedCustom, customEffort));
       planRequest.current += 1;
       setPlan(applied);
+      setRepair(undefined);
       setSelectedPreset('');
     } catch (failure) {
       setError(errorMessage(failure));
@@ -273,6 +282,7 @@ export function ModelPresetProfile({
       );
       planRequest.current += 1;
       setPlan(applied);
+      setRepair(undefined);
       setSelectedPreset('');
       setAssignmentModels(assignmentDraftOf(applied));
       setDefaultAssignmentKey(modelKey(applied.assignmentDefault));
@@ -327,11 +337,13 @@ export function ModelPresetProfile({
           <span className="bh-profile-policy-summary-text">
             <strong>{t('modelPreset.title')}</strong>
             <span>
-              {hasPlanError
-                ? t('modelPreset.loadFailed')
-                : plan === undefined
-                  ? t('modelPreset.noPlan')
-                  : `${planLabel} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
+              {repair !== undefined
+                ? t('modelPreset.repairNeeded')
+                : hasPlanError
+                  ? t('modelPreset.loadFailed')
+                  : plan === undefined
+                    ? t('modelPreset.noPlan')
+                    : `${planLabel} · ${routeLabel(plan.orchestrator, t('modelPreset.providerDefault'))} · ${t('modelPreset.revision', { revision: plan.revision })}`}
             </span>
           </span>
           <IconChevronRightOutlineRegular />
@@ -663,6 +675,15 @@ export function ModelPresetProfile({
           </div>
         </div>
       </details>
+      {repair !== undefined && (
+        <span className="bh-profile-error" role="alert">
+          {repair.code === 'legacy-ambiguous'
+            ? t('modelPreset.legacyAmbiguous', { model: repair.legacyModel ?? '' })
+            : repair.code === 'legacy-missing'
+              ? t('modelPreset.legacyMissing', { model: repair.legacyModel ?? '' })
+              : t('modelPreset.routeRepair')}
+        </span>
+      )}
       {notice !== undefined && <span className="bh-note">{notice}</span>}
       {error !== undefined && (
         <span className="bh-profile-error" role="alert">

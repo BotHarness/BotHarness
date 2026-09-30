@@ -73,6 +73,12 @@ export interface DshBotAgentAdapterOptions {
   agents: DshAgentHost;
   defaultModel: DshDefaultModelHost;
   resolveModelPlan?: (botSlug: string) => PersonaBotModelPlan | undefined;
+  hasSession?: (sessionId: string) => Promise<boolean>;
+  prepareModelRoute?: (
+    botSlug: string,
+    role: 'orchestrator' | 'assignment',
+    retainedRoute?: ModelRoute,
+  ) => Promise<void>;
 
   resolveAgentPresets?: () => DshAgentPresetHost | undefined;
 
@@ -116,9 +122,10 @@ function agentOptions(
         : { reasoningEffort: ReasoningEffortId(route.reasoningEffort) }),
     };
   }
-  return run.bot.model === undefined
-    ? defaultSelection
-    : { ...defaultSelection, model: run.bot.model };
+  if (run.bot.model !== undefined) {
+    throw new Error('Legacy Bot model requires provider selection in PersonaBot Profile');
+  }
+  return defaultSelection;
 }
 
 function createMeta(
@@ -155,7 +162,18 @@ function requireCompletedTurn(handle: AgentHandle, fromSeq: SessionLogOffset): v
   const reason = turnEnd.data.reason;
   if (reason.kind === 'completed') return;
   if (reason.kind === 'error') {
-    const failure = new Error(`${reason.error.code}: ${reason.error.message}`);
+    const routeNeedsRepair =
+      [
+        'MISSING_CREDENTIAL',
+        'INVALID_CREDENTIAL',
+        'NO_ADAPTER',
+        'MODEL_NOT_FOUND',
+        'UNSUPPORTED_REASONING_EFFORT',
+      ].includes(reason.error.code) ||
+      ('status' in reason.error && (reason.error.status === 401 || reason.error.status === 403));
+    const failure = new Error(
+      `${reason.error.code}: ${reason.error.message}${routeNeedsRepair ? '. Open PersonaBot Profile and select an available Model Preset or repair the DSH provider credential before retrying.' : ''}`,
+    );
     if ('status' in reason.error && typeof reason.error.status === 'number') {
       Object.assign(failure, { status: reason.error.status });
     }
@@ -168,6 +186,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
   readonly #agents: DshAgentHost;
   readonly #defaultModel: DshDefaultModelHost;
   readonly #resolveModelPlan: ((botSlug: string) => PersonaBotModelPlan | undefined) | undefined;
+  readonly #prepareModelRoute: DshBotAgentAdapterOptions['prepareModelRoute'];
+  readonly #hasSession: DshBotAgentAdapterOptions['hasSession'];
   readonly #orchestratorCwd: ((bot: PersonaBotRecord) => string | undefined) | undefined;
   readonly #defaultAgentPreset: string | undefined;
   readonly #authorizeBorrow:
@@ -196,6 +216,8 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#agents = options.agents;
     this.#defaultModel = options.defaultModel;
     this.#resolveModelPlan = options.resolveModelPlan;
+    this.#prepareModelRoute = options.prepareModelRoute;
+    this.#hasSession = options.hasSession;
     this.#orchestratorCwd = options.orchestratorCwd;
     this.#defaultAgentPreset = options.defaultAgentPreset;
     this.#authorizeBorrow = options.authorizeBorrow;
@@ -228,6 +250,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       },
     });
     try {
+      await this.#prepareModelRoute?.(run.bot.slug, 'orchestrator');
       const handle = await this.#orchestratorHandle(run);
       const selection = this.#orchestratorSelections.get(run.sessionId);
       if (selection !== undefined) {
@@ -310,6 +333,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const entry: ActiveRun = { role: 'assignment', run, reported: false };
     this.#runs.set(run.sessionId, entry);
     try {
+      await this.#prepareModelRoute?.(run.bot.slug, 'assignment', run.modelRoute);
       const handle = await this.#assignmentHandle(run);
       this.#selectAssignmentModel(run);
       if (this.#stopping.has(run.sessionId)) return;
@@ -1643,7 +1667,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       this.#ensureWorkspace,
       this.#defaultAgentPreset,
     );
-    const handle = run.resume
+    const resume =
+      run.resume && (this.#hasSession === undefined || (await this.#hasSession(run.sessionId)));
+    const handle = resume
       ? await this.#agents.resume({
           resumeSessionId: SessionId(run.sessionId),
           ...options,
@@ -1792,14 +1818,16 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       this.#assignmentSelections.set(run.sessionId, selection);
       return borrowed;
     }
-    const handle =
-      run.resume === true
-        ? await this.#agents.resume({
-            resumeSessionId: SessionId(run.sessionId),
-            agentOptions: resolvedAgentOptions,
-            setup: createOptions.setup!,
-          })
-        : await this.#agents.create(createOptions);
+    const resume =
+      run.resume === true &&
+      (this.#hasSession === undefined || (await this.#hasSession(run.sessionId)));
+    const handle = resume
+      ? await this.#agents.resume({
+          resumeSessionId: SessionId(run.sessionId),
+          agentOptions: resolvedAgentOptions,
+          setup: createOptions.setup!,
+        })
+      : await this.#agents.create(createOptions);
     this.#handles.set(run.sessionId, handle);
     this.#assignmentSelections.set(run.sessionId, selection);
     return handle;
