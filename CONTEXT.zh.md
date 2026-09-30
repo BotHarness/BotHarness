@@ -265,7 +265,7 @@ _避免使用_：commit acceptance、filesystem watch、background distillation
 _避免使用_：accepted commit、auto-save、Git author、普通 Inbox 观察
 
 **Attachment**：
-随 Source Event 接收的 content-addressed 文件；所有引用它的 Channel 或 PersonaBot 共同保留唯一一份。只有 PersonaBot 主动将该文件保存在自己的 Memory 或 Workspace 中时，它才拥有单独副本。
+随 Source Event 接收、由 Host 管理的真实文件，其身份独立于当前字节内容和发送者最初上传的源文件。引用它的消息展示外部编辑后的当前内容；独立上传的文件彼此独立，只有 PersonaBot 显式保存在自己的 Memory 或 Workspace 中时才拥有单独副本。
 _避免使用_：upload、provider URL、per-Bot inbox copy、database blob
 
 ### Soul（身份内容）与分享

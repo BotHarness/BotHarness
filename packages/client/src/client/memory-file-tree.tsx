@@ -1,10 +1,13 @@
 import { useState, type KeyboardEvent, type ReactElement } from 'react';
 import {
   FileTypeIcon,
+  IconEllipsisOutlineRegular,
+  Tooltip,
   IconChevronDownOutlineRegular,
   IconFolderCloseRegular,
   IconFolderOpenRegular,
 } from '@deepseek-ai/dsh-client-ui-primitives';
+import { useMemoryFileMenu, type MemoryFileCommands } from './memory-file-actions.js';
 import type { BotHarnessTranslate } from './locale.js';
 import { memoryFileTree, type MemoryFileNode } from './memory-file-tree-model.js';
 
@@ -22,15 +25,20 @@ function withSelectedAncestors(
 
 export function MemoryFileTree({
   paths,
+  actions,
+  botSlug,
   selectedPath,
   onSelect,
   t,
 }: {
   paths: readonly string[];
+  actions?: MemoryFileCommands;
+  botSlug?: string | undefined;
   selectedPath: string | undefined;
   onSelect: ((path: string) => void) | undefined;
   t: BotHarnessTranslate;
 }): ReactElement {
+  const menu = useMemoryFileMenu(actions, botSlug, t);
   const [selection, setSelection] = useState<{
     path: string | undefined;
     open: ReadonlySet<string>;
@@ -56,6 +64,7 @@ export function MemoryFileTree({
     if (!(target instanceof HTMLButtonElement)) return;
     const items = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="treeitem"]')];
     const index = items.indexOf(target);
+    if (index < 0) return;
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       event.preventDefault();
       items[index + (event.key === 'ArrowDown' ? 1 : -1)]?.focus();
@@ -76,49 +85,77 @@ export function MemoryFileTree({
       }
     }
   };
+  const more = (path: string): ReactElement | null =>
+    actions === undefined || botSlug === undefined ? null : (
+      <Tooltip label={t('fileAction.menu')} side="bottom" delayMs={500}>
+        <button
+          type="button"
+          className="bh-memory-tree-more"
+          aria-label={t('fileAction.menu') + ': ' + path}
+          aria-haspopup="menu"
+          onClick={(event) => menu.open(path, event)}
+        >
+          <IconEllipsisOutlineRegular size={16} />
+        </button>
+      </Tooltip>
+    );
   const render = (nodes: readonly MemoryFileNode[]): ReactElement[] =>
     nodes.map((node) => {
       if (node.kind === 'file') {
         return (
-          <button
+          <div
             key={node.path}
-            type="button"
-            role="treeitem"
-            data-path={node.path}
-            className={
-              selectedPath === node.path
-                ? 'bh-memory-tree-row bh-memory-row-selected'
-                : 'bh-memory-tree-row'
-            }
-            aria-selected={selectedPath === node.path}
-            title={node.path}
-            onClick={() => onSelect?.(node.path)}
+            className="bh-memory-tree-item"
+            onContextMenu={(event) => menu.open(node.path, event)}
+            onKeyDown={(event) => menu.onKey(node.path, event)}
           >
-            <span className="bh-memory-tree-chevron-space" aria-hidden="true" />
-            <FileTypeIcon path={node.path} size={16} />
-            <span className="bh-memory-tree-name">{node.name}</span>
-          </button>
+            <button
+              type="button"
+              role="treeitem"
+              data-path={node.path}
+              className={
+                selectedPath === node.path
+                  ? 'bh-memory-tree-row bh-memory-row-selected'
+                  : 'bh-memory-tree-row'
+              }
+              aria-selected={selectedPath === node.path}
+              title={node.path}
+              onClick={() => onSelect?.(node.path)}
+            >
+              <span className="bh-memory-tree-chevron-space" aria-hidden="true" />
+              <FileTypeIcon path={node.path} size={16} />
+              <span className="bh-memory-tree-name">{node.name}</span>
+            </button>
+            {more(node.path)}
+          </div>
         );
       }
       const open = openPaths.has(node.path);
       return (
         <div key={node.path} className="bh-memory-tree-directory">
-          <button
-            type="button"
-            role="treeitem"
-            data-path={node.path}
-            data-folder="true"
-            className="bh-memory-tree-row"
-            aria-expanded={open}
-            title={node.path}
-            onClick={() => toggle(node.path)}
+          <div
+            className="bh-memory-tree-item"
+            onContextMenu={(event) => menu.open(node.path, event)}
+            onKeyDown={(event) => menu.onKey(node.path, event)}
           >
-            <span className={open ? '' : 'bh-chevron-collapsed'} aria-hidden="true">
-              <IconChevronDownOutlineRegular size={14} />
-            </span>
-            {open ? <IconFolderOpenRegular size={16} /> : <IconFolderCloseRegular size={16} />}
-            <span className="bh-memory-tree-name">{node.name}</span>
-          </button>
+            <button
+              type="button"
+              role="treeitem"
+              data-path={node.path}
+              data-folder="true"
+              className="bh-memory-tree-row"
+              aria-expanded={open}
+              title={node.path}
+              onClick={() => toggle(node.path)}
+            >
+              <span className={open ? '' : 'bh-chevron-collapsed'} aria-hidden="true">
+                <IconChevronDownOutlineRegular size={14} />
+              </span>
+              {open ? <IconFolderOpenRegular size={16} /> : <IconFolderCloseRegular size={16} />}
+              <span className="bh-memory-tree-name">{node.name}</span>
+            </button>
+            {more(node.path)}
+          </div>
           {open ? (
             <div role="group" className="bh-memory-tree-group">
               {render(node.children)}
@@ -136,6 +173,8 @@ export function MemoryFileTree({
       onKeyDown={onTreeKeyDown}
     >
       {render(memoryFileTree(paths))}
+      {menu.menu}
+      {menu.feedback}
     </div>
   );
 }

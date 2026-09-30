@@ -61,6 +61,7 @@ import {
 } from '../models/presets.js';
 import type { ModelCatalog, ModelCatalogEntry } from '../models/catalog.js';
 import type { ModelPlanState, ModelRouteReadiness } from '../models/readiness.js';
+import { MemoryFileError, type MemoryFileTarget } from '../memory/file-actions.js';
 import { MemoryPathError } from '../memory/jail.js';
 import {
   WorkspaceGrantError,
@@ -238,6 +239,7 @@ export interface BridgeMethods {
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
+  memoryFileTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
     payload: unknown,
@@ -576,6 +578,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (error instanceof MemoryAcceptError) {
         return { ok: false, error: { code: error.code, message: error.message } };
       }
+      if (error instanceof MemoryFileError)
+        return { ok: false, error: { code: error.code, message: error.message } };
       if (error instanceof MemoryPathError) return invalidInput(error.message);
       throw error;
     }
@@ -2027,6 +2031,15 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           },
         },
       };
+    },
+    memoryFileTarget(payload) {
+      const source = asObject(payload);
+      const slug = asSlug(payload);
+      const path = source['path'];
+      if (slug === undefined || typeof path !== 'string')
+        return invalidInput('slug and path are required');
+      if (deps.registry.get(slug) === undefined) return unknownBot(slug);
+      return memoryCall(() => ({ target: deps.memory!.fileTarget(slug, path) }));
     },
     memorySnapshot(payload) {
       const scope = dmMemory(payload);

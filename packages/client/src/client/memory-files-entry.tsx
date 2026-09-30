@@ -6,6 +6,7 @@ import { useMountedResource } from './mounted-resource.js';
 
 export function MemoryFilesEntry({
   actions,
+  botSlug,
   channelId,
   conversationRevision,
   onMemoryFileSelect,
@@ -72,6 +73,8 @@ export function MemoryFilesEntry({
       ) : (
         <MemoryFileTree
           paths={snapshot.files}
+          actions={actions}
+          botSlug={botSlug}
           selectedPath={selectedMemoryFilePath}
           onSelect={onMemoryFileSelect}
           t={t}
