@@ -142,6 +142,7 @@ export class FakeAgentHost implements DshAgentHost {
       whenIdle: () => pending,
     };
     const fakeContext = {
+      get: (_name: string) => undefined,
       on: (event: string, listener: (...args: unknown[]) => unknown) => {
         scope.listeners.set(event, listener);
         return () => void scope.listeners.delete(event);

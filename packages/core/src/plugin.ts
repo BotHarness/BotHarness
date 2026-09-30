@@ -88,6 +88,7 @@ import type { DshSessionEvent, DshSessionStore } from './sessions/source.js';
 import { createBotStateTracker, type BotStateTracker } from './state/bot-state.js';
 import { createDshActivityProjection } from './state/dsh-activity.js';
 import { createUsageProjection, type UsageProjection } from './usage/usage.js';
+import { installBotSubagentModelTools } from './runtime/subagent-model-tools.js';
 
 export const name = 'botharness-core';
 
@@ -841,6 +842,14 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
     'agent/created',
     ({ agent }) => {
       activity.handleAgentCreated(agent.session);
+      const owner = core.ownership.resolve(agent.session.id);
+      if (owner !== undefined) {
+        installBotSubagentModelTools(
+          agent.ctx,
+          agent,
+          () => core.registry.get(owner.botSlug)?.modelPlan,
+        );
+      }
     },
     { global: true },
   );
