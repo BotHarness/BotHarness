@@ -662,6 +662,129 @@ describe('Bot runtime tracer bullet', () => {
     owner.close();
   });
 
+  it('snapshots default and permitted explicit Assignment routes before creating Sessions', async () => {
+    const home = createTempRoot('botharness-assignment-model-');
+    const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    const pro = { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' };
+    registry.applyModelPreset('ada', {
+      id: 'preset',
+      name: 'Choices',
+      revision: 1,
+      orchestrator: { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+      assignmentDefault: pro,
+      assignmentModels: [
+        { provider: 'deepseek', model: 'pro', allowedEfforts: ['off'], defaultEffort: 'off' },
+        {
+          provider: 'deepseek',
+          model: 'flash',
+          allowedEfforts: ['', 'low', 'high'],
+          defaultEffort: 'low',
+        },
+      ],
+      createdAt: FIXED_NOW().toISOString(),
+    });
+    const channels = createChannelStore({ rootDir: join(home, 'channels'), now: FIXED_NOW });
+    const dm = channels.getOrCreateDm('ada', 'Ada')!;
+    await channels.appendMessage(dm.id, {
+      id: 'human-1',
+      at: FIXED_NOW().toISOString(),
+      author: { kind: 'human' },
+      body: 'Delegate',
+    });
+    const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
+    const selections: string[] = [];
+    const runtime = createBotRuntime({
+      database: owner,
+      grants: createTestWorkspaceGrants(owner, home),
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async (run) => {
+          if (run.message === '') return;
+          const create = (model?: { provider: string; model: string; reasoningEffort?: string }) =>
+            run.assignments.create({
+              purpose: 'Inspect',
+              grantId: TEST_GRANT_ID,
+              ...(model === undefined ? {} : { model }),
+            });
+          expect(() =>
+            create({ provider: 'deepseek', model: 'pro', reasoningEffort: 'high' }),
+          ).toThrow(/not allowed/);
+          expect(() => create({ provider: 'other', model: 'flash' })).toThrow(/not allowed/);
+          expect(create().outcome).toBe('created');
+          expect(create({ provider: 'deepseek', model: 'flash' }).outcome).toBe('created');
+          expect(
+            create({ provider: 'deepseek', model: 'flash', reasoningEffort: 'high' }).outcome,
+          ).toBe('created');
+          expect(
+            create({ provider: 'deepseek', model: 'flash', reasoningEffort: '' }).outcome,
+          ).toBe('created');
+        },
+        runAssignment: async (run) => {
+          selections.push(
+            `${run.modelRoute?.provider}/${run.modelRoute?.model}/${run.modelRoute?.reasoningEffort}`,
+          );
+          await run.report({ state: 'completed', summary: 'Done' });
+        },
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+      assignmentConcurrencyLimit: 4,
+      createSessionId: (() => {
+        const ids = [
+          'orchestrator-ada',
+          'assignment-default',
+          'assignment-low',
+          'assignment-high',
+          'assignment-provider-default',
+        ];
+        return () => ids.shift() ?? 'unexpected-session';
+      })(),
+    });
+    await admit(runtime, { channelId: dm.id, messageId: 'human-1', body: 'Delegate' });
+    await runtime.whenIdle();
+    expect(selections).toEqual([
+      'deepseek/pro/off',
+      'deepseek/flash/low',
+      'deepseek/flash/high',
+      'deepseek/flash/undefined',
+    ]);
+    expect(runtime.listAssignments('ada').map((assignment) => assignment.modelRoute)).toEqual([
+      { provider: 'deepseek', model: 'pro', reasoningEffort: 'off' },
+      { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+      { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' },
+      { provider: 'deepseek', model: 'flash' },
+    ]);
+    await runtime.close();
+    owner.close();
+    const reopenedOwner = mountOperationalDatabase({
+      dshHome: home,
+      schemaPlan: BOT_HARNESS_SCHEMA_PLAN,
+    });
+    const reopened = createBotRuntime({
+      database: reopenedOwner,
+      grants: createTestWorkspaceGrants(reopenedOwner, home),
+      registry,
+      channels,
+      agents: {
+        runOrchestrator: async () => undefined,
+        runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        close: async () => undefined,
+      },
+      now: FIXED_NOW,
+    });
+    expect(reopened.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    await reopened.close();
+    reopenedOwner.close();
+  });
+
   it('runs one DM through an Orchestrator and durable Assignment report, then restores the read model', async () => {
     const home = createTempRoot('botharness-bot-runtime-');
     const registry = createPersonaBotRegistry({ rootDir: join(home, 'bots'), now: FIXED_NOW });

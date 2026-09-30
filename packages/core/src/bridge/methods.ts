@@ -49,7 +49,11 @@ import type { MemoryRecoveryCheckpoint } from '../memory/recovery.js';
 import type { MemoryService } from '../memory/service.js';
 import type { UsageProjection } from '../usage/usage.js';
 import {
+  isAssignmentModelOption,
   isModelRoute,
+  validateAssignmentModels,
+  type AssignmentModelOption,
+  type ModelRoute,
   type ModelPreset,
   type ModelPresetStore,
   type PersonaBotModelPlan,
@@ -183,6 +187,7 @@ export interface BridgeMethods {
   modelPresetApply(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   modelPlan(payload: unknown): BridgeResult<{ plan?: PersonaBotModelPlan }>;
   modelPlanCustomize(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
+  modelPlanAssignmentsSet(payload: unknown): Promise<BridgeResult<{ plan: PersonaBotModelPlan }>>;
   list(payload: unknown): BridgeResult<{ bots: PersonaBotSummary[] }>;
   get(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
   create(payload: unknown): BridgeResult<{ bot: PersonaBotDetail }>;
@@ -584,6 +589,25 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
     return { ok: true, value: detailOf(result.record) };
   };
 
+  const validateAssignmentCatalog = async (
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
+  ): Promise<void> => {
+    validateAssignmentModels(assignmentDefault, assignmentModels);
+    if (deps.modelCatalog === undefined) throw new Error('Model catalog is unavailable');
+    await Promise.all(
+      assignmentModels.flatMap((option) =>
+        option.allowedEfforts.map((effort) =>
+          deps.modelCatalog!.validate({
+            provider: option.provider,
+            model: option.model,
+            ...(effort === '' ? {} : { reasoningEffort: effort }),
+          }),
+        ),
+      ),
+    );
+  };
+
   return {
     async modelCatalog() {
       if (deps.modelCatalog === undefined) return unavailable();
@@ -603,16 +627,34 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const name = source['name'];
       const orchestrator = source['orchestrator'];
       const assignmentDefault = source['assignmentDefault'];
+      const assignmentModels = source['assignmentModels'];
       if (
         typeof name !== 'string' ||
         !isModelRoute(orchestrator) ||
-        !isModelRoute(assignmentDefault)
+        !isModelRoute(assignmentDefault) ||
+        (assignmentModels !== undefined &&
+          (!Array.isArray(assignmentModels) || !assignmentModels.every(isAssignmentModelOption)))
       )
         return invalidInput('A name and valid Orchestrator and Assignment routes are required');
       try {
         await deps.modelCatalog.validate(orchestrator);
-        await deps.modelCatalog.validate(assignmentDefault);
-        const preset = deps.modelPresets.create({ name, orchestrator, assignmentDefault });
+        await validateAssignmentCatalog(
+          assignmentDefault,
+          assignmentModels ?? [
+            {
+              provider: assignmentDefault.provider,
+              model: assignmentDefault.model,
+              allowedEfforts: [assignmentDefault.reasoningEffort ?? ''],
+              defaultEffort: assignmentDefault.reasoningEffort ?? '',
+            },
+          ],
+        );
+        const preset = deps.modelPresets.create({
+          name,
+          orchestrator,
+          assignmentDefault,
+          ...(assignmentModels === undefined ? {} : { assignmentModels }),
+        });
         return { ok: true, value: { preset } };
       } catch (error) {
         return invalidInput(error instanceof Error ? error.message : String(error));
@@ -626,6 +668,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       const name = source['name'];
       const orchestrator = source['orchestrator'];
       const assignmentDefault = source['assignmentDefault'];
+      const assignmentModels = source['assignmentModels'];
       if (
         typeof id !== 'string' ||
         typeof expectedRevision !== 'number' ||
@@ -633,21 +676,35 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         expectedRevision < 1 ||
         typeof name !== 'string' ||
         !isModelRoute(orchestrator) ||
-        !isModelRoute(assignmentDefault)
+        !isModelRoute(assignmentDefault) ||
+        (assignmentModels !== undefined &&
+          (!Array.isArray(assignmentModels) || !assignmentModels.every(isAssignmentModelOption)))
       )
         return invalidInput(
           'An id, expected revision, name, and valid Orchestrator and Assignment routes are required',
         );
-      if (deps.modelPresets.get(id) === undefined)
-        return invalidInput('Model Preset was not found');
+      const current = deps.modelPresets.get(id);
+      if (current === undefined) return invalidInput('Model Preset was not found');
       try {
         await deps.modelCatalog.validate(orchestrator);
-        await deps.modelCatalog.validate(assignmentDefault);
+        await validateAssignmentCatalog(
+          assignmentDefault,
+          assignmentModels ??
+            current.assignmentModels ?? [
+              {
+                provider: assignmentDefault.provider,
+                model: assignmentDefault.model,
+                allowedEfforts: [assignmentDefault.reasoningEffort ?? ''],
+                defaultEffort: assignmentDefault.reasoningEffort ?? '',
+              },
+            ],
+        );
         const preset = deps.modelPresets.update(id, {
           expectedRevision,
           name,
           orchestrator,
           assignmentDefault,
+          ...(assignmentModels === undefined ? {} : { assignmentModels }),
         });
         if (preset === undefined) return invalidInput('Model Preset was not found');
         return { ok: true, value: { preset } };
@@ -669,6 +726,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         await deps.modelCatalog.validate(preset.orchestrator);
         await deps.modelCatalog.validate(preset.assignmentDefault);
+        if (preset.assignmentModels !== undefined)
+          await validateAssignmentCatalog(preset.assignmentDefault, preset.assignmentModels);
         const result = deps.registry.applyModelPreset(slug, preset);
         if (!result.ok || result.record.modelPlan === undefined) return unknownBot(slug);
         return { ok: true, value: { plan: result.record.modelPlan } };
@@ -698,6 +757,44 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       try {
         await deps.modelCatalog.validate(orchestrator);
         const result = deps.registry.customizeModelPlan(slug, orchestrator, expectedRevision);
+        if (!result.ok)
+          return result.reason === 'not-found'
+            ? unknownBot(slug)
+            : invalidInput('Bot Model Plan changed; reopen Profile before saving');
+        if (result.record.modelPlan === undefined)
+          return invalidInput('Apply a Model Preset first');
+        return { ok: true, value: { plan: result.record.modelPlan } };
+      } catch (error) {
+        return invalidInput(error instanceof Error ? error.message : String(error));
+      }
+    },
+    async modelPlanAssignmentsSet(payload) {
+      if (deps.modelCatalog === undefined) return unavailable();
+      const source = asObject(payload);
+      const slug = source['slug'];
+      const assignmentDefault = source['assignmentDefault'];
+      const assignmentModels = source['assignmentModels'];
+      const expectedRevision = source['expectedRevision'];
+      if (
+        typeof slug !== 'string' ||
+        !isModelRoute(assignmentDefault) ||
+        !Array.isArray(assignmentModels) ||
+        !assignmentModels.every(isAssignmentModelOption) ||
+        typeof expectedRevision !== 'number' ||
+        !Number.isSafeInteger(expectedRevision)
+      )
+        return invalidInput('A Bot, expected revision, and valid Assignment choices are required');
+      const bot = deps.registry.get(slug);
+      if (bot === undefined) return unknownBot(slug);
+      if (bot.modelPlan === undefined) return invalidInput('Apply a Model Preset first');
+      try {
+        await validateAssignmentCatalog(assignmentDefault, assignmentModels);
+        const result = deps.registry.setAssignmentModels(
+          slug,
+          assignmentDefault,
+          assignmentModels,
+          expectedRevision,
+        );
         if (!result.ok)
           return result.reason === 'not-found'
             ? unknownBot(slug)

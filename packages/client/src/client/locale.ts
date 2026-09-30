@@ -282,6 +282,13 @@ export const zh = {
   'modelPreset.customize': '仅为此 Bot 修改 Orchestrator',
   'modelPreset.customizeHint': '保存后成为独立的自定义快照，不会修改预设。',
   'modelPreset.saveCustom': '保存自定义快照',
+  'modelPreset.assignmentAllowed': 'Assignment 可选模型',
+  'modelPreset.assignmentHint':
+    '为此 Bot 选择允许的模型和 effort；新 Assignment 可选其中一项，未指定时使用默认模型。',
+  'modelPreset.allowedEfforts': '允许的 effort',
+  'modelPreset.defaultEffort': '此模型的默认 effort',
+  'modelPreset.chooseAssignment': '先选择至少一个模型',
+  'modelPreset.saveAssignment': '保存 Assignment 模型范围',
   'sourcePolicy.title': '提醒策略',
   'sourcePolicy.summary': '按来源设置默认值；群聊可单独覆盖普通消息提醒',
   'sourcePolicy.defaults': '按来源的默认规则',
@@ -959,6 +966,13 @@ export const en = {
   'modelPreset.customizeHint':
     'Saving creates an independent custom snapshot without changing the preset.',
   'modelPreset.saveCustom': 'Save custom snapshot',
+  'modelPreset.assignmentAllowed': 'Allowed Assignment models',
+  'modelPreset.assignmentHint':
+    'Choose the models and efforts this Bot may use for new Assignments. Omitted choices use the default model.',
+  'modelPreset.allowedEfforts': 'Allowed efforts',
+  'modelPreset.defaultEffort': 'Default effort for this model',
+  'modelPreset.chooseAssignment': 'Select at least one model first',
+  'modelPreset.saveAssignment': 'Save Assignment model choices',
   'sourcePolicy.title': 'Attention policy',
   'sourcePolicy.summary': 'Defaults by source; Groups can override ordinary messages',
   'sourcePolicy.defaults': 'Defaults by source',

@@ -25,7 +25,12 @@ import {
 } from './persona-bot.js';
 import { isValidSlug } from './slug.js';
 import type { MemoryCloneResult } from '../memory/clone.js';
-import type { ModelPreset, PersonaBotModelPlan } from '../models/presets.js';
+import type {
+  AssignmentModelOption,
+  ModelPreset,
+  ModelRoute,
+  PersonaBotModelPlan,
+} from '../models/presets.js';
 
 export interface MemoryRepositoryInitialization {
   ok: boolean;
@@ -61,6 +66,12 @@ export interface PersonaBotRegistry {
   customizeModelPlan(
     slug: string,
     orchestrator: PersonaBotModelPlan['orchestrator'],
+    expectedRevision: number,
+  ): UpdatePersonaBotResult;
+  setAssignmentModels(
+    slug: string,
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
     expectedRevision: number,
   ): UpdatePersonaBotResult;
 }
@@ -350,6 +361,14 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         sourcePresetName: preset.name,
         orchestrator: { ...preset.orchestrator },
         assignmentDefault: { ...preset.assignmentDefault },
+        ...(preset.assignmentModels === undefined
+          ? {}
+          : {
+              assignmentModels: preset.assignmentModels.map((option) => ({
+                ...option,
+                allowedEfforts: [...option.allowedEfforts],
+              })),
+            }),
         appliedAt: now().toISOString(),
       };
       record.modelPlan = plan;
@@ -368,6 +387,26 @@ export function createPersonaBotRegistry(options: PersonaBotRegistryOptions): Pe
         sourcePresetId: '',
         sourcePresetName: '',
         orchestrator: { ...orchestrator },
+        appliedAt: now().toISOString(),
+      };
+      write(record);
+      return { ok: true, record };
+    },
+    setAssignmentModels(slug, assignmentDefault, assignmentModels, expectedRevision) {
+      const record = read(slug);
+      if (record === undefined) return { ok: false, reason: 'not-found' };
+      if (record.modelPlan === undefined || record.modelPlan.revision !== expectedRevision)
+        return { ok: false, reason: 'invalid-input' };
+      record.modelPlan = {
+        ...record.modelPlan,
+        revision: record.modelPlan.revision + 1,
+        sourcePresetId: '',
+        sourcePresetName: '',
+        assignmentDefault: { ...assignmentDefault },
+        assignmentModels: assignmentModels.map((option) => ({
+          ...option,
+          allowedEfforts: [...option.allowedEfforts],
+        })),
         appliedAt: now().toISOString(),
       };
       write(record);

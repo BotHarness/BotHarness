@@ -3,7 +3,12 @@ import { RemoteError, TypertRemoteService } from '@deepseek-ai/dsh-typert-protoc
 
 import type { PersonaBotPatch } from '../bots/persona-bot.js';
 import type { ModelCatalogEntry } from '../models/catalog.js';
-import type { ModelPreset, ModelRoute, PersonaBotModelPlan } from '../models/presets.js';
+import type {
+  AssignmentModelOption,
+  ModelPreset,
+  ModelRoute,
+  PersonaBotModelPlan,
+} from '../models/presets.js';
 import type {
   BridgeError,
   BridgeMethods,
@@ -153,6 +158,22 @@ export class BotharnessBridgeService extends TypertRemoteService {
     orchestrator: ModelRoute,
   ): Promise<{ plan: PersonaBotModelPlan }> {
     return unwrapAsync(this.methods.modelPlanCustomize({ slug, orchestrator }));
+  }
+
+  modelPlanAssignmentsSet(
+    slug: string,
+    expectedRevision: number,
+    assignmentDefault: ModelRoute,
+    assignmentModels: AssignmentModelOption[],
+  ): Promise<{ plan: PersonaBotModelPlan }> {
+    return unwrapAsync(
+      this.methods.modelPlanAssignmentsSet({
+        slug,
+        expectedRevision,
+        assignmentDefault,
+        assignmentModels,
+      }),
+    );
   }
 
   list(query?: string): { bots: PersonaBotSummary[] } {
@@ -612,6 +633,7 @@ markRemoteMethods(BotharnessBridgeService.prototype, [
   'modelPresetApply',
   'modelPlan',
   'modelPlanCustomize',
+  'modelPlanAssignmentsSet',
   'list',
   'get',
   'create',

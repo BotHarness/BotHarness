@@ -71,6 +71,7 @@ export function grantExecutionDenial(
 
 const BOT_TOOL_NAMES = new Set([
   'create_assignment',
+  'list_assignment_models',
   'request_workspace_grant',
   'list_workspace_grants',
   'list_assignments',

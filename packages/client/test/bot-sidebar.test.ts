@@ -117,6 +117,9 @@ function stubActions(): BridgeActions {
     customizeModelPlan: vi.fn(async () => {
       throw new Error('unexpected Model Plan customization');
     }),
+    setModelPlanAssignments: vi.fn(async () => {
+      throw new Error('unexpected Assignment model plan change');
+    }),
     listHostFolders: vi.fn(async () => ({
       path: '/',
       home: '/',

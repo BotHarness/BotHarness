@@ -56,6 +56,13 @@ export interface ModelRouteView {
   reasoningEffort?: string;
 }
 
+export interface AssignmentModelOptionView {
+  provider: string;
+  model: string;
+  allowedEfforts: string[];
+  defaultEffort: string;
+}
+
 export interface ModelCatalogEntryView {
   provider: string;
   providerName: string;
@@ -71,6 +78,7 @@ export interface ModelPresetView {
   revision: number;
   orchestrator: ModelRouteView;
   assignmentDefault: ModelRouteView;
+  assignmentModels?: AssignmentModelOptionView[];
   createdAt: string;
 }
 
@@ -80,6 +88,7 @@ export interface ModelPlanView {
   sourcePresetName: string;
   orchestrator: ModelRouteView;
   assignmentDefault: ModelRouteView;
+  assignmentModels?: AssignmentModelOptionView[];
   appliedAt: string;
 }
 
@@ -153,6 +162,25 @@ export async function customizeModelPlan(
   orchestrator: ModelRouteView,
 ): Promise<ModelPlanView> {
   const value = asRecord(await unwrap(call, 'modelPlanCustomize', { slug, orchestrator }));
+  if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
+  return value!['plan'] as ModelPlanView;
+}
+
+export async function setModelPlanAssignments(
+  call: BridgeCall,
+  slug: string,
+  expectedRevision: number,
+  assignmentDefault: ModelRouteView,
+  assignmentModels: AssignmentModelOptionView[],
+): Promise<ModelPlanView> {
+  const value = asRecord(
+    await unwrap(call, 'modelPlanAssignmentsSet', {
+      slug,
+      expectedRevision,
+      assignmentDefault,
+      assignmentModels,
+    }),
+  );
   if (asRecord(value?.['plan']) === undefined) throw new Error('Invalid Model Plan result');
   return value!['plan'] as ModelPlanView;
 }
