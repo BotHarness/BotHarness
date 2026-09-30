@@ -9,7 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
-- PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range; default model totals combine execution roles, while keyboard-accessible Details disclose Session categories and token buckets ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
+- PersonaBot Profile coordinates daily and actual-model usage charts with one bounded time range, initially the most recent 7 days; default model totals combine execution roles, while keyboard-accessible Details disclose Session categories and token buckets ([#592](https://github.com/BotHarness/BotHarness/issues/592)).
 
 - PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 

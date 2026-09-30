@@ -324,7 +324,10 @@ try {
   let presentation;
   if (coordinated) {
     const modelTotals = new Map();
-    for (const row of rows) {
+    const [year, month, day] = activity.today.split('-').map(Number);
+    const weekStartDate = new Date(year, month - 1, day - 6);
+    const weekStart = `${weekStartDate.getFullYear()}-${`${weekStartDate.getMonth() + 1}`.padStart(2, '0')}-${`${weekStartDate.getDate()}`.padStart(2, '0')}`;
+    for (const row of rows.filter((row) => row.day >= weekStart && row.day <= activity.today)) {
       const name = `${row.provider} / ${row.model}`;
       modelTotals.set(name, (modelTotals.get(name) ?? 0) + row.totalTokens);
     }
@@ -341,7 +344,7 @@ try {
     if (
       !presentation.collapsed ||
       presentation.charts !== 2 ||
-      presentation.preset !== '182' ||
+      presentation.preset !== '7' ||
       presentation.hasRoles
     )
       throw new Error('The default usage overview does not hide execution details');
@@ -455,6 +458,7 @@ try {
     }
     await page.select('.bh-model-usage select', '182');
     await page.waitForSelector('.bh-usage-model-label');
+    await page.select('.bh-model-usage select', '7');
     await page.setViewport({ width: 1040, height: 1050 });
     await page.evaluate(() =>
       document

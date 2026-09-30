@@ -9,7 +9,7 @@
 
 ### Added
 
-- PersonaBot Profile 的每日用量与实际模型图表共用一个有界时间范围；默认按模型合并执行类别，键盘可展开的详细信息提供会话类别和 token 分项 ([#592](https://github.com/BotHarness/BotHarness/issues/592))。
+- PersonaBot Profile 的每日用量与实际模型图表共用一个有界时间范围，初始显示最近 7 天；默认按模型合并执行类别，键盘可展开的详细信息提供会话类别和 token 分项 ([#592](https://github.com/BotHarness/BotHarness/issues/592))。
 
 - PersonaBot 模型用量现在按实际 provider/model 分别展示 Orchestrator、Assignment 和 DSH 子代理调用，计入失败和重试调用已报告的 token；未报告的用量仍显示未知（[#503](https://github.com/BotHarness/BotHarness/issues/503)、[ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)）。
 

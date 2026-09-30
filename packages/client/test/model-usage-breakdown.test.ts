@@ -76,6 +76,7 @@ describe('coordinated actual-model usage', () => {
       base,
       { ...base, provider: 'provider-b', cacheWriteTokens: null, totalTokens: 150 },
       { ...base, day: '2026-09-29', inputTokens: 145, totalTokens: 200 },
+      { ...base, day: '2026-09-23', inputTokens: 445, totalTokens: 500 },
       {
         ...base,
         purpose: 'assignment',
@@ -96,7 +97,10 @@ describe('coordinated actual-model usage', () => {
       },
     ]);
     try {
-      expect(container.querySelector('select')?.value).toBe('182');
+      expect(container.querySelector('select')?.value).toBe('7');
+      expect(container.querySelector('.bh-usage-axis-labels')?.textContent).toBe(
+        '2026-09-242026-09-30',
+      );
       expect(container.querySelectorAll('.bh-profile-bar-chart')).toHaveLength(2);
       expect(container.querySelectorAll('.bh-usage-model-label')).toHaveLength(2);
       expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(
@@ -120,6 +124,10 @@ describe('coordinated actual-model usage', () => {
         0,
       );
       expect(dailyTotal).toBe(555);
+      await choose(container, '182');
+      expect(container.textContent).toContain('Selected period: 1,055 tokens');
+      await choose(container, '7');
+      expect(container.textContent).toContain('Selected period: 555 tokens');
       await choose(container, '1');
       expect(container.textContent).toContain('Selected period: 355 tokens');
       expect(container.querySelector('.bh-usage-model-labels')?.textContent).toContain(

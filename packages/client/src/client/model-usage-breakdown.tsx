@@ -171,7 +171,7 @@ export function ModelUsageBreakdown({
   firstDay: string;
   t: BotHarnessTranslate;
 }): ReactElement {
-  const [preset, setPreset] = useState('182');
+  const [preset, setPreset] = useState('7');
   const [customStart, setStart] = useState(firstDay);
   const [customEnd, setEnd] = useState(today);
   const [expanded, setExpanded] = useState(false);
