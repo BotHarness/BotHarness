@@ -9,6 +9,13 @@ import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
 import { HumanInboxReply } from './human-inbox-reply.js';
 
+const categoryCopy = {
+  unread: { title: 'humanInbox.unread', empty: 'humanInbox.empty.unread' },
+  replies: { title: 'humanInbox.replies', empty: 'humanInbox.empty.replies' },
+  action: { title: 'humanInbox.action', empty: 'humanInbox.empty.action' },
+  info: { title: 'humanInbox.info', empty: 'humanInbox.empty.info' },
+} as const;
+
 export function HumanInboxView({
   actions,
   t = zhTranslate,
@@ -138,15 +145,7 @@ export function HumanInboxView({
               aria-selected={inbox.category === category}
               onClick={() => changeCategory(category)}
             >
-              {t(
-                category === 'action'
-                  ? 'humanInbox.action'
-                  : category === 'unread'
-                    ? 'humanInbox.unread'
-                    : category === 'replies'
-                      ? 'humanInbox.replies'
-                      : 'humanInbox.info',
-              )}
+              {t(categoryCopy[category].title)}
             </button>
           ))}
         </div>
@@ -214,17 +213,7 @@ export function HumanInboxView({
         {inbox.error === undefined ? null : <p role="alert">{inbox.error}</p>}
         {inbox.status === 'loading' ? <p>{t('humanInbox.loading')}</p> : null}
         {inbox.status === 'ready' && inbox.items.length === 0 ? (
-          <p>
-            {t(
-              inbox.category === 'action'
-                ? 'humanInbox.empty.action'
-                : inbox.category === 'unread'
-                  ? 'humanInbox.empty.unread'
-                  : inbox.category === 'replies'
-                    ? 'humanInbox.empty.replies'
-                    : 'humanInbox.empty.info',
-            )}
-          </p>
+          <p>{t(categoryCopy[inbox.category].empty)}</p>
         ) : null}
         <div className="bh-human-inbox-workspace">
           <div role="list" className="bh-human-inbox-list">

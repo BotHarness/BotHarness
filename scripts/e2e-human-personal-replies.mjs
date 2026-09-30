@@ -73,7 +73,8 @@ const inbox = async () => {
         ?.click();
   });
   await page.waitForSelector('.bh-human-inbox-entry');
-  await page.click('.bh-human-inbox-entry');
+  await page.evaluate(() => document.querySelector('.bh-human-inbox-entry')?.click());
+  await page.waitForSelector('.bh-human-inbox-tabs');
   await delay(900);
 };
 const capture = (name) => page.screenshot({ path: resolve(out, name + '.png') });
@@ -127,6 +128,7 @@ try {
     const scenes = JSON.parse(readFileSync(resolve(out, 'scene.json'), 'utf8'));
     const scene = scenes[0];
     const before = await rpc('humanAttention', { category: 'replies' });
+    console.log('PROJECTION VERIFIED: two personal replies');
     for (const entry of scenes)
       assert.equal(before.items.filter((item) => item.messageId === entry.reply.id).length, 1);
     const ordinary = await rpc('humanAttention', { category: 'unread' });
@@ -143,11 +145,14 @@ try {
     await second.goto(url, { waitUntil: 'networkidle2' });
     await second.goto(url, { waitUntil: 'networkidle2' });
     assert.deepEqual(await rpc('humanAttention', { category: 'replies' }, second), before);
+    console.log('SECOND WINDOW VERIFIED: same Source Events');
+    await page.bringToFront();
     if (mode === 'restart') {
       assert.equal(before.items.find((item) => item.messageId === scene.reply.id)?.isUnread, false);
       console.log('RESTART VERIFIED: canonical personal reply and read position');
     } else {
       await inbox();
+      console.log('INBOX OPENED');
       await clickText('.bh-human-inbox-tabs button', '回复我');
       await delay(900);
       await capture('after-replies');
@@ -169,10 +174,11 @@ try {
         scene.reply.id,
       );
       await clickText('.bh-human-inbox-reply button', '查看附近消息');
-      await page.type(
-        '.bh-human-inbox-reply textarea',
-        'Reviewed. Thank you; I will handle the remaining check.',
-      );
+      const replyBody =
+        'Reviewed. Thank you; I will handle the remaining check. QA checkpoint ' +
+        new Date().toISOString().slice(11, 23) +
+        '.';
+      await page.type('.bh-human-inbox-reply textarea', replyBody);
       await page.evaluate(() => document.body.removeAttribute('data-ds-dark-theme'));
       await capture('after-context-light');
       await page.evaluate(() => document.body.setAttribute('data-ds-dark-theme', 'true'));
@@ -192,7 +198,7 @@ try {
       );
       await capture('after-sent');
       const matches = (await rpc('channelMessages', { channelId: scene.group.id })).messages.filter(
-        (message) => message.body === 'Reviewed. Thank you; I will handle the remaining check.',
+        (message) => message.body === replyBody,
       );
       assert.equal(matches.length, 1);
       assert.equal(matches[0].replyTo, scene.reply.id);

@@ -4773,7 +4773,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
 }
 .bh-human-inbox-message time {
   color: var(--dsw-alias-label-secondary);
-  font-size: 11px;
+  font-size: inherit;
 }
 .bh-human-inbox-message-target {
   display: inline-block;
@@ -4782,7 +4782,7 @@ pre.bh-memory-commit-code { padding: 8px 18px; white-space: pre-wrap; overflow-w
   border-radius: var(--bh-inbox-radius-control);
   background: var(--dsw-alias-interactive-bg-hover);
   color: var(--bh-accent);
-  font-size: 11px;
+  font-size: inherit;
 }
 .bh-human-inbox-reply-source {
   border-left: 2px solid var(--bh-accent);
