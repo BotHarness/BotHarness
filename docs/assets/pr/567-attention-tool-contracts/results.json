@@ -1573,7 +1573,161 @@
     "theme": "dark",
     "locale": "Chinese",
     "nativePixelsUnmodified": true,
-    "notes": "Different isolated synthetic Bots have different IDs, names, avatars, timestamps and reply wording. Native form screenshot uses a fixed viewport; full-page screenshot resizing interfered with earlier driver modal captures. Failed driver captures are not success evidence."
+    "notes": "Different isolated synthetic Bots have different IDs, names, avatars, timestamps and reply wording. Earlier driver attempts did not retain a visible dialog and did not replace all input text. Final successful operation used native menu mouse clicks, input visibility waits, fixed viewport capture and locator.fill, with exact values asserted before saving. Failed captures are not success evidence."
   },
-  "pinnedSchemaDecision": "DSH 0.2.0-rc.1 assertSupportedJsonSchema and defineTool were checked directly: integer is enforced; minimum/maximum/if/then are not in the supported subset. Keep the combined Tool with the complete matrix and atomic runtime refusal; no unsupported schema keywords."
+  "pinnedSchemaDecision": "DSH 0.2.0-rc.1 assertSupportedJsonSchema and defineTool were checked directly: integer is enforced; minimum/maximum/if/then are not in the supported subset. Keep the combined Tool with the complete matrix and atomic runtime refusal; no unsupported schema keywords.",
+  "postMainIntegration": {
+    "sourceRevision": "ad7deea124131af1bec9a981f601cbf2c17860c4",
+    "mainRevision": "bf0fdfc85aa7b7cc71b126c09df5039b509bd961",
+    "validation": {
+      "testsPassed": 1489,
+      "testsSkipped": 1,
+      "testFilesPassed": 187,
+      "testFilesSkipped": 1,
+      "typecheck": "passed",
+      "lint": "passed with existing warnings",
+      "format": "passed",
+      "build": "passed",
+      "releaseLedgers": "passed",
+      "docsPages": 258
+    },
+    "realModelReread": {
+      "group": {
+        "channelId": "group-qa567-attention",
+        "mode": "digest",
+        "count": 11,
+        "intervalSeconds": 90,
+        "revision": 3,
+        "lastActor": {
+          "kind": "human"
+        },
+        "changedAt": "2026-09-30T19:45:57.353Z"
+      },
+      "sourcePolicies": [
+        {
+          "sourceClass": "human-dm",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:20.013Z",
+          "overrideActive": false,
+          "recentWakeCount": 2
+        },
+        {
+          "sourceClass": "bot-dm",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.409Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-mention",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-ordinary",
+          "admission": "admit",
+          "wake": "digest",
+          "delivery": "steer",
+          "digestCount": 5,
+          "digestIntervalSeconds": 30,
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:31.262Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-invite",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-join-request",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "group-join-decision",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "assignment-report",
+          "admission": "admit",
+          "wake": "conditional",
+          "delivery": "steer",
+          "revision": 3,
+          "lastActor": {
+            "kind": "bot",
+            "botSlug": "bot-5b6a77d4248e4e9d9eefde289ee835cf"
+          },
+          "changedAt": "2026-09-30T19:28:30.178Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        },
+        {
+          "sourceClass": "assignment-lifecycle",
+          "admission": "admit",
+          "wake": "immediate",
+          "delivery": "steer",
+          "revision": 1,
+          "lastActor": {
+            "kind": "built-in"
+          },
+          "changedAt": "2026-09-30T19:28:22.410Z",
+          "overrideActive": false,
+          "recentWakeCount": 0
+        }
+      ],
+      "nativeDSHHostRestart": true,
+      "persistedHumanActorAndValuesVerified": true
+    }
+  }
 }
