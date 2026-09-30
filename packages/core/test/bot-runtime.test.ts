@@ -694,6 +694,10 @@ describe('Bot runtime tracer bullet', () => {
     });
     const owner = mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN });
     const selections: string[] = [];
+    const resumedRoutes: Array<
+      { provider: string; model: string; reasoningEffort?: string } | undefined
+    > = [];
+    let assignmentAccess: OrchestratorAgentRun['assignments'] | undefined;
     const runtime = createBotRuntime({
       database: owner,
       grants: createTestWorkspaceGrants(owner, home),
@@ -702,6 +706,7 @@ describe('Bot runtime tracer bullet', () => {
       agents: {
         runOrchestrator: async (run) => {
           if (run.message === '') return;
+          assignmentAccess = run.assignments;
           const create = (model?: { provider: string; model: string; reasoningEffort?: string }) =>
             run.assignments.create({
               purpose: 'Inspect',
@@ -727,7 +732,11 @@ describe('Bot runtime tracer bullet', () => {
           );
           await run.report({ state: 'completed', summary: 'Done' });
         },
-        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        requestAssignment: (run) => {
+          if (run.purpose === 'Delivery failure') throw new Error('Delivery unavailable');
+          resumedRoutes.push(run.modelRoute);
+          return { delivery: 'followup' as const, done: Promise.resolve() };
+        },
         close: async () => undefined,
       },
       now: FIXED_NOW,
@@ -757,6 +766,62 @@ describe('Bot runtime tracer bullet', () => {
       { provider: 'deepseek', model: 'flash', reasoningEffort: 'low' },
       { provider: 'deepseek', model: 'flash' },
     ]);
+    registry.applyModelPreset('ada', {
+      id: 'new-preset',
+      name: 'Pro only',
+      revision: 1,
+      orchestrator: { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+      assignmentDefault: pro,
+      assignmentModels: [
+        { provider: 'deepseek', model: 'pro', allowedEfforts: ['off'], defaultEffort: 'off' },
+      ],
+      createdAt: FIXED_NOW().toISOString(),
+    });
+    expect(assignmentAccess).toBeDefined();
+    assignmentAccess!.request({
+      sessionId: 'assignment-low',
+      mode: 'next-turn',
+      text: 'Keep old route',
+    });
+    expect(resumedRoutes.at(-1)).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    expect(() =>
+      assignmentAccess!.request({
+        sessionId: 'assignment-low',
+        mode: 'next-turn',
+        text: 'Reject',
+        model: { provider: 'deepseek', model: 'flash', reasoningEffort: 'high' },
+      }),
+    ).toThrow(/not allowed/);
+    expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    expect(() =>
+      assignmentAccess!.request({
+        sessionId: 'assignment-low',
+        mode: 'next-turn',
+        text: 'Delivery failure',
+        model: { provider: 'deepseek', model: 'pro' },
+      }),
+    ).toThrow(/Delivery unavailable/);
+    expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
+      provider: 'deepseek',
+      model: 'flash',
+      reasoningEffort: 'low',
+    });
+    assignmentAccess!.request({
+      sessionId: 'assignment-low',
+      mode: 'next-turn',
+      text: 'Switch',
+      model: { provider: 'deepseek', model: 'pro' },
+    });
+    expect(resumedRoutes.at(-1)).toEqual(pro);
+    expect(runtime.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual(pro);
     await runtime.close();
     owner.close();
     const reopenedOwner = mountOperationalDatabase({
@@ -776,11 +841,7 @@ describe('Bot runtime tracer bullet', () => {
       },
       now: FIXED_NOW,
     });
-    expect(reopened.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual({
-      provider: 'deepseek',
-      model: 'flash',
-      reasoningEffort: 'low',
-    });
+    expect(reopened.getAssignment('ada', 'assignment-low')?.modelRoute).toEqual(pro);
     await reopened.close();
     reopenedOwner.close();
   });

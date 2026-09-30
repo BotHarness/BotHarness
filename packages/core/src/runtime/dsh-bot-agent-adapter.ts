@@ -183,6 +183,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     string,
     { current: ModelSelection | undefined; assembled: ModelSelection | undefined }
   >();
+  readonly #assignmentSelections = new Map<
+    string,
+    { current: ModelSelection | undefined; assembled: ModelSelection | undefined }
+  >();
   readonly #runs = new Map<string, ActiveRun>();
   readonly #stopping = new Set<string>();
   readonly #drafts: ChannelDraftTracker;
@@ -279,6 +283,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#assertOpen();
     const handle = this.#handles.get(run.sessionId);
     const active = this.#runs.get(run.sessionId);
+    this.#selectAssignmentModel(run);
 
     if (handle !== undefined && active?.role === 'assignment') {
       handle.agent.steer(
@@ -306,6 +311,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     this.#runs.set(run.sessionId, entry);
     try {
       const handle = await this.#assignmentHandle(run);
+      this.#selectAssignmentModel(run);
       if (this.#stopping.has(run.sessionId)) return;
       const fromSeq = handle.agent.session.seq;
       handle.agent.followup(
@@ -332,6 +338,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
     const handles = [...this.#handles.values()];
     this.#handles.clear();
     this.#orchestratorSelections.clear();
+    this.#assignmentSelections.clear();
     for (const sessionId of this.#runs.keys()) this.#drafts.end(sessionId);
     this.#runs.clear();
     this.#stopping.clear();
@@ -666,7 +673,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'inspect_assignment',
           description:
-            'Inspect one owned Assignment by Session id. Set report_offset=0 to page through its accepted report via DSH Session Query; use nextOffset for subsequent pages. Set include_recent_events for a separate bounded Session tail. Read counts, source event bytes, and estimated model-visible tokens are included.',
+            'Inspect one owned Assignment by Session id, including its current model route beside the default for new Assignments. Set report_offset=0 to page through its accepted report via DSH Session Query; use nextOffset for subsequent pages. Set include_recent_events for a separate bounded Session tail.',
           parameters: {
             session_id: {
               type: 'string',
@@ -714,6 +721,12 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               throw new Error('inspect_assignment: DSH Session Query is unavailable');
             return JSON.stringify({
               ...detail,
+              modelRoutes: {
+                currentAssignment: detail.modelRoute ?? null,
+                newAssignmentDefault:
+                  (this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan)
+                    ?.assignmentDefault ?? null,
+              },
               ...(reportPage === undefined ? {} : { reportPage }),
               ...(recentEvents === undefined ? {} : { recentEvents }),
             });
@@ -724,7 +737,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         defineTool({
           name: 'send_assignment_request',
           description:
-            'Send an addressed request to one Assignment Session. Use answer_to to answer the question that item waits on; the answer resumes the Assignment. Without answer_to it sends new work to an idle Assignment.',
+            'Send an addressed request to one Assignment Session. Use answer_to to answer a waiting question. To change this existing Session’s model for its next model request, first call list_assignment_models, then pass an allowed provider/model/effort with this request. Omitted model fields keep the Session’s current route, even after the Human changes the Bot preset.',
           parameters: {
             session_id: {
               type: 'string',
@@ -745,6 +758,20 @@ class DshBotAgentAdapter implements BotAgentAdapter {
               type: 'string',
               description: 'The answer_to value from a Bot Inbox item that waits for your answer.',
             },
+            provider: {
+              type: 'string',
+              description:
+                'Optional provider id from the Bot’s current Assignment model set; specify with model.',
+            },
+            model: {
+              type: 'string',
+              description:
+                'Optional model id from the Bot’s current Assignment model set; specify with provider.',
+            },
+            reasoning_effort: {
+              type: 'string',
+              description: 'Optional allowed effort; omitted uses this model’s default effort.',
+            },
           },
           output: {
             schema: { type: 'string' },
@@ -758,16 +785,36 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             if (args.mode !== undefined && args.mode !== 'next-turn' && args.mode !== 'next-step') {
               throw new Error('send_assignment_request: mode must be next-turn or next-step');
             }
+            if ((args.provider === undefined) !== (args.model === undefined))
+              throw new Error(
+                'send_assignment_request: provider and model must be specified together',
+              );
+            if (args.reasoning_effort !== undefined && args.provider === undefined)
+              throw new Error(
+                'send_assignment_request: reasoning_effort requires provider and model',
+              );
             const outcome = active.run.assignments.request({
               sessionId: args.session_id,
               mode: args.mode ?? 'next-turn',
               text: args.text,
               ...(args.answer_to === undefined ? {} : { answerTo: args.answer_to }),
+              ...(args.provider === undefined
+                ? {}
+                : {
+                    model: {
+                      provider: args.provider,
+                      model: args.model!,
+                      ...(args.reasoning_effort === undefined
+                        ? {}
+                        : { reasoningEffort: args.reasoning_effort }),
+                    },
+                  }),
             });
             return JSON.stringify({
               sessionId: outcome.assignment.sessionId,
               activity: outcome.assignment.activity,
               delivery: outcome.delivery,
+              modelRoute: outcome.assignment.modelRoute,
             });
           },
         }),
@@ -1634,6 +1681,10 @@ class DshBotAgentAdapter implements BotAgentAdapter {
       this.#defaultModel.currentSelection(),
       this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan,
     );
+    const selection = {
+      current: resolvedAgentOptions,
+      assembled: undefined as ModelSelection | undefined,
+    };
     const borrowedDisposers: Array<() => void> = [];
     const createOptions: CreateAgentOptions = {
       sessionId: SessionId(run.sessionId),
@@ -1651,8 +1702,9 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         });
         if (!borrowed) {
           await this.#composePreset(agentCtx, run.bot);
-          installModelSelection(agentCtx, { current: resolvedAgentOptions, assembled: undefined });
         }
+        const disposeSelection = installModelSelection(agentCtx, selection);
+        if (borrowed) borrowedDisposers.push(disposeSelection);
         const registerTool = (tool: Parameters<typeof agentCtx.tools.register>[0]) => {
           const dispose = agentCtx.tools.register(tool);
           if (borrowed) borrowedDisposers.push(dispose);
@@ -1737,6 +1789,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
         },
       };
       this.#handles.set(run.sessionId, borrowed);
+      this.#assignmentSelections.set(run.sessionId, selection);
       return borrowed;
     }
     const handle =
@@ -1748,7 +1801,18 @@ class DshBotAgentAdapter implements BotAgentAdapter {
           })
         : await this.#agents.create(createOptions);
     this.#handles.set(run.sessionId, handle);
+    this.#assignmentSelections.set(run.sessionId, selection);
     return handle;
+  }
+
+  #selectAssignmentModel(run: AssignmentAgentRun): void {
+    const selection = this.#assignmentSelections.get(run.sessionId);
+    if (selection === undefined) return;
+    selection.current = agentOptions(
+      run,
+      this.#defaultModel.currentSelection(),
+      this.#resolveModelPlan?.(run.bot.slug) ?? run.bot.modelPlan,
+    );
   }
 
   #assertOpen(): void {
