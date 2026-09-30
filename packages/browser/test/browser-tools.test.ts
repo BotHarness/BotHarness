@@ -362,7 +362,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     ).rejects.toThrow(/call browser_open/);
   });
 
-  it('pauses actions and screenshots under a Human takeover while observe stays read-only', async () => {
+  it('pauses actions and screenshots under Browser Pause while observe stays read-only', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
     await h.state.definitions
@@ -374,10 +374,10 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
       h.state.definitions
         .get('browser_open')!
         .execute({ url: 'https://example.org' }, execution('browser_open')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     await expect(
       h.state.definitions.get('browser_screenshot')!.execute({}, execution('browser_screenshot')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     const observed = await h.state.definitions
       .get('browser_observe')!
       .execute({}, execution('browser_observe'));
@@ -476,7 +476,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.audits.at(-1)?.outcome).toBe('error');
   });
 
-  it('pauses interaction tools under a Human takeover while observe stays read-only', async () => {
+  it('pauses interaction tools under Browser Pause while observe stays read-only', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
     await h.state.definitions
@@ -485,7 +485,7 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     h.provider.setTakeover('bot-a', true);
     await expect(
       h.state.definitions.get('browser_click')!.execute({ ref: 'e3' }, execution('browser_click')),
-    ).rejects.toThrow(/Takeover is active/);
+    ).rejects.toThrow(/Browser Pause is active.*Resume.*browser_observe/);
     await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
   });
 

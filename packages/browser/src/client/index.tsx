@@ -424,7 +424,12 @@ function BrowserBody({ botSlug, t }: ChannelSidebarEntryProps): ReactElement {
           disabled={botSlug === undefined}
         />
       </div>
-      {paused ? <div style={{ opacity: 0.8 }}>{t('entry.view.paused')}</div> : null}
+      <div style={{ opacity: 0.8 }}>{t('entry.view.pauseHint')}</div>
+      {paused ? (
+        <div role="status" style={{ opacity: 0.8 }}>
+          {t('entry.view.paused')}
+        </div>
+      ) : null}
       {observation?.frame === null || observation?.frame === undefined ? (
         <div style={{ opacity: 0.6 }}>{t('entry.view.noFrame')}</div>
       ) : (

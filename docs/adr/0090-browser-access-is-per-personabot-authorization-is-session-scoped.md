@@ -9,7 +9,7 @@ Date: 2026-09-29
 
 **Browser Authorization** is the once-per-session Human approval before that PersonaBot's first browser action; it is requested through the native approval path and renders in the Bot DM, with the usual one-time and always choices and the profile-level auto-allow switch. Access decides whether tools exist; Authorization decides whether they may run.
 
-**Browser Audit** records every browser observation and action attributed to the PersonaBot, session, and root role, with a redacted per-tool summary including the URL, outcome, and duration. Typed text enters only as its character count; page contents and screenshots never enter the audit — screenshots exist only as model attachments. **Browser Pause** (the entry's Pause Bot control) stops one PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the Bot Browser window directly, and a returned Bot re-observes before acting. One PersonaBot's browser actions run serialized; different PersonaBots act in parallel.
+**Browser Audit** records every browser observation and action attributed to the PersonaBot, session, and root role, with a redacted per-tool summary including the URL, outcome, and duration. Typed text enters only as its character count; page contents and screenshots never enter the audit — screenshots exist only as model attachments. **Browser Pause** (the entry's Pause Bot control) stops one PersonaBot's browser actions and disables model-facing screenshots for its duration; the Human can always operate the Bot Browser window directly, `browser_observe` remains available while paused, and after Resume the Bot re-observes before acting. Pause is process-local control state, independent of Access and Authorization. One PersonaBot's browser actions run serialized; different PersonaBots act in parallel.
 
 ## Why
 
@@ -23,10 +23,12 @@ Date: 2026-09-29
 - **Profile-wide access** — rejected: every PersonaBot carries the tools; the Human cannot withhold one.
 - **The switch as blanket permission (no session authorization)** — rejected: contradicts the Computer's Human-owned authorization and the product's ask-when-it-matters behavior.
 - **Per-site or per-action policy** — rejected for 1.0: friction and surface with no evidence it beats one session grant plus audit; the classifier seam stays available.
-- **Silent coexistence with no takeover** — rejected: no way to pause an autonomous Bot on the shared browser; observation invalidation still applies outside takeover.
+- **Silent coexistence with no pause** — rejected: no way to pause an autonomous Bot on the shared browser; observation invalidation still applies outside a pause.
 
 ## Consequences
 
-- Browser Access joins the PersonaBot record next to Computer Access; the Browser entry owns the switch, the observation view, and the takeover control.
+- Browser Access joins the PersonaBot record next to Computer Access; the Browser entry owns the switch, the observation view, and the Pause Bot / Resume control.
 - Audit rows land in `logs.db` alongside lifecycle lines, so the Human can attribute and replay without reading page content.
 - Approval Rules persist "always" decisions; the auto-allow switch mirrors the Computer's.
+
+- The local window is always directly operable by the Human. A future container/remote viewer may need a separate enable-interaction control (like Computer Takeover); that viewer gate is deferred with the container target in #459 and is not Browser Pause.

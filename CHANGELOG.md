@@ -103,6 +103,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
+
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
