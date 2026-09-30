@@ -721,6 +721,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
   registerBridge(
     ctx,
     createBridgeMethods({
+      warn: (message) => ctx.logger.warn(message),
       registry: core.registry,
       modelPresets: core.modelPresets,
       modelCatalog,

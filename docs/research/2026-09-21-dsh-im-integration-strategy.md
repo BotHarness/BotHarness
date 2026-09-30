@@ -12,7 +12,7 @@
 
 **现有公开 Service 可执行只出站切片；双向入站仍缺独占 consumer seam。** 保存的 target alias 可以原位改址，因此 `botId + targetId` 并不是 immutable destination。不能把页面上的连接/测试成功、平台 SDK 成功或本地 CLI 登录推断为 BotHarness 已验证的身份、目标或交付事实。
 
-静态研究读取公开源代码、官方 SDK/CLI 和发布元数据；后续同一实施任务完成安装、应用绑定与 Host/Client smoke，证据单独记录在下方实测补充。尚未发送外部测试消息或完成 #117 的 Binding/Grant/Outbox 路径。
+静态研究读取公开源代码、官方 SDK/CLI 和发布元数据；后续同一实施任务完成安装、应用绑定与 Host/Client smoke，证据单独记录在下方实测补充。静态研究阶段未发送外部测试消息；后续真实 Profile 的 Binding/Grant/Outbox 与 Human 收件确认见下方实测补充。
 
 ### 公开 Host Service
 

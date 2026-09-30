@@ -66,9 +66,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
       const code =
         error !== null && typeof error === 'object' && 'code' in error ? error.code : undefined;
       throw new MessagingError(
-        code === 'unknown-bot' || code === 'account-changed'
-          ? 'rebind-required'
-          : 'provider-unavailable',
+        code === 'account-changed' ? 'rebind-required' : 'provider-unavailable',
       );
     }
     if (
@@ -104,7 +102,7 @@ export function createDshImProvider(value: unknown): MessagingProvider | undefin
     async inspect(accountRef, targetRef) {
       const current = await account(accountRef);
       const target = (await targets(accountRef)).find((item) => item.ref === targetRef);
-      if (target === undefined) throw new MessagingError('rebind-required');
+      if (target === undefined) throw new MessagingError('provider-unavailable');
       return { account: current, target };
     },
     async send(input) {

@@ -5,6 +5,9 @@ import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
 import { createOutboundMessaging } from '../src/messaging/outbound.js';
 import { createDshImProvider } from '../src/messaging/dsh-im.js';
 import type { MessagingProvider } from '../src/messaging/provider.js';
+import { createBridgeMethods } from '../src/bridge/methods.js';
+import { createCore } from '../src/plugin.js';
+import { OperationalDatabaseError } from '../src/database/owner.js';
 import { createTempRoot } from './helpers.js';
 
 function fixture(timeoutMs = 100) {
@@ -296,6 +299,112 @@ it('replacing a provider interrupts its attempt while disposing the old registra
     expect(fx.sends).toBe(1);
     expect(replacementSends).toBe(1);
   } finally {
+    fx.cleanup();
+  }
+});
+
+it.each(['account', 'target'])(
+  'startup-empty %s discovery stays unavailable without permanently suspending a grant',
+  async (gap) => {
+    const fx = fixture();
+    let recovering = false;
+    const transport = {
+      contractVersion: 1 as const,
+      listBots: async () =>
+        recovering && gap === 'account' ? [] : [{ botId: 'account', channel: 'feishu' }],
+      listTargets: async () =>
+        recovering && gap === 'target'
+          ? []
+          : [{ targetId: 'self', kind: 'user', route: { openId: 'actor' } }],
+      async describeBot(botId: string) {
+        if (recovering && gap === 'account')
+          throw Object.assign(new Error('unknown-bot'), { code: 'unknown-bot' });
+        return {
+          version: 1 as const,
+          channel: 'feishu',
+          botId,
+          account: { fingerprint: 'a'.repeat(64) },
+          connected: !recovering,
+          capabilities: ['proactive-text-checked'],
+        };
+      },
+      sendChecked: async () => ({ sent: true as const }),
+    };
+    const provider = createDshImProvider(transport)!;
+    fx.service.register(provider);
+    try {
+      const target = (await provider.targets('account'))[0]!;
+      const grant = await fx.service.authorize({
+        botSlug: 'ada',
+        providerId: provider.id,
+        accountRef: 'account',
+        targetRef: target.ref,
+        fingerprint: 'a'.repeat(64),
+        targetDigest: target.digest,
+      });
+      recovering = true;
+      expect((await fx.service.snapshot('ada')).grants[0]).toMatchObject({
+        availability: 'unavailable',
+        revision: 1,
+      });
+      recovering = false;
+      fx.restart();
+      fx.service.register(provider);
+      expect((await fx.service.snapshot('ada')).grants[0]).toMatchObject({
+        availability: 'available',
+        revision: 1,
+      });
+      expect((await fx.service.send('ada', grant.id, 'after-recovery', 'hello')).state).toBe(
+        'provider-accepted',
+      );
+    } finally {
+      fx.cleanup();
+    }
+  },
+);
+
+it('messaging RPC distinguishes storage and unexpected failures without exposing provider error details', async () => {
+  const fx = fixture();
+  const core = createCore({ dshHome: createTempRoot('botharness-messaging-errors-') });
+  core.registry.create({ slug: 'ada', displayName: 'Ada' });
+  const warnings: string[] = [];
+  try {
+    for (const [failure, code] of [
+      [new Error('sensitive-provider-detail'), 'messaging-unavailable'],
+      [
+        new OperationalDatabaseError('integrity-failed', 'sensitive-storage-detail'),
+        'messaging-storage-unavailable',
+      ],
+    ] as const) {
+      const methods = createBridgeMethods({
+        ...core,
+        externalMessaging: {
+          ...fx.service,
+          snapshot: async () => {
+            throw failure;
+          },
+        },
+        warn: (message) => warnings.push(message),
+      });
+      expect(await methods.messagingSnapshot({ slug: 'ada' })).toMatchObject({
+        ok: false,
+        error: { code },
+      });
+    }
+    expect(warnings).toHaveLength(2);
+    expect(warnings.join('')).not.toContain('sensitive-');
+    expect(
+      await createBridgeMethods({
+        registry: core.registry,
+        states: core.states,
+        channels: core.channels,
+        ownership: core.ownership,
+        roster: core.roster,
+      }).messagingSnapshot({ slug: 'ada' }),
+    ).toMatchObject({ ok: false, error: { code: 'messaging-unavailable' } });
+  } finally {
+    await core.runtime.close();
+    core.operationalDatabase.close();
     fx.cleanup();
   }
 });

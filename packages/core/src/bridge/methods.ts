@@ -5,6 +5,7 @@ import type {
   OutboxIntent,
 } from '../messaging/outbound.js';
 import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
+import { OperationalDatabaseError } from '../database/owner.js';
 import { randomUUID, createHash } from 'node:crypto';
 
 import { z } from 'zod';
@@ -305,6 +306,7 @@ export interface BridgeMethods {
 }
 
 export interface BridgeMethodsDeps {
+  warn?: (message: string) => void;
   registry: PersonaBotRegistry;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
@@ -570,13 +572,34 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
   const messagingCall = async <T>(
     operation: (service: OutboundMessaging) => Promise<T>,
   ): Promise<BridgeResult<T>> => {
-    if (deps.externalMessaging === undefined) return unavailable();
+    if (deps.externalMessaging === undefined)
+      return {
+        ok: false,
+        error: { code: 'messaging-unavailable', message: 'External messaging is unavailable' },
+      };
     try {
       return { ok: true, value: await operation(deps.externalMessaging) };
     } catch (error) {
       if (error instanceof MessagingError)
         return { ok: false, error: { code: error.code, message: error.code } };
-      return unavailable();
+      const storage = error instanceof OperationalDatabaseError;
+      deps.warn?.(
+        JSON.stringify({
+          module: 'messaging',
+          initiator: 'client',
+          phase: 'rpc-failed',
+          reason: storage ? 'operational-storage-unavailable' : 'unexpected-error',
+        }),
+      );
+      return {
+        ok: false,
+        error: {
+          code: storage ? 'messaging-storage-unavailable' : 'messaging-unavailable',
+          message: storage
+            ? 'External messaging storage is unavailable'
+            : 'External messaging is unavailable',
+        },
+      };
     }
   };
   const createBotId = deps.createBotId ?? (() => 'bot-' + randomUUID().replaceAll('-', ''));
