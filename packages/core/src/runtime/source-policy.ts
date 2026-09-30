@@ -4,9 +4,9 @@ import { DEFAULT_GROUP_WAKE_POLICY, type GroupWakePolicy } from '../channels/cha
 import type { OperationalDatabaseModulePort } from '../database/owner.js';
 
 export const BOT_SOURCE_DEFAULTS = {
-  'human-dm': { wake: 'immediate' },
-  'bot-dm': { wake: 'immediate' },
-  'group-mention': { wake: 'immediate' },
+  'human-dm': { wake: 'immediate', delivery: 'steer' },
+  'bot-dm': { wake: 'immediate', delivery: 'steer' },
+  'group-mention': { wake: 'immediate', delivery: 'steer' },
   'group-ordinary': {
     wake: 'digest',
     digestCount: DEFAULT_GROUP_WAKE_POLICY.count,
@@ -31,6 +31,7 @@ export interface BotSourcePolicy {
   sourceClass: BotSourceClass;
   admission: 'admit';
   wake: BotSourceWake;
+  delivery: 'steer' | 'turn';
   digestCount?: number;
   digestIntervalSeconds?: number;
   revision: number;
@@ -57,6 +58,12 @@ export interface BotSourcePolicyStore {
     actor: BotSourcePolicyEditor,
   ): BotSourcePolicy;
   resetGroupOrdinary(botSlug: string, actor: BotSourcePolicyEditor): BotSourcePolicy;
+  setImmediateDelivery(
+    botSlug: string,
+    sourceClass: 'human-dm' | 'bot-dm' | 'group-mention',
+    delivery: 'steer' | 'turn',
+    actor: BotSourcePolicyEditor,
+  ): BotSourcePolicy;
 }
 
 export function defaultGroupWakePolicy(policy: BotSourcePolicy): GroupWakePolicy {
@@ -88,6 +95,7 @@ interface SourcePolicyRow {
   digest_count: number | null;
   digest_interval_seconds: number | null;
   override_active: number;
+  delivery: string;
 }
 
 export function createBotSourcePolicyStore(
@@ -106,8 +114,8 @@ export function createBotSourcePolicyStore(
     db.prepare(`
       INSERT OR IGNORE INTO bot_source_policy_revisions
         (bot_slug, source_class, revision, actor_kind, changed_at,
-         admission_mode, wake_mode, digest_count, digest_interval_seconds)
-      VALUES (?, ?, 1, 'built-in', ?, 'admit', ?, ?, ?)
+         admission_mode, wake_mode, digest_count, digest_interval_seconds, delivery)
+      VALUES (?, ?, 1, 'built-in', ?, 'admit', ?, ?, ?, ?)
     `).run(
       botSlug,
       sourceClass,
@@ -115,11 +123,12 @@ export function createBotSourcePolicyStore(
       builtIn.wake,
       digestCount,
       digestIntervalSeconds,
+      'delivery' in builtIn ? builtIn.delivery : 'steer',
     );
     const row = db
       .prepare(`
         SELECT revision, changed_at, admission_mode, wake_mode, actor_kind,
-               actor_bot_slug, digest_count, digest_interval_seconds, override_active
+               actor_bot_slug, digest_count, digest_interval_seconds, override_active, delivery
           FROM bot_source_policy_revisions
          WHERE bot_slug = ? AND source_class = ?
          ORDER BY revision DESC LIMIT 1
@@ -150,6 +159,19 @@ export function createBotSourcePolicyStore(
           : row.digest_count !== null || row.digest_interval_seconds !== null)
       )
         throw new Error('Group ordinary source wake mode is invalid');
+    } else if (
+      sourceClass === 'human-dm' ||
+      sourceClass === 'bot-dm' ||
+      sourceClass === 'group-mention'
+    ) {
+      if (
+        row.wake_mode !== 'immediate' ||
+        (row.delivery !== 'steer' && row.delivery !== 'turn') ||
+        row.digest_count !== null ||
+        row.digest_interval_seconds !== null
+      ) {
+        throw new Error(`Protected ${sourceClass} source policy is invalid`);
+      }
     } else if (
       row.wake_mode !== builtIn.wake ||
       row.override_active !== 0 ||
@@ -196,6 +218,7 @@ export function createBotSourcePolicyStore(
       sourceClass,
       admission: 'admit',
       wake: row.wake_mode as BotSourceWake,
+      delivery: row.delivery === 'turn' ? 'turn' : 'steer',
       ...(effectiveDigestCount === null ? {} : { digestCount: effectiveDigestCount }),
       ...(effectiveDigestIntervalSeconds === null
         ? {}
@@ -212,12 +235,13 @@ export function createBotSourcePolicyStore(
   };
   const changeSourcePolicy = (
     botSlug: string,
-    sourceClass: 'assignment-report' | 'group-ordinary',
+    sourceClass: 'assignment-report' | 'group-ordinary' | 'human-dm' | 'bot-dm' | 'group-mention',
     wake: BotSourceWake,
     digestCount: number | null,
     digestIntervalSeconds: number | null,
     actor: BotSourcePolicyEditor,
     overrideActive: boolean,
+    delivery: 'steer' | 'turn' = 'steer',
   ): BotSourcePolicy => {
     if (actor.kind === 'bot' && actor.botSlug !== botSlug)
       throw new Error('A PersonaBot may edit only its own source policy');
@@ -226,8 +250,9 @@ export function createBotSourcePolicyStore(
       db.prepare(`
       INSERT INTO bot_source_policy_revisions
         (bot_slug, source_class, revision, actor_kind, actor_bot_slug, changed_at,
-         admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active)
-      VALUES (?, ?, ?, ?, ?, ?, 'admit', ?, ?, ?, ?)
+         admission_mode, wake_mode, digest_count, digest_interval_seconds, override_active,
+         delivery)
+      VALUES (?, ?, ?, ?, ?, ?, 'admit', ?, ?, ?, ?, ?)
     `).run(
         botSlug,
         sourceClass,
@@ -239,6 +264,7 @@ export function createBotSourcePolicyStore(
         wake === 'digest' ? digestCount : null,
         wake === 'digest' ? digestIntervalSeconds : null,
         overrideActive ? 1 : 0,
+        delivery,
       );
       return resolveIn(db, botSlug, sourceClass);
     });
@@ -288,6 +314,20 @@ export function createBotSourcePolicyStore(
         digestIntervalSeconds,
         actor,
         true,
+      );
+    },
+    setImmediateDelivery(botSlug, sourceClass, delivery, actor) {
+      if (delivery !== 'steer' && delivery !== 'turn')
+        throw new Error('Delivery must be steer or turn');
+      return changeSourcePolicy(
+        botSlug,
+        sourceClass,
+        'immediate',
+        null,
+        null,
+        actor,
+        true,
+        delivery,
       );
     },
     resetGroupOrdinary(botSlug, actor) {

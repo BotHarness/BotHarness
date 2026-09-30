@@ -858,6 +858,18 @@ const BOT_SOURCE_POLICY_EDIT_MIGRATION: SchemaMigration = {
   },
 };
 
+const BOT_SOURCE_DELIVERY_MIGRATION: SchemaMigration = {
+  generation: 36,
+  module: 'bot-inbox',
+  description: 'Record the delivery dimension of immediate source policies',
+  migrate(database) {
+    database.exec(`
+      ALTER TABLE bot_source_policy_revisions
+        ADD COLUMN delivery TEXT NOT NULL DEFAULT 'steer' CHECK (delivery IN ('steer', 'turn'));
+    `);
+  },
+};
+
 const MEMORY_CHANGE_INBOX_MIGRATION: SchemaMigration = {
   generation: 32,
   module: 'bot-inbox',
@@ -1058,6 +1070,7 @@ export const BOT_HARNESS_SCHEMA_PLAN = defineSchemaPlan([
   USAGE_DAILY_MIGRATION,
   BOT_SOURCE_POLICY_MIGRATION,
   BOT_SOURCE_POLICY_EDIT_MIGRATION,
+  BOT_SOURCE_DELIVERY_MIGRATION,
   BOT_SOURCE_GROUP_MODES_MIGRATION,
   MEMORY_CHANGE_INBOX_MIGRATION,
   MEMORY_CHANGE_CHECKPOINT_MIGRATION,
