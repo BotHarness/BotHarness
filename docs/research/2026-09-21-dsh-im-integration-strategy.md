@@ -110,7 +110,7 @@ Feishu runtime 的 `im.message.receive_v1` callback 仍 `void bridge.accept(even
 1. Human 从 dsh-im 管理面板完成专用测试 App、账号与 saved target，BotHarness 用自己的 Binding/Grant UI 绑定一个 PersonaBot；已有 lark-cli bot 登录不等于这个专用 App 或 target 已验证。
 2. 接受与执行 Service Action 时都检查 active Bot、Binding、Grant、Provider availability、target digest；先提交 Outbox Intent，再执行，成功只记 provider accepted；未知不得盲重试。
 3. `0.2.0-rc.1` Host/Client smoke、专用 App 连接和本人目标冷重启已验证；一次本人 DM 的平台接受已验证，只证明这一个目标/消息当时有权执行，不推广组织权限/可用范围。对端已确认；公开 fingerprint 契约仍待上游扩展接受和实际 Host 验证；生产采用 draft 调用需要 ADR 和 contract gate。
-4. #12 双向 DM 必须等 exclusive authenticated consumer、disable-standalone/fail-closed、durable accept ack 与可信 reply operation 落地；#117 完成也不能解除这个 gate。
+4. #12 工作群双向路径必须等 exclusive authenticated consumer、disable-standalone/fail-closed、durable accept ack 与可信 reply operation 落地；#117 完成也不能解除这个 gate。
 
 ---
 
@@ -268,7 +268,7 @@ BotHarness Messaging Provider Registration
 5. **Reply operation**：能对可信 reply locator 发送，而不是要求先把每个入站 route 人工保存成 `targetId`。
 6. **Operation outcome**：尽可能返回 provider message id/receipt；超时必须能表达 unknown outcome；provider 支持时暴露幂等或 outcome lookup。
 
-如果上游接受设计但正式版本尚未发布，只有在新增 ADR 明确退出条件后，才可用固定 upstream commit 的**临时最小 fork**验证 TB1：只在进入现有 Harness bridge 前增加 exclusive consumer branch，并暴露 ingress/reply facade，不修改渠道 SDK、连接、重连或 native presentation；用 facade contract、standalone parity、lifecycle 与 duplicate tests 保护。上游若拒绝这类 seam，则改为 BotHarness 自己实现 Feishu/Lark Provider Plugin并复用其设计/测试经验。无论哪条路径，都不要让同一 app/bot credential 同时启动两个 listener，不使用长期 deep import 或大型复制式 fork。
+按 [ADR-0102](../adr/0102-work-group-ingress-uses-an-exclusive-provider-consumer.md)，可在向上游提出公开 seam 期间，用固定 upstream commit 的**临时最小 fork**做隔离 TB1 验证；不必等待上游接受或正式发布，但生产采用仍需明确、已验证的兼容 artifact：只在进入现有 Harness bridge 前增加 exclusive consumer branch，并暴露 ingress/reply facade，不修改渠道 SDK、连接、重连或 native presentation；用 facade contract、standalone parity、lifecycle 与 duplicate tests 保护。上游若拒绝这类 seam，则改为 BotHarness 自己实现 Feishu/Lark Provider Plugin并复用其设计/测试经验。无论哪条路径，都不要让同一 app/bot credential 同时启动两个 listener，不使用长期 deep import 或大型复制式 fork。
 
 ## “PersonaBot 可以发消息”的近期可交付切片
 
@@ -285,14 +285,14 @@ BotHarness Messaging Provider Registration
 
 TB0 证明“Bot 可以主动发消息”，但它**不是双向 Channel 完成态**，也不能用来回复尚未保存为 dsh-im target 的新入站消息。
 
-### TB1：Feishu/Lark DM 双向 Bridge
+### TB1：Feishu/Lark 工作群 @Bot 与同话题回复
 
 在 exclusive inbound consumer seam 可用后，走真实：
 
 ```text
-Feishu/Lark DM → dsh-im listener → BotHarness durable ingress
+Feishu/Lark work-group @mention → dsh-im listener → BotHarness durable ingress
 → PersonaBot Bot Inbox → Orchestrator → Outbox Intent
-→ trusted reply operation → same DM
+→ trusted reply operation → same group/topic
 ```
 
 验收必须包含 duplicate/restart、未授权 sender、错误 PersonaBot binding、provider dispose、credential rotation 与 Human 真实客户端路径。
@@ -303,7 +303,7 @@ Feishu/Lark DM → dsh-im listener → BotHarness durable ingress
 
 ## Issue/ADR implications
 
-- 保留 ADR-0001“dsh-im 作为 base plugin”与 ADR-0011“独立 Plugin、不 fork”结论。
+- 保留 ADR-0001“dsh-im 作为 base plugin”和 BotHarness 独立 Plugin；ADR-0102 为验证公开独占 consumer seam 对 ADR-0011 的 no-fork 假设增加限定例外与退出条件。
 - 修正 ADR-0011 的历史性实现假设：不再把读取 dsh-im private stores 作为 v1.1 稳定边界；新增 upstream Service seam 或独立 Provider Plugin。
 - #46 继续拥有 Messaging deep module、Provider Registry、Ingress 与 Outbox authority。
 - #48 应明确 dsh-im 是首选 transport provider，并把 TB0 与 inbound seam gate 写入 scope。

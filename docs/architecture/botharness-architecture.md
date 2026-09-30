@@ -219,7 +219,9 @@ Wake Policy 决定何时让 Orchestrator 看见新 attention：当前 step 完�
 
 PersonaBot Profile 的 IM 连接经现有 Typert/API Gateway 选择账号和已测试目标，再由 Human 建立 Binding 与单目标主动发送 Grant。application-defined Messaging Provider Registration 由 Consumer Fiber 持有，Binding／Grant／Outbox 使用同一 `botharness.db`。接受和执行都复核活跃 Bot、Grant、Registration、认证账号 fingerprint 和目标内容 digest；删除、改址或账号变化要求显式重新授权。先提交 Intent 和 attempt-start，再调用 provider，结果只记平台接受、明确失败或未知；重启不重发 pending／in-flight，未知结果留待 Human 核对。
 
-生产适配需要 dsh-im 公开、版本化的 `describeBot`／`sendChecked` 契约，以在账号 transition 中验证平台身份并冻结已授权路由。这是待上游接受的小型扩展；已发布 `4.32.0` 不满足该契约，BotHarness 默认禁用这条出站 authority。隔离 QA 可加载明确标识的源码补丁。dsh-im 仍持有 SDK／连接／凭据与原设置入口；BotHarness 不读取其私有 JSON，也不接管 standalone inbound。#12 的独占入站 consumer 仍未交付。
+生产适配需要 dsh-im 公开、版本化的 `describeBot`／`sendChecked` 契约，以在账号 transition 中验证平台身份并冻结已授权路由。这是待上游接受的小型扩展；已发布 `4.32.0` 不满足该契约，BotHarness 默认禁用这条出站 authority。隔离 QA 可加载明确标识的源码补丁。dsh-im 仍持有 SDK／连接／凭据与原设置入口；BotHarness 不读取其私有 JSON，也不接管 standalone inbound。这条出站切片尚未交付独占入站 consumer。
+
+下一条 [#12](https://github.com/BotHarness/BotHarness/issues/12) tracer 优先工作群中的 Human @Bot → 已绑定 PersonaBot 的 Inbox／Orchestrator → 经校验的同群／同话题回复。[ADR-0102](../adr/0102-work-group-ingress-uses-an-exclusive-provider-consumer.md) 允许在向上游贡献公开独占 consumer 接口期间，用固定版本的临时最小 dsh-im fork 做隔离验证。Provider 继续拥有唯一 SDK 连接；application-defined BotHarness Bridge Consumer 拥有持久接收。被接管账号不并行运行 standalone Session，consumer 消失时也不回退。经认证的提及目标及群／thread／root／parent 身份作为事实进入 Messaging，由现有 attention 与 Wake Policy 决定收件和执行。私聊兼容及更广的群协作在首片反馈后扩展。该目标路径尚未通过真实群验收。
 
 ### Bot 之间的 Channel 协作（ADR-0065）
 
