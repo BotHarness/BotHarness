@@ -334,6 +334,22 @@ _Avoid_: upload, push, submit
 A Human or PersonaBot that can participate in Channels and author messages; a Bridge carries an Actor's message but is not itself an Actor.
 _Avoid_: client, connector, bridge identity, caller-supplied sender
 
+**Human ID**:
+The stable identity of the local Human within one DSH Profile, retained across Channels, renaming, and Human Channel nicknames.
+_Avoid_: display name, nickname, browser tab
+
+**Human display name**:
+The editable default name of the local Human within one DSH Profile. A Human Channel nickname may replace it in that Channel's message-author, member, and mention presentation.
+_Avoid_: Human ID, login name
+
+**Human Channel nickname**:
+The local Human's chosen name within one Channel, including a DM or Group Channel, overriding the Human display name for that Channel. It labels the same Human ID and does not create a separate Human Inbox or roleplay persona.
+_Avoid_: Channel name, PersonaBot display name
+
+**Actor mention**:
+A trusted Channel reference to a Human or PersonaBot by stable identity, displayed with that Actor's current name in the message's Channel. Renaming changes its visible label while retaining its target.
+_Avoid_: name-matched text, stored display name as identity
+
 **Source Event**:
 An immutable local fact received from a Channel, Bridge, webhook, Session, or system source, holding the sole local copy of its content and trusted provenance. It may appear in a Channel and may be admitted to any number of Bot Inboxes, but neither relationship owns another copy.
 _Avoid_: inbox message, mailbox copy, notification payload, stimulus
