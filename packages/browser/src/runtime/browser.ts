@@ -67,7 +67,11 @@ export interface BotBrowserRuntime {
   listTabs(): Promise<readonly { targetId: string; url: string; title: string }[]>;
   tabInfo(targetId: string): Promise<{ url: string; title: string }>;
   closeTab(targetId: string): Promise<void>;
-  captureScreenshot(tabId: string): Promise<{ data: string; mimeType: string } | undefined>;
+  captureScreenshot(
+    tabId: string,
+  ): Promise<
+    { data: string; mimeType: string; viewport?: { width: number; height: number } } | undefined
+  >;
   openWindow(): Promise<BrowserTab>;
   currentUrl(): string | undefined;
   binaryPath(): string | undefined;
@@ -216,11 +220,11 @@ export const SNAPSHOT_SCRIPT = `(() => {
     const raw = el.getAttribute('aria-label') || el.getAttribute('title') || el.getAttribute('placeholder') || el.getAttribute('name') || (el.innerText || el.textContent || el.value || '');
     return String(raw).trim().replace(/\\s+/g, ' ').slice(0, 80);
   };
-  const add = (el, role) => {
+  const add = (el, role, fallbackName) => {
     if (elements.length >= cap) return false;
     const ref = 'e' + (elements.length + 1);
     el.setAttribute('data-botharness-ref', ref);
-    elements.push({ ref: ref, role: role, name: nameOf(el) });
+    elements.push({ ref: ref, role: role, name: nameOf(el) || fallbackName || '' });
     return true;
   };
   const wanted = 'a[href],button,input,textarea,select,summary,[role],[contenteditable="true"],[tabindex]';
@@ -236,13 +240,15 @@ export const SNAPSHOT_SCRIPT = `(() => {
     const rect = el.getBoundingClientRect();
     if (rect.width < 8 || rect.height < 8) continue;
     if (getComputedStyle(el).cursor !== 'pointer') continue;
-    if (el.closest(wanted)) continue;
+    if (el.closest('a[href],button,input,textarea,select,summary,[role]')) continue;
     clickables.push(el);
   }
   for (const el of clickables) {
     if (elements.length >= cap) break;
     if (clickables.some((other) => other !== el && el.contains(other))) continue;
-    add(el, 'clickable');
+    const rect = el.getBoundingClientRect();
+    const center = '@' + Math.round(rect.left + rect.width / 2) + ',' + Math.round(rect.top + rect.height / 2);
+    add(el, 'clickable', el.tagName.toLowerCase() + ' ' + center);
   }
   const text = String((document.body && (document.body.innerText || document.body.textContent)) || '').replace(/\\s+/g, ' ').trim().slice(0, 6000);
   return { url: location.href, title: document.title, elements: elements, text: text };
@@ -488,6 +494,20 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
 
   const clickAt = async (tabId: string, x: number, y: number): Promise<BrowserTab> => {
     const sessionId = await attach(tabId);
+    const bounds = asObject(
+      await evaluate(sessionId, '({ width: window.innerWidth, height: window.innerHeight })'),
+    );
+    const width = typeof bounds?.['width'] === 'number' ? bounds['width'] : undefined;
+    const height = typeof bounds?.['height'] === 'number' ? bounds['height'] : undefined;
+    if (
+      width !== undefined &&
+      height !== undefined &&
+      (x < 0 || y < 0 || x > width || y > height)
+    ) {
+      throw new Error(
+        `The coordinates ${Math.round(x)},${Math.round(y)} are outside the viewport (${width}x${height}); take a fresh browser_screenshot and use its coordinates`,
+      );
+    }
     await dispatchMouseClick(sessionId, x, y);
     await waitForReady(sessionId);
     const page = await readPage(sessionId);
@@ -662,6 +682,12 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     if (live === undefined) throw new Error('The Bot Browser is not running');
     const metrics = await live.send('Page.getLayoutMetrics', {}, sessionId).catch(() => undefined);
     const clip = asObject(metrics?.['cssVisualViewport']);
+    const viewport =
+      clip !== undefined &&
+      typeof clip['clientWidth'] === 'number' &&
+      typeof clip['clientHeight'] === 'number'
+        ? { width: clip['clientWidth'], height: clip['clientHeight'] }
+        : undefined;
     const capture = async (): Promise<string | undefined> => {
       const result = await live.send(
         'Page.captureScreenshot',
@@ -692,7 +718,8 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
     };
     try {
       const data = await capture();
-      if (data !== undefined) return { data, mimeType: 'image/jpeg' };
+      if (data !== undefined)
+        return { data, mimeType: 'image/jpeg', ...(viewport === undefined ? {} : { viewport }) };
     } catch {
       void 0;
     }
@@ -703,7 +730,9 @@ export function createBotBrowserRuntime(options: BotBrowserRuntimeOptions): BotB
       focusEmulated.add(sessionId);
     }
     const data = await capture().catch(() => undefined);
-    return data === undefined ? undefined : { data, mimeType: 'image/jpeg' };
+    return data === undefined
+      ? undefined
+      : { data, mimeType: 'image/jpeg', ...(viewport === undefined ? {} : { viewport }) };
   };
 
   const openWindow = async (): Promise<BrowserTab> => {

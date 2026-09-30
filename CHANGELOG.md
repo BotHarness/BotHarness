@@ -164,6 +164,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Browser observation now finds role-less toolbar controls inside editor containers and gives unlabelled ones position-tagged names (`div @x,y`); coordinate clicks outside the viewport fail with a re-screenshot instruction, and screenshots report their viewport size so coordinates map 1:1 ([#530](https://github.com/BotHarness/BotHarness/issues/530)).
 - The Computer viewer now remounts its stream after three consecutive lost samples, then makes at most three automatic attempts before showing the no-picture retry control; manual retry can recover the live desktop ([#456](https://github.com/BotHarness/BotHarness/issues/456)).
 - Recoverable browser tool errors (for example a page whose file input does not exist yet) no longer make a PersonaBot forget its current tab and reopen a new one; only a genuinely closed tab drops the bookkeeping, and `browser_upload` now waits briefly for the page to create its file input after clicking the upload control ([#523](https://github.com/BotHarness/BotHarness/issues/523)).
 - The Bot Browser no longer stops itself seconds after the Human opens it: opening, watching the live view, and taking over in the Browser entry all count as activity, so the idle sweep only stops a genuinely idle browser ([#486](https://github.com/BotHarness/BotHarness/issues/486)).

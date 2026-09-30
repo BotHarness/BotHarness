@@ -164,6 +164,9 @@ function fakeClient(): CdpClient & { calls: { method: string; sessionId?: string
       if (method === 'Runtime.evaluate') {
         const expression = String(params?.['expression'] ?? '');
         if (expression === 'document.readyState') return { result: { value: 'complete' } };
+        if (expression.startsWith('({ width:')) {
+          return { result: { value: { width: 1280, height: 800 } } };
+        }
         if (expression.startsWith('({ url:')) {
           return { result: { value: { url: 'https://example.com/', title: 'Example' } } };
         }
@@ -364,6 +367,30 @@ describe('runtime lifecycle', () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('rejects coordinate clicks outside the viewport with a re-screenshot hint', async () => {
+    const child = fakeChild();
+    spawnMock.mockReturnValue(child.proc as never);
+    const base = fakeClient();
+    const client: CdpClient = {
+      send: async (method, params, sessionId) => base.send(method, params, sessionId),
+      close: () => base.close(),
+    };
+    const runtime = createBotBrowserRuntime({
+      userDataDir: '/tmp/browser-test',
+      platform: 'linux',
+      env: {},
+      fileExists: (path) => path === '/usr/bin/google-chrome',
+      connect: async () => client,
+    });
+    const ensuring = runtime.ensure();
+    child.ready();
+    await ensuring;
+    await runtime.open('https://example.com');
+    await expect(runtime.clickAt('tab-1', 2000, 10)).rejects.toThrow(/outside the viewport/);
+    await expect(runtime.clickAt('tab-1', 100, 100)).resolves.toMatchObject({ tabId: 'tab-1' });
+    expect(base.calls.map((call) => call.method)).toContain('Input.dispatchMouseEvent');
   });
 
   it('waits briefly for the file input after clicking the upload control', async () => {
