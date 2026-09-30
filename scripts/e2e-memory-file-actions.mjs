@@ -214,10 +214,15 @@ try {
     .locator('.bh-memory-commit-header .bh-memory-view-icon-button[aria-haspopup="menu"]')
     .click();
   await menuReady();
-  await page
-    .locator('[role="menuitem"]')
-    .filter((element) => element.textContent?.includes('复制 Host 路径'))
-    .click();
+  let copySelected = false;
+  for (const button of await page.$$('[role="menuitem"]')) {
+    if ((await button.evaluate((element) => element.textContent))?.includes('复制 Host 路径')) {
+      await button.click();
+      copySelected = true;
+      break;
+    }
+  }
+  assert.equal(copySelected, true);
   await page.waitForSelector('[role="menu"]', { hidden: true });
   assert.equal(
     await page.evaluate(() => navigator.clipboard.readText()),
