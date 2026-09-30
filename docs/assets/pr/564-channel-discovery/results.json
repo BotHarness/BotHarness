@@ -1,0 +1,409 @@
+{
+  "baselineRevision": "c2c01f86139713fbfb1c9f997aead4cec1d12bcd",
+  "dshVersion": "0.2.0-rc.1",
+  "schemaMetric": "JSON.stringify({description: tool.description, parameters: tool.parameters}).length after the pinned DSH defineTool conversion, measured in JavaScript UTF-16 code units; not token counts or total prompt size.",
+  "schemas": {
+    "before": [
+      {
+        "tool": "channel_list",
+        "characters": 793,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string",
+              "description": "Exact Channel id to inspect."
+            },
+            "name": {
+              "type": "string",
+              "description": "Case-insensitive Channel name substring."
+            },
+            "type": {
+              "type": "string",
+              "description": "Channel type: group or dm."
+            },
+            "member_bot_ids": {
+              "type": "array",
+              "description": "Require all of these stable PersonaBot IDs as current members.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Opaque nextCursor from the prior page."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Page size from 1 to 100."
+            }
+          }
+        },
+        "description": "List Channels this PersonaBot currently belongs to, including Group, Human DM, and Bot DM Channels and their current Bot members. Filter by name, type, or stable member Bot IDs; use channel_id for one exact Channel."
+      },
+      {
+        "tool": "channel_read",
+        "characters": 1012,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string",
+              "description": "Channel id; defaults to the inbound Channel."
+            },
+            "scope": {
+              "type": "string",
+              "description": "Use joined with text to search all currently joined Channels; otherwise query one Channel."
+            },
+            "text": {
+              "type": "string",
+              "description": "Case-insensitive body substring."
+            },
+            "author_bot_id": {
+              "type": "string",
+              "description": "Stable author PersonaBot ID."
+            },
+            "author_kind": {
+              "type": "string",
+              "description": "Author kind: human, bot, bridged, or system."
+            },
+            "from": {
+              "type": "string",
+              "description": "Inclusive ISO timestamp lower bound."
+            },
+            "to": {
+              "type": "string",
+              "description": "Inclusive ISO timestamp upper bound."
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Opaque nextCursor from the prior page."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Page size from 1 to 200."
+            }
+          }
+        },
+        "description": "Query the full history of a joined Channel. Filter by text, author, or date; follow nextCursor for older results. Omit channel_id to use the Channel that triggered this turn."
+      }
+    ],
+    "after": [
+      {
+        "tool": "channel_list",
+        "characters": 937,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string",
+              "description": "Exact Channel ID; an empty lookup reports no-accessible-match without revealing hidden existence."
+            },
+            "name": {
+              "type": "string",
+              "description": "Case-insensitive Channel name substring."
+            },
+            "type": {
+              "type": "string",
+              "description": "Channel type.",
+              "enum": [
+                "group",
+                "dm"
+              ]
+            },
+            "member_bot_ids": {
+              "type": "array",
+              "description": "Require all of these stable PersonaBot IDs as current members.",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Opaque nextCursor; reuse the same filters."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Default 20; floor and clamp to 1–100. Fractions and out-of-range numbers remain valid."
+            }
+          }
+        },
+        "description": "List Channels this PersonaBot currently belongs to, including Group, Human DM, and Bot DM Channels and their current Bot members. Filter by name, type, or stable member Bot IDs; use channel_id for one exact Channel."
+      },
+      {
+        "tool": "channel_read",
+        "characters": 1206,
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "channel_id": {
+              "type": "string",
+              "description": "Channel id; defaults to the inbound Channel."
+            },
+            "scope": {
+              "type": "string",
+              "description": "Default channel. Joined requires nonblank text and forbids channel_id.",
+              "enum": [
+                "channel",
+                "joined"
+              ]
+            },
+            "text": {
+              "type": "string",
+              "description": "Trimmed, case-insensitive body substring."
+            },
+            "author_bot_id": {
+              "type": "string",
+              "description": "Stable Bot author ID; author_kind must be bot or omitted."
+            },
+            "author_kind": {
+              "type": "string",
+              "description": "Author kind; only bot is compatible with author_bot_id.",
+              "enum": [
+                "human",
+                "bot",
+                "bridged",
+                "system"
+              ]
+            },
+            "from": {
+              "type": "string",
+              "description": "Inclusive timestamp lower bound; YYYY-MM-DD starts at UTC midnight. Invalid or reversed ranges fail."
+            },
+            "to": {
+              "type": "string",
+              "description": "Inclusive timestamp upper bound; YYYY-MM-DD includes the whole UTC day."
+            },
+            "cursor": {
+              "type": "string",
+              "description": "Opaque nextCursor; reuse the same filters."
+            },
+            "limit": {
+              "type": "number",
+              "description": "Default 20; floor and clamp to 1–200. Fractions and out-of-range numbers remain valid."
+            }
+          }
+        },
+        "description": "Query joined Channel history or search across joined Channels; follow nextCursor with unchanged filters."
+      }
+    ]
+  },
+  "compatibility": "Integer is supported; minimum and maximum are rejected by the pinned converter. These Tools intentionally retain number limits with default 20 and floor/clamp (list 1–100, read 1–200); no fractional/out-of-range compatibility removal.",
+  "fixture": "Two fresh isolated Profiles; same synthetic Bot and Group names. Production Human bridge commits four Group records in joined Teams and one private record; creator/member IDs and message IDs are generated per Profile. A real model follows list/history/joined cursors and probes required failures. Search bounds end before the QA prompt so DM instructions cannot match seed records.",
+  "before": {
+    "stage": "before",
+    "filteredDiscovery": [
+      {
+        "id": "group-qa564-team-a",
+        "name": "QA564 Team A",
+        "type": "group",
+        "kind": "group",
+        "members": [
+          {
+            "botId": "bot-20353d99080c44f09f8124018aebb602",
+            "displayName": "QA Researcher 564",
+            "active": true
+          }
+        ]
+      },
+      {
+        "id": "group-qa564-team-b",
+        "name": "QA564 Team B",
+        "type": "group",
+        "kind": "group",
+        "members": [
+          {
+            "botId": "bot-20353d99080c44f09f8124018aebb602",
+            "displayName": "QA Researcher 564",
+            "active": true
+          }
+        ]
+      }
+    ],
+    "historyBodies": [
+      "QA564_RECORD alpha 2",
+      "QA564_RECORD alpha 1"
+    ],
+    "joinedBodies": [
+      "QA564_RECORD beta 2",
+      "QA564_RECORD beta 1",
+      "QA564_RECORD alpha 2",
+      "QA564_RECORD alpha 1"
+    ],
+    "exactLookup": {
+      "channels": []
+    },
+    "normalEmpty": {
+      "channels": []
+    },
+    "errors": [
+      {
+        "tool": "channel_read",
+        "args": {
+          "from": "2026-09-30T16:19:51.873Z",
+          "limit": 2,
+          "scope": "joined",
+          "to": "2026-09-30T16:19:51.881Z"
+        },
+        "error": "Error: Cross-Channel text query must not be blank"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "channel_id": "group-qa564-team-a",
+          "limit": 2,
+          "scope": "joined",
+          "text": "QA564_RECORD"
+        },
+        "error": "Error: channel_read: channel_id cannot be combined with joined scope"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "author_bot_id": "bot-35e0fa25e431428eaac399e184957e3d",
+          "author_kind": "human",
+          "channel_id": "group-qa564-team-a",
+          "limit": 2
+        },
+        "error": "Error: channel_read: author_bot_id requires author_kind bot"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "channel_id": "group-qa564-private",
+          "limit": 2
+        },
+        "error": "Error: PersonaBot bot-20353d99080c44f09f8124018aebb602 is not a member of Channel group-qa564-private"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "channel_id": "group-qa564-missing",
+          "limit": 2
+        },
+        "error": "Error: Unknown Channel: group-qa564-missing"
+      }
+    ],
+    "verified": {
+      "filteredDiscovery": true,
+      "listPagination": true,
+      "historyPagination": true,
+      "joinedPagination": true,
+      "privateMessageExcluded": true,
+      "identicalExactNoMatch": true,
+      "normalEmptyValid": true,
+      "requiredTextRefused": true,
+      "scopeConflictRefused": true,
+      "authorConflictRefused": true,
+      "unauthorizedReadRefused": true
+    }
+  },
+  "after": {
+    "stage": "after",
+    "filteredDiscovery": [
+      {
+        "id": "group-qa564-team-a",
+        "name": "QA564 Team A",
+        "type": "group",
+        "kind": "group",
+        "members": [
+          {
+            "botId": "bot-5054a1e4d87e42f2b11faf5a728c3adc",
+            "displayName": "QA Researcher 564",
+            "active": true
+          }
+        ]
+      },
+      {
+        "id": "group-qa564-team-b",
+        "name": "QA564 Team B",
+        "type": "group",
+        "kind": "group",
+        "members": [
+          {
+            "botId": "bot-5054a1e4d87e42f2b11faf5a728c3adc",
+            "displayName": "QA Researcher 564",
+            "active": true
+          }
+        ]
+      }
+    ],
+    "historyBodies": [
+      "QA564_RECORD alpha 2",
+      "QA564_RECORD alpha 1"
+    ],
+    "joinedBodies": [
+      "QA564_RECORD beta 2",
+      "QA564_RECORD beta 1",
+      "QA564_RECORD alpha 2",
+      "QA564_RECORD alpha 1"
+    ],
+    "exactLookup": {
+      "channels": [],
+      "outcome": "no-accessible-match"
+    },
+    "normalEmpty": {
+      "channels": []
+    },
+    "errors": [
+      {
+        "tool": "channel_read",
+        "args": {
+          "scope": "joined"
+        },
+        "error": "Error: Cross-Channel text query must not be blank"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "scope": "joined",
+          "text": "QA564_RECORD",
+          "channel_id": "group-qa564-team-a"
+        },
+        "error": "Error: channel_read: channel_id cannot be combined with joined scope"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "channel_id": "group-qa564-team-a",
+          "author_bot_id": "bot-a997f76631e041fd865ffc7f5c31fb4b",
+          "author_kind": "human"
+        },
+        "error": "Error: channel_read: author_bot_id requires author_kind bot"
+      },
+      {
+        "tool": "channel_read",
+        "args": {
+          "channel_id": "group-qa564-private"
+        },
+        "error": "Error: PersonaBot bot-5054a1e4d87e42f2b11faf5a728c3adc is not a member of Channel group-qa564-private"
+      }
+    ],
+    "verified": {
+      "filteredDiscovery": true,
+      "listPagination": true,
+      "historyPagination": true,
+      "joinedPagination": true,
+      "privateMessageExcluded": true,
+      "identicalExactNoMatch": true,
+      "normalEmptyValid": true,
+      "requiredTextRefused": true,
+      "scopeConflictRefused": true,
+      "authorConflictRefused": true,
+      "unauthorizedReadRefused": true
+    }
+  },
+  "verification": {
+    "focusedPassed": 13,
+    "fullPassed": 1397,
+    "fullSkipped": 1,
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed",
+    "ledger": "passed",
+    "docsBuild": "passed: 252 pages"
+  },
+  "captureNote": "Initial native Channel/Client startup waits timed out and were retained locally. Published captures were inspected after the native views loaded; no product startup fix is claimed.",
+  "regressionControl": "The final valid fixture fails on exactly two baseline contract expectations (enums and exact no-match outcome); the candidate passes all nine new tests. Initial authoring failures from invalid system-message metadata, recipient callback scope and generic JSON-node typing were corrected in the test fixture; no persistence change is claimed."
+}
