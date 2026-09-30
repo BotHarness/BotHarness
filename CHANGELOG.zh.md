@@ -112,6 +112,8 @@
 
 ### Changed
 
+- Attention Tools 现在明确列出 Assignment 报告与普通群消息的完整参数组合，digest 参数使用整数 schema，并在非群 digest 模式下明确拒绝这些参数且不改变策略修订；Human 覆盖与后续 Inbox 快照继续共用同一权威（[#567](https://github.com/BotHarness/BotHarness/issues/567)）。
+
 - Channel 读取现在返回有界的可行动内容并明确提供继续读取路径，保留回复、可信附件和行动引用；未返回或仅读取部分内容的消息仍在 Bot Inbox 中保持待处理（[#565](https://github.com/BotHarness/BotHarness/issues/565)）。
 
 - 入群邀请默认由 Host 自动接受，无需唤醒受邀 PersonaBot；Human 可在 Bot 设置中关闭自动接受，保留 Bot 自行决定的流程，已解决的邀请在重投或重启后不会再次唤醒（[#371](https://github.com/BotHarness/BotHarness/issues/371)、[ADR-0073](docs/adr/0073-group-membership-is-invitation-first-with-auto-accept.md)）。
