@@ -1,0 +1,428 @@
+import { createHash, randomUUID } from 'node:crypto';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it, vi } from 'vitest';
+import { createPersonaBotRegistry } from '../src/bots/registry.js';
+import { createBotRuntime } from '../src/runtime/bot-runtime.js';
+import { createTestWorkspaceGrants } from './workspace-grant-fixture.js';
+import { createAttachmentStore } from '../src/attachments/store.js';
+import { createAttachmentHttp } from '../src/attachments/http.js';
+import { createMessageAttachmentFiles } from '../src/attachments/message-files.js';
+import { createSqliteChannelStore } from '../src/channels/sqlite-store.js';
+import { attachOperationalModule, mountOperationalDatabase } from '../src/database/owner.js';
+import { BOT_HARNESS_SCHEMA_PLAN } from '../src/database/schema-plan.js';
+import { boundModelPage, readModelContent } from '../src/runtime/channel-model-read.js';
+import { createTempRoot, trackTestOwner } from './helpers.js';
+
+function fixture(members: string[] = []) {
+  const home = createTempRoot();
+  const files = createAttachmentStore({ rootDir: join(home, 'attachments') });
+  const owner = trackTestOwner(
+    mountOperationalDatabase({ dshHome: home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+  );
+  const database = attachOperationalModule(owner, 'messaging');
+  const logs: string[] = [];
+  const channels = createSqliteChannelStore({
+    database,
+    rootDir: join(home, 'channels'),
+    attachments: files,
+    warn: (message) => logs.push(message),
+  });
+  const channel = channels.createGroup({ name: 'Legacy files', members });
+  const body = 'Original legacy transferred bytes';
+  const hash = 'sha256:' + createHash('sha256').update(body).digest('hex');
+  const path = join(files.rootDir, 'objects', hash.slice(7, 9), hash.slice(7));
+  mkdirSync(join(files.rootDir, 'objects', hash.slice(7, 9)), { recursive: true });
+  writeFileSync(path, body);
+  const ref = { hash, name: '报告 notes.txt', mime: 'text/plain', size: Buffer.byteLength(body) };
+  const seed = (id: string, refs = [ref]) => {
+    const sourceEventId = randomUUID();
+    const message = {
+      id,
+      at: new Date().toISOString(),
+      author: { kind: 'human' },
+      body: 'retained message text',
+      attachments: refs,
+    };
+    const { body: text, ...envelope } = message;
+    database.transaction((db) => {
+      db.prepare(
+        `INSERT INTO source_events (source_event_id, source_kind, bot_slug, channel_id, message_id, body, created_at, payload_json) VALUES (?, 'human-message', '', ?, ?, ?, ?, ?)`,
+      ).run(sourceEventId, channel.id, id, text, message.at, JSON.stringify(envelope));
+      const revision = Number(
+        db
+          .prepare(
+            'SELECT COALESCE(MAX(revision), 0) + 1 AS next FROM channel_placements WHERE channel_id = ?',
+          )
+          .get(channel.id)!.next,
+      );
+      db.prepare(
+        'INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id) VALUES (?, ?, ?, ?)',
+      ).run(channel.id, revision, sourceEventId, id);
+    }, []);
+    return sourceEventId;
+  };
+  const facts = () =>
+    database.read((db) =>
+      JSON.parse(
+        JSON.stringify({
+          events: db.prepare('SELECT * FROM source_events ORDER BY source_event_id').all(),
+          admissions: db
+            .prepare('SELECT * FROM inbox_admissions ORDER BY source_event_id, bot_slug')
+            .all(),
+          placements: db
+            .prepare('SELECT * FROM channel_placements ORDER BY channel_id, revision')
+            .all(),
+        }),
+      ),
+    );
+  const get = (identity: string, messageId: string, channelId = channel.id) =>
+    createAttachmentHttp(
+      files,
+      channels,
+    )(
+      new Request(
+        'http://local/api/botharness/attachment?' +
+          new URLSearchParams({
+            ...(identity.startsWith('file:') ? { fileId: identity } : { hash: identity }),
+            channelId,
+            messageId,
+          }),
+      ),
+    );
+  return {
+    home,
+    files,
+    owner,
+    database,
+    channels,
+    channel,
+    body,
+    hash,
+    path,
+    ref,
+    seed,
+    facts,
+    get,
+    logs,
+  };
+}
+
+describe('retained legacy attachment migration', () => {
+  it('preserves immutable facts, independent equal-content occurrences and explicit canonical identity reuse', async () => {
+    const f = fixture();
+    f.seed('first');
+    f.seed('independent');
+    const shared = f.channels.createGroup({ name: 'Shared retained placement', members: [] });
+    let facts = f.facts();
+    const notifications: unknown[] = [];
+    const unsubscribe = f.owner.subscribe((event) => notifications.push(event));
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 2, failed: 0, resumed: 0 });
+    expect(f.facts()).toEqual(facts);
+    expect(notifications).toEqual([]);
+    unsubscribe();
+    const first = f.channels.message(f.channel.id, 'first')!;
+    const independent = f.channels.message(f.channel.id, 'independent')!;
+    const a = first.attachments![0]!;
+    const b = independent.attachments![0]!;
+    expect(a.fileId).toMatch(/^file:/);
+    expect(a.hash).toBeUndefined();
+    expect(a.fileId).not.toBe(b.fileId);
+    await f.channels.appendMessage(shared.id, {
+      id: 'explicit-shared',
+      at: new Date().toISOString(),
+      author: { kind: 'human' },
+      body: 'Explicit canonical reuse',
+      attachments: [a],
+    });
+    expect(f.channels.message(shared.id, 'explicit-shared')?.attachments?.[0]?.fileId).toBe(
+      a.fileId,
+    );
+    facts = f.facts();
+    const access = createMessageAttachmentFiles(f.channels, f.files);
+    const target = access.target(f.channel.id, 'first', a.fileId!);
+    writeFileSync(target.path, 'Edited current destination');
+    expect(await (await f.get(f.hash, 'first')).text()).toBe('Edited current destination');
+    expect(await (await f.get(a.fileId!, 'first')).text()).toBe('Edited current destination');
+    expect(await (await f.get(a.fileId!, 'explicit-shared', shared.id)).text()).toBe(
+      'Edited current destination',
+    );
+    expect(await (await f.get(f.hash, 'independent')).text()).toBe(f.body);
+    expect(readFileSync(f.path, 'utf8')).toBe(f.body);
+    const refreshed = f.channels.message(f.channel.id, 'first')!;
+    const view = { channelId: f.channel.id, channelName: f.channel.name, message: refreshed };
+    expect(
+      JSON.parse(boundModelPage({ messages: [view] }, () => undefined).output).messages[0].message
+        .attachments[0],
+    ).toEqual(f.files.current(a));
+    expect(readModelContent(view).output).toContain(a.fileId!);
+    expect(readModelContent(view).output).not.toContain(f.home);
+    expect(
+      f.channels.queryMessages(f.channel.id).messages.find((message) => message.id === 'first')
+        ?.attachments,
+    ).toEqual(refreshed.attachments);
+    expect(f.facts()).toEqual(facts);
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 0, failed: 0, resumed: 0 });
+    expect(readFileSync(target.path, 'utf8')).toBe('Edited current destination');
+    expect(
+      (
+        await createAttachmentHttp(
+          f.files,
+          f.channels,
+        )(new Request('http://local/api/botharness/attachment?hash=' + f.hash))
+      ).status,
+    ).toBe(400);
+    expect((await f.get(f.hash, 'wrong')).status).toBe(404);
+    expect(() => f.channels.assertAttachmentRefs([f.ref])).toThrow('obsolete hash');
+    expect(() => f.channels.assertAttachmentRefs([f.files.current(a)])).not.toThrow();
+    rmSync(target.path);
+    await f.channels.migrateAttachments!();
+    expect((await f.get(f.hash, 'first')).status).toBe(404);
+    expect(existsSync(target.path)).toBe(false);
+  });
+
+  it('keeps same-hash entries within one message independent and refuses an ambiguous old hash', async () => {
+    const f = fixture();
+    f.seed('duplicates', [f.ref, f.ref]);
+    await f.channels.migrateAttachments!();
+    const refs = f.channels.message(f.channel.id, 'duplicates')!.attachments!;
+    expect(refs[0]!.fileId).not.toBe(refs[1]!.fileId);
+    expect((await f.get(f.hash, 'duplicates')).status).toBe(400);
+    expect(await (await f.get(refs[0]!.fileId!, 'duplicates')).text()).toBe(f.body);
+    expect(() => f.channels.attachmentReference!(f.channel.id, 'duplicates', f.hash)).toThrow(
+      'Ambiguous',
+    );
+  });
+
+  it('resumes the reserved identity after interruption between file publication and reference activation', async () => {
+    const f = fixture();
+    f.seed('interrupted');
+    const controller = new AbortController();
+    const upload = f.files.upload.bind(f.files);
+    const hook = vi.spyOn(f.files, 'upload').mockImplementation(async (input) => {
+      const ref = await upload(input);
+      controller.abort();
+      return ref;
+    });
+    expect((await f.channels.migrateAttachments!(controller.signal)).converted).toBe(0);
+    hook.mockRestore();
+    const pending = f.database.read((db) =>
+      db.prepare('SELECT file_id, state FROM attachment_file_bindings').get(),
+    )!;
+    expect(pending.state).toBe('pending');
+    expect(
+      f.files.sweepUnreferenced(new Date(Date.now() + 1000), () =>
+        f.channels.referencedAttachmentHashes(),
+      ),
+    ).toBe(0);
+    const files = createAttachmentStore({ rootDir: f.files.rootDir });
+    f.owner.close();
+    const owner = trackTestOwner(
+      mountOperationalDatabase({ dshHome: f.home, schemaPlan: BOT_HARNESS_SCHEMA_PLAN }),
+    );
+    const database = attachOperationalModule(owner, 'messaging');
+    const channels = createSqliteChannelStore({
+      database,
+      rootDir: f.channels.rootDir,
+      attachments: files,
+    });
+    expect(await channels.migrateAttachments!()).toEqual({ converted: 1, failed: 0, resumed: 1 });
+    expect(channels.message(f.channel.id, 'interrupted')?.attachments?.[0]?.fileId).toBe(
+      pending.file_id,
+    );
+    const path = files.fileTarget(String(pending.file_id)).path;
+    writeFileSync(path, 'external save after migration');
+    await channels.migrateAttachments!();
+    expect(readFileSync(path, 'utf8')).toBe('external save after migration');
+    expect(
+      database.read(
+        (db) => db.prepare('SELECT COUNT(*) AS count FROM attachment_file_bindings').get()!.count,
+      ),
+    ).toBe(1);
+  });
+
+  it('preserves readable old bytes on conversion failure and protects mixed-state cleanup until every dependency is converted', async () => {
+    const f = fixture();
+    f.seed('failed');
+    f.seed('converted');
+    const upload = f.files.upload.bind(f.files);
+    const hook = vi
+      .spyOn(f.files, 'upload')
+      .mockRejectedValueOnce(new Error('interrupted destination operation'))
+      .mockImplementation(upload);
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 1, failed: 1, resumed: 0 });
+    hook.mockRestore();
+    expect(await (await f.get(f.hash, 'failed')).text()).toBe(f.body);
+    expect(f.channels.message(f.channel.id, 'failed')!.attachments![0]).toEqual(f.ref);
+    expect(f.channels.message(f.channel.id, 'converted')!.attachments![0]!.fileId).toBeDefined();
+    expect(
+      f.logs.some(
+        (line) =>
+          line.includes('phase=refused') &&
+          line.includes('action=repair-legacy-object-and-restart'),
+      ),
+    ).toBe(true);
+    expect(f.logs.join('\n')).not.toContain(f.home);
+    expect(
+      f.files.sweepUnreferenced(new Date(Date.now() + 1000), () =>
+        f.channels.referencedAttachmentHashes(),
+      ),
+    ).toBe(0);
+    expect(existsSync(f.path)).toBe(true);
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 1, failed: 0, resumed: 1 });
+    f.channels.deleteGroup(f.channel.id);
+    expect(
+      f.files.sweepUnreferenced(new Date(Date.now() + 1000), () =>
+        f.channels.referencedAttachmentHashes(),
+      ),
+    ).toBe(1);
+    expect(existsSync(f.path)).toBe(false);
+    const refs = f.database.read((db) =>
+      db.prepare("SELECT file_id FROM attachment_file_bindings WHERE state = 'ready'").all(),
+    );
+    for (const row of refs)
+      expect(existsSync(f.files.fileTarget(String(row.file_id)).path)).toBe(true);
+  });
+
+  it('shares one conversion operation for concurrent callers and closes an unconsumed source on refusal', async () => {
+    const f = fixture();
+    f.seed('concurrent');
+    const cancel = vi.fn();
+    const download = f.files.download.bind(f.files);
+    const hook = vi
+      .spyOn(f.files, 'download')
+      .mockImplementation(async (identity, name, signal) => {
+        const value = await download(identity, name, signal);
+        await value.body.cancel();
+        return { ...value, body: new ReadableStream({ cancel }) };
+      });
+    const upload = vi
+      .spyOn(f.files, 'upload')
+      .mockRejectedValue(new Error('destination unavailable'));
+    const first = f.channels.migrateAttachments!();
+    expect(f.channels.migrateAttachments!()).toBe(first);
+    expect(await first).toEqual({ converted: 0, failed: 1, resumed: 0 });
+    expect(cancel).toHaveBeenCalledOnce();
+    hook.mockRestore();
+    upload.mockRestore();
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 1, failed: 0, resumed: 1 });
+  });
+
+  it('refuses a converted destination changed before activation, preserving readable legacy bytes and the pending destination', async () => {
+    const f = fixture();
+    f.seed('verification');
+    const upload = f.files.upload.bind(f.files);
+    let path = '';
+    const hook = vi.spyOn(f.files, 'upload').mockImplementation(async (input) => {
+      const ref = await upload(input);
+      path = f.files.fileTarget(ref.fileId!).path;
+      writeFileSync(path, 'External edit before activation');
+      return ref;
+    });
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 0, failed: 1, resumed: 0 });
+    hook.mockRestore();
+    expect((await f.get(f.hash, 'verification')).status).toBe(200);
+    expect(await (await f.get(f.hash, 'verification')).text()).toBe(f.body);
+    expect(f.channels.message(f.channel.id, 'verification')!.attachments![0]).toEqual(f.ref);
+    expect(readFileSync(path, 'utf8')).toBe('External edit before activation');
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 0, failed: 1, resumed: 1 });
+    expect(readFileSync(path, 'utf8')).toBe('External edit before activation');
+    const row = f.database.read((db) =>
+      db.prepare('SELECT file_id, state, last_error FROM attachment_file_bindings').get(),
+    )!;
+    expect(row.state).toBe('pending');
+    expect(row.last_error).toBe('corrupt');
+    writeFileSync(path, f.body);
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 1, failed: 0, resumed: 1 });
+    expect(f.channels.message(f.channel.id, 'verification')!.attachments![0]!.fileId).toBe(
+      row.file_id,
+    );
+  });
+
+  it('refuses damaged legacy bytes before publishing a destination and resumes after source repair', async () => {
+    const f = fixture();
+    f.seed('damaged-source');
+    writeFileSync(f.path, 'Damaged legacy object');
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 0, failed: 1, resumed: 0 });
+    const row = f.database.read((db) =>
+      db.prepare('SELECT file_id, state FROM attachment_file_bindings').get(),
+    )!;
+    expect(row.state).toBe('pending');
+    expect(
+      f.files.has({
+        name: f.ref.name,
+        mime: f.ref.mime,
+        size: f.ref.size,
+        fileId: String(row.file_id),
+      }),
+    ).toBe(false);
+    writeFileSync(f.path, f.body);
+    expect(await f.channels.migrateAttachments!()).toEqual({ converted: 1, failed: 0, resumed: 1 });
+    expect(await (await f.get(String(row.file_id), 'damaged-source')).text()).toBe(f.body);
+  });
+
+  it('reads a migrated image through cached legacy and canonical model references using current bytes and membership', async () => {
+    const f = fixture(['ada']);
+    const registry = createPersonaBotRegistry({ rootDir: join(f.home, 'bots') });
+    expect(registry.create({ slug: 'ada', displayName: 'Ada' }).ok).toBe(true);
+    const bytes = Uint8Array.from([137, 80, 78, 71, 13, 10, 26, 10, 1, 2, 3]);
+    const hash = 'sha256:' + createHash('sha256').update(bytes).digest('hex');
+    const dir = join(f.files.rootDir, 'objects', hash.slice(7, 9));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, hash.slice(7)), bytes);
+    f.seed('legacy-image', [{ hash, name: 'visual.png', mime: 'image/png', size: bytes.length }]);
+    await f.channels.migrateAttachments!();
+    const ref = f.channels.message(f.channel.id, 'legacy-image')!.attachments![0]!;
+    const dm = f.channels.getOrCreateDm('ada', 'Ada')!;
+    await f.channels.appendMessage(dm.id, {
+      id: 'inspect',
+      at: new Date().toISOString(),
+      author: { kind: 'human' },
+      body: 'Inspect migrated image',
+    });
+    let inspected = false;
+    const runtime = createBotRuntime({
+      database: f.owner,
+      registry,
+      channels: f.channels,
+      attachments: f.files,
+      grants: createTestWorkspaceGrants(f.owner, f.home),
+      agents: {
+        runOrchestrator: async (run) => {
+          const read = run.channels.readAttachment!;
+          const input = { channelId: f.channel.id, messageId: 'legacy-image', maxBytes: 1024 };
+          expect((await read({ ...input, hash })).data).toEqual(bytes);
+          const edited = Uint8Array.from([...bytes, 4, 5]);
+          writeFileSync(f.files.fileTarget(ref.fileId!).path, edited);
+          expect((await read({ ...input, hash })).data).toEqual(edited);
+          expect((await read({ ...input, attachmentId: ref.fileId! })).data).toEqual(edited);
+          await expect(read({ ...input, hash, maxBytes: bytes.length })).rejects.toThrow(
+            'read limit',
+          );
+          await expect(read({ ...input, hash, messageId: 'wrong' })).rejects.toThrow('not found');
+          const privateChannel = f.channels.createGroup({ name: 'Private', members: [] });
+          await expect(read({ ...input, hash, channelId: privateChannel.id })).rejects.toThrow(
+            'not a member',
+          );
+          inspected = true;
+        },
+        runAssignment: async () => undefined,
+        requestAssignment: () => ({ delivery: 'followup' as const, done: Promise.resolve() }),
+        close: async () => undefined,
+      },
+    });
+    try {
+      const admission = runtime.admitDmMessage({
+        channelId: dm.id,
+        messageId: 'inspect',
+        body: 'Inspect migrated image',
+      });
+      expect(admission.admitted).toBe(true);
+      if (!admission.admitted) throw new Error('Image inspection admission refused');
+      await admission.settled;
+      expect(inspected).toBe(true);
+    } finally {
+      await runtime.close();
+    }
+  });
+});

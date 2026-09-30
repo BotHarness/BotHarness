@@ -585,7 +585,10 @@ export function channelAttachmentUrl(
     if (owner === undefined) throw new Error('Message ownership is required for real attachments');
     return '/api/botharness/attachment?' + new URLSearchParams({ ...owner, fileId: ref.fileId });
   }
-  return `/api/botharness/attachment?hash=${encodeURIComponent(ref.hash)}&name=${encodeURIComponent(ref.name)}`;
+  return (
+    '/api/botharness/attachment?' +
+    new URLSearchParams({ hash: ref.hash, name: ref.name, ...owner })
+  );
 }
 
 export async function uploadChannelAttachment(

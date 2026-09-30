@@ -1,9 +1,9 @@
 flowchart TB
   subgraph Profile["One DSH profile"]
-    DB[("botharness.db<br/>operational authority")]
+    DB[("botharness.db<br/>operational authority + attachment bindings")]
     Files["Optional Memory repositories<br/>Markdown · Git authority"]
     Attachments["Attachment files + identity records"]
-    CAS["Legacy attachment / Soul CAS bytes"]
+    CAS["Pending legacy attachment / Soul CAS bytes"]
     DSHS["DSH SessionPersistence<br/>transcripts · execution"]
     Creds["DSH credentials / settings"]
   end
