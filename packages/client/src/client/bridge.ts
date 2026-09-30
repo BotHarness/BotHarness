@@ -205,6 +205,7 @@ export interface BotSourcePolicyView {
     | 'assignment-lifecycle';
   admission: 'admit';
   wake: 'immediate' | 'digest' | 'conditional' | 'mentions' | 'silent';
+  delivery: 'steer' | 'turn';
   digestCount?: number;
   digestIntervalSeconds?: number;
   revision: number;
@@ -221,6 +222,11 @@ export type BotSourcePolicyEdit =
       wake: 'immediate' | 'digest' | 'mentions' | 'silent';
       digestCount: number;
       digestIntervalSeconds: number;
+    }
+  | {
+      sourceClass: 'human-dm' | 'bot-dm' | 'group-mention';
+      wake: 'immediate';
+      delivery: 'steer' | 'turn';
     };
 
 export async function loadBotSourcePolicies(

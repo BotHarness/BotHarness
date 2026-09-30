@@ -64,6 +64,11 @@ export interface BotSourcePolicyStore {
     delivery: 'steer' | 'turn',
     actor: BotSourcePolicyEditor,
   ): BotSourcePolicy;
+  resetImmediateDelivery(
+    botSlug: string,
+    sourceClass: 'human-dm' | 'bot-dm' | 'group-mention',
+    actor: BotSourcePolicyEditor,
+  ): BotSourcePolicy;
 }
 
 export function defaultGroupWakePolicy(policy: BotSourcePolicy): GroupWakePolicy {
@@ -329,6 +334,9 @@ export function createBotSourcePolicyStore(
         true,
         delivery,
       );
+    },
+    resetImmediateDelivery(botSlug, sourceClass, actor) {
+      return changeSourcePolicy(botSlug, sourceClass, 'immediate', null, null, actor, false);
     },
     resetGroupOrdinary(botSlug, actor) {
       const builtIn = BOT_SOURCE_DEFAULTS['group-ordinary'];

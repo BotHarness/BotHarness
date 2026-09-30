@@ -1662,6 +1662,19 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
             ok: true,
             value: { policy: deps.sourcePolicy.resetGroupOrdinary(slug, { kind: 'human' }) },
           };
+        if (
+          sourceClass === 'human-dm' ||
+          sourceClass === 'bot-dm' ||
+          sourceClass === 'group-mention'
+        )
+          return {
+            ok: true,
+            value: {
+              policy: deps.sourcePolicy.resetImmediateDelivery(slug, sourceClass, {
+                kind: 'human',
+              }),
+            },
+          };
         if (sourceClass !== 'assignment-report')
           return invalidInput('Source class is not editable');
         return {
