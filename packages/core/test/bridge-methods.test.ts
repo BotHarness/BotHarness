@@ -85,6 +85,61 @@ afterEach(() => {
 });
 
 describe('bridge methods', () => {
+  it('shows Assignment-default failure in Profile while the Orchestrator route still works', async () => {
+    const working = { provider: 'selected-provider', model: 'working' };
+    const missing = { provider: 'selected-provider', model: 'missing' };
+    const catalog: ModelCatalog = {
+      list: async () => [],
+      validate: async (route) => {
+        if (route.model === 'missing') throw new Error('Assignment model is unavailable');
+      },
+    };
+    const { registry, methods, modelPresets } = setup(
+      [],
+      ['ada'],
+      undefined,
+      createTestOwnership(),
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      catalog,
+    );
+    registry.create({ slug: 'ada', displayName: 'Ada' });
+    registry.applyModelPreset(
+      'ada',
+      modelPresets.create({
+        name: 'Broken Assignment default',
+        orchestrator: working,
+        assignmentDefault: missing,
+      }),
+    );
+    expect(await methods.modelPlan({ slug: 'ada' })).toMatchObject({
+      ok: true,
+      value: {
+        plan: { orchestrator: working, assignmentDefault: missing },
+        repair: {
+          code: 'route-unavailable',
+          message: expect.stringContaining('Assignment model is unavailable'),
+        },
+      },
+    });
+    const readiness = createModelRouteReadiness(registry, catalog);
+    await expect(readiness.prepare('ada', 'orchestrator')).resolves.toBeUndefined();
+    await expect(readiness.prepare('ada', 'assignment')).rejects.toThrow(
+      'select an available Model Preset',
+    );
+    const preset = modelPresets.create({
+      name: 'Repaired',
+      orchestrator: working,
+      assignmentDefault: working,
+    });
+    await methods.modelPresetApply({ slug: 'ada', presetId: preset.id });
+    const repaired = await methods.modelPlan({ slug: 'ada' });
+    if (!repaired.ok) throw new Error('Profile repair query failed');
+    expect(repaired.value.repair).toBeUndefined();
+    await expect(readiness.prepare('ada', 'assignment')).resolves.toBeUndefined();
+  });
   it('migrates an unambiguous legacy model through the public Profile query and preserves its Agent preset', async () => {
     const catalog: ModelCatalog = {
       list: async () => [

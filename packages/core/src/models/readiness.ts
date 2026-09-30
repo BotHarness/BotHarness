@@ -63,18 +63,17 @@ export function createModelRouteReadiness(
     async inspect(slug) {
       const state = await migrate(slug);
       if (state.plan === undefined) return state;
-      try {
-        await catalog.validate(state.plan.orchestrator);
-        return state;
-      } catch (failure) {
-        return {
-          ...state,
-          repair: {
-            code: 'route-unavailable',
-            message: repairMessage(state.plan.orchestrator, failure),
-          },
-        };
+      for (const route of [state.plan.orchestrator, state.plan.assignmentDefault]) {
+        try {
+          await catalog.validate(route);
+        } catch (failure) {
+          return {
+            ...state,
+            repair: { code: 'route-unavailable', message: repairMessage(route, failure) },
+          };
+        }
       }
+      return state;
     },
     async prepare(slug, role, retainedRoute) {
       const state = await migrate(slug);
