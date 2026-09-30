@@ -1276,7 +1276,7 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         })
         .safeParse(source);
       if (!parsed.success) return invalidInput('invalid channelTimeline payload');
-      const page = deps.channels.readTimeline(channelId, parsed.data);
+      const page = deps.channels.readHumanTimeline(channelId, parsed.data);
       if (page === undefined) return invalidInput('invalid or expired timeline anchor');
       return { ok: true, value: { page, revision: deps.channels.revision(channelId) } };
     },
@@ -1426,6 +1426,16 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
       if (channel === undefined) return unknownChannel(channelId);
       if (channel.type === 'dm' && channel.botSlug === undefined)
         return invalidInput('Bot-to-Bot DMs are read-only for Human');
+      if (
+        replyTo !== undefined &&
+        deps.channels.readHumanTimeline(channelId, {
+          direction: 'around',
+          around: replyTo,
+          olderLimit: 0,
+          newerLimit: 0,
+        }) === undefined
+      )
+        return invalidInput('Reply target must exist in this Channel');
       const memorySwitchTarget = source['memorySwitchTarget'];
       if (
         memorySwitchTarget !== undefined &&

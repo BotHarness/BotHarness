@@ -6,6 +6,7 @@ import { useClientState } from './bot-sidebar.js';
 import { zhTranslate, type BotHarnessTranslate } from './locale.js';
 import type { HumanAttentionItem, HumanInboxCategory } from './store.js';
 import { useMountedResource } from './mounted-resource.js';
+import { HumanInboxReply } from './human-inbox-reply.js';
 
 export function HumanInboxView({
   actions,
@@ -18,6 +19,7 @@ export function HumanInboxView({
   const inbox = state.humanInbox;
   const [busyId, setBusyId] = useState<string>();
   const [actionError, setActionError] = useState<string>();
+  const [replySource, setReplySource] = useState<HumanAttentionItem>();
 
   const mount = useMountedResource<HTMLDivElement>(() => {
     const timer = window.setInterval(() => {
@@ -213,6 +215,16 @@ export function HumanInboxView({
             )}
           </p>
         ) : null}
+        {replySource === undefined ? null : (
+          <HumanInboxReply
+            key={replySource.channelId + ':' + replySource.messageId}
+            source={replySource}
+            actions={actions}
+            t={t}
+            botName={botName}
+            onClose={() => setReplySource(undefined)}
+          />
+        )}
         <div role="list">
           {inbox.items.map((item) => (
             <article key={item.id} role="listitem" className="bh-human-inbox-row">
@@ -276,6 +288,11 @@ export function HumanInboxView({
                 ) : null}
               </div>
               <div className="bh-human-inbox-row-actions">
+                {item.kind === 'channel-unread' ? (
+                  <button type="button" onClick={() => setReplySource(item)}>
+                    {t('humanInbox.reply')}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() =>
