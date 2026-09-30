@@ -34,6 +34,13 @@ import type {
   OrchestratorAgentRun,
 } from './bot-runtime.js';
 
+function groupCommandResult(
+  channel: { id: string; name: string },
+  outcome: 'renamed' | 'member-removed',
+) {
+  return { channelId: channel.id, name: channel.name, outcome };
+}
+
 const ROLE_PROMPT_ORDER = 10_350;
 const CHANNEL_IMAGE_MEDIA_TYPES: readonly ImageMediaType[] = [
   'image/png',
@@ -1294,12 +1301,11 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_rename: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.renameGroup({
-                channelId: args.channel_id,
-                name: args.name,
-              }),
-            );
+            const channel = active.run.channels.renameGroup({
+              channelId: args.channel_id,
+              name: args.name,
+            });
+            return JSON.stringify(groupCommandResult(channel, 'renamed'));
           },
         }),
       );
@@ -1323,12 +1329,14 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             const active = this.#runs.get(run.sessionId);
             if (active?.role !== 'orchestrator')
               throw new Error('group_remove_member: Orchestrator run is unavailable');
-            return JSON.stringify(
-              active.run.channels.removeGroupMember({
-                channelId: args.channel_id,
-                botSlug: args.bot_id,
-              }),
-            );
+            const channel = active.run.channels.removeGroupMember({
+              channelId: args.channel_id,
+              botSlug: args.bot_id,
+            });
+            return JSON.stringify({
+              ...groupCommandResult(channel, 'member-removed'),
+              memberBotId: args.bot_id,
+            });
           },
         }),
       );

@@ -1,0 +1,47 @@
+{
+  "baselineRevision": "cb2461c9295728a7af81533e20d139e7d46f3732",
+  "dshVersion": "0.2.0-rc.1",
+  "measurement": "Rendered Tool result text length in JavaScript UTF-16 code units; these are not token counts.",
+  "fixture": "Separate baseline and candidate Profiles with the same synthetic Group ID, two Bots, a padded valid PNG avatar and one member attention policy; target names differ by one character.",
+  "metrics": [
+    {
+      "name": "group_rename",
+      "beforeCharacters": 8444,
+      "afterCharacters": 87,
+      "acknowledgement": {
+        "channelId": "group-qa-561-before",
+        "name": "QA 561 compact renamed",
+        "outcome": "renamed"
+      }
+    },
+    {
+      "name": "group_remove_member",
+      "beforeCharacters": 8372,
+      "afterCharacters": 122,
+      "acknowledgement": {
+        "channelId": "group-qa-561-before",
+        "name": "QA 561 compact renamed",
+        "outcome": "member-removed",
+        "memberBotId": "qa-peer-561"
+      }
+    }
+  ],
+  "checks": {
+    "realModelRename": true,
+    "realModelMemberRemoval": true,
+    "accurateDmReply": true,
+    "groupNameAndSoleMemberVisible": true,
+    "systemDepartureVisible": true,
+    "avatarPreserved": true,
+    "hostRestartPersistence": true
+  },
+  "verification": {
+    "focusedTests": 21,
+    "fullTestsPassed": 1359,
+    "fullTestsSkipped": 1,
+    "lint": "passed with existing warnings",
+    "format": "passed",
+    "typecheck": "passed",
+    "build": "passed"
+  }
+}

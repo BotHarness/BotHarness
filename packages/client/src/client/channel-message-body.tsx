@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactElement } from 'react';
 
 import {
   Button,
+  FileTypeIcon,
   Input,
   MarkdownText,
   StateDot,
@@ -719,8 +720,17 @@ export function ChannelMessageBody({
                 download={ref.name}
                 key={`${ref.hash}-${index}`}
               >
-                <span aria-hidden="true">▤</span> {ref.name} ·{' '}
-                {Math.max(1, Math.round(ref.size / 1024))} KB
+                <span className="bh-message-file-icon" aria-hidden="true">
+                  <FileTypeIcon path={ref.name} size={28} />
+                </span>
+                <span className="bh-message-file-copy">
+                  <span className="bh-message-file-name" title={ref.name}>
+                    {ref.name}
+                  </span>
+                  <span className="bh-message-file-size">
+                    · {Math.max(1, Math.round(ref.size / 1024))} KB
+                  </span>
+                </span>
               </a>
             );
           })}

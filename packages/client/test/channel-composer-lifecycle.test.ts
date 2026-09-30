@@ -14,7 +14,11 @@ vi.mock('@deepseek-ai/dsh-client-ui-primitives', () => ({
     variant?: string;
     size?: string;
   }) => createElement('button', props),
+  FileTypeIcon: () => null,
+  IconCloseOutlineRegular: () => null,
+  IconPaperclipOutlineRegular: () => null,
   IconSendOutlineRegular: () => null,
+  ImageLightbox: () => null,
 }));
 
 import { ChannelComposer } from '../src/client/channel-composer.js';

@@ -1,0 +1,49 @@
+{
+  "nativeScopedExecutor": true,
+  "realChrome": true,
+  "pauseViaHostUI": true,
+  "clickQueuedBeforePause": true,
+  "queuedClick": {
+    "isError": true,
+    "error": {
+      "message": "Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting"
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "Error: Browser Pause is active for this PersonaBot; ask the Human to Resume in the Browser entry, then call browser_observe before acting"
+      }
+    ]
+  },
+  "queuedAccessOffOpen": {
+    "isError": true,
+    "error": {
+      "message": "Browser Access is off for this PersonaBot"
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "Error: Browser Access is off for this PersonaBot"
+      }
+    ]
+  },
+  "observation": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "URL: http://127.0.0.1:31997/\nTitle: Browser Queue fixture\n\nInteractive elements:\ne1 button Add one\n\nPage text:\nBrowser Queue QA Clicks: 0 — Ready for local verification Add one"
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "URL: http://127.0.0.1:31997/\nTitle: Browser Queue fixture\n\nInteractive elements:\ne1 button Add one\n\nPage text:\nBrowser Queue QA Clicks: 0 — Ready for local verification Add one"
+        }
+      ]
+    }
+  },
+  "baselineExpectedBug": false,
+  "resumedClick": true
+}

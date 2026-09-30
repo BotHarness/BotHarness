@@ -32,6 +32,7 @@ import {
   type WorkspaceGrantView,
   loadBotAttention,
   loadHumanAttention,
+  loadHumanAttentionStatus,
   ignoreHumanAssignmentReport,
   loadSessions,
   loadBots,
@@ -164,12 +165,14 @@ export interface BridgeActions {
   openBot(slug: string): Promise<void>;
   refreshBotInbox(slug: string): Promise<void>;
   openHumanInbox(): Promise<void>;
+  refreshHumanInboxStatus(): Promise<void>;
   refreshHumanInbox(category?: HumanInboxCategory): Promise<void>;
   setHumanInboxFilters(filters: HumanInboxFilters): Promise<void>;
   loadMoreHumanInbox(): Promise<void>;
   ignoreHumanReport(sourceEventId: string): Promise<void>;
   loadMoreBotInbox(slug: string): Promise<void>;
   openChannel(channelId: string): Promise<void>;
+  openChannelAtMessage(channelId: string, messageId: string): Promise<void>;
   loadOlder(channelId: string): Promise<void>;
   loadNewer(channelId: string): Promise<void>;
   openLatest(channelId: string): Promise<void>;
@@ -505,6 +508,16 @@ export function createActions(
   let humanInboxHeadSeq = 0;
   let humanInboxPageSeq = 0;
   let humanInboxScopeVersion = 0;
+  let humanInboxStatusSeq = 0;
+  const refreshHumanInboxStatus = async (): Promise<void> => {
+    const requestSeq = ++humanInboxStatusSeq;
+    try {
+      const status = await loadHumanAttentionStatus(call);
+      if (requestSeq === humanInboxStatusSeq) clientStore.setHumanInbox(status);
+    } catch {
+      return;
+    }
+  };
   const loadHumanInboxFor = async (
     category: HumanInboxCategory,
     selection: ConversationSelection,
@@ -563,15 +576,15 @@ export function createActions(
     return { ...(await loadTimelinePage(call, channelId)), focusMessageId: undefined };
   };
 
-  const openChannelById = async (channelId: string): Promise<void> => {
+  const openChannelById = async (channelId: string, messageId?: string): Promise<void> => {
     const snapshot = clientStore.getSnapshot();
     const channel = snapshot.channels.find((candidate) => candidate.id === channelId);
     if (channel === undefined) return;
     const selection: ConversationSelection = { kind: 'channel', channelId };
-    clientStore.select(selection);
+    clientStore.select(selection, { deferConversation: messageId !== undefined });
     const active = currentSelection();
     if (active === undefined) return;
-    if (clientStore.getSnapshot().conversation.status === 'ready') {
+    if (messageId === undefined && clientStore.getSnapshot().conversation.status === 'ready') {
       clientStore.setConversation({ channel, error: undefined });
       try {
         await actions.refreshChannelMessages(channelId);
@@ -594,7 +607,16 @@ export function createActions(
       sending: false,
     });
     try {
-      const { page, revision, focusMessageId } = await loadOpeningTimeline(channelId);
+      const { page, revision, focusMessageId } =
+        messageId === undefined
+          ? await loadOpeningTimeline(channelId)
+          : {
+              ...(await loadTimelinePage(call, channelId, {
+                direction: 'around',
+                around: messageId,
+              })),
+              focusMessageId: messageId,
+            };
       const failures = remainingFailures(channelId, page.entries);
       const messages = page.hasNewer ? page.entries : [...page.entries, ...failures];
       if (currentSelection() !== active) return;
@@ -780,10 +802,12 @@ export function createActions(
     },
     openHumanInbox() {
       clientStore.select({ kind: 'inbox' });
+      void refreshHumanInboxStatus();
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
       return loadHumanInboxFor(clientStore.getSnapshot().humanInbox.category, selection);
     },
+    refreshHumanInboxStatus,
     refreshHumanInbox(category) {
       const selection = currentSelection();
       if (selection?.kind !== 'inbox') return Promise.resolve();
@@ -793,6 +817,7 @@ export function createActions(
         humanInboxScopeVersion += 1;
         clientStore.setHumanInbox({
           category: nextCategory,
+          botSlug: nextCategory === 'unread' ? undefined : prior.botSlug,
           channelId: undefined,
           status: 'loading',
           items: [],
@@ -841,8 +866,13 @@ export function createActions(
     openChannel(channelId) {
       return openChannelById(channelId);
     },
-    markRead(channelId, messageId) {
-      return markReadPosition(call, channelId, messageId);
+    openChannelAtMessage(channelId, messageId) {
+      return openChannelById(channelId, messageId);
+    },
+    async markRead(channelId, messageId) {
+      await markReadPosition(call, channelId, messageId);
+      await refreshHumanInboxStatus();
+      if (currentSelection()?.kind === 'inbox') await actions.refreshHumanInbox();
     },
     async loadOlder(channelId) {
       const snapshot = clientStore.getSnapshot();

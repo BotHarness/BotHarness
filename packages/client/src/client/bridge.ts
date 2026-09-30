@@ -1611,7 +1611,12 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
     if (item === undefined) return undefined;
     for (const key of ['id', 'createdAt', 'botSlug', 'summary'])
       if (typeof item[key] !== 'string') return undefined;
-    if (item['category'] !== 'action' && item['category'] !== 'info') return undefined;
+    if (
+      item['category'] !== 'action' &&
+      item['category'] !== 'info' &&
+      item['category'] !== 'unread'
+    )
+      return undefined;
     if (
       item['kind'] !== 'group-join-request' &&
       item['kind'] !== 'user-question' &&
@@ -1621,7 +1626,8 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       item['kind'] !== 'assignment-waiting-human' &&
       item['kind'] !== 'assignment-blocked' &&
       item['kind'] !== 'assignment-report' &&
-      item['kind'] !== 'bot-message-needs-repair'
+      item['kind'] !== 'bot-message-needs-repair' &&
+      item['kind'] !== 'channel-unread'
     )
       return undefined;
     if (item['channelId'] !== undefined && typeof item['channelId'] !== 'string') return undefined;
@@ -1649,6 +1655,13 @@ function parseHumanAttentionPage(value: unknown): HumanAttentionPage {
       return undefined;
     if (item['requestId'] !== undefined && typeof item['requestId'] !== 'string') return undefined;
     if (item['messageId'] !== undefined && typeof item['messageId'] !== 'string') return undefined;
+    if (
+      item['kind'] === 'channel-unread' &&
+      (!Number.isSafeInteger(item['unreadCount']) ||
+        (item['unreadCount'] as number) < 1 ||
+        typeof item['messageId'] !== 'string')
+    )
+      return undefined;
     return item as unknown as HumanAttentionItem;
   });
   if (items.some((item) => item === undefined)) throw new Error('invalid Human attention item');
@@ -1678,6 +1691,19 @@ export async function loadHumanAttention(
       sort: filters.sort,
     }),
   );
+}
+export async function loadHumanAttentionStatus(
+  call: BridgeCall,
+): Promise<{ unreadCount: number; hasAction: boolean }> {
+  const row = asRecord(await unwrap(call, 'humanAttentionStatus', {}));
+  if (
+    row === undefined ||
+    !Number.isSafeInteger(row['unreadCount']) ||
+    (row['unreadCount'] as number) < 0 ||
+    typeof row['hasAction'] !== 'boolean'
+  )
+    throw new Error('invalid Human attention status');
+  return { unreadCount: row['unreadCount'] as number, hasAction: row['hasAction'] };
 }
 export async function ignoreHumanAssignmentReport(
   call: BridgeCall,

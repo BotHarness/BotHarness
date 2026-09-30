@@ -103,6 +103,7 @@ describe('bridge typert service', () => {
       'botSourcePolicySet',
       'botSourcePolicyReset',
       'humanAttention',
+      'humanAttentionStatus',
       'humanAttentionIgnore',
       'assignments',
       'assignment',

@@ -9,6 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Human Inbox groups unread Group and PersonaBot DM messages by Channel, shows their deduplicated message count on the sidebar entry, and marks a captured message read only when opened or explicitly acknowledged; pending actions keep a separate indicator ([#546](https://github.com/BotHarness/BotHarness/issues/546), [ADR-0098](docs/adr/0098-activity-center-separates-overview-and-human-inbox.md)).
 - A PersonaBot's message delivery is settable per source in Profile: for Human DM, Bot DM, and Group mention rules a Human chooses whether a message arriving during an active turn folds into it (`steer`, the unchanged default) or queues as its own turn (`turn`), and already queued messages keep their revision ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Group Channels now open a Group Profile from the chat header, with a daily heatmap of committed messages and a per-author breakdown; pinned Group cards appear in its popover ([#424](https://github.com/BotHarness/BotHarness/issues/424), [ADR-0085](docs/adr/0085-personabot-profile-is-a-popover-and-a-channel-body-view.md)).
 - Browser observation now covers role-less click targets (icons and custom buttons such as Bilibili's publish controls): they appear as `clickable` with refs, ref clicks dispatch real input events at the element centre, and `browser_click` additionally accepts viewport x/y coordinates from a 1:1 CSS-pixel `browser_screenshot` for anything without a ref ([#526](https://github.com/BotHarness/BotHarness/issues/526)).
@@ -102,6 +103,10 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Changed
 
+- Group rename and member-removal Tools acknowledge the committed Channel, name, outcome, and affected Bot without copying avatars or unrelated Group state into the model context; an unexpectedly missing rename result now fails explicitly ([#561](https://github.com/BotHarness/BotHarness/issues/561)).
+
+- Browser Pause now explains that the Human can always use the local browser window directly; paused tool refusals point to Resume and a fresh observation, while page reading remains available ([#495](https://github.com/BotHarness/BotHarness/issues/495)).
+
 - Pending context folded into a steer or harvest is now selected by the total character budget in arrival order (oldest first, no per-turn row sampling), so bursts of short messages — such as live chat comments — fold as many messages as the budget allows instead of at most twenty; messages beyond the budget stay pending for later turns ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Human DM messages now steer an active Orchestrator turn at its next safe step by default — and any messages still pending in that DM are claimed into the same steer, mirroring the Group mention context harvest; bot-DM messages steer the same way. When no turn is running the behavior is unchanged ([#528](https://github.com/BotHarness/BotHarness/issues/528)).
 - Isolated Windows DSH development instances can safely adopt an existing WSL DeepSeek dev key once, so real model QA uses the same machine-local credential across both environments ([#115](https://github.com/BotHarness/BotHarness/issues/115), [AX guide](docs/client-bridge.md)).
@@ -170,6 +175,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 ### Fixed
 
 - Legacy PersonaBot model choices migrate only when one available provider matches; ambiguous or unavailable routes stop new requests and direct the Human to repair the Model Preset in Profile, without switching providers ([#500](https://github.com/BotHarness/BotHarness/issues/500)).
+- Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
 
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).
 
@@ -180,6 +186,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 - The Bot Browser launches without the automation marker (`navigator.webdriver` is false), so Human sign-in on sites that reject automated browsers, such as Google and X, works ([#483](https://github.com/BotHarness/BotHarness/issues/483), [ADR-0089](docs/adr/0089-browser-use-is-a-profile-scoped-managed-bot-browser.md)).
 - PersonaBot activity heatmap tooltips now stay beside the hovered or focused day in wide and compact Profiles ([#478](https://github.com/BotHarness/BotHarness/issues/478)).
 - The Computer viewer now connects to current Selkies desktops through their `/api/websockets` endpoint while retaining the older paths, so a started desktop no longer stays on the connecting screen ([#451](https://github.com/BotHarness/BotHarness/issues/451)).
+- Channel composers now accept pasted images and files through the existing attachment queue, show images as square previews with a full-size lightbox, and keep other files in compact type-labelled chips before and after sending; the add-media button and placeholder are easier to see in light and dark themes ([#433](https://github.com/BotHarness/BotHarness/issues/433)).
 - The docked Channel sidebar now stays in place while switching Channels or opening a PersonaBot DM, so the Channel body no longer shifts while the next conversation loads ([#430](https://github.com/BotHarness/BotHarness/issues/430)).
 - Previously opened Channels now show cached history and sidebar data immediately while refreshing in the background; first visits show skeleton placeholders in the Channel body, app sidebar, and Channel sidebar ([#434](https://github.com/BotHarness/BotHarness/issues/434)).
 - The Channel composer now shows the blank line immediately after one Shift+Enter and stays steady when a long single line reaches its wrap width ([#393](https://github.com/BotHarness/BotHarness/issues/393)).
