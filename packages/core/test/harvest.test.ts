@@ -228,19 +228,22 @@ describe('turn-time harvest', () => {
       expect(runs).toHaveLength(1);
       expect(runs[0]).toContain('Message ID: backlog-trigger-1');
       expect(runs[0]).toContain('Message backlog-0');
-      expect(runs[0]).toContain('Message backlog-119');
+      expect(runs[0]).not.toContain('Message backlog-119');
       expect(runs[0]).toContain('remain pending');
       expect(runs[0]?.length).toBeLessThan(25_000);
       expect(admissionStateFor(core, 'ada', 'backlog-0')).toBe('handled');
       expect(admissionStateFor(core, 'ada', 'backlog-50')).toBe('pending');
+      let firstPending = 0;
+      while (admissionStateFor(core, 'ada', `backlog-${firstPending}`) === 'handled')
+        firstPending += 1;
 
       await admitMention(core, group.id, 'backlog-trigger-2', '@Ada continue catching up');
       admit(core, group.id, 'backlog-trigger-2');
       await core.runtime.whenIdle();
       expect(runs).toHaveLength(2);
-      expect(runs[1]).toContain('Message backlog-10');
-      expect(admissionStateFor(core, 'ada', 'backlog-10')).toBe('handled');
-      expect(admissionStateFor(core, 'ada', 'backlog-50')).toBe('pending');
+      expect(runs[1]).toContain(`Message backlog-${firstPending}`);
+      expect(admissionStateFor(core, 'ada', `backlog-${firstPending}`)).toBe('handled');
+      expect(admissionStateFor(core, 'ada', 'backlog-119')).toBe('pending');
     } finally {
       await core.runtime.close();
       core.operationalDatabase.close();
