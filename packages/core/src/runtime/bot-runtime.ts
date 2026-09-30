@@ -3130,9 +3130,10 @@ class BotRuntimeImplementation implements BotRuntime {
           (input.attachmentId !== undefined && input.hash !== undefined)
         )
           throw new Error('Exactly one attachment identity is required');
-        const owned = message.attachments?.find(
-          (candidate) => attachmentIdentity(candidate) === identity,
-        );
+        const owned =
+          this.#channels.attachmentReference === undefined
+            ? message.attachments?.find((candidate) => attachmentIdentity(candidate) === identity)
+            : this.#channels.attachmentReference(channel.id, input.messageId, identity);
         const ref = owned === undefined ? undefined : this.#attachments?.current(owned);
         if (ref === undefined) {
           throw new Error(

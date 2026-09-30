@@ -1,3 +1,7 @@
+import {
+  createLegacyAttachmentMigration,
+  type RetainedAttachmentMessage,
+} from '../attachments/legacy-migration.js';
 import { projectAttachmentFiles } from '../attachments/message-files.js';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -186,12 +190,36 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
   };
   const isBotActive = options.isBotActive ?? (() => true);
   let lowerRegistered = false;
+  const retainedAttachments = (): RetainedAttachmentMessage[] => {
+    const rows = database.read((db) =>
+      db.prepare('SELECT source_event_id, payload_json, body FROM source_events').all(),
+    ) as Array<{ source_event_id: string; payload_json: string; body: string }>;
+    return rows.flatMap((row) => {
+      const message = parseMessage(row.payload_json, row.body);
+      return message === undefined ? [] : [{ sourceEventId: row.source_event_id, message }];
+    });
+  };
+  const attachmentMigration = createLegacyAttachmentMigration(
+    database,
+    options.attachments,
+    retainedAttachments,
+    options.warn,
+  );
+
   const assertAttachmentRefs = (refs: readonly ChannelAttachmentRef[]): void => {
     if (
       refs.length > 10 ||
-      refs.some((ref) => !isChannelAttachmentRef(ref) || !options.attachments?.has(ref))
+      refs.some(
+        (ref) =>
+          !isChannelAttachmentRef(ref) ||
+          ref.fileId === undefined ||
+          !options.attachments?.has(ref),
+      )
     )
-      throw new ChannelAttachmentError('Attachment does not belong to this profile', 'invalid-ref');
+      throw new ChannelAttachmentError(
+        'Attachment does not belong to this profile or uses an obsolete hash; refresh its owning message',
+        'invalid-ref',
+      );
   };
 
   const readRecord = (id: string): ChannelRecord | undefined => {
@@ -316,8 +344,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
     ) as unknown as PlacementRow[];
     const members = humanMembers(id);
     return rows.flatMap((row) => {
-      const message = parseMessage(row.payload_json, row.body);
-      if (message === undefined) return [];
+      const original = parseMessage(row.payload_json, row.body);
+      if (original === undefined) return [];
+      const message = attachmentMigration.project(row.source_event_id, original);
       const deliveries = admissionStatuses(row.source_event_id);
       const humanReceipts = humanReceiptsFor(message, row.revision, members);
       return [
@@ -1573,7 +1602,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       return updated;
     },
     latestMessage(id) {
-      return allMessages(id).at(-1);
+      const messages = allMessages(id);
+      const latest = messages.at(-1);
+      return latest === undefined ? undefined : project(messages, latest);
     },
     hasMessage(id, messageId) {
       return allMessages(id).some((message) => message.id === messageId);
@@ -1584,15 +1615,39 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       return found === undefined ? undefined : project(messages, found);
     },
     assertAttachmentRefs,
+    migrateAttachments: (signal) => attachmentMigration.migrate(signal),
+    attachmentReference(channelId, messageId, identity) {
+      if (readRecord(channelId) === undefined) return undefined;
+      const row = database.read((db) =>
+        db
+          .prepare(`
+        SELECT e.source_event_id, e.payload_json, e.body FROM channel_placements p
+        JOIN source_events e ON e.source_event_id = p.source_event_id
+        WHERE p.channel_id = ? AND p.message_id = ?
+      `)
+          .get(channelId, messageId),
+      ) as Pick<PlacementRow, 'source_event_id' | 'payload_json' | 'body'> | undefined;
+      if (row === undefined) return undefined;
+      const original = parseMessage(row.payload_json, row.body);
+      const matches = (original?.attachments ?? []).flatMap((ref, index) => {
+        const resolved = attachmentMigration.resolve(row.source_event_id, index, ref);
+        return attachmentIdentity(ref) === identity || attachmentIdentity(resolved) === identity
+          ? [resolved]
+          : [];
+      });
+      if (new Set(matches.map(attachmentIdentity)).size > 1)
+        throw new ChannelAttachmentError(
+          'Ambiguous legacy attachment reference; refresh the owning message',
+          'invalid-ref',
+        );
+      return matches[0];
+    },
     referencedAttachmentHashes() {
       const hashes = new Set<string>();
-      const rows = database.read((db) =>
-        db.prepare('SELECT payload_json, body FROM source_events').all(),
-      ) as Array<{ payload_json: string; body: string }>;
-      for (const row of rows) {
-        const message = parseMessage(row.payload_json, row.body);
-        for (const ref of message?.attachments ?? []) hashes.add(attachmentIdentity(ref));
-      }
+      for (const { sourceEventId, message } of retainedAttachments())
+        for (const [index, ref] of (message.attachments ?? []).entries())
+          hashes.add(attachmentIdentity(attachmentMigration.resolve(sourceEventId, index, ref)));
+      for (const id of attachmentMigration.pendingFiles()) hashes.add(id);
       return hashes;
     },
     readPosition(id) {
@@ -1734,8 +1789,9 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
       }) as unknown as PlacementRow[];
       const members = humanMembers(id);
       const selected = rows.slice(0, query.limit).flatMap((row) => {
-        const message = parseMessage(row.payload_json, row.body);
-        if (message === undefined) return [];
+        const original = parseMessage(row.payload_json, row.body);
+        if (original === undefined) return [];
+        const message = attachmentMigration.project(row.source_event_id, original);
         const deliveries = admissionStatuses(row.source_event_id);
         const humanReceipts = humanReceiptsFor(message, row.revision, members);
         return [

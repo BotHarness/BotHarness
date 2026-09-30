@@ -1,3 +1,4 @@
+import { attachmentIdentity } from './ref.js';
 import type { ChannelStore } from '../channels/store.js';
 import type { ChannelMessage } from '../channels/channel.js';
 import { ChannelAttachmentError, type AttachmentStore } from './store.js';
@@ -28,7 +29,12 @@ export function createMessageAttachmentFiles(channels: ChannelStore, store: Atta
       channel === undefined || channel.deletedAt !== undefined
         ? undefined
         : channels.message(channelId, messageId);
-    const ref = message?.attachments?.find((candidate) => candidate.fileId === fileId);
+    const ref =
+      message === undefined
+        ? undefined
+        : channels.attachmentReference === undefined
+          ? message.attachments?.find((candidate) => attachmentIdentity(candidate) === fileId)
+          : channels.attachmentReference(channelId, messageId, fileId);
     if (ref === undefined)
       throw new ChannelAttachmentError('Attachment is not owned by this message', 'not-found');
     return ref;
@@ -40,7 +46,7 @@ export function createMessageAttachmentFiles(channels: ChannelStore, store: Atta
     },
     async download(channelId: string, messageId: string, fileId: string, signal?: AbortSignal) {
       const ref = reference(channelId, messageId, fileId);
-      return store.download(fileId, ref.name, signal);
+      return store.download(attachmentIdentity(ref), ref.name, signal);
     },
   };
 }

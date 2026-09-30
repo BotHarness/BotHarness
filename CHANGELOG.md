@@ -15,6 +15,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Added
 
+- Existing message attachments migrate at Host startup to resumable independent real-file identities; their original menus open the current destination, equal hashes remain independent, and owner-qualified old reads follow saved contents without rewriting messages or waking Bots ([#577](https://github.com/BotHarness/BotHarness/issues/577), [migration guide](docs/file-open.md)).
+
 - PersonaBot model usage now separates Orchestrator, Assignment and DSH Subagent calls by actual provider/model, including reported failed and retried attempts; missing reports remain unknown ([#503](https://github.com/BotHarness/BotHarness/issues/503), [ADR-0094](docs/adr/0094-retain-per-model-usage-after-session-deletion.md)).
 
 - Human Inbox shows direct Group replies to the local Human in a personal view, with Bot/Channel filters, exact source navigation and inline replies. Nearby messages appear chronologically with author, avatar and time; personal replies and other unread messages share one canonical unread count ([#548](https://github.com/BotHarness/BotHarness/issues/548)).
