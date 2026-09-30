@@ -262,6 +262,8 @@
 
 ### Documentation
 
+- 记录本地 Human 名称目标：插件内默认名、逐 Channel 的 roleplay 昵称，以及按稳定 ID 显示 Human／PersonaBot 当前名字的提及；运行时功能仍待后续切片（[ADR-0103](docs/adr/0103-local-human-names-label-one-identity-across-channels.md)、[#126](https://github.com/BotHarness/BotHarness/issues/126)、[设计](docs/architecture/botharness-architecture.md)）。
+
 - 记录了已实测的 Lark 工作群提及与受校验话题回复契约、飞书/Lark 权限差异，并提供可复测沙盒和公开 E2E 证据；PersonaBot 入站接入仍属后续工作（[#78](https://github.com/BotHarness/BotHarness/issues/78)、[研究](docs/research/2026-09-20-feishu-message-edit-recall-events.md)）。
 
 - 确定 Memory 及后续 Workspace／消息附件的原生文件打开菜单设计：明确操作所在 Host，附件作为可直接编辑的真实目标文件，不保留附件版本或因修改唤醒 Bot；附件迁移仍属后续切片（[ADR-0100](docs/adr/0100-file-open-actions-target-real-host-files.md)、[#572](https://github.com/BotHarness/BotHarness/issues/572)）。
