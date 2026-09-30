@@ -22,6 +22,7 @@ export function grantExecutionDenial(
       ? 'BotHarness Session has no durable owner'
       : undefined;
   }
+  const delegatedSubagent = owner.provenance === 'subagent';
   const seen = new Set<string>();
   while (owner.parentSessionId !== undefined) {
     if (seen.has(owner.sessionId)) return 'BotHarness Session ownership is cyclic';
@@ -38,8 +39,10 @@ export function grantExecutionDenial(
   const mode = policy.resolve({ session }).mode;
   const approvalPolicy = approval.overrideOf(session);
   if (owner.rootRole === 'orchestrator') {
-    if (mode !== 'workspace-write' || approvalPolicy !== 'ask') {
-      return 'Orchestrator Session requires workspace-write and ask';
+    if (mode !== 'workspace-write' || approvalPolicy !== (delegatedSubagent ? 'never' : 'ask')) {
+      return delegatedSubagent
+        ? 'Orchestrator Subagent requires workspace-write and never approval'
+        : 'Orchestrator Session requires workspace-write and ask';
     }
     const memoryCwd = core.registry.memoryDirFor(owner.botSlug);
     return memoryCwd !== undefined && session.header.cwd === memoryCwd
@@ -52,7 +55,10 @@ export function grantExecutionDenial(
   if (permission === undefined || session.header.cwd !== permission.primaryCwd) {
     return 'Assignment Session permission snapshot is missing or mismatched';
   }
-  if (mode !== permission.mode || approvalPolicy !== permission.approval) {
+  if (
+    mode !== permission.mode ||
+    approvalPolicy !== (delegatedSubagent ? 'never' : permission.approval)
+  ) {
     return 'Assignment Session permission mode differs from its snapshot';
   }
   try {
@@ -72,6 +78,12 @@ export function grantExecutionDenial(
 const BOT_TOOL_NAMES = new Set([
   'create_assignment',
   'list_assignment_models',
+  'list_bot_subagent_models',
+  'bot_subagent',
+  'bot_subagent_fork',
+  'subagent',
+  'subagent_fork',
+  'list_subagent_models',
   'request_workspace_grant',
   'list_workspace_grants',
   'list_assignments',

@@ -95,6 +95,48 @@ describe('Workspace Grant execution boundary', () => {
     ).toMatch(/revoked/);
   });
 
+  it('allows DSH Subagents with native never approval only under the inherited Assignment Grant', () => {
+    const state = fixture();
+    const childId = 'dsh-child';
+    const child = { id: childId, header: { cwd, parentSession: assignmentSessionId } } as never;
+    const resolve = (state.core as { ownership: { resolve: ReturnType<typeof vi.fn> } }).ownership
+      .resolve;
+    resolve.mockImplementation((sessionId: string) =>
+      sessionId === childId
+        ? {
+            sessionId,
+            botSlug,
+            rootRole: 'assignment',
+            provenance: 'subagent',
+            parentSessionId: assignmentSessionId,
+          }
+        : sessionId === assignmentSessionId
+          ? { sessionId, botSlug, rootRole: 'assignment', parentSessionId: undefined }
+          : undefined,
+    );
+    state.overrideOf.mockReturnValue('never');
+    expect(grantExecutionDenial(state.core, child, state.policy, state.approval)).toBeUndefined();
+    state.resolvePolicy.mockReturnValue({ mode: 'danger-full-access' });
+    expect(grantExecutionDenial(state.core, child, state.policy, state.approval)).toMatch(
+      /mode differs/,
+    );
+    state.resolvePolicy.mockReturnValue({ mode: 'workspace-write' });
+    resolve.mockImplementation((sessionId: string) =>
+      sessionId === childId
+        ? {
+            sessionId,
+            botSlug,
+            rootRole: 'assignment',
+            provenance: 'subagent',
+            parentSessionId: assignmentSessionId,
+          }
+        : undefined,
+    );
+    expect(grantExecutionDenial(state.core, child, state.policy, state.approval)).toMatch(
+      /parent ownership is missing/,
+    );
+  });
+
   it('denies a mid-step native danger mode switch before a tool body', () => {
     const state = fixture();
     state.resolvePolicy.mockReturnValue({ mode: 'danger-full-access' });
