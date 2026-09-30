@@ -2,7 +2,7 @@
 
 Source-file comments were removed under [#449](https://github.com/BotHarness/BotHarness/issues/449). These are the operational instructions that should remain readable without opening implementation files. Use the pinned toolchain in [AGENTS.md](../../AGENTS.md); secrets stay machine-local.
 
-The full Vitest suite runs files serially because Git-backed fixtures and the docs build contend when they run together. Keep `fileParallelism: false` in `vitest.config.ts` unless an isolated replacement for those fixtures is verified.
+The full Vitest suite runs test files serially because Git-backed fixtures can contend with each other. Keep `fileParallelism: false` in `vitest.config.ts` unless isolated replacements are verified. Run `pnpm test` and `pnpm docs:build` sequentially; Vitest cannot coordinate a separately launched docs build.
 
 ## Generated assets and pages
 
