@@ -6,6 +6,9 @@ import type {
 } from '../messaging/outbound.js';
 import { MessagingError, type MessagingTarget } from '../messaging/provider.js';
 import { OperationalDatabaseError } from '../database/owner.js';
+import { createMessageAttachmentFiles } from '../attachments/message-files.js';
+import { attachmentIntent } from '../attachments/ref.js';
+import type { AttachmentStore } from '../attachments/store.js';
 import { randomUUID, createHash } from 'node:crypto';
 
 import { z } from 'zod';
@@ -270,6 +273,7 @@ export interface BridgeMethods {
   userQuestionAnswer(payload: unknown): Promise<BridgeResult<{ accepted: boolean }>>;
   sessions(payload: unknown): BridgeResult<{ sessions: OwnedSessionSummary[] }>;
   sessionOwner(payload: unknown): BridgeResult<{ owner: OwnedSessionBot | null }>;
+  messageAttachmentTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memoryFileTarget(payload: unknown): BridgeResult<{ target: MemoryFileTarget }>;
   memorySnapshot(payload: unknown): BridgeResult<{ snapshot: MemoryAcceptedSnapshot }>;
   memoryFile(
@@ -311,6 +315,7 @@ export interface BridgeMethods {
 export interface BridgeMethodsDeps {
   warn?: (message: string) => void;
   registry: PersonaBotRegistry;
+  attachments?: AttachmentStore;
   modelPresets?: ModelPresetStore;
   modelCatalog?: ModelCatalog;
   modelReadiness?: ModelRouteReadiness;
@@ -1569,7 +1574,8 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
           existing.body === body &&
           existing.replyTo === replyTo &&
           existing.memorySwitchTarget === memorySwitchTarget &&
-          JSON.stringify(existing.attachments ?? []) === JSON.stringify(attachments ?? []) &&
+          JSON.stringify(attachmentIntent(existing.attachments ?? [])) ===
+            JSON.stringify(attachmentIntent(attachments ?? [])) &&
           JSON.stringify(existing.mentions ?? []) === JSON.stringify(mentions) &&
           JSON.stringify(existing.channelRefs ?? []) === JSON.stringify(channelRefs) &&
           JSON.stringify(existing.grantRequestResolution) ===
@@ -1938,6 +1944,41 @@ export function createBridgeMethods(deps: BridgeMethodsDeps): BridgeMethods {
         if (error instanceof WorkspaceGrantError) {
           return { ok: false, error: { code: error.code, message: error.message } };
         }
+        throw error;
+      }
+    },
+    messageAttachmentTarget(payload) {
+      const source = asObject(payload);
+      const channelId = asNonBlank(source, 'channelId');
+      const messageId = asNonBlank(source, 'messageId');
+      const fileId = asNonBlank(source, 'fileId');
+      if (channelId === undefined || messageId === undefined || fileId === undefined)
+        return invalidInput('channelId, messageId and fileId are required');
+      if (deps.attachments === undefined)
+        return {
+          ok: false,
+          error: { code: 'storage-unavailable', message: 'Attachment store unavailable' },
+        };
+      try {
+        return {
+          ok: true,
+          value: {
+            target: createMessageAttachmentFiles(deps.channels, deps.attachments).target(
+              channelId,
+              messageId,
+              fileId,
+            ),
+          },
+        };
+      } catch (error) {
+        if (error instanceof ChannelAttachmentError)
+          return {
+            ok: false,
+            error: {
+              code: error.code === 'not-found' ? 'not-found' : 'invalid-input',
+              message: error.message,
+            },
+          };
         throw error;
       }
     },

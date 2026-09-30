@@ -1,15 +1,15 @@
+import { MessageAttachment } from './message-attachment.js';
 import { useMemo, useState, type ReactElement } from 'react';
 
 import {
   Button,
-  FileTypeIcon,
   Input,
   MarkdownText,
   StateDot,
   type MarkdownLabels,
 } from '@deepseek-ai/dsh-client-ui-primitives';
 
-import { channelAttachmentUrl, errorMessage } from './bridge.js';
+import { errorMessage } from './bridge.js';
 import { PersonaBotAvatar } from './avatar.js';
 import { openModelsSettings } from './bot-settings-open.js';
 import { referenceRuns } from './channel-refs.js';
@@ -59,6 +59,7 @@ function SessionFailureNotice({
   nativeChatT,
 }: {
   message: ChannelMessage;
+  channelId?: string | undefined;
   t: BotHarnessTranslate;
   nativeChatT?: NativeChatFailureText | undefined;
 }): ReactElement {
@@ -542,6 +543,7 @@ function leadingBotMentions(message: ChannelMessage):
 
 export function ChannelMessageBody({
   message,
+  channelId,
   t,
   actions,
   bots = [],
@@ -551,6 +553,7 @@ export function ChannelMessageBody({
   nativeChatT,
 }: {
   message: ChannelMessage;
+  channelId?: string | undefined;
   t: BotHarnessTranslate;
   actions?: BridgeActions;
   bots?: readonly BotSummary[];
@@ -701,39 +704,16 @@ export function ChannelMessageBody({
       )}
       {message.attachments?.length ? (
         <div className="bh-message-attachments">
-          {message.attachments.map((ref, index) => {
-            const url = channelAttachmentUrl(ref);
-            return ['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(ref.mime) ? (
-              <a
-                className="bh-message-image-link"
-                href={url}
-                target="_blank"
-                rel="noopener noreferrer"
-                key={`${ref.hash}-${index}`}
-              >
-                <img className="bh-message-image" src={url} alt={ref.name} loading="lazy" />
-              </a>
-            ) : (
-              <a
-                className="bh-message-file"
-                href={url}
-                download={ref.name}
-                key={`${ref.hash}-${index}`}
-              >
-                <span className="bh-message-file-icon" aria-hidden="true">
-                  <FileTypeIcon path={ref.name} size={28} />
-                </span>
-                <span className="bh-message-file-copy">
-                  <span className="bh-message-file-name" title={ref.name}>
-                    {ref.name}
-                  </span>
-                  <span className="bh-message-file-size">
-                    · {Math.max(1, Math.round(ref.size / 1024))} KB
-                  </span>
-                </span>
-              </a>
-            );
-          })}
+          {message.attachments.map((ref, index) => (
+            <MessageAttachment
+              key={`${ref.fileId ?? ref.hash}-${index}`}
+              attachment={ref}
+              channelId={channelId}
+              messageId={message.id}
+              actions={actions}
+              t={t}
+            />
+          ))}
         </div>
       ) : null}
     </div>

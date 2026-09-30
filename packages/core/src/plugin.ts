@@ -728,6 +728,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
       modelReadiness,
       states: core.states,
       channels: core.channels,
+      attachments: core.attachments,
       ownership: core.ownership,
       memory: core.memory,
       ...(core.usage === undefined ? {} : { usage: core.usage }),
@@ -849,7 +850,7 @@ export function apply(ctx: Context, config: BotHarnessConfig): void {
         }),
       'botharness: current Memory file download',
     );
-    const attachmentHttp = createAttachmentHttp(core.attachments);
+    const attachmentHttp = createAttachmentHttp(core.attachments, core.channels);
     connectionCtx.effect(
       () =>
         connection.fetch.register({

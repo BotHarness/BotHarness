@@ -1,3 +1,4 @@
+import { projectAttachmentFiles } from '../attachments/message-files.js';
 import { createHash } from 'node:crypto';
 import { appendFileSync, existsSync, mkdirSync, readFileSync, readdirSync } from 'node:fs';
 import type { Dirent } from 'node:fs';
@@ -5,7 +6,12 @@ import { join } from 'node:path';
 
 import { isValidSlug } from '../bots/slug.js';
 import { ChannelAttachmentError, type AttachmentStore } from '../attachments/store.js';
-import { isChannelAttachmentRef, type ChannelAttachmentRef } from '../attachments/ref.js';
+import {
+  attachmentIdentity,
+  attachmentIntent,
+  isChannelAttachmentRef,
+  type ChannelAttachmentRef,
+} from '../attachments/ref.js';
 import { atomicWriteFile } from '../fs/atomic-write.js';
 import {
   botDmChannelId,
@@ -347,7 +353,7 @@ export class ChannelReplyTargetError extends Error {
 
 const REPLY_PREVIEW_LIMIT = 140;
 
-function projectReply(
+function projectReplyBase(
   message: ChannelMessage,
   byId: ReadonlyMap<string, ChannelMessage>,
 ): ChannelMessage {
@@ -368,7 +374,8 @@ function sameMessageIntent(left: ChannelMessage, right: ChannelMessage): boolean
     JSON.stringify(left.author) === JSON.stringify(right.author) &&
     left.body === right.body &&
     left.replyTo === right.replyTo &&
-    JSON.stringify(left.attachments ?? []) === JSON.stringify(right.attachments ?? [])
+    JSON.stringify(attachmentIntent(left.attachments ?? [])) ===
+      JSON.stringify(attachmentIntent(right.attachments ?? []))
   );
 }
 
@@ -377,6 +384,10 @@ function messageIndex(messages: readonly ChannelMessage[]): Map<string, ChannelM
 }
 
 export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
+  const projectReply = (
+    message: ChannelMessage,
+    byId: ReadonlyMap<string, ChannelMessage>,
+  ): ChannelMessage => projectAttachmentFiles(projectReplyBase(message, byId), options.attachments);
   const rootDir = options.rootDir;
   const now = options.now ?? (() => new Date());
   const channelDir = (id: string): string => join(rootDir, id);
@@ -548,7 +559,7 @@ export function createChannelStore(options: ChannelStoreOptions): ChannelStore {
       const hashes = new Set<string>();
       for (const channel of this.list())
         for (const message of readValidMessages(channel.id))
-          for (const ref of message.attachments ?? []) hashes.add(ref.hash);
+          for (const ref of message.attachments ?? []) hashes.add(attachmentIdentity(ref));
       return hashes;
     },
     hasMessage(id, messageId) {

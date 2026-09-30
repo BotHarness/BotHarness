@@ -851,8 +851,9 @@ describe('DSH Bot Agent adapter', () => {
         channel_id: expect.any(Object),
         message_id: expect.any(Object),
         hash: expect.any(Object),
+        attachment_id: expect.any(Object),
       },
-      required: ['message_id', 'hash'],
+      required: ['message_id'],
     });
     expect(
       channelReadImage?.output.render(

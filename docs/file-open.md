@@ -1,0 +1,19 @@
+# Open files on the Host
+
+Click a displayed Memory Repository or authorized Workspace path to choose a detected application. Memory file rows offer a context menu and a More button. Current files can be revealed in the file manager, opened in an editor, copied as a Host path, or downloaded to this device.
+
+New message attachments use the same actions: click a file chip, right-click a file or image, or use its More button. Clicking an image still opens its preview. The menu names the Host computer explicitly. With Tailscale or Cloudflare Tunnel, an editor or file manager opens on the computer running DSH; downloading transfers the current bytes to the browser's device. Editing a download does not write back to the Host. If native applications are unavailable, download and copy remain available.
+
+Sending transfers the file to one profile-managed destination. Opening and saving that attachment edits this same destination; the original message's next read, preview or download uses its current bytes, filename, MIME and size. Refresh the Channel after saving to refresh displayed metadata. The upload-source file stays independent. Two independent uploads remain separate even when their bytes match; explicit reuse of one attachment identity shares the same file across messages.
+
+External saves create no attachment versions, notifications, Source Revisions, Inbox admissions or Bot wakes. A missing destination reports unavailable and is never restored from original upload bytes. Old hash-addressed attachments remain readable and downloadable; their direct editing waits for the separate legacy migration slice. Memory keeps its existing Git behavior.
+
+## Storage and integration
+
+New references are `{fileId,name,mime,size}`; legacy references are `{hash,name,mime,size}`. Exactly one identity is allowed. The immutable message envelope keeps the sent reference; message queries project current metadata. `channel_read_image` takes `attachment_id` with the returned `fileId`, or `hash` for a legacy image. The Host validates current Bot membership and message ownership before reading current, size-limited image bytes. Models never receive attachment Host paths. Trusted Channel forwarding reuses the same validated reference contract; destination confirmation remains [#570](https://github.com/BotHarness/BotHarness/issues/570).
+
+Under `$DSH_HOME/botharness/attachments/files/<uuid>/`, `data/<safe filename>` is the real destination and `record.json` is the durable identity/transfer receipt. The receipt holds a checksum for upload retry, with no archived file bytes. Composer retries reuse one upload key without overwriting an edited destination. New sends validate profile ownership, and native actions/downloads resolve `channelId + messageId + fileId` afresh. The authenticated download uses `no-store` and server-sniffed MIME with `nosniff`.
+
+Staged transfer cleanup remains separate. Reference-aware cleanup protects file identities from all retained Source Event envelopes, including removed Channels, before removing old unreferenced destinations and their records; automatic retention remains disabled. Future Profile Backup, selected Export and explicit Purge must include current referenced destinations and their records. They must preserve shared identity, never purge a file still reachable from retained facts, and capture current bytes rather than create a version archive. Those products are not added by this slice.
+
+The design is [ADR-0100](adr/0100-file-open-actions-target-real-host-files.md). The runnable verification entry is `scripts/e2e-real-attachment-files.mjs`: prepare through the real composer, save through an actual external editor, verify the original and independent/shared messages, restart the same Profile, then verify missing-file refusal. Its private fixture and login URL stay outside Git; only synthetic screenshots are published.
