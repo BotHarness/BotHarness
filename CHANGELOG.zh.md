@@ -172,6 +172,8 @@
 
 ### Fixed
 
+- 排队的 Browser 动作在真正开始执行时重新检查 Browser Pause 和 Browser Access；Human 暂停或关闭权限会拦截已在队列等待的动作，暂停期间仍可观察页面（[#569](https://github.com/BotHarness/BotHarness/issues/569)）。
+
 - 截图现在同时报告图片尺寸与视口，设备缩放不为 1（例如 Retina 的 2x）时坐标点击会给出精确换算；视口校验改为半开区间（[#538](https://github.com/BotHarness/BotHarness/issues/538)）。
 
 - 浏览器观察现在能找到编辑器容器内的无角色工具栏控件，并为没有标签的控件生成带位置的名称（`div @x,y`）；视口外的坐标点击会以"重新截图"错误失败；截图会报告视口尺寸，坐标与图 1:1 对应（[#530](https://github.com/BotHarness/BotHarness/issues/530)）。

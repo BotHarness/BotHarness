@@ -1,0 +1,59 @@
+{
+  "nativeScopedExecutor": true,
+  "realChrome": true,
+  "pauseViaHostUI": true,
+  "clickQueuedBeforePause": true,
+  "queuedClick": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "click done — http://127.0.0.1:31997/"
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "click done — http://127.0.0.1:31997/"
+        }
+      ]
+    }
+  },
+  "queuedAccessOffOpen": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "Opened http://127.0.0.1:31997/ — Browser Queue fixture. Call browser_observe to read the page."
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "Opened http://127.0.0.1:31997/ — Browser Queue fixture. Call browser_observe to read the page."
+        }
+      ]
+    }
+  },
+  "observation": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "URL: http://127.0.0.1:31997/\nTitle: Browser Queue fixture\n\nInteractive elements:\ne1 button Add one\n\nPage text:\nBrowser Queue QA Clicks: 1 Add one"
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "URL: http://127.0.0.1:31997/\nTitle: Browser Queue fixture\n\nInteractive elements:\ne1 button Add one\n\nPage text:\nBrowser Queue QA Clicks: 1 Add one"
+        }
+      ]
+    }
+  },
+  "baselineExpectedBug": true,
+  "resumedClick": false
+}

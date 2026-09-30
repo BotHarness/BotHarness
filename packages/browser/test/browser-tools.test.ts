@@ -389,6 +389,65 @@ describe('per-PersonaBot registration, authorization, and tabs', () => {
     expect(h.runtime.captureScreenshot).toHaveBeenCalledTimes(1);
   });
 
+  it.each(['pause', 'access'] as const)(
+    'refuses a queued action when %s changes before execution',
+    async (guard) => {
+      const h = harness({ access: true, auto: true });
+      h.created();
+      await h.state.definitions
+        .get('browser_open')!
+        .execute({ url: 'https://example.com' }, execution('browser_open'));
+      let release: () => void = () => undefined;
+      let entered: () => void = () => undefined;
+      const started = new Promise<void>((resolve) => {
+        entered = resolve;
+      });
+      const blocked = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      h.runtime.click = vi.fn(async () => {
+        entered();
+        await blocked;
+        return { tabId: 'tab-1', url: 'https://example.com/', title: 'Example Domain' };
+      });
+      const click = h.state.definitions.get('browser_click')!;
+      const first = click.execute({ ref: 'e1' }, execution('browser_click'));
+      await started;
+      const queued =
+        guard === 'pause'
+          ? click.execute({ ref: 'e2' }, execution('browser_click'))
+          : h.state.definitions
+              .get('browser_open')!
+              .execute({ url: 'https://example.org' }, execution('browser_open'));
+      await Promise.resolve();
+      await Promise.resolve();
+      if (guard === 'pause') h.provider.setTakeover('bot-a', true);
+      else {
+        h.setAccess(false);
+        h.provider.reconcileBot('bot-a');
+      }
+      const refused = expect(queued).rejects.toThrow(
+        guard === 'pause' ? /Browser Pause is active/ : /Browser Access is off/,
+      );
+      release();
+      await first;
+      await refused;
+      expect(h.runtime.click).toHaveBeenCalledTimes(1);
+      expect(h.runtime.open).toHaveBeenCalledTimes(1);
+      expect(h.audits.at(-1)).toMatchObject({
+        tool: guard === 'pause' ? 'browser_click' : 'browser_open',
+        outcome: 'error',
+      });
+      if (guard === 'pause') {
+        await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+        h.provider.setTakeover('bot-a', false);
+        await h.state.definitions.get('browser_observe')!.execute({}, execution('browser_observe'));
+        await click.execute({ ref: 'e1' }, execution('browser_click'));
+        expect(h.runtime.click).toHaveBeenCalledTimes(2);
+      }
+    },
+  );
+
   it('clicks observed refs, redacts typed text, and clamps scroll and wait', async () => {
     const h = harness({ access: true, auto: true });
     h.created();
