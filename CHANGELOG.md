@@ -172,6 +172,8 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Fixed
 
+- Fresh Browser observations replace the previous refs with an independent namespace, so an older ref cannot click a different control after page changes; role-less click targets stay visible on repeated observations and stale refs retain the readable re-observe refusal ([#579](https://github.com/BotHarness/BotHarness/issues/579)).
+
 - Queued Browser actions recheck Browser Pause and Browser Access when execution starts, so a Human pause or revoked access blocks actions already waiting behind another operation while paused observation remains available ([#569](https://github.com/BotHarness/BotHarness/issues/569)).
 
 - Screenshots report the image size next to the viewport, so coordinate clicks state the exact conversion when the device scale factor is not 1 (for example 2x on Retina), and the viewport guard now uses exclusive bounds ([#538](https://github.com/BotHarness/BotHarness/issues/538)).

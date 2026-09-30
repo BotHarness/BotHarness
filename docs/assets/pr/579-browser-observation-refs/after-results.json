@@ -1,0 +1,39 @@
+{
+  "nativeScopedExecutor": true,
+  "realChrome": true,
+  "humanChromeInputWhilePaused": true,
+  "oldRef": "e1wzi5j005lmfqv0cs4sfk1vc117t_1",
+  "freshRef": "e02rhjx610o0tvy11f4i8x0c8wte9_2",
+  "recoveredRef": "e0zcwr5w1k6bfiz1c2tqva1yr5gbf_2",
+  "clickableVisible": true,
+  "staleAction": {
+    "isError": true,
+    "error": {
+      "message": "The element ref is stale; call browser_observe again before acting"
+    },
+    "content": [
+      {
+        "type": "text",
+        "text": "Error: The element ref is stale; call browser_observe again before acting"
+      }
+    ]
+  },
+  "state": "Intended: 0 | Wrong: 0 — Ready for local verification",
+  "freshAction": {
+    "isError": false,
+    "content": [
+      {
+        "type": "text",
+        "text": "click done — http://127.0.0.1:31998/"
+      }
+    ],
+    "value": {
+      "content": [
+        {
+          "type": "text",
+          "text": "click done — http://127.0.0.1:31998/"
+        }
+      ]
+    }
+  }
+}
