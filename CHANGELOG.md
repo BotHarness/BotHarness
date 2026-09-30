@@ -9,7 +9,7 @@ Advances the first PersonaBot workflow with Assignment delivery, shared motion c
 
 ### Breaking Changes
 
-- `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; both real-file and legacy-hash four-field references remain accepted ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
+- `channel_send` Tool acknowledgements change from prose to `{channelId,messageId}` JSON; consumers must read those fields. Attachment `size` is now declared as `integer`, matching the already-enforced safe nonnegative integer contract; new sends use the current four-field fileId reference; obsolete hash results must be refreshed from their owning message after #577 migration ([#570](https://github.com/BotHarness/BotHarness/issues/570)).
 
 - Custom `BotAgentAdapter` implementations must return `{ outputLimit, contacts, nextCursor? }` from Orchestrator `channels.contacts(input?)`, with stable IDs under `botId` instead of `slug`; the `list_bot_contacts` Tool now returns that bounded page, so consumers must follow continuation ([#568](https://github.com/BotHarness/BotHarness/issues/568)).
 

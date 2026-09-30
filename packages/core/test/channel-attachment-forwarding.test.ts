@@ -6,6 +6,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import type { ChannelAttachmentRef } from '../src/attachments/ref.js';
 import { createAttachmentStore } from '../src/attachments/store.js';
+import { attachOperationalModule } from '../src/database/owner.js';
 import { createCore } from '../src/plugin.js';
 import { createDshBotAgentAdapter } from '../src/runtime/dsh-bot-agent-adapter.js';
 import { FakeAgentHost } from './dsh-agent-host-fixture.js';
@@ -26,6 +27,7 @@ type Fixture = {
   groupId: string;
   image: ChannelAttachmentRef;
   legacy: ChannelAttachmentRef;
+  currentLegacy: ChannelAttachmentRef;
 };
 async function call(
   tools: readonly ToolDefinition[],
@@ -46,6 +48,7 @@ async function fixture(check: (f: Fixture) => Promise<void>, recipients = 0) {
   let checked = false;
   let image: ChannelAttachmentRef;
   let legacy: ChannelAttachmentRef;
+  let currentLegacy: ChannelAttachmentRef;
   let dmId = '';
   let groupId = '';
   const host = new FakeAgentHost(
@@ -55,7 +58,7 @@ async function fixture(check: (f: Fixture) => Promise<void>, recipients = 0) {
         if (checked) return;
         checked = true;
         try {
-          await check({ core, tools, dmId, groupId, image, legacy });
+          await check({ core, tools, dmId, groupId, image, legacy, currentLegacy });
         } catch (error) {
           failures.push(error);
           throw error;
@@ -88,13 +91,41 @@ async function fixture(check: (f: Fixture) => Promise<void>, recipients = 0) {
     writeFileSync(join(objects, hash.slice(7)), png);
     legacy = { hash, name: 'legacy.png', mime: 'image/png', size: png.length };
     dmId = core.channels.getOrCreateDm('ada', 'Ada')!.id;
-    await core.channels.appendMessageOnce(dmId, {
+    const message = {
       id: 'source',
       at: new Date().toISOString(),
       author: { kind: 'human' },
       body: 'Inspect and forward',
       attachments: [image, legacy],
-    });
+    };
+    const { body, ...envelope } = message;
+    const sourceEventId = randomUUID();
+    const database = attachOperationalModule(core.operationalDatabase, 'attachment-forward-test');
+    database.transaction((db) => {
+      db.prepare(`INSERT INTO source_events
+        (source_event_id, source_kind, bot_slug, channel_id, message_id, body, created_at, payload_json)
+        VALUES (?, 'human-message', 'ada', ?, ?, ?, ?, ?)`).run(
+        sourceEventId,
+        dmId,
+        message.id,
+        body,
+        message.at,
+        JSON.stringify(envelope),
+      );
+      db.prepare(`INSERT INTO channel_placements (channel_id, revision, source_event_id, message_id)
+        VALUES (?, 1, ?, ?)`).run(dmId, sourceEventId, message.id);
+    }, []);
+    await core.channels.migrateAttachments!();
+    currentLegacy = core.channels.message(dmId, 'source')!.attachments![1]!;
+    expect(currentLegacy.fileId).toMatch(/^file:/);
+    expect(
+      database.read(
+        (db) =>
+          db
+            .prepare('SELECT payload_json FROM source_events WHERE source_event_id = ?')
+            .get(sourceEventId)?.payload_json,
+      ),
+    ).toBe(JSON.stringify(envelope));
     core.runtime.admitDmMessage({
       channelId: dmId,
       messageId: 'source',
@@ -110,13 +141,13 @@ async function fixture(check: (f: Fixture) => Promise<void>, recipients = 0) {
 }
 
 describe('trusted Orchestrator attachment forwarding', () => {
-  it('forwards both four-field identities from old and compact reads and acknowledges committed default/explicit targets', async () => {
+  it('forwards current four-field references from retained legacy history and old/compact reads with committed default/explicit targets', async () => {
     await fixture(async (f) => {
       const compact = JSON.parse(String(await call(f.tools, 'channel_read', {})));
       const references = compact.messages.find(
         (view: { message: { id: string } }) => view.message.id === 'source',
       ).message.attachments;
-      expect(references).toEqual([f.image, f.legacy]);
+      expect(references).toEqual([f.image, f.currentLegacy]);
       expect(JSON.stringify(compact)).not.toContain(f.core.attachments.rootDir);
       const old = f.core.channels.message(f.dmId, 'source')!.attachments!;
       const defaultAck = await send(f, {
@@ -159,6 +190,7 @@ describe('trusted Orchestrator attachment forwarding', () => {
       const stale = await f.core.attachments.upload({ data: chunks(), name: 'removed.png' });
       rmSync(f.core.attachments.fileTarget(stale.fileId!).path);
       const invalid = [
+        [f.legacy],
         [foreign],
         [stale],
         [{ ...f.image, fileId: 'file:' + randomUUID() }],

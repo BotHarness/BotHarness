@@ -1706,7 +1706,7 @@ class DshBotAgentAdapter implements BotAgentAdapter {
             attachments: {
               type: 'array',
               description:
-                'At most 10 trusted references. Copy all four fields unchanged: fileId (or legacy hash), name, mime, size; never guess them. Exactly one identity per reference. Size is a safe nonnegative integer byte count (0–9007199254740991).',
+                'At most 10 trusted references: copy fileId, name, mime, size unchanged; never guess them. New sends require fileId; if an old read has hash, refresh its owning message with channel_read first. Size is a safe nonnegative integer byte count (0–9007199254740991).',
               items: {
                 type: 'object',
                 additionalProperties: false,
