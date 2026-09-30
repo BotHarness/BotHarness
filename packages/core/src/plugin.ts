@@ -249,9 +249,11 @@ export function createCore(
   const sourcePolicy = createBotSourcePolicyStore(
     attachOperationalModule(operationalDatabase, 'bot-inbox'),
   );
-  let autoAcceptGroupInvitations = options.autoAcceptGroupInvitations ?? (() => true);
+  const initialGroupInvitationPolicy = options.autoAcceptGroupInvitations ?? (() => true);
+  const groupInvitationPolicies: { policy: () => boolean }[] = [];
   const channels = createSqliteChannelStore({
-    autoAcceptGroupInvitations: () => autoAcceptGroupInvitations(),
+    autoAcceptGroupInvitations: () =>
+      (groupInvitationPolicies.at(-1)?.policy ?? initialGroupInvitationPolicy)(),
     database: attachOperationalModule(operationalDatabase, 'messaging'),
     sourcePolicy,
     databaseOwnerReady: operationalDatabase.mode === 'ready',
@@ -371,10 +373,11 @@ export function createCore(
     registry,
     modelPresets,
     configureGroupInvitations: (autoAccept) => {
-      const previous = autoAcceptGroupInvitations;
-      autoAcceptGroupInvitations = autoAccept;
+      const registration = { policy: autoAccept };
+      groupInvitationPolicies.push(registration);
       return () => {
-        if (autoAcceptGroupInvitations === autoAccept) autoAcceptGroupInvitations = previous;
+        const index = groupInvitationPolicies.indexOf(registration);
+        if (index !== -1) groupInvitationPolicies.splice(index, 1);
       };
     },
     contributeBotAgentSetup,

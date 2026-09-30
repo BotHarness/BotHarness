@@ -157,6 +157,67 @@ describe('Group invitation auto-accept', () => {
     }
   });
 
+  it('reuses the latest accepted invitation after leaving and rejoining', async () => {
+    const core = createCore({ dshHome: createTempRoot('botharness-rejoin-invite-') });
+    try {
+      core.registry.create({ slug: 'bea', displayName: 'Bea' });
+      const bot = core.registry.get('bea')!;
+      const dm = core.channels.getOrCreateDm('bea', 'Bea')!;
+      const group = core.channels.createGroup({ name: 'Rejoin', members: [] });
+      const invite = () =>
+        core.channels.inviteGroupBot({
+          channelId: group.id,
+          inviterHuman: true,
+          targetBotSlug: 'bea',
+          targetBotCreatedAt: bot.createdAt,
+          targetDmChannelId: dm.id,
+        });
+      const first = invite();
+      core.channels.removeGroupMember(group.id, 'bea', 'left');
+      const second = invite();
+      expect(second.id).not.toBe(first.id);
+      expect(invite().id).toBe(second.id);
+      expect(core.channels.get(group.id)?.invitations).toHaveLength(2);
+    } finally {
+      await close(core);
+    }
+  });
+
+  it.each([false, true])(
+    'disposes registrations independently with identical callback = %s',
+    async (sameCallback) => {
+      const core = createCore({
+        dshHome: createTempRoot('botharness-policy-disposal-'),
+        autoAcceptGroupInvitations: () => true,
+      });
+      const firstPolicy = () => false;
+      const first = core.configureGroupInvitations(firstPolicy);
+      const second = core.configureGroupInvitations(sameCallback ? firstPolicy : () => false);
+      try {
+        for (const slug of ['bea', 'cee']) core.registry.create({ slug, displayName: slug });
+        const group = core.channels.createGroup({ name: 'Disposal', members: [] });
+        first();
+        expect(
+          bridge(core).channelGroupInvite({ channelId: group.id, botSlug: 'bea' }),
+        ).toMatchObject({
+          ok: true,
+          value: { channel: { members: [], invitations: [{ status: 'pending' }] } },
+        });
+        second();
+        expect(
+          bridge(core).channelGroupInvite({ channelId: group.id, botSlug: 'cee' }),
+        ).toMatchObject({
+          ok: true,
+          value: { channel: { members: ['cee'] } },
+        });
+      } finally {
+        first();
+        second();
+        await close(core);
+      }
+    },
+  );
+
   it('settles a decline before any turn, so redelivery and restart cannot wake it', async () => {
     const home = createTempRoot('botharness-declined-invite-');
     const runs: string[] = [];

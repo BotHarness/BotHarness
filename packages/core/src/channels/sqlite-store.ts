@@ -862,7 +862,7 @@ export function createSqliteChannelStore(options: SqliteChannelStoreOptions): Ch
         targetDm.botSlug !== input.targetBotSlug
       )
         throw new Error('Group invite target is unavailable or already a member');
-      const existing = channel.invitations?.find(
+      const existing = channel.invitations?.findLast(
         (item) =>
           item.targetBotSlug === input.targetBotSlug &&
           item.targetBotCreatedAt === input.targetBotCreatedAt &&
